@@ -257,6 +257,35 @@ def _resolve_anchor(
     return anchor.name, hit
 
 
+def fiscal_month_for(conn: sqlite3.Connection, today: date) -> tuple[int, int]:
+    """Return the ``(year, month)`` of the cycle whose paycheck most recently landed.
+
+    Defined per ADR-0064: the Plan / Today / Overview surfaces default their
+    landing month to the month of ``last_anchor_date`` so a user still inside
+    the previous cycle (today is before the next scheduled anchor) sees the
+    budget for the cycle they are actually in.
+
+    Falls back to ``(today.year, today.month)`` when the anchor is unset or
+    when no promoted anchor-category transaction exists on-or-before today —
+    mirroring the ADR-0041 fallback used inside ``_resolve_period_start``.
+    """
+    anchor_category = preferences_svc.resolve_income_anchor_category(conn)
+    if anchor_category is None:
+        return today.year, today.month
+    rows = transactions_repo.list_filtered(
+        conn,
+        TransactionFilter(
+            date_to=today,
+            category_ids=(anchor_category.id,),
+            directions=(Direction.INCOME,),
+        ),
+    )
+    if not rows:
+        return today.year, today.month
+    last_anchor_date = max(row.operation_date for row in rows)
+    return last_anchor_date.year, last_anchor_date.month
+
+
 def _resolve_period_start(
     conn: sqlite3.Connection,
     today: date,
@@ -486,6 +515,7 @@ __all__ = [
     "YearlyCell",
     "YearlyRow",
     "committed_in_window",
+    "fiscal_month_for",
     "month_summary",
     "prev_year_month",
     "resolve_budget",

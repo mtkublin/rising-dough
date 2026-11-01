@@ -223,7 +223,8 @@ def home(
     contract.
     """
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
-    year, month = today.year, today.month
+    # Fiscal cycle (ADR-0064) — see /today for the canonical surface.
+    year, month = budget_service.fiscal_month_for(conn, today)
     base_ccy = settings.base_currency
 
     account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, base_ccy)

@@ -639,13 +639,18 @@ def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
 def _current_month_budget_totals(
     conn: sqlite3.Connection,
     today: dt.date,
+    *,
+    fiscal_year: int | None = None,
+    fiscal_month: int | None = None,
 ) -> budget_svc.MonthTotals | None:
-    """Return ``month_summary(today).totals`` or ``None`` if no live categories.
+    """Return ``month_summary(fiscal).totals`` or ``None`` if no live categories.
 
-    Reuses the Budget page math so the Forecast table's current-month row
-    stays in lockstep with Budget + Overview (ADR-0039 + ADR-0041).
+    Reuses the Budget page math so the Forecast table's current-row stays
+    in lockstep with Budget + Overview (ADR-0039 + ADR-0041 + ADR-0064).
     """
-    summary = budget_svc.month_summary(conn, today.year, today.month, today=today)
+    y = fiscal_year if fiscal_year is not None else today.year
+    m = fiscal_month if fiscal_month is not None else today.month
+    summary = budget_svc.month_summary(conn, y, m, today=today)
     return summary.totals
 
 
@@ -653,6 +658,8 @@ def _planned_budget_per_month(
     conn: sqlite3.Connection,
     today: dt.date,
     horizon_months: int,
+    *,
+    start_month: dt.date | None = None,
 ) -> dict[dt.date, int]:
     """Return per-month **remaining** budget, clamped at zero.
 
@@ -680,9 +687,10 @@ def _planned_budget_per_month(
         for c in categories_repo.list_all(conn, include_deleted=False)
         if c.direction is Direction.EXPENSE
     ]
+    anchor_month = start_month if start_month is not None else today.replace(day=1)
     out: dict[dt.date, int] = {}
     for offset in range(horizon_months):
-        month = _month_offset(today, offset)
+        month = _month_offset(anchor_month, offset)
         month_end = _last_day_of_month(month)
         window_start = max(today + dt.timedelta(days=1), month)
         total = 0
@@ -793,23 +801,32 @@ def forecast_monthly(
     if horizon_months < 1:
         raise ValueError(f"horizon_months must be >= 1, got {horizon_months}")
 
-    start_month = today.replace(day=1)
-    last_month = _month_offset(today, horizon_months - 1)
+    # Start the series at the fiscal cycle, not the calendar month, so the
+    # "current" row of the Forecast table lines up with the Plan hub's
+    # landing month (ADR-0064). Falls back to the calendar month when no
+    # anchor is configured.
+    fiscal_year, fiscal_month = budget_svc.fiscal_month_for(conn, today)
+    start_month = dt.date(fiscal_year, fiscal_month, 1)
+    last_month = _month_offset(start_month, horizon_months - 1)
     end_date = _last_day_of_month(last_month)
-    horizon_days = (end_date - today).days
+    horizon_days = max((end_date - today).days, 0)
     series = forecast(conn, http, today, horizon_days, base_currency)
 
-    planned_budget_by_month = _planned_budget_per_month(conn, today, horizon_months)
+    planned_budget_by_month = _planned_budget_per_month(
+        conn, today, horizon_months, start_month=start_month
+    )
 
     active_accounts = tuple(accounts_repo.list_all(conn))
     if not active_accounts:
         months_empty = tuple(
             MonthlyPoint(
-                month=_month_offset(today, offset),
+                month=_month_offset(start_month, offset),
                 income_base_minor=0,
                 expense_base_minor=0,
-                planned_budget_base_minor=planned_budget_by_month[_month_offset(today, offset)],
-                net_base_minor=-planned_budget_by_month[_month_offset(today, offset)],
+                planned_budget_base_minor=planned_budget_by_month[
+                    _month_offset(start_month, offset)
+                ],
+                net_base_minor=-planned_budget_by_month[_month_offset(start_month, offset)],
                 end_balance_base_minor=0,
             )
             for offset in range(horizon_months)
@@ -841,14 +858,36 @@ def forecast_monthly(
     for d in series.days:
         eom_by_month[d.on_date.replace(day=1)] = d.totals_base_minor
 
-    current_month = today.replace(day=1)
-    current_month_totals = _current_month_budget_totals(conn, today)
+    # Fill in end-of-month balances for any fiscal month that is already
+    # fully in the past (today > month_end). The daily projection only
+    # covers [today, end_date], so past months need a historical lookup
+    # via ``balance.derive_balance(as_of_date=month_end)``.
+    from budget_planner.services import balance as _balance_svc  # noqa: PLC0415
+
+    for offset in range(horizon_months):
+        month = _month_offset(start_month, offset)
+        if month in eom_by_month:
+            continue
+        month_end = _last_day_of_month(month)
+        if month_end >= today:
+            continue
+        total_base = 0
+        for acc in active_accounts:
+            native = _balance_svc.derive_balance(conn, acc.id, as_of_date=month_end)
+            total_base += _convert_native_to_base(native, acc.currency, base_currency, fx_rates)
+        eom_by_month[month] = total_base
+
+    fiscal_month_start = start_month
+    current_month_totals = _current_month_budget_totals(
+        conn, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
+    )
 
     rows: list[MonthlyPoint] = []
     for offset in range(horizon_months):
-        month = _month_offset(today, offset)
+        month = _month_offset(start_month, offset)
         income, expense = flows.get(month, (0, 0))
-        if month == current_month and current_month_totals is not None:
+        is_fiscal_row = month == fiscal_month_start
+        if is_fiscal_row and current_month_totals is not None:
             # Current fiscal period reuses services.budget.month_summary so the
             # Forecast table lines up with the Budget page + Overview panel.
             expense = current_month_totals.committed_minor

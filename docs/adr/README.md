@@ -66,3 +66,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0061 | [v3 Multi-User — Admin Bootstrap, User Admin Panel, Per-User Data Isolation](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) (supersedes ADR-0005; amends ADR-0033, ADR-0022, ADR-0019) |
 | 0062 | [Recurring Override Overlay — Align With Plan/Budget `rd-override` Card](0062-recurring-override-overlay-alignment.md) (amends ADR-0031, ADR-0030) |
 | 0063 | [Recurring Rules — User-Facing Stop Date](0063-recurring-stop-date.md) (amends ADR-0038) |
+| 0064 | [Plan / Today / Overview Default Landing Month Follows the Fiscal Cycle](0064-plan-default-fiscal-month.md) (amends ADR-0041; surfaces F4.6) |

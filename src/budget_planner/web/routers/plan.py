@@ -73,7 +73,11 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
 ) -> HTMLResponse:
     tab_norm: PlanTab = tab if tab in _VALID else "budget"
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    year, month = today_d.year, today_d.month
+    # Default landing month = fiscal cycle (ADR-0064). Falls back to the
+    # calendar month when the anchor is unset or no promoted anchor-category
+    # transaction exists on-or-before today.
+    fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, today_d)
+    year, month = fiscal_year, fiscal_month
     base_ccy = settings.base_currency
 
     # Budget + Analytics are month-scoped; allow ?year=&month= overrides so
@@ -84,9 +88,9 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             month = int(request.query_params.get("month", month))
             year = int(request.query_params.get("year", year))
         except ValueError:
-            year, month = today_d.year, today_d.month
+            year, month = fiscal_year, fiscal_month
         if not (1 <= month <= _MONTHS_IN_YEAR):
-            year, month = today_d.year, today_d.month
+            year, month = fiscal_year, fiscal_month
 
     def _shift_month(y: int, m: int, delta: int) -> tuple[int, int]:
         total = y * _MONTHS_IN_YEAR + (m - 1) + delta
@@ -114,15 +118,17 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
         from budget_planner.repositories import recurring as _rec_repo  # noqa: PLC0415
         from budget_planner.services import preferences as _prefs  # noqa: PLC0415
 
-        is_current = (year, month) == (today_d.year, today_d.month)
+        # "Current" means the fiscal cycle anchored in (year, month)
+        # contains today (ADR-0064). On the active cycle, keep anchor-window
+        # math honest — spent runs from last_anchor_date through today. On
+        # any other month, clamp spent to that calendar month (V.32).
+        is_current = (year, month) == (fiscal_year, fiscal_month)
         if is_current:
             ref = today_d
             window_override: tuple[Any, Any] | None = None
         else:
             ref_last = _cal.monthrange(year, month)[1]
             ref = today_d.replace(year=year, month=month, day=min(today_d.day, ref_last))
-            # Cap spent-txn window to the selected calendar month so the
-            # Actual column reflects that month only (V.32).
             window_override = (
                 today_d.replace(year=year, month=month, day=1),
                 today_d.replace(year=year, month=month, day=ref_last),

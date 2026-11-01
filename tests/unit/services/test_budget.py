@@ -668,3 +668,60 @@ def test_budgeted_remaining_formula_consistency(
     spent_total = sum(line.spent_minor for line in s.lines if line.budgeted_minor is not None)
     assert s.totals.budgeted_minor == budgeted_total
     assert s.totals.spent_minor == spent_total
+
+
+# ---------------------------------------------------------------------------
+# ADR-0064 — fiscal_month_for: landing month follows the paycheck cycle
+# ---------------------------------------------------------------------------
+def test_fiscal_month_for_returns_last_anchor_month(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    """Last promoted anchor on Jan 25 + today Feb 2 → (2026, 1)."""
+    _bind_anchor(conn, seed["salary"])
+    assert bs.fiscal_month_for(conn, date(2026, 2, 2)) == (2026, 1)
+
+
+def test_fiscal_month_for_no_anchor_falls_back_to_calendar_month(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    """No anchor preference → calendar month."""
+    assert bs.fiscal_month_for(conn, date(2026, 11, 1)) == (2026, 11)
+
+
+def test_fiscal_month_for_no_prior_anchor_txn_falls_back(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    """Anchor configured but no promoted anchor txn on-or-before today → calendar month."""
+    _bind_anchor(conn, seed["salary"])
+    # Seed's salary txn is Jan 25 2026. Query for a date before it.
+    assert bs.fiscal_month_for(conn, date(2026, 1, 1)) == (2026, 1)
+
+
+def test_fiscal_month_for_picks_latest_of_multiple_anchors(conn: sqlite3.Connection) -> None:
+    """Two promoted anchor txns → month of the most recent on-or-before today."""
+    checking = accounts.create(
+        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+    ).id
+    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    _bind_anchor(conn, salary)
+    transactions.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 10, 7),
+            category_id=salary,
+            account_id=checking,
+            amount=1_000_000,
+        ),
+    )
+    transactions.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 9, 4),
+            category_id=salary,
+            account_id=checking,
+            amount=1_000_000,
+        ),
+    )
+    assert bs.fiscal_month_for(conn, date(2026, 11, 1)) == (2026, 10)
+    # Today pinned before Oct 7 → previous (Sep) anchor wins.
+    assert bs.fiscal_month_for(conn, date(2026, 10, 6)) == (2026, 9)

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-01
+- **Plan / Today / Overview default to the fiscal month (ADR-0064)**: Landing month on
+  `/plan`, `/today`, `/`, and `/budget` now derives from the fiscal cycle — month of
+  `last_anchor_date` (ADR-0041) — instead of today's calendar month. Fixes the
+  Nov-budget-vs-Oct-7-spent mismatch observed on the first days of a calendar month
+  before that month's anchor paycheck has landed. Plan · Forecast table + chart also
+  shift their start month to the fiscal cycle; historical EOM balance for the
+  fiscal-month row is derived from `balance.derive_balance(as_of_date=month_end)`.
+  New helper `budget_service.fiscal_month_for(conn, today)` is the single source of
+  truth. Falls back to the calendar month when the anchor is unset or no promoted
+  anchor-category transaction exists on-or-before today. `docs/requirements.md` grows
+  **F4.6a**.
+
 ## 2026-10-30
 - **Recurring stop date — surfaced as a first-class user-facing field (ADR-0063)**:
   New ADR [0063](adr/0063-recurring-stop-date.md) amends ADR-0038 by promoting the existing `recurring_rules.end_date` column into a user-exposed form field with validation + termination edges. `docs/requirements.md` §2.3b grows **F3.2a** describing the inclusive-stop semantics, inline `>= start_date` validation, create/update deactivation edges, and the Upcoming filter.

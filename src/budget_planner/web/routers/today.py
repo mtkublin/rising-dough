@@ -39,7 +39,10 @@ def today(
     settings: Settings = Depends(get_settings_dep),
 ) -> HTMLResponse:
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    year, month = today_d.year, today_d.month
+    # Fiscal cycle anchors the landing month so the hero never pulls a
+    # future-cycle budget while spent is still on the previous paycheck
+    # (ADR-0064).
+    year, month = budget_service.fiscal_month_for(conn, today_d)
     base_ccy = settings.base_currency
 
     account_rows, totals_by_ccy, fortune_base = home_router._collect_account_rows(conn, base_ccy)

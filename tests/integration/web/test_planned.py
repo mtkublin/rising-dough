@@ -232,7 +232,11 @@ def test_export_csv(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_export_parquet(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get("/planned/export?format=parquet")
+    # Explicit date window — ctx creates a planned on 2026-10-15 and the
+    # default window is "current calendar month" (services.planned.
+    # _default_window), which drops the fixture row once today rolls past
+    # Oct 2026.
+    r = client.get("/planned/export?format=parquet&date_from=2026-10-01&date_to=2026-10-31")
     assert r.status_code == 200
     tbl = pq.read_table(io.BytesIO(r.content))
     assert tbl.num_rows >= 1

@@ -75,11 +75,13 @@ _MONTH_LABELS: tuple[str, ...] = (
 )
 
 
-def _year_month(request: Request) -> tuple[int, int]:
+def _year_month(request: Request, conn: sqlite3.Connection) -> tuple[int, int]:
+    """Default landing month = fiscal cycle (ADR-0064); overridable via query."""
     q = request.query_params
     today = date.today()  # noqa: DTZ011
-    year = int(q.get("year", today.year))
-    month = int(q.get("month", today.month))
+    fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, today)
+    year = int(q.get("year", fiscal_year))
+    month = int(q.get("month", fiscal_month))
     return year, month
 
 
@@ -119,7 +121,7 @@ def _render_index(
     conn: sqlite3.Connection,
     settings: Settings,
 ) -> HTMLResponse:
-    year, month = _year_month(request)
+    year, month = _year_month(request, conn)
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()
     summary = budget_service.month_summary(conn, year, month, today=today)
     rules = _rules_rows(conn)
