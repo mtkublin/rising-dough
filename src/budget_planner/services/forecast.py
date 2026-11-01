@@ -854,35 +854,18 @@ def forecast_monthly(
         base_currency=base_currency,
     )
 
-    eom_by_month: dict[dt.date, int] = {}
-    for d in series.days:
-        eom_by_month[d.on_date.replace(day=1)] = d.totals_base_minor
-
-    # Fill in end-of-month balances for any fiscal month that is already
-    # fully in the past (today > month_end). The daily projection only
-    # covers [today, end_date], so past months need a historical lookup
-    # via ``balance.derive_balance(as_of_date=month_end)``.
-    from budget_planner.services import balance as _balance_svc  # noqa: PLC0415
-
-    for offset in range(horizon_months):
-        month = _month_offset(start_month, offset)
-        if month in eom_by_month:
-            continue
-        month_end = _last_day_of_month(month)
-        if month_end >= today:
-            continue
-        total_base = 0
-        for acc in active_accounts:
-            native = _balance_svc.derive_balance(conn, acc.id, as_of_date=month_end)
-            total_base += _convert_native_to_base(native, acc.currency, base_currency, fx_rates)
-        eom_by_month[month] = total_base
-
     fiscal_month_start = start_month
     current_month_totals = _current_month_budget_totals(
         conn, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
     )
 
-    current_net_worth = series.days[0].totals_base_minor
+    # EOM is a running chain anchored at today's net worth, so each row
+    # answers "what will my balance be at the end of this row's period
+    # given the plan it displays?". The identity previous_EOM + Net = EOM
+    # is the user-visible contract — mixing daily-projection EOM for
+    # non-fiscal rows with current+Net for the fiscal row broke that
+    # contract across the fiscal/calendar seam.
+    running_balance = series.days[0].totals_base_minor
     rows: list[MonthlyPoint] = []
     for offset in range(horizon_months):
         month = _month_offset(start_month, offset)
@@ -896,12 +879,7 @@ def forecast_monthly(
         else:
             planned_budget = planned_budget_by_month[month]
         net = income - expense - planned_budget
-        # Fiscal row's EOM must line up with its own Income/Expense/Planned
-        # columns, which are scoped to the fiscal cycle [today, next_income).
-        # Deriving EOM from a historical calendar month_end (when today has
-        # already crossed into the next calendar month) or from a calendar
-        # month_end daily projection breaks that relationship.
-        end_balance = current_net_worth + net if is_fiscal_row else eom_by_month.get(month, 0)
+        running_balance += net
         rows.append(
             MonthlyPoint(
                 month=month,
@@ -909,7 +887,7 @@ def forecast_monthly(
                 expense_base_minor=expense,
                 planned_budget_base_minor=planned_budget,
                 net_base_minor=net,
-                end_balance_base_minor=end_balance,
+                end_balance_base_minor=running_balance,
             )
         )
 

@@ -1,20 +1,26 @@
 # Changelog
 
 ## 2026-11-01
-- **Fix: Plan/Forecast fiscal-row EOM reconciles with current net worth +
-  Net (ADR-0043, ADR-0064)**: when today has crossed into the next
-  calendar month but the fiscal cycle is still open (e.g. anchor paid Oct
-  25, today Nov 1, next income Nov 7), the fiscal row's calendar
-  month-end sits in the past. `forecast_monthly` was reading EOM from a
-  historical `derive_balance(as_of=month_end)` lookup, which captured
-  yesterday's balance (`Oct 31`) rather than the projected end-of-fiscal
-  balance. Users saw Net = −2001 PLN paired with EOM = 51,103.60 PLN
-  while Accounts/Today agreed on 50,747.73 PLN. Expected: 48,746 PLN
-  (current + Net). Fix anchors the fiscal row's EOM to
-  `series.days[0].totals_base_minor + net` so the Expenses, Planned
-  budget, Net, and EOM columns are always internally consistent for the
-  fiscal row. Non-fiscal rows are unchanged. Covered by
-  `tests/unit/services/test_forecast_monthly.py::test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary`.
+- **Fix: Plan/Forecast EOM is a running chain anchored at current net worth
+  (ADR-0043, ADR-0064)**: `forecast_monthly` previously computed EOM for
+  the fiscal row from a historical `derive_balance(as_of=month_end)`
+  lookup when today had crossed into the next calendar month (e.g. anchor
+  paid Oct 25, today Nov 1, next income Nov 7), and for every other row
+  from the daily projection at calendar month-end with the ADR-0042
+  budget overlay. The two methods disagreed across the fiscal/calendar
+  seam: user saw Oct Net = −2001 PLN + EOM = 51,103.60 PLN alongside Nov
+  Net = +1548 PLN + EOM = 52,295.79 PLN while current net worth was
+  50,747.73 PLN — neither row satisfied `prev_EOM + Net = EOM`. Fix
+  replaces both EOM derivations with a single running chain:
+  `EOM_0 = current_net_worth + Net_0`,
+  `EOM_N = EOM_{N-1} + Net_N`. The user-visible identity now holds for
+  every row and matches the sum of each row's displayed Income / Expense
+  / Planned budget columns. The daily projection + budget overlay in
+  `forecast()` is unchanged — it still powers the daily chart and the
+  per-day Today views. Covered by
+  `tests/unit/services/test_forecast_monthly.py::test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary`
+  and
+  `tests/unit/services/test_forecast_monthly.py::test_eom_chain_each_row_equals_prev_eom_plus_net`.
 - **Fix: Today · Upcoming surfaces formula amount + ƒ icon (ADR-0047)**:
   `services.upcoming._recurring_item` was reading `rule.default_amount`
   verbatim and never evaluating `rule.amount_formula`, so a formula-only

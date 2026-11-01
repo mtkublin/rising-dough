@@ -466,3 +466,39 @@ def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
     current_net_worth = daily.days[0].totals_base_minor
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert oct_row.end_balance_base_minor == current_net_worth + oct_row.net_base_minor
+
+
+def test_eom_chain_each_row_equals_prev_eom_plus_net(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """EOM is a running chain: EOM_N = EOM_{N-1} + Net_N anchored at current.
+
+    Regression guard against future refactors that reintroduce a mix of
+    daily-projection EOMs and chain-anchored EOMs across the fiscal /
+    calendar boundary — the symptom was the fiscal row showing
+    current+Net but the next row ignoring that anchor and jumping back
+    to a daily projection, so the user-visible gap re-appeared on the
+    row after the fiscal row.
+    """
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10),
+            category_id=world["groceries"],
+            account_id=world["a1"],
+            amount=30_000,
+            description="nov groceries",
+        ),
+    )
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+    with _dead_client() as http:
+        daily = forecast_svc.forecast(conn, http, TODAY, 0, "PLN")
+    prev = daily.days[0].totals_base_minor
+    for row in monthly.months:
+        assert row.end_balance_base_minor == prev + row.net_base_minor, (
+            f"chain broken at {row.month}: expected {prev + row.net_base_minor}, "
+            f"got {row.end_balance_base_minor}"
+        )
+        prev = row.end_balance_base_minor
