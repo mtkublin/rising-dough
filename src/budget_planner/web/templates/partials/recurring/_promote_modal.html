@@ -31,7 +31,9 @@
             <p class="form-note" role="status">Override applied for this occurrence.</p>
           {% endif %}
           {% if rule.end_date and rule.next_due == rule.end_date %}
-            <p class="form-note" role="status" data-last-occurrence>Last occurrence — rule deactivates after promote.</p>
+            <p class="form-note"
+               role="status"
+               data-last-occurrence>Last occurrence — rule deactivates after promote.</p>
           {% endif %}
           <label>
             Date
