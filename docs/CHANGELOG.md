@@ -1,6 +1,14 @@
 # Changelog
 
 ## 2026-11-01
+- **Fix: Today · Can-I-afford baseline aligns with fiscal month (ADR-0064)**:
+  `services.today.afford` was still resolving the summary via
+  `today.year, today.month`, so when today sat before the current calendar
+  month's anchor the baseline was pulled from the empty new-cycle budget while
+  the Today hero's "Left per day" came from the still-active fiscal cycle. The
+  delta looked right (afford-local), but "→ per day becomes" diverged from the
+  hero figure. `afford` now routes through `budget_service.fiscal_month_for`.
+  Regression covered in `tests/unit/services/test_today_afford.py`.
 - **Plan / Today / Overview default to the fiscal month (ADR-0064)**: Landing month on
   `/plan`, `/today`, `/`, and `/budget` now derives from the fiscal cycle — month of
   `last_anchor_date` (ADR-0041) — instead of today's calendar month. Fixes the

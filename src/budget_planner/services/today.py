@@ -87,7 +87,11 @@ def afford(
     if amount_minor < 0:
         raise ValueError("amount_minor must be non-negative")
 
-    summary = budget_service.month_summary(conn, today.year, today.month, today=today)
+    # ADR-0064: resolve fiscal month so the baseline matches the Today hero's
+    # left-per-day. Using today.year/today.month pulls the wrong cycle when
+    # today falls before the current calendar month's anchor paycheck.
+    year, month = budget_service.fiscal_month_for(conn, today)
+    summary = budget_service.month_summary(conn, year, month, today=today)
     days_left = max(summary.days_until_next_income, 1)
     remaining_minor = max(summary.totals.remaining_minor, 0)
     baseline_per_day = _div_round_half_even(remaining_minor, days_left)

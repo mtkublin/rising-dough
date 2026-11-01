@@ -18,7 +18,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import today as today_svc
+from budget_planner.services import preferences as preferences_svc, today as today_svc
 
 
 def _seed_budget(conn: sqlite3.Connection) -> dict[str, int]:
@@ -113,3 +113,45 @@ class TestAfford:
         # Any today should produce days_left >= 1 (floor).
         result = today_svc.afford(conn, date(2026, 1, 31), 0)
         assert result.days_left >= 1
+
+    def test_baseline_follows_fiscal_month_before_current_month_anchor(
+        self,
+        conn: sqlite3.Connection,
+    ) -> None:
+        # ADR-0064: baseline must match the Today hero, which uses the fiscal
+        # cycle. When today falls on Feb 2 but the Feb paycheck has not landed
+        # yet, the fiscal month is January — so the January budget/spent must
+        # drive the per-day figure, not an empty February.
+        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        expense = categories_repo.create(
+            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        )
+        income = categories_repo.create(
+            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+        )
+        preferences_svc.set_income_anchor_category_id(conn, 1, income.id)
+        transactions_repo.create(
+            conn,
+            NewTransaction(
+                operation_date=date(2026, 1, 5),
+                category_id=income.id,
+                account_id=acc.id,
+                amount=100_000,
+                description="",
+            ),
+        )
+        budgets_repo.set_default(conn, NewBudgetDefault(category_id=expense.id, amount=30_000))
+        transactions_repo.create(
+            conn,
+            NewTransaction(
+                operation_date=date(2026, 1, 20),
+                category_id=expense.id,
+                account_id=acc.id,
+                amount=10_000,
+                description="",
+            ),
+        )
+        # Today = Feb 2; no February anchor landed → fiscal month = January.
+        baseline = today_svc.afford(conn, date(2026, 2, 2), 0)
+        # January remaining = 30000 - 10000 = 20000 (non-zero) → per_day > 0.
+        assert baseline.per_day_minor > 0
