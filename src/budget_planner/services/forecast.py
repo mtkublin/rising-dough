@@ -882,6 +882,7 @@ def forecast_monthly(
         conn, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
     )
 
+    current_net_worth = series.days[0].totals_base_minor
     rows: list[MonthlyPoint] = []
     for offset in range(horizon_months):
         month = _month_offset(start_month, offset)
@@ -894,14 +895,21 @@ def forecast_monthly(
             planned_budget = max(current_month_totals.remaining_minor, 0)
         else:
             planned_budget = planned_budget_by_month[month]
+        net = income - expense - planned_budget
+        # Fiscal row's EOM must line up with its own Income/Expense/Planned
+        # columns, which are scoped to the fiscal cycle [today, next_income).
+        # Deriving EOM from a historical calendar month_end (when today has
+        # already crossed into the next calendar month) or from a calendar
+        # month_end daily projection breaks that relationship.
+        end_balance = current_net_worth + net if is_fiscal_row else eom_by_month.get(month, 0)
         rows.append(
             MonthlyPoint(
                 month=month,
                 income_base_minor=income,
                 expense_base_minor=expense,
                 planned_budget_base_minor=planned_budget,
-                net_base_minor=income - expense - planned_budget,
-                end_balance_base_minor=eom_by_month.get(month, 0),
+                net_base_minor=net,
+                end_balance_base_minor=end_balance,
             )
         )
 

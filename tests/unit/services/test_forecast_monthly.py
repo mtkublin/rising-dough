@@ -16,14 +16,18 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
 from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts,
     budgets as budgets_repo,
     categories,
     fx as fx_repo,
     planned,
+    preferences as preferences_repo,
     recurring,
+    transactions as transactions_repo,
 )
 from budget_planner.services import budget as budget_svc, forecast as forecast_svc
 
@@ -424,3 +428,41 @@ def test_current_month_eom_absorbs_remaining_budget_overlay(
     pre_eom = pre_overlay.days[-1].totals_base_minor
     assert oct_row.end_balance_base_minor == pre_eom - 100_000
     assert oct_row.planned_budget_base_minor == 100_000
+
+
+def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Regression: fiscal row EOM must reconcile with its own Net column.
+
+    When today has crossed into the next calendar month but the fiscal cycle
+    (anchored on the previous paycheck) is still open, the fiscal row's
+    calendar-month end is in the past. Deriving EOM from a historical
+    month-end balance leaves the row with an EOM that cannot be reconciled
+    with its Expenses + Planned budget columns (see docs/CHANGELOG issue:
+    "Accounts/Today net worth vs. Plan/Forecast EOM mismatch").
+
+    The fix anchors EOM to ``current_net_worth + net`` for the fiscal row so
+    the user-visible identity ``current + Net = EOM`` always holds.
+    """
+    # Anchor on salary; promoted paycheck on Oct 25 so fiscal_month_for(Nov 1)
+    # returns (2026, 10).
+    preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(world["salary"]))
+    transactions_repo.create(
+        conn,
+        NewTransaction(
+            operation_date=date(2026, 10, 25),
+            category_id=world["salary"],
+            account_id=world["a1"],
+            amount=500_000,
+        ),
+    )
+    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    today = date(2026, 11, 1)
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, http, today, 1, "PLN")
+    with _dead_client() as http:
+        daily = forecast_svc.forecast(conn, http, today, 0, "PLN")
+    current_net_worth = daily.days[0].totals_base_minor
+    oct_row = _row_for(monthly, date(2026, 10, 1))
+    assert oct_row.end_balance_base_minor == current_net_worth + oct_row.net_base_minor

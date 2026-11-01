@@ -1,6 +1,20 @@
 # Changelog
 
 ## 2026-11-01
+- **Fix: Plan/Forecast fiscal-row EOM reconciles with current net worth +
+  Net (ADR-0043, ADR-0064)**: when today has crossed into the next
+  calendar month but the fiscal cycle is still open (e.g. anchor paid Oct
+  25, today Nov 1, next income Nov 7), the fiscal row's calendar
+  month-end sits in the past. `forecast_monthly` was reading EOM from a
+  historical `derive_balance(as_of=month_end)` lookup, which captured
+  yesterday's balance (`Oct 31`) rather than the projected end-of-fiscal
+  balance. Users saw Net = −2001 PLN paired with EOM = 51,103.60 PLN
+  while Accounts/Today agreed on 50,747.73 PLN. Expected: 48,746 PLN
+  (current + Net). Fix anchors the fiscal row's EOM to
+  `series.days[0].totals_base_minor + net` so the Expenses, Planned
+  budget, Net, and EOM columns are always internally consistent for the
+  fiscal row. Non-fiscal rows are unchanged. Covered by
+  `tests/unit/services/test_forecast_monthly.py::test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary`.
 - **Fix: Today · Upcoming surfaces formula amount + ƒ icon (ADR-0047)**:
   `services.upcoming._recurring_item` was reading `rule.default_amount`
   verbatim and never evaluating `rule.amount_formula`, so a formula-only
