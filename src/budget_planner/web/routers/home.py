@@ -93,6 +93,7 @@ class UpcomingRow:
     planned_id: int | None
     rule_id: int | None
     override_present: bool
+    is_formula: bool
     category_id: int
     account_id: int
     dest_account_id: int | None
@@ -201,6 +202,7 @@ def _list_upcoming(
             planned_id=item.planned_id,
             rule_id=item.rule_id,
             override_present=item.override_present,
+            is_formula=item.is_formula,
             category_id=item.category_id,
             account_id=item.account_id,
             dest_account_id=item.dest_account_id,

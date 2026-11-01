@@ -29,6 +29,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
 )
+from budget_planner.services.recurring_formula import resolve_rule_amount
 
 UpcomingKind = Literal["planned", "recurring"]
 
@@ -50,6 +51,7 @@ class UpcomingItem:
     # recurring-only fields:
     rule_id: int | None
     override_present: bool
+    is_formula: bool
 
 
 def _planned_item(row: PlannedTransaction, today: dt.date) -> UpcomingItem:
@@ -65,31 +67,39 @@ def _planned_item(row: PlannedTransaction, today: dt.date) -> UpcomingItem:
         planned_id=row.id,
         rule_id=None,
         override_present=False,
+        is_formula=False,
     )
 
 
 def _recurring_item(
+    conn: sqlite3.Connection,
     rule: RecurringRule,
     override: RecurringOverride | None,
 ) -> UpcomingItem | None:
     """Project an active recurring rule's ``next_due`` into an UpcomingItem.
 
     Returns ``None`` when the override on ``next_due`` is ``SKIPPED``.
+    Formula rules recompute their amount from the current source-rule
+    state for the effective date's month (ADR-0047); overrides on the
+    amount still win when present.
     """
     if override is not None and override.state is OverrideState.SKIPPED:
         return None
-    amount = rule.default_amount
     description = rule.default_description
     effective = rule.next_due
     override_present = False
+    amount_override: int | None = None
     if override is not None and override.state is OverrideState.OVERRIDDEN:
         override_present = True
-        if override.amount_override is not None:
-            amount = override.amount_override
+        amount_override = override.amount_override
         if override.description_override is not None:
             description = override.description_override
         if override.date_override is not None:
             effective = override.date_override
+    if amount_override is not None:
+        amount = amount_override
+    else:
+        amount = resolve_rule_amount(conn, rule, effective)
     return UpcomingItem(
         kind="recurring",
         effective_date=effective,
@@ -102,6 +112,7 @@ def _recurring_item(
         planned_id=None,
         rule_id=rule.id,
         override_present=override_present,
+        is_formula=rule.amount_formula is not None,
     )
 
 
@@ -147,7 +158,7 @@ def list_upcoming(
         if rule.end_date is not None and rule.next_due > rule.end_date:
             continue
         override = _override_for_next_due(conn, rule)
-        projected = _recurring_item(rule, override)
+        projected = _recurring_item(conn, rule, override)
         if projected is None:
             continue
         if forward_limit is not None and projected.effective_date > forward_limit:

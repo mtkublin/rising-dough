@@ -1,6 +1,20 @@
 # Changelog
 
 ## 2026-11-01
+- **Fix: Today · Upcoming surfaces formula amount + ƒ icon (ADR-0047)**:
+  `services.upcoming._recurring_item` was reading `rule.default_amount`
+  verbatim and never evaluating `rule.amount_formula`, so a formula-only
+  rule (e.g. "unit8 wypłata VAT" = 23% of salary) rendered as 0 on
+  `/today`'s Upcoming panel. The ƒ pill was also keyed off
+  `override_present` instead of "is this rule formula-driven", so rules
+  with a next-due override but no formula wore the icon while real
+  formula rules did not. `UpcomingItem` + `UpcomingRow` grow an
+  `is_formula` field; the recurring projector now calls
+  `recurring_formula.resolve_rule_amount(conn, rule, effective_date)`
+  with override precedence preserved (ADR-0038). Today's
+  `_upcoming.html` keys the ƒ pill on `row.is_formula`. Ledger
+  (`view=recurring`) was already correct and is unaffected. Covered by
+  three new cases in `tests/unit/services/test_upcoming.py`.
 - **Fix: Today · Can-I-afford baseline aligns with fiscal month (ADR-0064)**:
   `services.today.afford` was still resolving the summary via
   `today.year, today.month`, so when today sat before the current calendar

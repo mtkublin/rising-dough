@@ -28,7 +28,7 @@
       <span class="rd-upcoming__desc">
         <span class="rd-upcoming__name">{{ row.description }}</span>
         {% if acc %}<span class="mut rd-upcoming__acct">· {{ acc.name }}</span>{% endif %}
-        {% if row.override_present %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
+        {% if row.is_formula %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
       </span>
       <span class="rd-upcoming__cat">
         {% if cat %}

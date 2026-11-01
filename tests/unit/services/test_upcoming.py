@@ -19,6 +19,8 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import (
+    AmountFormula,
+    FormulaTerm,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
@@ -33,7 +35,15 @@ def ids(conn: sqlite3.Connection) -> dict[str, int]:
     checking = accounts.create(conn, NewAccount(name="Checking", currency="PLN")).id
     rent_cat = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
     food_cat = categories.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE)).id
-    return {"checking": checking, "rent": rent_cat, "food": food_cat}
+    salary_cat = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    vat_cat = categories.create(conn, NewCategory(name="VAT", direction=Direction.EXPENSE)).id
+    return {
+        "checking": checking,
+        "rent": rent_cat,
+        "food": food_cat,
+        "salary": salary_cat,
+        "vat": vat_cat,
+    }
 
 
 def _rule_with_next_due(
@@ -379,3 +389,122 @@ def test_active_rule_at_end_date_included(conn: sqlite3.Connection, ids: dict[st
     items = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
     assert len(items) == 1
     assert items[0].effective_date == dt.date(2026, 5, 20)
+
+
+# ---------------------------------------------------------------------------
+# formula-derived recurring amount (ADR-0047) — surfaces on Today Upcoming
+# ---------------------------------------------------------------------------
+def test_recurring_formula_amount_resolved(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
+    """Formula rule's upcoming row reflects the computed value, not default_amount."""
+    today = dt.date(2026, 5, 10)
+    _rule_with_next_due(
+        conn,
+        start_date=dt.date(2026, 5, 20),
+        next_due=dt.date(2026, 5, 20),
+        category_id=ids["salary"],
+        account_id=ids["checking"],
+        amount=10_000_00,
+        description="salary",
+    )
+    formula = AmountFormula(
+        terms=(FormulaTerm(sign="+", coefficient_bps=2300, source_category_ids=(ids["salary"],)),)
+    )
+    vat_rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=dt.date(2026, 5, 20),
+            category_id=ids["vat"],
+            account_id=ids["checking"],
+            default_amount=0,
+            default_description="salary VAT",
+            amount_formula=formula,
+        ),
+    )
+    vat_rule = recurring.update_rule(
+        conn, vat_rule.id, PatchRecurringRule(next_due=dt.date(2026, 5, 20))
+    )
+    items = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
+    vat_item = next(i for i in items if i.rule_id == vat_rule.id)
+    assert vat_item.amount_minor == 230_000  # 23% of 10_000.00 = 2_300.00
+    assert vat_item.is_formula is True
+    assert vat_item.override_present is False
+
+
+def test_recurring_non_formula_has_is_formula_false(
+    conn: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    today = dt.date(2026, 5, 10)
+    _rule_with_next_due(
+        conn,
+        start_date=dt.date(2026, 5, 20),
+        next_due=dt.date(2026, 5, 20),
+        category_id=ids["rent"],
+        account_id=ids["checking"],
+    )
+    (item,) = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
+    assert item.is_formula is False
+
+
+def test_planned_is_formula_false(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
+    today = dt.date(2026, 5, 10)
+    planned.create(
+        conn,
+        NewPlannedTransaction(
+            operation_date=dt.date(2026, 5, 15),
+            category_id=ids["food"],
+            account_id=ids["checking"],
+            amount=5_000,
+            description="groceries",
+        ),
+    )
+    (item,) = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
+    assert item.is_formula is False
+
+
+def test_formula_rule_with_amount_override_prefers_override(
+    conn: sqlite3.Connection, ids: dict[str, int]
+) -> None:
+    """Override on next_due still wins over the formula result (ADR-0038 precedence)."""
+    today = dt.date(2026, 5, 10)
+    _rule_with_next_due(
+        conn,
+        start_date=dt.date(2026, 5, 20),
+        next_due=dt.date(2026, 5, 20),
+        category_id=ids["salary"],
+        account_id=ids["checking"],
+        amount=10_000_00,
+        description="salary",
+    )
+    formula = AmountFormula(
+        terms=(FormulaTerm(sign="+", coefficient_bps=2300, source_category_ids=(ids["salary"],)),)
+    )
+    vat_rule = recurring.create_rule(
+        conn,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=dt.date(2026, 5, 20),
+            category_id=ids["vat"],
+            account_id=ids["checking"],
+            default_amount=0,
+            default_description="salary VAT",
+            amount_formula=formula,
+        ),
+    )
+    vat_rule = recurring.update_rule(
+        conn, vat_rule.id, PatchRecurringRule(next_due=dt.date(2026, 5, 20))
+    )
+    recurring.upsert_override(
+        conn,
+        NewRecurringOverride(
+            rule_id=vat_rule.id,
+            occurrence_date=dt.date(2026, 5, 20),
+            state=OverrideState.OVERRIDDEN,
+            amount_override=999_00,
+        ),
+    )
+    items = upcoming_svc.list_upcoming(conn, today=today, window_days=30)
+    vat_item = next(i for i in items if i.rule_id == vat_rule.id)
+    assert vat_item.amount_minor == 999_00
+    assert vat_item.is_formula is True
+    assert vat_item.override_present is True
