@@ -21,8 +21,8 @@ def _settings() -> Settings:
     return Settings(_env_file=None)
 
 
-def test_healthz_returns_ok(client: TestClient) -> None:
-    r = client.get("/healthz")
+def test_health_returns_ok(client: TestClient) -> None:
+    r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
     assert "version" in r.json()
@@ -111,18 +111,18 @@ def test_create_app_respects_settings() -> None:
     app = create_app(settings=cfg)
     assert app.state.settings.base_currency == "EUR"
     with TestClient(app) as c:
-        r = c.get("/healthz")
+        r = c.get("/health")
         assert r.status_code == 200
 
 
 def test_host_defaults_to_loopback() -> None:
     cfg = Settings(_env_file=None)
-    assert cfg.host == "127.0.0.1"
+    assert cfg.bind_host == "127.0.0.1"
 
 
 def test_host_rejects_public_bind() -> None:
     with pytest.raises(ValueError, match="loopback"):
-        Settings(_env_file=None, host="0.0.0.0")  # noqa: S104 — asserting we reject it
+        Settings(_env_file=None, bind_host="0.0.0.0")  # noqa: S104 — asserting we reject it
 
 
 def test_direction_badge_renders_all_variants() -> None:

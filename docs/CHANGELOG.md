@@ -24,6 +24,32 @@
   `docker` ecosystems (Monday 06:00 Europe/Warsaw, 5-PR cap each).
   Python deps stay on `uv.lock` + `pip-audit`.
 
+## 2026-11-02 (v3 Phase 1 — foundation bundle)
+- **T-D01**: new `/health` + `/ready` endpoints replace the inline
+  `/healthz`. `/ready` 503s when `PRAGMA integrity_check` is anything
+  other than `ok`. Health router is registered first so it stays
+  outside any future auth middleware (ADR-0033 §5).
+- **T-D03**: production config surface — `env`, `bind_host` /
+  `bind_port` rename, `trusted_hosts` CSV, `cookie_secret` (required
+  in production), `session_lifetime_days` (1..90). `.env.example` and
+  README updated; a root `tests/conftest.py` pins `BUDGET_ENV=test`
+  so the dev-fallback warning does not poison pytest.
+- **T-D04**: `database_url` defaults to `sqlite:////data/budget.db`
+  under `env="production"`. New `_assert_production_pragmas` raises
+  on startup if `PRAGMA wal_autocheckpoint != 0` (ADR-0034 §2).
+- **T-D05**: centralised the four Litestream PRAGMAs in
+  `db/connection.py::_apply_pragmas`. Module docstring now flags
+  bypassing `get_connection` as a bug.
+- **T-D06**: `structlog`-based JSON logging in `budget_planner.logging`
+  bound to a per-request `request_id` contextvar. `RequestIdMiddleware`
+  binds/clears the id around every request.
+- **T-D12**: `just install` uses `uv sync --frozen --group dev`; new
+  `.github/workflows/lock-check.yml` runs `uv lock --check` on PRs.
+- **T-D15**: `create_app` body is now an `@asynccontextmanager`
+  lifespan. Startup logs `event="lifespan_startup"`, closes app-scoped
+  sqlite connections on shutdown, and emits `event="sigterm_received"`
+  via a stdlib SIGTERM observer that chains uvicorn's handler.
+
 ## 2026-11-02
 - **Feat: T-D10 · Multi-stage, non-root Dockerfile (ADR-0032 §2, ADR-0034)**:
   Rising Dough v3 ships to Scaleway Stardust as an OCI image pulled from

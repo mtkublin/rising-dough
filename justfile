@@ -6,9 +6,11 @@ set dotenv-load := true
 
 # --- environment -----------------------------------------------------------
 
-# Install runtime + dev deps, sync lockfile, install pre-commit hooks + Node dev toolchain.
+# Install runtime + dev deps from the pinned uv.lock, install pre-commit
+# hooks + Node dev toolchain. `--frozen` fails if the lock drifts from
+# pyproject.toml so local installs mirror CI exactly (T-D12).
 install:
-    uv sync --group dev
+    uv sync --frozen --group dev
     uv run pre-commit install --install-hooks
     npm ci
 

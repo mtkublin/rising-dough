@@ -10,7 +10,7 @@
 
 Owner: application code. All tasks block Phase 2.
 
-### ◻ T-D01 [P] Health & readiness endpoints
+### ✅ T-D01 [P] Health & readiness endpoints
 - `GET /health` → 200 iff process is up. No DB, no auth.
 - `GET /ready` → 200 iff `PRAGMA integrity_check` returns `ok` on `/data/budget.db`; 503 otherwise. No auth.
 - Mounted outside the auth middleware (ADR-0033 §5).
@@ -25,23 +25,23 @@ Owner: application code. All tasks block Phase 2.
 - `/auth/*` responses never leak whether a user exists (generic error on login failure).
 - File: `phase-1-prerequisites/T-D02-auth-webauthn.md`. Reference: ADR-0033 (as amended by ADR-0061).
 
-### ◻ T-D03 [P] Config surface for production → T-D04
+### ✅ T-D03 [P] Config surface for production → T-D04
 - `pydantic-settings` fields added: `bind_host` (default `127.0.0.1`), `bind_port` (default `8000`), `trusted_hosts` (list), `cookie_secret`, `session_lifetime_days`.
 - `.env.example` updated; `src/budget_planner/config.py` validates presence of non-defaulted secrets at startup.
 - File: `phase-1-prerequisites/T-D03-config-surface.md`.
 
-### ◻ T-D04 [P] Litestream-friendly DB config
+### ✅ T-D04 [P] Litestream-friendly DB config
 - `database_path` → `/data/budget.db` in production (env-overridable, default stays dev-local).
 - Startup assertion: `PRAGMA wal_autocheckpoint;` returns `0` when `BUDGET_PLANNER_ENV=production`.
 - File: `phase-1-prerequisites/T-D04-db-config.md`. Reference: ADR-0034.
 
-### ◻ T-D05 [S] SQLite PRAGMAs for Litestream (blocks T-D23)
+### ✅ T-D05 [S] SQLite PRAGMAs for Litestream (blocks T-D23)
 - Centralise in `src/budget_planner/db/connection.py` the four PRAGMAs: `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000`.
 - Document in module docstring that bypassing this helper is a bug.
 - New unit test asserts each PRAGMA on a fresh connection.
 - File: `phase-1-prerequisites/T-D05-sqlite-pragmas.md`. Reference: ADR-0034 §2.
 
-### ◻ T-D06 [P] Structured JSON logging + request ID
+### ✅ T-D06 [P] Structured JSON logging + request ID
 - `structlog`-based config in `src/budget_planner/logging.py`.
 - Request-ID middleware generates/reads `X-Request-ID`; all log lines include it.
 - `uvicorn` access log replaced with JSON formatter.
@@ -76,7 +76,7 @@ Owner: application code. All tasks block Phase 2.
 - `just test-prod-stack` recipe boots the stack, waits for `/ready`, runs a smoke Playwright journey, tears down.
 - File: `phase-1-prerequisites/T-D11-docker-compose.md`. Reference: ADR-0032 §2, ADR-0034.
 
-### ◻ T-D12 [P] Reproducible dependency lock
+### ✅ T-D12 [P] Reproducible dependency lock
 - `uv.lock` committed. `just install` uses `--frozen`.
 - CI verifies lock file is up to date.
 - File: `phase-1-prerequisites/T-D12-reproducible-lock.md`.
@@ -92,7 +92,7 @@ Owner: application code. All tasks block Phase 2.
 - All mutation call sites updated.
 - File: `phase-1-prerequisites/T-D14-audit-request-ctx.md`. Reference: ADR-0019.
 
-### ◻ T-D15 [P] Graceful shutdown handling → T-D11
+### ✅ T-D15 [P] Graceful shutdown handling → T-D11
 - SIGTERM handler flushes any in-flight DB connection, closes the FastAPI lifespan cleanly, and exits with code 0 so Litestream has its 30 s to flush WAL (ADR-0034 §6).
 - Integration test sends SIGTERM to a subprocess and asserts clean exit.
 - File: `phase-1-prerequisites/T-D15-graceful-shutdown.md`.
