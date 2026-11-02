@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars (gitignored) and fill in before `terraform apply`.
+# See terraform/README.md for the full secret flow.
+
+env                      = "prod"
+admin_email              = "operator@example.com"
+scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
+scaleway_organization_id = "00000000-0000-0000-0000-000000000000"
+scaleway_region          = "pl-waw"
+scaleway_zone            = "pl-waw-1"
+
+domain           = "example.com"
+subdomain_prod   = "budget"
+managed_dns_zone = false
+
+app_image_tag = "main"
+github_owner  = "example-owner"
+
+operator_ssh_pubkey  = "ssh-ed25519 AAAA... operator@laptop"
+github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
+
+# ghcr_pull_pat = "ghp_..."

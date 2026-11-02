@@ -1,0 +1,48 @@
+output "admin_initial_password" {
+  description = "One-time admin bootstrap password (ADR-0061 §3). Capture into a password manager and discard — not reconciled on subsequent applies."
+  value       = random_password.admin_initial_password.result
+  sensitive   = true
+}
+
+output "cookie_secret" {
+  description = "Session cookie signing secret rendered into the compose env."
+  value       = random_password.cookie_secret.result
+  sensitive   = true
+}
+
+output "vm_ipv4" {
+  description = "Public IPv4 address of the application VM."
+  value       = module.compute.vm_ipv4
+}
+
+output "vm_ipv6" {
+  description = "Public IPv6 address of the application VM."
+  value       = module.compute.vm_ipv6
+}
+
+output "bucket_name" {
+  description = "Durability bucket name (Litestream target)."
+  value       = module.storage.bucket_name
+}
+
+output "bucket_endpoint" {
+  description = "S3-compatible endpoint for the durability bucket."
+  value       = module.storage.endpoint_url
+}
+
+output "fqdn" {
+  description = "Fully-qualified hostname the app answers on."
+  value       = local.fqdn
+}
+
+output "scw_access_key" {
+  description = "IAM access key scoped to the durability bucket. Used by Litestream only."
+  value       = module.iam.access_key
+  sensitive   = true
+}
+
+output "scw_secret_key" {
+  description = "IAM secret key scoped to the durability bucket."
+  value       = module.iam.secret_key
+  sensitive   = true
+}
