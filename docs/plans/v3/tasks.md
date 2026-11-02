@@ -30,7 +30,7 @@ Owner: application code. All tasks block Phase 2.
 - `.env.example` updated; `src/budget_planner/config.py` validates presence of non-defaulted secrets at startup.
 - File: `phase-1-prerequisites/T-D03-config-surface.md`.
 
-### ◻ T-D04 [P] Litestream-friendly DB config
+### ✅ T-D04 [P] Litestream-friendly DB config
 - `database_path` → `/data/budget.db` in production (env-overridable, default stays dev-local).
 - Startup assertion: `PRAGMA wal_autocheckpoint;` returns `0` when `BUDGET_PLANNER_ENV=production`.
 - File: `phase-1-prerequisites/T-D04-db-config.md`. Reference: ADR-0034.

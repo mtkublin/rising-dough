@@ -11,17 +11,24 @@ exception handlers (see `web.errors`).
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
+from budget_planner.db.connection import get_connection
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.rendering import render
 from budget_planner.web.templating import build_jinja_env
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
+    from contextlib import AbstractAsyncContextManager
 
 _HOME_ROUTER_NAME = "home"
 
@@ -45,6 +52,46 @@ def _configure_logging() -> None:
     root.setLevel(logging.INFO)
 
 
+def _assert_production_pragmas(cfg: Settings) -> None:
+    """ADR-0034 §2: in production, every writer must honour
+    ``wal_autocheckpoint = 0``. Fail fast if the DB has drifted away
+    from that invariant (e.g. a stray `sqlite3.connect(...)` elsewhere
+    silently flipped it back on, or an operator restored a non-Litestream
+    DB).
+
+    No-op in dev / test. Opens a short-lived connection so we touch the
+    actual DB file, not just the config.
+    """
+    if cfg.env != "production":
+        return
+    conn = get_connection(cfg)
+    try:
+        row = conn.execute("PRAGMA wal_autocheckpoint;").fetchone()
+    finally:
+        conn.close()
+    value = row[0] if row is not None else None
+    if value != 0:
+        raise RuntimeError(
+            "wal_autocheckpoint must be 0 in production (ADR-0034 §2); "
+            f"got {value!r}. Check the connection factory and any ad-hoc writers."
+        )
+
+
+def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    """Build a lifespan context manager bound to the given settings.
+
+    Shutdown is handled fully in T-D15 — the stub here keeps the surface
+    small so T-D04 can land independently.
+    """
+
+    @asynccontextmanager
+    async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        _assert_production_pragmas(cfg)
+        yield
+
+    return _lifespan
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
     _configure_logging()
@@ -53,6 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         docs_url="/docs",
         redoc_url=None,
+        lifespan=_make_lifespan(cfg),
     )
     app.state.settings = cfg
     app.state.jinja_env = build_jinja_env(cfg)

@@ -74,7 +74,7 @@ def test_today_upcoming_row_tint_overdue_due_future(
     assert due.select_one(".rd-upcoming__badge") is None
 
     future = by_desc["Future bill"]
-    classes = future.get("class") or []
+    classes: list[str] = future.get("class") or []  # type: ignore[assignment]
     assert "rd-upcoming__row--overdue" not in classes
     assert "rd-upcoming__row--due" not in classes
     assert future.select_one(".rd-upcoming__badge") is None
