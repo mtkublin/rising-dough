@@ -68,6 +68,9 @@ node_modules/
 # Visual-audit artifacts
 /tmp-fe-audit/
 
+# scripts/dump_schema.sh scratch dirs (regeneration workspace)
+.schema_dump.*/
+
 # Local-only scratch dir (research, drafts, non-tracked artifacts)
 /local/
 

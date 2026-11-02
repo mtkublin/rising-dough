@@ -145,13 +145,15 @@ def test_patch_flip_asset_to_liability_without_limit_allowed(conn: sqlite3.Conne
 
 def test_hydrate_is_liability_zero_as_false(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT OR IGNORE INTO users(id, name) VALUES (1, 'default')")
+    # Migration 0012 (ADR-0061) dropped the `DEFAULT 1` sentinel; raw SQL
+    # paths must declare `user_id` explicitly.
     conn.execute(
-        "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
-        "VALUES ('F', 'PLN', 0, NULL)"
+        "INSERT INTO accounts(user_id, name, currency, is_liability, credit_limit_minor) "
+        "VALUES (1, 'F', 'PLN', 0, NULL)"
     )
     conn.execute(
-        "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
-        "VALUES ('T', 'PLN', 1, 500000)"
+        "INSERT INTO accounts(user_id, name, currency, is_liability, credit_limit_minor) "
+        "VALUES (1, 'T', 'PLN', 1, 500000)"
     )
     f = accounts.find_by_name(conn, "F")
     t = accounts.find_by_name(conn, "T")

@@ -114,6 +114,26 @@
   (first drill apply), T-D26 (teardown), T-D27 (prod apply) remain
   human-gated and are not touched here. T-D32 will finalise the
   `deploy-budget-planner` script after the compose template stabilises.
+- **Feat: T-D16a — multi-user migration `0012_multi_user.sql` (ADR-0061)**:
+  Lands the schema shift that activates ADR-0061's multi-user model. `users`
+  grows `email`, `password_hash`, `is_admin`, `must_change_password`,
+  `updated_at`, and `deleted_at`, plus a case-insensitive unique index
+  `ux_users_email_live` on `lower(email)` for live rows. Every user-owned
+  table (`accounts`, `categories`, `transactions`, `planned_transactions`,
+  `recurring_rules`, `budget_defaults`, `budget_recurring_overrides`,
+  `budget_one_off_overrides`, `user_preferences`) is rebuilt via SQLite's
+  12-step pattern to drop the `DEFAULT 1` sentinel on `user_id`; new rows
+  must declare the owning user explicitly. `audit_log` grows a nullable
+  `actor_user_id` column so admin actions carry the acting user id.
+  Pre-existing `user_id = 1` data carries forward as the bootstrapped
+  admin's own history (T-D19 promotes the row at first boot). Companion
+  down migration (`migrations/down/0012_multi_user_down.sql`) is
+  forward-smoke-only. Snapshot generator `scripts/dump_schema.sh` writes
+  `tests/fixtures/v2_schema_snapshot.sql` deterministically. Runner
+  registers 0012 in `FK_OFF_MIGRATIONS` so `PRAGMA foreign_keys` is OFF for
+  the cross-referencing rebuild. Covered by
+  `tests/integration/db/test_migrations.py::test_0012_applies_to_v2_snapshot`
+  and `::test_0012_down_reverses`.
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
