@@ -71,6 +71,27 @@
   and returns the usage line + non-zero exit for anything else
   (satisfying the ADR-0037 §3 `ssh deploy@<host> "ls /"` acceptance
   check). All third-party GitHub Actions are pinned by 40-hex SHA.
+- **Docs: T-D46 operational runbook stubs (deploy, rollback, restore, DR,
+  user-admin) + `restore-log.md` append-only drill log; `.github/dependabot.yml`
+  for weekly `github-actions` + `docker` updates**: Phase 4 was missing the
+  operational layer that lets a human (or an automation) actually run prod.
+  New runbooks under `docs/plans/v3/runbooks/` follow a uniform shape
+  (Context · Preconditions · Procedure · Verification · Troubleshooting ·
+  Rollback) and reference the pipeline artifacts (`.github/workflows/{build,
+  deploy,rollback}.yml`, `/usr/local/bin/deploy-budget-planner`) and the
+  ADRs that pinned them: ADR-0032 (Scaleway topology), ADR-0034 (Litestream
+  restore procedure + 30-day retention), ADR-0036 (Caddy TLS), ADR-0037
+  (SSH-restricted deploy user + cosign). The `disaster-recovery.md` runbook
+  additionally codifies the "lost all admins" recovery path (ADR-0061 §3):
+  set `BUDGET_PLANNER_ADMIN_EMAIL`, rotate `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`
+  via `terraform apply -replace=random_password.admin_initial_password`,
+  redeploy the app container so the lifespan bootstrap hook re-runs, and
+  capture the sensitive output. `user-admin.md` documents the admin surface
+  (`/settings/users`) end-to-end — add/reset/remove/promote/demote — plus the
+  last-admin invariant and the ADR-0061 data-isolation guarantee that the
+  admin cannot read other users' rows via the UI. `.github/dependabot.yml`
+  schedules weekly updates in Europe/Warsaw for both ecosystems with the
+  `chore(deps)` prefix so the commit stream stays categorised.
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
