@@ -64,7 +64,7 @@ Owner: application code. All tasks block Phase 2.
 - Integration test fires the limit and asserts the 429.
 - File: `phase-1-prerequisites/T-D09-auth-rate-limit.md`.
 
-### ◻ T-D10 [P] Dockerfile (multi-stage, non-root)
+### ✅ T-D10 [P] Dockerfile (multi-stage, non-root)
 - Base `python:3.12-slim-bookworm`; `uv sync --frozen` in build stage; `COPY --from=builder` to final.
 - `USER app` (uid 10001) in final.
 - `HEALTHCHECK` hitting `/health`.

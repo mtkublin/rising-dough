@@ -1,6 +1,27 @@
 # Changelog
 
 ## 2026-11-02
+- **Feat: T-D10 · Multi-stage, non-root Dockerfile (ADR-0032 §2, ADR-0034)**:
+  Rising Dough v3 ships to Scaleway Stardust as an OCI image pulled from
+  GHCR, but the repo had no `Dockerfile` yet. Added a two-stage build:
+  `builder` (`python:3.12-slim-bookworm` + `uv sync --frozen --no-dev
+  --no-install-project --compile-bytecode` into `/app/.venv`) and
+  `runtime` (`python:3.12-slim-bookworm` with only `curl` +
+  `ca-certificates`, apt lists cleaned, dedicated `app` uid/gid 10001
+  with `/usr/sbin/nologin`, venv copied from the builder, `src/` and
+  `migrations/` copied with `--chown=app:app`, `/data` pre-created mode
+  0700 owned by `app` per ADR-0034, `EXPOSE 8000`, container
+  `HEALTHCHECK` curling `/health`, and `uvicorn ... --proxy-headers
+  --forwarded-allow-ips=*` as `CMD`). Shipped `.dockerignore` excluding
+  `tests/`, `docs/`, `local/`, `.claude/`, `data/`, `.git/`, `.github/`,
+  `.venv/`, `node_modules/`, `terraform/`, `*.sqlite*`, Python/mypy/ruff
+  caches, `.env*` (keeping `.env.example`), and OS/editor noise — build
+  context shrank to ~17 KB. Added `just docker-build` recipe. Local
+  validation: `docker build -t rising-dough:dev .` succeeds; `docker run
+  --rm --entrypoint id rising-dough:dev` reports `uid=10001(app)
+  gid=10001(app)`; final image is 505 MB; `curl` present, `uv` absent,
+  `/var/lib/apt/lists` empty, `/data` mode `drwx------` owned by `app`.
+  Task spec at `docs/plans/v3/phase-1-prerequisites/T-D10-dockerfile.md`.
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
