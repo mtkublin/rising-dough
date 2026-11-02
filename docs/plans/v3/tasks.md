@@ -239,7 +239,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Append dated row to `docs/plans/v3/runbooks/restore-log.md`.
 - File: `phase-4-validation/T-D40-first-restore-drill.md`. Reference: ADR-0034 §5.
 
-### ◻ T-D41 [S] Monthly automated restore drill → T-D40
+### ✅ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
 - On failure, opens an issue titled `restore-drill-failure-YYYY-MM`.
 - File: `phase-4-validation/T-D41-monthly-restore-drill.md`.
@@ -263,7 +263,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
-### ◻ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
+### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`
 - `docs/plans/v3/runbooks/rollback.md`
 - `docs/plans/v3/runbooks/restore.md`

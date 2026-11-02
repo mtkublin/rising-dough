@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-02 (phase-4 ops)
+- **Feat(T-D41): Monthly automated restore drill workflow**:
+  `.github/workflows/restore-drill.yml` runs on `cron 0 3 1 * *` plus
+  `workflow_dispatch`. Checks out, installs Terraform + Scaleway CLI,
+  `terraform init -backend-config=envs/drill/backend.hcl` →
+  `apply -auto-approve -var-file=envs/drill/terraform.tfvars`, SSHes the
+  drill host to run `/usr/local/bin/restore-from-prod`, asserts
+  `curl /ready | jq .status == ok` and
+  `sqlite3 /data/budget.db 'PRAGMA integrity_check;' == ok`, destroys on
+  success, opens `restore-drill-failure-YYYY-MM` issue on failure and
+  leaves the host standing for post-mortem (ADR-0034 §5). Third-party
+  actions pinned by SHA (`actions/checkout`, `hashicorp/setup-terraform`,
+  `webfactory/ssh-agent`). Secrets scoped to the `drill` GH environment.
+- **Docs(T-D46): Operational runbooks**:
+  Added `docs/plans/v3/runbooks/{deploy,rollback,restore,disaster-recovery,restore-log,user-admin}.md`
+  and extended the index `README.md`. Each runbook follows the shared
+  Context / Preconditions / Procedure / Verification / Troubleshooting /
+  Rollback shape. `disaster-recovery.md` Path B documents the
+  "lost all admins → demote in SQL + `terraform apply -replace=random_password.admin_initial_password` → re-render compose env" recovery path per ADR-0061 §3. `user-admin.md` covers add / reset / remove / promote / demote plus the last-admin invariant and admin-cannot-see-user-data isolation note (ADR-0061 §1 + §5).
+- **Chore: Dependabot config**:
+  `.github/dependabot.yml` adds weekly updates for `github-actions` and
+  `docker` ecosystems (Monday 06:00 Europe/Warsaw, 5-PR cap each).
+  Python deps stay on `uv.lock` + `pip-audit`.
+
 ## 2026-11-02
 - **Feat: T-D10 · Multi-stage, non-root Dockerfile (ADR-0032 §2, ADR-0034)**:
   Rising Dough v3 ships to Scaleway Stardust as an OCI image pulled from
