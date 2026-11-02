@@ -92,7 +92,7 @@ Owner: application code. All tasks block Phase 2.
 - All mutation call sites updated.
 - File: `phase-1-prerequisites/T-D14-audit-request-ctx.md`. Reference: ADR-0019.
 
-### ◻ T-D15 [P] Graceful shutdown handling → T-D11
+### ✅ T-D15 [P] Graceful shutdown handling → T-D11
 - SIGTERM handler flushes any in-flight DB connection, closes the FastAPI lifespan cleanly, and exits with code 0 so Litestream has its 30 s to flush WAL (ADR-0034 §6).
 - Integration test sends SIGTERM to a subprocess and asserts clean exit.
 - File: `phase-1-prerequisites/T-D15-graceful-shutdown.md`.

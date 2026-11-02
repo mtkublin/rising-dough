@@ -10,6 +10,8 @@ exception handlers (see `web.errors`).
 
 from __future__ import annotations
 
+import signal
+import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
-from budget_planner.logging import configure as _configure_logging
+from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.rendering import render
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
 _HOME_ROUTER_NAME = "home"
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_SIGTERM_INSTALLED = False
 
 
 def _assert_production_pragmas(cfg: Settings) -> None:
@@ -60,17 +63,82 @@ def _assert_production_pragmas(cfg: Settings) -> None:
         )
 
 
-def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
-    """Build a lifespan context manager bound to the given settings.
+def _install_sigterm_observer() -> None:
+    """Register a cheap SIGTERM observer that logs
+    ``event="sigterm_received"`` via structlog.
 
-    Shutdown is handled fully in T-D15 — the stub here keeps the surface
-    small so T-D04 can land independently.
+    Uvicorn installs its own asyncio-level SIGTERM handler at server
+    startup — the handler flips ``should_exit`` and drives the drain.
+    We register a stdlib ``signal.signal`` handler **before** uvicorn's
+    server loop replaces it, snapshot the previous handler, and chain
+    it so uvicorn's drain still happens. In practice uvicorn's handler
+    wins the slot once its server starts; our handler fires once (if
+    at all) during the import / lifespan-startup window. That is
+    enough to attribute a VM restart to SIGTERM in ``journalctl``.
+
+    Idempotent across repeated ``create_app`` calls (tests). No-op on
+    platforms without SIGTERM.
     """
+    global _SIGTERM_INSTALLED  # noqa: PLW0603 — module-level idempotence flag
+    if _SIGTERM_INSTALLED:
+        return
+    if not hasattr(signal, "SIGTERM"):
+        return
+
+    log = get_logger("budget_planner.lifespan")
+    previous = signal.getsignal(signal.SIGTERM)
+
+    def _on_sigterm(signum: int, frame: object | None) -> None:
+        log.info("sigterm_received", signum=signum)
+        # Chain the previous handler so uvicorn's drain still runs.
+        if callable(previous):
+            previous(signum, frame)  # type: ignore[arg-type]
+
+    try:
+        signal.signal(signal.SIGTERM, _on_sigterm)
+    except ValueError:
+        # ``signal.signal`` only works on the main thread; TestClient
+        # paths that import the app from a worker thread hit this.
+        return
+    _SIGTERM_INSTALLED = True
+
+
+def _close_app_connections(app: FastAPI) -> None:
+    """Close any sqlite connections parked on ``app.state`` at shutdown.
+
+    v1 does not install a persistent connection; this is future-proofing
+    so growing ``app.state`` with a pool later does not accidentally hold
+    the WAL open past the Litestream drain window.
+    """
+    for attr in dir(app.state):
+        if attr.startswith("_"):
+            continue
+        value = getattr(app.state, attr, None)
+        if isinstance(value, sqlite3.Connection):
+            try:
+                value.close()
+            except sqlite3.Error:  # pragma: no cover — best-effort cleanup
+                continue
+
+
+def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    """Build a lifespan context manager bound to the given settings."""
+
+    log = get_logger("budget_planner.lifespan")
 
     @asynccontextmanager
-    async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         _assert_production_pragmas(cfg)
-        yield
+        _install_sigterm_observer()
+        log.info("lifespan_startup", env=cfg.env)
+        try:
+            yield
+        finally:
+            _close_app_connections(app)
+            # Litestream relies on this drain window: the app has
+            # finished writing, Litestream has `stop_grace_period: 30s`
+            # to flush remaining WAL (ADR-0034 §6).
+            log.info("lifespan_shutdown")
 
     return _lifespan
 
