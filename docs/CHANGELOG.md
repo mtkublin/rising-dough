@@ -1,6 +1,33 @@
 # Changelog
 
 ## 2026-11-02
+- **Feat: v3 Phase 3 deployment pipeline — GitHub Actions + deploy user
+  script (T-D30/T-D31/T-D32/T-D34, ADR-0037)**: added
+  `.github/workflows/build.yml` (buildx + GHCR push with `sha-<short>`,
+  `main`, `vX.Y.Z` tags via `docker/metadata-action`; sibling
+  `cosign-sign` job keyless-signs each pushed tag via GitHub OIDC);
+  `.github/workflows/deploy.yml` (triggers on `workflow_run` build
+  success on `main`; `deploy-drill` runs automatically, `deploy-prod`
+  gated on the GitHub `prod` environment approval; each env SSHes
+  `deploy@<host> "deploy sha-<short>"`, probes `/ready` 12×5s, and
+  SSHes `rollback` on probe failure; posts GitHub Deployment statuses);
+  `.github/workflows/rollback.yml` (`workflow_dispatch` with `env`
+  choice + optional `image_sha`; validates the hex SHA, SSHes
+  `rollback` or `rollback <tag>`, re-probes, posts a deployment status
+  on both success and failure); and
+  `terraform/cloud-init/bin/deploy-budget-planner.tpl` — a bash
+  template consumed by cloud-init that implements the ForceCommand
+  entry point for the restricted `deploy` user. The script parses
+  `SSH_ORIGINAL_COMMAND`, validates `sha-<hex>|vX.Y.Z` tags, atomically
+  rotates `current-tag` / `previous-tag` under `${compose_dir}`,
+  `docker compose pull && up -d`, probes `/ready`, auto-rolls back on
+  failure, supports an explicit `rollback <sha>`, emits a syslog audit
+  line (`logger -t deploy-budget-planner -p auth.info`) per invocation,
+  and returns the usage line + non-zero exit for anything else
+  (satisfying the ADR-0037 §3 `ssh deploy@<host> "ls /"` acceptance
+  check). All third-party GitHub Actions are pinned by 40-hex SHA.
+
+## 2026-11-02
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
