@@ -1,0 +1,20 @@
+# Terraform working files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local overrides and secrets
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# IDE / editor noise
+.idea/
+*.swp
