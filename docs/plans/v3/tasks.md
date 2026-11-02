@@ -76,7 +76,7 @@ Owner: application code. All tasks block Phase 2.
 - `just test-prod-stack` recipe boots the stack, waits for `/ready`, runs a smoke Playwright journey, tears down.
 - File: `phase-1-prerequisites/T-D11-docker-compose.md`. Reference: ADR-0032 §2, ADR-0034.
 
-### ◻ T-D12 [P] Reproducible dependency lock
+### ✅ T-D12 [P] Reproducible dependency lock
 - `uv.lock` committed. `just install` uses `--frozen`.
 - CI verifies lock file is up to date.
 - File: `phase-1-prerequisites/T-D12-reproducible-lock.md`.

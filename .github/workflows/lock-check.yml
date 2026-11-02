@@ -1,0 +1,33 @@
+# T-D12 — verify uv.lock is in sync with pyproject.toml on every PR.
+# Minimal workflow: actions are pinned by SHA for supply-chain safety.
+
+name: Lock check
+
+on:
+  pull_request:
+    branches: [main, v3]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lock-check:
+    name: uv lock --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        # actions/checkout@v4.2.2 → pinned by commit SHA.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install uv
+        # astral-sh/setup-uv@v3.2.4 → pinned by commit SHA.
+        uses: astral-sh/setup-uv@180f8b44399608a850e1db031fa65c77746566d3
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Verify uv.lock is up to date
+        run: uv lock --check
