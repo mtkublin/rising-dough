@@ -202,19 +202,19 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 
 Owner: `.github/workflows/`. All tasks block Phase 4.
 
-### ◻ T-D30 [S] Build workflow (push image, cosign sign) → T-D10
+### ✅ T-D30 [S] Build workflow (push image, cosign sign) → T-D10
 - `.github/workflows/build.yml` builds the image on `main` push, tags `:sha-<short>`, `:main`, and `:vX.Y.Z` on release.
 - cosign signs via GitHub OIDC keyless.
 - Image pushed to `ghcr.io/<owner>/budget-planner`.
 - File: `phase-3-deployment/T-D30-build-workflow.md`. Reference: ADR-0037 §2.
 
-### ◻ T-D31 [S] Deploy workflow (SSH drill) → T-D27, T-D30
+### ✅ T-D31 [S] Deploy workflow (SSH drill) → T-D27, T-D30
 - `.github/workflows/deploy.yml` deploys to drill automatically on `build.yml` success.
 - `prod` deploy requires manual env approval.
 - Posts a GitHub Deployment status.
 - File: `phase-3-deployment/T-D31-deploy-workflow.md`. Reference: ADR-0037 §1, §3.
 
-### ◻ T-D32 [S] Deploy user command restriction + script → T-D23
+### ✅ T-D32 [S] Deploy user command restriction + script → T-D23
 - `/usr/local/bin/deploy-budget-planner` rendered by cloud-init, exact contents per ADR-0037 §3.
 - `deploy` user has `/usr/sbin/nologin` shell + `command=...` restriction in `authorized_keys`.
 - Audit: `ssh deploy@<host> "ls /"` returns the usage line and exits non-zero.
@@ -225,7 +225,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Append the result to `docs/plans/v3/runbooks/rollback.md`.
 - File: `phase-3-deployment/T-D33-rollback-test.md`.
 
-### ◻ T-D34 [S] Manual rollback workflow (`rollback.yml`) → T-D31
+### ✅ T-D34 [S] Manual rollback workflow (`rollback.yml`) → T-D31
 - `.github/workflows/rollback.yml` with `workflow_dispatch`: SSHes `deploy@<host> "rollback"`.
 - One-click rollback without needing a terminal.
 - File: `phase-3-deployment/T-D34-manual-rollback-workflow.md`.
