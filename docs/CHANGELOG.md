@@ -173,6 +173,21 @@
   Third-party actions pinned by 40-hex SHA. `pip-audit` added to
   `pyproject.toml` dev group; `uv.lock` refreshed. Local mirror recipe
   `just security-scan` requires `trivy` on `PATH`.
+- **Feat: T-D11 — docker-compose prod-sim stack (ADR-0032/0034/0036)**:
+  New `docker-compose.yml` at the repo root boots the full remote-deploy
+  topology locally — `app` (built from the T-D10 Dockerfile), `caddy`
+  (reverse proxy with `tls internal` on localhost:443, HSTS + XFO +
+  Referrer-Policy + Permissions-Policy), `litestream` (0.5.0 pinned,
+  replicating `/data/budget.db` to a MinIO bucket), and a `minio`
+  sidecar + one-shot `minio-init` that pre-creates
+  `budget-planner-prodsim`. Config files live under `deploy/`
+  (`litestream.yml`, `Caddyfile`). The new `just test-prod-stack` recipe
+  builds, boots, polls `/ready` through Caddy (5 s × 12 retries), runs a
+  one-liner HTTP smoke probe (the full Playwright journey ships with
+  T-D43), and tears the stack down (`-v`) via `trap EXIT` on success or
+  failure. MinIO dev creds documented in `.env.example` under a
+  prod-sim comment block — hermetic values; never reused in real envs.
+  CSP header is intentionally deferred to T-D07.
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
