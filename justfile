@@ -116,3 +116,10 @@ db-reset:
     rm -f data/budget.sqlite data/budget.sqlite-wal data/budget.sqlite-shm
     just migrate
     just seed
+
+# --- container -------------------------------------------------------------
+
+# Build the production OCI image locally (multi-stage, non-root). See T-D10
+# and ADR-0032 §2 for the image contract. Requires a running Docker daemon.
+docker-build:
+    docker build -t rising-dough:dev .
