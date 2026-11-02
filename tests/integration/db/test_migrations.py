@@ -409,3 +409,90 @@ def test_0012_down_reverses(tmp_path: Path) -> None:
             f"schema drift in {table} after forward+down: "
             f"actual={actual[table]!r} reference={reference[table]!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# T-D14 — migration 0013 adds request-ctx columns to audit_log
+# ---------------------------------------------------------------------------
+
+
+_REQUEST_CTX_COLUMNS: tuple[str, ...] = ("ip", "user_id", "session_id", "user_agent")
+
+
+def test_0013_applies(tmp_path: Path) -> None:
+    """Full forward run through 0013 adds the four request-ctx columns.
+
+    Builds a fresh DB from migrations 0001..0013 via the real runner,
+    then asserts ``audit_log`` carries the new columns in the shape
+    T-D14 promises:
+
+    * every new column is nullable;
+    * ``user_id`` references ``users (id)``;
+    * the other three (``ip``, ``session_id``, ``user_agent``) are plain
+      scalar text/int columns with no FK.
+    """
+    db = tmp_path / "fwd13.sqlite"
+    conn = get_connection(_settings_for(db))
+    try:
+        apply_migrations(conn)
+
+        audit_cols = {
+            r["name"]: dict(r) for r in conn.execute("PRAGMA table_info(audit_log)").fetchall()
+        }
+        for col in _REQUEST_CTX_COLUMNS:
+            assert col in audit_cols, f"audit_log.{col} must exist after 0013"
+            assert audit_cols[col]["notnull"] == 0, (
+                f"audit_log.{col} must be nullable so historical + system rows survive"
+            )
+            assert audit_cols[col]["dflt_value"] is None, (
+                f"audit_log.{col} must have no DEFAULT — writers always supply the value"
+            )
+
+        # user_id → users.id FK edge.
+        user_id_fk = [
+            dict(r)
+            for r in conn.execute("PRAGMA foreign_key_list(audit_log)").fetchall()
+            if r["from"] == "user_id"
+        ]
+        assert len(user_id_fk) == 1, "audit_log.user_id must have exactly one FK edge"
+        assert user_id_fk[0]["table"] == "users"
+        assert user_id_fk[0]["to"] == "id"
+
+        # actor_user_id (added by 0012) must still be present + untouched.
+        assert "actor_user_id" in audit_cols, "0013 must not remove actor_user_id (0012)"
+
+        # A sanity write using the new columns succeeds and reads back.
+        conn.execute("BEGIN")
+        try:
+            conn.execute(
+                "INSERT INTO audit_log("
+                "entity_type, entity_id, operation, prev_json, new_json, "
+                "ip, user_id, session_id, user_agent"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "mig_probe",
+                    1,
+                    "create",
+                    None,
+                    '{"x":1}',
+                    "198.51.100.7",
+                    1,  # seeded user via 0003
+                    "sess-mig-01",
+                    "mig-probe/1.0",
+                ),
+            )
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+
+        row = conn.execute(
+            "SELECT ip, user_id, session_id, user_agent FROM audit_log "
+            "WHERE entity_type = 'mig_probe' LIMIT 1"
+        ).fetchone()
+        assert row["ip"] == "198.51.100.7"
+        assert row["user_id"] == 1
+        assert row["session_id"] == "sess-mig-01"
+        assert row["user_agent"] == "mig-probe/1.0"
+    finally:
+        conn.close()

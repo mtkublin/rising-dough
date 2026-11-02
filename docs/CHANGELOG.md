@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-02 (T-D14 — audit request-ctx plumbing)
+- **Feat(T-D14): `audit_log` carries request-context columns.**
+  Migration `0013_audit_request_ctx.sql` adds four nullable columns to
+  `audit_log` — `ip TEXT`, `user_id INTEGER REFERENCES users (id)`,
+  `session_id TEXT`, `user_agent TEXT` — with the companion
+  `migrations/down/0013_audit_request_ctx_down.sql` for CI reversibility
+  smoke. Historical rows (pre-0013) and system-bootstrap writes carry
+  NULL on every new column by design (ADR-0019).
+- **Feat(T-D14): `RequestCtx` dataclass + `get_request_ctx` dependency.**
+  `src/budget_planner/domain/request_ctx.py` adds a frozen+slots
+  dataclass carrying `ip`, `user_id`, `session_id`, `user_agent` with a
+  `RequestCtx.empty()` sentinel. `src/budget_planner/web/deps.py` adds
+  `get_request_ctx(request)` as a FastAPI dependency that pulls IP from
+  `request.client`, user-agent from the request headers, and the
+  session user + id from `request.state` (populated once T-D02 lands).
+- **Feat(T-D14): `write_audit` accepts `request_ctx` kwarg.**
+  Both the repo-level writer in `_shared.py` and the service-layer
+  shape-checker in `services/audit.py` take `request_ctx: RequestCtx =
+  RequestCtx.empty()` and persist the four new columns. Defaulting to
+  the empty context keeps every existing caller working unchanged
+  until each service is retrofitted to thread a real context through.
+- **Test(T-D14):** `tests/integration/web/test_audit_request_ctx.py`
+  mounts a stub POST route that threads `get_request_ctx` into the
+  repo writer and asserts the resulting `audit_log` row carries
+  `ip` + `user_agent`; two companion tests pin the direct-writer path
+  (every field round-trips) and the default-empty path (every new
+  column lands as NULL). Migration shape pinned in
+  `tests/integration/db/test_migrations.py::test_0013_applies`.
+
 ## 2026-11-02 (phase-4 ops)
 - **Feat(T-D41): Monthly automated restore drill workflow**:
   `.github/workflows/restore-drill.yml` runs on `cron 0 3 1 * *` plus
