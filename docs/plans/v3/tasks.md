@@ -35,7 +35,7 @@ Owner: application code. All tasks block Phase 2.
 - Startup assertion: `PRAGMA wal_autocheckpoint;` returns `0` when `BUDGET_PLANNER_ENV=production`.
 - File: `phase-1-prerequisites/T-D04-db-config.md`. Reference: ADR-0034.
 
-### ◻ T-D05 [S] SQLite PRAGMAs for Litestream (blocks T-D23)
+### ✅ T-D05 [S] SQLite PRAGMAs for Litestream (blocks T-D23)
 - Centralise in `src/budget_planner/db/connection.py` the four PRAGMAs: `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000`.
 - Document in module docstring that bypassing this helper is a bug.
 - New unit test asserts each PRAGMA on a fresh connection.
