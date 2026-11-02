@@ -50,10 +50,14 @@ repos:
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.1.1
     hooks:
+      # Scope to migrations only. tests/fixtures/*.sql is auto-generated
+      # by scripts/dump_schema.sh and must stay byte-for-byte identical to
+      # the SQLite master dump — sqlfluff's cosmetic rewrites would make
+      # it diverge from what the generator writes.
       - id: sqlfluff-lint
-        files: \.sql$
+        files: ^migrations/.*\.sql$
       - id: sqlfluff-fix
-        files: \.sql$
+        files: ^migrations/.*\.sql$
 
   - repo: https://github.com/djlint/djLint
     rev: v1.35.2

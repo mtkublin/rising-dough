@@ -4,9 +4,19 @@ Policy:
 - Migration files are placed in ``migrations/`` and named ``NNNN_slug.sql``.
 - Four-digit, zero-padded, strictly monotonic. No duplicates.
 - Append-only: once applied, a migration's bytes are frozen (sha256 checked).
-- No ``DROP TABLE`` in v1 (not enforced here; enforced by review).
+- No ``DROP TABLE`` in v1 against production data (table rebuilds inside a
+  migration are allowed — the "no DROP" rule guards against destructive
+  one-off cleanups, not against the SQLite 12-step rebuild pattern used by
+  0007, 0008, and 0012).
 - All migrations are applied against an existing connection managed by
   :func:`budget_planner.db.connection.get_connection`.
+- Migrations that rebuild tables with incoming foreign keys must register
+  their version in :data:`FK_OFF_MIGRATIONS` so the runner flips
+  ``PRAGMA foreign_keys`` off for the duration of their SQL body.
+- Companion ``migrations/down/NNNN_<slug>_down.sql`` scripts are
+  forward-smoke-only — they exist to prove the forward migration is
+  structurally reversible under CI, not to roll back production. See
+  ``migrations/down/README.md``.
 
 Public surface:
 - :class:`Migration`
@@ -257,10 +267,14 @@ _POST_APPLY_HOOKS: dict[int, Callable[[sqlite3.Connection], None]] = {
 # incoming foreign keys (ADR-0038 flips ``recurring_rules.next_due`` to
 # NOT NULL at migration 0007; ``planned_transactions``, ``transactions``,
 # and ``recurring_rule_overrides`` all reference ``recurring_rules.id``).
+# Migration 0012 (ADR-0061) rebuilds every user-owned table at once to drop
+# the ``DEFAULT 1`` sentinel on ``user_id`` — the FK pragma must stay off
+# across the whole file because the rebuilt tables cross-reference each
+# other (``transactions.account_id`` → ``accounts.id``, etc.).
 # The pragma must flip OUTSIDE any transaction, so the toggle lives here
 # rather than inside the SQL file. A post-rebuild ``PRAGMA foreign_key_check``
 # fails fast if the rebuild dropped a reference.
-FK_OFF_MIGRATIONS: frozenset[int] = frozenset({7, 8})
+FK_OFF_MIGRATIONS: frozenset[int] = frozenset({7, 8, 12})
 
 
 def apply_migrations(

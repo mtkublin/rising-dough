@@ -66,14 +66,23 @@ def _insert_user(conn: sqlite3.Connection) -> None:
 
 
 def _insert_account(conn: sqlite3.Connection, name: str = "ING", currency: str = "PLN") -> int:
-    cur = conn.execute("INSERT INTO accounts(name, currency) VALUES (?, ?)", (name, currency))
+    # Migration 0012 (ADR-0061) dropped the `DEFAULT 1` sentinel on
+    # `accounts.user_id`; raw-SQL fixtures must declare `user_id` explicitly.
+    cur = conn.execute(
+        "INSERT INTO accounts(user_id, name, currency) VALUES (1, ?, ?)",
+        (name, currency),
+    )
     return int(cur.lastrowid or 0)
 
 
 def _insert_category(
     conn: sqlite3.Connection, name: str = "Food", direction: str = "expense"
 ) -> int:
-    cur = conn.execute("INSERT INTO categories(name, direction) VALUES (?, ?)", (name, direction))
+    # See `_insert_account` — same reason, `user_id` is now mandatory.
+    cur = conn.execute(
+        "INSERT INTO categories(user_id, name, direction) VALUES (1, ?, ?)",
+        (name, direction),
+    )
     return int(cur.lastrowid or 0)
 
 
@@ -97,15 +106,16 @@ def test_foreign_keys_enforced(conn: sqlite3.Connection) -> None:
     _insert_user(conn)
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
-            "INSERT INTO transactions(operation_date, category_id, account_id, amount) "
-            "VALUES ('2026-01-01', 999, 999, 100)"
+            "INSERT INTO transactions("
+            "user_id, operation_date, category_id, account_id, amount"
+            ") VALUES (1, '2026-01-01', 999, 999, 100)"
         )
 
 
 def test_category_direction_check(conn: sqlite3.Connection) -> None:
     _insert_user(conn)
     with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO categories(name, direction) VALUES ('X', 'elephant')")
+        conn.execute("INSERT INTO categories(user_id, name, direction) VALUES (1, 'X', 'elephant')")
 
 
 def test_recurring_cadence_check(conn: sqlite3.Connection) -> None:
@@ -115,8 +125,8 @@ def test_recurring_cadence_check(conn: sqlite3.Connection) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO recurring_rules("
-            "cadence, start_date, category_id, account_id, default_amount) "
-            "VALUES ('daily', '2026-01-01', ?, ?, 100)",
+            "user_id, cadence, start_date, category_id, account_id, default_amount"
+            ") VALUES (1, 'daily', '2026-01-01', ?, ?, 100)",
             (cat, acc),
         )
 
@@ -127,8 +137,9 @@ def test_transactions_amount_nonzero(conn: sqlite3.Connection) -> None:
     cat = _insert_category(conn)
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
-            "INSERT INTO transactions(operation_date, category_id, account_id, amount) "
-            "VALUES ('2026-01-01', ?, ?, 0)",
+            "INSERT INTO transactions("
+            "user_id, operation_date, category_id, account_id, amount"
+            ") VALUES (1, '2026-01-01', ?, ?, 0)",
             (cat, acc),
         )
 
@@ -140,8 +151,8 @@ def test_transactions_account_differs_from_dest(conn: sqlite3.Connection) -> Non
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO transactions("
-            "operation_date, category_id, account_id, dest_account_id, amount) "
-            "VALUES ('2026-01-01', ?, ?, ?, 100)",
+            "user_id, operation_date, category_id, account_id, dest_account_id, amount"
+            ") VALUES (1, '2026-01-01', ?, ?, ?, 100)",
             (cat, acc, acc),
         )
 
@@ -186,7 +197,7 @@ def test_audit_log_operation_check(conn: sqlite3.Connection) -> None:
 def test_currency_length_check(conn: sqlite3.Connection) -> None:
     _insert_user(conn)
     with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO accounts(name, currency) VALUES ('X', 'EURO')")
+        conn.execute("INSERT INTO accounts(user_id, name, currency) VALUES (1, 'X', 'EURO')")
 
 
 def test_recurring_end_date_after_start(conn: sqlite3.Connection) -> None:
@@ -196,8 +207,8 @@ def test_recurring_end_date_after_start(conn: sqlite3.Connection) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
             "INSERT INTO recurring_rules("
-            "cadence, start_date, end_date, category_id, account_id, default_amount) "
-            "VALUES ('monthly', '2026-02-01', '2026-01-01', ?, ?, 100)",
+            "user_id, cadence, start_date, end_date, category_id, account_id, default_amount"
+            ") VALUES (1, 'monthly', '2026-02-01', '2026-01-01', ?, ?, 100)",
             (cat, acc),
         )
 
@@ -216,7 +227,9 @@ def test_is_liability_default_zero_on_insert(conn: sqlite3.Connection) -> None:
 def test_is_liability_check_rejects_two(conn: sqlite3.Connection) -> None:
     _insert_user(conn)
     with pytest.raises(sqlite3.IntegrityError):
-        conn.execute("INSERT INTO accounts(name, currency, is_liability) VALUES ('X', 'PLN', 2)")
+        conn.execute(
+            "INSERT INTO accounts(user_id, name, currency, is_liability) VALUES (1, 'X', 'PLN', 2)"
+        )
 
 
 @pytest.mark.parametrize(
@@ -227,15 +240,17 @@ def test_credit_limit_check(conn: sqlite3.Connection, value: int | None, ok: boo
     _insert_user(conn)
     if ok:
         conn.execute(
-            "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
-            "VALUES ('V', 'PLN', 1, ?)",
+            "INSERT INTO accounts("
+            "user_id, name, currency, is_liability, credit_limit_minor"
+            ") VALUES (1, 'V', 'PLN', 1, ?)",
             (value,),
         )
     else:
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
-                "INSERT INTO accounts(name, currency, is_liability, credit_limit_minor) "
-                "VALUES ('V', 'PLN', 1, ?)",
+                "INSERT INTO accounts("
+                "user_id, name, currency, is_liability, credit_limit_minor"
+                ") VALUES (1, 'V', 'PLN', 1, ?)",
                 (value,),
             )
 
