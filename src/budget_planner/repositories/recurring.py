@@ -1,4 +1,13 @@
-"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0045)."""
+"""Recurring rules + sparse overrides repository (ADR-0013 / ADR-0038 / ADR-0045).
+
+## User-scoping discipline (T-D16 / ADR-0061 §5)
+
+Every rule-level function takes ``user_id`` as the first positional arg after
+``conn``; every SELECT / UPDATE / DELETE on ``recurring_rules`` carries
+``user_id = :user_id``. Override queries scope through the parent
+``recurring_rules.user_id`` via FK join predicate — see ADR-0061 §2. The
+``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
+"""
 
 from __future__ import annotations
 
@@ -30,11 +39,7 @@ _RULE_COLUMNS = (
 
 
 def _formula_to_json(formula: AmountFormula | None) -> str | None:
-    """Serialise `AmountFormula` to v2 JSON (ADR-0047).
-
-    Future tier-B/C upgrades bump `schema_version` and extend this
-    serialiser; the inverse `_formula_from_json` dispatches on version.
-    """
+    """Serialise `AmountFormula` to v2 JSON (ADR-0047)."""
     if formula is None:
         return None
     return json.dumps(
@@ -55,16 +60,7 @@ def _formula_to_json(formula: AmountFormula | None) -> str | None:
 
 
 def _formula_from_json(raw: str | None) -> AmountFormula | None:
-    """Parse `recurring_rules.amount_formula` JSON into `AmountFormula`.
-
-    Dispatches on `schema_version`:
-    - v1 (legacy, pre-migration-0010): wrapped on the fly as a single
-      positive-sign term so the service layer never sees v1 shape.
-    - v2 (current): straightforward terms-list unmarshal.
-
-    v1 fallback is defensive; migration 0010 rewrites every live row to v2
-    on `just migrate`. Tests exercise both branches.
-    """
+    """Parse `recurring_rules.amount_formula` JSON into `AmountFormula`."""
     if raw is None:
         return None
     data = json.loads(raw)
@@ -129,17 +125,11 @@ def _row_to_rule(row: sqlite3.Row) -> RecurringRule:
     )
 
 
-def _compute_initial_next_due(data: NewRecurringRule, today: date) -> date:
-    """Return the earliest canonical occurrence on-or-after ``max(start, today)``.
-
-    Delegates to the pure helper ``services.recurring.first_due_on_or_after``
-    (T-118). End-date guard: if the rule's ``end_date`` has already passed
-    the helper still returns ``start_date`` as a sentinel; the caller is
-    responsible for toggling ``active=False`` in that terminal case.
-    """
+def _compute_initial_next_due(data: NewRecurringRule, user_id: int, today: date) -> date:
+    """Return the earliest canonical occurrence on-or-after ``max(start, today)``."""
     stub = RecurringRule(
         id=0,
-        user_id=data.user_id,
+        user_id=user_id,
         cadence=data.cadence,
         start_date=data.start_date,
         end_date=data.end_date,
@@ -179,33 +169,32 @@ def _row_to_override(row: sqlite3.Row) -> RecurringOverride:
 
 def find_rule(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     *,
     include_deleted: bool = False,
 ) -> RecurringRule | None:
-    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules WHERE id = ?"
+    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules WHERE id = ? AND user_id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (rule_id,)).fetchone()
+    row = conn.execute(sql, (rule_id, user_id)).fetchone()
     return _row_to_rule(row) if row is not None else None
 
 
 def list_rules(
     conn: sqlite3.Connection,
+    user_id: int,
     *,
     active_only: bool = False,
     include_deleted: bool = False,
 ) -> list[RecurringRule]:
-    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules"
-    clauses: list[str] = []
+    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules WHERE user_id = ?"
     if active_only:
-        clauses.append("active = 1")
+        sql += " AND active = 1"
     if not include_deleted:
-        clauses.append("deleted_at IS NULL")
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
+        sql += " AND deleted_at IS NULL"
     sql += " ORDER BY start_date ASC, id ASC"
-    return [_row_to_rule(r) for r in conn.execute(sql).fetchall()]
+    return [_row_to_rule(r) for r in conn.execute(sql, (user_id,)).fetchall()]
 
 
 def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
@@ -228,9 +217,9 @@ def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
     return norm
 
 
-def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRule:
+def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) -> RecurringRule:
     today = dt.date.today()  # noqa: DTZ011 — date-only anchor; display tz applies at render
-    initial_next_due = _compute_initial_next_due(data, today)
+    initial_next_due = _compute_initial_next_due(data, user_id, today)
 
     def _action(c: sqlite3.Connection) -> tuple[int, RecurringRule]:
         cursor = c.execute(
@@ -240,7 +229,7 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
             "day_of_month, month_of_year, active, next_due, amount_formula) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                data.user_id,
+                user_id,
                 data.cadence.value,
                 data.start_date.isoformat(),
                 data.end_date.isoformat() if data.end_date else None,
@@ -257,7 +246,7 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
             ),
         )
         new_id = int(cursor.lastrowid or 0)
-        created = find_rule(c, new_id)
+        created = find_rule(c, user_id, new_id)
         assert created is not None
         return new_id, created
 
@@ -272,6 +261,7 @@ def create_rule(conn: sqlite3.Connection, data: NewRecurringRule) -> RecurringRu
 
 def set_next_due(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     *,
     next_due: date,
@@ -279,45 +269,38 @@ def set_next_due(
 ) -> None:
     """Thin helper for the T-118 promotion service.
 
-    Audit-free: the orchestrating service is responsible for writing a
-    paired audit entry via `services.audit.record` after calling this
-    helper. Keeping the write audit-free here lets the service compose
-    multiple repository calls (txn insert + rule advance + override
-    delete) under a single audit row.
+    Audit-free: the orchestrating service writes the paired audit entry.
     """
     conn.execute(
         "UPDATE recurring_rules SET next_due = ?, last_promoted_date = ?, "
         "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-        "WHERE id = ?",
+        "WHERE id = ? AND user_id = ?",
         (
             next_due.isoformat(),
             last_promoted_date.isoformat() if last_promoted_date is not None else None,
             rule_id,
+            user_id,
         ),
     )
 
 
-def set_inactive(conn: sqlite3.Connection, rule_id: int) -> None:
-    """Thin helper for the T-118 promotion service — mark a rule inactive.
-
-    Audit-free; the service writes the paired audit entry (see
-    `set_next_due`). Idempotent: setting an already-inactive rule inactive
-    is a no-op.
-    """
+def set_inactive(conn: sqlite3.Connection, user_id: int, rule_id: int) -> None:
+    """Thin helper for the T-118 promotion service — mark a rule inactive."""
     conn.execute(
         "UPDATE recurring_rules SET active = 0, "
         "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-        "WHERE id = ?",
-        (rule_id,),
+        "WHERE id = ? AND user_id = ?",
+        (rule_id, user_id),
     )
 
 
 def update_rule(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     data: PatchRecurringRule,
 ) -> RecurringRule:
-    prev = find_rule(conn, rule_id, include_deleted=True)
+    prev = find_rule(conn, user_id, rule_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"recurring_rule {rule_id} not found")
     changes = _normalise_rule_patch(data.as_dict())
@@ -327,10 +310,10 @@ def update_rule(
             sets = [f"{field} = ?" for field in changes]
             sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
             c.execute(
-                f"UPDATE recurring_rules SET {', '.join(sets)} WHERE id = ?",
-                (*changes.values(), rule_id),
+                f"UPDATE recurring_rules SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+                (*changes.values(), rule_id, user_id),
             )
-        updated = find_rule(c, rule_id, include_deleted=True)
+        updated = find_rule(c, user_id, rule_id, include_deleted=True)
         assert updated is not None
         return rule_id, updated
 
@@ -343,12 +326,12 @@ def update_rule(
     )
 
 
-def deactivate_rule(conn: sqlite3.Connection, rule_id: int) -> RecurringRule:
-    return update_rule(conn, rule_id, PatchRecurringRule(active=False))
+def deactivate_rule(conn: sqlite3.Connection, user_id: int, rule_id: int) -> RecurringRule:
+    return update_rule(conn, user_id, rule_id, PatchRecurringRule(active=False))
 
 
-def soft_delete_rule(conn: sqlite3.Connection, rule_id: int) -> None:
-    prev = find_rule(conn, rule_id)
+def soft_delete_rule(conn: sqlite3.Connection, user_id: int, rule_id: int) -> None:
+    prev = find_rule(conn, user_id, rule_id)
     if prev is None:
         return
 
@@ -356,8 +339,8 @@ def soft_delete_rule(conn: sqlite3.Connection, rule_id: int) -> None:
         c.execute(
             "UPDATE recurring_rules SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND deleted_at IS NULL",
-            (rule_id,),
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (rule_id, user_id),
         )
         return rule_id, None
 
@@ -370,60 +353,85 @@ def soft_delete_rule(conn: sqlite3.Connection, rule_id: int) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Overrides — FK-scoped to recurring_rules.user_id (ADR-0061 §2).
+# Every query joins through `recurring_rules` so a leaked rule_id from a
+# different user still filters out.
+# ---------------------------------------------------------------------------
+
+
 def list_overrides(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     *,
     include_consumed: bool = False,
 ) -> list[RecurringOverride]:
-    """List overrides for a rule.
-
-    Default excludes consumed overrides (ADR-0046) so pre-ADR-0046 callers
-    (promote lookup, override UI, skip-and-advance) see only live rows.
-    Formula compute paths (ADR-0045) call ``list_overrides_all`` to include
-    historical rows that still need to materialise their canonical month.
-    """
-    sql = f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides WHERE rule_id = ?"
+    """List overrides for a rule (FK-scoped via recurring_rules.user_id)."""
+    cols = ", ".join(f"o.{c}" for c in _OVERRIDE_COLUMNS.split(", "))
+    sql = (
+        f"SELECT {cols} FROM recurring_rule_overrides o "
+        "JOIN recurring_rules r ON r.id = o.rule_id "
+        "WHERE o.rule_id = ? AND r.user_id = ?"
+    )
     if not include_consumed:
-        sql += " AND promoted_to_txn_id IS NULL"
-    sql += " ORDER BY occurrence_date ASC"
-    rows = conn.execute(sql, (rule_id,)).fetchall()
+        sql += " AND o.promoted_to_txn_id IS NULL"
+    sql += " ORDER BY o.occurrence_date ASC"
+    rows = conn.execute(sql, (rule_id, user_id)).fetchall()
     return [_row_to_override(r) for r in rows]
 
 
-def list_overrides_all(conn: sqlite3.Connection, rule_id: int) -> list[RecurringOverride]:
+def list_overrides_all(
+    conn: sqlite3.Connection, user_id: int, rule_id: int
+) -> list[RecurringOverride]:
     """List every override for a rule, consumed or not (ADR-0046)."""
-    return list_overrides(conn, rule_id, include_consumed=True)
+    return list_overrides(conn, user_id, rule_id, include_consumed=True)
 
 
 def mark_override_promoted(
     conn: sqlite3.Connection,
+    user_id: int,
     override_id: int,
     *,
     txn_id: int,
 ) -> None:
     """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0046 step 6e).
 
-    Audit-free: the orchestrating promotion service writes a single
-    ``update`` audit entry on the rule mutation, matching the pattern used
-    by ``set_next_due`` / ``set_inactive``.
+    FK-scoped: the UPDATE joins through ``recurring_rules.user_id`` so a
+    leaked override id for a different user is a no-op.
     """
     conn.execute(
-        "UPDATE recurring_rule_overrides SET promoted_to_txn_id = ? WHERE id = ?",
-        (txn_id, override_id),
+        "UPDATE recurring_rule_overrides AS o "
+        "SET promoted_to_txn_id = ? "
+        "WHERE o.id = ? "
+        "AND EXISTS (SELECT 1 FROM recurring_rules r "
+        "            WHERE r.id = o.rule_id AND r.user_id = ?)",
+        (txn_id, override_id, user_id),
     )
 
 
-def upsert_override(conn: sqlite3.Connection, data: NewRecurringOverride) -> RecurringOverride:
+def upsert_override(
+    conn: sqlite3.Connection, user_id: int, data: NewRecurringOverride
+) -> RecurringOverride:
+    cols = ", ".join(f"o.{c}" for c in _OVERRIDE_COLUMNS.split(", "))
     existing = conn.execute(
-        f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides "
-        "WHERE rule_id = ? AND occurrence_date = ?",
-        (data.rule_id, data.occurrence_date.isoformat()),
+        f"SELECT {cols} FROM recurring_rule_overrides o "
+        "JOIN recurring_rules r ON r.id = o.rule_id "
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        (data.rule_id, data.occurrence_date.isoformat(), user_id),
     ).fetchone()
     prev = _row_to_override(existing) if existing is not None else None
 
     def _action(c: sqlite3.Connection) -> tuple[int, RecurringOverride]:
         if existing is None:
+            # Insert validates ownership first via a FK-scoped lookup on the
+            # parent rule — if the caller's user_id does not own rule_id the
+            # lookup returns NULL and the insert aborts via the assertion.
+            parent = c.execute(
+                "SELECT 1 FROM recurring_rules WHERE id = ? AND user_id = ?",
+                (data.rule_id, user_id),
+            ).fetchone()
+            assert parent is not None, f"recurring_rule {data.rule_id} not owned by user {user_id}"
             cursor = c.execute(
                 "INSERT INTO recurring_rule_overrides("
                 "rule_id, occurrence_date, state, amount_override, "
@@ -441,19 +449,26 @@ def upsert_override(conn: sqlite3.Connection, data: NewRecurringOverride) -> Rec
         else:
             new_id = int(existing["id"])
             c.execute(
-                "UPDATE recurring_rule_overrides SET state = ?, amount_override = ?, "
-                "description_override = ?, date_override = ? WHERE id = ?",
+                "UPDATE recurring_rule_overrides AS o "
+                "SET state = ?, amount_override = ?, "
+                "description_override = ?, date_override = ? "
+                "WHERE o.id = ? "
+                "AND EXISTS (SELECT 1 FROM recurring_rules r "
+                "            WHERE r.id = o.rule_id AND r.user_id = ?)",
                 (
                     data.state.value,
                     data.amount_override,
                     data.description_override,
                     data.date_override.isoformat() if data.date_override else None,
                     new_id,
+                    user_id,
                 ),
             )
         row = conn.execute(
-            f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides WHERE id = ?",
-            (new_id,),
+            f"SELECT {cols} FROM recurring_rule_overrides o "
+            "JOIN recurring_rules r ON r.id = o.rule_id "
+            "WHERE o.id = ? AND r.user_id = ?",
+            (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_override(row)
 
@@ -468,13 +483,16 @@ def upsert_override(conn: sqlite3.Connection, data: NewRecurringOverride) -> Rec
 
 def delete_override(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     occurrence_date: date,
 ) -> None:
+    cols = ", ".join(f"o.{c}" for c in _OVERRIDE_COLUMNS.split(", "))
     existing = conn.execute(
-        f"SELECT {_OVERRIDE_COLUMNS} FROM recurring_rule_overrides "
-        "WHERE rule_id = ? AND occurrence_date = ?",
-        (rule_id, occurrence_date.isoformat()),
+        f"SELECT {cols} FROM recurring_rule_overrides o "
+        "JOIN recurring_rules r ON r.id = o.rule_id "
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        (rule_id, occurrence_date.isoformat(), user_id),
     ).fetchone()
     if existing is None:
         return
@@ -482,8 +500,11 @@ def delete_override(
 
     def _action(c: sqlite3.Connection) -> tuple[int, None]:
         c.execute(
-            "DELETE FROM recurring_rule_overrides WHERE id = ?",
-            (prev.id,),
+            "DELETE FROM recurring_rule_overrides AS o "
+            "WHERE o.id = ? "
+            "AND EXISTS (SELECT 1 FROM recurring_rules r "
+            "            WHERE r.id = o.rule_id AND r.user_id = ?)",
+            (prev.id, user_id),
         )
         return prev.id, None
 
