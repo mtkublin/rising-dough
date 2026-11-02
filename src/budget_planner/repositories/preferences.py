@@ -3,12 +3,6 @@
 Preferences skip the ``audit_log`` by design — they are UI state, not domain
 mutations. The functions still wrap each write in :func:`_shared.transaction`
 to keep the "repository owns the transaction" invariant from ADR-0022.
-
-## User-scoping discipline (T-D16 / ADR-0061 §5)
-
-Every function takes ``user_id`` as the first positional arg after ``conn``;
-every SELECT / UPDATE / DELETE carries ``user_id = :user_id``. The
-``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
 """
 
 from __future__ import annotations

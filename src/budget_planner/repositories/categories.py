@@ -1,11 +1,4 @@
-"""Category repository — pure CRUD functions over the `categories` table.
-
-## User-scoping discipline (T-D16 / ADR-0061 §5)
-
-Every function takes ``user_id`` as the first positional arg after ``conn``;
-every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
-``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
-"""
+"""Category repository — pure CRUD functions over the `categories` table."""
 
 from __future__ import annotations
 
@@ -34,69 +27,66 @@ def _row_to_category(row: sqlite3.Row) -> Category:
 
 def find_by_id(
     conn: sqlite3.Connection,
-    user_id: int,
     category_id: int,
     *,
     include_deleted: bool = False,
 ) -> Category | None:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE id = ? AND user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM categories WHERE id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (category_id, user_id)).fetchone()
+    row = conn.execute(sql, (category_id,)).fetchone()
     return _row_to_category(row) if row is not None else None
 
 
 def list_recently_deleted(
-    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
+    conn: sqlite3.Connection, *, days: int = 90, limit: int = 500
 ) -> list[Category]:
     """T-R70 — soft-deleted (archived) categories within the last `days` days."""
     sql = (
         f"SELECT {_COLUMNS} FROM categories "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL "
+        "WHERE deleted_at IS NOT NULL "
         "AND deleted_at > datetime('now', ?) "
         "ORDER BY deleted_at DESC "
         "LIMIT ?"
     )
-    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
+    rows = conn.execute(sql, (f"-{days} days", limit)).fetchall()
     return [_row_to_category(r) for r in rows]
 
 
 def find_by_name(
     conn: sqlite3.Connection,
-    user_id: int,
     name: str,
     *,
     include_deleted: bool = False,
 ) -> Category | None:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE name = ? AND user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM categories WHERE name = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (name, user_id)).fetchone()
+    row = conn.execute(sql, (name,)).fetchone()
     return _row_to_category(row) if row is not None else None
 
 
 def list_all(
     conn: sqlite3.Connection,
-    user_id: int,
     *,
     include_deleted: bool = False,
 ) -> list[Category]:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM categories"
     if not include_deleted:
-        sql += " AND deleted_at IS NULL"
+        sql += " WHERE deleted_at IS NULL"
     sql += " ORDER BY name ASC"
-    return [_row_to_category(r) for r in conn.execute(sql, (user_id,)).fetchall()]
+    return [_row_to_category(r) for r in conn.execute(sql).fetchall()]
 
 
-def create(conn: sqlite3.Connection, user_id: int, data: NewCategory) -> Category:
+def create(conn: sqlite3.Connection, data: NewCategory) -> Category:
     def _action(c: sqlite3.Connection) -> tuple[int, Category]:
         cursor = c.execute(
             "INSERT INTO categories(user_id, name, direction, is_system, color) "
             "VALUES (?, ?, ?, ?, ?)",
-            (user_id, data.name, data.direction.value, int(data.is_system), data.color),
+            (data.user_id, data.name, data.direction.value, int(data.is_system), data.color),
         )
         new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
+        created = find_by_id(c, new_id)
         assert created is not None
         return new_id, created
 
@@ -105,11 +95,10 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewCategory) -> Categor
 
 def update(
     conn: sqlite3.Connection,
-    user_id: int,
     category_id: int,
     data: PatchCategory,
 ) -> Category:
-    prev = find_by_id(conn, user_id, category_id, include_deleted=True)
+    prev = find_by_id(conn, category_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"category {category_id} not found")
     changes = data.as_dict()
@@ -119,18 +108,18 @@ def update(
             sets = [f"{field} = ?" for field in changes]
             sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
             c.execute(
-                f"UPDATE categories SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), category_id, user_id),
+                f"UPDATE categories SET {', '.join(sets)} WHERE id = ?",
+                (*changes.values(), category_id),
             )
-        updated = find_by_id(c, user_id, category_id, include_deleted=True)
+        updated = find_by_id(c, category_id, include_deleted=True)
         assert updated is not None
         return category_id, updated
 
     return mutate(conn, entity_type="category", operation="update", prev=prev, action=_action)
 
 
-def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> None:
-    prev = find_by_id(conn, user_id, category_id)
+def soft_delete(conn: sqlite3.Connection, category_id: int) -> None:
+    prev = find_by_id(conn, category_id)
     if prev is None:
         return
 
@@ -138,16 +127,16 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Non
         c.execute(
             "UPDATE categories SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (category_id, user_id),
+            "WHERE id = ? AND deleted_at IS NULL",
+            (category_id,),
         )
         return category_id, None
 
     mutate(conn, entity_type="category", operation="delete", prev=prev, action=_action)
 
 
-def undelete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Category:
-    prev = find_by_id(conn, user_id, category_id, include_deleted=True)
+def undelete(conn: sqlite3.Connection, category_id: int) -> Category:
+    prev = find_by_id(conn, category_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"category {category_id} not found")
 
@@ -155,10 +144,10 @@ def undelete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Catego
         c.execute(
             "UPDATE categories SET deleted_at = NULL, "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (category_id, user_id),
+            "WHERE id = ?",
+            (category_id,),
         )
-        restored = find_by_id(c, user_id, category_id)
+        restored = find_by_id(c, category_id)
         assert restored is not None
         return category_id, restored
 

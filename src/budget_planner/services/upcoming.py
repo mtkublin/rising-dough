@@ -73,7 +73,6 @@ def _planned_item(row: PlannedTransaction, today: dt.date) -> UpcomingItem:
 
 def _recurring_item(
     conn: sqlite3.Connection,
-    user_id: int,
     rule: RecurringRule,
     override: RecurringOverride | None,
 ) -> UpcomingItem | None:
@@ -100,7 +99,7 @@ def _recurring_item(
     if amount_override is not None:
         amount = amount_override
     else:
-        amount = resolve_rule_amount(conn, user_id, rule, effective)
+        amount = resolve_rule_amount(conn, rule, effective)
     return UpcomingItem(
         kind="recurring",
         effective_date=effective,
@@ -119,10 +118,9 @@ def _recurring_item(
 
 def _override_for_next_due(
     conn: sqlite3.Connection,
-    user_id: int,
     rule: RecurringRule,
 ) -> RecurringOverride | None:
-    for override in recurring_repo.list_overrides(conn, user_id, rule.id):
+    for override in recurring_repo.list_overrides(conn, rule.id):
         if override.occurrence_date == rule.next_due:
             return override
     return None
@@ -130,7 +128,6 @@ def _override_for_next_due(
 
 def list_upcoming(
     conn: sqlite3.Connection,
-    user_id: int,
     *,
     today: dt.date,
     window_days: int | None,
@@ -150,18 +147,18 @@ def list_upcoming(
         date_to=forward_limit,
         promoted=False,
     )
-    planned_rows = planned_repo.list_filtered(conn, user_id, planned_filter)
+    planned_rows = planned_repo.list_filtered(conn, planned_filter)
     items: list[UpcomingItem] = [_planned_item(row, today) for row in planned_rows]
 
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
+    for rule in recurring_repo.list_rules(conn, active_only=True):
         # ADR-0063: a rule whose next_due already exceeds its stop date
         # has effectively ended but has not yet been promoted (so advance
         # has not deactivated it). Hide it from Upcoming — the next
         # promotion attempt, or an edit, will clean up the active flag.
         if rule.end_date is not None and rule.next_due > rule.end_date:
             continue
-        override = _override_for_next_due(conn, user_id, rule)
-        projected = _recurring_item(conn, user_id, rule, override)
+        override = _override_for_next_due(conn, rule)
+        projected = _recurring_item(conn, rule, override)
         if projected is None:
             continue
         if forward_limit is not None and projected.effective_date > forward_limit:

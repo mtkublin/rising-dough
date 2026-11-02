@@ -25,7 +25,7 @@ class InvalidAnchorCategoryError(ValueError):
     """Raised when the caller tries to pin the anchor to an invalid category."""
 
 
-def get_income_anchor_category_id(conn: sqlite3.Connection, user_id: int) -> int | None:
+def get_income_anchor_category_id(conn: sqlite3.Connection, user_id: int = 1) -> int | None:
     """Return the stored anchor category id, or ``None`` if unset / corrupt."""
     row = preferences_repo.get(conn, user_id, PREF_INCOME_ANCHOR_CATEGORY_ID)
     if row is None:
@@ -55,7 +55,7 @@ def set_income_anchor_category_id(
     if category_id is None:
         preferences_repo.delete(conn, user_id, PREF_INCOME_ANCHOR_CATEGORY_ID)
         return
-    category = categories_repo.find_by_id(conn, user_id, category_id)
+    category = categories_repo.find_by_id(conn, category_id)
     if category is None:
         raise InvalidAnchorCategoryError(f"category {category_id} not found or soft-deleted")
     if category.direction is not Direction.INCOME:
@@ -66,7 +66,7 @@ def set_income_anchor_category_id(
     preferences_repo.upsert(conn, user_id, PREF_INCOME_ANCHOR_CATEGORY_ID, str(category_id))
 
 
-def resolve_income_anchor_category(conn: sqlite3.Connection, user_id: int) -> Category | None:
+def resolve_income_anchor_category(conn: sqlite3.Connection, user_id: int = 1) -> Category | None:
     """Return the live anchor Category or ``None`` if unset / stale.
 
     Permissive: a stored id that no longer resolves (soft-deleted or direction
@@ -76,7 +76,7 @@ def resolve_income_anchor_category(conn: sqlite3.Connection, user_id: int) -> Ca
     anchor_id = get_income_anchor_category_id(conn, user_id)
     if anchor_id is None:
         return None
-    category = categories_repo.find_by_id(conn, user_id, anchor_id)
+    category = categories_repo.find_by_id(conn, anchor_id)
     if category is None:
         _logger.debug(
             "income anchor category_id=%s resolves to None (soft-deleted or missing)",

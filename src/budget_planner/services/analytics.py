@@ -106,14 +106,12 @@ def _period_bounds(today: dt.date, period: Period) -> tuple[dt.date, dt.date]:
 
 def _spend_by_category(
     conn: sqlite3.Connection,
-    user_id: int,
     start: dt.date,
     end: dt.date,
 ) -> tuple[CategoryTotal, ...]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     txns = transactions_repo.list_filtered(
         conn,
-        user_id,
         TransactionFilter(
             date_from=start,
             date_to=end,
@@ -144,7 +142,6 @@ def _mean_minor(total: int, months: int) -> int:
 
 def _twelve_month_averages(
     conn: sqlite3.Connection,
-    user_id: int,
     today: dt.date,
 ) -> tuple[CategoryTotal, ...]:
     """Mean monthly spend per category over the trailing 12 months.
@@ -153,10 +150,9 @@ def _twelve_month_averages(
     activity — matches the Plan · Analytics "avg/mo" convention.
     """
     start, end = _trailing_12_months(today)
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     txns = transactions_repo.list_filtered(
         conn,
-        user_id,
         TransactionFilter(
             date_from=start,
             date_to=end,
@@ -180,15 +176,13 @@ def _twelve_month_averages(
 
 def _income_vs_expense_monthly(
     conn: sqlite3.Connection,
-    user_id: int,
     today: dt.date,
 ) -> tuple[MonthlyFlow, ...]:
     """Trailing-12 (year, month) → income + expense totals."""
     start, end = _trailing_12_months(today)
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     txns = transactions_repo.list_filtered(
         conn,
-        user_id,
         TransactionFilter(date_from=start, date_to=end),
     )
     monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(
@@ -218,15 +212,13 @@ def _income_vs_expense_monthly(
 
 def _largest_items(
     conn: sqlite3.Connection,
-    user_id: int,
     start: dt.date,
     end: dt.date,
     limit: int,
 ) -> tuple[LargestItem, ...]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
     txns = transactions_repo.list_filtered(
         conn,
-        user_id,
         TransactionFilter(
             date_from=start,
             date_to=end,
@@ -248,7 +240,6 @@ def _largest_items(
 
 def bundle(
     conn: sqlite3.Connection,
-    user_id: int,
     *,
     today: dt.date,
     period: Period = "month",
@@ -266,10 +257,10 @@ def bundle(
         period=period,
         period_start=start,
         period_end=end,
-        spend_by_category=_spend_by_category(conn, user_id, start, end),
-        twelve_month_averages=_twelve_month_averages(conn, user_id, today),
-        income_vs_expense_monthly=_income_vs_expense_monthly(conn, user_id, today),
-        largest_items=_largest_items(conn, user_id, start, end, largest_limit),
+        spend_by_category=_spend_by_category(conn, start, end),
+        twelve_month_averages=_twelve_month_averages(conn, today),
+        income_vs_expense_monthly=_income_vs_expense_monthly(conn, today),
+        largest_items=_largest_items(conn, start, end, largest_limit),
     )
 
 

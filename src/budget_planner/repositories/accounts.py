@@ -1,11 +1,4 @@
-"""Account repository — pure CRUD functions over the `accounts` table.
-
-## User-scoping discipline (T-D16 / ADR-0061 §5)
-
-Every function takes ``user_id`` as the first positional arg after ``conn``;
-every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
-``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
-"""
+"""Account repository — pure CRUD functions over the `accounts` table."""
 
 from __future__ import annotations
 
@@ -38,46 +31,43 @@ def _row_to_account(row: sqlite3.Row) -> Account:
 
 def find_by_id(
     conn: sqlite3.Connection,
-    user_id: int,
     account_id: int,
     *,
     include_deleted: bool = False,
 ) -> Account | None:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE id = ? AND user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM accounts WHERE id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (account_id, user_id)).fetchone()
+    row = conn.execute(sql, (account_id,)).fetchone()
     return _row_to_account(row) if row is not None else None
 
 
 def find_by_name(
     conn: sqlite3.Connection,
-    user_id: int,
     name: str,
     *,
     include_deleted: bool = False,
 ) -> Account | None:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE name = ? AND user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM accounts WHERE name = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (name, user_id)).fetchone()
+    row = conn.execute(sql, (name,)).fetchone()
     return _row_to_account(row) if row is not None else None
 
 
 def list_all(
     conn: sqlite3.Connection,
-    user_id: int,
     *,
     include_deleted: bool = False,
 ) -> list[Account]:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE user_id = ?"
+    sql = f"SELECT {_COLUMNS} FROM accounts"
     if not include_deleted:
-        sql += " AND deleted_at IS NULL"
+        sql += " WHERE deleted_at IS NULL"
     sql += " ORDER BY name ASC"
-    return [_row_to_account(r) for r in conn.execute(sql, (user_id,)).fetchall()]
+    return [_row_to_account(r) for r in conn.execute(sql).fetchall()]
 
 
-def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
+def create(conn: sqlite3.Connection, data: NewAccount) -> Account:
     def _action(c: sqlite3.Connection) -> tuple[int, Account]:
         cursor = c.execute(
             "INSERT INTO accounts("
@@ -85,7 +75,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
             "is_liability, credit_limit_minor) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
-                user_id,
+                data.user_id,
                 data.name,
                 data.type,
                 data.currency,
@@ -95,7 +85,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
             ),
         )
         new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
+        created = find_by_id(c, new_id)
         assert created is not None
         return new_id, created
 
@@ -104,11 +94,10 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
 
 def update(
     conn: sqlite3.Connection,
-    user_id: int,
     account_id: int,
     data: PatchAccount,
 ) -> Account:
-    prev = find_by_id(conn, user_id, account_id, include_deleted=True)
+    prev = find_by_id(conn, account_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"account {account_id} not found")
 
@@ -121,18 +110,18 @@ def update(
             sets = [f"{field} = ?" for field in changes]
             sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
             c.execute(
-                f"UPDATE accounts SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), account_id, user_id),
+                f"UPDATE accounts SET {', '.join(sets)} WHERE id = ?",
+                (*changes.values(), account_id),
             )
-        updated = find_by_id(c, user_id, account_id, include_deleted=True)
+        updated = find_by_id(c, account_id, include_deleted=True)
         assert updated is not None
         return account_id, updated
 
     return mutate(conn, entity_type="account", operation="update", prev=prev, action=_action)
 
 
-def soft_delete(conn: sqlite3.Connection, user_id: int, account_id: int) -> None:
-    prev = find_by_id(conn, user_id, account_id)
+def soft_delete(conn: sqlite3.Connection, account_id: int) -> None:
+    prev = find_by_id(conn, account_id)
     if prev is None:
         return
 
@@ -141,16 +130,16 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, account_id: int) -> None
             "UPDATE accounts "
             "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (account_id, user_id),
+            "WHERE id = ? AND deleted_at IS NULL",
+            (account_id,),
         )
         return account_id, None
 
     mutate(conn, entity_type="account", operation="delete", prev=prev, action=_action)
 
 
-def undelete(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account:
-    prev = find_by_id(conn, user_id, account_id, include_deleted=True)
+def undelete(conn: sqlite3.Connection, account_id: int) -> Account:
+    prev = find_by_id(conn, account_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"account {account_id} not found")
 
@@ -158,10 +147,10 @@ def undelete(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account
         c.execute(
             "UPDATE accounts SET deleted_at = NULL, "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
+            "WHERE id = ?",
+            (account_id,),
         )
-        restored = find_by_id(c, user_id, account_id)
+        restored = find_by_id(c, account_id)
         assert restored is not None
         return account_id, restored
 
