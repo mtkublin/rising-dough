@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from budget_planner.config import Settings, get_settings
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
+from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
 from budget_planner.web.rendering import render
 from budget_planner.web.templating import build_jinja_env
 
@@ -59,6 +60,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Attach request id first so later middleware / handlers see it.
     app.add_middleware(RequestIdMiddleware)
+    # T-D07 — baseline security headers + CSP nonce propagation. Sits right
+    # after RequestId and before any future auth/CSRF/rate-limit layers
+    # (ADR-0033 §5, ADR-0036 §3).
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
