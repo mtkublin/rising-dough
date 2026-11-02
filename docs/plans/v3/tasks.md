@@ -47,7 +47,7 @@ Owner: application code. All tasks block Phase 2.
 - `uvicorn` access log replaced with JSON formatter.
 - File: `phase-1-prerequisites/T-D06-structured-logging.md`.
 
-### ◻ T-D07 [P] Security headers middleware → T-D02
+### ✅ T-D07 [P] Security headers middleware → T-D02
 - Middleware adds HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
 - Reads `X-CSP-Nonce` from Caddy (ADR-0036 §3); inserts into Jinja context as `csp_nonce`.
 - Integration test asserts each header on the Overview response.

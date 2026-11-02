@@ -188,6 +188,25 @@
   failure. MinIO dev creds documented in `.env.example` under a
   prod-sim comment block — hermetic values; never reused in real envs.
   CSP header is intentionally deferred to T-D07.
+- **Feat: T-D07 · Security headers middleware + CSP nonce propagation
+  (ADR-0036, ADR-0033)**: added
+  `src/budget_planner/web/middleware/security_headers.py` —
+  `SecurityHeadersMiddleware` fills five baseline response headers
+  (`Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) when the downstream response
+  does not already set them, and propagates Caddy's per-request
+  `X-CSP-Nonce` header into `request.state.csp_nonce`. In dev/test the
+  middleware mints a fresh 24-byte URL-safe nonce per request so the Jinja
+  contract is identical in every environment. Production CSP continues to
+  be terminated at Caddy (ADR-0036 §1); the middleware only propagates the
+  nonce to templates. Registered in `web/app.py` right after
+  `RequestIdMiddleware` and before any future auth/CSRF/rate-limit layers
+  (ADR-0033 §5). `web/rendering.py` now injects `csp_nonce` into the
+  shared template context so every template can embed it with
+  `{{ csp_nonce }}`. Covered by
+  `tests/integration/web/test_security_headers.py` (5 cases: baseline
+  headers on `/healthz`, request-id coexistence, nonce propagation from
+  header, nonce auto-generation when absent, non-overwrite semantics).
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
