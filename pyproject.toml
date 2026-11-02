@@ -33,6 +33,7 @@ dev = [
   "djlint>=1.35",
   "bandit>=1.7",
   "detect-secrets>=1.5",
+  "pip-audit>=2.7",
   "pre-commit>=3.8",
   "types-python-dateutil>=2.9",
   "pandas-stubs>=2.2",
