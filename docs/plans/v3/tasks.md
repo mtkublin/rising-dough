@@ -87,10 +87,13 @@ Owner: application code. All tasks block Phase 2.
 - File: `phase-1-prerequisites/T-D13-ci-security-scans.md`.
 - Delivered: `.github/workflows/security.yml` (pip-audit + trivy fs + trivy image), `.security-allowlist.yml` shape, `pip-audit` added to dev deps, `just security-scan` local recipe. Actions pinned by 40-hex SHA; least-privilege `permissions:` per job; SARIF upload gated on `secrets.CODEQL_TOKEN` presence.
 
-### ◻ T-D14 [P] Audit log carries client IP + session user → T-D02
+### ✅ T-D14 [P] Audit log carries client IP + session user → T-D02
 - `write_audit` now accepts `request_ctx: RequestCtx { ip, user_id, session_id, user_agent }`.
-- `audit_log` migration `0007_audit_request_ctx.sql` adds the four columns, NULLable for pre-existing rows.
-- All mutation call sites updated.
+- `audit_log` migration `0013_audit_request_ctx.sql` adds the four columns, NULLable for pre-existing rows (companion down under `migrations/down/`).
+- `RequestCtx` dataclass lives at `src/budget_planner/domain/request_ctx.py`; `RequestCtx.empty()` is the default so existing call sites keep working unchanged.
+- FastAPI dependency `get_request_ctx` in `src/budget_planner/web/deps.py` extracts IP (from `request.client`), user-agent (from headers), and session user + session id (from `request.state`, populated post-T-D02).
+- Scope: plumbing is additive — only `write_audit` (repo + service wrappers) threads the kwarg today. Service-layer retrofits land as follow-ups when individual services need to pass real context (gradual).
+- Integration coverage: `tests/integration/web/test_audit_request_ctx.py` (POST → DB round-trip + direct-writer field persistence + default-empty NULL guarantee); migration-shape coverage: `tests/integration/db/test_migrations.py::test_0013_applies`.
 - File: `phase-1-prerequisites/T-D14-audit-request-ctx.md`. Reference: ADR-0019.
 
 ### ✅ T-D15 [P] Graceful shutdown handling → T-D11

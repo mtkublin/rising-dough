@@ -22,6 +22,13 @@ from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from budget_planner.domain.request_ctx import RequestCtx
+
+# Module-level singleton for the default empty request context —
+# ``RequestCtx`` is frozen so sharing one instance is safe. Ruff B008
+# forbids inlining the ``RequestCtx.empty()`` call in parameter defaults.
+_EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
+
 
 def utc_now_iso() -> str:
     """Return the current UTC time as an ISO-8601 string with millisecond precision."""
@@ -45,15 +52,35 @@ def write_audit(
     operation: str,
     prev: Any | None,
     new: Any | None,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> None:
     """Insert a single row into ``audit_log``.
 
     Called from inside :func:`mutate`; must share the same transaction.
+
+    ``request_ctx`` carries the forensic metadata written to the four
+    columns added by migration 0013 (``ip``, ``user_id``, ``session_id``,
+    ``user_agent``). The default :meth:`RequestCtx.empty` matches
+    pre-T-D14 behaviour — every new column lands as NULL — so existing
+    call sites keep working without being retrofitted. See
+    ``src/budget_planner/domain/request_ctx.py``.
     """
     conn.execute(
-        "INSERT INTO audit_log(entity_type, entity_id, operation, prev_json, new_json) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (entity_type, entity_id, operation, _dumps(prev), _dumps(new)),
+        "INSERT INTO audit_log("
+        "entity_type, entity_id, operation, prev_json, new_json, "
+        "ip, user_id, session_id, user_agent"
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            entity_type,
+            entity_id,
+            operation,
+            _dumps(prev),
+            _dumps(new),
+            request_ctx.ip,
+            request_ctx.user_id,
+            request_ctx.session_id,
+            request_ctx.user_agent,
+        ),
     )
 
 
@@ -112,12 +139,18 @@ def mutate[T](
     operation: str,
     prev: Any | None,
     action: Callable[[sqlite3.Connection], tuple[int, T]],
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> T:
     """Run ``action`` inside a transaction and emit a paired audit row.
 
     ``action(conn)`` returns ``(entity_id, new_value)`` where
     ``entity_id`` is the row id after the mutation and ``new_value`` is the
     hydrated DTO (or ``None`` for a delete).
+
+    ``request_ctx`` is forwarded unchanged to :func:`write_audit` so the
+    audit row carries the inbound request's forensic metadata (T-D14).
+    Defaults to :meth:`RequestCtx.empty` — callers that have not yet
+    threaded a real context behave exactly as before.
     """
     with transaction(conn):
         new_id, new_value = action(conn)
@@ -128,6 +161,7 @@ def mutate[T](
             operation=operation,
             prev=prev,
             new=new_value,
+            request_ctx=request_ctx,
         )
         return new_value
 
