@@ -1,0 +1,45 @@
+# Rising Dough v3 — Caddyfile for the local prod-sim stack.
+#
+# Mirrors the production shape in terraform/cloud-init/compose/Caddyfile.tpl
+# (ADR-0036), with two local-only concessions:
+#
+#   1. `tls internal` emits a self-signed cert from Caddy's local CA, so no
+#      Let's Encrypt round-trip (and no ACME rate limits) during
+#      `just test-prod-stack`.
+#   2. The CSP header is intentionally omitted — T-D07 (security-headers
+#      middleware with CSP nonce propagation) ships the full policy. This
+#      file carries only the header set that is stable before T-D07 lands.
+{
+	admin off
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+localhost:443 {
+	tls internal
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+	}
+
+	reverse_proxy app:8000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# Port 80 redirects everything to HTTPS. ACME HTTP-01 is unused in prod-sim
+# because `tls internal` issues from Caddy's local CA.
+:80 {
+	redir https://{host}{uri} 308
+}

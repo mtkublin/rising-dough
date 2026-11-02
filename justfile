@@ -116,3 +116,41 @@ db-reset:
     rm -f data/budget.sqlite data/budget.sqlite-wal data/budget.sqlite-shm
     just migrate
     just seed
+
+# --- prod-sim --------------------------------------------------------------
+
+# Boot the full prod-sim compose stack (app + caddy + litestream + minio),
+# wait for /ready via Caddy's self-signed TLS endpoint, run a smoke probe,
+# tear everything down (volumes included) even on failure.
+#
+# See docker-compose.yml for the service shapes and ADR-0032 §2,
+# ADR-0034, ADR-0036 for the production references.
+test-prod-stack:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    teardown() {
+      echo "[test-prod-stack] tearing down..."
+      docker compose -f docker-compose.yml down -v --remove-orphans >/dev/null 2>&1 || true
+    }
+    trap teardown EXIT
+    echo "[test-prod-stack] building images..."
+    docker compose -f docker-compose.yml build
+    echo "[test-prod-stack] starting stack..."
+    docker compose -f docker-compose.yml up -d
+    echo "[test-prod-stack] waiting for /ready via https://localhost:8443 ..."
+    for attempt in $(seq 1 12); do
+      if curl -k -fsS -o /dev/null -w "%{http_code}" https://localhost:8443/ready | grep -q '^200$'; then
+        echo "[test-prod-stack] /ready → 200 (attempt $attempt)"
+        break
+      fi
+      if [ "$attempt" -eq 12 ]; then
+        echo "[test-prod-stack] /ready never returned 200; dumping logs" >&2
+        docker compose -f docker-compose.yml ps >&2 || true
+        docker compose -f docker-compose.yml logs --tail=200 >&2 || true
+        exit 1
+      fi
+      sleep 5
+    done
+    echo "[test-prod-stack] running smoke probe (Playwright journey ships with T-D43)..."
+    uv run python -c "import httpx; r = httpx.get('https://localhost:8443/ready', verify=False); assert r.status_code == 200"
+    echo "[test-prod-stack] OK"

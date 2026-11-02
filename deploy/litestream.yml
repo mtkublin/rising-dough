@@ -1,0 +1,24 @@
+# Rising Dough v3 — Litestream config for the local prod-sim stack.
+#
+# Mirrors terraform/cloud-init/compose/litestream.yml.tpl (ADR-0034 §3),
+# but points at the MinIO sidecar instead of a Scaleway Object Storage bucket.
+#
+# Prod-sim is short-lived: `sync-interval: 10s` matches the prod RPO target
+# (ADR-0034 §3) and `retention: 24h` keeps bucket churn bounded for throwaway
+# runs. Prod retention is 720h in the Terraform template.
+
+dbs:
+  - path: /data/budget.db
+    replicas:
+      - type: s3
+        endpoint: http://minio:9000
+        region: us-east-1
+        bucket: budget-planner-prodsim
+        path: budget
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        force-path-style: true
+        retention: 24h
+        retention-check-interval: 1h
+        snapshot-interval: 1h
+        sync-interval: 10s

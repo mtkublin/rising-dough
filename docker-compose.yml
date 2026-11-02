@@ -1,0 +1,168 @@
+# Rising Dough v3 — local prod-sim compose stack.
+#
+# Mirrors the shape of the Terraform-rendered stack
+# (terraform/cloud-init/compose/*.tpl → ADR-0032 §2, ADR-0034, ADR-0036)
+# but with two local-only swaps:
+#
+#   1. The `app` service builds from the local Dockerfile instead of pulling
+#      a signed image from GHCR. This is what T-D11 is for: end-to-end
+#      exercise of the stack against uncommitted code.
+#   2. A `minio` sidecar + one-shot `minio-init` service stand in for the
+#      Scaleway Object Storage bucket. Litestream is pointed at it so the
+#      replication path is identical to prod from Litestream's perspective.
+#
+# Dev-only secrets are inline here on purpose: `BUDGET_COOKIE_SECRET` and the
+# MinIO creds are fixed, well-known values so `just test-prod-stack` is
+# hermetic and reproducible. Prod never uses these — the Terraform cloud-init
+# templates generate real values and inject them via env.
+#
+# Run with: `just test-prod-stack`.
+# Config check (no daemon required): `docker compose -f docker-compose.yml config`.
+
+name: budget-planner-prodsim
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: budget-planner-prodsim-app
+    restart: unless-stopped
+    # uid 10001 is baked into the Dockerfile (ADR-0032 §2).
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    environment:
+      BUDGET_ENV: "production"
+      BUDGET_DATABASE_URL: "sqlite:////data/budget.db"
+      BUDGET_COOKIE_SECRET: "dev-prodsim-cookie-secret"  # pragma: allowlist secret
+      BUDGET_TRUSTED_HOSTS: "localhost,127.0.0.1"
+      TZ: "Europe/Warsaw"
+    volumes:
+      - data:/data:rw
+    networks:
+      - edge
+    expose:
+      - "8000"
+    # No ports: — app is reachable only via Caddy. Matches ADR-0032.
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).status==200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 10s
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  litestream:
+    image: litestream/litestream:0.5.0
+    container_name: budget-planner-prodsim-litestream
+    restart: on-failure
+    command: ["replicate", "-config", "/etc/litestream.yml"]
+    environment:
+      # Litestream reads AWS_* when talking to any S3-compatible target.
+      # The prod stack uses SCW_* → see terraform/cloud-init/compose/litestream.yml.tpl.
+      AWS_ACCESS_KEY_ID: "minio"
+      AWS_SECRET_ACCESS_KEY: "minio12345"  # pragma: allowlist secret
+    volumes:
+      - data:/data:rw
+      - ./deploy/litestream.yml:/etc/litestream.yml:ro
+    networks:
+      - edge
+    stop_grace_period: 30s
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: budget-planner-prodsim-caddy
+    restart: unless-stopped
+    ports:
+      # Mapped to high ports so `just test-prod-stack` does not need root
+      # and does not collide with any host-local 80/443 listener.
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    depends_on:
+      app:
+        condition: service_started
+    stop_grace_period: 15s
+
+  minio:
+    image: minio/minio:latest
+    container_name: budget-planner-prodsim-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: "minio"
+      MINIO_ROOT_PASSWORD: "minio12345"  # pragma: allowlist secret
+    ports:
+      # Console on 9001 for ad-hoc inspection during a prod-sim run.
+      # S3 API on 9000 stays container-internal; Litestream reaches it via
+      # `http://minio:9000` on the edge network.
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # One-shot: wait for MinIO healthy, create the bucket Litestream expects,
+  # exit 0. Compose dependencies gate `app`/`litestream` on this completing.
+  minio-init:
+    image: minio/mc:latest
+    container_name: budget-planner-prodsim-minio-init
+    restart: "no"
+    entrypoint:
+      - "sh"
+      - "-c"
+      - |
+        set -eu
+        until mc alias set local http://minio:9000 minio minio12345 >/dev/null 2>&1; do
+          echo "waiting for minio..."
+          sleep 1
+        done
+        mc mb --ignore-existing local/budget-planner-prodsim
+        mc version enable local/budget-planner-prodsim >/dev/null 2>&1 || true
+        echo "bucket ready: budget-planner-prodsim"
+    networks:
+      - edge
+    depends_on:
+      minio:
+        condition: service_healthy
+
+networks:
+  edge:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+  minio_data:
+    driver: local

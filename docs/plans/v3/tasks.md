@@ -71,7 +71,7 @@ Owner: application code. All tasks block Phase 2.
 - `.dockerignore` excludes tests, docs, `local/`, `.claude/`.
 - File: `phase-1-prerequisites/T-D10-dockerfile.md`. Reference: ADR-0032 §2.
 
-### ◻ T-D11 [P] docker-compose.yml for prod-sim → T-D10
+### ✅ T-D11 [P] docker-compose.yml for prod-sim → T-D10
 - Three services: `app`, `litestream`, `caddy`. MinIO-based `minio` sidecar used only in local prod-sim to simulate the Scaleway bucket.
 - `just test-prod-stack` recipe boots the stack, waits for `/ready`, runs a smoke Playwright journey, tears down.
 - File: `phase-1-prerequisites/T-D11-docker-compose.md`. Reference: ADR-0032 §2, ADR-0034.
