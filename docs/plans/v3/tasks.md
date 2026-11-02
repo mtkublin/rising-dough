@@ -41,7 +41,7 @@ Owner: application code. All tasks block Phase 2.
 - New unit test asserts each PRAGMA on a fresh connection.
 - File: `phase-1-prerequisites/T-D05-sqlite-pragmas.md`. Reference: ADR-0034 §2.
 
-### ◻ T-D06 [P] Structured JSON logging + request ID
+### ✅ T-D06 [P] Structured JSON logging + request ID
 - `structlog`-based config in `src/budget_planner/logging.py`.
 - Request-ID middleware generates/reads `X-Request-ID`; all log lines include it.
 - `uvicorn` access log replaced with JSON formatter.

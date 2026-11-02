@@ -17,6 +17,7 @@ dependencies = [
   "pyarrow>=17",
   "httpx>=0.27",
   "python-dateutil>=2.9",
+  "structlog>=24.4",
 ]
 
 [dependency-groups]

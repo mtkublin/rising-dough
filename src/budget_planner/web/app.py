@@ -10,7 +10,6 @@ exception handlers (see `web.errors`).
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
+from budget_planner.logging import configure as _configure_logging
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.rendering import render
@@ -33,23 +33,6 @@ if TYPE_CHECKING:
 _HOME_ROUTER_NAME = "home"
 
 _STATIC_DIR = Path(__file__).parent / "static"
-
-
-def _configure_logging() -> None:
-    """Idempotent root-logger config. Keep key=value style so request ids are grep-able."""
-    root = logging.getLogger()
-    if any(getattr(h, "_bp_configured", False) for h in root.handlers):
-        return
-    handler = logging.StreamHandler()
-    handler.setFormatter(
-        logging.Formatter(
-            fmt="%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s",
-            defaults={"request_id": "-"},
-        )
-    )
-    handler._bp_configured = True  # type: ignore[attr-defined]
-    root.addHandler(handler)
-    root.setLevel(logging.INFO)
 
 
 def _assert_production_pragmas(cfg: Settings) -> None:
