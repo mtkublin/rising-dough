@@ -94,8 +94,12 @@ Copy [`.env.example`](.env.example) to `.env` and edit. All keys are prefixed `B
 | `BUDGET_DATABASE_URL` | `sqlite:///data/budget.sqlite` | SQLite only in v1 ([ADR-0003](docs/adr/0003-database-sqlite-only-v1.md)). |
 | `BUDGET_BASE_CURRENCY` | `PLN` | Aggregates convert to this ([ADR-0006](docs/adr/0006-multi-currency-model.md)). |
 | `BUDGET_DISPLAY_TIMEZONE` | `Europe/Warsaw` | Display tz ([ADR-0007](docs/adr/0007-timezone-handling.md)). |
-| `BUDGET_HOST` | `127.0.0.1` | Locked in v1 ([ADR-0005](docs/adr/0005-single-user-no-auth-user-id-scaffold.md)). |
-| `BUDGET_PORT` | `8000` | |
+| `BUDGET_BIND_HOST` | `127.0.0.1` | Loopback only; Caddy fronts TLS ([ADR-0005](docs/adr/0005-single-user-no-auth-user-id-scaffold.md) / [ADR-0036](docs/adr/0036-v3-reverse-proxy-caddy-auto-tls.md)). |
+| `BUDGET_BIND_PORT` | `8000` | |
+| `BUDGET_ENV` | `dev` | `dev` / `test` / `production`. Production flips DB default and requires `BUDGET_COOKIE_SECRET`. |
+| `BUDGET_TRUSTED_HOSTS` | *(empty)* | Comma-separated. Fed to Starlette's `TrustedHostMiddleware` (T-D07). |
+| `BUDGET_COOKIE_SECRET` | *(dev fallback)* | Required in production ([ADR-0033](docs/adr/0033-v3-auth-single-user-passkey.md)). |
+| `BUDGET_SESSION_LIFETIME_DAYS` | `14` | Bounded 1..90. |
 | `BUDGET_FX_API_URL` | `https://api.frankfurter.app` | FX source. |
 
 Timestamps are UTC in the DB, dates on transactions are naive `DATE`, display defaults to `Europe/Warsaw`. See [ADR-0007](docs/adr/0007-timezone-handling.md).

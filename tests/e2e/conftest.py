@@ -94,8 +94,8 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
 
     env = os.environ.copy()
     env["BUDGET_DATABASE_URL"] = db_url
-    env["BUDGET_HOST"] = "127.0.0.1"
-    env["BUDGET_PORT"] = str(port)
+    env["BUDGET_BIND_HOST"] = "127.0.0.1"
+    env["BUDGET_BIND_PORT"] = str(port)
     env["PYTHONUNBUFFERED"] = "1"
 
     proc = subprocess.Popen(  # noqa: S603

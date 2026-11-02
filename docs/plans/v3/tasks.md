@@ -25,7 +25,7 @@ Owner: application code. All tasks block Phase 2.
 - `/auth/*` responses never leak whether a user exists (generic error on login failure).
 - File: `phase-1-prerequisites/T-D02-auth-webauthn.md`. Reference: ADR-0033 (as amended by ADR-0061).
 
-### ◻ T-D03 [P] Config surface for production → T-D04
+### ✅ T-D03 [P] Config surface for production → T-D04
 - `pydantic-settings` fields added: `bind_host` (default `127.0.0.1`), `bind_port` (default `8000`), `trusted_hosts` (list), `cookie_secret`, `session_lifetime_days`.
 - `.env.example` updated; `src/budget_planner/config.py` validates presence of non-defaulted secrets at startup.
 - File: `phase-1-prerequisites/T-D03-config-surface.md`.
