@@ -160,6 +160,19 @@
   the cross-referencing rebuild. Covered by
   `tests/integration/db/test_migrations.py::test_0012_applies_to_v2_snapshot`
   and `::test_0012_down_reverses`.
+- **Feat (T-D13): CI security scans — pip-audit + trivy fs + trivy image**:
+  New `.github/workflows/security.yml` runs on every pull request, every
+  push to `main`, and weekly (Mon 06:00 UTC). Three jobs with
+  least-privilege `permissions:` blocks: `pip-audit` audits `uv.lock`
+  with `--strict`; `trivy-fs` scans the repo root; `trivy-image` builds
+  `rising-dough:scan` from the Dockerfile and scans OS + language
+  packages. All HIGH/CRITICAL findings fail CI unless the id is listed
+  in `.security-allowlist.yml` under the matching scanner key
+  (`pip_audit` / `trivy_fs` / `trivy_image`). SARIF upload is gated on
+  `secrets.CODEQL_TOKEN` so the workflow degrades gracefully in forks.
+  Third-party actions pinned by 40-hex SHA. `pip-audit` added to
+  `pyproject.toml` dev group; `uv.lock` refreshed. Local mirror recipe
+  `just security-scan` requires `trivy` on `PATH`.
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's

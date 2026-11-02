@@ -81,10 +81,11 @@ Owner: application code. All tasks block Phase 2.
 - CI verifies lock file is up to date.
 - File: `phase-1-prerequisites/T-D12-reproducible-lock.md`.
 
-### ◻ T-D13 [P] CI security scans → T-D10
+### ✅ T-D13 [P] CI security scans → T-D10
 - `pip-audit` on `uv.lock`, `trivy fs` on built image, `bandit` already present, `detect-secrets` already present.
 - CI fails on HIGH/CRITICAL unless `.security-allowlist.yml` entry justifies.
 - File: `phase-1-prerequisites/T-D13-ci-security-scans.md`.
+- Delivered: `.github/workflows/security.yml` (pip-audit + trivy fs + trivy image), `.security-allowlist.yml` shape, `pip-audit` added to dev deps, `just security-scan` local recipe. Actions pinned by 40-hex SHA; least-privilege `permissions:` per job; SARIF upload gated on `secrets.CODEQL_TOKEN` presence.
 
 ### ◻ T-D14 [P] Audit log carries client IP + session user → T-D02
 - `write_audit` now accepts `request_ctx: RequestCtx { ip, user_id, session_id, user_agent }`.
