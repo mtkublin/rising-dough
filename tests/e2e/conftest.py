@@ -97,6 +97,13 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     env["BUDGET_BIND_HOST"] = "127.0.0.1"
     env["BUDGET_BIND_PORT"] = str(port)
     env["PYTHONUNBUFFERED"] = "1"
+    # T-D08 — e2e runs over plain HTTP (http://127.0.0.1:port); the browser
+    # rejects ``Secure`` cookies on HTTP, which breaks the CSRF
+    # double-submit flow. ``env=dev`` suppresses the ``Secure`` flag.
+    # (Also silences the dev cookie_secret warning in the child process.)
+    env["BUDGET_ENV"] = "dev"
+    # Well-known dev value used only by the e2e subprocess.
+    env["BUDGET_COOKIE_SECRET"] = "e2e-dev-cookie-secret-not-a-real-secret"  # noqa: S105  # pragma: allowlist secret
 
     proc = subprocess.Popen(  # noqa: S603
         [
@@ -128,8 +135,39 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
 
 
 @pytest.fixture
-def page(_browser: Browser) -> Iterator[Page]:
+def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
+    """A Playwright ``Page`` with the CSRF token wired into ``page.request``.
+
+    T-D08 — the CSRF middleware (ADR-0033 §4) rejects mutating requests
+    that lack ``X-CSRF-Token``. E2E seeding uses ``page.request.post``
+    which is an ``APIRequestContext`` call — it shares the browser
+    context's cookie jar, so a priming GET establishes ``__Host-csrf``
+    for both the jar *and* the context's ``extra_http_headers``. The
+    extra-header injection means every subsequent seeding POST (and any
+    direct form submit the HTMX extension does not touch) carries the
+    token without each test having to opt in.
+    """
+    base_url, _db_path = live_server
     context = _browser.new_context()
+    # Prime the cookie via the shared APIRequestContext.
+    priming = context.request.get(f"{base_url}/healthz")
+    # Parse the ``Set-Cookie`` header directly — Playwright's cookie jar
+    # rejects the ``__Host-`` prefix without a trusted TLS context, so we
+    # cannot rely on ``context.cookies()`` to echo the value back. The
+    # token still works as a double-submit if we plumb it in as a header
+    # on every subsequent request.
+    import re  # noqa: PLC0415
+
+    set_cookie = priming.headers.get("set-cookie", "")
+    match = re.search(r"__Host-csrf=([^;]+)", set_cookie)
+    token = match.group(1) if match else ""
+    if token:
+        context.set_extra_http_headers(
+            {
+                "X-CSRF-Token": token,
+                "Cookie": f"__Host-csrf={token}",
+            }
+        )
     page = context.new_page()
     try:
         yield page

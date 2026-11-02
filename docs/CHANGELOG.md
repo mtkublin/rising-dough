@@ -188,6 +188,40 @@
   failure. MinIO dev creds documented in `.env.example` under a
   prod-sim comment block — hermetic values; never reused in real envs.
   CSP header is intentionally deferred to T-D07.
+- **Feat: T-D08 · CSRF middleware + `__Host-csrf` cookie + HTMX extension
+  (ADR-0033 §4 / §5)**: added
+  `src/budget_planner/web/middleware/csrf.py` — Starlette
+  `CSRFMiddleware` implements the double-submit CSRF defence. Every
+  response that lacks the cookie attaches `__Host-csrf=<token>` with
+  `Path=/`, `SameSite=Lax`, and `Secure` (dropped on `env=dev` for raw
+  HTTP). State-changing requests (POST/PUT/PATCH/DELETE) must carry
+  either an `X-CSRF-Token` header or a `_csrf_token` form field matching
+  the cookie; mismatch → `403 {"detail": "invalid_csrf"}`. Form payloads
+  are buffered + replayed so downstream FastAPI handlers still see the
+  full body. Exempt paths: `/health`, `/ready`, `/healthz` — extend via
+  the module-level `_EXEMPT_PATHS` set. Registered after
+  `RequestIdMiddleware` + `SecurityHeadersMiddleware` and before any
+  future auth layer so 403s still carry request-id + baseline security
+  headers (ADR-0033 §5). `web/rendering.py` surfaces
+  `request.state.csrf_token` as the Jinja context value `csrf_token`.
+  New static asset
+  `src/budget_planner/web/static/htmx-csrf.js` registers the HTMX
+  extension `csrf` which reads the cookie on `htmx:configRequest` and
+  attaches `X-CSRF-Token` on unsafe methods only. `base.html` loads the
+  script after HTMX and sets `hx-ext="csrf"` on `<body>`. Covered by
+  `tests/integration/web/test_csrf.py` (10 cases: priming cookie,
+  missing cookie, header match, header mismatch, form-field fallback,
+  exempt path, cookie stability, dev drops Secure, production keeps
+  Secure, Jinja context). The shared `tests/integration/web/conftest.py`
+  wraps `TestClient` in `_CSRFAwareTestClient` which auto-primes the
+  cookie and auto-attaches the header on unsafe methods so the 170+
+  existing POST assertions pass without edits; the TestClient
+  `base_url` is pinned to `https://testserver` to satisfy httpx's
+  Secure-cookie policy. `tests/e2e/conftest.py` boots the uvicorn
+  subprocess with `BUDGET_ENV=dev` + a known dev cookie secret (plain
+  HTTP e2e cannot carry a Secure cookie) and the `page` fixture primes
+  `__Host-csrf` via Playwright's `APIRequestContext` + sets
+  `extra_http_headers` on the browser context.
 - **Feat: T-D07 · Security headers middleware + CSP nonce propagation
   (ADR-0036, ADR-0033)**: added
   `src/budget_planner/web/middleware/security_headers.py` —

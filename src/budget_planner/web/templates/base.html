@@ -17,9 +17,10 @@
     <link rel="stylesheet"
           href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
     <script src="https://unpkg.com/htmx.org@2"></script>
+    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=rd1" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="rd min-h-screen">
+  <body class="rd min-h-screen" hx-ext="csrf">
     <a class="skip-link sr-only focus:not-sr-only" href="#main">Skip to content</a>
     <div class="rd-shell">
       <aside class="rd-rail">

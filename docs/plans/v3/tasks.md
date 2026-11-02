@@ -53,7 +53,7 @@ Owner: application code. All tasks block Phase 2.
 - Integration test asserts each header on the Overview response.
 - File: `phase-1-prerequisites/T-D07-security-headers.md`. Reference: ADR-0036.
 
-### ◻ T-D08 [P] CSRF protection → T-D02
+### ✅ T-D08 [P] CSRF protection → T-D02
 - `__Host-csrf` cookie + `X-CSRF-Token` header. HTMX extension (`htmx-csrf.js`) attached to the base template.
 - Rejects POST/PUT/PATCH/DELETE without a matching token with 403.
 - File: `phase-1-prerequisites/T-D08-csrf.md`. Reference: ADR-0033 §4.

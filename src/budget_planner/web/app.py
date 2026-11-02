@@ -24,6 +24,7 @@ from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.web.errors import register_exception_handlers
+from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
 from budget_planner.web.rendering import render
@@ -163,6 +164,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # after RequestId and before any future auth/CSRF/rate-limit layers
     # (ADR-0033 §5, ADR-0036 §3).
     app.add_middleware(SecurityHeadersMiddleware)
+    # T-D08 — CSRF double-submit cookie + header defence. Added after
+    # RequestId + SecurityHeaders and before any future auth layer so the
+    # 403 responses still carry request-id and the baseline headers
+    # (ADR-0033 §4 / §5).
+    app.add_middleware(CSRFMiddleware)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
