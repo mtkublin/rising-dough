@@ -78,36 +78,42 @@ The toolchain the skill validates against (local Tailwind build, `stylelint`, Ji
 - **Server binds to `127.0.0.1` only** in v1. No LAN or public exposure.
 - **No secrets committed.** `detect-secrets` is in the pre-commit stack.
 - **Timestamps are UTC in DB**, dates on transactions are naive `DATE`, display timezone defaults to `Europe/Warsaw`. See ADR-0007.
+- **`data/budget.sqlite` = prod. Hands off.** No agent writes, migrations, resets, seeds, or ad-hoc SQL against it without explicit in-session user confirmation. For any DB experiment use `just dev --db=<path>` with a scratch file (e.g. `/tmp/scratch.sqlite`) or `just dev-demo`. See "Databases" section above.
 
 ## Databases
 
-Two SQLite files live under `data/`:
+### `data/budget.sqlite` is production — HANDS OFF (MANDATORY)
+
+`data/budget.sqlite` holds the only canonical user data. Treat it exactly like a production DB — the same way you would treat a live customer database at a job.
+
+- **No agent — human-driven or autonomous — may drop, truncate, migrate, reset, seed, re-import, schema-alter, or hand-edit `data/budget.sqlite` without explicit, in-session user confirmation.** This covers "harmless" fixes, "quick" cleanups, inserting test rows, column renames, ad-hoc SQL, and anything that opens the file in write mode. Ask first, every time. A prior approval does not carry over to a new task.
+- **Never target it from tests, reproductions, scratch work, or exploratory debugging.** If you need a DB to try something out, spin up a disposable one and point the app at it via `--db=<path>`:
+
+  ```sh
+  just dev --db=/tmp/scratch.sqlite        # throwaway for ad-hoc work / repros
+  just dev --db=data/demo.sqlite           # anonymized demo (safe to abuse)
+  just dev-demo                            # same, shorthand
+  ```
+
+  The pytest suite already uses isolated temp DBs — do not bypass that by hard-coding `data/budget.sqlite` anywhere in test code, fixtures, or scripts.
+- Commands that default to the prod DB and are therefore **destructive-by-default**: `just db-reset`, `just migrate`, `just seed`, and the CSV import script. Never run them against the default path from inside a task unless the user has explicitly said "run it against prod" in the current session. When in doubt, pass `--db=<path>` to a scratch file.
+- The `--db=<path>` flag on `just dev` sets `BUDGET_DATABASE_URL=sqlite:///<path>`; app code is unchanged. Use it as the standard escape hatch for any DB experiment.
+- The anonymizer at `data/scripts/build_demo_db.py` only runs when the source basename ends with `budget.sqlite` as a tripwire against accidental swaps — do not weaken or remove that check.
+
+### Files at a glance
 
 | File | Role | Policy |
 |------|------|--------|
-| `data/budget.sqlite` | **Prod** (local, canonical user data). Gitignored. | **Never modify from scripts or agents without explicit user confirmation.** `just db-reset`, `just migrate`, `just seed`, and the import script all target this file by default — treat them as destructive and ask first. |
+| `data/budget.sqlite` | **Prod** (local, canonical user data). Gitignored. | **Hands off.** See rule above. No writes without explicit user confirmation in the current session. |
 | `data/demo.sqlite` | Demo DB — anonymized, scaled copy of prod for feature walkthroughs. Tracked in git. | Rebuild with `just demo-build` (reads prod, writes demo; prod is untouched). Safe to nuke and regenerate. |
-
-Pick the DB at startup with the `--db=<path>` flag:
-
-```sh
-just dev                           # prod (default)
-just dev --db=data/demo.sqlite     # demo
-just dev-demo                      # same, shorthand
-just dev --db=/tmp/scratch.sqlite  # throwaway
-```
-
-Under the hood the flag sets `BUDGET_DATABASE_URL=sqlite:///<path>`; the app
-code is unchanged. The anonymizer lives at `data/scripts/build_demo_db.py`
-and only runs against a source whose basename ends with `budget.sqlite` as a
-tripwire against accidental swaps.
+| `/tmp/*.sqlite` or any path via `--db=` | Scratch / testing. | Default target for any agent-driven DB experiment. Create, abuse, delete freely. |
 
 ## Handoff checklist (for subsequent agents)
 
 Before marking a task done:
 
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
-2. Code + tests committed; `just ci` green.
+2. Code + tests committed; `just ci` green. **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 4. `docs/tasks.md` task line prefixed with `✅`.
 5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
