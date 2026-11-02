@@ -10,7 +10,7 @@
 
 Owner: application code. All tasks block Phase 2.
 
-### ◻ T-D01 [P] Health & readiness endpoints
+### ✅ T-D01 [P] Health & readiness endpoints
 - `GET /health` → 200 iff process is up. No DB, no auth.
 - `GET /ready` → 200 iff `PRAGMA integrity_check` returns `ok` on `/data/budget.db`; 503 otherwise. No auth.
 - Mounted outside the auth middleware (ADR-0033 §5).

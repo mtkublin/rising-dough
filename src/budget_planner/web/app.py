@@ -113,10 +113,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _register_routers(app)
     register_exception_handlers(app)
 
-    @app.get("/healthz")
-    def healthz() -> dict[str, str]:
-        return {"status": "ok", "version": app.version}
-
     # Fallback `/` dev index when the home router did not register (shouldn't
     # happen in prod — the home module is in-tree). Kept for test rigs that
     # intentionally skip the home router.
@@ -130,6 +126,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 _ROUTER_NAMES: tuple[str, ...] = (
+    # Health first — it must be registered before any auth middleware so
+    # /health + /ready stay publicly reachable (ADR-0033 §5).
+    "health",
     "home",
     "transactions",
     "accounts",

@@ -117,7 +117,7 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_until_ready(f"{base_url}/healthz")
+        _wait_until_ready(f"{base_url}/health")
         yield base_url, db_path
     finally:
         proc.terminate()
