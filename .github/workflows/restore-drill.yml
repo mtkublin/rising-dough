@@ -1,0 +1,152 @@
+# Monthly automated restore drill (T-D41, ADR-0034 §5).
+#
+# Provisions a disposable Scaleway drill environment via Terraform, restores
+# `/data/budget.db` from the prod Litestream bucket (read-only credential
+# baked into the drill cloud-init), verifies integrity + readiness, then
+# tears the environment down on success. On failure the drill host is
+# intentionally left standing and a GitHub issue is opened so the operator
+# can post-mortem.
+#
+# Secrets (environment-scoped to `drill`):
+#   SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID
+#   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
+#   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - pinned known_hosts entry for drill host.
+#
+# Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
+# applies to our CI supply chain as well).
+
+name: Restore drill
+
+on:
+  schedule:
+    # 03:00 UTC on the 1st of every month.
+    - cron: "0 3 1 * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: restore-drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  restore-drill:
+    name: Provision → restore → verify → destroy
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: drill
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_REGION: pl-waw
+      SCW_DEFAULT_ZONE: pl-waw-1
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      DRILL_HOST: drill.budget.${{ vars.APP_DOMAIN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Install Scaleway CLI
+        run: |
+          set -euo pipefail
+          SCW_VERSION="2.34.0"
+          curl -fsSL -o /tmp/scw \
+            "https://github.com/scaleway/scaleway-cli/releases/download/v${SCW_VERSION}/scaleway-cli_${SCW_VERSION}_linux_amd64"
+          sudo install -m 0755 /tmp/scw /usr/local/bin/scw
+          scw version
+
+      - name: Configure SSH agent
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Pin known_hosts for drill host
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS_DRILL }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Terraform init (drill backend)
+        working-directory: terraform
+        run: terraform init -backend-config=envs/drill/backend.hcl
+
+      - name: Terraform apply (drill)
+        working-directory: terraform
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var-file=envs/drill/terraform.tfvars
+
+      - name: Trigger restore on drill host
+        # The cloud-init helper lives at /usr/local/bin/restore-from-prod and
+        # (per ADR-0034 §5 + the drill terraform.tfvars) runs
+        #   litestream restore -o /data/budget.db s3://budget-planner-prod-pl-waw/db
+        # using a read-only IAM credential scoped to the prod bucket.
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_HOST}" \
+            'sudo /usr/local/bin/restore-from-prod'
+
+      - name: Verify /ready reports ok
+        run: |
+          set -euo pipefail
+          status="$(curl -fsS "https://${DRILL_HOST}/ready" | jq -r .status)"
+          echo "ready.status=${status}"
+          test "${status}" = "ok"
+
+      - name: Verify PRAGMA integrity_check
+        run: |
+          set -euo pipefail
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_HOST}" \
+            "sudo sqlite3 /data/budget.db 'PRAGMA integrity_check;'")"
+          echo "integrity_check=${result}"
+          test "${result}" = "ok"
+
+      - name: Terraform destroy (drill)
+        # Only runs if every verification step above succeeded. On failure
+        # the next step opens an issue instead and leaves the host standing.
+        if: success()
+        working-directory: terraform
+        run: |
+          terraform destroy \
+            -auto-approve \
+            -var-file=envs/drill/terraform.tfvars
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="restore-drill-failure-$(date +%Y-%m)"
+          body=$(cat <<EOF
+          Automated restore drill failed.
+
+          - Workflow run: ${RUN_URL}
+          - Drill host left standing for post-mortem: \`${DRILL_HOST}\`
+          - Next step: SSH in, inspect litestream + app logs, then
+            \`terraform destroy -var-file=envs/drill/terraform.tfvars\`
+            once root cause is captured.
+
+          Per ADR-0034 §5 this blocks the next monthly drill until closed.
+          EOF
+          )
+          gh issue create \
+            --repo "${REPO}" \
+            --title "${title}" \
+            --body "${body}" \
+            --label "restore-drill,incident"
