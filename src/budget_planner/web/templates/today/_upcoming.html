@@ -22,8 +22,10 @@
     {% set acc = accounts_by_id.get(row.account_id) if accounts_by_id is defined else none %}
     {% set direction = cat.direction.value if cat else "expense" %}
     {% set is_income = direction == "income" %}
+    {% set is_overdue = row.operation_date < today %}
+    {% set is_due_today = row.operation_date == today %}
     <div id="{{ row_id }}"
-         class="rd-row rd-upcoming__row{% if row.is_overdue %} rd-upcoming__row--overdue{% endif %}">
+         class="rd-row rd-upcoming__row{% if is_overdue %} rd-upcoming__row--overdue{% elif is_due_today %} rd-upcoming__row--due{% endif %}">
       <span class="num mut rd-upcoming__date">{{ row.operation_date.strftime("%b %d") }}</span>
       <span class="rd-upcoming__desc">
         <span class="rd-upcoming__name">{{ row.description }}</span>

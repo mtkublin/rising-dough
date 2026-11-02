@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-02
+- **Feat: Today · Upcoming row tint for Due / Overdue**:
+  `today/_upcoming.html` was decorating overdue planned rows only with
+  a very faint row-level background tint keyed off the service's
+  `is_overdue` flag (planned-only; recurring rules intentionally always
+  `False`), with no indicator at all for payments due *today*. User
+  could not tell at a glance whether a row was late or just coming up.
+  Fix: compute `is_overdue = row.operation_date < today` and
+  `is_due_today = row.operation_date == today` in the template (uniform
+  across planned + recurring kinds — the user-facing meaning is "date
+  vs. today", not the backend `is_overdue` flag) and apply a strong
+  row background tint: red (`var(--expense)` @ 12%) for past-dated
+  rows, amber (`var(--adjust)` @ 12%) for today, no tint for future
+  rows. No badge text is added — the row colour alone communicates
+  status, keeping the grid and the payment title layout untouched.
+  Covered by
+  `tests/integration/web/test_today.py::test_today_upcoming_row_tint_overdue_due_future`.
+
 ## 2026-11-01
 - **Fix: Plan/Forecast EOM is a running chain anchored at current net worth
   (ADR-0043, ADR-0064)**: `forecast_monthly` previously computed EOM for

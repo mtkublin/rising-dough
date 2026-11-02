@@ -2327,7 +2327,8 @@ kbd.rd-kbd {
   border-top: 1px solid var(--line);
 }
 .rd-upcoming__group + .rd-upcoming__row { border-top: 0; }
-.rd-upcoming__row--overdue { background: color-mix(in oklab, var(--expense) 5%, transparent); }
+.rd-upcoming__row--overdue { background: color-mix(in oklab, var(--expense) 12%, transparent); }
+.rd-upcoming__row--due { background: color-mix(in oklab, var(--adjust) 12%, transparent); }
 .rd-upcoming__date { font-size: 0.78rem; }
 .rd-upcoming__desc { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; overflow: hidden; }
 .rd-upcoming__name { font-weight: 500; }
