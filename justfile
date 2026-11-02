@@ -116,3 +116,15 @@ db-reset:
     rm -f data/budget.sqlite data/budget.sqlite-wal data/budget.sqlite-shm
     just migrate
     just seed
+
+# --- security --------------------------------------------------------------
+
+# T-D13 — local mirror of .github/workflows/security.yml. Requires `trivy`
+# installed on PATH (brew install aquasecurity/trivy/trivy) and a local
+# Docker daemon for the image scan. The CI workflow is the source of truth;
+# this recipe is for pre-push sanity checks.
+security-scan:
+    uv run pip-audit --strict
+    docker build -t rising-dough:scan .
+    trivy fs . --severity HIGH,CRITICAL --exit-code 1
+    trivy image rising-dough:scan --severity HIGH,CRITICAL --exit-code 1
