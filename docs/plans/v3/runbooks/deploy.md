@@ -1,0 +1,74 @@
+# Runbook — Deploy
+
+Standard release of a new SHA to production.
+
+## Context
+
+v3 deploys land on the single Scaleway Stardust VM via a GitHub Actions pipeline that pushes a new container image to GHCR and SSHes into the host as the restricted `deploy` user to roll the `app` container forward. The pipeline is defined in `.github/workflows/build.yml` + `.github/workflows/deploy.yml`; the on-host shim is `/usr/local/bin/deploy-budget-planner` (ADR-0037 §3).
+
+The happy-path contract: CI green → image signed by cosign → GHCR tag `sha-<short>` exists → operator approves the `prod` environment in GitHub → the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
+
+## Preconditions
+
+- Pre-merge CI (`.github/workflows/ci.yml`) is green on the merge commit.
+- The merge commit is on `main`.
+- Image `ghcr.io/<owner>/budget-planner:sha-<short>` exists in GHCR and is signed (keyless cosign, GitHub OIDC).
+- Operator has access to the GitHub Actions environment named `prod` and 2FA active on their GitHub account.
+- Prod host DNS (`<prod-host>`) still resolves to the Scaleway Flex IPv4 recorded in `terraform output prod_host_ipv4`.
+- `budget-planner-prod-pl-waw` bucket is reachable from the host (Litestream health probe green in the last 5 min).
+
+## Procedure
+
+1. Confirm `build.yml` succeeded for the target commit:
+   - `gh run list --workflow=build.yml --branch=main --limit=5`
+   - Expect `completed · success` for the SHA you intend to deploy.
+2. Trigger the deploy workflow:
+   - Automatic trigger: `build.yml` success enqueues `deploy.yml` and parks it on the `prod` environment approval gate.
+   - Manual trigger (re-deploy same SHA, e.g. after rolling back): `gh workflow run deploy.yml -f sha=<short-sha>`.
+3. Approve the `prod` environment in the GitHub Actions UI (or `gh run approve <run-id>`). The approval line is the single human gate on prod.
+4. Deploy step executes (CI runner, not the host):
+   - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.
+   - Opens an SSH session to the `deploy` user: `ssh deploy@<prod-host> "deploy sha-<short>"`.
+   - The on-host shim pulls the new tag, writes the previous tag to `.previous-tag`, runs `docker compose up -d app`, and probes `/ready` up to 30 times at 1 s intervals.
+5. Watch the GitHub Actions step summary:
+   - Successful run posts the deployed SHA + the compare link against the previous SHA.
+   - Failed probe is auto-reverted by the shim (see Troubleshooting).
+
+## Verification
+
+Run from your workstation. All three must pass before the deploy is considered done.
+
+```sh
+# TLS + reachability + readiness.
+curl -fsS "https://<prod-host>/ready" | jq .
+# Expect: {"status":"ok","db":"ok","litestream":"ok", ...}
+
+# Deployed revision matches target SHA (image label is written at build time).
+ssh app@<prod-host> \
+  "docker inspect --format='{{index .Config.Labels \"org.opencontainers.image.revision\"}}' budget-planner-app-1"
+# Expect: <full SHA> matching the git revision deployed.
+
+# Caddy still serving HTTPS with current cert.
+curl -fsSI "https://<prod-host>/" | grep -i strict-transport-security
+# Expect: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+```
+
+Then record the deploy in the GitHub `prod` environment history (automatic — nothing to do). If this deploy ships a schema migration, confirm the audit log tail shows the migration row:
+
+```sh
+ssh app@<prod-host> \
+  "sqlite3 /data/budget.db 'SELECT id, entity_type, operation, created_at FROM audit_log ORDER BY id DESC LIMIT 5;'"
+```
+
+## Troubleshooting
+
+- **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Re-run `build.yml` on the same SHA; if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
+- **SSH session rejected**: `deploy` user is key-restricted via `authorized_keys` with `command="/usr/local/bin/deploy-budget-planner"`. If the key does not match or `GITHUB_ACTIONS` IP is temporarily rate-limited by `fail2ban`, wait 10 min or SSH as `app` and `sudo fail2ban-client set sshd unbanip <gha-runner-ip>`.
+- **`/ready` probe fails during deploy**: the shim auto-reverts to `.previous-tag` and exits non-zero. Deploy workflow step summary shows the probe response + the last 50 log lines. Investigate before retrying; usually either a migration failure or Litestream not yet healthy.
+- **`docker compose pull` 403s against GHCR**: `GHCR_PAT` expired. Rotate per `disaster-recovery.md` §Secrets and re-render `/etc/docker/config.json` via `terraform apply`.
+- **Deploy succeeded but DNS still points elsewhere**: `terraform output prod_host_ipv4` vs `dig +short <prod-host>`. If they diverge, DNS was manually edited; reconcile via Terraform.
+
+## Rollback
+
+- Auto-rollback is built into the shim — a failing `/ready` probe reverts to `.previous-tag` without manual action.
+- Manual rollback (last known-good SHA, e.g. after discovering a prod-only bug minutes after a green deploy): see [`rollback.md`](rollback.md). Shape: `gh workflow run rollback.yml` or `ssh deploy@<prod-host> "rollback"`.

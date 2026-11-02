@@ -263,7 +263,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
-### ◻ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
+### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`
 - `docs/plans/v3/runbooks/rollback.md`
 - `docs/plans/v3/runbooks/restore.md`
