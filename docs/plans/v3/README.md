@@ -12,6 +12,7 @@
 
 - [`implementation_plan.md`](implementation_plan.md) — phased delivery with acceptance gates.
 - [`tasks.md`](tasks.md) — flat task index (T-D01…T-D46), referenced from the phase docs.
+- [`operator-checklist.md`](operator-checklist.md) — human-only actions (accounts, credentials, real-device checks, operator decisions) that run in parallel with agent work.
 - [`phase-1-prerequisites/`](phase-1-prerequisites/) — individual task files for app-side prerequisites.
 - [`phase-2-infrastructure/`](phase-2-infrastructure/) — Terraform + cloud-init bootstrap tasks.
 - [`phase-3-deployment/`](phase-3-deployment/) — GitHub Actions pipeline tasks.
