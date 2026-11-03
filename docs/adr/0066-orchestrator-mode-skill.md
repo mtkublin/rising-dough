@@ -19,8 +19,13 @@ Add a repo skill, `.claude/skills/orchestrator-mode/SKILL.md`, that codifies the
 5. Conflicts are resolved by **merging the main work branch into the item branch**, never rebasing; then the item merges cleanly with `--no-ff`.
 6. Merged worktrees and branches are pruned immediately.
 
+## Amendment (2026-11-03): cheaper subagent models
+
+Subagents are dispatched with an explicit, cheaper `model` than the orchestrator's: `sonnet` by default, `haiku` for small mechanical or read-only items. `opus` is used only on user request or after two `sonnet` failures on the same item. The orchestrator keeps the strong model, because decomposition, briefs, and merges are where reasoning quality matters most; implementation tokens dominate cost.
+
 ## Consequences
 
 - Orchestrated sessions are reproducible and rule-compliant by construction; every change is attributable to one item branch.
 - Small fixes cost a subagent round-trip instead of a direct edit — accepted for traceability.
 - Merge-based conflict resolution leaves merge commits on item branches; history is non-linear but faster to reconcile.
+- Subagent cost drops substantially; briefs must be more precise to compensate for weaker models.

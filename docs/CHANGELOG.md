@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-03 (orchestrator-mode — cheaper subagent models)
+- **Change: `orchestrator-mode` skill dispatches subagents on cheaper models.**
+  `sonnet` by default, `haiku` for mechanical or read-only items, `opus` only
+  on user request or after two failed attempts (ADR-0066 amendment).
+
 ## 2026-11-03 (T-D19a — migrations before app start in production)
 - **Feat(T-D19a): `db/startup_migrate.py`** (`python -m budget_planner.db.startup_migrate`) applies pending migrations before uvicorn starts. It is idempotent and writes nothing when the schema is current. When an existing DB is upgraded it first takes a `VACUUM INTO` backup to `<db dir>/backups/` (newest 3 kept). It logs `schema_ahead_of_image` and keeps going when it starts against a newer schema (rollback). On failure it exits 1 (ADR-0071).
 - **Feat(T-D19a): Dockerfile `ENTRYPOINT`** `deploy/docker-entrypoint.sh` migrates and then `exec`s the CMD. The deploy shim and cloud-init are unchanged.

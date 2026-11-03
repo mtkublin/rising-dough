@@ -91,6 +91,15 @@ Per agent:
 - `isolation: "worktree"`, so each agent gets its own worktree and branch.
 - `subagent_type`: `general-purpose` (or a fitting implementer such as `tdd-guide`).
   Never a read-only type.
+- **`model`: always set it explicitly to a cheaper model than the orchestrator's.**
+  Agents otherwise inherit the orchestrator's (expensive) model.
+  - `model: "sonnet"` is the default for every implementation, fix, and conflict-resolution agent.
+  - `model: "haiku"` for small mechanical items: renames, doc-only or changelog edits,
+    config tweaks, test-only additions that follow an existing pattern, and read-only
+    `Explore` research.
+  - Use `opus` only when the user asks for it, or after a `sonnet` agent has failed the
+    same item twice. Mention every escalation in the final report.
+  - Cheaper models need tighter briefs: name exact files, functions, and acceptance checks.
 - Background execution. Wait for completion notifications. Do not poll and do
   not sleep.
 - **Auto mode:** if the session runs in auto mode, subagents inherit it. Do not
@@ -192,6 +201,6 @@ early merges keep later conflicts small.
 ## 6. Finish
 
 - All items merged, `just ci` green on `<MAIN>`, no stray worktrees or branches.
-- Report to the user: items done (id, merge sha), CI result, frontend audit summaries
+- Report to the user: items done (id, merge sha, model used), CI result, frontend audit summaries
   from agents, deferred or blocked items, follow-ups.
 - Do not push or open a PR unless asked.
