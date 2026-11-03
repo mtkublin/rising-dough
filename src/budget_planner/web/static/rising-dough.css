@@ -1046,7 +1046,14 @@ kbd.rd-kbd {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
-.ledger-scroll { overflow-x: auto; }
+
+.ledger-scroll {
+  overflow-x: auto;
+
+  /* Anchor absolutely-positioned descendants (.sr-only th labels) so they
+   * don't escape the scroller and widen the document (T-VIS). */
+  position: relative;
+}
 
 /* Category chip inside legacy ledger rows ↦ pill. */
 .ledger .category-chip,
@@ -1178,7 +1185,9 @@ kbd.rd-kbd {
 .rd-tabbar { display: none; }
 
 @media (width <= 640px) {
-  .rd-shell { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), not 1fr: a bare 1fr has an `auto` minimum so wide tables
+   * (.ledger-scroll) blow the single column past the viewport (T-VIS). */
+  .rd-shell { grid-template-columns: minmax(0, 1fr); }
   .rd-rail { display: none; }
   .rd-main { padding: 1rem 1rem 5rem; }
 
@@ -2305,7 +2314,8 @@ kbd.rd-kbd {
 .rd-ledger-recently { margin-top: 1.25rem; font-size: 0.8rem; }
 .rd-ledger-recently a { color: var(--accent); text-underline-offset: 2px; }
 
-@media (width <= 960px) {
+@media (width <= 1200px) {
+  /* 1024-wide tablets: the nowrap chip row + 15rem search overflowed (T-VIS). */
   .rd-ledger-chips { flex-wrap: wrap; }
   .rd-ledger-chips .rd-chips__search { flex: 1 1 100%; margin-left: 0; }
 }
