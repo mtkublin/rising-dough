@@ -67,11 +67,12 @@ Owner: application code. All tasks block Phase 2.
 - E2E fixture stops hand-injecting the `Cookie` header; regression test for dev cookie shape.
 - Reference: ADR-0065 (amends ADR-0033 §4).
 
-### ◻ T-D09 [P] Rate limit on auth routes → T-D02
-- `slowapi` middleware; limits per ADR-0033 §2.
-- Returns 429 with `Retry-After`.
-- Integration test fires the limit and asserts the 429.
-- File: `phase-1-prerequisites/T-D09-auth-rate-limit.md`.
+### ✅ T-D09 [P] Rate limit on auth routes → T-D02
+- Fixed-window counters in `auth_rate_limit` (migration 0014) via `repositories/rate_limit.py` + `services/rate_limit.py`; no `slowapi` (ADR-0072 supersedes the ADR-0033 §2 library choice).
+- `POST /auth/login` (IP+email 5/min + 20/h; IP 100/h), `POST /auth/login/finish` (IP 10/min + 60/h), `POST /auth/register/finish` (user 5/min + 20/h); all configurable (`BUDGET_RATE_LIMIT_*`).
+- Returns 429 with `Retry-After`; HTML login re-renders with a generic message; HTMX/JSON get `{"error": "rate_limited"}`. Throttled attempts write an `auth_event` audit row.
+- Integration test fires the limit and asserts the 429 (`tests/integration/web/test_auth_rate_limit.py`).
+- File: `phase-1-prerequisites/T-D09-auth-rate-limit.md`. Reference: ADR-0072.
 
 ### ✅ T-D10 [P] Dockerfile (multi-stage, non-root)
 - Base `python:3.12-slim-bookworm`; `uv sync --frozen` in build stage; `COPY --from=builder` to final.
