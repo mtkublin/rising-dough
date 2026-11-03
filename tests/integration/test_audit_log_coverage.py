@@ -21,6 +21,8 @@ from budget_planner.repositories import (
     transactions as txn_repo,
 )
 
+USER_ID = 1
+
 pytestmark = pytest.mark.integration
 
 
@@ -51,7 +53,7 @@ def test_update_captures_prev_and_new_json(
     conn: sqlite3.Connection, make_account: Callable[..., int]
 ) -> None:
     account_id = make_account(name="A")
-    accounts_repo.update(conn, account_id, PatchAccount(name="B"))
+    accounts_repo.update(conn, USER_ID, account_id, PatchAccount(name="B"))
 
     rows = _audit(conn, "account", account_id)
     assert [r["operation"] for r in rows] == ["create", "update"]
@@ -68,7 +70,7 @@ def test_soft_delete_logs_delete_operation(
     conn: sqlite3.Connection, make_account: Callable[..., int]
 ) -> None:
     account_id = make_account()
-    accounts_repo.soft_delete(conn, account_id)
+    accounts_repo.soft_delete(conn, USER_ID, account_id)
     ops = [r["operation"] for r in _audit(conn, "account", account_id)]
     assert ops[-1] == "delete"
 
@@ -77,8 +79,8 @@ def test_undelete_logs_undelete_operation(
     conn: sqlite3.Connection, make_account: Callable[..., int]
 ) -> None:
     account_id = make_account()
-    accounts_repo.soft_delete(conn, account_id)
-    accounts_repo.undelete(conn, account_id)
+    accounts_repo.soft_delete(conn, USER_ID, account_id)
+    accounts_repo.undelete(conn, USER_ID, account_id)
     ops = [r["operation"] for r in _audit(conn, "account", account_id)]
     assert ops == ["create", "delete", "undelete"]
 
@@ -95,7 +97,7 @@ def test_transaction_update_writes_matching_audit(
         amount=1000,
         operation_date=date(2026, 2, 1),
     )
-    txn_repo.update(conn, txn_id, PatchTransaction(amount=2000))
+    txn_repo.update(conn, USER_ID, txn_id, PatchTransaction(amount=2000))
 
     rows = _audit(conn, "transaction", txn_id)
     assert [r["operation"] for r in rows] == ["create", "update"]

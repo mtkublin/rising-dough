@@ -37,7 +37,6 @@ class NewAccount:
     type: str | None = None
     is_liability: bool = False
     credit_limit_minor: int | None = None
-    user_id: int = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -16,6 +16,8 @@ from budget_planner.domain.enums import Direction
 from budget_planner.repositories import audit as audit_repo
 from budget_planner.services import balance as balance_service, reconciliation as reconcile_service
 
+USER_ID = 1
+
 pytestmark = pytest.mark.integration
 
 
@@ -34,10 +36,11 @@ def test_reconcile_computes_delta_from_derived_balance(
         amount=4000,
         operation_date=date(2026, 1, 10),
     )
-    assert balance_service.derive_balance(conn, account_id) == 6000
+    assert balance_service.derive_balance(conn, USER_ID, account_id) == 6000
 
     txn = reconcile_service.reconcile(
         conn,
+        USER_ID,
         account_id,
         actual_balance_minor=7000,
         today=date(2026, 1, 15),
@@ -47,7 +50,7 @@ def test_reconcile_computes_delta_from_derived_balance(
     assert txn.amount == 1000
 
     # Derived balance now matches the asserted actual.
-    assert balance_service.derive_balance(conn, account_id) == 7000
+    assert balance_service.derive_balance(conn, USER_ID, account_id) == 7000
 
 
 def test_reconcile_inserts_adjustment_under_reconciliation_category(
@@ -60,6 +63,7 @@ def test_reconcile_inserts_adjustment_under_reconciliation_category(
 
     txn = reconcile_service.reconcile(
         conn,
+        USER_ID,
         account_id,
         actual_balance_minor=15000,
         today=date(2026, 1, 15),
@@ -82,6 +86,7 @@ def test_reconcile_is_noop_when_delta_zero(
     with pytest.raises(reconcile_service.NoAdjustmentNeededError):
         reconcile_service.reconcile(
             conn,
+            USER_ID,
             account_id,
             actual_balance_minor=10000,
             today=date(2026, 1, 15),
@@ -96,6 +101,7 @@ def test_reconcile_writes_audit_row(
     account_id = make_account(opening_balance=10000)
     txn = reconcile_service.reconcile(
         conn,
+        USER_ID,
         account_id,
         actual_balance_minor=12000,
         today=date(2026, 1, 15),

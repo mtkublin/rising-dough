@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-03 (T-D16 — repository `user_id` scoping sweep)
+- **Change(T-D16): every user-owned query is scoped by `user_id`.**
+  Repository functions on user-owned tables are `(conn, user_id, …)`;
+  every SELECT/UPDATE/DELETE carries a `user_id` predicate (FK-scoped
+  `account_snapshots` / `recurring_rule_overrides` join through their
+  parent), every INSERT binds `user_id`. Services thread `user_id`
+  through; routers obtain it via `web.deps.current_user_id` (pre-T-D02
+  fallback to user 1 stays until T-D02b). `New*` DTOs lose their
+  `user_id = 1` default. Joined `categories` now also match on
+  `user_id`, and writes reject another user's `account_id` /
+  `category_id` (`_shared.require_owned` → `LookupError`). Ownership
+  checks for FK-scoped inserts raise `LookupError` instead of `assert`.
+- **Add(T-D16): `tests/architecture/test_user_id_filter.py`** — `ast` +
+  `sqlglot` static check over `repositories/`, `services/`,
+  `web/routers/` SQL, plus signature + hard-coded-`user_id = 1` checks
+  (`.user-id-filter-allowlist`); `test_user_id_filter_regression.py`
+  proves it fails on leaky temp modules. Cross-user isolation tests in
+  `tests/unit/repositories/test_user_isolation.py`. `sqlglot` added as
+  a dev dependency (ADR-0022, ADR-0061 §5, ADR-0068).
+
 ## 2026-11-03 (orchestrator-mode skill)
 - **Add: `.claude/skills/orchestrator-mode` skill.** Main agent acts as
   orchestrator only — creates/reuses the main work branch, dispatches

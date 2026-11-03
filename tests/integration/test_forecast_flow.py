@@ -21,6 +21,8 @@ from budget_planner.domain.planned import PatchPlannedTransaction
 from budget_planner.repositories import fx as fx_repo, planned as planned_repo
 from budget_planner.services import forecast as forecast_service
 
+USER_ID = 1
+
 pytestmark = pytest.mark.integration
 
 
@@ -56,10 +58,10 @@ def test_forecast_is_deterministic_same_inputs_same_output(
 
     client = _offline_client()
     first = forecast_service.forecast(
-        conn, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     second = forecast_service.forecast(
-        conn, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     assert first == second
 
@@ -82,6 +84,7 @@ def test_forecast_converts_cross_currency_to_base(
     )
     series = forecast_service.forecast(
         conn,
+        USER_ID,
         _offline_client(),
         today=date(2026, 1, 1),
         horizon_days=0,
@@ -109,12 +112,12 @@ def test_editing_a_planned_row_changes_forecast_output(
     )
     client = _offline_client()
     before = forecast_service.forecast(
-        conn, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
 
-    planned_repo.update(conn, planned_id, PatchPlannedTransaction(amount=9000))
+    planned_repo.update(conn, USER_ID, planned_id, PatchPlannedTransaction(amount=9000))
 
     after = forecast_service.forecast(
-        conn, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     assert before != after

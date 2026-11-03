@@ -31,6 +31,8 @@ from budget_planner.repositories import (
 from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
 from budget_planner.services._promotion import ValidationError
 
+USER_ID = 1
+
 
 def _formula(*terms: tuple[str, int, tuple[int, ...]]) -> AmountFormula:
     def _mk(sign: str, bps: int, cats: tuple[int, ...]) -> FormulaTerm:
@@ -98,7 +100,7 @@ class TestComputeFormulaAmount:
         )
         formula = _formula(("+", 1200, (income_a, income_b)))  # 12 % of total income
         # 12 % of 15 000.00 = 1 800.00 → 180_000 minor
-        assert formula_svc.compute_formula_amount(conn, formula, 2026, 1) == 180_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 1) == 180_000
 
     def test_multi_term_mixed_sign(
         self,
@@ -125,7 +127,7 @@ class TestComputeFormulaAmount:
             ("-", 4000, (expense_deductible,)),  # -40% x 1 000.00 = -400.00
         )
         # 120 000 - 40 000 = 80 000 minor
-        assert formula_svc.compute_formula_amount(conn, formula, 2026, 1) == 80_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 1) == 80_000
 
 
 class TestRepositoryRoundTrip:
@@ -146,7 +148,7 @@ class TestRepositoryRoundTrip:
             amount=0,
             amount_formula=formula,
         )
-        loaded = recurring_repo.find_rule(conn, rule_id)
+        loaded = recurring_repo.find_rule(conn, USER_ID, rule_id)
         assert loaded is not None
         assert loaded.amount_formula is not None
         assert loaded.amount_formula.schema_version == 2
@@ -186,7 +188,9 @@ class TestChaining:
         surcharge_formula = _formula(("+", 1000, (expense_tax,)))  # 10 % of tax
         # Tax resolves to 12% x 10 000.00 = 1 200.00 → 120 000 minor.
         # Surcharge = 10% x 1 200.00 = 120.00 → 12 000 minor.
-        assert formula_svc.compute_formula_amount(conn, surcharge_formula, 2026, 1) == 12_000
+        assert (
+            formula_svc.compute_formula_amount(conn, USER_ID, surcharge_formula, 2026, 1) == 12_000
+        )
 
     def test_diamond_dependency_memoised(  # noqa: PLR0917
         self,
@@ -225,7 +229,7 @@ class TestChaining:
         )
         # F3 = tax + surcharge → 1 200.00 + 500.00 = 1 700.00 → 170 000 minor
         f3 = _formula(("+", 10_000, (expense_tax, expense_surcharge)))
-        assert formula_svc.compute_formula_amount(conn, f3, 2026, 1) == 170_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, f3, 2026, 1) == 170_000
 
     def test_yearly_formula_source_contributes_only_in_payout_month(
         self,
@@ -266,12 +270,12 @@ class TestChaining:
         tax = _formula(("+", 1200, (income_a,)))
 
         # January: only salary → 12 % x 10 000.00 = 1 200.00 → 120 000 minor.
-        assert formula_svc.compute_formula_amount(conn, tax, 2026, 1) == 120_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 1) == 120_000
         # February: still only salary.
-        assert formula_svc.compute_formula_amount(conn, tax, 2026, 2) == 120_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 2) == 120_000
         # March: salary + bonus (bonus = 5 % x 10 000.00 = 500.00 → 50 000
         # minor). Tax = 12 % x (10 000.00 + 500.00) = 1 260.00 → 126 000.
-        assert formula_svc.compute_formula_amount(conn, tax, 2026, 3) == 126_000
+        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 3) == 126_000
 
 
 class TestValidateFormulaSourcesCycle:
@@ -290,7 +294,7 @@ class TestValidateFormulaSourcesCycle:
         )
         new_formula = _formula(("+", 1200, (expense_tax,)))
         with pytest.raises(formula_svc.FormulaCycleError):
-            formula_svc.validate_formula_sources(conn, new_formula, exclude_rule_id=tax_id)
+            formula_svc.validate_formula_sources(conn, USER_ID, new_formula, exclude_rule_id=tax_id)
 
     def test_indirect_cycle_rejected(
         self,
@@ -316,7 +320,9 @@ class TestValidateFormulaSourcesCycle:
         # Updating surcharge to reference tax would be a cycle.
         new_formula = _formula(("+", 500, (expense_tax,)))
         with pytest.raises(formula_svc.FormulaCycleError):
-            formula_svc.validate_formula_sources(conn, new_formula, exclude_rule_id=surcharge_id)
+            formula_svc.validate_formula_sources(
+                conn, USER_ID, new_formula, exclude_rule_id=surcharge_id
+            )
         # Sanity: tax_id is reachable from surcharge → cycle guard trips.
         assert tax_id > 0
 
@@ -336,9 +342,12 @@ class TestOverrideSoftConsume:
             amount=10_000_00,
             start_date=date(2026, 5, 1),
         )
-        recurring_repo.update_rule(conn, b_id, PatchRecurringRule(next_due=date(2026, 5, 1)))
+        recurring_repo.update_rule(
+            conn, USER_ID, b_id, PatchRecurringRule(next_due=date(2026, 5, 1))
+        )
         recurring_repo.upsert_override(
             conn,
+            USER_ID,
             NewRecurringOverride(
                 rule_id=b_id,
                 occurrence_date=date(2026, 5, 1),
@@ -348,19 +357,19 @@ class TestOverrideSoftConsume:
         )
         formula = _formula(("+", 1200, (income_a,)))
 
-        pre = formula_svc.compute_formula_amount(conn, formula, 2026, 5)
+        pre = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 5)
         assert pre == 144_000  # 12 % x 12 000.00
 
-        b_txn = recurring_svc.promote_recurring(conn, b_id, recurring_svc.PromotionEdits())
+        b_txn = recurring_svc.promote_recurring(conn, USER_ID, b_id, recurring_svc.PromotionEdits())
         assert b_txn.amount == 12_000_00
-        assert recurring_repo.list_overrides(conn, b_id) == []
-        historical = recurring_repo.list_overrides_all(conn, b_id)
+        assert recurring_repo.list_overrides(conn, USER_ID, b_id) == []
+        historical = recurring_repo.list_overrides_all(conn, USER_ID, b_id)
         assert len(historical) == 1
         assert historical[0].promoted_to_txn_id == b_txn.id
 
-        post = formula_svc.compute_formula_amount(conn, formula, 2026, 5)
+        post = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 5)
         assert post == 144_000
-        june = formula_svc.compute_formula_amount(conn, formula, 2026, 6)
+        june = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 6)
         assert june == 120_000  # back to default
 
 
@@ -386,7 +395,7 @@ class TestPromoteRecurring:
             start_date=date(2026, 2, 15),
             amount_formula=_formula(("+", 1200, (income_a,))),
         )
-        txn = recurring_svc.promote_recurring(conn, tax_id, recurring_svc.PromotionEdits())
+        txn = recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
         assert txn.amount == 120_000  # 12 % x 10 000.00
 
     def test_non_positive_formula_rejected_at_promote(  # noqa: PLR0917
@@ -422,7 +431,7 @@ class TestPromoteRecurring:
             ),
         )
         with pytest.raises(ValidationError):
-            recurring_svc.promote_recurring(conn, tax_id, recurring_svc.PromotionEdits())
+            recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
 
     def test_explicit_amount_bypasses_non_positive_guard(  # noqa: PLR0917
         self,
@@ -457,7 +466,7 @@ class TestPromoteRecurring:
         )
         # Explicit edit overrides the guard — user accepts responsibility.
         txn = recurring_svc.promote_recurring(
-            conn, tax_id, recurring_svc.PromotionEdits(amount_minor=100_00)
+            conn, USER_ID, tax_id, recurring_svc.PromotionEdits(amount_minor=100_00)
         )
         assert txn.amount == 100_00
 

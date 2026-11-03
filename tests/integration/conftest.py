@@ -37,6 +37,8 @@ from budget_planner.repositories import (
     transactions as txn_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def db_path(tmp_path: Path) -> Path:
@@ -73,6 +75,7 @@ def make_account(conn: sqlite3.Connection) -> Callable[..., int]:
     ) -> int:
         return accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(name=name, currency=currency, opening_balance=opening_balance),
         ).id
 
@@ -86,7 +89,7 @@ def make_category(conn: sqlite3.Connection) -> Callable[..., int]:
         name: str = "Groceries",
         direction: Direction = Direction.EXPENSE,
     ) -> int:
-        return categories_repo.create(conn, NewCategory(name=name, direction=direction)).id
+        return categories_repo.create(conn, USER_ID, NewCategory(name=name, direction=direction)).id
 
     return _make
 
@@ -105,6 +108,7 @@ def make_transaction(conn: sqlite3.Connection) -> Callable[..., int]:
     ) -> int:
         return txn_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=operation_date,
                 category_id=category_id,
@@ -132,6 +136,7 @@ def make_planned(conn: sqlite3.Connection) -> Callable[..., int]:
     ) -> int:
         return planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=operation_date,
                 category_id=category_id,
@@ -159,6 +164,7 @@ def make_rule(conn: sqlite3.Connection) -> Callable[..., int]:
     ) -> int:
         return recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=cadence,
                 start_date=start_date,

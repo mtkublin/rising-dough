@@ -24,6 +24,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 _SEG_COUNT = 3
 
 
@@ -31,12 +33,15 @@ _SEG_COUNT = 3
 def seeded(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         cat_exp = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         txn = transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 1),
                 category_id=cat_exp.id,
@@ -47,6 +52,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
         )
         pl = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 20),
                 category_id=cat_exp.id,
@@ -57,6 +63,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
         )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -169,7 +176,7 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     assert resp.status_code == 200
     conn = get_connection(_migrated)
     try:
-        remaining = recurring_repo.list_overrides(conn, seeded["rule"])
+        remaining = recurring_repo.list_overrides(conn, USER_ID, seeded["rule"])
     finally:
         conn.close()
     assert [ov.occurrence_date for ov in remaining] == [date(2026, 2, 1)]
@@ -235,10 +242,11 @@ def test_ledger_filter_by_category(
     conn = get_connection(_migrated)
     try:
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 2),
                 category_id=salary.id,
@@ -302,11 +310,16 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
     stay user-expected after schema or repo refactors."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
         for day, desc in ((1, "oldest"), (15, "middle"), (28, "newest")):
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 10, day),
                     category_id=cat.id,

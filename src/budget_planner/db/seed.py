@@ -20,9 +20,14 @@ from budget_planner.repositories import accounts as accounts_repo
 
 def _seed_demo_accounts(conn: sqlite3.Connection) -> None:
     """Idempotent demo accounts for the credit-card journey (T-086)."""
-    if accounts_repo.find_by_name(conn, "Bank (PLN)") is None:
+    # Seed script runs under the admin bootstrap user — hard-coded to the
+    # legacy ``user_id = 1`` row (ADR-0061 §2 preserves the pre-migration
+    # row for the first admin's historical data).
+    user_id = 1
+    if accounts_repo.find_by_name(conn, user_id, "Bank (PLN)") is None:
         accounts_repo.create(
             conn,
+            user_id,
             NewAccount(
                 name="Bank (PLN)",
                 currency="PLN",
@@ -30,9 +35,10 @@ def _seed_demo_accounts(conn: sqlite3.Connection) -> None:
                 type="bank",
             ),
         )
-    if accounts_repo.find_by_name(conn, "Visa (PLN)") is None:
+    if accounts_repo.find_by_name(conn, user_id, "Visa (PLN)") is None:
         accounts_repo.create(
             conn,
+            user_id,
             NewAccount(
                 name="Visa (PLN)",
                 currency="PLN",

@@ -44,6 +44,7 @@ repos:
           - types-beautifulsoup4>=4.12
           - playwright>=1.47
           - structlog>=24.4
+          - sqlglot>=25.0
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         files: ^(src|tests)/
