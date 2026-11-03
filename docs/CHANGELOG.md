@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-03 (T-D18a — rate-limit password change)
+- **Add(T-D18a): `POST /settings/password` rate limit** (ADR-0072, ADR-0074 §4): per user, 5 / min and 20 / hour; `429` + `Retry-After`, generic form error, `auth_event` audit row. New settings `BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE/_PER_HOUR`. "Change password" link on `/auth/sessions`; HTMX now swaps `429` form responses.
+
 ## 2026-11-03 (T-D18 — `/settings/password` + forced rotation)
 - **Add(T-D18): `GET/POST /settings/password`.** Any signed-in user rotates
   their own password (current / new / confirm). Policy: ≥12 characters,
