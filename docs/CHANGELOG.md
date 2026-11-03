@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-03 (v3 operator checklist)
+- **Docs: `docs/plans/v3/operator-checklist.md`.** Human-only v3 actions
+  (Scaleway/GitHub/domain setup, secrets, real-device checks, drill/prod
+  operator steps). Records operator decisions: compute zone `pl-waw-2`
+  (Stardust sold out in `pl-waw-1`; ADR-0032 amendment pending) and the
+  domain recommendation (Scaleway Domains + managed zone), plus a flagged
+  zone-ownership risk in `terraform/modules/dns`.
+
 ## 2026-11-03 (orchestrator-mode skill)
 - **Add: `.claude/skills/orchestrator-mode` skill.** Main agent acts as
   orchestrator only — creates/reuses the main work branch, dispatches
