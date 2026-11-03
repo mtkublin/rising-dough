@@ -94,7 +94,7 @@ def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:
     assert len(primary) == 4, f"expected 4 primary rail items, got {len(primary)}"
     # T-D02b: Settings + Security (account block), plus a Sign out form.
     labels = [a.get_text(strip=True) for a in footer]
-    assert labels == ["Settingsg s", "Security"], labels
+    assert labels == ["Settingsg s", "Security", "Password"], labels
     assert rail.select_one('.rd-rail__account form[action="/auth/logout"]') is not None
 
 

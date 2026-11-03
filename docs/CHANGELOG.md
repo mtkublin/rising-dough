@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-03 (T-D18 — `/settings/password` + forced rotation)
+- **Add(T-D18): `GET/POST /settings/password`.** Any signed-in user rotates
+  their own password (current / new / confirm). Policy: ≥12 characters,
+  ≤72 UTF-8 bytes (bcrypt limit), must differ from the current password,
+  confirm must match; errors render inline (`422`, HTMX swaps the form).
+  On success the hash is replaced, `must_change_password` cleared and every
+  *other* session of the user revoked in one transaction; the current
+  session stays live. Failed verifies write an `auth_event`
+  `password_change_failed` audit row with IP + user-agent. ADR-0074.
+- **Add(T-D18): `MustChangePasswordMiddleware`** (between Auth and CSRF).
+  While the flag is set: HTML → `302 /settings/password?next=…`; HTMX → `403`
+  + `HX-Redirect`; JSON → `403 {"error": "password_change_required"}`.
+  Exempt: `/settings/password`, `/auth/logout`, `/static/*`, `/health`,
+  `/ready`, `/healthz`.
+- **Add(T-D18): "Password" link** in the rail account block and a
+  "Change password" action on `/settings`.
+
 ## 2026-11-03 (T-D41a — restore-from-prod drill helper)
 - **Fix(T-D41a): add `/usr/local/bin/restore-from-prod`** (`terraform/cloud-init/bin/restore-from-prod.tpl`), the helper `restore-drill.yml` calls over SSH. Drill env only. It restores the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`, new optional Terraform variables; workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`), checks integrity, fixes ownership, restarts the stack and waits for `/ready`. Replication stays on the drill bucket. cloud-init now installs `sqlite3` (the workflow's integrity step needs it).
 - **Fix(T-D41a): `deploy-budget-planner.tpl` did not render** (unescaped `${TAG_REGEX//…}` and `${1+…}`, `$$(` command substitutions, missing `app_image` / `compose_dir` / `previous_tag_file` template vars). Fixed so `terraform validate` and a real render succeed.
