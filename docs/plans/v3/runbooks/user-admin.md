@@ -13,7 +13,7 @@ Four invariants the admin surface enforces (service layer, not UX):
 3. Admin-triggered password reset generates a new password **once**. The server never persists plaintext.
 4. Soft-deleting a user revokes all their live sessions in the same transaction and makes their data unreachable to every principal (including the admin) via the `user_id` filter.
 
-Audit log entries written by admin actions carry `actor_user_id = <admin id>` and `entity_id = <target user id>` (ADR-0019 + T-D14 extension cited in ADR-0061 §5).
+Audit log entries written by admin actions carry `actor_user_id = <admin id>` and `entity_id = <target user id>` (ADR-0019 + T-D14 extension cited in ADR-0061 §5; written via `write_audit(actor_user_id=…)`, ADR-0073 §5). Non-admins get a plain `404` for every `/settings/users*` path (ADR-0073 §1).
 
 ## Admin bootstrap (T-D19, ADR-0061 §3, ADR-0069)
 
@@ -80,7 +80,7 @@ ssh app@<prod-host> \
 1. Admin opens `GET /settings/users`.
 2. Click "Reset password" on the target row.
 3. `POST /settings/users/{id}/reset-password`.
-4. Server generates a new password, hashes it, sets `must_change_password = 1`, revokes all other sessions of the target user (same transaction), and renders the new password **once** in a dismissible toast.
+4. Server generates a new password, hashes it, sets `must_change_password = 1`, revokes all live sessions of the target user (same transaction), and renders the new password **once** in a dismissible toast.
 5. Admin shares the new password with the user via a controlled channel; user rotates on first login.
 
 ### Verification (reset)
@@ -93,7 +93,10 @@ ssh app@<prod-host> \
   ```
 - Audit log carries the reset entry:
   ```sh
-  curl -fsS -b <admin-cookie-jar> "https://<prod-host>/debug/audit-tail?entity_type=users&operation=reset_password&limit=5"
+  curl -fsS -b <admin-cookie-jar> "https://<prod-host>/debug/audit-tail?entity_type=users&operation=update&limit=5"
+  # Reset rows are `operation = 'update'` with `new_json.action = "reset_password"` (ADR-0073 §6):
+  ssh app@<prod-host> \
+    "sqlite3 /data/budget.db \"SELECT id, entity_id, actor_user_id, changed_at FROM audit_log WHERE entity_type = 'users' AND json_extract(new_json, '$.action') = 'reset_password' ORDER BY id DESC LIMIT 5;\""
   ```
 
 ## Procedure — Remove a user (soft delete)
@@ -158,7 +161,7 @@ ssh app@<prod-host> \
 # If this returns 1, do NOT demote or delete that user. Promote a second admin first.
 ```
 
-A demotion attempt against the last admin returns `409 Conflict` with an error-flash explaining the invariant.
+A demotion attempt against the last admin returns `409 Conflict` with an error-flash explaining the invariant. An invalid or duplicate email (case-insensitive, among live users) returns `422` with the form re-rendered (ADR-0073 §3).
 
 ## Data-isolation note (ADR-0061)
 
@@ -176,7 +179,7 @@ Consequences the operator must honor:
 - **New admin's first login succeeds but admin menu is missing**: browser cached the pre-promote session. User logs out + back in. Confirm the session carries the fresh `is_admin` claim (`SELECT ... FROM sessions WHERE user_id = <id> AND revoked_at IS NULL`).
 - **Password toast dismissed before copying**: no recovery of plaintext — admin re-triggers reset-password. This is a feature, not a bug.
 - **"last admin" error on demote even though two live admins appear in the UI**: refresh and re-check — a parallel admin tab may have soft-deleted or demoted the "other" admin a moment ago. Repeat the invariant query above.
-- **Admin cannot delete themselves**: the invariant blocks deleting the last admin, but admin **can** delete themselves if another live admin exists. Confirm count ≥ 2 before attempting self-removal.
+- **Admin cannot delete themselves**: self-removal is always refused (`409`, ADR-0073 §4) — the "Remove" action is hidden on your own row. Ask another admin to remove you; promote one first if you are the only admin.
 - **Soft-deleted user's rows still appear in a report**: a repository function somewhere is missing the `user_id` filter or the `deleted_at` filter on `users`. File a CRITICAL bug; the static-analysis test should have caught it in CI.
 
 ## Rollback

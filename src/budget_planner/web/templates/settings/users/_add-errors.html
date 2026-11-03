@@ -1,0 +1,10 @@
+{# T-D17 — add-user validation errors. Context: errors (field → message). #}
+<div class="rd-users__errors" role="alert">
+  <ul>
+    {% for field, msg in errors.items() %}
+      <li>
+        <strong>{{ field|capitalize }}:</strong> {{ msg }}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
