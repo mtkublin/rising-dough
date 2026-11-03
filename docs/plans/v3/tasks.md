@@ -284,7 +284,8 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
 - File: `phase-4-validation/T-D42-security-scan.md`.
 
-### ◻ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02, T-D17
+### ◐ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02, T-D17
+- **Status: written, validated locally; prod run pending (human, after T-D27).**
 - Journey (ADR-0061 end-to-end): admin logs in with the Terraform-captured password → rotates it via `/settings/password` → creates a second non-admin user via `/settings/users` and captures the one-shot auto-generated password → logs out → second user logs in → rotates password → registers a passkey → adds a transaction → sees it on `/ledger` → admin logs back in and asserts the second user's transaction is **not** visible from the admin's own `/ledger` (data isolation assertion) → verify `audit_log` row via the auth-gated `/debug/audit-tail` route.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
