@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-03 (T-D43 - post-deploy smoke journey)
+- **Add(T-D43): `tests/smoke/test_prod_smoke.py`**, one Playwright journey
+  (marker `smoke`, deselected by default and in CI) covering ADR-0061 end to
+  end, plus admin-only `GET /debug/audit-tail?n=` (n capped at 100, secret keys
+  redacted). Validated against a local scratch server; the production run is
+  pending (human, after T-D27). See `runbooks/deploy.md`.
+
 ## 2026-11-03 (T-D17 — admin user panel `/settings/users`)
 - **Add(T-D17): `/settings/users` admin roster.** List live users (role, added,
   last seen), add a user, edit email / name / admin flag, reset a password,
