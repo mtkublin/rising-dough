@@ -210,7 +210,10 @@ def test_authenticated_request_slides_cookie_and_session(
 
 def test_request_state_user_shape(_migrated: Settings, conn: sqlite3.Connection) -> None:
     cookie = login_cookie(_migrated)
-    conn.execute("UPDATE users SET is_admin = 1, must_change_password = 1 WHERE id = 1")
+    # must_change_password stays 0 here: with the flag set, T-D18's
+    # MustChangePasswordMiddleware gates /_test/whoami (hydration of the
+    # True value is proven by tests/integration/web/test_settings_password.py).
+    conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
     conn.commit()
     with _echo_app(_migrated) as c:
         c.cookies.set(*cookie)
@@ -218,7 +221,7 @@ def test_request_state_user_shape(_migrated: Settings, conn: sqlite3.Connection)
     assert body["id"] == 1
     assert body["email"] == "owner@example.test"
     assert body["is_admin"] is True
-    assert body["must_change_password"] is True
+    assert body["must_change_password"] is False
     assert body["has_hash"] is False
     assert body["ctx_user"] == 1
     assert body["ctx_session"] == session_handle(cookie[1])

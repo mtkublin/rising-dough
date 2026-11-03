@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-03 (T-D18 — `/settings/password` + forced rotation)
+- **Add(T-D18): `GET/POST /settings/password`.** Any signed-in user rotates
+  their own password (current / new / confirm). Policy: ≥12 characters,
+  ≤72 UTF-8 bytes (bcrypt limit), must differ from the current password,
+  confirm must match; errors render inline (`422`, HTMX swaps the form).
+  On success the hash is replaced, `must_change_password` cleared and every
+  *other* session of the user revoked in one transaction; the current
+  session stays live. Failed verifies write an `auth_event`
+  `password_change_failed` audit row with IP + user-agent. ADR-0074.
+- **Add(T-D18): `MustChangePasswordMiddleware`** (between Auth and CSRF).
+  While the flag is set: HTML → `302 /settings/password?next=…`; HTMX → `403`
+  + `HX-Redirect`; JSON → `403 {"error": "password_change_required"}`.
+  Exempt: `/settings/password`, `/auth/logout`, `/static/*`, `/health`,
+  `/ready`, `/healthz`.
+- **Add(T-D18): "Password" link** in the rail account block and a
+  "Change password" action on `/settings`.
+
 ## 2026-11-03 (T-D02b — auth web layer; completes T-D02)
 - **Add(T-D02b): `AuthRequiredMiddleware`.** Every route except `/health`,
   `/ready`, `/healthz`, `/static/*`, `/auth/login{,/begin,/finish}` needs a

@@ -136,13 +136,14 @@ Owner: application code. All tasks block Phase 2.
 - Audit: every mutation writes an `audit_log` row with `entity_type='users'`, `entity_id=target_user_id`, `actor_user_id=admin_user_id`.
 - File: `phase-1-prerequisites/T-D17-user-admin-panel.md`. Reference: ADR-0061 §4.
 
-### ◻ T-D18 [P] Password change `/settings/password` → T-D02
+### ✅ T-D18 [P] Password change `/settings/password` → T-D02
 - Available to every logged-in user. Form fields: current password, new password, confirm new password.
 - Service verifies current password with bcrypt; hashes new password; clears `must_change_password` flag; in the same transaction revokes all **other** sessions of the same user (current session stays live).
 - The `must_change_password` flag forces redirect to `/settings/password` before any other authenticated route; integration test asserts the redirect.
 - Audit row written on success and on failed-verify attempts (both annotated with IP + user-agent via T-D14).
 - Template: `templates/settings/password.html`.
-- File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4.
+- Policy (≥12 chars, ≤72 bytes, differs from current), failed-verify audit shape, HTMX/JSON forced-rotation responses, rate limit deferred to T-D09: ADR-0074.
+- File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4, ADR-0074.
 
 ### ✅ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
 - Lifespan startup hook calls `services.users.bootstrap_admin(conn, env)`.

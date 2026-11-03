@@ -73,3 +73,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0068 | [User-Scoping Static Check — Scope, Rules, and Allowlist Policy](0068-user-scoping-static-check-policy.md) (extends ADR-0022, ADR-0061 §5) |
 | 0069 | [Admin Bootstrap — Per-Environment Policy, Legacy-Row Adoption, Operator Password CLI](0069-admin-bootstrap-env-policy-and-operator-cli.md) (amends ADR-0061 §3) |
 | 0070 | [Auth Web Layer — Cookie Names, Unauthenticated Responses, Middleware Order](0070-auth-web-layer-cookies-middleware-order.md) (amends ADR-0033 §3, §5) |
+| 0074 | [Password Change — Policy, Audit Shape, and Forced-Rotation Responses](0074-password-change-policy-and-forced-rotation.md) (amends ADR-0061 §4) |

@@ -42,6 +42,13 @@
               <span>Security</span>
             </a>
           </li>
+          <li class="rd-nav__item">
+            <a href="/settings/password"
+               class="rd-nav__link"
+               {% if path == '/settings/password' %}aria-current="page"{% endif %}>
+              <span>Password</span>
+            </a>
+          </li>
         </ul>
         <form method="post" action="/auth/logout">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
