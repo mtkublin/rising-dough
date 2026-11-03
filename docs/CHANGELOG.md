@@ -3,6 +3,31 @@
 ## 2026-11-03 (T-D18a — rate-limit password change)
 - **Add(T-D18a): `POST /settings/password` rate limit** (ADR-0072, ADR-0074 §4): per user, 5 / min and 20 / hour; `429` + `Retry-After`, generic form error, `auth_event` audit row. New settings `BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE/_PER_HOUR`. "Change password" link on `/auth/sessions`; HTMX now swaps `429` form responses.
 
+## 2026-11-03 (T-D17 — admin user panel `/settings/users`)
+- **Add(T-D17): `/settings/users` admin roster.** List live users (role, added,
+  last seen), add a user, edit email / name / admin flag, reset a password,
+  remove a user (soft delete). A new user gets a `secrets.token_urlsafe(16)`
+  password shown **once** in an HTMX toast with copy-to-clipboard
+  (`static/js/users-admin.js`, `Cache-Control: no-store`), plus
+  `must_change_password = 1` and its `Transit` / `Reconciliation` categories in
+  the same transaction. Reset password and remove each revoke all of the
+  target's sessions in the same transaction. A "Users" settings tab is shown to
+  admins only. ADR-0061 §4, ADR-0073.
+- **Add(T-D17): `AdminRequiredMiddleware`** (`web/middleware/admin.py`) answers
+  the standard 404 to non-admins on `/settings/users*`, even when the request
+  has no CSRF token. Middleware order is now RequestId → SecurityHeaders →
+  AuthRequired → MustChangePassword → AdminRequired → CSRF: a flagged user gets
+  the rotation redirect on `/settings/users` exactly as on any other path, so
+  the admin surface stays unfingerprintable. ADR-0073 §1.
+- **Add(T-D17): service invariants.** Deleting or demoting the last live admin
+  returns `409`. Removing your own account returns `409`. An invalid or
+  duplicate (case-insensitive) email returns `422`. ADR-0073 §3–§4.
+- **Change(T-D17): `write_audit(actor_user_id=…)`.** The audit helper takes a
+  new keyword argument that fills `audit_log.actor_user_id`; existing callers
+  are unchanged. Every admin mutation records the admin as actor and the
+  target user as `entity_id`. A reset is an `update` with
+  `action = "reset_password"` in `new_json`. ADR-0073 §5–§6.
+
 ## 2026-11-03 (T-D18 — `/settings/password` + forced rotation)
 - **Add(T-D18): `GET/POST /settings/password`.** Any signed-in user rotates
   their own password (current / new / confirm). Policy: ≥12 characters,

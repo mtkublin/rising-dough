@@ -128,14 +128,15 @@ Owner: application code. All tasks block Phase 2.
 - Checker scope, rules (joined tables, FK-scoped tables, credential-table opaque keys) and allowlist policy (`SQL_ALLOWLIST` in the test, `.user-id-filter-allowlist` for hard-coded ids): ADR-0068.
 - File: `phase-1-prerequisites/T-D16-repository-user-id-scoping.md`. Reference: ADR-0022 (amended), ADR-0061 §5, ADR-0068.
 
-### ◻ T-D17 [S] User admin panel `/settings/users` → T-D02, T-D16
+### ✅ T-D17 [S] User admin panel `/settings/users` → T-D02, T-D16
 - Admin-only routes per ADR-0061 §4: list, add (auto-generated password shown once), edit (email, name, `is_admin` toggle), reset password, remove (soft-delete + session revoke in one tx).
 - `AdminRequiredMiddleware` returns 404 (not 403) to non-admins to avoid admin-surface fingerprinting.
 - Service-layer invariants: last-admin cannot be deleted or demoted; email must be unique among live users (case-insensitive); creating a user seeds the two per-user system categories (`Transit`, `Reconciliation`) in the same transaction.
 - Auto-generated password uses `secrets.token_urlsafe(16)` (~128 bits entropy). Rendered once via HTMX toast with a copy-to-clipboard button; server never persists plaintext.
 - Templates: `templates/settings/users/list.html`, `edit.html`, `_row.html`, `_password-toast.html`.
 - Audit: every mutation writes an `audit_log` row with `entity_type='users'`, `entity_id=target_user_id`, `actor_user_id=admin_user_id`.
-- File: `phase-1-prerequisites/T-D17-user-admin-panel.md`. Reference: ADR-0061 §4.
+- Guard placement (AuthRequired → AdminRequired → CSRF), one-shot password delivery (`Cache-Control: no-store`, `static/js/users-admin.js`), error contract (409 last-admin / self-remove, 422 invalid or duplicate email), no self-removal, `write_audit(actor_user_id=…)`: ADR-0073.
+- File: `phase-1-prerequisites/T-D17-user-admin-panel.md`. Reference: ADR-0061 §4, ADR-0073.
 
 ### ✅ T-D18 [P] Password change `/settings/password` → T-D02
 - Available to every logged-in user. Form fields: current password, new password, confirm new password.

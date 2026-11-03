@@ -2,8 +2,10 @@
 
 Read lookups used by the auth stack live in
 :mod:`budget_planner.repositories.auth_users` and are reused here, not
-duplicated. This module adds the mutations needed by the admin bootstrap
-and the operator password CLI; T-D17 (admin panel) extends it.
+duplicated. This module adds the mutations needed by the admin bootstrap,
+the operator password CLI and the T-D17 admin panel (``list_live``,
+``count_live_admins``, ``update_profile``, ``reset_password``,
+``soft_delete``).
 
 ``users`` is not a user-owned table (it *is* the owner), so functions
 targeting one row follow the ``(conn, user_id, ...)`` convention, and
@@ -11,13 +13,15 @@ roster-wide predicates (``has_live_admin``) take only ``conn``.
 
 Every mutation runs in one transaction with its ``audit_log`` row(s).
 Audit payloads never carry ``password_hash`` (or a plaintext): they record
-``password_set`` instead.
+``password_set`` instead. Admin-panel mutations also pass
+``actor_user_id`` (ADR-0073 §5).
 """
 
 from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.request_ctx import RequestCtx
@@ -25,12 +29,19 @@ from budget_planner.domain.system_categories import (
     RECONCILIATION_CATEGORY_NAME,
     TRANSIT_CATEGORY_NAME,
 )
+from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories._shared import (
+    parse_dt,
+    parse_dt_required,
     transaction,
     utc_now_iso,
     write_audit,
 )
-from budget_planner.repositories.auth_users import AuthUser, get_live_by_id
+from budget_planner.repositories.auth_users import (
+    AuthUser,
+    find_live_by_email,
+    get_live_by_id,
+)
 
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
 
@@ -63,6 +74,28 @@ class CredentialUpdate:
     must_change_password: bool
     email: str | None = None
     is_admin: bool | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProfileUpdate:
+    """Input for :func:`update_profile` (admin edit: email, name, admin flag)."""
+
+    email: str
+    name: str
+    is_admin: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UserListing:
+    """One row of the admin roster (no credential material)."""
+
+    id: int
+    name: str
+    email: str | None
+    is_admin: bool
+    must_change_password: bool
+    created_at: datetime
+    last_seen_at: datetime | None
 
 
 class UserNotFoundError(LookupError):
@@ -116,7 +149,10 @@ def owns_accounts(conn: sqlite3.Connection, user_id: int) -> bool:
 
 
 def _seed_system_categories(
-    conn: sqlite3.Connection, user_id: int, request_ctx: RequestCtx
+    conn: sqlite3.Connection,
+    user_id: int,
+    request_ctx: RequestCtx,
+    actor_user_id: int | None,
 ) -> None:
     for name, direction in SYSTEM_CATEGORY_SEEDS:
         cur = conn.execute(
@@ -131,6 +167,7 @@ def _seed_system_categories(
             prev=None,
             new={"user_id": user_id, "name": name, "direction": direction.value, "is_system": True},
             request_ctx=request_ctx,
+            actor_user_id=actor_user_id,
         )
 
 
@@ -139,8 +176,12 @@ def create_user(
     *,
     data: NewUser,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+    actor_user_id: int | None = None,
 ) -> AuthUser:
-    """Insert a user plus its two system categories, atomically, with audit rows."""
+    """Insert a user plus its two system categories, atomically, with audit rows.
+
+    Lets ``sqlite3.IntegrityError`` through on a live-email collision.
+    """
     with transaction(conn):
         cur = conn.execute(
             "INSERT INTO users(name, email, password_hash, is_admin, must_change_password) "
@@ -163,8 +204,9 @@ def create_user(
             prev=None,
             new=_redacted(created),
             request_ctx=request_ctx,
+            actor_user_id=actor_user_id,
         )
-        _seed_system_categories(conn, user_id, request_ctx)
+        _seed_system_categories(conn, user_id, request_ctx, actor_user_id)
     return created
 
 
@@ -211,14 +253,166 @@ def update_credentials(
     return updated
 
 
+def count_live_admins(conn: sqlite3.Connection) -> int:
+    """Return the number of live admins (ADR-0061 §1 last-admin invariant)."""
+    row = conn.execute(
+        "SELECT count(*) AS n FROM users WHERE is_admin = 1 AND deleted_at IS NULL"
+    ).fetchone()
+    return int(row["n"])
+
+
+def get_by_email_live(conn: sqlite3.Connection, email: str) -> AuthUser | None:
+    """Return the live user with ``email`` (case-insensitive), or ``None``."""
+    return find_live_by_email(conn, email)
+
+
+def _hydrate_listing(row: sqlite3.Row) -> UserListing:
+    return UserListing(
+        id=int(row["id"]),
+        name=row["name"],
+        email=row["email"],
+        is_admin=bool(row["is_admin"]),
+        must_change_password=bool(row["must_change_password"]),
+        created_at=parse_dt_required(row["created_at"]),
+        last_seen_at=parse_dt(row["last_seen_at"]),
+    )
+
+
+def list_live(conn: sqlite3.Connection) -> list[UserListing]:
+    """Return every live user, ordered by email (then id), for the admin roster.
+
+    ``last_seen_at`` is the most recent ``sessions.last_seen_at`` of the user
+    (any session, revoked or not), or ``None`` if they never signed in.
+    """
+    rows = conn.execute(
+        "SELECT u.id, u.name, u.email, u.is_admin, u.must_change_password, u.created_at, "
+        "(SELECT max(s.last_seen_at) FROM sessions AS s WHERE s.user_id = u.id) "
+        "AS last_seen_at "
+        "FROM users AS u WHERE u.deleted_at IS NULL "
+        "ORDER BY lower(coalesce(u.email, u.name)), u.id"
+    ).fetchall()
+    return [_hydrate_listing(r) for r in rows]
+
+
+def update_profile(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    update: ProfileUpdate,
+    actor_user_id: int,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+) -> AuthUser:
+    """Set a live user's email, name and admin flag; audit-logged.
+
+    Raises :class:`UserNotFoundError` for a missing / soft-deleted user and
+    lets ``sqlite3.IntegrityError`` through on a live-email collision.
+    """
+    with transaction(conn):
+        prev = _require_live(conn, user_id)
+        conn.execute(
+            "UPDATE users SET email = ?, name = ?, is_admin = ?, updated_at = ? "
+            "WHERE id = ? AND deleted_at IS NULL",
+            (update.email, update.name, int(update.is_admin), utc_now_iso(), user_id),
+        )
+        updated = _require_live(conn, user_id)
+        write_audit(
+            conn,
+            entity_type="users",
+            entity_id=user_id,
+            operation="update",
+            prev=_redacted(prev),
+            new=_redacted(updated),
+            request_ctx=request_ctx,
+            actor_user_id=actor_user_id,
+        )
+    return updated
+
+
+def reset_password(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    password_hash: str,
+    actor_user_id: int,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+) -> AuthUser:
+    """Store a new hash, force rotation and revoke every live session, atomically.
+
+    Audit row: ``operation='update'`` with ``action='reset_password'`` and the
+    number of revoked sessions (ADR-0073 §6). Raises
+    :class:`UserNotFoundError` for a missing / soft-deleted user.
+    """
+    with transaction(conn):
+        prev = _require_live(conn, user_id)
+        conn.execute(
+            "UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? "
+            "WHERE id = ? AND deleted_at IS NULL",
+            (password_hash, utc_now_iso(), user_id),
+        )
+        revoked = sessions_repo.revoke_all_user_sessions(conn, user_id)
+        updated = _require_live(conn, user_id)
+        write_audit(
+            conn,
+            entity_type="users",
+            entity_id=user_id,
+            operation="update",
+            prev=_redacted(prev),
+            new={**_redacted(updated), "action": "reset_password", "sessions_revoked": revoked},
+            request_ctx=request_ctx,
+            actor_user_id=actor_user_id,
+        )
+    return updated
+
+
+def soft_delete(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    actor_user_id: int,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+) -> AuthUser:
+    """Soft-delete a live user and revoke all their sessions in one transaction.
+
+    Returns the user as it was before deletion. Raises
+    :class:`UserNotFoundError` for a missing / already-deleted user.
+    """
+    with transaction(conn):
+        prev = _require_live(conn, user_id)
+        now = utc_now_iso()
+        conn.execute(
+            "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+            (now, now, user_id),
+        )
+        sessions_repo.revoke_all_user_sessions(conn, user_id)
+        write_audit(
+            conn,
+            entity_type="users",
+            entity_id=user_id,
+            operation="delete",
+            prev=_redacted(prev),
+            new=None,
+            request_ctx=request_ctx,
+            actor_user_id=actor_user_id,
+        )
+    return prev
+
+
 __all__ = [
     "SYSTEM_CATEGORY_SEEDS",
     "CredentialUpdate",
     "NewUser",
+    "ProfileUpdate",
+    "UserListing",
     "UserNotFoundError",
+    "count_live_admins",
     "create_user",
     "find_legacy_owner",
+    "get_by_email_live",
     "has_live_admin",
+    "list_live",
     "owns_accounts",
+    "reset_password",
+    "soft_delete",
     "update_credentials",
+    "update_profile",
 ]

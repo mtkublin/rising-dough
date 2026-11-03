@@ -53,6 +53,7 @@ def write_audit(
     prev: Any | None,
     new: Any | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+    actor_user_id: int | None = None,
 ) -> None:
     """Insert a single row into ``audit_log``.
 
@@ -64,12 +65,16 @@ def write_audit(
     pre-T-D14 behaviour — every new column lands as NULL — so existing
     call sites keep working without being retrofitted. See
     ``src/budget_planner/domain/request_ctx.py``.
+
+    ``actor_user_id`` fills the column added by migration 0012: the admin
+    issuing a privileged mutation against another user's row (T-D17,
+    ADR-0073 §5). ``None`` (the default) leaves it NULL.
     """
     conn.execute(
         "INSERT INTO audit_log("
         "entity_type, entity_id, operation, prev_json, new_json, "
-        "ip, user_id, session_id, user_agent"
-        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "ip, user_id, session_id, user_agent, actor_user_id"
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             entity_type,
             entity_id,
@@ -80,6 +85,7 @@ def write_audit(
             request_ctx.user_id,
             request_ctx.session_id,
             request_ctx.user_agent,
+            actor_user_id,
         ),
     )
 

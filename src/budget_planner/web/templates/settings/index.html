@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% from "_partials/components/_segmented.html" import segmented %}
 {% block title %}Settings · Rising Dough{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet"
+        href="{{ url_for('static', path='settings-users.css') }}?v=tD17">
+{% endblock %}
 {% block main %}
   {% set titles = {"categories": "Categories", "fx": "Currency & FX", "prefs": "Preferences"} %}
   <header class="rd-screen-header">
@@ -18,17 +22,7 @@
       {% endif %}
     </div>
   </header>
-  <div class="rd-segmented" role="tablist">
-    {% for slug, label in [('categories', 'Categories'), ('fx', 'Currency & FX'), ('prefs', 'Preferences')] %}
-      {% set is_active = (active_tab == slug) %}
-      <a id="tab-{{ slug }}"
-         role="tab"
-         aria-selected="{{ 'true' if is_active else 'false' }}"
-         aria-controls="panel-{{ slug }}"
-         class="rd-segmented__item{% if is_active %} rd-segmented__item--active{% endif %}"
-         href="/settings?tab={{ slug }}">{{ label }}</a>
-    {% endfor %}
-  </div>
+  {% include "settings/_tabs.html" %}
   <section id="panel-{{ active_tab }}"
            role="tabpanel"
            aria-labelledby="tab-{{ active_tab }}"
