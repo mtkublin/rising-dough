@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated, Final, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Default dev DB lives under `data/` (gitignored). CI/tests override via env.
@@ -66,6 +66,24 @@ class Settings(BaseSettings):
     webauthn_rp_id: str = Field(default="localhost", min_length=1)
     webauthn_rp_name: str = Field(default="Rising Dough", min_length=1)
     webauthn_origin: str = Field(default="http://localhost:8000", min_length=1)
+    # ADR-0061 §3 / ADR-0069: admin bootstrap credentials, injected by
+    # cloud-init. The env names carry a ``BUDGET_PLANNER_`` prefix (not the
+    # model-wide ``BUDGET_``), so they are bound via explicit aliases; the
+    # field name stays usable as an init kwarg for tests. Validation of
+    # presence happens inside ``services.users.bootstrap_admin`` only.
+    # ``pydantic-alias`` ignore: AliasChoices is a dynamic alias by design
+    # (env name + field name); both fields have defaults, so the plugin's
+    # "required dynamic alias" concern does not apply.
+    admin_email: str | None = Field(  # type: ignore[pydantic-alias]
+        default=None,
+        validation_alias=AliasChoices("BUDGET_PLANNER_ADMIN_EMAIL", "admin_email"),
+    )
+    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]
+        default=None,
+        validation_alias=AliasChoices(
+            "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD", "admin_initial_password"
+        ),
+    )
 
     @field_validator("base_currency")
     @classmethod
@@ -74,6 +92,25 @@ class Settings(BaseSettings):
         if not v_upper.isalpha():
             raise ValueError("base_currency must be a 3-letter ISO 4217 code")
         return v_upper
+
+    @field_validator("admin_email")
+    @classmethod
+    def _normalise_admin_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        normalised = v.strip().lower()
+        if not normalised:
+            return None
+        if "@" not in normalised or normalised.startswith("@") or normalised.endswith("@"):
+            raise ValueError("BUDGET_PLANNER_ADMIN_EMAIL must be an email address")
+        return normalised
+
+    @field_validator("admin_initial_password")
+    @classmethod
+    def _blank_password_is_unset(cls, v: SecretStr | None) -> SecretStr | None:
+        if v is None or not v.get_secret_value():
+            return None
+        return v
 
     @field_validator("display_timezone")
     @classmethod

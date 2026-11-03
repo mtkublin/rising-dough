@@ -119,6 +119,21 @@ db-reset:
     just migrate
     just seed
 
+# Set a user's password (operator tool, ADR-0069 §4). `--db=<path>` is
+# REQUIRED — there is no default DB, so this never hits prod by accident.
+# Prompts for the password twice. Examples:
+#   just set-password --db=/tmp/scratch.sqlite --email=admin@local.test
+#   just set-password --db=data/budget.sqlite --user-id=1 --set-email=me@example.com --make-admin
+# Other flags: --must-change-password, --password-stdin.
+set-password *args:
+    #!/usr/bin/env bash
+    set -eu
+    case " {{args}} " in
+      *" --db="*) ;;
+      *) echo "[set-password] --db=<path> is required (no default DB)" >&2; exit 2 ;;
+    esac
+    uv run python -m budget_planner.cli.set_password {{args}}
+
 # --- container -------------------------------------------------------------
 
 # Build the production OCI image locally (multi-stage, non-root). See T-D10

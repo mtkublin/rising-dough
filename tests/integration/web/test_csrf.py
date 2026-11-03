@@ -205,7 +205,15 @@ def test_production_env_sets_secure_flag(tmp_path: Path) -> None:
         env="production",
         cookie_secret="x" * 32,
         database_url=f"sqlite:///{db.as_posix()}",
+        # T-D19: production refuses to boot without an admin (ADR-0061 §3).
+        admin_email="admin@prodsim.test",
+        admin_initial_password="prodsim-only",  # noqa: S106  # pragma: allowlist secret
     )
+    conn = get_connection(cfg)
+    try:
+        apply_migrations(conn)
+    finally:
+        conn.close()
     app = create_app(settings=cfg)
     with TestClient(app, base_url="https://testserver") as c:
         r = c.get("/health")

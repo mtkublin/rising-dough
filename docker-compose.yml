@@ -38,6 +38,10 @@ services:
       BUDGET_DATABASE_URL: "sqlite:////data/budget.db"
       BUDGET_COOKIE_SECRET: "dev-prodsim-cookie-secret"  # pragma: allowlist secret
       BUDGET_TRUSTED_HOSTS: "localhost,127.0.0.1"
+      # T-D19 / ADR-0061 §3: production refuses to start without an admin
+      # or these two. Prod-sim-only values; real ones come from Terraform.
+      BUDGET_PLANNER_ADMIN_EMAIL: "admin@prodsim.test"
+      BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "prodsim-only-admin-password"  # pragma: allowlist secret
       TZ: "Europe/Warsaw"
     volumes:
       - data:/data:rw

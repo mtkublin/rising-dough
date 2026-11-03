@@ -144,13 +144,15 @@ Owner: application code. All tasks block Phase 2.
 - Template: `templates/settings/password.html`.
 - File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4.
 
-### ◻ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
+### ✅ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
 - Lifespan startup hook calls `services.users.bootstrap_admin(conn, env)`.
 - Behaviour (idempotent): if any `is_admin = 1 AND deleted_at IS NULL` user exists, no-op. Else, read `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env; create (or promote) the matching user with `is_admin = 1`, `password_hash = bcrypt(initial_password)`, `must_change_password = 1`.
 - Logs a redacted structured line (`event="admin_bootstrap", admin_email=<email>, action="created"|"promoted"|"noop"`); never logs the password.
 - Startup fails fast (process exits non-zero) if an admin does not exist **and** either env var is missing — this is the only way to recover from losing all admins without rebuilding the DB.
-- Dev fixture bootstraps a known admin (`admin@local.test` / `admin`) when `BUDGET_PLANNER_ENV=dev`.
-- File: `phase-1-prerequisites/T-D19-admin-bootstrap.md`. Reference: ADR-0061 §3.
+- Dev fixture bootstraps a known admin (`admin@local.test` / `admin`, no forced rotation) when `BUDGET_ENV=dev` and the env vars are unset — but never adopts a legacy row that owns data (`just dev` on `data/budget.sqlite` writes nothing). Test env without credentials does not open the DB. See ADR-0069.
+- With no email match, the pre-v3 email-less row (`id = 1`) is adopted as the admin so v2 data stays the admin's own (ADR-0061 §2, ADR-0069 §2).
+- Operator CLI `python -m budget_planner.cli.set_password` / `just set-password --db=<path> …` (explicit `--db` required) sets a user's password, email and admin flag; audit-logged (ADR-0069 §4).
+- File: `phase-1-prerequisites/T-D19-admin-bootstrap.md`. Reference: ADR-0061 §3, ADR-0069.
 
 ---
 
