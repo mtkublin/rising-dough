@@ -25,6 +25,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
 from budget_planner.web.errors import register_exception_handlers
+from budget_planner.web.middleware.admin import AdminRequiredMiddleware
 from budget_planner.web.middleware.auth import AuthRequiredMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
@@ -182,6 +183,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # * SecurityHeaders (T-D07) + RequestId wrap everything so every 302 /
     #   401 / 403 still carries the baseline headers and ``X-Request-Id``.
     app.add_middleware(CSRFMiddleware)
+    # T-D17 / ADR-0073 §1: 404 for non-admins on /settings/users*.
+    app.add_middleware(AdminRequiredMiddleware)
     app.add_middleware(AuthRequiredMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
@@ -219,6 +222,7 @@ _ROUTER_NAMES: tuple[str, ...] = (
     "forecast",
     "analytics",
     "settings",
+    "settings_users",
     "ledger",
     "today",
     "plan",

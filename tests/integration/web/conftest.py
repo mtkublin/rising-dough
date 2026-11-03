@@ -114,3 +114,19 @@ def client(_migrated: Settings, session_cookie: tuple[str, str]) -> Iterator[Tes
         name, value = session_cookie
         c.cookies.set(name, value)
         yield c
+
+
+@pytest.fixture
+def admin_client(_migrated: Settings, session_cookie: tuple[str, str]) -> Iterator[TestClient]:
+    """CSRF-aware client signed in as user 1 promoted to admin (T-D17)."""
+    conn = get_connection(_migrated)
+    try:
+        conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+    app = create_app(settings=_migrated)
+    with _CSRFAwareTestClient(app) as c:
+        name, value = session_cookie
+        c.cookies.set(name, value)
+        yield c
