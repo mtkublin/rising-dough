@@ -17,6 +17,33 @@
 - **Add(T-D18): "Password" link** in the rail account block and a
   "Change password" action on `/settings`.
 
+## 2026-11-03 (T-D41a — restore-from-prod drill helper)
+- **Fix(T-D41a): add `/usr/local/bin/restore-from-prod`** (`terraform/cloud-init/bin/restore-from-prod.tpl`), the helper `restore-drill.yml` calls over SSH. Drill env only. It restores the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`, new optional Terraform variables; workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`), checks integrity, fixes ownership, restarts the stack and waits for `/ready`. Replication stays on the drill bucket. cloud-init now installs `sqlite3` (the workflow's integrity step needs it).
+- **Fix(T-D41a): `deploy-budget-planner.tpl` did not render** (unescaped `${TAG_REGEX//…}` and `${1+…}`, `$$(` command substitutions, missing `app_image` / `compose_dir` / `previous_tag_file` template vars). Fixed so `terraform validate` and a real render succeed.
+
+## 2026-11-03 (T-D09 — auth rate limiting)
+- **Add(T-D09): fixed-window rate limits on `POST /auth/login`, `/auth/login/finish`,
+  `/auth/register/finish`.** Counters live in `auth_rate_limit` (migration 0014),
+  maintained by `repositories/rate_limit.py` (atomic UPSERT, opportunistic prune) and
+  `services/rate_limit.py` (count-then-check; successful logins count too). Defaults:
+  login 5/min + 20/h per IP+email and 100/h per IP; passkey login 10/min + 60/h per IP;
+  passkey registration 5/min + 20/h per user; all `BUDGET_RATE_LIMIT_*` settings plus a
+  `rate_limit_enabled` kill switch. Throttled → `429` + `Retry-After`; the login form
+  shows a generic "too many attempts" message, HTMX/JSON get `{"error": "rate_limited"}`;
+  each throttled attempt writes an `auth_event` audit row. No `slowapi` dependency.
+  ADR-0072 (amends ADR-0033 §2).
+
+## 2026-11-03 (orchestrator-mode — cheaper subagent models)
+- **Change: `orchestrator-mode` skill dispatches subagents on cheaper models.**
+  `sonnet` by default, `haiku` for mechanical or read-only items, `opus` only
+  on user request or after two failed attempts (ADR-0066 amendment).
+
+## 2026-11-03 (T-D19a — migrations before app start in production)
+- **Feat(T-D19a): `db/startup_migrate.py`** (`python -m budget_planner.db.startup_migrate`) applies pending migrations before uvicorn starts. It is idempotent and writes nothing when the schema is current. When an existing DB is upgraded it first takes a `VACUUM INTO` backup to `<db dir>/backups/` (newest 3 kept). It logs `schema_ahead_of_image` and keeps going when it starts against a newer schema (rollback). On failure it exits 1 (ADR-0071).
+- **Feat(T-D19a): Dockerfile `ENTRYPOINT`** `deploy/docker-entrypoint.sh` migrates and then `exec`s the CMD. The deploy shim and cloud-init are unchanged.
+- **Feat(T-D19a): compose `litestream-restore` one-shot** in the prod template and in the prod-sim stack (`restore -if-db-not-exists -if-replica-exists`, then chown to uid 10001). `app` and `litestream` wait for it, so a fresh volume is restored from the replica before the app can create an empty DB.
+- **Docs(T-D19a): ADR-0071.** Every migration must stay N-1 compatible. A release that cannot is flagged "rollback requires restore". Updated the deploy, rollback, restore (new pre-migration-backup variant) and disaster-recovery runbooks.
+
 ## 2026-11-03 (T-D02b — auth web layer; completes T-D02)
 - **Add(T-D02b): `AuthRequiredMiddleware`.** Every route except `/health`,
   `/ready`, `/healthz`, `/static/*`, `/auth/login{,/begin,/finish}` needs a
