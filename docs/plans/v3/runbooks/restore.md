@@ -8,7 +8,7 @@ Litestream streams WAL segments to `s3://budget-planner-prod-pl-waw/db/` every 1
 
 This runbook is for restoring **into the current prod host** (DB corruption, accidental destructive write, bad migration). For restoring into a brand-new VM, use [`disaster-recovery.md`](disaster-recovery.md) instead — it wraps this restore inside a full re-provision.
 
-The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a variant of this procedure against a scratch VM; see [`restore-log.md`](restore-log.md) for the drill history.
+The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a variant of this procedure against a scratch VM; see [`restore-log.md`](restore-log.md) for the drill history. When the drill starts the image on the restored copy, the entrypoint migrates that copy to the image's HEAD. That only happens on the scratch VM, and it doubles as a test of pending migrations against real data (ADR-0071 §5).
 
 ## Preconditions
 
@@ -87,6 +87,26 @@ The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a 
    ```sh
    docker compose up -d app
    ```
+   The entrypoint applies any migrations the restored DB is missing before uvicorn starts. If the DB already has migrations applied, it writes a pre-migration backup to `/data/backups/` first (ADR-0071). Check `docker logs budget-planner-app 2>&1 | grep startup_migrations`. The `litestream-restore` one-shot also runs again, but it does nothing because `/data/budget.db` now exists.
+
+### Variant — restore from the pre-migration backup
+
+Use this to undo a migration that broke data, or to roll back a release flagged **"rollback requires restore"** (ADR-0071 §4). The entrypoint keeps the newest 3 `VACUUM INTO` copies taken just before each migrating start:
+
+```sh
+ssh app@<prod-host> "ls -lt /data/backups/"
+# budget.db.pre-migrate-<last applied NNNN>-<UTC ts>
+```
+
+1. Do steps 1–4 above (stop app, flush + stop Litestream, move the current DB aside).
+2. Copy the backup into place (copy, don't move, so the backup survives):
+   ```sh
+   sudo cp /data/backups/budget.db.pre-migrate-<NNNN>-<ts> /data/budget.db
+   ```
+3. Continue with step 7 (ownership). Then:
+   - **Undoing a broken migration**: before step 9, roll the image back (`deploy-budget-planner rollback`). If you start the image that contains the migration, the entrypoint applies it again.
+   - **Rolling back a "rollback requires restore" release**: run `ssh deploy@<prod-host> "rollback"` as step 9 instead of `docker compose up -d app`.
+4. Writes made between the backup timestamp and the restore are lost. Litestream treats the copied DB as a new generation.
 
 ## Verification
 

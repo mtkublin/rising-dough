@@ -43,6 +43,9 @@ Rising Dough v3 ships to Scaleway Stardust as an OCI image pulled from GHCR
      http://127.0.0.1:8000/health || exit 1`;
      `CMD ["uvicorn", "budget_planner.web.app:app", "--host", "0.0.0.0",
      "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]`.
+     *Amended by T-D19a / ADR-0071:* `ENTRYPOINT ["/app/docker-entrypoint.sh"]`
+     (from `deploy/docker-entrypoint.sh`) runs
+     `python -m budget_planner.db.startup_migrate` and then `exec`s the CMD.
 2. `.dockerignore` at repo root excluding anything that bloats the build
    context or risks shipping local state / credentials: `tests/`, `docs/`,
    `local/`, `.claude/`, `data/`, `.git/`, `.github/`, `.venv/`,

@@ -6,7 +6,13 @@ Revert production to the previously running image tag.
 
 Every successful deploy records the previous image tag to `/etc/budget-planner/.previous-tag` on the host before swapping (ADR-0037 §3). Rollback is a single command that re-applies that tag. Image layers for the previous SHA are kept both in the host's Docker cache and indefinitely in GHCR (untagged after a few deploys, but reachable by digest).
 
-Rollback is the right move for prod-only regressions — the symptom appeared after a deploy and the previous SHA is known-good. For data corruption or restore-from-backup needs, use [`restore.md`](restore.md) instead; a rollback does **not** touch the SQLite file.
+Rollback is the right move for prod-only regressions — the symptom appeared after a deploy and the previous SHA is known-good. For data corruption or restore-from-backup needs, use [`restore.md`](restore.md) instead. A rollback does **not** undo schema changes.
+
+### Schema policy (ADR-0071 §4)
+
+The image entrypoint applies pending migrations on every start. Rolling back starts the **older** image against the **newer** schema. The older image's runner finds nothing to apply. It logs `schema_ahead_of_image` with the versions it does not know and starts anyway. This only works because every migration must be **N-1 compatible** (expand-only: new tables, nullable/defaulted columns, indexes; no drops or renames in the same release that stops using them).
+
+If the release you are leaving is flagged **"rollback requires restore"** in `docs/CHANGELOG.md`, `rollback` alone is not enough. Follow [`restore.md`](restore.md) § "Restore from the pre-migration backup" (or Litestream PITR to just before the deploy), **then** roll back the image. Writes made after the deploy are lost on that path.
 
 ## Preconditions
 
@@ -59,6 +65,9 @@ curl -fsS "https://<prod-host>/ready" | jq .
 # Running revision matches the rollback target.
 ssh app@<prod-host> \
   "docker inspect --format='{{index .Config.Labels \"org.opencontainers.image.revision\"}}' budget-planner-app-1"
+
+# Older image tolerated the newer schema (expected after a migrating release).
+ssh app@<prod-host> "docker logs budget-planner-app 2>&1 | grep -E 'schema_ahead_of_image|startup_migrations' | tail -2"
 
 # Audit log is intact — rollback does not touch the DB.
 ssh app@<prod-host> \
