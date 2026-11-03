@@ -35,9 +35,40 @@ services:
       retries: 3
       start_period: 30s
     stop_grace_period: 10s
+    # ADR-0071: the image entrypoint applies pending migrations before
+    # uvicorn starts; litestream-restore must finish first so a fresh /data
+    # is restored from the replica rather than initialised empty.
     depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
       litestream:
         condition: service_started
+
+  # ADR-0071 §3: one-shot restore-before-start. No-op when /data/budget.db
+  # exists or no replica exists; re-runs harmlessly on every `up -d app`.
+  # Litestream runs as root, so hand the files back to the app uid (10001).
+  litestream-restore:
+    image: litestream/litestream:0.3
+    container_name: budget-planner-litestream-restore
+    restart: "no"
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        set -eu
+        litestream restore -if-db-not-exists -if-replica-exists \
+          -config /etc/litestream.yml /data/budget.db
+        chown 10001:10001 /data
+        chmod 0700 /data
+        find /data -maxdepth 1 -name 'budget.db*' -exec chown 10001:10001 {} +
+    environment:
+      SCW_ACCESS_KEY: "${scw_access_key}"
+      SCW_SECRET_KEY: "${scw_secret_key}"
+    volumes:
+      - /data:/data:rw
+      - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+    networks:
+      - edge
 
   litestream:
     image: litestream/litestream:0.3
@@ -53,6 +84,9 @@ services:
     networks:
       - edge
     stop_grace_period: 30s
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
 
   caddy:
     image: caddy:2.8
