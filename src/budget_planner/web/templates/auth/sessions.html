@@ -9,6 +9,7 @@
       </div>
       <div class="rd-screen-header__actions">
         <a class="rd-btn rd-btn--primary" href="/auth/register">+ Add a passkey</a>
+        <a class="rd-btn" href="/settings/password">Change password</a>
         <form method="post" action="/auth/logout">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="rd-btn">Sign out</button>

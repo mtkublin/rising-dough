@@ -68,7 +68,8 @@
     <script>
       window.__TODAY_LOCAL__ = "{{ today_local() }}";
       document.body.addEventListener("htmx:beforeSwap", function (evt) {
-        if (evt.detail.xhr && evt.detail.xhr.status === 422) {
+        if (evt.detail.xhr && (evt.detail.xhr.status === 422 || evt.detail.xhr.status === 429)) {
+          // 429: throttled form re-render (T-D18a, ADR-0072)
           evt.detail.shouldSwap = true;
           evt.detail.isError = false;
         }

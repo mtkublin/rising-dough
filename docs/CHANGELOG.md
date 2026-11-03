@@ -7,6 +7,9 @@
   redacted). Validated against a local scratch server; the production run is
   pending (human, after T-D27). See `runbooks/deploy.md`.
 
+## 2026-11-03 (T-D18a — rate-limit password change)
+- **Add(T-D18a): `POST /settings/password` rate limit** (ADR-0072, ADR-0074 §4): per user, 5 / min and 20 / hour; `429` + `Retry-After`, generic form error, `auth_event` audit row. New settings `BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE/_PER_HOUR`. "Change password" link on `/auth/sessions`; HTMX now swaps `429` form responses.
+
 ## 2026-11-03 (T-D17 — admin user panel `/settings/users`)
 - **Add(T-D17): `/settings/users` admin roster.** List live users (role, added,
   last seen), add a user, edit email / name / admin flag, reset a password,

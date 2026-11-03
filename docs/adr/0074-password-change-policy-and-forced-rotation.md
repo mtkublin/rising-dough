@@ -55,6 +55,8 @@ Exempt while the flag is set: `/settings/password`, `/auth/logout`, `/static/*`,
 
 The T-D18 task file asks for a shared rate-limit counter with `/auth/login`. No rate limiter exists yet (`slowapi` is not a dependency); T-D09 owns it. The `password_change_failed` audit rows give T-D09 a per-user signal to count against.
 
+> **Amended by T-D18a**: rate limiting is now applied. `POST /settings/password` uses the ADR-0072 fixed-window limiter, scope `password_change`, keyed per user id: 5 / min and 20 / hour (`BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE` / `_PER_HOUR`; `BUDGET_RATE_LIMIT_ENABLED=false` disables it). Throttled requests get `429` + `Retry-After` before any bcrypt work, the form shows a generic "Too many attempts" message (HTMX swaps it; JSON gets `{"error":"rate_limited"}`), and each throttled attempt writes an `auth_event` `rate_limited` audit row.
+
 ## Consequences
 
 - Dev bootstrap password `admin` (ADR-0069) cannot be reused: the first rotation must pick a 12+ character password.
