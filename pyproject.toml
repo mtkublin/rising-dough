@@ -153,13 +153,14 @@ addopts = [
   "--cov-report=html",
   "--cov-fail-under=90",
   "-m",
-  "not visual",
+  "not visual and not smoke",
 ]
 markers = [
   "unit: fast unit tests (default)",
   "integration: database or HTTP-backed tests",
   "e2e: full-stack smoke tests",
   "visual: Playwright visual-regression snapshots (ADR-0027 §4)",
+  "smoke: post-deploy production smoke journey (T-D43); run manually with -m smoke, never in CI",
 ]
 asyncio_mode = "auto"
 filterwarnings = [

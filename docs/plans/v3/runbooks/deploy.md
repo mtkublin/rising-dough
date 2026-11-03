@@ -66,6 +66,20 @@ ssh app@<prod-host> "docker logs budget-planner-app 2>&1 | grep startup_migratio
 
 Before deploying a release whose CHANGELOG entry says **"rollback requires restore"** (not N-1 compatible, ADR-0071 §4), note the UTC time. If you have to roll back, that timestamp is your restore point.
 
+## Post-deploy smoke journey
+
+Run after a green deploy (T-D43, human step; never in CI). One Playwright journey: admin sign-in (+ forced rotation), create a second user, forced rotation, virtual-authenticator passkey, add a transaction, data-isolation check on the admin `/ledger`, `/debug/audit-tail` audit check, then soft-delete the smoke user.
+
+```sh
+SMOKE_BASE_URL=https://<prod-host> \
+SMOKE_ADMIN_EMAIL=<admin-email> \
+SMOKE_ADMIN_PASSWORD=<terraform-captured-or-current-password> \
+SMOKE_ADMIN_NEW_PASSWORD=<new admin password, 12+ chars> \
+uv run pytest -m smoke tests/smoke -v --no-cov
+```
+
+Notes: the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data; it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL`. Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
+
 ## Troubleshooting
 
 - **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Re-run `build.yml` on the same SHA; if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.

@@ -4,6 +4,13 @@
 - **Fix(T-VIS): horizontal page scroll on `/ledger` (375 px), `/budget` (375 / 1024 / 1440) and `/ledger` (1024 px).** Root causes were CSS-only and not in the auth nav: (1) `.sr-only` table headers inside `.ledger-scroll` were absolutely positioned against the viewport and escaped the scroller, widening the document — `.ledger-scroll` is now `position: relative`; (2) the ledger filter-chip row stayed `nowrap` until 960 px and overflowed 1024 px tablets — wraps at ≤1200 px; (3) mobile `.rd-shell` uses `minmax(0, 1fr)` so wide content cannot stretch the single grid column. `rising-dough.css` cache-bust bumped to `rd2`.
 - Refreshed all 12 visual baselines (`tests/visual/baselines/`); widths now equal their viewports (375 / 1024 / 1440).
 
+## 2026-11-03 (T-D43 - post-deploy smoke journey)
+- **Add(T-D43): `tests/smoke/test_prod_smoke.py`**, one Playwright journey
+  (marker `smoke`, deselected by default and in CI) covering ADR-0061 end to
+  end, plus admin-only `GET /debug/audit-tail?n=` (n capped at 100, secret keys
+  redacted). Validated against a local scratch server; the production run is
+  pending (human, after T-D27). See `runbooks/deploy.md`.
+
 ## 2026-11-03 (T-D18a — rate-limit password change)
 - **Add(T-D18a): `POST /settings/password` rate limit** (ADR-0072, ADR-0074 §4): per user, 5 / min and 20 / hour; `429` + `Retry-After`, generic form error, `auth_event` audit row. New settings `BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE/_PER_HOUR`. "Change password" link on `/auth/sessions`; HTMX now swaps `429` form responses.
 
