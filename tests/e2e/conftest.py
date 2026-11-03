@@ -22,7 +22,13 @@ import pytest
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
-from budget_planner.web.middleware.csrf import CSRF_DEV_COOKIE_NAME, CSRF_HEADER_NAME
+from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
+from budget_planner.web.middleware.csrf import (
+    CSRF_DEV_COOKIE_NAME,
+    CSRF_FORM_FIELD,
+    CSRF_HEADER_NAME,
+)
+from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
 
 try:
     from playwright.sync_api import Browser, Page, Playwright, sync_playwright
@@ -86,10 +92,12 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     port = _free_port()
     settings = Settings(_env_file=None, database_url=db_url)
 
-    # Prime schema + seed up-front.
+    # Prime schema + seed up-front. T-D02b: give user 1 a login so the
+    # ``page`` fixture can sign in through the real /auth/login form.
     conn = get_connection(settings)
     try:
         apply_migrations(conn)
+        seed_login_user(conn)
     finally:
         conn.close()
 
@@ -157,6 +165,22 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
         "",
     )
     assert token, "browser did not store the CSRF cookie (ADR-0065)"
+    # T-D02b — sign in through the real password form so the dev
+    # ``session`` cookie lands in the browser jar (ADR-0070 §1).
+    login = context.request.post(
+        f"{base_url}/auth/login",
+        form={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD,
+            "next": "/",
+            CSRF_FORM_FIELD: token,
+        },
+        max_redirects=0,
+    )
+    assert login.status == 303, f"e2e login failed: {login.status}"
+    assert any(c["name"] == SESSION_DEV_COOKIE_NAME for c in context.cookies()), (
+        "browser did not store the session cookie (ADR-0070)"
+    )
     context.set_extra_http_headers({CSRF_HEADER_NAME: token})
     page = context.new_page()
     try:

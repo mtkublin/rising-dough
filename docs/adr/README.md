@@ -72,4 +72,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6) |
 | 0068 | [User-Scoping Static Check — Scope, Rules, and Allowlist Policy](0068-user-scoping-static-check-policy.md) (extends ADR-0022, ADR-0061 §5) |
 | 0069 | [Admin Bootstrap — Per-Environment Policy, Legacy-Row Adoption, Operator Password CLI](0069-admin-bootstrap-env-policy-and-operator-cli.md) (amends ADR-0061 §3) |
+| 0070 | [Auth Web Layer — Cookie Names, Unauthenticated Responses, Middleware Order](0070-auth-web-layer-cookies-middleware-order.md) (amends ADR-0033 §3, §5) |
 | 0071 | [Production Startup Migrations — Container Entrypoint, Restore-Before-Start, N-1 Rollback Policy](0071-production-startup-migrations.md) (extends ADR-0069, ADR-0034, ADR-0037 §3) |

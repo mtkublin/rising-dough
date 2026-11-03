@@ -28,6 +28,7 @@ from budget_planner.domain.errors import (
     ValidationError,
 )
 from budget_planner.web.app import create_app
+from tests.auth_support import login_cookie
 
 
 @pytest.fixture
@@ -64,7 +65,9 @@ def error_client(tmp_path: Path) -> Iterator[TestClient]:
         raise RuntimeError("kaboom")
 
     app.include_router(router)
+    cookie = login_cookie(cfg)
     with TestClient(app, raise_server_exceptions=False) as c:
+        c.cookies.set(*cookie)
         yield c
 
 

@@ -6,6 +6,29 @@
 - **Feat(T-D19a): compose `litestream-restore` one-shot** in the prod template and in the prod-sim stack (`restore -if-db-not-exists -if-replica-exists`, then chown to uid 10001). `app` and `litestream` wait for it, so a fresh volume is restored from the replica before the app can create an empty DB.
 - **Docs(T-D19a): ADR-0071.** Every migration must stay N-1 compatible. A release that cannot is flagged "rollback requires restore". Updated the deploy, rollback, restore (new pre-migration-backup variant) and disaster-recovery runbooks.
 
+## 2026-11-03 (T-D02b — auth web layer; completes T-D02)
+- **Add(T-D02b): `AuthRequiredMiddleware`.** Every route except `/health`,
+  `/ready`, `/healthz`, `/static/*`, `/auth/login{,/begin,/finish}` needs a
+  live session. Anonymous HTML requests get `302 /auth/login?next=…` (same-site
+  relative paths only); HTMX gets `401` + `HX-Redirect`; JSON clients get `401`.
+  `request.state.user` is a frozen `CurrentUser(id, email, name, is_admin,
+  must_change_password)`; stale cookies are deleted; the cookie `Max-Age`
+  slides with the server-side session. Middleware order is now RequestId →
+  SecurityHeaders → Auth → CSRF (registration order fixed). ADR-0070.
+- **Add(T-D02b): `/auth/*` routes + templates.** Password login (generic error,
+  session-fixation hygiene), usernameless passkey login, passkey registration,
+  logout, `/auth/sessions` (own sessions by handle + own passkeys, each
+  revocable). Passkey JS is a static file (`static/js/passkeys.js`). Session
+  cookie `__Host-session` (`session` under `env=dev`), `HttpOnly`,
+  `SameSite=Lax`; challenge cookie HMAC-signed, 5 min, cleared after finish.
+- **Change(T-D02b): `web.deps.current_user_id` reads the session user** and
+  raises 401 when absent (user-1 fallback removed); `get_request_ctx` fills
+  `user_id` and the session *handle*.
+- **Test(T-D02b):** web `client` fixture is signed in (user 1, bcrypt cost 4,
+  real session); `anon_client` for auth tests; e2e signs in through the real
+  form; the visual suite now runs against a scratch copy of `data/demo.sqlite`
+  instead of the default (prod) DB.
+
 ## 2026-11-03 (T-D19 — admin bootstrap on startup)
 - **Feat(T-D19): `services/users.py`** `bootstrap_admin(conn, settings)` —
   idempotent; no-op when a live admin exists; else promotes the user

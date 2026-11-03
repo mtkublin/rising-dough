@@ -13,6 +13,13 @@ subclass that:
 Tests that need to assert on CSRF behaviour directly (see
 ``test_csrf.py``) build their own ``TestClient`` instance to bypass the
 auto-prime path.
+
+T-D02b: ``AuthRequiredMiddleware`` gates every non-exempt route, so
+``client`` is **authenticated** — user 1 gets an email + bcrypt (cost 4)
+password and a real server-side session whose id is placed in the
+client's cookie jar. ``anon_client`` is the same CSRF-aware client with
+no session, for auth tests. bcrypt is pinned to cost 4 for the whole web
+suite (``_fast_bcrypt``).
 """
 
 from __future__ import annotations
@@ -27,8 +34,10 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
+from budget_planner.services import _passwords
 from budget_planner.web.app import create_app
 from budget_planner.web.middleware.csrf import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
+from tests.auth_support import FAST_ROUNDS, login_cookie
 
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -77,8 +86,31 @@ def _migrated(settings: Settings) -> Iterator[Settings]:
     yield settings
 
 
+@pytest.fixture(autouse=True)
+def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep bcrypt cheap in web tests; production cost stays 12."""
+    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)
+
+
 @pytest.fixture
-def client(_migrated: Settings) -> Iterator[TestClient]:
+def session_cookie(_migrated: Settings) -> tuple[str, str]:
+    """Seed user 1 with a password + live session; return ``(name, value)``."""
+    return login_cookie(_migrated)
+
+
+@pytest.fixture
+def anon_client(_migrated: Settings) -> Iterator[TestClient]:
+    """CSRF-aware client with **no** session cookie."""
     app = create_app(settings=_migrated)
     with _CSRFAwareTestClient(app) as c:
+        yield c
+
+
+@pytest.fixture
+def client(_migrated: Settings, session_cookie: tuple[str, str]) -> Iterator[TestClient]:
+    """CSRF-aware client signed in as user 1 (T-D02b)."""
+    app = create_app(settings=_migrated)
+    with _CSRFAwareTestClient(app) as c:
+        name, value = session_cookie
+        c.cookies.set(name, value)
         yield c
