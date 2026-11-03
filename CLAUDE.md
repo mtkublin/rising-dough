@@ -58,6 +58,10 @@ just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
 ```
 
+## Multi-agent work
+
+For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066): main agent orchestrates only, each work item runs in its own worktree + branch, conflicts are resolved by merging the main work branch into the item branch (no rebase).
+
 ## Frontend validation (MANDATORY)
 
 Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (`src/budget_planner/web/static/*.css`), responsive breakpoints, or HTMX swap targets **must** be verified with the `frontend-visual-audit` skill before the task is marked done.

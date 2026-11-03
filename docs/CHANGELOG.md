@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-03 (orchestrator-mode skill)
+- **Add: `.claude/skills/orchestrator-mode` skill.** Main agent acts as
+  orchestrator only — creates/reuses the main work branch, dispatches
+  parallel subagents in per-item worktrees/branches with a full repo-rules
+  brief, merges their branches back (main→item merge for conflicts, no
+  rebase), and prunes merged worktrees (ADR-0066).
+
 ## 2026-11-03 (T-D08a — CSRF cookie fix for dev)
 - **Fix(T-D08a): every POST/DELETE returned 403 under `just dev`.**
   The middleware sent `__Host-csrf` without `Secure` when `env=dev`;
