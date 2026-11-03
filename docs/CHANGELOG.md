@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-03 (T-D09 — auth rate limiting)
+- **Add(T-D09): fixed-window rate limits on `POST /auth/login`, `/auth/login/finish`,
+  `/auth/register/finish`.** Counters live in `auth_rate_limit` (migration 0014),
+  maintained by `repositories/rate_limit.py` (atomic UPSERT, opportunistic prune) and
+  `services/rate_limit.py` (count-then-check; successful logins count too). Defaults:
+  login 5/min + 20/h per IP+email and 100/h per IP; passkey login 10/min + 60/h per IP;
+  passkey registration 5/min + 20/h per user; all `BUDGET_RATE_LIMIT_*` settings plus a
+  `rate_limit_enabled` kill switch. Throttled → `429` + `Retry-After`; the login form
+  shows a generic "too many attempts" message, HTMX/JSON get `{"error": "rate_limited"}`;
+  each throttled attempt writes an `auth_event` audit row. No `slowapi` dependency.
+  ADR-0072 (amends ADR-0033 §2).
+
 ## 2026-11-03 (T-D02b — auth web layer; completes T-D02)
 - **Add(T-D02b): `AuthRequiredMiddleware`.** Every route except `/health`,
   `/ready`, `/healthz`, `/static/*`, `/auth/login{,/begin,/finish}` needs a
