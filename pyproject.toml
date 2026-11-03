@@ -18,6 +18,9 @@ dependencies = [
   "httpx>=0.27",
   "python-dateutil>=2.9",
   "structlog>=24.4",
+  # T-D02a / ADR-0067: password hashing + WebAuthn ceremonies.
+  "bcrypt>=4.2",
+  "webauthn>=2.7,<3",
 ]
 
 [dependency-groups]
@@ -51,6 +54,10 @@ packages = ["src/budget_planner"]
 
 [tool.uv]
 package = true
+# ADR-0067: webauthn 3.x needs cbor2>=6 / cryptography>=49, which ship no
+# macOS x86_64 wheels (dev machines run an x86_64 interpreter). Cap the
+# transitive deps until wheels exist; Linux prod images are unaffected.
+constraint-dependencies = ["cbor2<6", "cryptography<49"]
 
 # ---------------------------------------------------------------------------
 # ruff — lint + format + import sort

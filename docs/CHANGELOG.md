@@ -12,6 +12,8 @@
   `user_id`, and writes reject another user's `account_id` /
   `category_id` (`_shared.require_owned` → `LookupError`). Ownership
   checks for FK-scoped inserts raise `LookupError` instead of `assert`.
+  T-D02a's `webauthn` repo row-id paths (`update_sign_count`,
+  `revoke_credential`) now take `user_id` positionally and filter on it.
 - **Add(T-D16): `tests/architecture/test_user_id_filter.py`** — `ast` +
   `sqlglot` static check over `repositories/`, `services/`,
   `web/routers/` SQL, plus signature + hard-coded-`user_id = 1` checks
@@ -19,6 +21,33 @@
   proves it fails on leaky temp modules. Cross-user isolation tests in
   `tests/unit/repositories/test_user_isolation.py`. `sqlglot` added as
   a dev dependency (ADR-0022, ADR-0061 §5, ADR-0068).
+
+## 2026-11-03 (T-D02a — auth backend core)
+- **Feat(T-D02a): migration `0014_v2_auth.sql`** (+ down) adds
+  `webauthn_credentials` (soft-delete, unique BLOB `credential_id`),
+  `sessions` (opaque `token_urlsafe(32)` id = cookie value, sliding
+  expiry), and `auth_rate_limit` (table only, for T-D09).
+- **Feat(T-D02a): `services/_passwords.py`** bcrypt hash/verify (cost 12,
+  overridable; verify never raises; >72-byte passwords rejected) plus a
+  cached dummy hash for timing-safe unknown-email logins.
+- **Feat(T-D02a): `repositories/sessions.py`, `repositories/webauthn.py`,
+  `repositories/auth_users.py`** and **`services/auth.py`**: password
+  login, usernameless passkey login, passkey registration (py_webauthn
+  ceremonies, caller-held challenges), logout / per-user session revoke,
+  sign-count regression auto-revoke, audit rows for every auth event
+  (session handles only, never raw ids). New `webauthn_rp_id` /
+  `webauthn_rp_name` / `webauthn_origin` settings (ADR-0067).
+- **Chore(T-D02a):** runtime deps `bcrypt`, `webauthn>=2.7,<3`. Added uv
+  constraints `cbor2<6` and `cryptography<49` because macOS x86_64 wheels
+  are missing upstream (ADR-0067 §5).
+
+## 2026-11-03 (v3 operator checklist)
+- **Docs: `docs/plans/v3/operator-checklist.md`.** Human-only v3 actions
+  (Scaleway/GitHub/domain setup, secrets, real-device checks, drill/prod
+  operator steps). Records operator decisions: compute zone `pl-waw-2`
+  (Stardust sold out in `pl-waw-1`; ADR-0032 amendment pending) and the
+  domain recommendation (Scaleway Domains + managed zone), plus a flagged
+  zone-ownership risk in `terraform/modules/dns`.
 
 ## 2026-11-03 (orchestrator-mode skill)
 - **Add: `.claude/skills/orchestrator-mode` skill.** Main agent acts as

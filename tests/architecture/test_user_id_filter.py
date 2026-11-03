@@ -31,6 +31,7 @@ SQL_ALLOWLIST: dict[tuple[str, str], str] = {}
 NON_USER_SCOPED_REPOSITORIES: dict[str, str] = {
     "__init__.py": "package marker",
     "_shared.py": "transaction + audit helpers; no user-owned table access",
+    "auth_users.py": "T-D02a: read-only lookups on `users` (the identity table, not user-owned)",
     "audit.py": "audit_log is not user-owned (actor columns are attribution)",
     "fx.py": "fx_rates is global reference data",
     "sessions.py": "T-D02: resolves the user from an opaque session id",

@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     cookie_secret: str = Field(default="")
     session_lifetime_days: int = Field(default=14, ge=1, le=90)
     fx_api_url: str = Field(default="https://api.frankfurter.app")
+    # ADR-0067 §1: WebAuthn relying-party identity. Production must set
+    # these to the deployed hostname and its ``https://`` origin; the
+    # defaults only work for ``just dev`` on localhost.
+    webauthn_rp_id: str = Field(default="localhost", min_length=1)
+    webauthn_rp_name: str = Field(default="Rising Dough", min_length=1)
+    webauthn_origin: str = Field(default="http://localhost:8000", min_length=1)
 
     @field_validator("base_currency")
     @classmethod

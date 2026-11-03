@@ -18,12 +18,15 @@ Owner: application code. All tasks block Phase 2.
 
 ### ◻ T-D02 [S] Per-user password + passkey auth → T-D16a
 - Amended by ADR-0061: passwords are per-user attributes on `users.password_hash`, not a global fallback. The `/auth/fallback-login` route is retired.
-- Tables (new migration `0013_v2_auth.sql`): `webauthn_credentials`, `sessions`, `auth_rate_limit`. (`auth_password` from the original plan is deleted — password hash now lives on `users.password_hash` added by migration `0012` in T-D16a.)
+- Tables (new migration `0014_v2_auth.sql`): `webauthn_credentials`, `sessions`, `auth_rate_limit`. (`auth_password` from the original plan is deleted — password hash now lives on `users.password_hash` added by migration `0012` in T-D16a.)
 - Routes: `/auth/login`, `/auth/login/finish` (passkey ceremony), `/auth/register`, `/auth/register/finish` (passkey registration for the logged-in user), `/auth/logout`, `/auth/sessions`, `/auth/sessions/<id>/revoke`. Password login is handled by the same `/auth/login` form when the request body carries a `password` field.
 - Middleware chain per ADR-0033 §5, with `AuthRequiredMiddleware` reading `request.state.user` as a real `User` DTO (not a `user_id=1` constant).
 - Dev fixture seeds a known admin + password hash under `if settings.env == "dev"` so local tests do not need Terraform.
 - `/auth/*` responses never leak whether a user exists (generic error on login failure).
 - File: `phase-1-prerequisites/T-D02-auth-webauthn.md`. Reference: ADR-0033 (as amended by ADR-0061).
+- Split into two work items:
+  - ✅ **T-D02a** backend core — migration `0014_v2_auth.sql` (+ down), `services/_passwords.py` (bcrypt), `repositories/sessions.py`, `repositories/webauthn.py`, `repositories/auth_users.py`, `services/auth.py` (password + passkey ceremonies, stateless challenge API), `webauthn_rp_*` settings. ADR-0067.
+  - ◻ **T-D02b** web layer — `AuthRequiredMiddleware`, `/auth/*` routes + templates, challenge cookie, `web/deps.current_user_id` from the session, dev admin fixture.
 
 ### ✅ T-D03 [P] Config surface for production → T-D04
 - `pydantic-settings` fields added: `bind_host` (default `127.0.0.1`), `bind_port` (default `8000`), `trusted_hosts` (list), `cookie_secret`, `session_lifetime_days`.

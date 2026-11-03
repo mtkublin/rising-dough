@@ -4,7 +4,7 @@
 - **Parallel-safe**: no — depends on T-D16a (multi-user migration adds `users.password_hash`)
 - **Depends on**: T-D16a
 - **Blocks**: T-D07, T-D08, T-D09, T-D14 (all need `request.state.user`); T-D17, T-D18, T-D19; Phase 4 smoke (T-D43)
-- **References**: ADR-0033 (as amended by ADR-0061)
+- **References**: ADR-0033 (as amended by ADR-0061), ADR-0067 (backend API: sessions, challenges, audit shape)
 
 ## Context
 
@@ -12,10 +12,10 @@ Internet exposure (ADR-0032) requires auth. ADR-0033 originally scoped auth as s
 
 ## Deliverables
 
-1. Migration `migrations/0013_v2_auth.sql`:
-   - `webauthn_credentials(id, user_id, credential_id BLOB UNIQUE, public_key BLOB, sign_count INTEGER, transports TEXT, label TEXT, created_at, updated_at, deleted_at, last_used_at)`.
-   - `sessions(id, user_id, issued_at, expires_at, last_seen_at, user_agent, ip, revoked_at)`.
-   - `auth_rate_limit(id, ip, route, hit_count, window_started_at)`.
+1. Migration `migrations/0014_v2_auth.sql` (+ `migrations/down/0014_v2_auth_down.sql`):
+   - `webauthn_credentials(id, user_id, credential_id BLOB UNIQUE, public_key BLOB, sign_count INTEGER, transports TEXT, label TEXT, created_at, last_used_at, deleted_at)`.
+   - `sessions(id TEXT PK = cookie value, user_id, created_at, last_seen_at, expires_at, revoked_at, user_agent, ip)`.
+   - `auth_rate_limit(id, key, bucket_start, count)` — table only; T-D09 consumes it.
    - The password hash lives on `users.password_hash` added by T-D16a's migration `0012`; no separate `auth_password` table.
 2. Repository layer:
    - `src/budget_planner/repositories/webauthn.py` — add/list/revoke credentials, soft-delete + audit, scoped by `user_id`.
@@ -40,6 +40,22 @@ Internet exposure (ADR-0032) requires auth. ADR-0033 originally scoped auth as s
 7. Templates:
    - `templates/auth/login.html`, `templates/auth/sessions.html`, `templates/auth/register-passkey.html`.
 8. Dev fixture: seed a known admin + bcrypt password hash in `src/budget_planner/db/dev_fixtures.py` under `if settings.env == "dev"` so local tests do not need Terraform. Admin: `admin@local.test` / `admin`.
+
+## Split: T-D02a (backend, done) / T-D02b (web layer)
+
+T-D02a delivered items 1–3 (with `repositories/auth_users.py` standing in for the
+`users.py` read helpers until T-D17/T-D19 add a full users repository). T-D02b
+delivers items 4–8.
+
+Backend API contract for T-D02b (details in ADR-0067 and the
+`services/auth.py` module docstring):
+
+- `authenticate_password(conn, email, password, *, ip, user_agent, request_ctx=None) -> Session | None`
+- `authenticate_passkey_begin(rp) -> PasskeyChallenge` / `authenticate_passkey_finish(conn, credential, *, challenge, rp, ip, user_agent, request_ctx=None) -> Session | None`
+- `register_passkey_begin(conn, user_id, rp) -> PasskeyChallenge` / `register_passkey_finish(conn, user_id, credential, *, challenge, rp, label, request_ctx=None) -> WebAuthnCredential` (raises `PasskeyRegistrationError`)
+- `logout(conn, session_id, *, request_ctx=None) -> bool`, `revoke_user_session(conn, user_id, session_id, *, request_ctx=None) -> bool`
+- `PasskeyChallenge.challenge` is **held by the caller** between begin and finish (recommended: short-lived signed cookie via `itsdangerous` + `cookie_secret`, cleared after finish). The service never stores it.
+- `RelyingParty` comes from the new settings `webauthn_rp_id`, `webauthn_rp_name`, and `webauthn_origin`.
 
 ## Acceptance criteria
 
