@@ -17,6 +17,7 @@ these tests deliberately bypass it to exercise the raw middleware.
 
 from __future__ import annotations
 
+import re
 import warnings
 from collections.abc import Iterator
 from pathlib import Path
@@ -30,6 +31,7 @@ from budget_planner.config import Settings
 from budget_planner.web.app import create_app
 from budget_planner.web.middleware.csrf import (
     CSRF_COOKIE_NAME,
+    CSRF_DEV_COOKIE_NAME,
     CSRF_FORM_FIELD,
     CSRF_HEADER_NAME,
 )
@@ -129,17 +131,55 @@ def test_cookie_is_stable_across_requests(raw_client: TestClient) -> None:
     assert raw_client.cookies[CSRF_COOKIE_NAME] == token0
 
 
-def test_dev_env_drops_secure_flag() -> None:
-    """``env=dev`` suppresses the ``Secure`` attribute for local HTTP."""
+def _dev_client(tmp_path: Path) -> TestClient:
+    db_url = f"sqlite:///{(tmp_path / 'dev.sqlite').as_posix()}"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        cfg = Settings(_env_file=None, env="dev")
+        cfg = Settings(_env_file=None, env="dev", database_url=db_url)
     app = create_app(settings=cfg)
-    with TestClient(app) as c:
+
+    @app.post("/_test/echo", response_class=PlainTextResponse)
+    def _echo() -> PlainTextResponse:
+        return PlainTextResponse("ok")
+
+    return TestClient(app)
+
+
+def test_dev_env_uses_unprefixed_cookie_without_secure(tmp_path: Path) -> None:
+    """``env=dev`` mints ``csrf`` without ``Secure`` (ADR-0065).
+
+    Browsers discard ``__Host-`` cookies that lack ``Secure``, so dev must
+    never emit the prefixed name without the flag.
+    """
+    with _dev_client(tmp_path) as c:
         r = c.get("/health")
     set_cookie = r.headers.get("set-cookie", "")
-    assert CSRF_COOKIE_NAME in set_cookie
+    assert set_cookie.startswith(f"{CSRF_DEV_COOKIE_NAME}=")
+    assert "__Host-" not in set_cookie
     assert "Secure" not in set_cookie
+
+
+def test_dev_env_post_round_trip_over_http(tmp_path: Path) -> None:
+    """Plain-HTTP dev: cookie from GET + header on POST is accepted."""
+    with _dev_client(tmp_path) as c:
+        token = c.get("/health").cookies[CSRF_DEV_COOKIE_NAME]
+        r = c.post("/_test/echo", headers={CSRF_HEADER_NAME: token})
+    assert r.status_code == 200
+    assert r.text == "ok"
+
+
+def test_base_template_exposes_token_in_meta_tag(client: TestClient) -> None:
+    """``base.html`` renders ``<meta name="csrf-token">`` matching the cookie.
+
+    The HTMX extension reads this tag (ADR-0065), so it must carry the
+    same token the middleware will compare against.
+    """
+    r = client.get("/accounts")
+    assert r.status_code == 200, r.text
+    token = client.cookies[CSRF_COOKIE_NAME]
+    meta = re.search(r'<meta name="csrf-token"\s+content="([^"]*)">', r.text)
+    assert meta is not None
+    assert meta.group(1) == token
 
 
 def test_production_env_sets_secure_flag(tmp_path: Path) -> None:

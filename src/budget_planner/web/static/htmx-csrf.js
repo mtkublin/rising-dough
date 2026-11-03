@@ -1,12 +1,14 @@
 /* T-D08 — HTMX CSRF extension.
  *
- * Reads the `__Host-csrf` cookie (set by CSRFMiddleware) and attaches it
- * as the `X-CSRF-Token` header on every HTMX-initiated request. The
- * cookie is intentionally non-HttpOnly so this extension can read it;
- * the double-submit pattern makes JS readability safe (the token is a
- * nonce, not a credential — see ADR-0033 §4).
+ * Reads the CSRF token from `<meta name="csrf-token">` (rendered by
+ * base.html from `request.state.csrf_token`) and attaches it as the
+ * `X-CSRF-Token` header on every HTMX-initiated request. Reading the meta
+ * tag instead of `document.cookie` keeps the JS independent of the cookie
+ * name, which differs between dev (`csrf`) and other envs (`__Host-csrf`)
+ * — see ADR-0065.
  *
  * Install:
+ *   <meta name="csrf-token" content="{{ csrf_token }}">
  *   <script src="/static/htmx-csrf.js" defer></script>
  *   <body hx-ext="csrf">
  *
@@ -18,20 +20,13 @@
 (function () {
   "use strict";
 
-  var COOKIE_NAME = "__Host-csrf";
   var HEADER_NAME = "X-CSRF-Token";
   var UNSAFE = { POST: 1, PUT: 1, PATCH: 1, DELETE: 1 };
 
-  function readCookie(name) {
-    var cookies = document.cookie ? document.cookie.split("; ") : [];
-    for (var i = 0; i < cookies.length; i += 1) {
-      var eq = cookies[i].indexOf("=");
-      if (eq === -1) continue;
-      if (cookies[i].slice(0, eq) === name) {
-        return decodeURIComponent(cookies[i].slice(eq + 1));
-      }
-    }
-    return null;
+  function readToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    var token = meta ? meta.getAttribute("content") : "";
+    return token || null;
   }
 
   if (typeof window === "undefined" || !window.htmx) {
@@ -45,7 +40,7 @@
       var detail = evt.detail || {};
       var verb = (detail.verb || "").toUpperCase();
       if (!UNSAFE[verb]) return;
-      var token = readCookie(COOKIE_NAME);
+      var token = readToken();
       if (!token) return;
       detail.headers = detail.headers || {};
       detail.headers[HEADER_NAME] = token;

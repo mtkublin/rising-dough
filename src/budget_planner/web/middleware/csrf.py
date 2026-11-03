@@ -4,16 +4,16 @@ T-D08 — Double-submit CSRF defence (ADR-0033 §4).
 
 Flow:
 
-1.  Every incoming request is inspected for the ``__Host-csrf`` cookie. If
+1.  Every incoming request is inspected for the CSRF cookie
+    (``__Host-csrf``, or ``csrf`` under ``env=dev`` — ADR-0065). If
     the cookie is missing a new URL-safe token is minted via
     :func:`secrets.token_urlsafe` and attached to the outgoing response.
-    The cookie is scoped to ``Path=/`` with ``SameSite=Lax``. ``HttpOnly``
-    is deliberately off so the HTMX extension can read the token from
-    ``document.cookie``; the double-submit pattern makes JS readability
-    safe. The ``__Host-`` prefix enforces ``Secure`` + host-only semantics
-    by browser contract; ``Secure`` is suppressed only when
-    ``settings.env == "dev"`` so raw-HTTP dev (non-localhost) still
-    receives the cookie.
+    The cookie is scoped to ``Path=/`` with ``SameSite=Lax``. The HTMX
+    extension reads the token from ``<meta name="csrf-token">`` rendered
+    by ``base.html`` (ADR-0065), so the JS never needs the cookie name.
+    The ``__Host-`` prefix enforces ``Secure`` + host-only semantics by
+    browser contract; under ``settings.env == "dev"`` both the prefix
+    and ``Secure`` are dropped so raw-HTTP dev still stores the cookie.
 2.  ``request.state.csrf_token`` is populated with whichever token wins
     (incoming cookie value or freshly minted) so Jinja templates can embed
     it in forms and HTMX requests can echo it as the ``X-CSRF-Token``
@@ -57,6 +57,11 @@ from budget_planner.config import Settings
 #: ``Path=/``. See https://developer.mozilla.org/docs/Web/HTTP/Cookies.
 CSRF_COOKIE_NAME: Final = "__Host-csrf"
 
+#: Dev-only cookie name (ADR-0065). Browsers discard ``__Host-`` cookies
+#: that lack ``Secure``, and plain-HTTP dev cannot set ``Secure`` reliably,
+#: so dev drops the prefix instead of shipping a cookie that never sticks.
+CSRF_DEV_COOKIE_NAME: Final = "csrf"
+
 #: Header name HTMX / JS clients attach on state-changing requests.
 CSRF_HEADER_NAME: Final = "X-CSRF-Token"
 
@@ -75,24 +80,28 @@ _EXEMPT_PATHS: Final = frozenset({"/health", "/ready", "/healthz"})
 _TOKEN_BYTES: Final = 32
 
 
+def csrf_cookie_name(settings: Settings) -> str:
+    """Return the CSRF cookie name for *settings* (ADR-0065)."""
+    return CSRF_DEV_COOKIE_NAME if settings.env == "dev" else CSRF_COOKIE_NAME
+
+
 def _generate_token() -> str:
     return secrets.token_urlsafe(_TOKEN_BYTES)
 
 
-def _attach_cookie(response: Response, token: str, *, secure: bool) -> None:
-    """Set the ``__Host-csrf`` cookie on *response*.
+def _attach_cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
+    """Set the CSRF cookie *name* on *response*.
 
     The ``__Host-`` prefix mandates ``Secure`` + ``Path=/`` + no ``Domain``
-    attribute. ``HttpOnly`` is deliberately **off**: the HTMX extension
-    (``static/htmx-csrf.js``) reads this cookie from ``document.cookie`` to
-    attach the ``X-CSRF-Token`` header on every HTMX request. The token is
-    only a CSRF defence — it is a nonce, not a session credential, so the
-    double-submit pattern is unaffected by JS readability. ``SameSite=Lax``
+    attribute. ``HttpOnly`` is **off**; the token is only a CSRF defence —
+    a nonce, not a session credential — so the double-submit pattern is
+    unaffected by JS readability. The HTMX extension takes the token from
+    the ``<meta name="csrf-token">`` tag rather than the cookie (ADR-0065). ``SameSite=Lax``
     plus the eventual signed ``__Host-session`` cookie carry the auth
     boundary (ADR-0033 §3).
     """
     response.set_cookie(
-        key=CSRF_COOKIE_NAME,
+        key=name,
         value=token,
         path="/",
         httponly=False,
@@ -146,16 +155,14 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         settings: Settings = request.app.state.settings
         # ``__Host-`` cookies require ``Secure`` to be honoured by browsers.
-        # Chrome and Firefox treat ``http://localhost`` / ``http://127.0.0.1``
-        # as a secure context, so the attribute is harmless on dev HTTP. The
-        # dev / HTTP-over-non-localhost compromise is explicit:
-        # ``settings.env == "dev"`` suppresses ``Secure`` for raw HTTP dev
-        # that is not aliased to localhost. Tests pin ``env=test`` so they
-        # get ``Secure=True`` and the TestClient fixture pins
-        # ``base_url=https://`` to match.
+        # Dev runs over plain HTTP, so it uses the un-prefixed
+        # ``CSRF_DEV_COOKIE_NAME`` without ``Secure`` (ADR-0065). Tests pin
+        # ``env=test`` so they get ``__Host-csrf`` + ``Secure=True`` and the
+        # TestClient fixture pins ``base_url=https://`` to match.
         secure_cookie = settings.env != "dev"
+        cookie_name = csrf_cookie_name(settings)
 
-        existing = request.cookies.get(CSRF_COOKIE_NAME)
+        existing = request.cookies.get(cookie_name)
         token = existing if existing else _generate_token()
         request.state.csrf_token = token
 
@@ -171,7 +178,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         if existing is None:
-            _attach_cookie(response, token, secure=secure_cookie)
+            _attach_cookie(response, cookie_name, token, secure=secure_cookie)
 
         return response
 

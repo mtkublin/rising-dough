@@ -43,6 +43,7 @@ def _render(request: Request, template: str, status: int, **context: Any) -> HTM
         "settings": settings,
         "url_for": request.url_for,
         "request_id": rid,
+        "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     ctx.update(context)
     html: str = env.get_template(template).render(**ctx)
