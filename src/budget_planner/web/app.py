@@ -25,6 +25,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
 from budget_planner.web.errors import register_exception_handlers
+from budget_planner.web.middleware.auth import AuthRequiredMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
@@ -169,17 +170,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = cfg
     app.state.jinja_env = build_jinja_env(cfg)
 
-    # Attach request id first so later middleware / handlers see it.
-    app.add_middleware(RequestIdMiddleware)
-    # T-D07 — baseline security headers + CSP nonce propagation. Sits right
-    # after RequestId and before any future auth/CSRF/rate-limit layers
-    # (ADR-0033 §5, ADR-0036 §3).
-    app.add_middleware(SecurityHeadersMiddleware)
-    # T-D08 — CSRF double-submit cookie + header defence. Added after
-    # RequestId + SecurityHeaders and before any future auth layer so the
-    # 403 responses still carry request-id and the baseline headers
-    # (ADR-0033 §4 / §5).
+    # Middleware order, outermost first (ADR-0033 §5 as amended by ADR-0070 §6):
+    #   RequestId → SecurityHeaders → AuthRequired → CSRF → routers.
+    # Starlette's ``add_middleware`` wraps each new layer *around* the ones
+    # already registered, so registration runs innermost-first:
+    # * CSRF (T-D08) is innermost: anonymous POSTs to protected routes are
+    #   answered by the auth layer, and the login form still gets a token.
+    # * AuthRequired (T-D02b) hydrates ``request.state.user`` and gates
+    #   protected routes. Future guards (T-D18 must-change-password, T-D17
+    #   admin-only) register between CSRF and AuthRequired.
+    # * SecurityHeaders (T-D07) + RequestId wrap everything so every 302 /
+    #   401 / 403 still carries the baseline headers and ``X-Request-Id``.
     app.add_middleware(CSRFMiddleware)
+    app.add_middleware(AuthRequiredMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIdMiddleware)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
@@ -202,6 +207,8 @@ _ROUTER_NAMES: tuple[str, ...] = (
     # Health first — it must be registered before any auth middleware so
     # /health + /ready stay publicly reachable (ADR-0033 §5).
     "health",
+    # T-D02b — login / logout / passkeys / sessions (ADR-0070).
+    "auth",
     "home",
     "transactions",
     "accounts",

@@ -30,5 +30,24 @@
     <ul class="rd-nav">
       {{ navlink('/settings', 'Settings', 'g s', extra_paths=('/categories',)) }}
     </ul>
+    {% set me = request.state.user if request.state.user is defined else none %}
+    {% if me %}
+      <div class="rd-rail__account">
+        <span class="rd-rail__who" title="{{ me.email or me.name }}">{{ me.email or me.name }}</span>
+        <ul class="rd-nav">
+          <li class="rd-nav__item">
+            <a href="/auth/sessions"
+               class="rd-nav__link"
+               {% if path.startswith('/auth/') %}aria-current="page"{% endif %}>
+              <span>Security</span>
+            </a>
+          </li>
+        </ul>
+        <form method="post" action="/auth/logout">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="rd-btn rd-btn--ghost rd-rail__signout">Sign out</button>
+        </form>
+      </div>
+    {% endif %}
   </div>
 </nav>

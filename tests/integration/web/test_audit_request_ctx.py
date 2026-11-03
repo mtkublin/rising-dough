@@ -31,8 +31,10 @@ from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories._shared import transaction, write_audit
+from budget_planner.repositories.sessions import session_handle
 from budget_planner.web.app import create_app
 from budget_planner.web.deps import get_db, get_request_ctx
+from tests.auth_support import login_cookie
 
 pytestmark = pytest.mark.integration
 
@@ -120,7 +122,9 @@ def test_post_mutation_persists_request_ctx(ctx_settings: Settings) -> None:
     custom user-agent header overrides httpx's default so we can assert
     on a value this test is in control of.
     """
+    cookie_name, session_id = login_cookie(ctx_settings)
     client = _build_app_with_stub(ctx_settings)
+    client.cookies.set(cookie_name, session_id)
     try:
         # Prime the CSRF cookie before posting — the T-D08 middleware
         # enforces a double-submit token on every state-changing method.
@@ -142,9 +146,10 @@ def test_post_mutation_persists_request_ctx(ctx_settings: Settings) -> None:
     assert row["operation"] == "create"
     assert row["ip"] is not None, "client.host must land in audit_log.ip"
     assert row["user_agent"] == _STUB_USER_AGENT
-    # Pre-T-D02 — no auth middleware yet, so session fields stay NULL.
-    assert row["user_id"] is None
-    assert row["session_id"] is None
+    # T-D02b — the session user + non-secret session handle are attached.
+    assert row["user_id"] == 1
+    assert row["session_id"] == session_handle(session_id)
+    assert row["session_id"] != session_id
 
 
 # ---------------------------------------------------------------------------
