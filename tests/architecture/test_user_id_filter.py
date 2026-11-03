@@ -35,6 +35,7 @@ NON_USER_SCOPED_REPOSITORIES: dict[str, str] = {
     "audit.py": "audit_log is not user-owned (actor columns are attribution)",
     "fx.py": "fx_rates is global reference data",
     "sessions.py": "T-D02: resolves the user from an opaque session id",
+    "users.py": "T-D19: writes the `users` identity table (bootstrap, operator CLI, T-D17)",
     "webauthn.py": "T-D02: resolves the user from a credential id",
 }
 

@@ -103,6 +103,15 @@ Follow-up for the agent (Terraform risk, verify before T-D25):
 
   Whichever is chosen likely needs a new task, and possibly an ADR.
 - [ ] **Before any migration work, take an offline backup of `data/budget.sqlite`.**
+- [ ] **Give your existing local user a login (T-D19, ADR-0069).** Migration 0012 left the pre-v3 user (`id = 1`, name `default`, owner of all your data) with no email, no password and `is_admin = 0`. Once auth lands (T-D02b) you cannot log in as it until you set these. The app will **not** do it at startup on a DB with data. After T-D02b merges and before you rely on login, take an offline backup, then run once against your own DB (you type the password; the agent never runs this on prod):
+
+  ```sh
+  cp data/budget.sqlite data/budget.sqlite.bak-$(date +%Y%m%d)
+  just migrate                       # only if 0012–0014 are not applied yet
+  just set-password --db=data/budget.sqlite --user-id=1 --set-email=<your email> --make-admin
+  ```
+
+  Check: `just dev`, log in with that email and password. Do the same for `data/demo.sqlite` if you use `just dev-demo` (e.g. `--set-email=admin@local.test`), or rebuild it after the demo builder learns to set a login.
 - [ ] The other users (up to about 10) and how their one-time passwords are delivered out of band.
 - [ ] Privacy: hosting others' financial data makes the operator a GDPR controller. Decide on a short privacy note. Hard-delete is out of v3 scope.
 - [ ] Cost-alert threshold (T-D45) and alert email (T-D44).

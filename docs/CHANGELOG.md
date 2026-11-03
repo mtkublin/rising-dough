@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-03 (T-D19 — admin bootstrap on startup)
+- **Feat(T-D19): `services/users.py`** `bootstrap_admin(conn, settings)` —
+  idempotent; no-op when a live admin exists; else promotes the user
+  matching `BUDGET_PLANNER_ADMIN_EMAIL`, or adopts the pre-v3 email-less
+  row (`id = 1`), or creates a user + `Transit`/`Reconciliation`
+  categories; `must_change_password = 1`; audit rows with password
+  redacted; `event="admin_bootstrap"` log line. Lifespan exits non-zero
+  when no admin exists and credentials are missing (ADR-0061 §3).
+- **Feat(T-D19): per-env policy (ADR-0069).** Dev without env vars uses
+  `admin@local.test` / `admin` but never writes onto a legacy row that owns
+  data (`just dev` on prod data is a no-op); test env without credentials
+  does not open the DB.
+- **Feat(T-D19): `repositories/users.py`** (create / update credentials /
+  legacy lookup; exempted from the `(conn, user_id)` rule like
+  `auth_users.py`, ADR-0068) and new settings `admin_email` /
+  `admin_initial_password`.
+- **Feat(T-D19): operator CLI** `python -m budget_planner.cli.set_password`
+  + `just set-password --db=<path> …` (explicit `--db` required).
+  Operator step for the existing local user added to
+  `docs/plans/v3/operator-checklist.md`.
+
 ## 2026-11-03 (T-D16 — repository `user_id` scoping sweep)
 - **Change(T-D16): every user-owned query is scoped by `user_id`.**
   Repository functions on user-owned tables are `(conn, user_id, …)`;

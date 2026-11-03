@@ -15,6 +15,35 @@ Four invariants the admin surface enforces (service layer, not UX):
 
 Audit log entries written by admin actions carry `actor_user_id = <admin id>` and `entity_id = <target user id>` (ADR-0019 + T-D14 extension cited in ADR-0061 §5).
 
+## Admin bootstrap (T-D19, ADR-0061 §3, ADR-0069)
+
+At every startup the app checks for a live admin (`is_admin = 1 AND deleted_at IS NULL`). If one exists it does nothing. Otherwise it reads two env vars, injected by cloud-init from Terraform:
+
+| Env var | Source |
+|---|---|
+| `BUDGET_PLANNER_ADMIN_EMAIL` | Terraform var `admin_email` |
+| `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` | `random_password.admin_initial_password` (sensitive output) |
+
+It then promotes the live user with that email, or else adopts the pre-v3 email-less row (`id = 1`, owner of all migrated v2 data), or else creates a new user with its `Transit` / `Reconciliation` categories. The admin gets `must_change_password = 1`. The log line is `event="admin_bootstrap"` with `action="created"|"promoted"|"noop"`; the password is never logged.
+
+If no admin exists and the env vars are missing (or only one is set), the process exits non-zero (`event="admin_bootstrap_failed"`). The env vars are read only at bootstrap — rotating them does not change an existing admin's password.
+
+**Lost all admins** (prod): either restore admin on an existing user with the operator CLI on the host (`--make-admin`, see below), or `terraform taint random_password.admin_initial_password && terraform apply` and follow the DR runbook's rebuild path, then log in with the new one-time password.
+
+**Operator CLI** (local or on the host, never over HTTP):
+
+```sh
+# Requires an explicit --db. Prompts twice for the password.
+just set-password --db=<path> --email=<email>
+just set-password --db=<path> --user-id=1 --set-email=me@example.com --make-admin
+# Flags: --must-change-password, --password-stdin
+# On the prod host: docker compose exec app python -m budget_planner.cli.set_password --db=/data/budget.db ...
+```
+
+Every change writes an `audit_log` row (`entity_type='users'`, `operation='update'`, password redacted).
+
+**Dev**: with `BUDGET_ENV=dev` and no env vars, the bootstrap uses `admin@local.test` / `admin` (no forced rotation), but only on a DB whose legacy row owns no accounts. On a DB with real data (`data/budget.sqlite`, `data/demo.sqlite`) it logs `reason="legacy_data_present"`, writes nothing, and startup continues; use the CLI.
+
 ## Preconditions
 
 - Operator is logged in as an admin at `https://<prod-host>/`.
