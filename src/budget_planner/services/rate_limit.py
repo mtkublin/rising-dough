@@ -37,6 +37,7 @@ SCOPE_LOGIN: Final = "login"
 SCOPE_LOGIN_IP: Final = "login_ip"
 SCOPE_PASSKEY_LOGIN: Final = "passkey_login"
 SCOPE_REGISTER: Final = "passkey_register"
+SCOPE_PASSWORD_CHANGE: Final = "password_change"  # noqa: S105  # scope name, not a secret
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +180,15 @@ def register_rules(settings: Settings) -> tuple[RateRule, ...]:
         settings,
         (settings.rate_limit_register_per_minute, MINUTE),
         (settings.rate_limit_register_per_hour, HOUR),
+    )
+
+
+def password_change_rules(settings: Settings) -> tuple[RateRule, ...]:
+    """Per user: password change (T-D18a)."""
+    return _rules(
+        settings,
+        (settings.rate_limit_password_change_per_minute, MINUTE),
+        (settings.rate_limit_password_change_per_hour, HOUR),
     )
 
 

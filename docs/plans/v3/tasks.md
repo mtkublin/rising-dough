@@ -147,6 +147,9 @@ Owner: application code. All tasks block Phase 2.
 - Policy (≥12 chars, ≤72 bytes, differs from current), failed-verify audit shape, HTMX/JSON forced-rotation responses, rate limit deferred to T-D09: ADR-0074.
 - File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4, ADR-0074.
 
+### ✅ T-D18a [S] Rate-limit password change → T-D09, T-D18
+- `POST /settings/password` gets the ADR-0072 limiter (scope `password_change`, per user, 5/min + 20/h); throttled → 429 + `Retry-After`, generic form error, audit row. "Change password" link on `/auth/sessions`. ADR-0074 §4 amended.
+
 ### ✅ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
 - Lifespan startup hook calls `services.users.bootstrap_admin(conn, env)`.
 - Behaviour (idempotent): if any `is_admin = 1 AND deleted_at IS NULL` user exists, no-op. Else, read `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env; create (or promote) the matching user with `is_admin = 1`, `password_hash = bcrypt(initial_password)`, `must_change_password = 1`.

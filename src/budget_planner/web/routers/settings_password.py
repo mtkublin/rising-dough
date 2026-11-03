@@ -16,18 +16,42 @@ from typing import Final
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.services import password_change as password_service
+from budget_planner.services import password_change as password_service, rate_limit
+from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import safe_next
-from budget_planner.web.deps import current_user, get_db, get_request_ctx
+from budget_planner.web.deps import current_user, get_db, get_request_ctx, get_settings_dep
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
 from budget_planner.web.rendering import is_hx_request, render
+from budget_planner.web.routers.auth import _rate_limit_now, _throttled_json, _wants_json
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _PAGE: Final = "settings/password.html"
 _FORM: Final = "settings/_password_form.html"
+THROTTLED_FORM_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
+
+
+def password_change_rate_limit(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    ctx: RequestCtx = Depends(get_request_ctx),
+    user: CurrentUser = Depends(current_user),
+) -> RateDecision:
+    """Count one password-change attempt per signed-in user (T-D18a, ADR-0072)."""
+    decision = rate_limit.consume(
+        conn,
+        rate_limit.SCOPE_PASSWORD_CHANGE,
+        f"user={user.id}",
+        rate_limit.password_change_rules(settings),
+        now=_rate_limit_now(request),
+    )
+    if not decision.allowed:
+        rate_limit.audit_throttled(conn, ctx, scope=decision.scope, user_id=user.id)
+    return decision
 
 
 def _target(next_path: str | None) -> str:
@@ -41,12 +65,15 @@ def _render_form(
     *,
     next_path: str,
     outcome: password_service.PasswordChangeOutcome | None = None,
+    throttled: bool = False,
 ) -> HTMLResponse:
     failed = outcome is not None and not outcome.ok
+    status = HTTPStatus.UNPROCESSABLE_ENTITY if failed else HTTPStatus.OK
     return render(
         request,
         _FORM if is_hx_request(request) else _PAGE,
-        status_code=HTTPStatus.UNPROCESSABLE_ENTITY if failed else HTTPStatus.OK,
+        status_code=HTTPStatus.TOO_MANY_REQUESTS if throttled else status,
+        throttle_error=THROTTLED_FORM_ERROR if throttled else None,
         current_user=user,
         forced=user.must_change_password,
         next_path=next_path,
@@ -75,9 +102,16 @@ def change_password(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     ctx: RequestCtx = Depends(get_request_ctx),
     user: CurrentUser = Depends(current_user),
+    limit: RateDecision = Depends(password_change_rate_limit),
 ) -> Response:
     """Rotate the signed-in user's password; other sessions are signed out."""
     target = _target(next_path)
+    if not limit.allowed:
+        if _wants_json(request) and not is_hx_request(request):
+            return _throttled_json(limit)
+        response = _render_form(request, user, next_path=target, throttled=True)
+        response.headers["Retry-After"] = str(limit.retry_after_seconds)
+        return response
     outcome = password_service.change_own_password(
         conn,
         user.id,
