@@ -72,6 +72,9 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app src /app/src
 COPY --chown=app:app migrations /app/migrations
 
+# T-D19a / ADR-0071: entrypoint applies pending migrations, then execs CMD.
+COPY --chown=root:root --chmod=0755 deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
+
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \
@@ -91,6 +94,10 @@ EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+
+# Migrations run before every start (fresh volume, deploy, rollback, DR);
+# see ADR-0071. The entrypoint `exec`s CMD so uvicorn stays PID 1.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 CMD ["uvicorn", "budget_planner.web.app:app", \
      "--host", "0.0.0.0", \
