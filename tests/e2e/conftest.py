@@ -22,6 +22,7 @@ import pytest
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
+from budget_planner.web.middleware.csrf import CSRF_DEV_COOKIE_NAME, CSRF_HEADER_NAME
 
 try:
     from playwright.sync_api import Browser, Page, Playwright, sync_playwright
@@ -141,33 +142,22 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     T-D08 — the CSRF middleware (ADR-0033 §4) rejects mutating requests
     that lack ``X-CSRF-Token``. E2E seeding uses ``page.request.post``
     which is an ``APIRequestContext`` call — it shares the browser
-    context's cookie jar, so a priming GET establishes ``__Host-csrf``
-    for both the jar *and* the context's ``extra_http_headers``. The
-    extra-header injection means every subsequent seeding POST (and any
-    direct form submit the HTMX extension does not touch) carries the
-    token without each test having to opt in.
+    context's cookie jar, so a priming GET stores the dev ``csrf`` cookie
+    in the real jar (ADR-0065). Only the header is injected; the cookie
+    travels through the browser exactly as it does for a user, so a
+    cookie the browser refuses to store fails the suite instead of being
+    papered over. HTMX requests get the header from the ``<meta>`` tag.
     """
     base_url, _db_path = live_server
     context = _browser.new_context()
     # Prime the cookie via the shared APIRequestContext.
-    priming = context.request.get(f"{base_url}/healthz")
-    # Parse the ``Set-Cookie`` header directly — Playwright's cookie jar
-    # rejects the ``__Host-`` prefix without a trusted TLS context, so we
-    # cannot rely on ``context.cookies()`` to echo the value back. The
-    # token still works as a double-submit if we plumb it in as a header
-    # on every subsequent request.
-    import re  # noqa: PLC0415
-
-    set_cookie = priming.headers.get("set-cookie", "")
-    match = re.search(r"__Host-csrf=([^;]+)", set_cookie)
-    token = match.group(1) if match else ""
-    if token:
-        context.set_extra_http_headers(
-            {
-                "X-CSRF-Token": token,
-                "Cookie": f"__Host-csrf={token}",
-            }
-        )
+    context.request.get(f"{base_url}/healthz")
+    token = next(
+        (c["value"] for c in context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME),
+        "",
+    )
+    assert token, "browser did not store the CSRF cookie (ADR-0065)"
+    context.set_extra_http_headers({CSRF_HEADER_NAME: token})
     page = context.new_page()
     try:
         yield page

@@ -58,6 +58,12 @@ Owner: application code. All tasks block Phase 2.
 - Rejects POST/PUT/PATCH/DELETE without a matching token with 403.
 - File: `phase-1-prerequisites/T-D08-csrf.md`. Reference: ADR-0033 §4.
 
+### ✅ T-D08a [P] Fix: CSRF cookie rejected by browsers in dev → T-D08
+- `__Host-` cookies without `Secure` are discarded by browsers, so `env=dev` had every POST/DELETE rejected with 403 `missing_cookie`.
+- Dev uses cookie `csrf` (no `Secure`); other envs keep `__Host-csrf`. HTMX extension reads the token from `<meta name="csrf-token">`.
+- E2E fixture stops hand-injecting the `Cookie` header; regression test for dev cookie shape.
+- Reference: ADR-0065 (amends ADR-0033 §4).
+
 ### ◻ T-D09 [P] Rate limit on auth routes → T-D02
 - `slowapi` middleware; limits per ADR-0033 §2.
 - Returns 429 with `Retry-After`.

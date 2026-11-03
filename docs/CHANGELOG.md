@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-03 (T-D08a — CSRF cookie fix for dev)
+- **Fix(T-D08a): every POST/DELETE returned 403 under `just dev`.**
+  The middleware sent `__Host-csrf` without `Secure` when `env=dev`;
+  browsers discard `__Host-` cookies lacking `Secure`, so no token was
+  ever stored and the middleware rejected each unsafe request with
+  `missing_cookie` (e.g. editing/deleting a Ledger transaction).
+  Dev now uses an un-prefixed `csrf` cookie (no `Secure`); other envs
+  keep `__Host-csrf` + `Secure` (ADR-0065, amends ADR-0033 §4).
+- **Change(T-D08a): HTMX extension reads the token from
+  `<meta name="csrf-token">`** rendered in `base.html`, so the JS no
+  longer depends on the cookie name. Error pages also receive
+  `csrf_token` in their render context.
+- **Test(T-D08a):** `test_csrf.py` replaces the test that pinned the
+  invalid dev combination with a dev cookie-shape test, a plain-HTTP dev
+  round-trip test, and a meta-tag/cookie parity test. The e2e `page`
+  fixture no longer hand-injects a `Cookie` header and asserts the
+  browser actually stored the CSRF cookie.
+
 ## 2026-11-02 (T-D14 — audit request-ctx plumbing)
 - **Feat(T-D14): `audit_log` carries request-context columns.**
   Migration `0013_audit_request_ctx.sql` adds four nullable columns to
