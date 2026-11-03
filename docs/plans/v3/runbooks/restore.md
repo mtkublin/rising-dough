@@ -10,6 +10,13 @@ This runbook is for restoring **into the current prod host** (DB corruption, acc
 
 The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a variant of this procedure against a scratch VM; see [`restore-log.md`](restore-log.md) for the drill history. When the drill starts the image on the restored copy, the entrypoint migrates that copy to the image's HEAD. That only happens on the scratch VM, and it doubles as a test of pending migrations against real data (ADR-0071 §5).
 
+### Drill helper: `restore-from-prod`
+
+The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, installed by cloud-init from `terraform/cloud-init/bin/restore-from-prod.tpl` (T-D41a). The workflow runs it as `ssh operator@<drill-host> 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` reports `"status":"ok"`.
+
+- **Credential**: a read-only key (`GetObject` + `ListBucket` on the prod bucket) passed as `TF_VAR_scw_access_key_restore` / `TF_VAR_scw_secret_key_restore` (workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`). Cloud-init writes it to `/etc/budget-planner/restore-source.env` (0600, root). It is empty on prod and the helper does not exist there.
+- **Prod is never written**: the prod replica appears only in a throw-away config passed to `litestream restore`. The running Litestream service uses `/etc/budget-planner/litestream.yml`, which targets the drill bucket. The helper aborts if the source bucket equals the drill bucket or the read-only key equals the drill write key.
+
 ## Preconditions
 
 - The decision to restore is intentional. Litestream restore is destructive to the current `/data/budget.db`.

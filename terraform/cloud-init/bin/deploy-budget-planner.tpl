@@ -68,7 +68,7 @@ usage() {
 usage: $${PROGNAME} <subcommand> [args]
 
 subcommands:
-  deploy <image-ref>     Pull + swap to <image-ref> (tag must match ${TAG_REGEX//\\/\\\\}).
+  deploy <image-ref>     Pull + swap to <image-ref> (tag must match $${TAG_REGEX}).
   rollback               Roll back to the tag recorded in $${PREVIOUS_TAG_FILE}.
   rollback <sha-xxx>     Roll back to an explicit tag.
   status                 Print recorded tags + docker compose ps.
@@ -98,7 +98,7 @@ normalize_tag() {
   # Accept `sha-abc1234`, `vX.Y.Z`, `ghcr.io/owner/repo:tag`, or `repo:tag`;
   # print the bare tag on stdout and return 0 on success. On failure, print
   # an error to stderr and return 2 — callers MUST check the return code
-  # explicitly because `tag="$$(normalize_tag ...)"` under `set -e` would
+  # explicitly because `tag="$(normalize_tag ...)"` under `set -e` would
   # otherwise mask the subshell exit (bash does not propagate subshell
   # failure through command substitution assignments).
   local raw="$${1}"
@@ -118,7 +118,7 @@ record_tags() {
   # the new file intact, never a truncated one.
   local new_tag="$${1}"
   local tmp
-  tmp="$$(mktemp "$${COMPOSE_DIR}/.tag.XXXXXX")"
+  tmp="$(mktemp "$${COMPOSE_DIR}/.tag.XXXXXX")"
   if [[ -f "$${CURRENT_TAG_FILE}" ]]; then
     cp -- "$${CURRENT_TAG_FILE}" "$${PREVIOUS_TAG_FILE}.tmp"
     mv -- "$${PREVIOUS_TAG_FILE}.tmp" "$${PREVIOUS_TAG_FILE}"
@@ -155,13 +155,13 @@ cmd_deploy() {
   local raw="$${1:-}"
   [[ -n "$${raw}" ]] || die 1 "deploy requires an image ref"
   local tag
-  if ! tag="$$(normalize_tag "$${raw}")"; then
+  if ! tag="$(normalize_tag "$${raw}")"; then
     exit 2
   fi
 
   local prev_tag=""
   if [[ -f "$${CURRENT_TAG_FILE}" ]]; then
-    prev_tag="$$(cat -- "$${CURRENT_TAG_FILE}")"
+    prev_tag="$(cat -- "$${CURRENT_TAG_FILE}")"
   fi
 
   record_tags "$${tag}"
@@ -193,11 +193,11 @@ cmd_rollback() {
   if [[ "$${#}" -eq 0 ]]; then
     [[ -s "$${PREVIOUS_TAG_FILE}" ]] \
       || die 4 "no previous tag recorded at $${PREVIOUS_TAG_FILE}"
-    raw="$$(cat -- "$${PREVIOUS_TAG_FILE}")"
+    raw="$(cat -- "$${PREVIOUS_TAG_FILE}")"
   else
     raw="$${1}"
   fi
-  if ! tag="$$(normalize_tag "$${raw}")"; then
+  if ! tag="$(normalize_tag "$${raw}")"; then
     exit 2
   fi
 
@@ -214,8 +214,8 @@ cmd_rollback() {
 cmd_status() {
   local cur="(none)"
   local prev="(none)"
-  [[ -s "$${CURRENT_TAG_FILE}" ]]  && cur="$$(cat -- "$${CURRENT_TAG_FILE}")"
-  [[ -s "$${PREVIOUS_TAG_FILE}" ]] && prev="$$(cat -- "$${PREVIOUS_TAG_FILE}")"
+  [[ -s "$${CURRENT_TAG_FILE}" ]]  && cur="$(cat -- "$${CURRENT_TAG_FILE}")"
+  [[ -s "$${PREVIOUS_TAG_FILE}" ]] && prev="$(cat -- "$${PREVIOUS_TAG_FILE}")"
   printf 'owner:    %s\n' "$${OWNER}"
   printf 'image:    %s\n' "$${APP_IMAGE}"
   printf 'current:  %s\n' "$${cur}"
@@ -230,7 +230,7 @@ main() {
   # with explicit args (dev / tests), honour "$@" directly.
   local -a args=()
   if [[ "$${#}" -gt 0 ]]; then
-    args=( ${1+"$${@}"} )
+    args=( $${1+"$${@}"} )
   elif [[ -n "$${SSH_ORIGINAL_COMMAND:-}" ]]; then
     # shellcheck disable=SC2206  # word splitting is desired here
     args=( $${SSH_ORIGINAL_COMMAND} )
@@ -272,4 +272,4 @@ main() {
   esac
 }
 
-main ${1+"$${@}"}
+main $${1+"$${@}"}

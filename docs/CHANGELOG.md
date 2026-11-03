@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-03 (T-D41a — restore-from-prod drill helper)
+- **Fix(T-D41a): add `/usr/local/bin/restore-from-prod`** (`terraform/cloud-init/bin/restore-from-prod.tpl`), the helper `restore-drill.yml` calls over SSH. Drill env only. It restores the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`, new optional Terraform variables; workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`), checks integrity, fixes ownership, restarts the stack and waits for `/ready`. Replication stays on the drill bucket. cloud-init now installs `sqlite3` (the workflow's integrity step needs it).
+- **Fix(T-D41a): `deploy-budget-planner.tpl` did not render** (unescaped `${TAG_REGEX//…}` and `${1+…}`, `$$(` command substitutions, missing `app_image` / `compose_dir` / `previous_tag_file` template vars). Fixed so `terraform validate` and a real render succeed.
 ## 2026-11-03 (orchestrator-mode — cheaper subagent models)
 - **Change: `orchestrator-mode` skill dispatches subagents on cheaper models.**
   `sonnet` by default, `haiku` for mechanical or read-only items, `opus` only
