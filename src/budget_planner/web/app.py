@@ -28,6 +28,7 @@ from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.admin import AdminRequiredMiddleware
 from budget_planner.web.middleware.auth import AuthRequiredMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
+from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
 from budget_planner.web.rendering import render
@@ -172,7 +173,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.jinja_env = build_jinja_env(cfg)
 
     # Middleware order, outermost first (ADR-0033 §5 as amended by ADR-0070 §6):
-    #   RequestId → SecurityHeaders → AuthRequired → CSRF → routers.
+    #   RequestId → SecurityHeaders → AuthRequired → MustChangePassword →
+    #   AdminRequired → CSRF → routers (ADR-0074 §3, ADR-0073 §1).
     # Starlette's ``add_middleware`` wraps each new layer *around* the ones
     # already registered, so registration runs innermost-first:
     # * CSRF (T-D08) is innermost: anonymous POSTs to protected routes are
@@ -183,8 +185,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # * SecurityHeaders (T-D07) + RequestId wrap everything so every 302 /
     #   401 / 403 still carries the baseline headers and ``X-Request-Id``.
     app.add_middleware(CSRFMiddleware)
-    # T-D17 / ADR-0073 §1: 404 for non-admins on /settings/users*.
+    # T-D17 / ADR-0073 §1: 404 for non-admins on /settings/users*. Sits
+    # *inside* MustChangePassword so a flagged user gets the same rotation
+    # redirect on /settings/users as on any unknown path (no fingerprint);
+    # once rotated, non-admins get the standard 404.
     app.add_middleware(AdminRequiredMiddleware)
+    app.add_middleware(MustChangePasswordMiddleware)  # T-D18 / ADR-0074 §3
     app.add_middleware(AuthRequiredMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
@@ -223,6 +229,7 @@ _ROUTER_NAMES: tuple[str, ...] = (
     "analytics",
     "settings",
     "settings_users",
+    "settings_password",
     "ledger",
     "today",
     "plan",

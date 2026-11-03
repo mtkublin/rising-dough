@@ -30,6 +30,7 @@ The happy-path contract: CI green → image signed by cosign → GHCR tag `sha-<
    - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.
    - Opens an SSH session to the `deploy` user: `ssh deploy@<prod-host> "deploy sha-<short>"`.
    - The on-host shim pulls the new tag, writes the previous tag to `.previous-tag`, runs `docker compose up -d app`, and probes `/ready` up to 30 times at 1 s intervals.
+   - The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. The old container is stopped before the new one starts, so there is only ever one writer.
 5. Watch the GitHub Actions step summary:
    - Successful run posts the deployed SHA + the compare link against the previous SHA.
    - Failed probe is auto-reverted by the shim (see Troubleshooting).
@@ -53,18 +54,24 @@ curl -fsSI "https://<prod-host>/" | grep -i strict-transport-security
 # Expect: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 ```
 
-Then record the deploy in the GitHub `prod` environment history (automatic — nothing to do). If this deploy ships a schema migration, confirm the audit log tail shows the migration row:
+Then record the deploy in the GitHub `prod` environment history (automatic — nothing to do). If this deploy ships a schema migration, confirm it was applied and backed up:
 
 ```sh
 ssh app@<prod-host> \
-  "sqlite3 /data/budget.db 'SELECT id, entity_type, operation, created_at FROM audit_log ORDER BY id DESC LIMIT 5;'"
+  "sqlite3 /data/budget.db 'SELECT version, filename, applied_at FROM schema_migrations ORDER BY version DESC LIMIT 3;'"
+ssh app@<prod-host> "ls -l /data/backups/"
+ssh app@<prod-host> "docker logs budget-planner-app 2>&1 | grep startup_migrations | tail -1"
+# Expect: applied=[...new files...] and backup=/data/backups/budget.db.pre-migrate-...
 ```
+
+Before deploying a release whose CHANGELOG entry says **"rollback requires restore"** (not N-1 compatible, ADR-0071 §4), note the UTC time. If you have to roll back, that timestamp is your restore point.
 
 ## Troubleshooting
 
 - **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Re-run `build.yml` on the same SHA; if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
 - **SSH session rejected**: `deploy` user is key-restricted via `authorized_keys` with `command="/usr/local/bin/deploy-budget-planner"`. If the key does not match or `GITHUB_ACTIONS` IP is temporarily rate-limited by `fail2ban`, wait 10 min or SSH as `app` and `sudo fail2ban-client set sshd unbanip <gha-runner-ip>`.
 - **`/ready` probe fails during deploy**: the shim auto-reverts to `.previous-tag` and exits non-zero. Deploy workflow step summary shows the probe response + the last 50 log lines. Investigate before retrying; usually either a migration failure or Litestream not yet healthy.
+- **`startup_migrations_failed` in the app log**: the entrypoint exited 1 and uvicorn never started. The failing migration was rolled back in its own transaction, but earlier migrations in the same batch stay applied. Each one is N-1 compatible, so the auto-reverted previous image still runs. Fix the migration in a new release. Never edit an applied migration file, because the checksum guard rejects it.
 - **`docker compose pull` 403s against GHCR**: `GHCR_PAT` expired. Rotate per `disaster-recovery.md` §Secrets and re-render `/etc/docker/config.json` via `terraform apply`.
 - **Deploy succeeded but DNS still points elsewhere**: `terraform output prod_host_ipv4` vs `dig +short <prod-host>`. If they diverge, DNS was manually edited; reconcile via Terraform.
 

@@ -66,4 +66,10 @@ module "compute" {
   admin_password    = random_password.admin_initial_password.result
   cookie_secret     = random_password.cookie_secret.result
   trusted_hosts_csv = local.fqdn
+
+  # T-D41a: restore-from-prod helper, drill env only.
+  enable_restore_helper  = var.env == "drill"
+  restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
+  scw_access_key_restore = var.env == "drill" ? var.scw_access_key_restore : ""
+  scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
 }

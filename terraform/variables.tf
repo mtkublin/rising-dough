@@ -107,3 +107,23 @@ locals {
   name_prefix = "budget-planner-${var.env}"
   bucket_name = "${local.name_prefix}-${var.scaleway_region}"
 }
+
+# ----------------------------------------------------------------------------
+# Restore drill (T-D41a, ADR-0034 §5). Only consumed when env == "drill".
+# Supplied via TF_VAR_* from the restore-drill workflow; never committed.
+# Empty on prod; the helper aborts at runtime if they are empty on a drill host.
+# ----------------------------------------------------------------------------
+
+variable "scw_access_key_restore" {
+  description = "READ-ONLY access key scoped to the prod replica bucket (GetObject + ListBucket). Drill env only."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "scw_secret_key_restore" {
+  description = "Secret key paired with scw_access_key_restore."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

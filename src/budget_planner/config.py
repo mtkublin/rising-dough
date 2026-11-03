@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     webauthn_rp_id: str = Field(default="localhost", min_length=1)
     webauthn_rp_name: str = Field(default="Rising Dough", min_length=1)
     webauthn_origin: str = Field(default="http://localhost:8000", min_length=1)
+    # ADR-0072: fixed-window auth rate limits (counters in ``auth_rate_limit``).
+    # ``rate_limit_enabled=False`` is an incident kill switch; tests tighten
+    # the per-route limits by constructing ``Settings(...)`` directly.
+    rate_limit_enabled: bool = Field(default=True)
+    rate_limit_login_per_minute: int = Field(default=5, ge=1)
+    rate_limit_login_per_hour: int = Field(default=20, ge=1)
+    rate_limit_login_ip_per_hour: int = Field(default=100, ge=1)
+    rate_limit_passkey_login_per_minute: int = Field(default=10, ge=1)
+    rate_limit_passkey_login_per_hour: int = Field(default=60, ge=1)
+    rate_limit_register_per_minute: int = Field(default=5, ge=1)
+    rate_limit_register_per_hour: int = Field(default=20, ge=1)
     # ADR-0061 §3 / ADR-0069: admin bootstrap credentials, injected by
     # cloud-init. The env names carry a ``BUDGET_PLANNER_`` prefix (not the
     # model-wide ``BUDGET_``), so they are bound via explicit aliases; the

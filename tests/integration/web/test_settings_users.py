@@ -469,3 +469,41 @@ def test_remove_other_admin_allowed(admin_client: TestClient, db: sqlite3.Connec
 
 def test_remove_missing_is_404(admin_client: TestClient) -> None:
     assert admin_client.post("/settings/users/999/delete").status_code == 404
+
+
+# --- interplay with forced rotation (T-D18, ADR-0074 §3, ADR-0073 §1) -------
+
+
+def test_admin_created_user_is_forced_to_rotate(
+    admin_client: TestClient, anon_client: TestClient
+) -> None:
+    password = _add(admin_client, "rotate@example.test")
+    login = anon_client.post(
+        "/auth/login",
+        data={"email": "rotate@example.test", "password": password},
+        follow_redirects=False,
+    )
+    assert login.status_code == 303
+    home = anon_client.get("/today", follow_redirects=False)
+    assert home.status_code == 302
+    assert home.headers["location"].startswith("/settings/password")
+
+
+def test_flagged_member_gets_same_answer_as_unknown_path(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    db.execute("UPDATE users SET must_change_password = 1 WHERE id = 1")
+    guarded = client.get("/settings/users", follow_redirects=False)
+    unknown = client.get("/no-such-page", follow_redirects=False)
+    assert guarded.status_code == unknown.status_code == 302
+    assert guarded.headers["location"].startswith("/settings/password")
+    assert unknown.headers["location"].startswith("/settings/password")
+
+
+def test_flagged_admin_is_sent_to_rotation_first(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    db.execute("UPDATE users SET must_change_password = 1 WHERE id = 1")
+    resp = admin_client.get("/settings/users", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/settings/password?next=%2Fsettings%2Fusers"

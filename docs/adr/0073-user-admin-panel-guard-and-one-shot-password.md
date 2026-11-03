@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-03
 - **Amends**: [ADR-0061](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) §4 (routes) and §5 (audit attribution)
-- **Related**: T-D17, [ADR-0070](0070-auth-web-layer-cookies-middleware-order.md) §6 (middleware order), [ADR-0019](0019-soft-delete-and-audit-log.md) (audit operations), [ADR-0068](0068-user-scoping-static-check-policy.md) (user-scoping check)
+- **Related**: T-D17, [ADR-0074](0074-password-change-policy-and-forced-rotation.md) §3 (forced-rotation gate, ordered outside this guard), [ADR-0070](0070-auth-web-layer-cookies-middleware-order.md) §6 (middleware order), [ADR-0019](0019-soft-delete-and-audit-log.md) (audit operations), [ADR-0068](0068-user-scoping-static-check-policy.md) (user-scoping check)
 
 ## Context
 
@@ -22,10 +22,11 @@ ADR-0061 §4 lists the `/settings/users` routes and says non-admins get a 404 fr
 
 `web/middleware/admin.py` gates the `/settings/users` path and everything under `/settings/users/`. If `request.state.user` is missing or not an admin, it answers with the app's normal 404 (`errors.handle_not_found`: the full 404 page, or the flash fragment for HTMX). The body is the same one any unknown path gets, so nothing about the admin surface leaks.
 
-It is registered right after `CSRFMiddleware` in `create_app`, so the order is now RequestId → SecurityHeaders → AuthRequired → **AdminRequired** → CSRF → routers. This has two effects:
+It is registered right after `CSRFMiddleware` in `create_app`, inside T-D18's `MustChangePasswordMiddleware` (ADR-0074 §3). The order is now RequestId → SecurityHeaders → AuthRequired → MustChangePassword → **AdminRequired** → CSRF → routers. This has three effects:
 
 - anonymous requests never reach the guard; AuthRequired sends them to login first (ADR-0070 §4);
-- a non-admin POST without a CSRF token still gets a 404, not a 403 that would show the route exists.
+- a non-admin POST without a CSRF token still gets a 404, not a 403 that would show the route exists;
+- a user flagged `must_change_password` gets the rotation redirect on `/settings/users*` first, admin or not. MustChangePassword answers every non-exempt path that way, unknown paths included. If the admin guard ran first, a flagged non-admin would get 404 here but a redirect on `/no-such-page`, and that difference would reveal the admin surface. With the guard inside, both answers are the same while the flag is set. After rotating, a non-admin gets the standard 404 and an admin gets the panel.
 
 The router adds a `current_admin` dependency as a second layer of defence. It raises `HTTPException(404)` if the router is ever mounted without the middleware.
 

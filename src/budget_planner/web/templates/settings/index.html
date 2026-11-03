@@ -13,6 +13,7 @@
       <h1>{{ titles.get(active_tab, 'Settings') }}</h1>
     </div>
     <div class="rd-screen-header__actions">
+      <a class="rd-btn rd-btn--ghost" href="/settings/password">Change password</a>
       {% if active_tab == "categories" %}
         <button class="rd-btn rd-btn--primary"
                 hx-get="/categories/new"

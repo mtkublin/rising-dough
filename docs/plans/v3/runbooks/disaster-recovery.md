@@ -56,9 +56,10 @@ Cloud-init boot sequence will:
 
 1. Install docker + fail2ban + ufw.
 2. Pull the pinned image tag.
-3. Run `litestream restore -o /data/budget.db s3://budget-planner-prod-pl-waw/db` (or the point-in-time variant if `restore_timestamp` is set in tfvars).
-4. Start `litestream`, then `caddy`, then `app`.
-5. Run the admin-bootstrap routine (ADR-0061 §3) using `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env. If a live admin already exists in the restored DB, this is a no-op.
+3. `docker compose up -d` runs the one-shot `litestream-restore` service first (ADR-0071 §3): `litestream restore -if-db-not-exists -if-replica-exists` restores the latest replica into the empty `/data/budget.db` and chowns it to uid 10001. For a point-in-time recovery, do **not** rely on this: stop the stack after first boot and follow [`restore.md`](restore.md) with `-timestamp`.
+4. Start `litestream` (replicator), then `app`, then `caddy`. The `app` and `litestream` services wait until `litestream-restore` has completed successfully.
+5. The app container entrypoint applies any migrations the restored DB is missing. If the DB already has migrations applied, it first writes a pre-migration backup to `/data/backups/` (ADR-0071 §2).
+6. The lifespan admin-bootstrap routine (ADR-0061 §3) runs with `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env. If the restored DB already has a live admin, this step does nothing.
 
 Capture outputs:
 
@@ -154,6 +155,7 @@ ssh app@<prod-host> \
 - **Terraform plan fails with "resource already exists"**: previous `terraform destroy` was partial. Import the stray resource or delete it via `scw` CLI before re-applying.
 - **State bucket also lost**: restore state from the latest offline snapshot (`terraform-state-YYYYMMDD.tar.gz` in the operator's encrypted backup). If no snapshot exists, re-adopt resources by writing `import` blocks against the live Scaleway resources before applying — slow (hours), but recoverable.
 - **Caddy fails ACME challenge during cloud-init**: port 80 blocked by security group or DNS not yet resolving. Check `scw instance server list`, confirm security group allows `80/tcp`, confirm `dig +short <prod-host>` returns the new IPv4.
+- **App came up with an empty DB instead of the restored data**: `litestream-restore` found no replica (wrong bucket / credential) and exited 0 under `-if-replica-exists`, so the entrypoint migrated a fresh DB. Check `docker compose logs litestream-restore`. Then stop `app` + `litestream`, move `/data/budget.db*` aside, fix the credential and run the restore manually per [`restore.md`](restore.md).
 - **Litestream restore returns "no snapshots found"**: the IAM key cloud-init rendered cannot read the bucket. SSH as `app`, re-source the credential, and run the restore manually (see [`restore.md`](restore.md) steps 5–7).
 - **Admin bootstrap did not run**: check `docker compose logs app --tail 100` for the `system-bootstrap` audit entry. If missing, the lifespan hook short-circuited because at least one admin was found. Confirm with `SELECT count(*) FROM users WHERE is_admin=1 AND deleted_at IS NULL;`.
 - **New admin email never arrives at login**: ADR-0061 §3 — the env var is read only at startup. Re-run `deploy.yml` (or `docker compose restart app`) after Terraform apply.

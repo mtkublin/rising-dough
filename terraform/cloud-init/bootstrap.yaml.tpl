@@ -13,6 +13,7 @@ packages:
   - ca-certificates
   - curl
   - jq
+  - sqlite3
   - docker.io
   - docker-compose-v2
   - ufw
@@ -95,6 +96,23 @@ write_files:
     content: |
       ${indent(6, deploy_script_rendered)}
 
+%{ if enable_restore_helper ~}
+  # T-D41a: drill-only. Read-only credential for the PROD replica + the helper
+  # the monthly restore-drill workflow runs over SSH.
+  - path: /etc/budget-planner/restore-source.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      RESTORE_ACCESS_KEY_ID=${restore_access_key}
+      RESTORE_SECRET_ACCESS_KEY=${restore_secret_key}
+
+  - path: /usr/local/bin/restore-from-prod
+    permissions: '0755'
+    owner: root:root
+    content: |
+      ${indent(6, restore_script_rendered)}
+
+%{ endif ~}
   - path: /etc/apt/apt.conf.d/50unattended-upgrades
     permissions: '0644'
     owner: root:root

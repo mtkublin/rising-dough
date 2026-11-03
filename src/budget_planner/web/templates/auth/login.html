@@ -14,7 +14,11 @@
         <h1 id="login-heading">Sign in</h1>
       </header>
       {% if error %}
-        <p class="rd-auth__error" role="alert" id="login-error">{{ error }}</p>
+        {# T-D09: a throttled attempt reuses this slot with a generic message (ADR-0072). #}
+        <p class="rd-auth__error"
+           role="alert"
+           id="login-error"
+           {% if throttled %} data-throttled{% endif %}>{{ error }}</p>
       {% endif %}
       <form class="rd-form" method="post" action="/auth/login" novalidate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -27,7 +31,7 @@
                  autocomplete="username webauthn"
                  required
                  autofocus
-                 {% if error %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
+                 {% if error and not throttled %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
         </label>
         <label class="rd-field">
           <span class="rd-field__label">Password</span>
@@ -35,7 +39,7 @@
                  name="password"
                  autocomplete="current-password"
                  required
-                 {% if error %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
+                 {% if error and not throttled %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
         </label>
         <button type="submit" class="rd-btn rd-btn--primary rd-auth__submit">Sign in</button>
       </form>

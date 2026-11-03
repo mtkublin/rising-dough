@@ -28,8 +28,23 @@ locals {
   })
 
   deploy_script_rendered = templatefile("${path.module}/../../cloud-init/bin/deploy-budget-planner.tpl", {
-    owner = var.github_owner
+    owner             = var.github_owner
+    app_image         = "ghcr.io/${var.github_owner}/budget-planner"
+    compose_dir       = "/etc/budget-planner"
+    previous_tag_file = "/etc/budget-planner/previous-tag"
   })
+
+  # T-D41a: drill-only restore helper. Empty string on other environments, which
+  # also drops the write_files entries in bootstrap.yaml.tpl.
+  restore_script_rendered = var.enable_restore_helper ? templatefile("${path.module}/../../cloud-init/bin/restore-from-prod.tpl", {
+    compose_dir      = "/etc/budget-planner"
+    restore_env_file = "/etc/budget-planner/restore-source.env"
+    source_bucket    = var.restore_source_bucket
+    source_path      = "db"
+    source_endpoint  = var.bucket_endpoint
+    source_region    = var.bucket_region
+    drill_bucket     = var.bucket_name
+  }) : ""
 
   ghcr_auth_b64 = base64encode("deploy:${var.ghcr_pull_pat}")
 
@@ -44,5 +59,9 @@ locals {
     caddyfile_rendered      = local.caddyfile_rendered
     litestream_rendered     = local.litestream_rendered
     deploy_script_rendered  = local.deploy_script_rendered
+    enable_restore_helper   = var.enable_restore_helper
+    restore_script_rendered = local.restore_script_rendered
+    restore_access_key      = var.scw_access_key_restore
+    restore_secret_key      = var.scw_secret_key_restore
   })
 }

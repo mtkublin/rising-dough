@@ -67,11 +67,12 @@ Owner: application code. All tasks block Phase 2.
 - E2E fixture stops hand-injecting the `Cookie` header; regression test for dev cookie shape.
 - Reference: ADR-0065 (amends ADR-0033 §4).
 
-### ◻ T-D09 [P] Rate limit on auth routes → T-D02
-- `slowapi` middleware; limits per ADR-0033 §2.
-- Returns 429 with `Retry-After`.
-- Integration test fires the limit and asserts the 429.
-- File: `phase-1-prerequisites/T-D09-auth-rate-limit.md`.
+### ✅ T-D09 [P] Rate limit on auth routes → T-D02
+- Fixed-window counters in `auth_rate_limit` (migration 0014) via `repositories/rate_limit.py` + `services/rate_limit.py`; no `slowapi` (ADR-0072 supersedes the ADR-0033 §2 library choice).
+- `POST /auth/login` (IP+email 5/min + 20/h; IP 100/h), `POST /auth/login/finish` (IP 10/min + 60/h), `POST /auth/register/finish` (user 5/min + 20/h); all configurable (`BUDGET_RATE_LIMIT_*`).
+- Returns 429 with `Retry-After`; HTML login re-renders with a generic message; HTMX/JSON get `{"error": "rate_limited"}`. Throttled attempts write an `auth_event` audit row.
+- Integration test fires the limit and asserts the 429 (`tests/integration/web/test_auth_rate_limit.py`).
+- File: `phase-1-prerequisites/T-D09-auth-rate-limit.md`. Reference: ADR-0072.
 
 ### ✅ T-D10 [P] Dockerfile (multi-stage, non-root)
 - Base `python:3.12-slim-bookworm`; `uv sync --frozen` in build stage; `COPY --from=builder` to final.
@@ -137,13 +138,14 @@ Owner: application code. All tasks block Phase 2.
 - Guard placement (AuthRequired → AdminRequired → CSRF), one-shot password delivery (`Cache-Control: no-store`, `static/js/users-admin.js`), error contract (409 last-admin / self-remove, 422 invalid or duplicate email), no self-removal, `write_audit(actor_user_id=…)`: ADR-0073.
 - File: `phase-1-prerequisites/T-D17-user-admin-panel.md`. Reference: ADR-0061 §4, ADR-0073.
 
-### ◻ T-D18 [P] Password change `/settings/password` → T-D02
+### ✅ T-D18 [P] Password change `/settings/password` → T-D02
 - Available to every logged-in user. Form fields: current password, new password, confirm new password.
 - Service verifies current password with bcrypt; hashes new password; clears `must_change_password` flag; in the same transaction revokes all **other** sessions of the same user (current session stays live).
 - The `must_change_password` flag forces redirect to `/settings/password` before any other authenticated route; integration test asserts the redirect.
 - Audit row written on success and on failed-verify attempts (both annotated with IP + user-agent via T-D14).
 - Template: `templates/settings/password.html`.
-- File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4.
+- Policy (≥12 chars, ≤72 bytes, differs from current), failed-verify audit shape, HTMX/JSON forced-rotation responses, rate limit deferred to T-D09: ADR-0074.
+- File: `phase-1-prerequisites/T-D18-password-change.md`. Reference: ADR-0061 §4, ADR-0074.
 
 ### ✅ T-D19 [S] Admin bootstrap on startup → T-D02, T-D16a
 - Lifespan startup hook calls `services.users.bootstrap_admin(conn, env)`.
@@ -154,6 +156,14 @@ Owner: application code. All tasks block Phase 2.
 - With no email match, the pre-v3 email-less row (`id = 1`) is adopted as the admin so v2 data stays the admin's own (ADR-0061 §2, ADR-0069 §2).
 - Operator CLI `python -m budget_planner.cli.set_password` / `just set-password --db=<path> …` (explicit `--db` required) sets a user's password, email and admin flag; audit-logged (ADR-0069 §4).
 - File: `phase-1-prerequisites/T-D19-admin-bootstrap.md`. Reference: ADR-0061 §3, ADR-0069.
+
+### ✅ T-D19a [S] Apply pending migrations before the app starts (prod container) → T-D19, T-D10, T-D11, T-D23, T-D32
+- Since T-D19 the production lifespan exits non-zero on an unmigrated DB (`SchemaNotMigratedError`); a fresh volume or an image upgrade carrying a new migration must therefore be migrated **before** uvicorn starts.
+- Container `ENTRYPOINT` (`deploy/docker-entrypoint.sh`) runs `python -m budget_planner.db.startup_migrate` then `exec`s the CMD. Every start path (first boot, deploy, rollback, restart, DR, restore drill) goes through it; the deploy shim (T-D32) is unchanged.
+- `startup_migrate`: idempotent (no-op when up to date); takes a `VACUUM INTO` pre-migration backup under `<db dir>/backups/` only when an already-initialised DB has pending migrations (keeps the newest 3); logs `event="startup_migrations"`; warns `schema_ahead_of_image` (and continues) when the DB carries versions the image does not know (rollback onto a newer schema); exits non-zero on any migration failure.
+- Compose (prod template + prod-sim) gains a one-shot `litestream-restore` service (`litestream restore -if-db-not-exists -if-replica-exists`) that `app` and `litestream` wait on, so a fresh volume restores from the replica **before** the app could create an empty DB.
+- Rollback policy: migrations must stay readable by the previous image (expand-only); a release that breaks N-1 compatibility is flagged in its CHANGELOG entry and rolls back via restore (pre-migration backup or Litestream PITR), not via `rollback`.
+- Runbooks updated: `deploy.md`, `rollback.md`, `restore.md`, `disaster-recovery.md`. Reference: ADR-0071.
 
 ---
 
@@ -261,6 +271,10 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
 - On failure, opens an issue titled `restore-drill-failure-YYYY-MM`.
 - File: `phase-4-validation/T-D41-monthly-restore-drill.md`.
+
+### ✅ T-D41a [S] `restore-from-prod` drill host helper → T-D41, T-D19a
+- Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
+- Replication of the restored DB goes to the drill bucket only; the prod replica is only used in a restore-only config. References: ADR-0034 §5, ADR-0071.
 
 ### ◻ T-D42 [S] Security scan + external audit → T-D27
 - `trivy image` on the deployed SHA, `testssl.sh` + `nikto` against the prod hostname, Mozilla Observatory check.
