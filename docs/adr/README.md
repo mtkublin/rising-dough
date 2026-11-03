@@ -71,3 +71,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0066 | [Orchestrator Mode Skill for Parallel Multi-Agent Work](0066-orchestrator-mode-skill.md) |
 | 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6) |
 | 0068 | [User-Scoping Static Check — Scope, Rules, and Allowlist Policy](0068-user-scoping-static-check-policy.md) (extends ADR-0022, ADR-0061 §5) |
+| 0070 | [Auth Web Layer — Cookie Names, Unauthenticated Responses, Middleware Order](0070-auth-web-layer-cookies-middleware-order.md) (amends ADR-0033 §3, §5) |

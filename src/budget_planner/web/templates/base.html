@@ -18,6 +18,8 @@
           href="{{ url_for('static', path='app.css') }}?v=fit1">
     <link rel="stylesheet"
           href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='auth.css') }}?v=auth1">
     <script src="https://unpkg.com/htmx.org@2"></script>
     <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
     {% block head_extra %}{% endblock %}
@@ -31,6 +33,11 @@
         {% endblock %}
       </aside>
       <main id="main" tabindex="-1" class="rd-main">
+        {% if request.state.user is defined and request.state.user and not request.url.path.startswith("/auth/") %}
+          <nav class="rd-account-mobile" aria-label="Account">
+            <a class="rd-btn rd-btn--ghost rd-btn--sm" href="/auth/sessions">Account &amp; sign out</a>
+          </nav>
+        {% endif %}
         <div id="flash-region"
              role="status"
              aria-live="polite"

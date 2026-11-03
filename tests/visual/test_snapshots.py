@@ -53,6 +53,7 @@ def test_route_snapshot(
     route: str,
     viewport: _Viewport,
     live_server: str,
+    session_cookies: list[dict[str, str]],
     browser: Browser,
     baselines_dir: Path,
     update_baseline: bool,
@@ -65,6 +66,7 @@ def test_route_snapshot(
         context = browser.new_context(
             viewport={"width": viewport["width"], "height": viewport["height"]},
         )
+        context.add_cookies(session_cookies)  # type: ignore[arg-type]
         page = context.new_page()
         page.goto(f"{live_server}{route}", wait_until="networkidle", timeout=15000)
         page.wait_for_timeout(300)

@@ -44,9 +44,12 @@ def test_security_headers_include_request_id_header(client: TestClient) -> None:
     assert "X-Request-Id" in r.headers
 
 
-def _app_with_echo_route() -> TestClient:
-    """Build an app with a tiny route that echoes the Jinja csp_nonce value."""
-    cfg = Settings(_env_file=None)
+def _app_with_echo_route(cfg: Settings, cookie: tuple[str, str]) -> TestClient:
+    """Build an app with a tiny route that echoes the Jinja csp_nonce value.
+
+    The route is behind ``AuthRequiredMiddleware`` (T-D02b), so the client
+    carries a real session cookie for the migrated temp DB.
+    """
     app = create_app(settings=cfg)
 
     @app.get("/_test/nonce", response_class=PlainTextResponse)
@@ -54,21 +57,27 @@ def _app_with_echo_route() -> TestClient:
         rendered = render_str(request, "nonce:{{ csp_nonce }}")
         return PlainTextResponse(rendered)
 
-    return TestClient(app)
+    client = TestClient(app)
+    client.cookies.set(*cookie)
+    return client
 
 
-def test_csp_nonce_from_header_reaches_jinja_context() -> None:
+def test_csp_nonce_from_header_reaches_jinja_context(
+    _migrated: Settings, session_cookie: tuple[str, str]
+) -> None:
     """When Caddy forwards ``X-CSP-Nonce``, Jinja templates see the same value."""
-    client = _app_with_echo_route()
+    client = _app_with_echo_route(_migrated, session_cookie)
     with client:
         r = client.get("/_test/nonce", headers={"X-CSP-Nonce": "abc123"})
     assert r.status_code == 200
     assert r.text == "nonce:abc123"
 
 
-def test_csp_nonce_generated_when_header_absent() -> None:
+def test_csp_nonce_generated_when_header_absent(
+    _migrated: Settings, session_cookie: tuple[str, str]
+) -> None:
     """Dev / test with no proxy: middleware mints a non-empty URL-safe nonce."""
-    client = _app_with_echo_route()
+    client = _app_with_echo_route(_migrated, session_cookie)
     with client:
         r1 = client.get("/_test/nonce")
         r2 = client.get("/_test/nonce")
@@ -83,14 +92,15 @@ def test_csp_nonce_generated_when_header_absent() -> None:
     assert all(c.isalnum() or c in "-_" for c in nonce1)
 
 
-def test_middleware_does_not_overwrite_pre_set_headers() -> None:
+def test_middleware_does_not_overwrite_pre_set_headers(
+    _migrated: Settings, session_cookie: tuple[str, str]
+) -> None:
     """If a downstream layer (Caddy mock) already sets a header, keep it.
 
     Simulated by registering a route that stamps a custom HSTS value; the
     middleware's ``if name not in response.headers`` guard must preserve it.
     """
-    cfg = Settings(_env_file=None)
-    app = create_app(settings=cfg)
+    app = create_app(settings=_migrated)
 
     @app.get("/_test/pre-set", response_class=PlainTextResponse)
     def _pre_set() -> PlainTextResponse:
@@ -99,6 +109,7 @@ def test_middleware_does_not_overwrite_pre_set_headers() -> None:
         return resp
 
     with TestClient(app) as c:
+        c.cookies.set(*session_cookie)
         r = c.get("/_test/pre-set")
     assert r.status_code == 200
     assert r.headers["Strict-Transport-Security"] == "max-age=1"

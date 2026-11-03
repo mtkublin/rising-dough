@@ -28,6 +28,8 @@ from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.db.migrate import apply_migrations
 from budget_planner.web.app import create_app
 from budget_planner.web.middleware.csrf import (
     CSRF_COOKIE_NAME,
@@ -36,19 +38,24 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from budget_planner.web.rendering import render_str
+from tests.auth_support import login_cookie
 
 
 @pytest.fixture
-def raw_client() -> Iterator[TestClient]:
-    """Fresh app + raw TestClient — no auto-prime, no auto-header."""
-    cfg = Settings(_env_file=None)
-    app = create_app(settings=cfg)
+def raw_client(_migrated: Settings, session_cookie: tuple[str, str]) -> Iterator[TestClient]:
+    """Fresh app + raw TestClient — no auto-prime, no auto-header.
+
+    Signed in (T-D02b) so the CSRF layer, which sits inside
+    ``AuthRequiredMiddleware``, is what answers the echo route.
+    """
+    app = create_app(settings=_migrated)
 
     @app.post("/_test/echo", response_class=PlainTextResponse)
     def _echo() -> PlainTextResponse:
         return PlainTextResponse("ok")
 
     with TestClient(app, base_url="https://testserver") as c:
+        c.cookies.set(*session_cookie)
         yield c
 
 
@@ -66,8 +73,8 @@ def test_get_sets_csrf_cookie(raw_client: TestClient) -> None:
 
 def test_post_without_token_is_rejected(raw_client: TestClient) -> None:
     """POST with no cookie, no header → 403 invalid_csrf."""
-    # Clear any auto-stored cookies to simulate a cold client.
-    raw_client.cookies.clear()
+    # Drop any CSRF cookie to simulate a cold client (the session stays).
+    raw_client.cookies.delete(CSRF_COOKIE_NAME)
     r = raw_client.post("/_test/echo")
     assert r.status_code == 403
     assert r.json() == {"detail": "missing_cookie"}
@@ -136,13 +143,21 @@ def _dev_client(tmp_path: Path) -> TestClient:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         cfg = Settings(_env_file=None, env="dev", database_url=db_url)
+    conn = get_connection(cfg)
+    try:
+        apply_migrations(conn)
+    finally:
+        conn.close()
+    cookie = login_cookie(cfg)
     app = create_app(settings=cfg)
 
     @app.post("/_test/echo", response_class=PlainTextResponse)
     def _echo() -> PlainTextResponse:
         return PlainTextResponse("ok")
 
-    return TestClient(app)
+    client = TestClient(app)
+    client.cookies.set(*cookie)
+    return client
 
 
 def test_dev_env_uses_unprefixed_cookie_without_secure(tmp_path: Path) -> None:
@@ -200,21 +215,24 @@ def test_production_env_sets_secure_flag(tmp_path: Path) -> None:
     assert "samesite=lax" in set_cookie.lower()
 
 
-def _app_with_csrf_echo() -> TestClient:
-    """Build an app that echoes ``csrf_token`` via Jinja."""
-    cfg = Settings(_env_file=None)
+def _app_with_csrf_echo(cfg: Settings, cookie: tuple[str, str]) -> TestClient:
+    """Build an app that echoes ``csrf_token`` via Jinja (signed in, T-D02b)."""
     app = create_app(settings=cfg)
 
     @app.get("/_test/csrf-echo", response_class=PlainTextResponse)
     def _csrf_echo(request: Request) -> PlainTextResponse:
         return PlainTextResponse(render_str(request, "token:{{ csrf_token }}"))
 
-    return TestClient(app, base_url="https://testserver")
+    client = TestClient(app, base_url="https://testserver")
+    client.cookies.set(*cookie)
+    return client
 
 
-def test_csrf_token_available_in_jinja_context() -> None:
+def test_csrf_token_available_in_jinja_context(
+    _migrated: Settings, session_cookie: tuple[str, str]
+) -> None:
     """``request.state.csrf_token`` is surfaced to templates as ``csrf_token``."""
-    client = _app_with_csrf_echo()
+    client = _app_with_csrf_echo(_migrated, session_cookie)
     with client:
         r = client.get("/_test/csrf-echo")
     assert r.status_code == 200, r.text
