@@ -245,21 +245,19 @@ def _convert_native_to_base(
 # ---------------------------------------------------------------------------
 def _collect_events(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
     end_date: dt.date,
     directions_by_cat: dict[int, Direction],
 ) -> dict[dt.date, list[_CashEvent]]:
-    """Return per-date cash events sourced from planned rows + virtual occurrences.
-
-    De-dup rule: when ``(recurring_rule_id, occurrence_date)`` is already
-    materialised as a persisted planned row, drop the virtual expansion.
-    """
+    """Return per-date cash events sourced from planned rows + virtual occurrences."""
     event_start = today + dt.timedelta(days=1)
     if event_start > end_date:
         return {}
 
     persisted = planned_repo.list_filtered(
         conn,
+        user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
     dedup_keys: set[tuple[int, dt.date]] = {
@@ -274,12 +272,12 @@ def _collect_events(
         for ev in _events_from_persisted(row, direction):
             events.setdefault(ev.on_date, []).append(ev)
 
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if _rule_outside_window(rule, event_start, end_date):
             continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
+        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.rt_expand(conn, rule, overrides, event_start, end_date):
+        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             for ev in _events_from_occurrence(occ, direction):
@@ -325,18 +323,17 @@ def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
 
 def _spent_so_far(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     month_start: dt.date,
     cutoff: dt.date,
 ) -> int:
-    """Return actual expense-direction amount for ``category`` in ``[month_start, cutoff]``.
-
-    Returns 0 when ``cutoff < month_start`` (fully future month).
-    """
+    """Return actual expense-direction amount for ``category`` in ``[month_start, cutoff]``."""
     if cutoff < month_start:
         return 0
     rows = transactions_repo.list_filtered(
         conn,
+        user_id,
         TransactionFilter(
             date_from=month_start,
             date_to=cutoff,
@@ -349,6 +346,7 @@ def _spent_so_far(
 
 def _committed_future_for_category(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     window_start: dt.date,
     window_end_inclusive: dt.date,
@@ -367,6 +365,7 @@ def _committed_future_for_category(
 
     planned_rows = planned_repo.list_filtered(
         conn,
+        user_id,
         PlannedFilter(
             date_from=window_start,
             date_to=window_end_inclusive,
@@ -377,14 +376,16 @@ def _committed_future_for_category(
     )
     total += sum(r.amount for r in planned_rows)
 
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id != category_id:
             continue
         rule_start = max(rule.next_due, window_start)
         if rule_start > window_end_inclusive:
             continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
-        for occ in recurring_svc.rt_expand(conn, rule, overrides, rule_start, window_end_inclusive):
+        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
+        for occ in recurring_svc.rt_expand(
+            conn, user_id, rule, overrides, rule_start, window_end_inclusive
+        ):
             total += occ.amount
 
     return total
@@ -428,18 +429,15 @@ def _distribute_overlay(
     return events
 
 
-def _collect_budget_overlay(
+def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
     end_date: dt.date,
     directions_by_cat: dict[int, Direction],
     primary_account_id: int,
 ) -> list[_CashEvent]:
-    """Return synthetic expense events for per-category per-month unaccounted budget.
-
-    See ADR-0042 for the formula + distribution contract. Returns ``[]``
-    when the event window is empty or no budget-eligible residual exists.
-    """
+    """Return synthetic expense events for per-category per-month unaccounted budget."""
     event_start = today + dt.timedelta(days=1)
     if event_start > end_date:
         return []
@@ -459,12 +457,14 @@ def _collect_budget_overlay(
             continue
 
         for cat_id in expense_cat_ids:
-            budget = budget_svc.resolve_budget(conn, cat_id, year, month)
+            budget = budget_svc.resolve_budget(conn, user_id, cat_id, year, month)
             if budget is None:
                 continue
 
-            spent = _spent_so_far(conn, cat_id, month_start, min(today, month_end))
-            committed = _committed_future_for_category(conn, cat_id, window_start, month_end)
+            spent = _spent_so_far(conn, user_id, cat_id, month_start, min(today, month_end))
+            committed = _committed_future_for_category(
+                conn, user_id, cat_id, window_start, month_end
+            )
             unaccounted = budget - spent - committed
             if unaccounted <= 0:
                 continue
@@ -486,18 +486,16 @@ def _collect_budget_overlay(
 # ---------------------------------------------------------------------------
 def _anchor_balances(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
     accounts: tuple[Account, ...],
 ) -> dict[int, int]:
-    """Day-0 native balance per account via ``services.balance.derive_balance``.
-
-    Local import avoids a cycle: ``balance`` doesn't depend on ``forecast``
-    today, but keeping this module importable from routers early in startup
-    costs nothing.
-    """
+    """Day-0 native balance per account via ``services.balance.derive_balance``."""
     from budget_planner.services import balance as balance_svc  # noqa: PLC0415
 
-    return {a.id: balance_svc.derive_balance(conn, a.id, as_of_date=today) for a in accounts}
+    return {
+        a.id: balance_svc.derive_balance(conn, user_id, a.id, as_of_date=today) for a in accounts
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -528,8 +526,9 @@ def _build_day(
 # ---------------------------------------------------------------------------
 # public API
 # ---------------------------------------------------------------------------
-def forecast(
+def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     conn: sqlite3.Connection,
+    user_id: int,
     http: httpx.Client,
     today: dt.date,
     horizon_days: int,
@@ -566,7 +565,7 @@ def forecast(
         raise ValueError(f"horizon_days must be >= 0, got {horizon_days}")
 
     end_date = today + dt.timedelta(days=horizon_days)
-    active_accounts = tuple(accounts_repo.list_all(conn))
+    active_accounts = tuple(accounts_repo.list_all(conn, user_id))
     if not active_accounts:
         return ForecastSeries(
             base_currency=base_currency,
@@ -579,14 +578,14 @@ def forecast(
         )
 
     directions_by_cat = {
-        c.id: c.direction for c in categories_repo.list_all(conn, include_deleted=True)
+        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
-    events = _collect_events(conn, today, end_date, directions_by_cat)
+    events = _collect_events(conn, user_id, today, end_date, directions_by_cat)
 
     if include_budget_overlay:
         primary_account_id = min(a.id for a in active_accounts)
         overlay_events = _collect_budget_overlay(
-            conn, today, end_date, directions_by_cat, primary_account_id
+            conn, user_id, today, end_date, directions_by_cat, primary_account_id
         )
         for ev in overlay_events:
             events.setdefault(ev.on_date, []).append(ev)
@@ -599,7 +598,7 @@ def forecast(
         base_currency,
     )
 
-    running_native = dict(_anchor_balances(conn, today, active_accounts))
+    running_native = dict(_anchor_balances(conn, user_id, today, active_accounts))
     days: list[DayPoint] = [
         _build_day(today, active_accounts, running_native, fx_rates, base_currency)
     ]
@@ -638,24 +637,22 @@ def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
 
 def _current_month_budget_totals(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
     *,
     fiscal_year: int | None = None,
     fiscal_month: int | None = None,
 ) -> budget_svc.MonthTotals | None:
-    """Return ``month_summary(fiscal).totals`` or ``None`` if no live categories.
-
-    Reuses the Budget page math so the Forecast table's current-row stays
-    in lockstep with Budget + Overview (ADR-0039 + ADR-0041 + ADR-0064).
-    """
+    """Return ``month_summary(fiscal).totals`` or ``None`` if no live categories."""
     y = fiscal_year if fiscal_year is not None else today.year
     m = fiscal_month if fiscal_month is not None else today.month
-    summary = budget_svc.month_summary(conn, y, m, today=today)
+    summary = budget_svc.month_summary(conn, user_id, y, m, today=today)
     return summary.totals
 
 
 def _planned_budget_per_month(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
     horizon_months: int,
     *,
@@ -684,7 +681,7 @@ def _planned_budget_per_month(
     """
     expense_cats = [
         c
-        for c in categories_repo.list_all(conn, include_deleted=False)
+        for c in categories_repo.list_all(conn, user_id, include_deleted=False)
         if c.direction is Direction.EXPENSE
     ]
     anchor_month = start_month if start_month is not None else today.replace(day=1)
@@ -695,11 +692,13 @@ def _planned_budget_per_month(
         window_start = max(today + dt.timedelta(days=1), month)
         total = 0
         for cat in expense_cats:
-            amount = budget_svc.resolve_budget(conn, cat.id, month.year, month.month)
+            amount = budget_svc.resolve_budget(conn, user_id, cat.id, month.year, month.month)
             if amount is None:
                 continue
-            spent = _spent_so_far(conn, cat.id, month, min(today, month_end))
-            committed = _committed_future_for_category(conn, cat.id, window_start, month_end)
+            spent = _spent_so_far(conn, user_id, cat.id, month, min(today, month_end))
+            committed = _committed_future_for_category(
+                conn, user_id, cat.id, window_start, month_end
+            )
             remaining = amount - spent - committed
             if remaining > 0:
                 total += remaining
@@ -709,6 +708,7 @@ def _planned_budget_per_month(
 
 def _month_flow_sums(
     conn: sqlite3.Connection,
+    user_id: int,
     *,
     today: dt.date,
     end_date: dt.date,
@@ -736,6 +736,7 @@ def _month_flow_sums(
 
     persisted = planned_repo.list_filtered(
         conn,
+        user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
     dedup_keys: set[tuple[int, dt.date]] = {
@@ -755,15 +756,15 @@ def _month_flow_sums(
         elif direction is Direction.EXPENSE:
             _add(row.operation_date, 1, base)
 
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if _rule_outside_window(rule, event_start, end_date):
             continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
+        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
         ccy = acct_ccy.get(rule.account_id)
         if ccy is None:
             continue
-        for occ in recurring_svc.rt_expand(conn, rule, overrides, event_start, end_date):
+        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             base = _convert_native_to_base(occ.amount, ccy, base_currency, fx_rates)
@@ -775,8 +776,9 @@ def _month_flow_sums(
     return {month: (bucket[0], bucket[1]) for month, bucket in sums.items()}
 
 
-def forecast_monthly(
+def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     conn: sqlite3.Connection,
+    user_id: int,
     http: httpx.Client,
     today: dt.date,
     horizon_months: int,
@@ -805,18 +807,18 @@ def forecast_monthly(
     # "current" row of the Forecast table lines up with the Plan hub's
     # landing month (ADR-0064). Falls back to the calendar month when no
     # anchor is configured.
-    fiscal_year, fiscal_month = budget_svc.fiscal_month_for(conn, today)
+    fiscal_year, fiscal_month = budget_svc.fiscal_month_for(conn, user_id, today)
     start_month = dt.date(fiscal_year, fiscal_month, 1)
     last_month = _month_offset(start_month, horizon_months - 1)
     end_date = _last_day_of_month(last_month)
     horizon_days = max((end_date - today).days, 0)
-    series = forecast(conn, http, today, horizon_days, base_currency)
+    series = forecast(conn, user_id, http, today, horizon_days, base_currency)
 
     planned_budget_by_month = _planned_budget_per_month(
-        conn, today, horizon_months, start_month=start_month
+        conn, user_id, today, horizon_months, start_month=start_month
     )
 
-    active_accounts = tuple(accounts_repo.list_all(conn))
+    active_accounts = tuple(accounts_repo.list_all(conn, user_id))
     if not active_accounts:
         months_empty = tuple(
             MonthlyPoint(
@@ -839,13 +841,14 @@ def forecast_monthly(
         )
 
     directions_by_cat = {
-        c.id: c.direction for c in categories_repo.list_all(conn, include_deleted=True)
+        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
     fx_rates = _collect_fx_rates(
         conn, http, today, {a.currency for a in active_accounts}, base_currency
     )
     flows = _month_flow_sums(
         conn,
+        user_id,
         today=today,
         end_date=end_date,
         accounts=active_accounts,
@@ -856,7 +859,7 @@ def forecast_monthly(
 
     fiscal_month_start = start_month
     current_month_totals = _current_month_budget_totals(
-        conn, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
+        conn, user_id, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
     )
 
     # EOM is a running chain anchored at today's net worth, so each row
@@ -925,6 +928,7 @@ class MonthlyProjectionPoint:
 
 def monthly_projection(
     conn: sqlite3.Connection,
+    user_id: int,
     settings: object,
     today: dt.date,
     horizon: int = 12,
@@ -941,7 +945,7 @@ def monthly_projection(
     """
     base_ccy = str(getattr(settings, "base_currency", "PLN"))
     with httpx.Client(timeout=5.0) as client:
-        series = forecast_monthly(conn, client, today, horizon, base_ccy)
+        series = forecast_monthly(conn, user_id, client, today, horizon, base_ccy)
     return tuple(
         MonthlyProjectionPoint(
             month=point.month,

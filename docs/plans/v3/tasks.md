@@ -118,12 +118,14 @@ Owner: application code. All tasks block Phase 2.
 - Migration is reversible (down migration provided for completeness; CI runs it in a scratch DB).
 - File: `phase-1-prerequisites/T-D16a-multi-user-migration.md`. Reference: ADR-0061 §2.
 
-### ◻ T-D16 [S] Repository `user_id` scoping sweep + static-analysis test → T-D16a
+### ✅ T-D16 [S] Repository `user_id` scoping sweep + static-analysis test → T-D16a
 - Every repository function against a user-owned table takes `user_id: int` as the first positional argument after `conn` and every SQL statement filters on `user_id = :user_id` (or joins through FK for `account_snapshots` / `recurring_rule_overrides`).
 - Service layer passes `request.state.user.id` explicitly — no implicit "current user" global.
 - New test `tests/architecture/test_user_id_filter.py` parses each repository module's SQL with `sqlglot` and fails if a SELECT/UPDATE/DELETE against a user-owned table lacks a `user_id` predicate (or an equivalent join predicate for the two FK-scoped tables).
 - Call-site sweep across services + routers to thread `user_id` through. Pure mechanical change; no behavioural change for the single-user path.
-- File: `phase-1-prerequisites/T-D16-repository-user-id-scoping.md`. Reference: ADR-0022 (amended), ADR-0061 §5.
+- Write paths reject cross-user FK linking (`_shared.require_owned`: `account_id` / `dest_account_id` / `category_id` must belong to `user_id`, else `LookupError`).
+- Checker scope, rules (joined tables, FK-scoped tables, credential-table opaque keys) and allowlist policy (`SQL_ALLOWLIST` in the test, `.user-id-filter-allowlist` for hard-coded ids): ADR-0068.
+- File: `phase-1-prerequisites/T-D16-repository-user-id-scoping.md`. Reference: ADR-0022 (amended), ADR-0061 §5, ADR-0068.
 
 ### ◻ T-D17 [S] User admin panel `/settings/users` → T-D02, T-D16
 - Admin-only routes per ADR-0061 §4: list, add (auto-generated password shown once), edit (email, name, `is_admin` toggle), reset password, remove (soft-delete + session revoke in one tx).

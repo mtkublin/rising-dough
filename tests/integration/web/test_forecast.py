@@ -10,13 +10,15 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.create(
-            conn, NewAccount(name="Main", currency="PLN", opening_balance=100000)
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=100000)
         )
         return acc.id
     finally:

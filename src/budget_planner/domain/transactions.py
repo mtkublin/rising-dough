@@ -52,7 +52,6 @@ class NewTransaction:
     promoted_from_planned_id: int | None = None
     promoted_from_recurring_rule_id: int | None = None
     promoted_from_recurring_date: date | None = None
-    user_id: int = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

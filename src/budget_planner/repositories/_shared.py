@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
@@ -164,6 +164,34 @@ def mutate[T](
             request_ctx=request_ctx,
         )
         return new_value
+
+
+def require_owned(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    account_ids: Iterable[int | None] = (),
+    category_ids: Iterable[int | None] = (),
+) -> None:
+    """Raise :class:`LookupError` unless every referenced FK row belongs to ``user_id``.
+
+    Guards writes against cross-user FK linking (T-D16 / ADR-0061 §5): a
+    leaked ``account_id`` / ``category_id`` from another user must not be
+    attachable to the caller's rows. ``None`` ids are skipped. Soft-deleted
+    parents still count as owned — liveness is the service layer's concern.
+    """
+    for account_id in {a for a in account_ids if a is not None}:
+        row = conn.execute(
+            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?", (account_id, user_id)
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"account {account_id} not found")
+    for category_id in {c for c in category_ids if c is not None}:
+        row = conn.execute(
+            "SELECT 1 FROM categories WHERE id = ? AND user_id = ?", (category_id, user_id)
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"category {category_id} not found")
 
 
 def parse_dt(value: str | None) -> datetime | None:

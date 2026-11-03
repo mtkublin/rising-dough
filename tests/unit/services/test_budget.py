@@ -34,36 +34,45 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as bs, recurring as recurring_svc
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seed(conn: sqlite3.Connection) -> dict[str, int]:
     checking = accounts.create(
-        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
     ).id
     groceries = categories.create(
-        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
     ).id
-    rent = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
+    rent = categories.create(
+        conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
     utilities = categories.create(
-        conn, NewCategory(name="Utilities", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Utilities", direction=Direction.EXPENSE)
     ).id
-    gym = categories.create(conn, NewCategory(name="Gym", direction=Direction.EXPENSE)).id
-    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    gym = categories.create(conn, USER_ID, NewCategory(name="Gym", direction=Direction.EXPENSE)).id
+    salary = categories.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    ).id
 
-    budgets.set_default(conn, NewBudgetDefault(category_id=groceries, amount=120_000))
-    budgets.set_default(conn, NewBudgetDefault(category_id=rent, amount=300_000))
-    budgets.set_default(conn, NewBudgetDefault(category_id=utilities, amount=40_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=groceries, amount=120_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=rent, amount=300_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=utilities, amount=40_000))
 
     budgets.set_recurring(
-        conn, NewBudgetRecurringOverride(category_id=rent, month=1, amount=310_000)
+        conn, USER_ID, NewBudgetRecurringOverride(category_id=rent, month=1, amount=310_000)
     )
     budgets.set_one_off(
-        conn, NewBudgetOneOffOverride(category_id=utilities, year=2026, month=2, amount=60_000)
+        conn,
+        USER_ID,
+        NewBudgetOneOffOverride(category_id=utilities, year=2026, month=2, amount=60_000),
     )
 
     def _txn(d: date, cat: int, amount: int) -> int:
         return transactions.create(
             conn,
+            USER_ID,
             NewTransaction(operation_date=d, category_id=cat, account_id=checking, amount=amount),
         ).id
 
@@ -90,32 +99,32 @@ def seed(conn: sqlite3.Connection) -> dict[str, int]:
 # resolve_budget
 # ---------------------------------------------------------------------------
 def test_default_only(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["groceries"], 2026, 3) == 120_000
+    assert bs.resolve_budget(conn, USER_ID, seed["groceries"], 2026, 3) == 120_000
 
 
 def test_recurring_beats_default(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["rent"], 2026, 1) == 310_000
+    assert bs.resolve_budget(conn, USER_ID, seed["rent"], 2026, 1) == 310_000
 
 
 def test_recurring_only_in_its_month(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["rent"], 2026, 7) == 300_000
+    assert bs.resolve_budget(conn, USER_ID, seed["rent"], 2026, 7) == 300_000
 
 
 def test_one_off_beats_both(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["utilities"], 2026, 2) == 60_000
+    assert bs.resolve_budget(conn, USER_ID, seed["utilities"], 2026, 2) == 60_000
 
 
 def test_one_off_single_year(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["utilities"], 2027, 2) == 40_000
+    assert bs.resolve_budget(conn, USER_ID, seed["utilities"], 2027, 2) == 40_000
 
 
 def test_unbudgeted_returns_none(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    assert bs.resolve_budget(conn, seed["gym"], 2026, 3) is None
+    assert bs.resolve_budget(conn, USER_ID, seed["gym"], 2026, 3) is None
 
 
 def test_zero_default_returns_zero(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    budgets.set_default(conn, NewBudgetDefault(category_id=seed["gym"], amount=0))
-    assert bs.resolve_budget(conn, seed["gym"], 2026, 4) == 0
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=seed["gym"], amount=0))
+    assert bs.resolve_budget(conn, USER_ID, seed["gym"], 2026, 4) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +134,7 @@ def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None
     # today=Jan 31 so the paycheck window captures every January expense;
     # fixture does not bind an income anchor, so period_start = month start
     # per ADR-0041 fallback.
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     assert s.year == 2026
     assert s.month == 1
     by_cat = {line.category_id: line for line in s.lines}
@@ -146,7 +155,7 @@ def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None
 
 
 def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Utilities one-off 60_000; spent 55_000; remaining 5_000.
     assert by_cat[seed["utilities"]].budgeted_minor == 60_000
@@ -157,7 +166,7 @@ def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, 
 
 
 def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     # Budgeted: Rent 310k + Groceries 120k + Utilities 40k = 470k.
     assert s.totals.budgeted_minor == 470_000
     assert s.totals.spent_minor == 310_000 + 70_000 + 0
@@ -167,7 +176,7 @@ def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int
 def test_previous_month_rollover_january_to_december(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     by_cat = {line.category_id: line for line in s.lines}
     # No Dec 2025 Groceries in fixture → delta = 70_000.
     assert by_cat[seed["groceries"]].delta_vs_prev_month_minor == 70_000
@@ -176,7 +185,7 @@ def test_previous_month_rollover_january_to_december(
 def test_avg_monthly_overall_uses_active_months(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries active months: Nov 2025, Jan 2026, Feb 2026 → 3 months.
     # Sum = 35_000 + 70_000 + 45_000 = 150_000; avg = 50_000.
@@ -184,7 +193,7 @@ def test_avg_monthly_overall_uses_active_months(
 
 
 def test_avg_this_year(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries YTD through Feb: Jan 70_000 + Feb 45_000 = 115_000; / 2 = 57_500.
     assert by_cat[seed["groceries"]].avg_this_year_minor == 57_500
@@ -195,29 +204,31 @@ def test_soft_deleted_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -
     cat_id = seed["groceries"]
     jan_txns = transactions.list_filtered(
         conn,
+        USER_ID,
         TransactionFilter(
             date_from=date(2026, 1, 1), date_to=date(2026, 1, 31), category_ids=(cat_id,)
         ),
     )
     assert jan_txns
-    transactions.soft_delete(conn, jan_txns[0].id)
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    transactions.soft_delete(conn, USER_ID, jan_txns[0].id)
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[cat_id].spent_minor == 70_000 - jan_txns[0].amount
 
 
 def test_income_excluded_from_spent(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 15))
     by_cat = {line.category_id: line for line in s.lines}
     # Salary category is income — should not appear in month_summary lines.
     assert seed["salary"] not in by_cat
 
 
 def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    adj_cat = categories.find_by_name(conn, "Reconciliation")
+    adj_cat = categories.find_by_name(conn, USER_ID, "Reconciliation")
     assert adj_cat is not None
     transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 10),
             category_id=adj_cat.id,
@@ -225,7 +236,7 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
             amount=-5000,
         ),
     )
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     # Adjustment direction excluded; Groceries spent unchanged at 70_000.
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -234,7 +245,7 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
 def test_sort_order_budgeted_first_then_alpha(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 15))
     # Budgeted lines first, then None-budget lines, each alpha by name.
     kinds = [line.budgeted_minor is None for line in s.lines]
     assert kinds == sorted(kinds)
@@ -255,7 +266,7 @@ def test_committed_defaults_to_zero_without_recurring_or_planned(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
     """Phase 9 budget fixtures have no planned/recurring rows → committed=0."""
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 31))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31))
     assert s.totals.committed_minor == 0
     # Regression: remaining is still budgeted - spent when committed is zero.
     assert s.totals.remaining_minor == 470_000 - (310_000 + 70_000)
@@ -265,16 +276,20 @@ def test_committed_defaults_to_zero_without_recurring_or_planned(
 def committed_world(conn: sqlite3.Connection) -> dict[str, int]:
     """A minimal expense + anchor world for exercising committed logic."""
     checking = accounts.create(
-        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
     ).id
     groceries = categories.create(
-        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
     ).id
-    rent = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
-    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    rent = categories.create(
+        conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    salary = categories.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    ).id
     # Baseline budgets so budgeted_total != 0 (otherwise committed is forced to 0).
-    budgets.set_default(conn, NewBudgetDefault(category_id=groceries, amount=100_000))
-    budgets.set_default(conn, NewBudgetDefault(category_id=rent, amount=300_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=groceries, amount=100_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=rent, amount=300_000))
     return {
         "checking": checking,
         "groceries": groceries,
@@ -288,6 +303,7 @@ def test_committed_in_window_planned_only(
 ) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 10),
             category_id=committed_world["groceries"],
@@ -297,11 +313,12 @@ def test_committed_in_window_planned_only(
         ),
     )
     # Unpromoted planned expense inside [Feb 1, Feb 15).
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 15))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15))
     assert total == 12_000
     # Promoted-row counterpart must NOT be counted.
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 12),
             category_id=committed_world["groceries"],
@@ -312,12 +329,14 @@ def test_committed_in_window_planned_only(
     # Flip the second row to promoted — it has to be excluded.
     rows = planned.list_filtered(
         conn,
+        USER_ID,
         PlannedFilter(promoted=False, category_ids=(committed_world["groceries"],)),
     )
     assert rows
     # Reuse the real stamp-promotion path so repo invariants fire.
     txn = transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 2, 12),
             category_id=committed_world["groceries"],
@@ -325,8 +344,10 @@ def test_committed_in_window_planned_only(
             amount=99_000,
         ),
     )
-    planned.stamp_promotion(conn, rows[-1].id, txn.id)
-    total_after = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 15))
+    planned.stamp_promotion(conn, USER_ID, rows[-1].id, txn.id)
+    total_after = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15)
+    )
     # Only the first (unpromoted) planned row survives.
     assert total_after == 12_000
 
@@ -336,6 +357,7 @@ def test_committed_in_window_recurring_monthly_inside_window(
 ) -> None:
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 5),
@@ -346,8 +368,8 @@ def test_committed_in_window_recurring_monthly_inside_window(
         ),
     )
     # Pin next_due into the test window.
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
     assert total == 300_000
 
 
@@ -358,6 +380,7 @@ def test_committed_in_window_recurring_end_date_cuts_mid_window(
     occurrences after end_date."""
     recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 5),
@@ -370,7 +393,7 @@ def test_committed_in_window_recurring_end_date_cuts_mid_window(
     )
     # end_date = Feb 20; window extends to Mar 10 — the single Feb occurrence
     # is in; the hypothetical Mar occurrence is cut by end_date.
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 3, 10))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 3, 10))
     assert total == 300_000
 
 
@@ -379,6 +402,7 @@ def test_committed_in_window_override_adjusts_amount(
 ) -> None:
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 5),
@@ -388,9 +412,10 @@ def test_committed_in_window_override_adjusts_amount(
             default_description="Rent",
         ),
     )
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
     recurring.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule.id,
             occurrence_date=date(2026, 2, 5),
@@ -398,7 +423,7 @@ def test_committed_in_window_override_adjusts_amount(
             amount_override=250_000,
         ),
     )
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
     assert total == 250_000
 
 
@@ -407,6 +432,7 @@ def test_committed_in_window_skipped_override_excluded(
 ) -> None:
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 5),
@@ -415,16 +441,17 @@ def test_committed_in_window_skipped_override_excluded(
             default_amount=300_000,
         ),
     )
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
     recurring.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule.id,
             occurrence_date=date(2026, 2, 5),
             state=OverrideState.SKIPPED,
         ),
     )
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
     assert total == 0
 
 
@@ -435,6 +462,7 @@ def test_committed_in_window_excludes_non_expense_directions(
     # Planned income row — must be excluded.
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 10),
             category_id=committed_world["salary"],
@@ -445,6 +473,7 @@ def test_committed_in_window_excludes_non_expense_directions(
     # Recurring income rule — must be excluded.
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 1),
@@ -453,15 +482,15 @@ def test_committed_in_window_excludes_non_expense_directions(
             default_amount=500_000,
         ),
     )
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 1)))
-    total = bs.committed_in_window(conn, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 1)))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
     assert total == 0
 
 
 def test_committed_in_window_empty_range_short_circuits(
     conn: sqlite3.Connection, committed_world: dict[str, int]
 ) -> None:
-    total = bs.committed_in_window(conn, start=date(2026, 2, 15), end=date(2026, 2, 15))
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 15), end=date(2026, 2, 15))
     assert total == 0
 
 
@@ -472,6 +501,7 @@ def test_month_summary_recurring_reduces_remaining_and_daily_spend(
     preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(committed_world["salary"]))
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 25),
             category_id=committed_world["salary"],
@@ -481,6 +511,7 @@ def test_month_summary_recurring_reduces_remaining_and_daily_spend(
     )
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 20),
@@ -489,9 +520,9 @@ def test_month_summary_recurring_reduces_remaining_and_daily_spend(
             default_amount=300_000,
         ),
     )
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
 
-    s = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
     # Window = [Feb 15, Feb 25). Recurring Feb 20 is in; rent 300_000.
     assert s.totals.committed_minor == 300_000
     # Baseline budgeted = 100k + 300k = 400k; spent_this_month = 0.
@@ -518,6 +549,7 @@ def test_month_summary_promote_moves_committed_into_spent_zero_net(
     preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(committed_world["salary"]))
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 25),
             category_id=committed_world["salary"],
@@ -527,6 +559,7 @@ def test_month_summary_promote_moves_committed_into_spent_zero_net(
     )
     rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 20),
@@ -535,11 +568,11 @@ def test_month_summary_promote_moves_committed_into_spent_zero_net(
             default_amount=300_000,
         ),
     )
-    recurring.update_rule(conn, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
 
-    before = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 20))
-    recurring_svc.promote_recurring(conn, rule.id, recurring_svc.PromotionEdits())
-    after = bs.month_summary(conn, 2026, 2, today=date(2026, 2, 20))
+    before = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20))
+    recurring_svc.promote_recurring(conn, USER_ID, rule.id, recurring_svc.PromotionEdits())
+    after = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20))
 
     # Committed drops by the promoted amount; spent rises by the same.
     assert after.totals.committed_minor == before.totals.committed_minor - 300_000
@@ -565,7 +598,7 @@ def test_anchor_window_shifts_spent_to_post_anchor_only(
     # Groceries fixture: Jan 5 (30_000), Jan 20 (40_000), both BEFORE Jan 25.
     # Rent fixture: Jan 25 (310_000) — same day as anchor; inclusive window
     # keeps it in.
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 30))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30))
     by_cat = {line.category_id: line for line in s.lines}
     # Pre-anchor Groceries expenses (Jan 5 + Jan 20) are excluded.
     assert by_cat[seed["groceries"]].spent_minor == 0
@@ -585,15 +618,15 @@ def test_no_prior_anchor_falls_back_to_month_start(
     # Bind anchor, but delete all salary rows — no promoted anchor remains.
     _bind_anchor(conn, seed["salary"])
     salary_rows = transactions.list_filtered(
-        conn, TransactionFilter(category_ids=(seed["salary"],))
+        conn, USER_ID, TransactionFilter(category_ids=(seed["salary"],))
     )
     for row in salary_rows:
-        transactions.soft_delete(conn, row.id)
+        transactions.soft_delete(conn, USER_ID, row.id)
 
     # today=Jan 30 so the paycheck window would have shifted if a salary
     # existed. With no prior anchor row, fallback to month-start → the full
     # Groceries + Rent expenses up to today are summed.
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 30))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30))
     by_cat = {line.category_id: line for line in s.lines}
     # Month-start window [Jan 1, Jan 30] catches all January expenses.
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -603,16 +636,19 @@ def test_no_prior_anchor_falls_back_to_month_start(
 def test_zero_budget_month_unchanged(conn: sqlite3.Connection) -> None:
     """Zero-budget months keep month-start fallback (no anchor side effects)."""
     checking = accounts.create(
-        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
     ).id
     groceries = categories.create(
-        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
     ).id
-    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    salary = categories.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    ).id
     # No budgets. Anchor bound + salary posted mid-month.
     _bind_anchor(conn, salary)
     transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 10),
             category_id=salary,
@@ -622,6 +658,7 @@ def test_zero_budget_month_unchanged(conn: sqlite3.Connection) -> None:
     )
     transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 5),
             category_id=groceries,
@@ -629,7 +666,7 @@ def test_zero_budget_month_unchanged(conn: sqlite3.Connection) -> None:
             amount=20_000,
         ),
     )
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 20))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 20))
     # budgeted_total == 0 → zero-budget branch; spent uses month-start window
     # (same as the pre-ADR-0041 behavior) so the per-line Groceries spent
     # keeps the Jan 5 txn.
@@ -645,7 +682,7 @@ def test_no_anchor_configured_falls_back_to_month_start(
     """No `income_anchor_category_id` preference → month-start window."""
     # Deliberately do NOT bind an anchor preference. The seed has budgets +
     # a Jan 25 salary that would otherwise shift the window.
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 30))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30))
     by_cat = {line.category_id: line for line in s.lines}
     # Month-start window: Groceries 70_000, Rent 310_000.
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -657,7 +694,7 @@ def test_budgeted_remaining_formula_consistency(
 ) -> None:
     """remaining_minor == budgeted_minor - spent_minor on anchor-shifted window."""
     _bind_anchor(conn, seed["salary"])
-    s = bs.month_summary(conn, 2026, 1, today=date(2026, 1, 30))
+    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30))
     for line in s.lines:
         if line.budgeted_minor is None:
             assert line.remaining_minor is None
@@ -678,14 +715,14 @@ def test_fiscal_month_for_returns_last_anchor_month(
 ) -> None:
     """Last promoted anchor on Jan 25 + today Feb 2 → (2026, 1)."""
     _bind_anchor(conn, seed["salary"])
-    assert bs.fiscal_month_for(conn, date(2026, 2, 2)) == (2026, 1)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 2, 2)) == (2026, 1)
 
 
 def test_fiscal_month_for_no_anchor_falls_back_to_calendar_month(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
     """No anchor preference → calendar month."""
-    assert bs.fiscal_month_for(conn, date(2026, 11, 1)) == (2026, 11)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 11, 1)) == (2026, 11)
 
 
 def test_fiscal_month_for_no_prior_anchor_txn_falls_back(
@@ -694,18 +731,21 @@ def test_fiscal_month_for_no_prior_anchor_txn_falls_back(
     """Anchor configured but no promoted anchor txn on-or-before today → calendar month."""
     _bind_anchor(conn, seed["salary"])
     # Seed's salary txn is Jan 25 2026. Query for a date before it.
-    assert bs.fiscal_month_for(conn, date(2026, 1, 1)) == (2026, 1)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 1, 1)) == (2026, 1)
 
 
 def test_fiscal_month_for_picks_latest_of_multiple_anchors(conn: sqlite3.Connection) -> None:
     """Two promoted anchor txns → month of the most recent on-or-before today."""
     checking = accounts.create(
-        conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
     ).id
-    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    salary = categories.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    ).id
     _bind_anchor(conn, salary)
     transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 10, 7),
             category_id=salary,
@@ -715,6 +755,7 @@ def test_fiscal_month_for_picks_latest_of_multiple_anchors(conn: sqlite3.Connect
     )
     transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 9, 4),
             category_id=salary,
@@ -722,6 +763,6 @@ def test_fiscal_month_for_picks_latest_of_multiple_anchors(conn: sqlite3.Connect
             amount=1_000_000,
         ),
     )
-    assert bs.fiscal_month_for(conn, date(2026, 11, 1)) == (2026, 10)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 11, 1)) == (2026, 10)
     # Today pinned before Oct 7 → previous (Sep) anchor wins.
-    assert bs.fiscal_month_for(conn, date(2026, 10, 6)) == (2026, 9)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 10, 6)) == (2026, 9)

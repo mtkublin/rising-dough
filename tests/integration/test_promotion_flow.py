@@ -17,6 +17,8 @@ import pytest
 from budget_planner.repositories import audit as audit_repo
 from budget_planner.services.planned import PromotionEdits, promote_to_actual
 
+USER_ID = 1
+
 pytestmark = pytest.mark.integration
 
 
@@ -35,7 +37,7 @@ def test_promote_one_off_planned_inserts_txn_and_stamps_planned(
         operation_date=date(2026, 1, 15),
     )
 
-    txn = promote_to_actual(conn, planned_id, PromotionEdits())
+    txn = promote_to_actual(conn, USER_ID, planned_id, PromotionEdits())
 
     # Transaction linked back to the planned row.
     assert txn.promoted_from_planned_id == planned_id
@@ -62,6 +64,7 @@ def test_promote_applies_user_edits_to_amount_and_date(
 
     txn = promote_to_actual(
         conn,
+        USER_ID,
         planned_id,
         PromotionEdits(amount_minor=5500, operation_date=date(2026, 1, 17)),
     )
@@ -80,7 +83,7 @@ def test_promote_writes_audit_rows_on_both_planned_and_transaction(
         account_id=make_account(),
         category_id=make_category(),
     )
-    txn = promote_to_actual(conn, planned_id, PromotionEdits())
+    txn = promote_to_actual(conn, USER_ID, planned_id, PromotionEdits())
 
     planned_audit = audit_repo.list_entries(conn, "planned_transaction", planned_id)
     txn_audit = audit_repo.list_entries(conn, "transaction", txn.id)
@@ -107,7 +110,7 @@ def test_promote_rollback_leaves_no_partial_state_on_stamp_failure(
         ),
         pytest.raises(RuntimeError, match="boom"),
     ):
-        promote_to_actual(conn, planned_id, PromotionEdits())
+        promote_to_actual(conn, USER_ID, planned_id, PromotionEdits())
 
     # No transaction row persisted, planned row untouched.
     txn_count = conn.execute(

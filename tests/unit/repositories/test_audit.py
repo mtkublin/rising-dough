@@ -5,10 +5,12 @@ import sqlite3
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts, audit
 
+USER_ID = 1
+
 
 def test_recent_returns_descending(conn: sqlite3.Connection) -> None:
-    a1 = accounts.create(conn, NewAccount(name="A", currency="PLN"))
-    a2 = accounts.create(conn, NewAccount(name="B", currency="PLN"))
+    a1 = accounts.create(conn, USER_ID, NewAccount(name="A", currency="PLN"))
+    a2 = accounts.create(conn, USER_ID, NewAccount(name="B", currency="PLN"))
     rows = audit.recent(conn, limit=10)
     # Newest first.
     assert rows[0].entity_id == a2.id

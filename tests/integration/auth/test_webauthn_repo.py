@@ -83,13 +83,13 @@ def test_update_sign_count_sets_last_used(
     uid = make_user()
     cred = _create(conn, uid)
     when = datetime(2026, 11, 3, 9, 30, tzinfo=UTC)
-    repo.update_sign_count(conn, cred.id, 7, now=when)
+    repo.update_sign_count(conn, uid, cred.id, 7, now=when)
     updated = repo.get_by_credential_id(conn, CRED_ID)
     assert updated is not None
     assert updated.sign_count == 7
     assert updated.last_used_at == when
 
-    repo.update_sign_count(conn, cred.id, 8)
+    repo.update_sign_count(conn, uid, cred.id, 8)
     again = repo.get_by_credential_id(conn, CRED_ID)
     assert again is not None
     assert again.sign_count == 8
@@ -103,7 +103,7 @@ def test_revoke_soft_deletes_and_audits(
     uid = make_user()
     cred = _create(conn, uid)
 
-    assert repo.revoke_credential(conn, cred.id, user_id=uid, reason="lost") is True
+    assert repo.revoke_credential(conn, uid, cred.id, reason="lost") is True
 
     assert repo.get_by_credential_id(conn, CRED_ID) is None
     assert repo.list_credentials(conn, uid) == ()
@@ -115,7 +115,7 @@ def test_revoke_soft_deletes_and_audits(
     assert json.loads(rows[1]["prev_json"])["reason"] == "lost"
     assert rows[1]["new_json"] is None
 
-    assert repo.revoke_credential(conn, cred.id) is False  # already gone
+    assert repo.revoke_credential(conn, uid, cred.id) is False  # already gone
 
 
 def test_revoke_refuses_other_users_credential(
@@ -124,6 +124,6 @@ def test_revoke_refuses_other_users_credential(
     alice = make_user()
     bob = make_user(email="bob@example.test")
     cred = _create(conn, alice)
-    assert repo.revoke_credential(conn, cred.id, user_id=bob) is False
-    assert repo.revoke_credential(conn, 9999) is False
+    assert repo.revoke_credential(conn, bob, cred.id) is False
+    assert repo.revoke_credential(conn, alice, 9999) is False
     assert repo.get_by_credential_id(conn, CRED_ID) is not None

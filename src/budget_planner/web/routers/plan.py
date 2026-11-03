@@ -22,7 +22,7 @@ from budget_planner.services import (
     forecast as forecast_service,
 )
 from budget_planner.web import charts
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["plan"])
@@ -70,13 +70,14 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
     tab: str = "budget",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     tab_norm: PlanTab = tab if tab in _VALID else "budget"
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
     # Default landing month = fiscal cycle (ADR-0064). Falls back to the
     # calendar month when the anchor is unset or no promoted anchor-category
     # transaction exists on-or-before today.
-    fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, today_d)
+    fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, user_id, today_d)
     year, month = fiscal_year, fiscal_month
     base_ccy = settings.base_currency
 
@@ -134,17 +135,17 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
                 today_d.replace(year=year, month=month, day=ref_last),
             )
         summary = budget_service.month_summary(
-            conn, year, month, today=ref, period_window=window_override
+            conn, user_id, year, month, today=ref, period_window=window_override
         )
         # For non-current months, override period_start + next_income_date so
         # the top bar reads anchor_day_in(month) → anchor_day_in(month+1).
         # Anchor day comes from the anchor category's active monthly recurring
         # rule; fall back to the first-of-month when no rule exists.
         if not is_current:
-            anchor = _prefs.resolve_income_anchor_category(conn)
+            anchor = _prefs.resolve_income_anchor_category(conn, user_id)
             anchor_day = 1
             if anchor is not None:
-                for rule in _rec_repo.list_rules(conn, active_only=True):
+                for rule in _rec_repo.list_rules(conn, user_id, active_only=True):
                     if rule.category_id == anchor.id and rule.day_of_month:
                         anchor_day = max(1, min(28, rule.day_of_month))
                         break
@@ -182,7 +183,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
                 selected_year = int(year_param)
             except ValueError:
                 selected_year = year
-        rows = budget_service.yearly_grid(conn, selected_year)
+        rows = budget_service.yearly_grid(conn, user_id, selected_year)
         column_totals = [sum((r.cells[i].amount_minor or 0) for r in rows) for i in range(12)]
         grand_total = sum(r.total_minor for r in rows)
         ctx["year_rows"] = rows
@@ -197,7 +198,9 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             horizon = _FORECAST_HORIZON_MONTHS
         if horizon not in _FORECAST_HORIZON_CHOICES:
             horizon = _FORECAST_HORIZON_MONTHS
-        projection = forecast_service.monthly_projection(conn, settings, today_d, horizon=horizon)
+        projection = forecast_service.monthly_projection(
+            conn, user_id, settings, today_d, horizon=horizon
+        )
         ctx["forecast_points"] = projection
         ctx["forecast_horizon"] = horizon
         ctx["forecast_horizon_choices"] = _FORECAST_HORIZON_CHOICES
@@ -233,7 +236,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
         else:
             ref_last = _cal.monthrange(year, month)[1]
             ref_today = today_d.replace(year=year, month=month, day=ref_last)
-        bundle = analytics_service.bundle(conn, today=ref_today, period=period_norm)
+        bundle = analytics_service.bundle(conn, user_id, today=ref_today, period=period_norm)
         ctx["bundle"] = bundle
         ctx["period"] = period_norm
         # Build a `category_id → 12-mo avg minor` map so the Spend-by-category
@@ -253,6 +256,7 @@ def plan_analytics(
     period: str = "month",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """ADR-0056 §6 — four-panel analytics bundle for the Analytics tab.
 
@@ -265,7 +269,7 @@ def plan_analytics(
             period_norm = candidate
             break
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    data = analytics_service.bundle(conn, today=today_d, period=period_norm)
+    data = analytics_service.bundle(conn, user_id, today=today_d, period=period_norm)
     return render(
         request,
         "plan/_analytics_bundle.html",

@@ -46,6 +46,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
 )
 
+USER_ID = 1
+
 # ---------------------------------------------------------------------------
 # Shared seed fixture (one checking account + one expense category).
 # ---------------------------------------------------------------------------
@@ -56,10 +58,10 @@ def seeded(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.create(
-            conn, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+            conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
         )
         groc = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         return {"acc": acc.id, "groc": groc.id}
     finally:
@@ -322,6 +324,7 @@ def test_limit_preview_handles_both_separators(client: TestClient, _migrated: Se
     try:
         card = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -330,7 +333,9 @@ def test_limit_preview_handles_both_separators(client: TestClient, _migrated: Se
                 credit_limit_minor=100_000,
             ),
         )
-        groc = categories_repo.create(conn, NewCategory(name="Dining", direction=Direction.EXPENSE))
+        groc = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Dining", direction=Direction.EXPENSE)
+        )
     finally:
         conn.close()
 

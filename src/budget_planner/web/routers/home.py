@@ -31,7 +31,7 @@ from budget_planner.services import (
     fx as fx_service,
     upcoming as upcoming_service,
 )
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["home"])
@@ -117,14 +117,15 @@ def _convert_minor(
 
 def _collect_account_rows(
     conn: sqlite3.Connection,
+    user_id: int,
     base_ccy: str,
 ) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...], int]:
     """Return (per-account rows, per-currency totals, fortune in base)."""
-    accs = accounts_repo.list_all(conn)
+    accs = accounts_repo.list_all(conn, user_id)
     per_ccy: dict[str, int] = {}
     native: list[tuple[int, str, str | None, str, int]] = []
     for a in accs:
-        bal = balance_service.derive_balance(conn, a.id)
+        bal = balance_service.derive_balance(conn, user_id, a.id)
         per_ccy[a.currency] = per_ccy.get(a.currency, 0) + bal
         native.append((a.id, a.name, a.type, a.currency, bal))
 
@@ -181,6 +182,7 @@ def _window_from(request: Request) -> tuple[str, int | None]:
 
 def _list_upcoming(
     conn: sqlite3.Connection,
+    user_id: int,
     today: date,
     window_days: int | None,
 ) -> tuple[UpcomingRow, ...]:
@@ -191,7 +193,7 @@ def _list_upcoming(
     rules (ADR-0038) and applies ``next_due`` overrides. ``window_days``
     forwards unchanged.
     """
-    items = upcoming_service.list_upcoming(conn, today=today, window_days=window_days)
+    items = upcoming_service.list_upcoming(conn, user_id, today=today, window_days=window_days)
     return tuple(
         UpcomingRow(
             operation_date=item.effective_date,
@@ -216,6 +218,7 @@ def home(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Legacy Overview surface kept at ``/`` for v1 compat.
 
@@ -226,12 +229,12 @@ def home(
     """
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
     # Fiscal cycle (ADR-0064) — see /today for the canonical surface.
-    year, month = budget_service.fiscal_month_for(conn, today)
+    year, month = budget_service.fiscal_month_for(conn, user_id, today)
     base_ccy = settings.base_currency
 
-    account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, base_ccy)
-    fortune = fortune_service.compute_fortune(conn, settings)
-    summary = budget_service.month_summary(conn, year, month, today=today)
+    account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, user_id, base_ccy)
+    fortune = fortune_service.compute_fortune(conn, user_id, settings)
+    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
     pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
     days_left = summary.days_until_next_income
     bar_pct = 0
@@ -240,7 +243,7 @@ def home(
         bar_pct = max(0, min(100, int(ratio)))
 
     window_label, window_days = _window_from(request)
-    upcoming = _list_upcoming(conn, today, window_days)
+    upcoming = _list_upcoming(conn, user_id, today, window_days)
 
     return render(
         request,
@@ -267,6 +270,7 @@ def upcoming_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """HTMX fragment for Panel C — swapped on window change or live events.
 
@@ -276,7 +280,7 @@ def upcoming_fragment(
     """
     today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
     window_label, window_days = _window_from(request)
-    upcoming = _list_upcoming(conn, today, window_days)
+    upcoming = _list_upcoming(conn, user_id, today, window_days)
     return render(
         request,
         "home/_upcoming_fragment.html",

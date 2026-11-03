@@ -22,13 +22,15 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def cat_id(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         return cat.id
     finally:
@@ -145,10 +147,10 @@ def test_budget_month_selector_swaps(client: TestClient, _migrated: Settings) ->
     conn = get_connection(_migrated)
     try:
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         # Set a default so the planned column shows a concrete number.
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=cat.id, amount=12345))
+        budgets_repo.set_default(conn, USER_ID, NewBudgetDefault(category_id=cat.id, amount=12345))
     finally:
         conn.close()
 
@@ -352,7 +354,7 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
     """
     conn = get_connection(settings)
     try:
-        acct = accounts_repo.create(conn, NewAccount(name="Checking", currency="PLN")).id
+        acct = accounts_repo.create(conn, USER_ID, NewAccount(name="Checking", currency="PLN")).id
         pairs = [
             ("Food", 30000, 50000),
             ("Rent", 40000, 40000),
@@ -360,10 +362,11 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
         ]
         for name, prev_amt, this_amt in pairs:
             cat_id = categories_repo.create(
-                conn, NewCategory(name=name, direction=Direction.EXPENSE)
+                conn, USER_ID, NewCategory(name=name, direction=Direction.EXPENSE)
             ).id
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 9, 15),
                     category_id=cat_id,
@@ -373,6 +376,7 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
             )
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 10, 15),
                     category_id=cat_id,

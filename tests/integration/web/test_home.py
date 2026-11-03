@@ -28,20 +28,23 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import preferences as preferences_service
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded(_migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.create(
-            conn, NewAccount(name="Main", currency="PLN", opening_balance=100000)
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=100000)
         )
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         soon = date.today() + timedelta(days=3)  # noqa: DTZ011
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=soon,
                 category_id=cat.id,
@@ -124,15 +127,18 @@ def test_overview_three_panels(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
         acc_a = accounts_repo.create(
-            conn, NewAccount(name="Alpha", currency="PLN", opening_balance=250000)
+            conn, USER_ID, NewAccount(name="Alpha", currency="PLN", opening_balance=250000)
         )
         acc_b = accounts_repo.create(
-            conn, NewAccount(name="Beta", currency="PLN", opening_balance=150000)
+            conn, USER_ID, NewAccount(name="Beta", currency="PLN", opening_balance=150000)
         )
-        cat = categories_repo.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE))
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=cat.id, amount=100000))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
+        budgets_repo.set_default(conn, USER_ID, NewBudgetDefault(category_id=cat.id, amount=100000))
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date.today(),  # noqa: DTZ011
                 category_id=cat.id,
@@ -182,10 +188,15 @@ def test_overview_upcoming_recurring_row_actions(client: TestClient, _migrated: 
     action buttons wired to the ADR-0038 endpoints."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -198,6 +209,7 @@ def test_overview_upcoming_recurring_row_actions(client: TestClient, _migrated: 
         next_due = date.today() + timedelta(days=5)  # noqa: DTZ011
         recurring_repo.update_rule(
             conn,
+            USER_ID,
             rule.id,
             PatchRecurringRule(next_due=next_due),
         )
@@ -231,11 +243,16 @@ def test_overview_overdue_planned_row_persists_italic(
     styling (recurring rows never render overdue; planned rows always do)."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         past = date.today() - timedelta(days=4)  # noqa: DTZ011
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=past,
                 category_id=cat.id,
@@ -308,12 +325,17 @@ def test_overview_upcoming_plus_planned_wired(client: TestClient, seeded: None) 
 def test_overview_overdue_muted(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         past = date.today() - timedelta(days=3)  # noqa: DTZ011
         future = date.today() + timedelta(days=3)  # noqa: DTZ011
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=past,
                 category_id=cat.id,
@@ -324,6 +346,7 @@ def test_overview_overdue_muted(client: TestClient, _migrated: Settings) -> None
         )
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=future,
                 category_id=cat.id,
@@ -353,11 +376,16 @@ def test_overview_upcoming_union_planned_plus_recurring(
     recurring rows carry ``data-kind="recurring"``."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         soon = date.today() + timedelta(days=3)  # noqa: DTZ011
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=soon,
                 category_id=cat.id,
@@ -368,6 +396,7 @@ def test_overview_upcoming_union_planned_plus_recurring(
         )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -380,6 +409,7 @@ def test_overview_upcoming_union_planned_plus_recurring(
         # Pin next_due into the 30-day window (ADR-0038 admin override).
         recurring_repo.update_rule(
             conn,
+            USER_ID,
             rule.id,
             PatchRecurringRule(next_due=date.today() + timedelta(days=5)),  # noqa: DTZ011
         )
@@ -403,11 +433,16 @@ def test_overview_upcoming_union_planned_plus_recurring(
 def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         soon = date.today() + timedelta(days=2)  # noqa: DTZ011
         planned_row = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=soon,
                 category_id=cat.id,
@@ -419,6 +454,7 @@ def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> No
         # Create a transaction to attach then stamp promotion.
         txn = transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=soon,
                 category_id=cat.id,
@@ -428,7 +464,7 @@ def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> No
                 promoted_from_planned_id=planned_row.id,
             ),
         )
-        planned_repo.stamp_promotion(conn, planned_row.id, txn.id)
+        planned_repo.stamp_promotion(conn, USER_ID, planned_row.id, txn.id)
     finally:
         conn.close()
 
@@ -445,9 +481,12 @@ def test_overview_promoted_hidden(client: TestClient, _migrated: Settings) -> No
 def test_home_renders_assets_liabilities_net(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        accounts_repo.create(conn, NewAccount(name="Bank", currency="PLN", opening_balance=100_000))
+        accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Bank", currency="PLN", opening_balance=100_000)
+        )
         accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -477,11 +516,15 @@ def test_month_panel_renders_committed_subline(client: TestClient, _migrated: Se
     """Overview Month panel carries the 'X committed (recurring + planned)' sub-line."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
         )
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=cat.id, amount=100_000))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        )
+        budgets_repo.set_default(
+            conn, USER_ID, NewBudgetDefault(category_id=cat.id, amount=100_000)
+        )
         assert acc.id  # keep ref alive
     finally:
         conn.close()
@@ -510,18 +553,21 @@ def test_month_panel_days_left_uses_period_cutoff(client: TestClient, _migrated:
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.create(
-            conn, NewAccount(name="Main", currency="PLN", opening_balance=100000)
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=100000)
         )
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         )
         groceries = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=groceries.id, amount=100_000))
+        budgets_repo.set_default(
+            conn, USER_ID, NewBudgetDefault(category_id=groceries.id, amount=100_000)
+        )
         preferences_service.set_income_anchor_category_id(conn, 1, salary.id)
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=next_income,
                 category_id=salary.id,

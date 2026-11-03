@@ -384,7 +384,7 @@ def revoke_passkey(
     """Soft-delete one of ``user_id``'s own passkeys."""
     ctx = request_ctx or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None)
     return webauthn_repo.revoke_credential(
-        conn, credential_row_id, user_id=user_id, reason="user_request", request_ctx=ctx
+        conn, user_id, credential_row_id, reason="user_request", request_ctx=ctx
     )
 
 
@@ -449,6 +449,7 @@ def authenticate_passkey_finish(
     if sign_count_regressed(stored.sign_count, verified.new_sign_count):
         webauthn_repo.revoke_credential(
             conn,
+            stored.user_id,
             stored.id,
             reason="sign_count_regression",
             request_ctx=replace(ctx, user_id=user.id),
@@ -458,7 +459,7 @@ def authenticate_passkey_finish(
         )
         return None
     with transaction(conn):
-        webauthn_repo.update_sign_count(conn, stored.id, verified.new_sign_count)
+        webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
         return _issue_session(conn, user, ctx, method="passkey", ip=ip, user_agent=user_agent)
 
 

@@ -25,7 +25,7 @@ from budget_planner.services import (
     fortune as fortune_service,
     today as today_service,
 )
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
 from budget_planner.web.routers import home as home_router
 
@@ -37,17 +37,20 @@ def today(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
     # Fiscal cycle anchors the landing month so the hero never pulls a
     # future-cycle budget while spent is still on the previous paycheck
     # (ADR-0064).
-    year, month = budget_service.fiscal_month_for(conn, today_d)
+    year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
     base_ccy = settings.base_currency
 
-    account_rows, totals_by_ccy, fortune_base = home_router._collect_account_rows(conn, base_ccy)
-    fortune = fortune_service.compute_fortune(conn, settings)
-    summary = budget_service.month_summary(conn, year, month, today=today_d)
+    account_rows, totals_by_ccy, fortune_base = home_router._collect_account_rows(
+        conn, user_id, base_ccy
+    )
+    fortune = fortune_service.compute_fortune(conn, user_id, settings)
+    summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
     pace = home_router._pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
@@ -58,9 +61,9 @@ def today(
         bar_pct = max(0, min(100, int(ratio)))
 
     window_label, window_days = home_router._window_from(request)
-    upcoming = home_router._list_upcoming(conn, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
+    upcoming = home_router._list_upcoming(conn, user_id, today_d, window_days)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
 
     return render(
         request,
@@ -89,6 +92,7 @@ def today_upcoming_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """HTMX fragment for Today's #upcoming-root.
 
@@ -99,9 +103,9 @@ def today_upcoming_fragment(
     """
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
     window_label, window_days = home_router._window_from(request)
-    upcoming = home_router._list_upcoming(conn, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
+    upcoming = home_router._list_upcoming(conn, user_id, today_d, window_days)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
     return render(
         request,
         "today/_upcoming.html",
@@ -138,6 +142,7 @@ def afford(
     amount: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """ADR-0056 §3 — HTMX preview for the Can-I-afford input.
 
@@ -148,7 +153,7 @@ def afford(
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    result = today_service.afford(conn, today_d, amount_minor)
+    result = today_service.afford(conn, user_id, today_d, amount_minor)
     return render(
         request,
         "today/_afford_preview.html",
@@ -168,8 +173,9 @@ def afford_alias(
     amount: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    return afford(request, amount, conn, settings)
+    return afford(request, amount, conn, settings, user_id)
 
 
 # F-04 — Unified Add entry overlay. Hosts the Happened / Planned / Repeats
@@ -187,6 +193,7 @@ def add_entry_overlay(
     request: Request,
     when: str = "happened",
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Return the unified Add entry overlay (F-04)."""
     tab = next((row for row in _ADD_TAB_FORMS if row[0] == when), _ADD_TAB_FORMS[0])
@@ -195,8 +202,8 @@ def add_entry_overlay(
         "active_tab": active_tab,
         "form_include": form_include,
         "action": action,
-        "categories": categories_repo.list_all(conn),
-        "accounts": accounts_repo.list_all(conn),
+        "categories": categories_repo.list_all(conn, user_id),
+        "accounts": accounts_repo.list_all(conn, user_id),
         "errors": {},
         entity_name: None,
     }
@@ -206,7 +213,7 @@ def add_entry_overlay(
             _formula_source_candidates,
         )
 
-        ctx["source_categories"] = _formula_source_candidates(conn)
+        ctx["source_categories"] = _formula_source_candidates(conn, user_id)
         ctx["amount_source"] = "fixed"
         ctx["terms"] = [dict(_EMPTY_TERM_INPUT)]
     return render(request, "partials/_add_entry_overlay.html", **ctx)

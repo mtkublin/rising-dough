@@ -111,6 +111,7 @@ def _persisted_to_view(row: PlannedTransaction) -> PlannedView:
 
 def list_planned(
     conn: sqlite3.Connection,
+    user_id: int,
     filters: PlannedFilter,
 ) -> tuple[PlannedView, ...]:
     """Return persisted planned rows filtered + sorted.
@@ -136,7 +137,7 @@ def list_planned(
         limit=filters.limit,
         offset=filters.offset,
     )
-    persisted_rows = planned_repo.list_filtered(conn, effective_filters)
+    persisted_rows = planned_repo.list_filtered(conn, user_id, effective_filters)
     views = [_persisted_to_view(row) for row in persisted_rows]
     views.sort(key=lambda v: (v.operation_date, v.persisted_id or 0))
     return tuple(views)
@@ -147,18 +148,12 @@ def list_planned(
 # ---------------------------------------------------------------------------
 def promote_to_actual(
     conn: sqlite3.Connection,
+    user_id: int,
     planned_id: int,
     edits: PromotionEdits,
 ) -> Transaction:
-    """Insert a transactions row linked to ``planned_id`` and stamp the planned row.
-
-    Both mutations and their audit entries happen in a single DB transaction.
-    Raises:
-      ``PlannedNotFoundError``, ``AlreadyPromotedError``,
-      ``CannotPromoteDeletedError``, ``UnsupportedDirectionError``,
-      ``ValidationError``.
-    """
-    row = planned_repo.find_by_id(conn, planned_id, include_deleted=True)
+    """Insert a transactions row linked to ``planned_id`` and stamp the planned row."""
+    row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
     if row is None:
         raise PlannedNotFoundError(planned_id)
     if row.deleted_at is not None:
@@ -166,7 +161,7 @@ def promote_to_actual(
     if row.promoted_to_txn_id is not None:
         raise AlreadyPromotedError(planned_id)
 
-    category = categories_repo.find_by_id(conn, row.category_id, include_deleted=True)
+    category = categories_repo.find_by_id(conn, user_id, row.category_id, include_deleted=True)
     if category is None:  # pragma: no cover - FK guarantees existence
         raise ValidationError(f"category {row.category_id} not found")
     operation_date = edits.operation_date or row.operation_date
@@ -174,6 +169,7 @@ def promote_to_actual(
     description = edits.description if edits.description is not None else row.description
     _shared_validate_promotion(
         conn,
+        user_id,
         direction=category.direction,
         account_id=row.account_id,
         dest_account_id=row.dest_account_id,
@@ -191,8 +187,8 @@ def promote_to_actual(
     )
 
     with db_transaction(conn):
-        txn = transactions_repo.create(conn, new_txn)
-        planned_repo.stamp_promotion(conn, planned_id, txn.id)
+        txn = transactions_repo.create(conn, user_id, new_txn)
+        planned_repo.stamp_promotion(conn, user_id, planned_id, txn.id)
     return txn
 
 
@@ -214,23 +210,20 @@ class BatchPromoteResult:
 
 def batch_promote_due(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
 ) -> BatchPromoteResult:
-    """Promote every unpromoted planned row with ``operation_date <= today``.
-
-    Runs inside a single DB transaction; any inner failure rolls everything
-    back. Soft-deleted rows are excluded by the repo filter.
-    """
+    """Promote every unpromoted planned row with ``operation_date <= today``."""
     filters = PlannedFilter(
         date_to=today,
         promoted=False,
     )
-    due_rows = planned_repo.list_filtered(conn, filters)
+    due_rows = planned_repo.list_filtered(conn, user_id, filters)
     promoted_txns: list[int] = []
     promoted_planned: list[int] = []
     with db_transaction(conn):
         for row in due_rows:
-            txn = promote_to_actual(conn, row.id, PromotionEdits())
+            txn = promote_to_actual(conn, user_id, row.id, PromotionEdits())
             promoted_txns.append(txn.id)
             promoted_planned.append(row.id)
     return BatchPromoteResult(

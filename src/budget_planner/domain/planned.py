@@ -41,7 +41,6 @@ class NewPlannedTransaction:
     dest_account_id: int | None = None
     recurring_rule_id: int | None = None
     occurrence_date: date | None = None
-    user_id: int = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

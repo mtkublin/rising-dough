@@ -1,0 +1,3 @@
+# T-D16: files allowed to hard-code `user_id = 1` (see tests/architecture/test_user_id_filter.py).
+# One repo-relative path per line; `#` starts a comment. Keep this list tiny.
+src/budget_planner/db/seed.py  # demo seed runs as the bootstrap admin (ADR-0061 §2/§3)

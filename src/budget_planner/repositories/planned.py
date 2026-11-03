@@ -1,4 +1,11 @@
-"""Planned transaction repository."""
+"""Planned transaction repository.
+
+## User-scoping discipline (T-D16 / ADR-0061 §5)
+
+Every function takes ``user_id`` as the first positional arg after ``conn``;
+every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
+``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,7 @@ from budget_planner.domain.planned import (
     PlannedFilter,
     PlannedTransaction,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
+from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -46,14 +53,15 @@ def _row_to_planned(row: sqlite3.Row) -> PlannedTransaction:
 
 def find_by_id(
     conn: sqlite3.Connection,
+    user_id: int,
     planned_id: int,
     *,
     include_deleted: bool = False,
 ) -> PlannedTransaction | None:
-    sql = f"SELECT {_COLUMNS} FROM planned_transactions WHERE id = ?"
+    sql = f"SELECT {_COLUMNS} FROM planned_transactions WHERE id = ? AND user_id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (planned_id,)).fetchone()
+    row = conn.execute(sql, (planned_id, user_id)).fetchone()
     return _row_to_planned(row) if row is not None else None
 
 
@@ -97,15 +105,20 @@ def _append_filter_clauses(
 
 def list_filtered(
     conn: sqlite3.Connection,
+    user_id: int,
     filters: PlannedFilter,
     *,
     include_deleted: bool = False,
 ) -> list[PlannedTransaction]:
     cols = ", ".join(f"p.{c}" for c in _COLUMNS.split(", "))
-    sql = f"SELECT {cols} FROM planned_transactions p JOIN categories c ON c.id = p.category_id"
+    sql = (
+        f"SELECT {cols} FROM planned_transactions p "
+        "JOIN categories c ON c.id = p.category_id AND c.user_id = p.user_id"
+    )
     clauses, params = _append_filter_clauses(filters, include_deleted)
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
+    clauses.insert(0, "p.user_id = ?")
+    params.insert(0, user_id)
+    sql += " WHERE " + " AND ".join(clauses)
     sql += " ORDER BY p.operation_date ASC, p.id ASC"
     if filters.limit is not None:
         sql += " LIMIT ? OFFSET ?"
@@ -114,7 +127,16 @@ def list_filtered(
     return [_row_to_planned(r) for r in rows]
 
 
-def create(conn: sqlite3.Connection, data: NewPlannedTransaction) -> PlannedTransaction:
+def create(
+    conn: sqlite3.Connection, user_id: int, data: NewPlannedTransaction
+) -> PlannedTransaction:
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    )
+
     def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
         cursor = c.execute(
             "INSERT INTO planned_transactions("
@@ -122,7 +144,7 @@ def create(conn: sqlite3.Connection, data: NewPlannedTransaction) -> PlannedTran
             "amount, description, recurring_rule_id, occurrence_date) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                data.user_id,
+                user_id,
                 data.operation_date.isoformat(),
                 data.category_id,
                 data.account_id,
@@ -134,7 +156,7 @@ def create(conn: sqlite3.Connection, data: NewPlannedTransaction) -> PlannedTran
             ),
         )
         new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, new_id)
+        created = find_by_id(c, user_id, new_id)
         assert created is not None
         return new_id, created
 
@@ -159,12 +181,19 @@ def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
 
 def update(
     conn: sqlite3.Connection,
+    user_id: int,
     planned_id: int,
     data: PatchPlannedTransaction,
 ) -> PlannedTransaction:
-    prev = find_by_id(conn, planned_id, include_deleted=True)
+    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"planned_transaction {planned_id} not found")
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    )
     changes = _normalise_patch(data.as_dict())
 
     def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
@@ -172,10 +201,10 @@ def update(
             sets = [f"{field} = ?" for field in changes]
             sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
             c.execute(
-                f"UPDATE planned_transactions SET {', '.join(sets)} WHERE id = ?",
-                (*changes.values(), planned_id),
+                f"UPDATE planned_transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+                (*changes.values(), planned_id, user_id),
             )
-        updated = find_by_id(c, planned_id, include_deleted=True)
+        updated = find_by_id(c, user_id, planned_id, include_deleted=True)
         assert updated is not None
         return planned_id, updated
 
@@ -188,8 +217,8 @@ def update(
     )
 
 
-def soft_delete(conn: sqlite3.Connection, planned_id: int) -> None:
-    prev = find_by_id(conn, planned_id)
+def soft_delete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> None:
+    prev = find_by_id(conn, user_id, planned_id)
     if prev is None:
         return
 
@@ -198,8 +227,8 @@ def soft_delete(conn: sqlite3.Connection, planned_id: int) -> None:
             "UPDATE planned_transactions "
             "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND deleted_at IS NULL",
-            (planned_id,),
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (planned_id, user_id),
         )
         return planned_id, None
 
@@ -213,22 +242,22 @@ def soft_delete(conn: sqlite3.Connection, planned_id: int) -> None:
 
 
 def list_recently_deleted(
-    conn: sqlite3.Connection, *, days: int = 90, limit: int = 500
+    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[PlannedTransaction]:
     """T-R70 — soft-deleted planned items within the last `days` days."""
     sql = (
         f"SELECT {_COLUMNS} FROM planned_transactions "
-        "WHERE deleted_at IS NOT NULL "
+        "WHERE user_id = ? AND deleted_at IS NOT NULL "
         "AND deleted_at > datetime('now', ?) "
         "ORDER BY deleted_at DESC "
         "LIMIT ?"
     )
-    rows = conn.execute(sql, (f"-{days} days", limit)).fetchall()
+    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
     return [_row_to_planned(r) for r in rows]
 
 
-def undelete(conn: sqlite3.Connection, planned_id: int) -> PlannedTransaction:
-    prev = find_by_id(conn, planned_id, include_deleted=True)
+def undelete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> PlannedTransaction:
+    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"planned_transaction {planned_id} not found")
 
@@ -236,10 +265,10 @@ def undelete(conn: sqlite3.Connection, planned_id: int) -> PlannedTransaction:
         c.execute(
             "UPDATE planned_transactions SET deleted_at = NULL, "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (planned_id,),
+            "WHERE id = ? AND user_id = ?",
+            (planned_id, user_id),
         )
-        restored = find_by_id(c, planned_id)
+        restored = find_by_id(c, user_id, planned_id)
         assert restored is not None
         return planned_id, restored
 
@@ -252,8 +281,10 @@ def undelete(conn: sqlite3.Connection, planned_id: int) -> PlannedTransaction:
     )
 
 
-def stamp_promotion(conn: sqlite3.Connection, planned_id: int, txn_id: int) -> PlannedTransaction:
-    prev = find_by_id(conn, planned_id, include_deleted=True)
+def stamp_promotion(
+    conn: sqlite3.Connection, user_id: int, planned_id: int, txn_id: int
+) -> PlannedTransaction:
+    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"planned_transaction {planned_id} not found")
 
@@ -261,10 +292,10 @@ def stamp_promotion(conn: sqlite3.Connection, planned_id: int, txn_id: int) -> P
         c.execute(
             "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (txn_id, planned_id),
+            "WHERE id = ? AND user_id = ?",
+            (txn_id, planned_id, user_id),
         )
-        updated = find_by_id(c, planned_id, include_deleted=True)
+        updated = find_by_id(c, user_id, planned_id, include_deleted=True)
         assert updated is not None
         return planned_id, updated
 

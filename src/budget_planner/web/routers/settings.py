@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     fx as fx_repo,
 )
 from budget_planner.services import preferences as preferences_svc
-from budget_planner.web.deps import get_db
+from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.rendering import render
 
 TabKind = Literal["categories", "fx", "prefs"]
@@ -53,12 +53,13 @@ def drawer(
     request: Request,
     tab: str | None = Query(default=None),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Return the Settings drawer fragment with the requested tab active."""
     active_tab = _coerce_tab(tab)
     context: dict[str, Any] = {"active_tab": active_tab}
     if active_tab == "categories":
-        all_cats = categories_repo.list_all(conn)
+        all_cats = categories_repo.list_all(conn, user_id)
         context["categories"] = all_cats
         # ADR-0056 §8 — grouped sections (Expense · Income · System).
         context["expense_categories"] = [
@@ -72,17 +73,17 @@ def drawer(
         context["anchor_income_categories"] = [
             c for c in all_cats if c.direction is Direction.INCOME and c.deleted_at is None
         ]
-        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
+        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn, user_id)
     elif active_tab == "fx":
         context["fx_rates"] = fx_repo.list_recent(conn, limit=_FX_LIMIT)
     elif active_tab == "prefs":
         # ADR-0031 §1 — income anchor selector lives here now (was /budget §2b).
         context["income_categories"] = [
             c
-            for c in categories_repo.list_all(conn)
+            for c in categories_repo.list_all(conn, user_id)
             if c.direction is Direction.INCOME and c.deleted_at is None
         ]
-        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn)
+        context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn, user_id)
     # Rising Dough v2 — Settings is a full page (ADR-0051 §7). The template
     # extends base.html and reuses the existing panel fragments.
     hx = request.headers.get("HX-Request") == "true"

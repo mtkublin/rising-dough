@@ -83,9 +83,10 @@ def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
     )
 
 
-def _get_by_id(conn: sqlite3.Connection, row_id: int) -> WebAuthnCredential | None:
+def _get_by_id(conn: sqlite3.Connection, user_id: int, row_id: int) -> WebAuthnCredential | None:
     row = conn.execute(
-        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ?", (row_id,)
+        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?",
+        (row_id, user_id),
     ).fetchone()
     return None if row is None else _hydrate(row)
 
@@ -136,7 +137,7 @@ def create_credential(
             "VALUES (?, ?, ?, ?, ?, ?)",
             (user_id, credential_id, public_key, sign_count, ",".join(transports), label),
         )
-        created = _get_by_id(conn, cur.lastrowid or 0)
+        created = _get_by_id(conn, user_id, cur.lastrowid or 0)
         if created is None:  # pragma: no cover — row was inserted in this tx
             raise RuntimeError("webauthn credential vanished after insert")
         write_audit(
@@ -153,6 +154,7 @@ def create_credential(
 
 def update_sign_count(
     conn: sqlite3.Connection,
+    user_id: int,
     credential_row_id: int,
     sign_count: int,
     *,
@@ -163,34 +165,32 @@ def update_sign_count(
     with transaction(conn):
         conn.execute(
             "UPDATE webauthn_credentials SET sign_count = ?, last_used_at = ? "
-            "WHERE id = ? AND deleted_at IS NULL",
-            (sign_count, used_at, credential_row_id),
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (sign_count, used_at, credential_row_id, user_id),
         )
 
 
 def revoke_credential(
     conn: sqlite3.Connection,
+    user_id: int,
     credential_row_id: int,
     *,
-    user_id: int | None = None,
     reason: str = "user_request",
     request_ctx: RequestCtx = _EMPTY_CTX,
 ) -> bool:
     """Soft-delete a live credential and audit it.
 
-    When ``user_id`` is given the credential must belong to that user (so a
-    route can safely pass a user-supplied id). Returns ``True`` iff a live
+    The credential must belong to ``user_id`` (so a route can safely pass a
+    user-supplied id; T-D16 / ADR-0068). Returns ``True`` iff a live
     credential was revoked.
     """
     with transaction(conn):
-        current = _get_by_id(conn, credential_row_id)
+        current = _get_by_id(conn, user_id, credential_row_id)
         if current is None or current.deleted_at is not None:
             return False
-        if user_id is not None and current.user_id != user_id:
-            return False
         conn.execute(
-            "UPDATE webauthn_credentials SET deleted_at = ? WHERE id = ?",
-            (utc_now_iso(), credential_row_id),
+            "UPDATE webauthn_credentials SET deleted_at = ? WHERE id = ? AND user_id = ?",
+            (utc_now_iso(), credential_row_id, user_id),
         )
         write_audit(
             conn,

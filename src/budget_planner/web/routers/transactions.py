@@ -31,7 +31,7 @@ from budget_planner.services import (
     balance as balance_service,
     export as export_service,
 )
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
@@ -86,9 +86,9 @@ def parse_filter(request: Request) -> TransactionFilter:
     )
 
 
-def _hydrate_rows(conn: sqlite3.Connection, rows: list[Any]) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
+def _hydrate_rows(conn: sqlite3.Connection, user_id: int, rows: list[Any]) -> list[dict[str, Any]]:
+    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for r in rows:
         cat = cats.get(r.category_id)
@@ -122,24 +122,24 @@ def list_page() -> RedirectResponse:
 
 
 def _compute_limit_preview(
-    conn: sqlite3.Connection, account_id: int, category_id: int, amount_raw: str
+    conn: sqlite3.Connection, user_id: int, account_id: int, category_id: int, amount_raw: str
 ) -> LimitPreview | None:
     """Project post-transaction utilization for a liability account.
 
     Soft-failing by design: any missing/unparseable input returns ``None`` so
     the fragment stays blank and the user can keep editing (ADR-0024).
     """
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
         return None
-    cat = categories_repo.find_by_id(conn, category_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         return None
     dec = parse_amount_str(amount_raw, acc.currency)
     if dec is None or dec <= 0:
         return None
     amount_minor = to_minor_units(dec, acc.currency)
-    current = balance_service.derive_balance(conn, account_id)
+    current = balance_service.derive_balance(conn, user_id, account_id)
     direction = cat.direction
     if direction is Direction.INCOME:
         delta = amount_minor
@@ -163,23 +163,28 @@ def _compute_limit_preview(
 
 
 @router.get("/_limit_preview", response_class=HTMLResponse)
-def limit_preview(
+def limit_preview(  # noqa: PLR0917
     request: Request,
     account_id: str = "",
     category_id: str = "",
     amount: str = "",
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     acc_id = _parse_int(account_id)
     cat_id = _parse_int(category_id)
     preview: LimitPreview | None = None
     if acc_id is not None and cat_id is not None:
-        preview = _compute_limit_preview(conn, acc_id, cat_id, amount)
+        preview = _compute_limit_preview(conn, user_id, acc_id, cat_id, amount)
     return render(request, "partials/transactions/_limit_preview.html", preview=preview)
 
 
 @router.get("/table", response_class=HTMLResponse)
-def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def table_fragment(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     """Legacy fragment alias (T-064).
 
     Delegates to the unified ledger fragment with ``view=actual`` so pre-T-064
@@ -188,11 +193,15 @@ def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db))
     """
     from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
 
-    return render_table_for(request, conn, "actual")
+    return render_table_for(request, conn, user_id, "actual")
 
 
 @router.get("/new", response_class=HTMLResponse)
-def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def new_form(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     # T-069 — wrap the form in a slide-over so the FAB can swap it into
     # `#modal-root`. The inner include preserves the legacy fragment shape
     # (same form fields + hx-post target) so existing tests + flows stand.
@@ -204,8 +213,8 @@ def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HT
         action="/transactions",
         method="post",
         txn=None,
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
+        categories=categories_repo.list_all(conn, user_id),
+        accounts=accounts_repo.list_all(conn, user_id),
         errors={},
     )
 
@@ -235,13 +244,14 @@ def create_txn(  # noqa: PLR0917
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),  # noqa: ARG001
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
     op_date = _parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
-    acc = accounts_repo.find_by_id(conn, account_id)
-    cat = categories_repo.find_by_id(conn, category_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -257,7 +267,7 @@ def create_txn(  # noqa: PLR0917
         if parsed is None:
             errors["dest_account_id"] = "invalid destination"
         else:
-            dest = accounts_repo.find_by_id(conn, parsed)
+            dest = accounts_repo.find_by_id(conn, user_id, parsed)
             if dest is None:
                 errors["dest_account_id"] = "unknown destination"
             elif acc is not None and dest.currency != acc.currency:
@@ -272,8 +282,8 @@ def create_txn(  # noqa: PLR0917
             action="/transactions",
             method="post",
             txn=None,
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
+            categories=categories_repo.list_all(conn, user_id),
+            accounts=accounts_repo.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
@@ -281,6 +291,7 @@ def create_txn(  # noqa: PLR0917
     assert op_date is not None and minor is not None
     new_txn = transactions_repo.create(
         conn,
+        user_id,
         NewTransaction(
             operation_date=op_date,
             category_id=category_id,
@@ -290,7 +301,7 @@ def create_txn(  # noqa: PLR0917
             dest_account_id=dest_id,
         ),
     )
-    row = _hydrate_rows(conn, [new_txn])[0]
+    row = _hydrate_rows(conn, user_id, [new_txn])[0]
     html = render(
         request,
         "partials/transactions/_row.html",
@@ -302,9 +313,12 @@ def create_txn(  # noqa: PLR0917
 
 @router.get("/{txn_id}/edit", response_class=HTMLResponse)
 def edit_form(
-    txn_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    txn_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    txn = transactions_repo.find_by_id(conn, txn_id)
+    txn = transactions_repo.find_by_id(conn, user_id, txn_id)
     if txn is None:
         return render(
             request,
@@ -328,8 +342,8 @@ def edit_form(
         action=f"/transactions/{txn_id}",
         method="post",
         txn=txn,
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
+        categories=categories_repo.list_all(conn, user_id),
+        accounts=accounts_repo.list_all(conn, user_id),
         errors={},
     )
 
@@ -345,8 +359,9 @@ def update_txn(  # noqa: PLR0917
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    existing = transactions_repo.find_by_id(conn, txn_id)
+    existing = transactions_repo.find_by_id(conn, user_id, txn_id)
     if existing is None:
         return render(
             request,
@@ -359,7 +374,7 @@ def update_txn(  # noqa: PLR0917
             errors={"txn": "not found"},
             status_code=404,
         )
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
     op_date = _parse_date(operation_date)
     if op_date is None:
@@ -378,8 +393,8 @@ def update_txn(  # noqa: PLR0917
             action=f"/transactions/{txn_id}",
             method="post",
             txn=existing,
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
+            categories=categories_repo.list_all(conn, user_id),
+            accounts=accounts_repo.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
@@ -387,6 +402,7 @@ def update_txn(  # noqa: PLR0917
     dest_id_val = _parse_int(dest_account_id) if dest_account_id else None
     transactions_repo.update(
         conn,
+        user_id,
         txn_id,
         PatchTransaction(
             operation_date=op_date,
@@ -397,27 +413,31 @@ def update_txn(  # noqa: PLR0917
             dest_account_id=dest_id_val,
         ),
     )
-    updated = transactions_repo.find_by_id(conn, txn_id)
+    updated = transactions_repo.find_by_id(conn, user_id, txn_id)
     assert updated is not None
-    row = _hydrate_rows(conn, [updated])[0]
+    row = _hydrate_rows(conn, user_id, [updated])[0]
     html = render(request, "partials/transactions/_row.html", txn=row)
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
     return html
 
 
 @router.post("/{txn_id}/delete")
-def delete_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
-    transactions_repo.soft_delete(conn, txn_id)
+def delete_txn(
+    txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+) -> Response:
+    transactions_repo.soft_delete(conn, user_id, txn_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
     return resp
 
 
 @router.post("/{txn_id}/restore")
-def restore_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+def restore_txn(
+    txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
-        transactions_repo.undelete(conn, txn_id)
+        transactions_repo.undelete(conn, user_id, txn_id)
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
@@ -426,11 +446,15 @@ def restore_txn(txn_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Resp
 
 
 @router.get("/export")
-def export(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+def export(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
     fmt = request.query_params.get("format", "csv")
     flt = parse_filter(request)
-    rows = transactions_repo.list_filtered(conn, flt)
-    hydrated = _hydrate_rows(conn, rows)
+    rows = transactions_repo.list_filtered(conn, user_id, flt)
+    hydrated = _hydrate_rows(conn, user_id, rows)
     export_rows: list[dict[str, Any]] = [
         {
             "id": r["id"],
