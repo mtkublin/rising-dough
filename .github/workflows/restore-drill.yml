@@ -11,6 +11,9 @@
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
 #   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - pinned known_hosts entry for drill host.
+#   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
+#                                  - read-only (GetObject + ListBucket) IAM key
+#                                    for the prod replica bucket (T-D41a).
 #
 # Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
 # applies to our CI supply chain as well).
@@ -47,6 +50,10 @@ jobs:
       TF_INPUT: "0"
       DRILL_HOST: drill.budget.${{ vars.APP_DOMAIN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # T-D41a: read-only credential for the PROD replica bucket; rendered
+      # into the drill host's root-only restore-source.env by cloud-init.
+      TF_VAR_scw_access_key_restore: ${{ secrets.PROD_REPLICA_RO_ACCESS_KEY }}
+      TF_VAR_scw_secret_key_restore: ${{ secrets.PROD_REPLICA_RO_SECRET_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

@@ -101,3 +101,29 @@ variable "trusted_hosts_csv" {
   description = "Comma-separated list of trusted hosts for the FastAPI TrustedHostMiddleware."
   type        = string
 }
+
+variable "enable_restore_helper" {
+  description = "Install /usr/local/bin/restore-from-prod and the read-only prod replica credential (drill environment only, T-D41a)."
+  type        = bool
+  default     = false
+}
+
+variable "restore_source_bucket" {
+  description = "PROD replica bucket the restore helper reads from (read-only)."
+  type        = string
+  default     = ""
+}
+
+variable "scw_access_key_restore" {
+  description = "READ-ONLY access key scoped to the prod replica bucket (GetObject + ListBucket). Drill only."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "scw_secret_key_restore" {
+  description = "Secret for scw_access_key_restore."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
