@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.logging import configure as _configure_logging, get_logger
+from budget_planner.services import users as users_service
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
@@ -131,6 +132,16 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
     @asynccontextmanager
     async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         _assert_production_pragmas(cfg)
+        # T-D19 / ADR-0061 §3 / ADR-0069: ensure a live admin exists.
+        # Missing credentials with no admin → exit non-zero (fail fast).
+        try:
+            users_service.bootstrap_admin_at_startup(cfg)
+        except (
+            users_service.BootstrapAdminMissingEnv,
+            users_service.SchemaNotMigratedError,
+        ) as exc:
+            log.error("admin_bootstrap_failed", error=str(exc))
+            raise SystemExit(1) from exc
         _install_sigterm_observer()
         log.info("lifespan_startup", env=cfg.env)
         try:
