@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-03 (T-D02a — auth backend core)
+- **Feat(T-D02a): migration `0014_v2_auth.sql`** (+ down) adds
+  `webauthn_credentials` (soft-delete, unique BLOB `credential_id`),
+  `sessions` (opaque `token_urlsafe(32)` id = cookie value, sliding
+  expiry), and `auth_rate_limit` (table only, for T-D09).
+- **Feat(T-D02a): `services/_passwords.py`** bcrypt hash/verify (cost 12,
+  overridable; verify never raises; >72-byte passwords rejected) plus a
+  cached dummy hash for timing-safe unknown-email logins.
+- **Feat(T-D02a): `repositories/sessions.py`, `repositories/webauthn.py`,
+  `repositories/auth_users.py`** and **`services/auth.py`**: password
+  login, usernameless passkey login, passkey registration (py_webauthn
+  ceremonies, caller-held challenges), logout / per-user session revoke,
+  sign-count regression auto-revoke, audit rows for every auth event
+  (session handles only, never raw ids). New `webauthn_rp_id` /
+  `webauthn_rp_name` / `webauthn_origin` settings (ADR-0067).
+- **Chore(T-D02a):** runtime deps `bcrypt`, `webauthn>=2.7,<3`. Added uv
+  constraints `cbor2<6` and `cryptography<49` because macOS x86_64 wheels
+  are missing upstream (ADR-0067 §5).
+
 ## 2026-11-03 (v3 operator checklist)
 - **Docs: `docs/plans/v3/operator-checklist.md`.** Human-only v3 actions
   (Scaleway/GitHub/domain setup, secrets, real-device checks, drill/prod

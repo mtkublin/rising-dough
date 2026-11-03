@@ -496,3 +496,110 @@ def test_0013_applies(tmp_path: Path) -> None:
         assert row["user_agent"] == "mig-probe/1.0"
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# T-D02a — migration 0014 adds auth tables (ADR-0033, ADR-0067)
+# ---------------------------------------------------------------------------
+
+
+_AUTH_TABLES: tuple[str, ...] = ("webauthn_credentials", "sessions", "auth_rate_limit")
+
+
+def _schema_through(tmp_path: Path, version: int) -> dict[str, Any]:
+    """Reference schema produced by applying migrations 0001..``version`` fresh."""
+    staging = tmp_path / f"migrations_through_{version}"
+    staging.mkdir(parents=True, exist_ok=True)
+    for mig in discover(MIGRATIONS_DIR):
+        if mig.version <= version:
+            (staging / mig.filename).write_bytes(mig.sql.encode("utf-8"))
+    conn = get_connection(_settings_for(tmp_path / f"ref_{version}.sqlite"))
+    try:
+        apply_migrations(conn, staging)
+        return _normalize_schema(conn)
+    finally:
+        conn.close()
+
+
+def test_0014_applies(tmp_path: Path) -> None:
+    """Forward run creates the three auth tables with FKs, uniques, indexes."""
+    conn = get_connection(_settings_for(tmp_path / "fwd14.sqlite"))
+    try:
+        apply_migrations(conn)
+        schema = _normalize_schema(conn)
+        for table in _AUTH_TABLES:
+            assert table in schema, f"{table} must exist after 0014"
+
+        for table in ("webauthn_credentials", "sessions"):
+            fks = schema[table]["fks"]
+            assert [(fk["from"], fk["table"], fk["to"]) for fk in fks] == [
+                ("user_id", "users", "id")
+            ]
+
+        sessions_cols = {c["name"]: c for c in schema["sessions"]["cols"]}
+        assert sessions_cols["id"]["type"] == "TEXT"
+        assert sessions_cols["id"]["pk"] == 1
+        assert set(sessions_cols) == {
+            "id",
+            "user_id",
+            "created_at",
+            "last_seen_at",
+            "expires_at",
+            "revoked_at",
+            "user_agent",
+            "ip",
+        }
+
+        cred_cols = {c["name"]: c for c in schema["webauthn_credentials"]["cols"]}
+        assert cred_cols["credential_id"]["type"] == "BLOB"
+        assert cred_cols["public_key"]["type"] == "BLOB"
+        unique_cols = [
+            [c["name"] for c in idx["cols"]]
+            for idx in schema["webauthn_credentials"]["indexes"]
+            if idx["unique"]
+        ]
+        assert ["credential_id"] in unique_cols
+
+        index_names = {t: {i["name"] for i in schema[t]["indexes"]} for t in _AUTH_TABLES}
+        assert "ix_sessions_user" in index_names["sessions"]
+        assert "ix_webauthn_credentials_user" in index_names["webauthn_credentials"]
+        assert "ux_auth_rate_limit_key_bucket" in index_names["auth_rate_limit"]
+
+        # FK enforcement: a session for a non-existent user is rejected.
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO sessions (id, user_id, expires_at) VALUES ('x', 999, '2030-01-01')"
+            )
+        # Duplicate credential ids are rejected.
+        conn.execute(
+            "INSERT INTO webauthn_credentials (user_id, credential_id, public_key) "
+            "VALUES (1, x'01', x'02')"
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO webauthn_credentials (user_id, credential_id, public_key) "
+                "VALUES (1, x'01', x'03')"
+            )
+    finally:
+        conn.close()
+
+
+def test_0014_down_reverses(tmp_path: Path) -> None:
+    """Forward through 0014 then the down script restores the 0013 schema."""
+    reference = _schema_through(tmp_path, 13)
+    down_sql = (MIGRATIONS_DIR / "down" / "0014_v2_auth_down.sql").read_text(encoding="utf-8")
+
+    conn = get_connection(_settings_for(tmp_path / "down14.sqlite"))
+    try:
+        apply_migrations(conn)
+        conn.execute("BEGIN")
+        for statement in _split_sql_statements(down_sql):
+            conn.execute(statement)
+        conn.execute("COMMIT")
+        actual = _normalize_schema(conn)
+    finally:
+        conn.close()
+
+    assert set(actual) == set(reference)
+    for table in reference:
+        assert actual[table] == reference[table], f"schema drift on {table}"

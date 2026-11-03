@@ -69,3 +69,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0064 | [Plan / Today / Overview Default Landing Month Follows the Fiscal Cycle](0064-plan-default-fiscal-month.md) (amends ADR-0041; surfaces F4.6) |
 | 0065 | [CSRF Cookie Name Is Env-Dependent; HTMX Reads the Token From a `<meta>` Tag](0065-csrf-dev-cookie-name-and-meta-token.md) (amends ADR-0033 §4) |
 | 0066 | [Orchestrator Mode Skill for Parallel Multi-Agent Work](0066-orchestrator-mode-skill.md) |
+| 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6) |
