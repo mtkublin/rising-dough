@@ -154,8 +154,8 @@ def test_kill_switch_disables_limit(tmp_path: Path, session_cookie: tuple[str, s
     assert codes == [422] * 4
 
 
-def test_sessions_page_links_to_change_password(client: TestClient) -> None:
-    r = client.get("/auth/sessions")
+def test_security_tab_hosts_change_password_form(client: TestClient) -> None:
+    r = client.get("/settings/security")
     assert r.status_code == 200
-    assert 'href="/settings/password"' in r.text
+    assert 'action="/settings/password"' in r.text
     assert "Change password" in r.text

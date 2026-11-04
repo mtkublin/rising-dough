@@ -611,3 +611,29 @@ def test_last_checked_with_accounts(client: TestClient, acc_id: int) -> None:
     assert r.status_code == 200
     assert 'data-rows="1"' in r.text
     assert 'data-source="none"' in r.text
+
+
+# ---------------------------------------------------------------------------
+# T-D51 — Liability "Available" renders with 2 decimals.
+
+
+def test_liability_available_shows_two_decimals(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        accounts_repo.create(
+            conn,
+            USER_ID,
+            NewAccount(
+                name="Visa T-D51",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=500_000,
+                opening_balance=-123_456,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    assert "Available 3,765.44 ·" in r.text
+    assert "Available 3,765 ·" not in r.text

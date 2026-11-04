@@ -26,11 +26,17 @@ from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
 from budget_planner.web.rendering import is_hx_request, render
 from budget_planner.web.routers.auth import _rate_limit_now, _throttled_json, _wants_json
+from budget_planner.web.routers.settings_security import (
+    PASSWORD_ANCHOR,
+    SECURITY_PATH,
+    security_context,
+)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _PAGE: Final = "settings/password.html"
 _FORM: Final = "settings/_password_form.html"
+_SECURITY_PAGE: Final = "settings/security.html"
 THROTTLED_FORM_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
 
 
@@ -59,8 +65,17 @@ def _target(next_path: str | None) -> str:
     return "/" if target.split("?", 1)[0] == PASSWORD_PATH else target
 
 
+def _default_target(user: CurrentUser, next_path: str | None) -> str:
+    """Forced users go on to ``next``; others stay in Settings -> Security."""
+    if user.must_change_password:
+        return _target(next_path)
+    target = _target(next_path)
+    return SECURITY_PATH if target == "/" else target
+
+
 def _render_form(
     request: Request,
+    conn: sqlite3.Connection,
     user: CurrentUser,
     *,
     next_path: str,
@@ -69,16 +84,24 @@ def _render_form(
 ) -> HTMLResponse:
     failed = outcome is not None and not outcome.ok
     status = HTTPStatus.UNPROCESSABLE_ENTITY if failed else HTTPStatus.OK
+    context = {
+        "current_user": user,
+        "forced": user.must_change_password,
+        "next_path": next_path,
+        "outcome": outcome,
+        "min_length": password_service.MIN_PASSWORD_LENGTH,
+        "throttle_error": THROTTLED_FORM_ERROR if throttled else None,
+    }
+    if not user.must_change_password and not is_hx_request(request):
+        context = {**security_context(request, conn, user), **context}
+        page = _SECURITY_PAGE
+    else:
+        page = _FORM if is_hx_request(request) else _PAGE
     return render(
         request,
-        _FORM if is_hx_request(request) else _PAGE,
+        page,
         status_code=HTTPStatus.TOO_MANY_REQUESTS if throttled else status,
-        throttle_error=THROTTLED_FORM_ERROR if throttled else None,
-        current_user=user,
-        forced=user.must_change_password,
-        next_path=next_path,
-        outcome=outcome,
-        min_length=password_service.MIN_PASSWORD_LENGTH,
+        **context,
     )
 
 
@@ -86,10 +109,13 @@ def _render_form(
 def password_form(
     request: Request,
     next_path: str | None = Query(default=None, alias="next"),
+    conn: sqlite3.Connection = Depends(get_db),
     user: CurrentUser = Depends(current_user),
-) -> HTMLResponse:
-    """Render the change-password form (forced-rotation banner when flagged)."""
-    return _render_form(request, user, next_path=_target(next_path))
+) -> Response:
+    """Forced-rotation page; everyone else is sent to Settings -> Security."""
+    if not user.must_change_password:
+        return RedirectResponse(PASSWORD_ANCHOR, status_code=HTTPStatus.SEE_OTHER)
+    return _render_form(request, conn, user, next_path=_target(next_path))
 
 
 @router.post("/password", response_model=None)
@@ -105,11 +131,11 @@ def change_password(  # noqa: PLR0917
     limit: RateDecision = Depends(password_change_rate_limit),
 ) -> Response:
     """Rotate the signed-in user's password; other sessions are signed out."""
-    target = _target(next_path)
+    target = _default_target(user, next_path)
     if not limit.allowed:
         if _wants_json(request) and not is_hx_request(request):
             return _throttled_json(limit)
-        response = _render_form(request, user, next_path=target, throttled=True)
+        response = _render_form(request, conn, user, next_path=target, throttled=True)
         response.headers["Retry-After"] = str(limit.retry_after_seconds)
         return response
     outcome = password_service.change_own_password(
@@ -124,7 +150,7 @@ def change_password(  # noqa: PLR0917
         request_ctx=ctx,
     )
     if not outcome.ok:
-        return _render_form(request, user, next_path=target, outcome=outcome)
+        return _render_form(request, conn, user, next_path=target, outcome=outcome)
     if is_hx_request(request):
         return Response(status_code=HTTPStatus.NO_CONTENT, headers={"HX-Redirect": target})
     return RedirectResponse(target, status_code=HTTPStatus.SEE_OTHER)
