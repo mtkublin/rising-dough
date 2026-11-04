@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-04 (T-D62 — compute zone + image slug)
+- **Fix(T-D62): Terraform compute image default was `ubuntu_jammy` (Ubuntu 22.04)** although ADR-0032/0035 specify 24.04. It is now `ubuntu_noble`.
+- **Change(T-D62): compute zone `pl-waw-1` → `pl-waw-2`** (Stardust1-S sold out in `pl-waw-1`, operator decision D1). Covers the `scaleway_zone` default, both `terraform.tfvars.example` files and `SCW_DEFAULT_ZONE` in `restore-drill.yml`. Region and buckets are unchanged. ADR-0084 amends ADR-0032.
+
 ## 2026-11-04 (T-D53 — follow-up docs)
 - **Docs(T-D53): ADR-0076 §5 deferred items listed under "Deferred to v3.1 or later"** in `tasks.md`. T-D53 acceptance now also covers the runbook updates (`user-admin.md`, `deploy.md`) and keeping the T-D43 smoke journey green under re-auth.
 

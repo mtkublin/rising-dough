@@ -35,7 +35,7 @@ Terraform cannot store its own state if the state bucket does not exist yet. The
    provider "scaleway" {
      project_id = var.scw_project_id
      region     = "pl-waw"
-     zone       = "pl-waw-1"
+     zone       = "pl-waw-2"  # ADR-0084
    }
    ```
 5. `terraform/backend.tf` — empty backend block; config supplied per environment:
