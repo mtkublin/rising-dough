@@ -12,7 +12,6 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -270,17 +269,17 @@ def _actual_day_nets(
         for r in rows
     ]
     result: dict[str, int | None] = {}
-    with httpx.Client(timeout=5.0) as client:
 
-        def convert(amount: int, day: date, ccy: str) -> int:
-            return fx_service.convert(conn, client, amount, day, ccy, base_ccy)
+    def convert(amount: int, day: date, ccy: str) -> int:
+        # Cached rates only: rendering must never block on the network.
+        return fx_service.convert_cached(conn, amount, day, ccy, base_ccy)
 
-        for day in {i[0] for i in items}:
-            day_items = [i for i in items if i[0] == day]
-            try:
-                result[day.isoformat()] = ledger_totals.day_nets(day_items, convert)[day]
-            except fx_service.FxUnavailableError:
-                result[day.isoformat()] = None
+    for day in {i[0] for i in items}:
+        day_items = [i for i in items if i[0] == day]
+        try:
+            result[day.isoformat()] = ledger_totals.day_nets(day_items, convert)[day]
+        except fx_service.FxUnavailableError:
+            result[day.isoformat()] = None
     return result
 
 

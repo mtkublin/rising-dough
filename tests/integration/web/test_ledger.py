@@ -386,3 +386,66 @@ def test_actual_day_net_with_negative_reconciliation(
     assert r.status_code == 200
     assert _day_net_text(r.text, "02 Nov") == "net -850.00"
     assert "net +" not in r.text
+
+
+def _seed_eur_day(settings: Settings, *, with_rate: bool) -> None:
+    from decimal import Decimal  # noqa: PLC0415
+
+    from budget_planner.domain.fx import NewFxRate  # noqa: PLC0415
+    from budget_planner.repositories import fx as fx_repo  # noqa: PLC0415
+
+    conn = get_connection(settings)
+    try:
+        eur = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Euro", currency="EUR", opening_balance=0)
+        )
+        exp = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
+        rec = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
+        assert rec is not None
+        day = date(2026, 11, 2)
+        if with_rate:
+            fx_repo.upsert_rate(
+                conn, NewFxRate(date=day, from_ccy="EUR", to_ccy="PLN", rate=Decimal("4"))
+            )
+        for cat_id, amount in ((rec.id, -10000), (exp.id, 2500)):
+            transactions_repo.create(
+                conn,
+                USER_ID,
+                NewTransaction(
+                    operation_date=day,
+                    category_id=cat_id,
+                    account_id=eur.id,
+                    amount=amount,
+                    description="x",
+                ),
+            )
+    finally:
+        conn.close()
+
+
+def test_actual_day_net_converts_foreign_currency_to_base(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-D48 — EUR -100 reconciliation, -25 expense at 4.0 -> net -500.00 PLN."""
+    _seed_eur_day(_migrated, with_rate=True)
+    r = client.get("/ledger?view=actual")
+    assert _day_net_text(r.text, "02 Nov") == "net -500.00"
+
+
+def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
+    client: TestClient, _migrated: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rendering /ledger must not touch the network; uncached day hides its net."""
+    import httpx  # noqa: PLC0415
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise AssertionError("network FX fetch during ledger render")
+
+    monkeypatch.setattr(httpx.Client, "get", _boom)
+    monkeypatch.setattr(httpx.Client, "send", _boom)
+    _seed_eur_day(_migrated, with_rate=False)
+    r = client.get("/ledger?view=actual")
+    assert r.status_code == 200
+    assert _day_net_text(r.text, "02 Nov") == ""
