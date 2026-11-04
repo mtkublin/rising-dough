@@ -160,6 +160,7 @@ Phase 1  (parallel-safe within unless marked [S]):
    T-D17  [S] user admin panel (/settings/users)   — depends on T-D02 + T-D16
    T-D18  [P] password change (/settings/password) — depends on T-D02
    T-D19  [S] admin bootstrap on startup           — depends on T-D02 + T-D16a
+   T-D53  [S] session hardening (ADR-0076)         — depends on T-D02, T-D09, T-D18; before T-D27
             │
             ▼
 Phase 2  (sequential within):
