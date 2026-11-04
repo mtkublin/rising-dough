@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-04 (T-D53b - step-up re-auth + session token rotation)
+- **Add(T-D53b): step-up re-authentication** (ADR-0076 §2). `web/deps.require_recent_auth` guards `POST /auth/register/begin|finish`, `POST /auth/passkeys/{id}/revoke`, `POST /auth/sessions/{handle}/revoke` (only for sessions other than the current one) and every `POST` under `/settings/users`. When the last login / re-auth is older than `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (default 10): HTMX gets `403` + `HX-Redirect`, JSON (`passkeys.js`, which now navigates to `redirect`) gets `403 {"error":"reauth_required","redirect"}`, anything else `303` to `/auth/reauth?next=<page you were on>` (validated by `safe_next`).
+- **Add(T-D53b): `/auth/reauth`** page (passkey restricted to the user's own credentials via `allowCredentials`, or current password) with `POST /auth/reauth`, `/auth/reauth/begin`, `/auth/reauth/finish`; challenge cookie purpose `reauth`. Rate limit scope `reauth` (5/min + 20/h per user, `BUDGET_RATE_LIMIT_REAUTH_PER_MINUTE/_PER_HOUR`), `429` + `Retry-After`. Audited as `auth_event` `reauth` / `reauth_failed` (`method`, `reason`).
+- **Change(T-D53b): token rotation.** A successful re-auth and a successful password change refresh `authenticated_at` and swap the session token in place (same row, `created_at` kept so the 30-day cap cannot be reset); the old cookie stops working at once. `passkeys.js` cache-bust `pk3` -> `pk4`.
+- **Operator note:** the one-time sign-out and the N-1 rollback behaviour from T-D53a (see the entry below) apply to the T-D53 release as a whole. `runbooks/user-admin.md` and `runbooks/deploy.md` updated. The T-D43 smoke journey now re-authenticates on `/auth/reauth` before removing the smoke user.
+
 ## 2026-11-04 (T-D62 — compute zone + image slug)
 - **Fix(T-D62): Terraform compute image default was `ubuntu_jammy` (Ubuntu 22.04)** although ADR-0032/0035 specify 24.04. It is now `ubuntu_noble`.
 - **Change(T-D62): compute zone `pl-waw-1` → `pl-waw-2`** (Stardust1-S sold out in `pl-waw-1`, operator decision D1). Covers the `scaleway_zone` default, both `terraform.tfvars.example` files and `SCW_DEFAULT_ZONE` in `restore-drill.yml`. Region and buckets are unchanged. ADR-0084 amends ADR-0032.

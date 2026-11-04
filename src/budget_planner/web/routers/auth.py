@@ -34,8 +34,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
+from budget_planner.repositories import webauthn as webauthn_repo
 from budget_planner.repositories.sessions import IssuedSession, session_handle
-from budget_planner.services import auth as auth_service, rate_limit
+from budget_planner.services import auth as auth_service, rate_limit, reauth as reauth_service
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
@@ -51,10 +52,15 @@ from budget_planner.web.auth_cookies import (
     verify_challenge,
 )
 from budget_planner.web.deps import (
+    REAUTH_PATH,
     current_user,
     get_db,
     get_request_ctx,
     get_settings_dep,
+    is_recently_authenticated,
+    reauth_now,
+    reauth_required_response,
+    require_recent_auth,
 )
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render
@@ -167,6 +173,26 @@ def register_rate_limit(
         rate_limit.SCOPE_REGISTER,
         f"user={user.id}",
         rate_limit.register_rules(settings),
+        now=_rate_limit_now(request),
+    )
+    if not decision.allowed:
+        rate_limit.audit_throttled(conn, ctx, scope=decision.scope, user_id=user.id)
+    return decision
+
+
+def reauth_rate_limit(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    ctx: RequestCtx = Depends(get_request_ctx),
+    user: CurrentUser = Depends(current_user),
+) -> RateDecision:
+    """Count one re-auth attempt per signed-in user (T-D53b, ADR-0076 §2)."""
+    decision = rate_limit.consume(
+        conn,
+        rate_limit.SCOPE_REAUTH,
+        f"user={user.id}",
+        rate_limit.reauth_rules(settings),
         now=_rate_limit_now(request),
     )
     if not decision.allowed:
@@ -436,7 +462,7 @@ def register_form(_user: CurrentUser = Depends(current_user)) -> RedirectRespons
     return _redirect(SECURITY_PASSKEYS_URL)
 
 
-@router.post("/register/begin")
+@router.post("/register/begin", dependencies=[Depends(require_recent_auth)])
 def register_passkey_begin(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -458,7 +484,7 @@ def _clean_label(raw: object) -> str:
     return (label or DEFAULT_PASSKEY_LABEL)[:LABEL_MAX_LENGTH]
 
 
-@router.post("/register/finish")
+@router.post("/register/finish", dependencies=[Depends(require_recent_auth)])
 async def register_passkey_finish(  # noqa: PLR0917
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -532,17 +558,21 @@ def revoke_session(  # noqa: PLR0917
     """Revoke one of the caller's own sessions, addressed by its handle."""
     if not _HANDLE_RE.match(handle):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
+    current = getattr(request.state, "session_id", None)
+    is_current = current is not None and session_handle(current) == handle
+    # Signing out *this* device is logout; revoking another one needs a fresh login (ADR-0076 §2).
+    if not is_current and not is_recently_authenticated(request, conn):
+        return reauth_required_response(request)
     if not auth_service.revoke_user_session(conn, user.id, handle, request_ctx=ctx):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    current = getattr(request.state, "session_id", None)
-    if current and session_handle(current) == handle:
+    if is_current:
         response = _redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
         return response
     return _redirect(SECURITY_SESSIONS_URL)
 
 
-@router.post("/passkeys/{credential_id}/revoke")
+@router.post("/passkeys/{credential_id}/revoke", dependencies=[Depends(require_recent_auth)])
 def revoke_passkey(
     credential_id: int,
     conn: sqlite3.Connection = Depends(get_db),
@@ -553,3 +583,171 @@ def revoke_passkey(
     if not auth_service.revoke_passkey(conn, user.id, credential_id, request_ctx=ctx):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
     return _redirect(SECURITY_PASSKEYS_URL)
+
+
+# ---------------------------------------------------------------------------
+# Step-up re-authentication (T-D53b, ADR-0076 §2 / §4)
+# ---------------------------------------------------------------------------
+
+REAUTH_FAILED: Final = "reauth_failed"
+GENERIC_REAUTH_ERROR: Final = "That password didn't work."
+RATE_LIMITED_REAUTH_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
+
+
+def _reauth_target(next_path: str | None) -> str:
+    target = safe_next(next_path)
+    path = target.split("?", 1)[0]
+    return DEFAULT_LANDING if path == REAUTH_PATH or path.startswith(f"{REAUTH_PATH}/") else target
+
+
+def _reauth_page(
+    request: Request,
+    conn: sqlite3.Connection,
+    user: CurrentUser,
+    *,
+    next_path: str,
+    error: str | None = None,
+    status_code: int = HTTPStatus.OK,
+    throttled: bool = False,
+) -> HTMLResponse:
+    return render(
+        request,
+        "auth/reauth.html",
+        status_code=status_code,
+        next_path=next_path,
+        error=error,
+        throttled=throttled,
+        has_passkeys=bool(webauthn_repo.list_credentials(conn, user.id)),
+        current_user=user,
+    )
+
+
+def _reauth_success(  # noqa: PLR0917
+    request: Request,
+    conn: sqlite3.Connection,
+    settings: Settings,
+    user: CurrentUser,
+    ctx: RequestCtx,
+    response: Response,
+    *,
+    method: str,
+) -> Response | None:
+    """Refresh + rotate the session and attach the new cookie; ``None`` if it vanished."""
+    token = getattr(request.state, "session_id", None)
+    issued = (
+        reauth_service.complete_reauth(
+            conn, token, user.id, method=method, ctx=ctx, now=reauth_now(request)
+        )
+        if token
+        else None
+    )
+    if issued is None:
+        return None
+    set_session_cookie(response, settings, issued.token, expires_at=issued.session.expires_at)
+    return response
+
+
+@router.get("/reauth", response_class=HTMLResponse)
+def reauth_form(
+    request: Request,
+    next_path: str | None = Query(default=None, alias="next"),
+    conn: sqlite3.Connection = Depends(get_db),
+    user: CurrentUser = Depends(current_user),
+) -> HTMLResponse:
+    """Confirm-it's-you page (passkey and/or current password)."""
+    return _reauth_page(request, conn, user, next_path=_reauth_target(next_path))
+
+
+@router.post("/reauth", response_model=None)
+def reauth_password(  # noqa: PLR0917
+    request: Request,
+    password: str = Form(default=""),
+    next_path: str = Form(default=DEFAULT_LANDING, alias="next"),
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    ctx: RequestCtx = Depends(get_request_ctx),
+    user: CurrentUser = Depends(current_user),
+    limit: RateDecision = Depends(reauth_rate_limit),
+) -> Response:
+    """Re-authenticate with the current password."""
+    target = _reauth_target(next_path)
+    if not limit.allowed:
+        if _wants_json(request) or is_hx_request(request):
+            return _throttled_json(limit)
+        page = _reauth_page(
+            request,
+            conn,
+            user,
+            next_path=target,
+            error=RATE_LIMITED_REAUTH_ERROR,
+            status_code=HTTPStatus.TOO_MANY_REQUESTS,
+            throttled=True,
+        )
+        page.headers["Retry-After"] = str(limit.retry_after_seconds)
+        return page
+    if reauth_service.verify_password_reauth(conn, user.id, password, ctx=ctx):
+        done = _reauth_success(
+            request, conn, settings, user, ctx, _redirect(target),
+            method=reauth_service.METHOD_PASSWORD,
+        )  # fmt: skip
+        if done is not None:
+            return done
+    return _reauth_page(
+        request,
+        conn,
+        user,
+        next_path=target,
+        error=GENERIC_REAUTH_ERROR,
+        status_code=HTTPStatus.UNAUTHORIZED,
+    )
+
+
+@router.post("/reauth/begin")
+def reauth_passkey_begin(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    user: CurrentUser = Depends(current_user),
+) -> Response:
+    """Assertion options restricted to the signed-in user's own passkeys."""
+    if _dev_host_is_ip(request):
+        return _passkey_host_error()
+    challenge = reauth_service.passkey_reauth_begin(conn, user.id, _rp(settings, request))
+    if challenge is None:
+        return JSONResponse({"error": "no_passkeys"}, status_code=HTTPStatus.BAD_REQUEST)
+    return _begin_response(settings, challenge, "reauth", user.id)
+
+
+@router.post("/reauth/finish")
+async def reauth_passkey_finish(  # noqa: PLR0917
+    request: Request,
+    next_path: str | None = Query(default=None, alias="next"),
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    ctx: RequestCtx = Depends(get_request_ctx),
+    user: CurrentUser = Depends(current_user),
+    limit: RateDecision = Depends(reauth_rate_limit),
+) -> Response:
+    """Verify the assertion; on success rotate the session and return ``redirect``."""
+    if not limit.allowed:
+        return _throttled_json(limit)
+    body = await _json_body(request)
+    envelope = verify_challenge(
+        settings,
+        request.cookies.get(challenge_cookie_name(settings)),
+        purpose="reauth",
+        user_id=user.id,
+    )
+    response: Response = JSONResponse({"error": REAUTH_FAILED}, status_code=HTTPStatus.UNAUTHORIZED)
+    if envelope is not None and reauth_service.verify_passkey_reauth(
+        conn, user.id, body, challenge=envelope.challenge, rp=_rp(settings, request), ctx=ctx
+    ):
+        success = JSONResponse({"redirect": _reauth_target(next_path)})
+        response = (
+            _reauth_success(
+                request, conn, settings, user, ctx, success, method=reauth_service.METHOD_PASSKEY
+            )
+            or response
+        )
+    clear_challenge_cookie(response, settings)
+    return response

@@ -54,6 +54,8 @@ curl -fsSI "https://<prod-host>/" | grep -i strict-transport-security
 # Expect: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 ```
 
+**One-time sign-out (T-D53a, migration `0015_session_hardening`)**: the deploy that first ships this migration revokes every live session, because session ids are now stored hashed. Every user (including the operator) signs in again once. Rolling back to an N-1 image has the same effect (old code cannot resolve hashed ids); no restore is needed.
+
 Then record the deploy in the GitHub `prod` environment history (automatic — nothing to do). If this deploy ships a schema migration, confirm it was applied and backed up:
 
 ```sh

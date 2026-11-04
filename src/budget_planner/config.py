@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     # T-D18a: per signed-in user, ``POST /settings/password``.
     rate_limit_password_change_per_minute: int = Field(default=5, ge=1)
     rate_limit_password_change_per_hour: int = Field(default=20, ge=1)
+    # T-D53b / ADR-0076 §2: per signed-in user, step-up re-auth attempts.
+    rate_limit_reauth_per_minute: int = Field(default=5, ge=1)
+    rate_limit_reauth_per_hour: int = Field(default=20, ge=1)
     # ADR-0061 §3 / ADR-0069: admin bootstrap credentials, injected by
     # cloud-init. The env names carry a ``BUDGET_PLANNER_`` prefix (not the
     # model-wide ``BUDGET_``), so they are bound via explicit aliases; the
