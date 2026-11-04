@@ -68,7 +68,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - **F4.4** Per-category budget only. Total budget shown as a derived sum.
 - **F4.5** Current month view includes per-category spent / budgeted / remaining, plus analytical values: average monthly spend overall, average this year, delta vs previous month. The three analytical values render as the trailing columns of the Section 1 Monthly summary table — **Avg/mo** · **YTD avg** · **Δ prev** — with the delta carrying an explicit sign and a `.delta--up` / `.delta--down` modifier class; `tfoot` leaves those cells blank (weighted sums across differing active-month counts are misleading). YTD avg + Δ prev are hidden below the 640px viewport; Avg/mo stays visible. The values originate on `CategoryBudgetLine` in `services.budget.month_summary` and this is a template-only surfacing per [ADR-0049](adr/0049-budget-monthly-summary-analytics-columns.md). The Rules section renders one row per live expense category with two surfaces: a **Default amount** input (inline-editable, submits to the existing `POST /budget/defaults/{category_id}`) and an **Override…** button that opens a slide-over for authoring a recurring (per-month) or one-off (year + month) override on that category. The slide-over dispatches to the two existing override endpoints; the three persistence tables ([ADR-0014](adr/0014-budget-flat-no-rollover-three-tier.md)) remain the single source of truth. See [ADR-0031](adr/0031-budget-page-composition-v2.md).
 - **F4.6** Current month view surfaces a prominent "Left to spend per day" metric: `remaining_minor ÷ days_until_next_income`, where `remaining_minor = budgeted − spent − committed`. Per-category `spent_minor` sums expenses over the **paycheck window** `[last_anchor_date, today]` — `last_anchor_date` is the most recent promoted anchor-category transaction with `operation_date <= today`, falling back to month start when no such transaction exists, when no anchor is configured, or in zero-budget months (see [ADR-0041](adr/0041-budget-period-anchor-window.md)). `budgeted_minor` stays monthly (one budget per paycheck cycle; [ADR-0014](adr/0014-budget-flat-no-rollover-three-tier.md) tiers unchanged). `committed_minor` is the sum of unpromoted planned-expense + active-recurring-expense amounts whose effective date (resp. `next_due`, override-applied) falls in `[today, next_income_date)` per [ADR-0039](adr/0039-budget-daily-spend-includes-recurring.md). `days_until_next_income` is driven by the configured income anchor category and falls back to end-of-month when the anchor is unset or stale (see [ADR-0025](adr/0025-user-preferences-and-income-anchor.md)). Zero-budget months render `—`. The committed figure renders as a dim sub-line beneath the headline on both the Budget hero and the Overview Month panel: `"X committed (recurring + planned)"`. The income-anchor "next date" calculation uses `services.income.next_anchor_date` which composes persisted planned one-offs + active recurring `next_due` values for the anchor category — virtual occurrence expansion is no longer required (ADR-0038). Analytics (`avg_this_year`, `avg_monthly_overall`, `delta_vs_prev_month`) stay on calendar-month windows — they are historical references, not current-cycle math.
-- **F4.6a** The Plan hub (`/plan?tab=budget` and `?tab=analytics`), the Today surface (`/today`), and the legacy Overview (`/`) default their landing `(year, month)` to the **fiscal month** — the month of `last_anchor_date` (ADR-0041). When no anchor is configured, or when no promoted anchor-category transaction exists on-or-before today, the surfaces fall back to the calendar month. Explicit `?year=&month=` query parameters on `/plan` still win over the default so the Plan picker's prev/next navigation is unchanged. See [ADR-0064](adr/0064-plan-default-fiscal-month.md).
+- **F4.6a** The Plan hub (`/plan?tab=budget` and `?tab=analytics`), the Today surface (`/today`, the post-login landing page) default their landing `(year, month)` to the **fiscal month** — the month of `last_anchor_date` (ADR-0041). When no anchor is configured, or when no promoted anchor-category transaction exists on-or-before today, the surfaces fall back to the calendar month. Explicit `?year=&month=` query parameters on `/plan` still win over the default so the Plan picker's prev/next navigation is unchanged. See [ADR-0064](adr/0064-plan-default-fiscal-month.md).
 - **F4.7** The income anchor is a user preference (`user_preferences(key='income_anchor_category_id')`, [ADR-0025](adr/0025-user-preferences-and-income-anchor.md)). The selector lives in the Settings drawer under the Preferences tab (`/settings?tab=prefs#income-anchor`) — see [ADR-0031](adr/0031-budget-page-composition-v2.md). The `POST /budget/preferences/income-anchor` endpoint URL is unchanged.
 - **F4.8** `/budget` renders a **Yearly budget table** below the Rules section: rows = live expense categories, columns = Jan..Dec of the selected year, each cell = the F4.2-resolved budget for that `(category, year, month)` triple with typography encoding tier dominance (bold = one-off override, italic = recurring override, plain = default, em-dash = unset). Cells are inline-editable; edits submit to the existing one-off endpoint (`POST /budget/one-off/{category_id}/{year}/{month}`), with empty value clearing the one-off override. Row + column totals render in the table footers. Year selection via a sibling picker; HTMX fragment `GET /budget/yearly?year=…` services year switches. See [ADR-0031](adr/0031-budget-page-composition-v2.md).
 
@@ -167,7 +167,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 ### 3.9 UI / Interaction Model
 
 - **Information architecture.** Four top-level nav items in a left rail: **Overview**, **Ledger**, **Accounts**, **Budget**. One Settings affordance at the bottom opens a slide-over drawer; Settings is not a top-level tab. Legacy routes (`/transactions`, `/planned`, `/recurring`, `/categories`, `/analytics`) continue to resolve via 302 redirects for one release before Phase 7 cleanup. See [ADR-0023](adr/0023-ux-redesign-information-architecture.md).
-- **Overview `/`.** Three panels: (1) all accounts with per-account balance + base-currency summed total, (2) current-month budget stats with **amount left** as the headline number, a second-line **"left per day"** figure sourced from the same `MonthSummary.left_daily_spend_minor` that powers the Budget hero (F4.6), plus spent/of + days-left (`MonthSummary.days_until_next_income` — paycheck-cycle cutoff per [ADR-0041](adr/0041-budget-period-anchor-window.md), end-of-month fallback) + pace tag, plus a dim sub-line `"X committed (recurring + planned)"` reflecting [ADR-0039](adr/0039-budget-daily-spend-includes-recurring.md), (3) **Upcoming**: the sorted union of (a) persisted planned one-offs with `operation_date` inside the window and (b) active recurring rules whose `next_due` falls inside the window (date rendered from `rule.next_due`, override-applied if an override targets `next_due`). The union is composed by `services.upcoming.list_upcoming(window)`; **virtual recurring occurrences no longer flow through `services.planned.list_planned`** (ADR-0038). Rows carry a `kind` discriminator (`"planned"` | `"recurring"`) so the row partial renders the right action set (promote-planned vs. promote-recurring). Rows where effective-date `>= today` render at full emphasis; rows where effective-date `< today` (overdue, planned only) render muted + italic with an `overdue` chip. Already-promoted planned rows do not appear. The panel header groups both affordances in one cluster — `+ Planned` + `+ Recurring` — rendered as a shared `.panel__add-group` so the pair sits visually together ([ADR-0030](adr/0030-shared-form-interaction-primitives.md) spacing tokens).
+- **No home/overview page (ADR-0077).** `GET /` answers `303` to `/today`; the post-login landing page is Today. The former Overview panels (accounts, month budget, Upcoming) live on Today (`/today`; Upcoming fragment at `/today/upcoming`).
 - **Ledger `/ledger`.** One shell renders Actual | Planned | Recurring behind a segmented control; filter and column shape are shared. The fragment route `/ledger/table?view=…` dispatches to existing repository queries. Keyboard `[` and `]` cycle the segmented control. **Planned** lists only persisted one-off `planned_transactions`; no virtual recurring rows (ADR-0038). **Recurring** lists all live `recurring_rules` with columns `cadence | next_due | account | category | amount | active | actions`. The actions column exposes **Promote**, **Override next…**, **Skip next**, **Edit**, **Delete**: Promote posts to `POST /recurring/{id}/promote` (opens a confirm modal pre-filled from `rule.default_amount`/`description` with any override on `next_due` layered on top); Override-next opens the existing `POST /recurring/{id}/overrides` slide-over pre-filled with `occurrence_date = rule.next_due`; Skip-next posts to `POST /recurring/{id}/skip-next`; Edit opens the rule edit slide-over; Delete posts to the existing `POST /recurring/{id}/deactivate` (soft delete via `active=0`).
 - **Settings drawer.** `/settings?tab=categories|fx|prefs` returns the drawer HTML; drawer is injected into a persistent `#drawer-root`. Opens via gear icon or `g s`. The Preferences tab (`?tab=prefs`) owns the income-anchor selector (F4.7, [ADR-0031](adr/0031-budget-page-composition-v2.md)) and is the home for all future per-user preferences ([ADR-0025](adr/0025-user-preferences-and-income-anchor.md)).
 - **Form primitives.** All create / edit forms share a small primitive set per [ADR-0030](adr/0030-shared-form-interaction-primitives.md): `<input type="date">` on create defaults to today; `amount` inputs restrict to digits + decimal separator client-side; id-reference `<select>`s become filterable comboboxes (case-insensitive substring match on label); every modal / slide-over carries a visible close button; create forms clear their inputs after a successful 2xx submit; conditional fields (today only: liability credit-limit) hide at both the markup and the a11y layer when their trigger toggle is off.
@@ -315,6 +315,7 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - SQLite file at `/data/budget.db` with `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000` (ADR-0034).
 - Litestream sidecar streams WAL to Scaleway Object Storage every ≤10 s.
 - 30-day retention, daily snapshots.
+- **Maximum copy age 37 days** for every copy of user data outside the live DB (Litestream generations 30 d + bucket noncurrent versions 7 d; pre-migration backups ≤ 30 d; drill copies deleted per run). Replicas are age-encrypted to an operator-held identity. See [ADR-0078](adr/0078-v3-data-protection-quick-wins.md) §3–§4 (T-D56, T-D57).
 - RPO ≤ 15 s. RTO target < 60 min for full re-provision.
 - Monthly automated restore drill opens a GitHub issue on failure.
 
@@ -338,10 +339,10 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 Explicitly out of v3 scope (require ADR before promotion):
 
 - Self-signup / public registration. User creation remains admin-only (ADR-0061).
-- Multi-admin impersonation ("login as") or admin visibility into user data.
+- Multi-admin impersonation ("login as") or admin visibility into user data. Cryptographic isolation from admin/operator is planned for v4 (§7, ADR-0079).
 - "Forgot password" email flow. Admin reset is the only recovery path (ADR-0061).
 - External IdP (GitHub / Google OIDC) or per-user API tokens.
-- Hard-delete flows for user data (soft-delete only; see ADR-0061 §Consequences).
+- Hard-delete flows for user data (soft-delete only; see ADR-0061 §Consequences). Planned for v4 (§7, ADR-0083).
 - Autoscaling or multi-instance.
 - Cross-region replication of the Litestream bucket.
 - Centralised log store or distributed tracing.
@@ -367,3 +368,74 @@ Explicitly out of v3 scope (require ADR before promotion):
 - Monthly automated restore drill scheduled.
 - Operator captured the `admin_initial_password` into a password manager; admin has logged in, rotated the password, and (optionally) registered at least one passkey.
 - Dated go-live entry in `docs/CHANGELOG.md`.
+
+### 6.11 Data-protection quick wins (added 2026-11-04; ADR-0078)
+
+v3-scope hardening ahead of the v4 data-protection design (§7). Tasks T-D54..T-D61 (`docs/plans/v3/phase-5-data-protection/`).
+
+- `/debug/audit-tail` shows audit payloads only for the caller's own rows; other users' rows show metadata only (closes an ADR-0061 isolation gap).
+- Every authenticated response carries `Cache-Control: no-store`; logout sends `Clear-Site-Data: "cache", "storage"`.
+- Litestream replicas are age-encrypted; one pinned Litestream version across prod and prod-sim.
+- Maximum copy age of user data: 37 days (§6.5).
+- SQLite `secure_delete = ON`.
+- Logs carry no user values: structlog redaction processor; Caddy access log drops query strings; Caddy log rotation 14 days.
+- `audit_log.ip` / `user_agent` nulled and ended `sessions` deleted after 90 days.
+- `docs/plans/v3/runbooks/data-inventory.md` lists where user data lives, and states plainly what the operator can see in v3.
+
+---
+
+## 7. v4 — Data Protection Scope (added 2026-11-04)
+
+v4 keeps the v3 functional surface and deployment, and makes per-user data **cryptographically** inaccessible to anyone who is not logged in as that user. That includes the admin, the operator at rest, backup holders and infrastructure-credential holders. It also adds the right to be forgotten and data portability. Plan: `docs/plans/v4/`. Decisions: [ADR-0079](adr/0079-v4-threat-model-and-data-protection-goals.md) (threat model, option choice), [ADR-0080](adr/0080-v4-envelope-encryption-key-hierarchy-and-sessions.md) (keys and sessions), [ADR-0081](adr/0081-v4-field-level-encryption-scope-and-query-model.md) (columns and queries), [ADR-0082](adr/0082-v4-account-lifecycle-recovery-and-migration.md) (lifecycle and recovery), [ADR-0083](adr/0083-v4-right-to-be-forgotten-portability-and-retention.md) (erasure, export, retention).
+
+### 7.1 Hard requirements
+
+- **R1** Good application security: no regression of v3 controls; defence in depth around key material.
+- **R2** No breaking of existing functionality, or an industry-standard workaround documented in the plan (ADR-0081 §7 feature-preservation matrix; ADR-0082 §5 reset semantics).
+- **R3** User data is secure and not visible to anyone who is not logged in as that user, malicious actors included (ADR-0079 adversaries A1–A3, A6).
+- **R4** Right to be forgotten: irreversible erasure within a stated bound, backups included (ADR-0083).
+
+### 7.2 Encryption
+
+- Per-user envelope encryption. Credentials (password via Argon2id + server pepper; WebAuthn PRF passkeys; a one-time recovery code) wrap a per-user master key. The master key wraps versioned data keys. Fields are encrypted with AES-256-GCM, with AAD binding table, column and owner.
+- While a session is live, the master key is wrapped under a per-session key that exists **only in the session cookie**. Revoking the session destroys it.
+- Server secrets (`PEPPER`, `ESCROW_MASTER`) live in Scaleway Secret Manager and never in the DB, the backups or Terraform state.
+- Encrypted columns: all amounts, account and category names, descriptions, notes, recurring formulas, preference values, passkey labels, and audit payloads of user entities. Plaintext: ids, FKs, dates, enums, flags, currency, colours, timestamps, `users.email` / `name`.
+- SQL filters on plaintext metadata. Aggregates, sorting by value and text search run in Python on decrypted rows. Name uniqueness uses per-user blind indexes.
+- Performance budget: p95 render time increases by ≤ 50 ms at 20 000 transactions per user.
+
+### 7.3 Account lifecycle
+
+- Existing data is encrypted at the v4.0 deploy under a server escrow key, then **claimed** at the user's next login, at which point the escrow wrap is deleted. New users get a key at their first own-password set.
+- A recovery code is shown once at claim. Passkeys are labelled "Signs in and unlocks data" (PRF) or "Sign-in only".
+- **Admin password reset restores sign-in, not data.** Data needs the recovery code or a PRF passkey. A user who has neither may "Start fresh", which erases their data.
+- Settings → Security gains a Data protection section: key state, unlocking credentials, regenerate recovery code, reset encryption keys, rotate data key, export, delete account.
+
+### 7.4 Right to be forgotten, portability, retention
+
+- **Deactivate** (reversible) vs **Erase** (irreversible). Self-service and admin erasure are both step-up guarded. Deactivated users are auto-erased after 90 days.
+- Erasure: sessions and key wraps are hard-deleted (crypto-shred), user-owned rows are hard-deleted, auth audit events are pseudonymized, and the `users` row becomes a tombstone. An erasure ledger, replicated separately, is replayed after any restore so erased users never come back.
+- Backups expire within 37 days of erasure (§6.5).
+- Self-service JSON export bundle (`budget-planner-export/v1`) alongside the existing CSV / Parquet exports.
+- A public `/privacy` page states what the operator can and cannot see, the residual risks and the retention schedule.
+
+### 7.5 Stack changes
+
+- New dependency: `argon2-cffi`. `cryptography` becomes a direct dependency, imported only from `budget_planner.crypto`.
+- New infrastructure: Scaleway Secret Manager secrets (verify `pl-waw` availability; fallback is cloud-init file secrets), and a second Litestream-replicated DB (erasure ledger).
+
+### 7.6 Non-goals for v4
+
+- Client-side end-to-end encryption (zero-knowledge server). This is the v5 candidate if active host compromise (ADR-0079 A4) must be closed.
+- Protection against an operator who actively modifies the running app during user sessions (A4). Mitigated and disclosed, not prevented.
+- Encrypting structural metadata (dates, FK graph, counts).
+- Admin-escrowed recovery, email-based recovery, import of export bundles (v4.1 candidate).
+- Per-user SQLCipher database files.
+
+### 7.7 Deliverables
+
+- ADR-0079..ADR-0083 Accepted.
+- `docs/plans/v4/` phases complete with `✅` on every task.
+- No user in `plaintext` state on prod; contract migration released; byte-scan of the live DB finds no plaintext sentinel.
+- Restore drill passes with the decrypt canary.
+- `/privacy` published; dated v4 go-live entry in `docs/CHANGELOG.md`.

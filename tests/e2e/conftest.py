@@ -172,7 +172,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
         form={
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD,
-            "next": "/",
+            "next": "/today",
             CSRF_FORM_FIELD: token,
         },
         max_redirects=0,

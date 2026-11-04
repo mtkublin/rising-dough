@@ -61,6 +61,8 @@ ADR-0076 closes four gaps that make a stolen session cookie valuable: no absolut
 - E2E: the CDP virtual-authenticator journey (as in `tests/e2e/test_passkey_journey.py`) adds a second passkey after a forced-stale window, through the re-auth page.
 - Frontend visual audit (CLAUDE.md) on `/auth/reauth` and the Security tab at 1440 / 1024 / 375.
 - The CHANGELOG entry flags the one-time sign-out and the N-1 rollback behaviour (ADR-0076 §3).
+- `runbooks/user-admin.md` (T-D46) says that admin actions under `/settings/users` ask for re-auth after `session_reauth_window_minutes` and how to complete it. `runbooks/deploy.md` notes the one-time sign-out on the deploy that ships the migration.
+- The T-D43 smoke journey (`tests/smoke/test_prod_smoke.py`) passes with re-auth enabled. Either keep its admin steps inside the re-auth window after login, or add a re-auth step that exercises `/auth/reauth`. The second is preferred because it covers the flow in production.
 
 ## Validation hook
 

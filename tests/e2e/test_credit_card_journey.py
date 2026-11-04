@@ -88,8 +88,8 @@ def test_credit_card_full_journey(
     expect(visa_card.locator(".credit-strip")).to_contain_text("100.00")
     expect(visa_card.locator(".credit-strip")).to_contain_text("0%")
 
-    # 3. Dashboard renders the three-line fortune split.
-    page.goto(f"{base_url}/")
+    # 3. Accounts page renders the three-line fortune split.
+    page.goto(f"{base_url}/accounts")
     expect(page.locator(".fortune-split")).to_contain_text("Assets")
     expect(page.locator(".fortune-split")).to_contain_text("Liabilities")
     expect(page.locator(".fortune-split")).to_contain_text("Net worth")

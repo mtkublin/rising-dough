@@ -175,7 +175,7 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
     base_html = client.get("/transactions/new").text  # has <head> + base scripts
     # The slide-over fragment response does not include <head>; grab the
     # home page which renders base.html wholesale.
-    full = client.get("/").text
+    full = client.get("/today").text
     handler_js = _extract_after_request_handler(full)
     # Smoke: handler must reference the three T-124 invariants (otherwise
     # we are testing a stale fix).

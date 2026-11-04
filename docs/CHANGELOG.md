@@ -1,7 +1,14 @@
 # Changelog
 
 ## 2026-11-04 (T-D49a - no gaps between budget rows)
-- **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in.
+- **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in. Also bumped the stylesheet cache-bust (`?v=rd2` → `?v=rd3` in `base.html`) because T-D49 changed the CSS without bumping it, so browsers kept the old cached CSS next to the new slot-row markup.
+
+## 2026-11-04 (T-D53 — follow-up docs)
+- **Docs(T-D53): ADR-0076 §5 deferred items listed under "Deferred to v3.1 or later"** in `tasks.md`. T-D53 acceptance now also covers the runbook updates (`user-admin.md`, `deploy.md`) and keeping the T-D43 smoke journey green under re-auth.
+
+## 2026-11-04 (docs — data protection: v3 quick wins + v4 plan)
+- **Docs: ADR-0078** — v3 data-protection quick wins; new v3 Phase 5 tasks T-D54..T-D61 (`docs/plans/v3/phase-5-data-protection/`): owner-scoped `/debug/audit-tail` (admin currently sees every user's audit payloads — ADR-0061 gap), `no-store` on authenticated responses, age-encrypted Litestream replica + version alignment, 37-day copy ceiling, `secure_delete`, log redaction, IP/UA 90-day purge, data inventory. Requirements §6.5, §6.11.
+- **Docs: ADR-0079..ADR-0083 + `docs/plans/v4/`** — v4 data-protection scope (requirements §7): threat model and option choice (per-user envelope encryption; client-side E2EE deferred to v5), key hierarchy and cookie-held session key, field-level encryption scope and query model, account lifecycle / recovery / escrow→claim migration, right to be forgotten (crypto-shred + purge + erasure ledger), export bundle, retention schedule. Tasks T-E00..T-E26.
 
 ## 2026-11-04 (T-D53 — session hardening docs)
 - **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
@@ -14,6 +21,8 @@
 
 ## 2026-11-04 (T-D48 - ledger day totals with reconciliation entries)
 - **Fix(T-D48): Ledger Actual day-group "net" was wrong when reconciliation (adjustment) rows were present.** Root cause: the sum lived in `templates/ledger/_table.html` and treated every non-income row as `-amount`; adjustment amounts are stored already signed (ADR-0008), so a -700.00 reconciliation was added as +700.00. It also summed raw minor units across account currencies. The net is now computed by `services/ledger_totals.py` (income +, expense -, adjustment pass-through, transit excluded) with per-row conversion to base currency (ADR-0006); conversion uses cached FX rates only (`fx.convert_cached`; rendering never fetches from the network); a day with no cached rate omits the figure. Positive adjustment rows now show a `+` and green amount. Other views (Today, Analytics, Fortune/balance, forecast) filter by direction or use `balance.signed_legs`, which already handles adjustments correctly; unchanged.
+## 2026-11-04 (T-D50 - legacy home page retired)
+- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0077.
 
 ## 2026-11-04 (T-D47 - Security + Password moved into Settings)
 - **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.

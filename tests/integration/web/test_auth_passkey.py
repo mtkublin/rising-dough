@@ -108,7 +108,7 @@ def test_login_finish_rejects_open_redirect(
         lambda c, _cred, **_kw: sessions_repo.create_session(c, user_id, ip=None, user_agent=None),
     )
     r = anon_client.post("/auth/login/finish?next=//evil.example", json=_CREDENTIAL)
-    assert r.json() == {"redirect": "/"}
+    assert r.json() == {"redirect": "/today"}
 
 
 def test_login_finish_failure_is_generic(
