@@ -39,6 +39,26 @@ class MissingSystemCategoryError(RuntimeError):
     """Raised when the seeded ``Reconciliation`` category cannot be found."""
 
 
+class InvalidAvailableError(ValueError):
+    """Raised when an available-credit figure is outside ``0..credit_limit``."""
+
+
+def available_to_target_balance(credit_limit_minor: int, available_minor: int) -> int:
+    """Convert bank-reported available credit to the target derived balance.
+
+    ``used = credit_limit - available``; liabilities store owed amounts as
+    negative balances, so the target balance is ``-used`` (T-D52, ADR-0011).
+    Raises ``InvalidAvailableError`` unless ``0 <= available <= credit_limit``.
+    """
+    if credit_limit_minor <= 0:
+        raise InvalidAvailableError("credit limit must be positive")
+    if available_minor < 0:
+        raise InvalidAvailableError("available credit cannot be negative")
+    if available_minor > credit_limit_minor:
+        raise InvalidAvailableError("available credit cannot exceed the credit limit")
+    return available_minor - credit_limit_minor
+
+
 def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
     conn: sqlite3.Connection,
     user_id: int,
@@ -113,7 +133,9 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
 __all__ = [
     "AccountNotFoundError",
     "CannotReconcileDeletedAccountError",
+    "InvalidAvailableError",
     "MissingSystemCategoryError",
     "NoAdjustmentNeededError",
+    "available_to_target_balance",
     "reconcile",
 ]

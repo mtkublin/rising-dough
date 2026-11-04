@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D52 — reconcile by available credit)
+- **Add(T-D52): reconciling a liability account that has a credit limit now takes the bank's *available* credit.** `services.reconciliation.available_to_target_balance` converts it to the target balance (`-(limit - available)`); the adjustment is booked as before. Available outside `0..limit` is rejected (422). Other accounts unchanged. ADR-0011 amended.
+
 ## 2026-11-04 (T-D49 - budget override form inline under its row)
 - **Fix(T-D49): Plan → Budget override form** now opens directly under the clicked row (per-row `#override-slot-<category_id>` table row), right-aligned, instead of beneath all categories. One form open at a time; Cancel / Esc close it and restore focus to the Override button; saving closes it and re-fetches the budget table. Inline script replaced by `static/js/budget-override.js`.
 
