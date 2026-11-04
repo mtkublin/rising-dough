@@ -6,7 +6,7 @@ admin_email              = "operator@example.com"
 scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
 scaleway_organization_id = "00000000-0000-0000-0000-000000000000"
 scaleway_region          = "pl-waw"
-scaleway_zone            = "pl-waw-1"
+scaleway_zone            = "pl-waw-2"
 
 domain           = "example.com"
 subdomain_prod   = "budget"

@@ -41,7 +41,7 @@ variable "scaleway_region" {
 variable "scaleway_zone" {
   description = "Scaleway availability zone within the region."
   type        = string
-  default     = "pl-waw-1"
+  default     = "pl-waw-2"
 }
 
 variable "domain" {

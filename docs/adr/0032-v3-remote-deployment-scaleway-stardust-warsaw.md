@@ -4,6 +4,7 @@
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28; v2 slot reassigned to the Rising Dough redesign)
 - **Related**: ADR-0003 (SQLite only in v1), ADR-0005 (single user, no auth, 127.0.0.1), ADR-0027 (frontend toolchain)
 - **Supersedes**: nothing. **Amends**: ADR-0005 (v1 bound to `127.0.0.1`; v3 binds to a container inside a hardened VM behind TLS reverse proxy).
+- **Amended by**: [ADR-0084](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) — compute zone is `pl-waw-2` (Stardust sold out in `pl-waw-1`); image slug `ubuntu_noble`.
 - **Depends on**: ADR-0033 (auth), ADR-0034 (Litestream replication), ADR-0035 (Terraform IaC), ADR-0036 (Caddy TLS), ADR-0037 (GHA deploy pipeline).
 
 ## Context
@@ -26,7 +27,7 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 ### 1. Compute
 
 - **Provider / plan**: Scaleway Stardust `STARDUST1-S` (1 shared vCPU, 1 GB RAM, 10 GB local SSD).
-- **Region / zone**: `pl-waw` / `pl-waw-1` (Warsaw).
+- **Region / zone**: `pl-waw` / `pl-waw-1` (Warsaw). *Amended by [ADR-0084](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md): zone `pl-waw-2`.*
 - **OS**: Ubuntu 24.04 LTS minimal.
 - **Addressing**: IPv6 primary; Flex IPv4 attached (ADR-0035 computes the recurring €2.92/mo delta into the cost model).
 - **Non-root user**: `app` user owns the app directory; SSH restricted to key auth only; root login disabled.

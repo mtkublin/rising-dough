@@ -24,7 +24,7 @@
                         HTTPS (443) only
                                │
 ┌──────────────────────────────▼──────────────────────────────┐
-│  Scaleway Stardust1-S  (Ubuntu 24.04, pl-waw-1, Warsaw)      │
+│  Scaleway Stardust1-S  (Ubuntu 24.04, pl-waw-2, Warsaw)      │
 │                                                              │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  docker compose stack                                    │ │
