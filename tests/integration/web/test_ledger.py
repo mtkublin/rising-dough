@@ -342,3 +342,47 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
     assert newest_idx < middle_idx < oldest_idx, (
         f"expected DESC by date; got newest@{newest_idx} middle@{middle_idx} oldest@{oldest_idx}"
     )
+
+
+def _day_net_text(html: str, day_label: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    for head in soup.select("tr.rd-day-head"):
+        if day_label in head.get_text():
+            net = head.select_one(".num")
+            return net.get_text(strip=True) if net else ""
+    raise AssertionError(f"day head {day_label!r} not found")
+
+
+def test_actual_day_net_with_negative_reconciliation(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-D48 — -700 reconciliation + -100 + -50 expenses nets -850.00, not positive."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        exp = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
+        rec = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
+        assert rec is not None
+        day = date(2026, 11, 2)
+        for cat_id, amount in ((rec.id, -70000), (exp.id, 10000), (exp.id, 5000)):
+            transactions_repo.create(
+                conn,
+                USER_ID,
+                NewTransaction(
+                    operation_date=day,
+                    category_id=cat_id,
+                    account_id=acc.id,
+                    amount=amount,
+                    description="x",
+                ),
+            )
+    finally:
+        conn.close()
+    r = client.get("/ledger?view=actual")
+    assert r.status_code == 200
+    assert _day_net_text(r.text, "02 Nov") == "net -850.00"
+    assert "net +" not in r.text

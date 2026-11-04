@@ -12,6 +12,7 @@ import sqlite3
 from datetime import date, timedelta
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -25,8 +26,13 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import planned as planned_service, recurring_formula as formula_svc
-from budget_planner.web.deps import current_user_id, get_db
+from budget_planner.services import (
+    fx as fx_service,
+    ledger_totals,
+    planned as planned_service,
+    recurring_formula as formula_svc,
+)
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
 from budget_planner.web.rendering import render
 
@@ -246,6 +252,38 @@ def _actual_rows(
     )
 
 
+def _actual_day_nets(
+    conn: sqlite3.Connection, base_ccy: str, rows: list[dict[str, Any]]
+) -> dict[str, int | None]:
+    """Per-day net (base-currency minor units, ISO-date keys) for the Actual view.
+
+    Signs follow ADR-0008 (adjustment amounts are pre-signed); T-D48. A day whose
+    FX rate is unavailable maps to ``None`` so the header omits a wrong figure.
+    """
+    items = [
+        (
+            r["operation_date"],
+            r["amount"],
+            r["category"].direction if r["category"] else None,
+            r["currency"],
+        )
+        for r in rows
+    ]
+    result: dict[str, int | None] = {}
+    with httpx.Client(timeout=5.0) as client:
+
+        def convert(amount: int, day: date, ccy: str) -> int:
+            return fx_service.convert(conn, client, amount, day, ccy, base_ccy)
+
+        for day in {i[0] for i in items}:
+            day_items = [i for i in items if i[0] == day]
+            try:
+                result[day.isoformat()] = ledger_totals.day_nets(day_items, convert)[day]
+            except fx_service.FxUnavailableError:
+                result[day.isoformat()] = None
+    return result
+
+
 def _planned_rows(
     conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
 ) -> list[dict[str, Any]]:
@@ -284,10 +322,16 @@ def _render_table(
     categories_by_id = {
         c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
+    day_nets = (
+        _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
+        if view == "actual"
+        else {}
+    )
     return render(
         request,
         "ledger/_table.html",
         view=view,
+        day_nets=day_nets,
         rows=rows,
         page=filters.page,
         page_size=filters.page_size,
@@ -375,6 +419,11 @@ def index(
         view=view,
         views=view_kinds(),
         rows=rows,
+        day_nets=(
+            _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
+            if view == "actual"
+            else {}
+        ),
         filters=filters,
         categories=categories_repo.list_all(conn, user_id),
         accounts=accounts_repo.list_all(conn, user_id),
