@@ -10,6 +10,7 @@ exempt from ``MustChangePasswordMiddleware`` — forced users never reach it.
 from __future__ import annotations
 
 import sqlite3
+from datetime import timedelta
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, Request
@@ -37,11 +38,17 @@ def security_context(
     token = getattr(request.state, "session_id", None)
     current_handle = session_handle(token) if token else None
     sessions = sessions_repo.list_active_sessions(conn, user.id)
+    absolute = timedelta(days=request.app.state.settings.session_absolute_lifetime_days)
     return {
         "active_tab": "security",
         "current_user": user,
         "session_rows": [
-            {"session": s, "is_current": s.handle == current_handle} for s in sessions
+            {
+                "session": s,
+                "is_current": s.handle == current_handle,
+                "absolute_expires_at": s.created_at + absolute,
+            }
+            for s in sessions
         ],
         "passkeys": webauthn_repo.list_credentials(conn, user.id),
         "label_max_length": LABEL_MAX_LENGTH,
