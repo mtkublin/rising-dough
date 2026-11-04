@@ -22,8 +22,8 @@
 
 ### A2. Domain and DNS
 
-- [ ] Register the domain. See [decision D2](#d2-domain) for the recommended approach (Scaleway Domains, `managed_dns_zone = true`).
-- [ ] Enable WHOIS privacy (automatic for individuals on `.pl`; check for other TLDs).
+- [x] Domain registered (2026-11-04): **`rising-dough.eu`**. Hostnames: `budget.rising-dough.eu` (prod) and `drill.budget.rising-dough.eu` (drill). Set as `domain` in both `terraform.tfvars`. `managed_dns_zone` stays `false` until the D2 zone-ownership fix lands. See [decision D2](#d2-domain).
+- [ ] WHOIS privacy: for `.eu`, EURid hides a private registrant's personal data by default. Confirm with a public WHOIS lookup of `rising-dough.eu`.
 - [ ] Optional: add a CAA record allowing `letsencrypt.org`.
 - [ ] Note that HSTS `includeSubDomains; preload` is served for the app hostname. Nothing under `budget.<domain>` may need plain HTTP.
 
@@ -82,7 +82,7 @@ Follow-up for the agent (docs first, per `CLAUDE.md`):
 
 ### D2. Domain
 
-**No domain owned yet.** Recommendation:
+**Bought 2026-11-04: `rising-dough.eu`.** The original recommendation follows:
 
 - **Register it through Scaleway Domains and set `managed_dns_zone = true`.** The reason is automation, not price. Every drill apply gets a new flex IP, and Caddy's ACME HTTP-01 challenge only succeeds once DNS points at that IP. The monthly automated restore drill (T-D41) can only update DNS by itself if Terraform owns the zone. With an external zone, `terraform/modules/dns` creates no records at all, so you would have to edit DNS by hand on every drill and the automated drill would fail.
 - **TLD:** pick on **renewal** price, not the first-year promotion. `.com` or `.pl` are sensible. `.pl` gives private-individual WHOIS privacy by default.
