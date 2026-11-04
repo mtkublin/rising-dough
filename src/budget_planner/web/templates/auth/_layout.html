@@ -7,6 +7,9 @@
           content="{{ csrf_token if csrf_token is string else '' }}">
     <meta name="robots" content="noindex">
     <title>{% block title %}Sign in · Rising Dough{% endblock %}</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', path='favicon.svg') }}?v=fav1">
     <link rel="stylesheet"
           href="{{ url_for('static', path='fonts.css') }}?v=rd1">
     <link rel="stylesheet"
