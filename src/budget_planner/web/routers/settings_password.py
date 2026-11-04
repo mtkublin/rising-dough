@@ -20,7 +20,7 @@ from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import password_change as password_service, rate_limit
 from budget_planner.services.rate_limit import RateDecision
-from budget_planner.web.auth_cookies import safe_next
+from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
 from budget_planner.web.deps import current_user, get_db, get_request_ctx, get_settings_dep
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
@@ -62,7 +62,7 @@ def password_change_rate_limit(
 
 def _target(next_path: str | None) -> str:
     target = safe_next(next_path)
-    return "/" if target.split("?", 1)[0] == PASSWORD_PATH else target
+    return DEFAULT_LANDING if target.split("?", 1)[0] == PASSWORD_PATH else target
 
 
 def _default_target(user: CurrentUser, next_path: str | None) -> str:
@@ -70,7 +70,7 @@ def _default_target(user: CurrentUser, next_path: str | None) -> str:
     if user.must_change_password:
         return _target(next_path)
     target = _target(next_path)
-    return SECURITY_PATH if target == "/" else target
+    return SECURITY_PATH if target == DEFAULT_LANDING else target
 
 
 def _render_form(
@@ -124,7 +124,7 @@ def change_password(  # noqa: PLR0917
     current_password: str = Form(default=""),
     new_password: str = Form(default=""),
     confirm_password: str = Form(default=""),
-    next_path: str = Form(default="/", alias="next"),
+    next_path: str = Form(default=DEFAULT_LANDING, alias="next"),
     conn: sqlite3.Connection = Depends(get_db),
     ctx: RequestCtx = Depends(get_request_ctx),
     user: CurrentUser = Depends(current_user),

@@ -33,7 +33,7 @@ VIEWPORTS = [
     pytest.param(_Viewport(label="mobile", width=375, height=812), id="mobile"),
 ]
 ROUTES = [
-    pytest.param("/", id="overview"),
+    pytest.param("/today", id="today"),
     pytest.param("/ledger", id="ledger"),
     pytest.param("/accounts", id="accounts"),
     pytest.param("/budget", id="budget"),

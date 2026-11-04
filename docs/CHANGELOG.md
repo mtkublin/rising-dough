@@ -18,6 +18,8 @@
 
 ## 2026-11-04 (T-D48 - ledger day totals with reconciliation entries)
 - **Fix(T-D48): Ledger Actual day-group "net" was wrong when reconciliation (adjustment) rows were present.** Root cause: the sum lived in `templates/ledger/_table.html` and treated every non-income row as `-amount`; adjustment amounts are stored already signed (ADR-0008), so a -700.00 reconciliation was added as +700.00. It also summed raw minor units across account currencies. The net is now computed by `services/ledger_totals.py` (income +, expense -, adjustment pass-through, transit excluded) with per-row conversion to base currency (ADR-0006); conversion uses cached FX rates only (`fx.convert_cached`; rendering never fetches from the network); a day with no cached rate omits the figure. Positive adjustment rows now show a `+` and green amount. Other views (Today, Analytics, Fortune/balance, forecast) filter by direction or use `balance.signed_legs`, which already handles adjustments correctly; unchanged.
+## 2026-11-04 (T-D50 - legacy home page retired)
+- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0077.
 
 ## 2026-11-04 (T-D47 - Security + Password moved into Settings)
 - **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.

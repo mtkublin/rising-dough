@@ -41,6 +41,7 @@ from budget_planner.repositories.sessions import Session
 from budget_planner.services import auth as auth_service, rate_limit
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import (
+    DEFAULT_LANDING,
     LOGIN_PATH,
     Purpose,
     challenge_cookie_name,
@@ -321,7 +322,7 @@ def login_password(  # noqa: PLR0917
     request: Request,
     email: str = Form(default=""),
     password: str = Form(default=""),
-    next_path: str = Form(default="/", alias="next"),
+    next_path: str = Form(default=DEFAULT_LANDING, alias="next"),
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     ctx: RequestCtx = Depends(get_request_ctx),

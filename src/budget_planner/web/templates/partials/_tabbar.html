@@ -1,7 +1,7 @@
 {% set path = request.url.path %}
 <a class="rd-tabbar__item"
    href="/today"
-   {% if path in ('/', '/today') %}aria-current="page"{% endif %}>Today</a>
+   {% if path.startswith('/today') %}aria-current="page"{% endif %}>Today</a>
 <a class="rd-tabbar__item"
    href="/ledger"
    {% if path.startswith('/ledger') %}aria-current="page"{% endif %}>Ledger</a>

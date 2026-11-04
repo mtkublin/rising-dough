@@ -22,7 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
-from budget_planner.web.auth_cookies import safe_next
+from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
 
 PASSWORD_PATH: Final = "/settings/password"  # noqa: S105 — a URL path, not a secret
 LOGOUT_PATH: Final = "/auth/logout"
@@ -43,7 +43,7 @@ def is_exempt(path: str) -> bool:
 def password_url(next_path: str) -> str:
     """Return the rotation URL carrying a safe ``next`` (``/`` is dropped)."""
     target = safe_next(next_path)
-    if target == "/" or urlsplit(target).path == PASSWORD_PATH:
+    if target == DEFAULT_LANDING or urlsplit(target).path == PASSWORD_PATH:
         return PASSWORD_PATH
     return f"{PASSWORD_PATH}?next={quote(target, safe='')}"
 
@@ -56,7 +56,7 @@ def _request_target(request: Request) -> str:
 def _hx_target(request: Request) -> str:
     parts = urlsplit(request.headers.get("hx-current-url", ""))
     if not parts.path or (parts.netloc and parts.netloc != request.url.netloc):
-        return "/"
+        return DEFAULT_LANDING
     return f"{parts.path}?{parts.query}" if parts.query else parts.path
 
 
