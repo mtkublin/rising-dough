@@ -2,7 +2,7 @@
 
 > Everything in v3 that an agent cannot do: account sign-ups, payments, credentials, real-device checks, approvals, and decisions that belong to the operator. Runs in parallel with the agent-driven tasks in [`tasks.md`](tasks.md).
 >
-> Compiled 2026-11-03 from `tasks.md`, the phase files, `runbooks/`, `terraform/variables.tf`, and the secrets referenced by `.github/workflows/*.yml`.
+> Compiled 2026-11-03, re-checked against merged work 2026-11-04, from `tasks.md`, the phase files, `runbooks/`, `terraform/variables.tf`, and the secrets referenced by `.github/workflows/*.yml`.
 >
 > Tick items with `[x]` as they are done. Never write secret values into this file.
 
@@ -60,7 +60,7 @@
 ### A7. Terraform state bootstrap (T-D20)
 
 - [ ] With the operator key exported, run `./terraform/scripts/bootstrap-state.sh` (idempotent).
-- [ ] Fill in `terraform/envs/{drill,prod}/terraform.tfvars`. Both were created on 2026-11-04 in the main checkout (gitignored), with the known values (`pl-waw` / `pl-waw-2`, `github_owner = "mtkublin"`) filled in and every remaining field marked `TODO`. `grep -n TODO terraform/envs/*/terraform.tfvars` must print nothing before apply.
+- [ ] Fill in `terraform/envs/{drill,prod}/terraform.tfvars`. Both were created on 2026-11-04 in the main checkout (gitignored), with the known values (`pl-waw` / `pl-waw-2`, `github_owner = "mtkublin"`) filled in and every remaining field marked `TODO`. `grep -n TODO terraform/envs/*/terraform.tfvars` must print nothing before apply. Still open as of 2026-11-04 (both envs): `admin_email`, `scaleway_project_id`, `scaleway_organization_id`, `operator_ssh_pubkey`, `github_deploy_pubkey`, and `managed_dns_zone` (waits on D2).
 
 ### A8. Monitoring account (T-D44)
 
@@ -89,7 +89,7 @@ Follow-up for the agent (docs first, per `CLAUDE.md`). **Done in T-D62 (ADR-0084
 - **Name:** something neutral. Hostnames are public (certificate-transparency logs), so avoid encoding anything sensitive.
 - **Layout:** `budget.<domain>` for prod and `drill.budget.<domain>` for drill (the current defaults).
 
-Follow-up for the agent (Terraform risk, verify before T-D25):
+Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-04: not started.** There is no task for it in `tasks.md`, and `terraform/modules/dns/main.tf` is unchanged. It blocks `managed_dns_zone = true`, so it is the next infra prerequisite for T-D25. It needs a new task plus an ADR-0035 amendment:
 
 - `module.dns` creates `scaleway_domain_zone` for the **whole domain** in **each** env's state when `managed_zone = true`. Two states would then own one zone, and `terraform destroy` on drill (T-D26, and every monthly drill) could delete the zone and with it the prod records. The zone should be owned once (e.g. created at bootstrap or in a shared state, or referenced as a data source), with each env managing only its own A/AAAA records.
 - A domain registered at Scaleway Domains already comes with its zone, so a `scaleway_domain_zone` with `subdomain = ""` may collide with it. Confirm the behaviour against the provider docs.
@@ -105,7 +105,7 @@ Follow-up for the agent (Terraform risk, verify before T-D25):
 
   Whichever is chosen likely needs a new task, and possibly an ADR.
 - [ ] **Before any migration work, take an offline backup of `data/budget.sqlite`.**
-- [ ] **Give your existing local user a login (T-D19, ADR-0069).** Migration 0012 left the pre-v3 user (`id = 1`, name `default`, owner of all your data) with no email, no password and `is_admin = 0`. Once auth lands (T-D02b) you cannot log in as it until you set these. The app will **not** do it at startup on a DB with data. After T-D02b merges and before you rely on login, take an offline backup, then run once against your own DB (you type the password; the agent never runs this on prod):
+- [x] (done by 2026-11-04: user 1 has email + password + `is_admin`; migrations applied through 0014) **Give your existing local user a login (T-D19, ADR-0069).** Migration 0012 left the pre-v3 user (`id = 1`, name `default`, owner of all your data) with no email, no password and `is_admin = 0`. Once auth lands (T-D02b) you cannot log in as it until you set these. The app will **not** do it at startup on a DB with data. After T-D02b merges and before you rely on login, take an offline backup, then run once against your own DB (you type the password; the agent never runs this on prod):
 
   ```sh
   cp data/budget.sqlite data/budget.sqlite.bak-$(date +%Y%m%d)
@@ -120,15 +120,18 @@ Follow-up for the agent (Terraform risk, verify before T-D25):
   - [ ] T-D56: generate the Litestream age identity (`age-keygen -o litestream-age.key`), store it in the password manager, set the Terraform sensitive variable. Losing it makes the encrypted replica unrecoverable.
   - [ ] T-D57: confirm the 37-day maximum copy age is acceptable (it bounds how far back a restore can go).
   - [ ] T-D61: review `runbooks/data-inventory.md` and its "what the operator can see" statement; decide whether to share it with users now (recommended) or wait for v4's `/privacy` page.
-- [ ] Cost-alert threshold (T-D45) and alert email (T-D44).
-- [ ] T-D16 approach preference (the first attempt was reverted in `946330b`).
+- [x] Cost-alert threshold (T-D45): 10 EUR / 75 %, email + SMS (see A1).
+- [ ] Alert email for the uptime monitor (T-D44).
+- [x] ~~T-D16 approach preference~~: no longer needed; T-D16 landed (`d2caa91`).
 
 ---
 
 ## C. Review and testing alongside the agent
 
-- [ ] Review the security-sensitive merges: CSRF (T-D08/T-D08a), security headers (T-D07), user-id scoping (T-D16), auth (T-D02).
-- [ ] Passkeys on real devices once T-D02 lands: Mac Touch ID, iPhone, Android, and your password manager's passkey support.
+- [ ] Review the security-sensitive merges (all landed by 2026-11-04): CSRF (T-D08/T-D08a), security headers (T-D07), user-id scoping (T-D16, ADR-0068), auth backend + web layer (T-D02a/b, ADR-0067/0070), rate limits (T-D09/T-D18a, ADR-0072), admin panel (T-D17, ADR-0073), password policy (T-D18, ADR-0074), session hardening (T-D53, ADR-0076).
+- [ ] Passkeys on real devices (T-D02 has landed; ADR-0075 says real-device checks are a human step):
+  - [ ] Now, locally: Mac Touch ID and your password manager's passkey support, via `just dev` at `http://localhost:<port>` (not `127.0.0.1`; IP literals are refused).
+  - [ ] After drill exists (needs an HTTPS hostname): iPhone and Android against `drill.budget.rising-dough.eu`.
 - [ ] Hands-on check with `just dev-demo` on desktop and phone after the CSRF fix.
 - [ ] Run `just test-prod-stack` once on your own Docker setup.
 - [ ] Read `runbooks/*.md` as the person following them at 2 a.m. Flag any unclear step.
