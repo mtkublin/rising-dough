@@ -18,7 +18,7 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.repositories.sessions import session_handle
+from budget_planner.repositories.sessions import hash_token as session_handle_full, session_handle
 from budget_planner.services import auth as auth_service
 from budget_planner.web.app import create_app
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME, SESSION_DEV_COOKIE_NAME
@@ -158,7 +158,10 @@ def test_expired_session_is_rejected(
     client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection
 ) -> None:
     past = (datetime.now(UTC) - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    conn.execute("UPDATE sessions SET expires_at = ? WHERE id = ?", (past, session_cookie[1]))
+    conn.execute(
+        "UPDATE sessions SET expires_at = ? WHERE id = ?",
+        (past, session_handle_full(session_cookie[1])),
+    )
     conn.commit()
     _assert_rejected_and_cleared(client)
 
@@ -202,7 +205,8 @@ def test_authenticated_request_slides_cookie_and_session(
     assert r.status_code == 200
     refreshed = [h for h in r.headers.get_list("set-cookie") if h.startswith(SESSION_COOKIE_NAME)]
     assert len(refreshed) == 1
-    assert f"max-age={14 * 86_400}" in refreshed[0].lower()
+    max_age = int(refreshed[0].lower().split("max-age=", 1)[1].split(";", 1)[0])
+    assert 14 * 86_400 - 60 <= max_age <= 14 * 86_400
     after = sessions_repo.get_session(conn, session_cookie[1])
     assert after is not None
     assert after.expires_at >= before.expires_at
@@ -278,3 +282,20 @@ def test_get_request_ctx_without_user() -> None:
     assert ctx.user_id is None
     assert ctx.session_id is None
     assert ctx.ip is None
+
+
+def test_cookie_max_age_is_clamped_to_absolute_cap(
+    client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection
+) -> None:
+    """A 29-day-old session gets ~1 day of Max-Age, not the sliding 14 days (ADR-0076 §1)."""
+    created = (datetime.now(UTC) - timedelta(days=29)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    conn.execute(
+        "UPDATE sessions SET created_at = ? WHERE id = ?",
+        (created, session_handle_full(session_cookie[1])),
+    )
+    conn.commit()
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    header = next(h for h in r.headers.get_list("set-cookie") if h.startswith(SESSION_COOKIE_NAME))
+    max_age = int(header.lower().split("max-age=", 1)[1].split(";", 1)[0])
+    assert 86_400 - 60 <= max_age <= 86_400

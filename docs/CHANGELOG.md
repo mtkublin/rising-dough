@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-04 (T-D53a - hashed session ids + absolute lifetime cap)
+- **Change(T-D53a): `sessions.id` is now `sha256(cookie token)` hex**; the raw token exists only in the cookie, so a leaked DB/backup/replica holds no usable session. New nullable `sessions.authenticated_at`. Sliding expiry is clamped to `created_at + BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS` (default 30, must be >= the sliding 14) and the cookie `Max-Age` follows the clamped `expires_at`. New settings `BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS`, `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (the latter used by T-D53b). ADR-0076.
+- **Operator note - one-time sign-out:** migration `0015_session_hardening` revokes every live session (raw ids cannot be rehashed in SQL); every user signs in again once after the deploy.
+- **Rollback note (ADR-0071 §4):** 0015 is expand-only (one nullable column + an UPDATE), so an N-1 image still starts, but it looks raw cookie values up against hashed ids and finds nothing, so all users are sent to login. Acceptable; no restore needed. Down script `migrations/down/0015_session_hardening_down.sql` is forward-smoke-only and does not un-revoke sessions.
+
 ## 2026-11-04 (T-D53 — follow-up docs)
 - **Docs(T-D53): ADR-0076 §5 deferred items listed under "Deferred to v3.1 or later"** in `tasks.md`. T-D53 acceptance now also covers the runbook updates (`user-admin.md`, `deploy.md`) and keeping the T-D43 smoke journey green under re-auth.
 

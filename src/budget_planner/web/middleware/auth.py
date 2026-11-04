@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime
 from http import HTTPStatus
 from typing import Final
 from urllib.parse import quote, urlsplit
@@ -92,7 +93,7 @@ def is_exempt(path: str) -> bool:
     return path in EXEMPT_PATHS or path.startswith(STATIC_PREFIX)
 
 
-def _resolve(settings: Settings, session_id: str) -> CurrentUser | None:
+def _resolve(settings: Settings, session_id: str) -> tuple[CurrentUser, datetime] | None:
     conn = get_connection(settings)
     try:
         loaded = auth_service.load_session_user(conn, session_id)
@@ -102,7 +103,9 @@ def _resolve(settings: Settings, session_id: str) -> CurrentUser | None:
         return None
     finally:
         conn.close()
-    return None if loaded is None else CurrentUser.from_auth_user(loaded[1])
+    if loaded is None:
+        return None
+    return CurrentUser.from_auth_user(loaded[1]), loaded[0].expires_at
 
 
 def _login_url(next_path: str) -> str:
@@ -151,7 +154,8 @@ class AuthRequiredMiddleware(BaseHTTPMiddleware):
         settings: Settings = request.app.state.settings
         cookie_name = session_cookie_name(settings)
         session_id = request.cookies.get(cookie_name)
-        user = await run_in_threadpool(_resolve, settings, session_id) if session_id else None
+        resolved = await run_in_threadpool(_resolve, settings, session_id) if session_id else None
+        user, expires_at = resolved if resolved is not None else (None, None)
 
         if user is not None:
             request.state.user = user
@@ -164,8 +168,8 @@ class AuthRequiredMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         if session_id and not response_sets_cookie(response, cookie_name):
-            if user is not None:
-                set_session_cookie(response, settings, session_id)
+            if expires_at is not None:
+                set_session_cookie(response, settings, session_id, expires_at=expires_at)
             else:
                 clear_session_cookie(response, settings)
         return response

@@ -24,6 +24,8 @@ def test_defaults_match_requirements() -> None:
     assert s.bind_port == 8000
     assert s.trusted_hosts == ()
     assert s.session_lifetime_days == 14
+    assert s.session_absolute_lifetime_days == 30
+    assert s.session_reauth_window_minutes == 10
     assert s.fx_api_url.startswith("https://")
 
 

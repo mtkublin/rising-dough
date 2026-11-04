@@ -99,7 +99,9 @@ Copy [`.env.example`](.env.example) to `.env` and edit. All keys are prefixed `B
 | `BUDGET_ENV` | `dev` | `dev` / `test` / `production`. Production flips DB default and requires `BUDGET_COOKIE_SECRET`. |
 | `BUDGET_TRUSTED_HOSTS` | *(empty)* | Comma-separated. Fed to Starlette's `TrustedHostMiddleware` (T-D07). |
 | `BUDGET_COOKIE_SECRET` | *(dev fallback)* | Required in production ([ADR-0033](docs/adr/0033-v3-auth-single-user-passkey.md)). |
-| `BUDGET_SESSION_LIFETIME_DAYS` | `14` | Bounded 1..90. |
+| `BUDGET_SESSION_LIFETIME_DAYS` | `14` | Bounded 1..90. Sliding expiry. |
+| `BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS` | `30` | Bounded 1..365, must be >= the sliding lifetime. Hard cap from session creation (ADR-0076). |
+| `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` | `10` | Bounded 1..60. Step-up re-auth window (enforced by T-D53b). |
 | `BUDGET_FX_API_URL` | `https://api.frankfurter.app` | FX source. |
 
 Timestamps are UTC in the DB, dates on transactions are naive `DATE`, display defaults to `Europe/Warsaw`. See [ADR-0007](docs/adr/0007-timezone-handling.md).
