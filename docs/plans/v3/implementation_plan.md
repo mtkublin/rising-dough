@@ -134,6 +134,20 @@ Exit criteria (per task; a dated runbook entry for each):
   - `docs/plans/v3/runbooks/user-admin.md` (add user / reset password / remove user / promote-admin / last-admin invariant — ADR-0061)
 - **Production go-live** — swap DNS from the drill hostname to the prod hostname; monitor for 48 h; declare live by appending a `## 20YY-MM-DD` entry to `docs/CHANGELOG.md`.
 
+### Phase 5 — Data-protection quick wins (T-D54..T-D61, added 2026-11-04)
+
+Goal: close the cross-user leaks and unbounded copies found in the 2026-11-04 data-protection review, without key management (ADR-0078). Down-payment on v4 (`docs/plans/v4/`).
+
+Entry: Phase 1 complete (app tasks); T-D56/T-D57 need Phase 2 modules (T-D21, T-D23) and the drill restore helper (T-D41a).
+
+Exit criteria:
+- Admin's `/debug/audit-tail` shows no other user's payloads (T-D54).
+- Authenticated responses `no-store`; back-after-logout shows no data (T-D55).
+- Litestream replica age-encrypted; one restore drill against it logged (T-D56).
+- Every copy of user data ≤ 37 days old (T-D57); `secure_delete` on (T-D58).
+- Sentinel test proves no user values in app or Caddy logs (T-D59); IP/UA purged after 90 d (T-D60).
+- `runbooks/data-inventory.md` committed and reviewed by the operator (T-D61).
+
 ---
 
 ## Rollout order and dependencies (compressed)
@@ -175,6 +189,13 @@ Phase 3:
 Phase 4:
    restore drill → security scan → smoke (now exercises admin + second user) →
    monitoring → runbooks (now include user-admin.md) → go-live
+            │
+            ▼
+Phase 5  (app items parallel; infra items after Phase 2):
+   T-D54 audit-tail scoping · T-D55 no-store · T-D58 secure_delete ·
+   T-D59 log hygiene · T-D60 IP/UA purge  [P]
+   T-D56 age-encrypted replica → T-D57 37-day ceiling  [S]
+   T-D61 data inventory (last)
 ```
 
 ---

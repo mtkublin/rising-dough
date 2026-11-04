@@ -318,6 +318,43 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 
 ---
 
+## Phase 5 — Data-protection quick wins (added 2026-11-04; ADR-0078)
+
+Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/plans/v4/`, ADR-0079..0083). No key management, no schema redesign. Detail: `phase-5-data-protection/`.
+
+### ◻ T-D54 [P] Audit tail is owner-scoped → T-D43
+- `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows; other users' rows show metadata + `"[other-user]"`. Closes the one confirmed ADR-0061 leak (admin saw every user's audit payloads). Smoke journey asserts presence, not payload.
+- File: `phase-5-data-protection/T-D54-audit-tail-owner-scoped.md`. Reference: ADR-0078 §1.
+
+### ◻ T-D55 [P] `no-store` on authenticated responses; logout clears site data → T-D02b, T-D07
+- Middleware sets `Cache-Control: no-store` on every authenticated response (not `/static/`); logout adds `Clear-Site-Data: "cache", "storage"`. Back button after logout never shows cached financial pages.
+- File: `phase-5-data-protection/T-D55-no-store-authenticated-responses.md`. Reference: ADR-0078 §2.
+
+### ◻ T-D56 [S] Litestream replica encryption (age) + version alignment → T-D21, T-D23, T-D41a
+- One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
+- File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
+
+### ◻ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
+- Bucket noncurrent expiry 30 → 7 d; pre-migration backups pruned by age (≤30 d) and count; drill copies deleted per run. Setting `backup_max_age_days = 37`.
+- File: `phase-5-data-protection/T-D57-backup-copy-age-ceiling.md`. Reference: ADR-0078 §4.
+
+### ◻ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
+- Deleted content zeroed on disk. File: `phase-5-data-protection/T-D58-sqlite-secure-delete.md`. Reference: ADR-0078 §6.
+
+### ◻ T-D59 [P] Log hygiene → T-D06, T-D23
+- Structlog redaction processor (value-bearing keys); Caddy access log drops query strings; logrotate 14 d; sentinel test proves search terms never hit logs.
+- File: `phase-5-data-protection/T-D59-log-redaction.md`. Reference: ADR-0078 §5.
+
+### ◻ T-D60 [P] IP / user-agent retention purge (90 d) → T-D14, T-D19a
+- Null `audit_log.ip`/`user_agent` and delete ended `sessions` older than 90 d; runs at container start + daily.
+- File: `phase-5-data-protection/T-D60-ip-user-agent-retention-purge.md`. Reference: ADR-0078 §7.
+
+### ◻ T-D61 [S] Data inventory + "what the operator can see in v3" → T-D54..T-D60
+- `runbooks/data-inventory.md`: every location of user data/secrets with protection + retention; honest operator-visibility statement.
+- File: `phase-5-data-protection/T-D61-data-inventory-runbook.md`. Reference: ADR-0078 §8.
+
+---
+
 ## Deferred to v3.1 or later
 
 Explicitly out of v3 scope. Add an ADR before promoting any of these to the active plan.
@@ -328,9 +365,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - CSV import from banks (deferred from v1 as well).
 - Self-signup / public registration (multi-user is in scope at v3 via ADR-0061, but user creation is admin-only — no public sign-up form).
 - External IdP (GitHub / Google OIDC) for login.
-- Admin impersonation ("login as another user") or admin visibility into user data.
+- Admin impersonation ("login as another user") or admin visibility into user data. (Cryptographic isolation from the admin/operator is planned for v4 — `docs/plans/v4/`, ADR-0079.)
 - Forgot-password email flow — admin password reset is the only recovery path in v3.
-- Hard-delete flows that remove a user's underlying data rows (soft-delete only in v3).
+- Hard-delete flows that remove a user's underlying data rows (soft-delete only in v3). (Right to be forgotten planned for v4 — ADR-0083.)
 - Per-user API tokens or programmatic access.
 - CDN in front of the host (Cloudflare).
 - Switching from Caddy ACME HTTP-01 to DNS-01 (`caddy-dns/scaleway`).

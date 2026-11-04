@@ -314,6 +314,7 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - SQLite file at `/data/budget.db` with `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000` (ADR-0034).
 - Litestream sidecar streams WAL to Scaleway Object Storage every ≤10 s.
 - 30-day retention, daily snapshots.
+- **Maximum copy age 37 days** for every copy of user data outside the live DB (Litestream generations 30 d + bucket noncurrent versions 7 d; pre-migration backups ≤ 30 d; drill copies deleted per run). Replicas are age-encrypted to an operator-held identity. See [ADR-0078](adr/0078-v3-data-protection-quick-wins.md) §3–§4 (T-D56, T-D57).
 - RPO ≤ 15 s. RTO target < 60 min for full re-provision.
 - Monthly automated restore drill opens a GitHub issue on failure.
 
@@ -337,10 +338,10 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 Explicitly out of v3 scope (require ADR before promotion):
 
 - Self-signup / public registration. User creation remains admin-only (ADR-0061).
-- Multi-admin impersonation ("login as") or admin visibility into user data.
+- Multi-admin impersonation ("login as") or admin visibility into user data. Cryptographic isolation from admin/operator is planned for v4 (§7, ADR-0079).
 - "Forgot password" email flow. Admin reset is the only recovery path (ADR-0061).
 - External IdP (GitHub / Google OIDC) or per-user API tokens.
-- Hard-delete flows for user data (soft-delete only; see ADR-0061 §Consequences).
+- Hard-delete flows for user data (soft-delete only; see ADR-0061 §Consequences). Planned for v4 (§7, ADR-0083).
 - Autoscaling or multi-instance.
 - Cross-region replication of the Litestream bucket.
 - Centralised log store or distributed tracing.
@@ -366,3 +367,74 @@ Explicitly out of v3 scope (require ADR before promotion):
 - Monthly automated restore drill scheduled.
 - Operator captured the `admin_initial_password` into a password manager; admin has logged in, rotated the password, and (optionally) registered at least one passkey.
 - Dated go-live entry in `docs/CHANGELOG.md`.
+
+### 6.11 Data-protection quick wins (added 2026-11-04; ADR-0078)
+
+v3-scope hardening ahead of the v4 data-protection design (§7). Tasks T-D54..T-D61 (`docs/plans/v3/phase-5-data-protection/`).
+
+- `/debug/audit-tail` shows audit payloads only for the caller's own rows; other users' rows show metadata only (closes an ADR-0061 isolation gap).
+- Every authenticated response carries `Cache-Control: no-store`; logout sends `Clear-Site-Data: "cache", "storage"`.
+- Litestream replicas are age-encrypted; one pinned Litestream version across prod and prod-sim.
+- Maximum copy age of user data: 37 days (§6.5).
+- SQLite `secure_delete = ON`.
+- Logs carry no user values: structlog redaction processor; Caddy access log drops query strings; Caddy log rotation 14 days.
+- `audit_log.ip` / `user_agent` nulled and ended `sessions` deleted after 90 days.
+- `docs/plans/v3/runbooks/data-inventory.md` lists where user data lives, and states plainly what the operator can see in v3.
+
+---
+
+## 7. v4 — Data Protection Scope (added 2026-11-04)
+
+v4 keeps the v3 functional surface and deployment, and makes per-user data **cryptographically** inaccessible to anyone who is not logged in as that user. That includes the admin, the operator at rest, backup holders and infrastructure-credential holders. It also adds the right to be forgotten and data portability. Plan: `docs/plans/v4/`. Decisions: [ADR-0079](adr/0079-v4-threat-model-and-data-protection-goals.md) (threat model, option choice), [ADR-0080](adr/0080-v4-envelope-encryption-key-hierarchy-and-sessions.md) (keys and sessions), [ADR-0081](adr/0081-v4-field-level-encryption-scope-and-query-model.md) (columns and queries), [ADR-0082](adr/0082-v4-account-lifecycle-recovery-and-migration.md) (lifecycle and recovery), [ADR-0083](adr/0083-v4-right-to-be-forgotten-portability-and-retention.md) (erasure, export, retention).
+
+### 7.1 Hard requirements
+
+- **R1** Good application security: no regression of v3 controls; defence in depth around key material.
+- **R2** No breaking of existing functionality, or an industry-standard workaround documented in the plan (ADR-0081 §7 feature-preservation matrix; ADR-0082 §5 reset semantics).
+- **R3** User data is secure and not visible to anyone who is not logged in as that user, malicious actors included (ADR-0079 adversaries A1–A3, A6).
+- **R4** Right to be forgotten: irreversible erasure within a stated bound, backups included (ADR-0083).
+
+### 7.2 Encryption
+
+- Per-user envelope encryption. Credentials (password via Argon2id + server pepper; WebAuthn PRF passkeys; a one-time recovery code) wrap a per-user master key. The master key wraps versioned data keys. Fields are encrypted with AES-256-GCM, with AAD binding table, column and owner.
+- While a session is live, the master key is wrapped under a per-session key that exists **only in the session cookie**. Revoking the session destroys it.
+- Server secrets (`PEPPER`, `ESCROW_MASTER`) live in Scaleway Secret Manager and never in the DB, the backups or Terraform state.
+- Encrypted columns: all amounts, account and category names, descriptions, notes, recurring formulas, preference values, passkey labels, and audit payloads of user entities. Plaintext: ids, FKs, dates, enums, flags, currency, colours, timestamps, `users.email` / `name`.
+- SQL filters on plaintext metadata. Aggregates, sorting by value and text search run in Python on decrypted rows. Name uniqueness uses per-user blind indexes.
+- Performance budget: p95 render time increases by ≤ 50 ms at 20 000 transactions per user.
+
+### 7.3 Account lifecycle
+
+- Existing data is encrypted at the v4.0 deploy under a server escrow key, then **claimed** at the user's next login, at which point the escrow wrap is deleted. New users get a key at their first own-password set.
+- A recovery code is shown once at claim. Passkeys are labelled "Signs in and unlocks data" (PRF) or "Sign-in only".
+- **Admin password reset restores sign-in, not data.** Data needs the recovery code or a PRF passkey. A user who has neither may "Start fresh", which erases their data.
+- Settings → Security gains a Data protection section: key state, unlocking credentials, regenerate recovery code, reset encryption keys, rotate data key, export, delete account.
+
+### 7.4 Right to be forgotten, portability, retention
+
+- **Deactivate** (reversible) vs **Erase** (irreversible). Self-service and admin erasure are both step-up guarded. Deactivated users are auto-erased after 90 days.
+- Erasure: sessions and key wraps are hard-deleted (crypto-shred), user-owned rows are hard-deleted, auth audit events are pseudonymized, and the `users` row becomes a tombstone. An erasure ledger, replicated separately, is replayed after any restore so erased users never come back.
+- Backups expire within 37 days of erasure (§6.5).
+- Self-service JSON export bundle (`budget-planner-export/v1`) alongside the existing CSV / Parquet exports.
+- A public `/privacy` page states what the operator can and cannot see, the residual risks and the retention schedule.
+
+### 7.5 Stack changes
+
+- New dependency: `argon2-cffi`. `cryptography` becomes a direct dependency, imported only from `budget_planner.crypto`.
+- New infrastructure: Scaleway Secret Manager secrets (verify `pl-waw` availability; fallback is cloud-init file secrets), and a second Litestream-replicated DB (erasure ledger).
+
+### 7.6 Non-goals for v4
+
+- Client-side end-to-end encryption (zero-knowledge server). This is the v5 candidate if active host compromise (ADR-0079 A4) must be closed.
+- Protection against an operator who actively modifies the running app during user sessions (A4). Mitigated and disclosed, not prevented.
+- Encrypting structural metadata (dates, FK graph, counts).
+- Admin-escrowed recovery, email-based recovery, import of export bundles (v4.1 candidate).
+- Per-user SQLCipher database files.
+
+### 7.7 Deliverables
+
+- ADR-0079..ADR-0083 Accepted.
+- `docs/plans/v4/` phases complete with `✅` on every task.
+- No user in `plaintext` state on prod; contract migration released; byte-scan of the live DB finds no plaintext sentinel.
+- Restore drill passes with the decrypt canary.
+- `/privacy` published; dated v4 go-live entry in `docs/CHANGELOG.md`.
