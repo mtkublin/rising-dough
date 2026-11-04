@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-04 (T-VIS2 — visual baselines + flake fix)
+- **Test(T-VIS2): visual snapshots are deterministic.** Flake root cause: web fonts are loaded from Google Fonts (`fonts.css` `@import`, `font-display: swap`); network/swap timing changed glyph rasterization between runs, so a different random subset of snapshots (ledger/accounts/budget/today) differed by sub-pixel text anti-aliasing on every run. `tests/visual` now aborts `fonts.googleapis.com` / `fonts.gstatic.com` (opt-out `VISUAL_REAL_FONTS=1`), freezes animations/transitions, uses reduced motion + fixed scale factor, waits for `document.fonts.ready`, launches Chromium with stable raster flags, and allows 45 s for cold uvicorn start (was 10 s; cold `uv run` start failed all 12 tests). `VISUAL_KEEP_DIR=<dir>` keeps the generated PNG for diffing. All 12 baselines refreshed (new nav, Today, ledger day nets, budget slots, accounts "Available").
+- **Fix(T-VIS2): `/favicon.ico` 404.** Browsers auto-request `/favicon.ico` on every page (no `<link rel="icon">`), which 404'd. Added `static/favicon.svg` and `<link rel="icon" ...?v=fav1>` to `base.html` and `auth/_layout.html`. No other 4xx on /today, /ledger, /plan, /accounts, /settings, /settings/security.
+
 ## 2026-11-04 (T-D49a - no gaps between budget rows)
 - **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in. Also bumped the stylesheet cache-bust (`?v=rd2` → `?v=rd3` in `base.html`) because T-D49 changed the CSS without bumping it, so browsers kept the old cached CSS next to the new slot-row markup.
 

@@ -32,6 +32,18 @@ REPO_ROOT = VISUAL_ROOT.parents[1]
 DEMO_DB = REPO_ROOT / "data" / "demo.sqlite"
 
 
+# Deterministic text raster: no GPU tiling, no LCD/subpixel glyph positioning,
+# no hinting drift between runs (T-VIS2 flake fix).
+CHROMIUM_STABLE_ARGS = [
+    "--disable-gpu",
+    "--disable-lcd-text",
+    "--font-render-hinting=none",
+    "--disable-font-subpixel-positioning",
+    "--force-color-profile=srgb",
+    "--disable-skia-runtime-opts",
+]
+
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
@@ -64,7 +76,7 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
     """Boot uvicorn against a scratch copy of the demo DB for the session.
 
     Routes the server at `127.0.0.1:<free-port>`. Blocks until `/health`
-    returns 200 or raises after a 10 s timeout.
+    returns 200 or raises after a 45 s timeout (cold `uv run` start can take >10 s).
     """
     port = _free_port()
     base = f"http://127.0.0.1:{port}"
@@ -91,7 +103,7 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
     ]
     with subprocess.Popen(cmd, env=env) as proc:  # noqa: S603 — fixed args, local loopback port
         try:
-            deadline = time.monotonic() + 10
+            deadline = time.monotonic() + 45
             while time.monotonic() < deadline:
                 try:
                     if httpx.get(f"{base}/health", timeout=1).status_code == 200:
@@ -112,7 +124,7 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
 @pytest.fixture(scope="session")
 def browser() -> Iterator[Browser]:
     with sync_playwright() as p:
-        b = p.chromium.launch()
+        b = p.chromium.launch(args=CHROMIUM_STABLE_ARGS)
         try:
             yield b
         finally:
