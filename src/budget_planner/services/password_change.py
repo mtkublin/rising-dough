@@ -138,7 +138,7 @@ def _commit_change(
             request_ctx=ctx,
         )
         revoked = sessions_repo.revoke_all_user_sessions(
-            conn, user_id, except_session_id=current_session_id
+            conn, user_id, except_token=current_session_id
         )
         if revoked:
             write_audit(

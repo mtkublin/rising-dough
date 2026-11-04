@@ -185,7 +185,7 @@ Owner: application code. All tasks block Phase 2.
 - Step-up re-auth (`/auth/reauth`, passkey or password, 10-minute window) guards passkey add/revoke, revoking *other* sessions, and every admin `POST` under `/settings/users`. Rate-limit scope `reauth`. Audited.
 - The session token rotates on re-auth and on password change, keeping `created_at` so the cap cannot be reset.
 - Access/refresh tokens, periodic rotation, UA/IP binding and sign-in notifications are rejected or deferred (ADR-0076 §5).
-- Split: **T-D53a** hashed ids + absolute cap + migration; **T-D53b** step-up re-auth + rotation (→ T-D53a).
+- Split: **T-D53a ✅** hashed ids + absolute cap + migration (`0015_session_hardening`); **T-D53b** step-up re-auth + rotation (→ T-D53a).
 - File: `phase-1-prerequisites/T-D53-session-hardening.md`. Reference: ADR-0076.
 
 ---

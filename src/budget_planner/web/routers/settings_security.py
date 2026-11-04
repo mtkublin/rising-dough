@@ -10,12 +10,14 @@ exempt from ``MustChangePasswordMiddleware`` — forced users never reach it.
 from __future__ import annotations
 
 import sqlite3
+from datetime import timedelta
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
+from budget_planner.repositories.sessions import session_handle
 from budget_planner.services import password_change as password_service
 from budget_planner.web.deps import current_user, get_db
 from budget_planner.web.middleware.auth import CurrentUser
@@ -33,12 +35,21 @@ def security_context(
     request: Request, conn: sqlite3.Connection, user: CurrentUser
 ) -> dict[str, Any]:
     """Template context shared by the GET page and password-form re-renders."""
-    current_id = getattr(request.state, "session_id", None)
+    token = getattr(request.state, "session_id", None)
+    current_handle = session_handle(token) if token else None
     sessions = sessions_repo.list_active_sessions(conn, user.id)
+    absolute = timedelta(days=request.app.state.settings.session_absolute_lifetime_days)
     return {
         "active_tab": "security",
         "current_user": user,
-        "session_rows": [{"session": s, "is_current": s.id == current_id} for s in sessions],
+        "session_rows": [
+            {
+                "session": s,
+                "is_current": s.handle == current_handle,
+                "absolute_expires_at": s.created_at + absolute,
+            }
+            for s in sessions
+        ],
         "passkeys": webauthn_repo.list_credentials(conn, user.id),
         "label_max_length": LABEL_MAX_LENGTH,
         "min_length": password_service.MIN_PASSWORD_LENGTH,

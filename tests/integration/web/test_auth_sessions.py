@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -47,6 +48,9 @@ def test_sessions_page_lists_own_sessions_by_handle(
         assert raw not in html
     assert "This device" in html
     assert html.count("This device") == 1
+    assert "Expires" in html
+    expected = (datetime.now(UTC) + timedelta(days=30)).strftime("%d %b %Y")
+    assert expected in html  # absolute expiry = created_at + 30 days (ADR-0076)
 
 
 def test_sessions_page_lists_own_passkeys(

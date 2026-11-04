@@ -48,7 +48,7 @@ def seed_login_user(
 
 def issue_session(conn: sqlite3.Connection, *, user_id: int = 1) -> str:
     """Create a live session for ``user_id`` and return its raw id (cookie value)."""
-    return sessions_repo.create_session(conn, user_id, ip="127.0.0.1", user_agent="pytest").id
+    return sessions_repo.create_session(conn, user_id, ip="127.0.0.1", user_agent="pytest").token
 
 
 def login_cookie(

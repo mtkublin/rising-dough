@@ -64,7 +64,8 @@ def test_password_login_happy_path_sets_session_cookie(
     assert "samesite=lax" in lowered
     assert "path=/" in lowered
     assert "domain" not in lowered
-    assert f"max-age={_LIFETIME_SECONDS}" in lowered
+    max_age = int(lowered.split("max-age=", 1)[1].split(";", 1)[0])
+    assert _LIFETIME_SECONDS - 60 <= max_age <= _LIFETIME_SECONDS
     session_id = cookie.split(";", 1)[0].split("=", 1)[1]
     live = sessions_repo.get_session(conn, session_id)
     assert live is not None
