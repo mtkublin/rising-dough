@@ -19,7 +19,9 @@ a clock via ``app.state.rate_limit_clock``.
 
 from __future__ import annotations
 
+import ipaddress
 import json
+import logging
 import re
 import sqlite3
 from collections.abc import Callable
@@ -34,7 +36,6 @@ from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     sessions as sessions_repo,
-    webauthn as webauthn_repo,
 )
 from budget_planner.repositories.sessions import Session
 from budget_planner.services import auth as auth_service, rate_limit
@@ -60,6 +61,7 @@ from budget_planner.web.deps import (
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render
 
+_LOG = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 GENERIC_LOGIN_ERROR: Final = "That email and password combination didn't work."
@@ -68,7 +70,8 @@ RATE_LIMITED_LOGIN_ERROR: Final = (
 )
 RATE_LIMITED: Final = "rate_limited"
 PASSKEY_LOGIN_FAILED: Final = "login_failed"
-SESSIONS_PATH: Final = "/auth/sessions"
+SECURITY_SESSIONS_URL: Final = "/settings/security#sessions"
+SECURITY_PASSKEYS_URL: Final = "/settings/security#passkeys"
 LABEL_MAX_LENGTH: Final = 64
 DEFAULT_PASSKEY_LABEL: Final = "Passkey"
 _HANDLE_RE: Final = re.compile(r"^[0-9a-f]{16}$")
@@ -177,8 +180,46 @@ def _redirect(url: str) -> RedirectResponse:
     return RedirectResponse(url, status_code=_SEE_OTHER)
 
 
-def _rp(settings: Settings) -> auth_service.RelyingParty:
-    return auth_service.relying_party_from_settings(settings)
+_WEBAUTHN_FIELDS: Final = frozenset({"webauthn_rp_id", "webauthn_origin"})
+PASSKEY_HOST_UNSUPPORTED: Final = "passkey_host_unsupported"
+
+
+def _dev_host_is_ip(request: Request) -> bool:
+    """True when a dev server is reached by IP literal (never valid as an RP ID)."""
+    return _derives_rp_from_request(request.app.state.settings) and _is_ip(request.url.hostname)
+
+
+def _derives_rp_from_request(settings: Settings) -> bool:
+    return settings.env == "dev" and not (_WEBAUTHN_FIELDS & settings.model_fields_set)
+
+
+def _is_ip(host: str | None) -> bool:
+    try:
+        ipaddress.ip_address(host or "")
+    except ValueError:
+        return False
+    return True
+
+
+def _rp(settings: Settings, request: Request) -> auth_service.RelyingParty:
+    """Relying party from settings; in dev with unset WebAuthn env, from the request.
+
+    ``just dev`` may run on any port (and be opened as localhost), while the
+    static defaults pin ``http://localhost:8000``; deriving the origin keeps
+    passkeys working there (ADR-0075). Production always uses explicit settings.
+    """
+    rp = auth_service.relying_party_from_settings(settings)
+    if not _derives_rp_from_request(settings):
+        return rp
+    return auth_service.RelyingParty(
+        rp_id=request.url.hostname or rp.rp_id,
+        rp_name=rp.rp_name,
+        origin=f"{request.url.scheme}://{request.url.netloc}",
+    )
+
+
+def _passkey_host_error() -> JSONResponse:
+    return JSONResponse({"error": PASSKEY_HOST_UNSUPPORTED}, status_code=HTTPStatus.BAD_REQUEST)
 
 
 def _start_session(
@@ -313,9 +354,13 @@ def login_password(  # noqa: PLR0917
 
 
 @router.post("/login/begin")
-def login_passkey_begin(settings: Settings = Depends(get_settings_dep)) -> Response:
+def login_passkey_begin(
+    request: Request, settings: Settings = Depends(get_settings_dep)
+) -> Response:
     """Issue WebAuthn assertion options + the signed challenge cookie."""
-    challenge = auth_service.authenticate_passkey_begin(_rp(settings))
+    if _dev_host_is_ip(request):
+        return _passkey_host_error()
+    challenge = auth_service.authenticate_passkey_begin(_rp(settings, request))
     return _begin_response(settings, challenge, "login", None)
 
 
@@ -344,7 +389,7 @@ async def login_passkey_finish(  # noqa: PLR0917
             conn,
             body,
             challenge=envelope.challenge,
-            rp=_rp(settings),
+            rp=_rp(settings, request),
             ip=_client_ip(request),
             user_agent=request.headers.get("user-agent"),
             request_ctx=ctx,
@@ -388,25 +433,23 @@ def logout(
 
 
 @router.get("/register", response_class=HTMLResponse)
-def register_form(request: Request, user: CurrentUser = Depends(current_user)) -> HTMLResponse:
-    """Render the add-a-passkey page."""
-    return render(
-        request,
-        "auth/register.html",
-        current_user=user,
-        label_max_length=LABEL_MAX_LENGTH,
-    )
+def register_form(_user: CurrentUser = Depends(current_user)) -> RedirectResponse:
+    """Legacy URL: passkey registration lives in Settings -> Security (ADR-0075)."""
+    return _redirect(SECURITY_PASSKEYS_URL)
 
 
 @router.post("/register/begin")
 def register_passkey_begin(
+    request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user: CurrentUser = Depends(current_user),
 ) -> Response:
     """Issue WebAuthn creation options for the signed-in user."""
+    if _dev_host_is_ip(request):
+        return _passkey_host_error()
     try:
-        challenge = auth_service.register_passkey_begin(conn, user.id, _rp(settings))
+        challenge = auth_service.register_passkey_begin(conn, user.id, _rp(settings, request))
     except auth_service.PasskeyRegistrationError as exc:  # pragma: no cover — user is live
         raise HTTPException(HTTPStatus.BAD_REQUEST, detail=exc.reason) from exc
     return _begin_response(settings, challenge, "register", user.id)
@@ -449,14 +492,21 @@ async def register_passkey_finish(  # noqa: PLR0917
                 user.id,
                 credential,
                 challenge=envelope.challenge,
-                rp=_rp(settings),
+                rp=_rp(settings, request),
                 label=_clean_label(body.get("label")),
                 request_ctx=ctx,
             )
         except auth_service.PasskeyRegistrationError as exc:
+            _LOG.warning(
+                "passkey_register_failed reason=%s rp_id=%s origin=%s",
+                exc.reason,
+                _rp(settings, request).rp_id,
+                _rp(settings, request).origin,
+                exc_info=exc.__cause__,
+            )
             response = JSONResponse({"error": exc.reason}, status_code=HTTPStatus.BAD_REQUEST)
         else:
-            response = JSONResponse({"redirect": SESSIONS_PATH})
+            response = JSONResponse({"redirect": SECURITY_PASSKEYS_URL})
     clear_challenge_cookie(response, settings)
     return response
 
@@ -467,22 +517,9 @@ async def register_passkey_finish(  # noqa: PLR0917
 
 
 @router.get("/sessions", response_class=HTMLResponse)
-def sessions_page(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user: CurrentUser = Depends(current_user),
-) -> HTMLResponse:
-    """List the user's own active sessions (by handle) and passkeys."""
-    current_id = getattr(request.state, "session_id", None)
-    sessions = sessions_repo.list_active_sessions(conn, user.id)
-    rows = [{"session": s, "is_current": s.id == current_id} for s in sessions]
-    return render(
-        request,
-        "auth/sessions.html",
-        current_user=user,
-        session_rows=rows,
-        passkeys=webauthn_repo.list_credentials(conn, user.id),
-    )
+def sessions_page(_user: CurrentUser = Depends(current_user)) -> RedirectResponse:
+    """Legacy URL: sessions live in Settings -> Security (ADR-0075)."""
+    return _redirect(SECURITY_SESSIONS_URL)
 
 
 @router.post("/sessions/{handle}/revoke")
@@ -509,7 +546,7 @@ def revoke_session(  # noqa: PLR0917
         response = _redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
         return response
-    return _redirect(SESSIONS_PATH)
+    return _redirect(SECURITY_SESSIONS_URL)
 
 
 @router.post("/passkeys/{credential_id}/revoke")
@@ -522,4 +559,4 @@ def revoke_passkey(
     """Soft-delete one of the caller's own passkeys."""
     if not auth_service.revoke_passkey(conn, user.id, credential_id, request_ctx=ctx):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    return _redirect(SESSIONS_PATH)
+    return _redirect(SECURITY_PASSKEYS_URL)

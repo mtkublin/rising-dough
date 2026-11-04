@@ -80,6 +80,15 @@
     };
   }
 
+  /* Same-page redirects only change the hash, which would not reload the
+   * passkey list; force a reload so the new credential shows up. */
+  function goTo(url) {
+    var target = new URL(url, window.location.href);
+    var samePage = target.pathname === window.location.pathname;
+    window.location.assign(target.href);
+    if (samePage) window.location.reload();
+  }
+
   function supported() {
     return Boolean(window.PublicKeyCredential && navigator.credentials);
   }
@@ -136,6 +145,8 @@
     challenge_expired: "That took too long. Please try again.",
     duplicate_credential: "This passkey is already registered.",
     invalid_response: "Your device's response couldn't be verified.",
+    passkey_host_unsupported:
+      "Passkeys need a hostname. Open the app as http://localhost:<port> instead of an IP address.",
   };
 
   function bindRegister(form) {
@@ -150,7 +161,7 @@
       setStatus(status, "Follow the prompt on your device…", false);
       postJson("/auth/register/begin")
         .then(function (res) {
-          if (!res.ok) throw new Error("begin");
+          if (!res.ok) throw new Error(res.data.error || "begin");
           var opts = res.data;
           opts.challenge = toBytes(opts.challenge);
           opts.user.id = toBytes(opts.user.id);
@@ -172,7 +183,7 @@
           if (!res.ok || !res.data.redirect) {
             throw new Error(res.data.error || "finish");
           }
-          window.location.assign(res.data.redirect);
+          goTo(res.data.redirect);
         })
         .catch(function (err) {
           var msg = REGISTER_ERRORS[err && err.message] ||
