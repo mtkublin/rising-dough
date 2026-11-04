@@ -80,3 +80,9 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0075 | [Security Controls Live in Settings — Security Tab, Redirects, Forced-Rotation Page](0075-security-controls-live-in-settings.md) (amends ADR-0070, ADR-0073, ADR-0074) |
 | 0076 | [Session Hardening — Absolute Lifetime Cap, Step-Up Re-Auth, Hashed Session Ids](0076-session-hardening-absolute-cap-step-up-hashed-ids.md) (amends ADR-0067 §2, ADR-0070 §2–§3) |
 | 0077 | [Retire Legacy Home Page; Today Is the Landing Page](0077-retire-legacy-home-page.md) (amends ADR-0051, ADR-0023, ADR-0070 §4) |
+| 0078 | [v3 Data-Protection Quick Wins — Close Cross-User Leaks, Bound Copies, Encrypt Backups](0078-v3-data-protection-quick-wins.md) (amends ADR-0034 §3, ADR-0071) |
+| 0079 | [v4 Threat Model and Data-Protection Approach](0079-v4-threat-model-and-data-protection-goals.md) (amends ADR-0061; lifts v3 non-goals "admin visibility" / "hard delete") |
+| 0080 | [v4 Envelope Encryption — Key Hierarchy, Server Secrets, Session Binding](0080-v4-envelope-encryption-key-hierarchy-and-sessions.md) (amends ADR-0067, ADR-0070 §2, ADR-0076, ADR-0019) |
+| 0081 | [v4 Field-Level Encryption — Column Scope, Query Model, Feature Preservation](0081-v4-field-level-encryption-scope-and-query-model.md) (amends ADR-0022, ADR-0068, ADR-0019, ADR-0071) |
+| 0082 | [v4 Account Lifecycle Under Encryption — Onboarding, Credentials, Recovery, Migration](0082-v4-account-lifecycle-recovery-and-migration.md) (amends ADR-0061, ADR-0069, ADR-0073, ADR-0074, ADR-0075) |
+| 0083 | [v4 Right to Be Forgotten, Data Portability, Retention Schedule, Keyless Operations](0083-v4-right-to-be-forgotten-portability-and-retention.md) (amends ADR-0019, ADR-0034, ADR-0061, ADR-0073, ADR-0078) |
