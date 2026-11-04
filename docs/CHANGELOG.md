@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D49a - no gaps between budget rows)
+- **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in.
+
 ## 2026-11-04 (T-D53 — session hardening docs)
 - **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
 
