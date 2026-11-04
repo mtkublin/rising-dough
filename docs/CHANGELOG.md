@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D52 — reconcile by available credit)
+- **Add(T-D52): reconciling a liability account that has a credit limit now takes the bank's *available* credit.** `services.reconciliation.available_to_target_balance` converts it to the target balance (`-(limit - available)`); the adjustment is booked as before. Available outside `0..limit` is rejected (422). Other accounts unchanged. ADR-0011 amended.
+
 ## 2026-11-04 (T-D51 — liability available precision)
 - **Fix(T-D51): liability "Available" on `/accounts` now renders with 2 decimals** (`{:,.2f}` in `partials/accounts/_row.html` and `accounts/index.html`); Limit and Used keep whole-unit precision.
 
