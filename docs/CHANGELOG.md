@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D53 — session hardening docs)
+- **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
+
 ## 2026-11-04 (T-D51 — liability available precision)
 - **Fix(T-D51): liability "Available" on `/accounts` now renders with 2 decimals** (`{:,.2f}` in `partials/accounts/_row.html` and `accounts/index.html`); Limit and Used keep whole-unit precision.
 

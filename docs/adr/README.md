@@ -77,3 +77,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0072 | [Auth Rate Limiting — In-House Fixed-Window Counters on `auth_rate_limit`](0072-auth-rate-limit-sqlite-fixed-window.md) (amends ADR-0033 §2) |
 | 0073 | [User Admin Panel — 404 Guard, One-Shot Password Delivery, Invariant Errors, Audit Attribution](0073-user-admin-panel-guard-and-one-shot-password.md) (amends ADR-0061 §4, §5) |
 | 0074 | [Password Change — Policy, Audit Shape, and Forced-Rotation Responses](0074-password-change-policy-and-forced-rotation.md) (amends ADR-0061 §4) |
+| 0076 | [Session Hardening — Absolute Lifetime Cap, Step-Up Re-Auth, Hashed Session Ids](0076-session-hardening-absolute-cap-step-up-hashed-ids.md) (amends ADR-0067 §2, ADR-0070 §2–§3) |
