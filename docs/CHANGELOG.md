@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-04 (T-D53a - hashed session ids + absolute lifetime cap)
+- **Change(T-D53a): `sessions.id` is now `sha256(cookie token)` hex**; the raw token exists only in the cookie, so a leaked DB/backup/replica holds no usable session. New nullable `sessions.authenticated_at`. Sliding expiry is clamped to `created_at + BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS` (default 30, must be >= the sliding 14) and the cookie `Max-Age` follows the clamped `expires_at`. New settings `BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS`, `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (the latter used by T-D53b). ADR-0076.
+- **Operator note - one-time sign-out:** migration `0015_session_hardening` revokes every live session (raw ids cannot be rehashed in SQL); every user signs in again once after the deploy.
+- **Rollback note (ADR-0071 §4):** 0015 is expand-only (one nullable column + an UPDATE), so an N-1 image still starts, but it looks raw cookie values up against hashed ids and finds nothing, so all users are sent to login. Acceptable; no restore needed. Down script `migrations/down/0015_session_hardening_down.sql` is forward-smoke-only and does not un-revoke sessions.
+
 ## 2026-11-04 (T-D53 — session hardening docs)
 - **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
 

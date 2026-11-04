@@ -34,10 +34,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.repositories import (
-    sessions as sessions_repo,
-)
-from budget_planner.repositories.sessions import Session
+from budget_planner.repositories.sessions import IssuedSession, session_handle
 from budget_planner.services import auth as auth_service, rate_limit
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import (
@@ -226,14 +223,14 @@ def _start_session(
     request: Request,
     conn: sqlite3.Connection,
     settings: Settings,
-    session: Session,
+    issued: IssuedSession,
     response: Response,
 ) -> Response:
     """Revoke any session the browser already held, then set the new cookie."""
     previous = getattr(request.state, "session_id", None)
-    if previous and previous != session.id:
+    if previous and previous != issued.token:
         auth_service.logout(conn, previous)
-    set_session_cookie(response, settings, session.id)
+    set_session_cookie(response, settings, issued.token, expires_at=issued.session.expires_at)
     return response
 
 
@@ -534,15 +531,10 @@ def revoke_session(  # noqa: PLR0917
     """Revoke one of the caller's own sessions, addressed by its handle."""
     if not _HANDLE_RE.match(handle):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    target = next(
-        (s for s in sessions_repo.list_active_sessions(conn, user.id) if s.handle == handle),
-        None,
-    )
-    if target is None or not auth_service.revoke_user_session(
-        conn, user.id, target.id, request_ctx=ctx
-    ):
+    if not auth_service.revoke_user_session(conn, user.id, handle, request_ctx=ctx):
         raise HTTPException(HTTPStatus.NOT_FOUND, detail="not_found")
-    if target.id == getattr(request.state, "session_id", None):
+    current = getattr(request.state, "session_id", None)
+    if current and session_handle(current) == handle:
         response = _redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
         return response

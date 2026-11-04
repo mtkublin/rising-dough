@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.repositories.sessions import Session
+from budget_planner.repositories.sessions import IssuedSession
 from budget_planner.services import auth as auth_service
 from budget_planner.web.auth_cookies import (
     CHALLENGE_COOKIE_NAME,
@@ -78,7 +78,7 @@ def test_login_finish_success_sets_session_and_clears_challenge(
     issued = _b64url_to_bytes(_challenge_from_options(begin))
     seen: dict[str, Any] = {}
 
-    def _finish(c: sqlite3.Connection, credential: Any, **kw: Any) -> Session:
+    def _finish(c: sqlite3.Connection, credential: Any, **kw: Any) -> IssuedSession:
         seen["challenge"] = kw["challenge"]
         seen["credential"] = credential
         seen["ctx"] = kw["request_ctx"]

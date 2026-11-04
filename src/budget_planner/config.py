@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # emit a warning so the fallback is observable.
     cookie_secret: str = Field(default="")
     session_lifetime_days: int = Field(default=14, ge=1, le=90)
+    # ADR-0076 §1: hard cap measured from ``sessions.created_at``; sliding
+    # expiry never extends past it.
+    session_absolute_lifetime_days: int = Field(default=30, ge=1, le=365)
+    # ADR-0076 §2: how long a login / re-auth counts as "recent" (T-D53b).
+    session_reauth_window_minutes: int = Field(default=10, ge=1, le=60)
     fx_api_url: str = Field(default="https://api.frankfurter.app")
     # ADR-0067 §1: WebAuthn relying-party identity. Production must set
     # these to the deployed hostname and its ``https://`` origin; the
@@ -157,6 +162,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _finalise(self) -> Settings:
+        if self.session_absolute_lifetime_days < self.session_lifetime_days:
+            raise ValueError(
+                "session_absolute_lifetime_days must be >= session_lifetime_days (ADR-0076 §1)."
+            )
         # T-D04: default the DB path to ``/data/budget.db`` in production
         # when the operator has not overridden it. Dev / test keep the
         # repo-local default so `just dev` works without env plumbing.

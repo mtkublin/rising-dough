@@ -521,11 +521,20 @@ def _schema_through(tmp_path: Path, version: int) -> dict[str, Any]:
         conn.close()
 
 
+def _staged_dir(tmp_path: Path, version: int) -> Path:
+    staging = tmp_path / f"staged_{version}"
+    staging.mkdir(parents=True, exist_ok=True)
+    for mig in discover(MIGRATIONS_DIR):
+        if mig.version <= version:
+            (staging / mig.filename).write_bytes(mig.sql.encode("utf-8"))
+    return staging
+
+
 def test_0014_applies(tmp_path: Path) -> None:
     """Forward run creates the three auth tables with FKs, uniques, indexes."""
     conn = get_connection(_settings_for(tmp_path / "fwd14.sqlite"))
     try:
-        apply_migrations(conn)
+        apply_migrations(conn, _staged_dir(tmp_path, 14))
         schema = _normalize_schema(conn)
         for table in _AUTH_TABLES:
             assert table in schema, f"{table} must exist after 0014"
@@ -591,7 +600,7 @@ def test_0014_down_reverses(tmp_path: Path) -> None:
 
     conn = get_connection(_settings_for(tmp_path / "down14.sqlite"))
     try:
-        apply_migrations(conn)
+        apply_migrations(conn, _staged_dir(tmp_path, 14))
         conn.execute("BEGIN")
         for statement in _split_sql_statements(down_sql):
             conn.execute(statement)
@@ -603,3 +612,53 @@ def test_0014_down_reverses(tmp_path: Path) -> None:
     assert set(actual) == set(reference)
     for table in reference:
         assert actual[table] == reference[table], f"schema drift on {table}"
+
+
+# ---------------------------------------------------------------------------
+# T-D53a — migration 0015 session hardening (ADR-0076)
+# ---------------------------------------------------------------------------
+
+
+def test_0015_revokes_live_sessions_and_adds_authenticated_at(tmp_path: Path) -> None:
+    """Live pre-migration sessions are all revoked; the new column exists (NULL)."""
+    conn = get_connection(_settings_for(tmp_path / "fwd15.sqlite"))
+    try:
+        apply_migrations(conn, _staged_dir(tmp_path, 14))
+        conn.execute(
+            "INSERT INTO sessions (id, user_id, expires_at) VALUES ('raw-live', 1, '2999-01-01')"
+        )
+        conn.execute(
+            "INSERT INTO sessions (id, user_id, expires_at, revoked_at) "
+            "VALUES ('raw-old', 1, '2999-01-01', '2020-01-01T00:00:00.000Z')"
+        )
+        conn.commit()
+
+        apply_migrations(conn)
+
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
+        assert "authenticated_at" in cols
+        rows = {r["id"]: r for r in conn.execute("SELECT * FROM sessions")}
+        assert rows["raw-live"]["revoked_at"] is not None
+        assert rows["raw-old"]["revoked_at"] == "2020-01-01T00:00:00.000Z"
+        assert rows["raw-live"]["authenticated_at"] is None
+    finally:
+        conn.close()
+
+
+def test_0015_down_reverses(tmp_path: Path) -> None:
+    """Forward through 0015 then the down script restores the 0014 schema."""
+    reference = _schema_through(tmp_path, 14)
+    down_sql = (MIGRATIONS_DIR / "down" / "0015_session_hardening_down.sql").read_text(
+        encoding="utf-8"
+    )
+    conn = get_connection(_settings_for(tmp_path / "down15.sqlite"))
+    try:
+        apply_migrations(conn)
+        conn.execute("BEGIN")
+        for statement in _split_sql_statements(down_sql):
+            conn.execute(statement)
+        conn.execute("COMMIT")
+        actual = _normalize_schema(conn)
+    finally:
+        conn.close()
+    assert actual == reference
