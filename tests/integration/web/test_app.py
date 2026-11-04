@@ -28,8 +28,8 @@ def test_health_returns_ok(client: TestClient) -> None:
     assert "version" in r.json()
 
 
-def test_dev_index_renders_shell(client: TestClient) -> None:
-    r = client.get("/")
+def test_today_renders_shell(client: TestClient) -> None:
+    r = client.get("/today")
     assert r.status_code == 200
     body = r.text
     assert '<html lang="en"' in body

@@ -56,7 +56,7 @@ def test_password_login_happy_path_sets_session_cookie(
 ) -> None:
     r = _login(anon_client, TEST_EMAIL, TEST_PASSWORD)
     assert r.status_code == 303
-    assert r.headers["location"] == "/"
+    assert r.headers["location"] == "/today"
     cookie = _session_set_cookie(r)
     lowered = cookie.lower()
     assert "httponly" in lowered
@@ -131,20 +131,21 @@ def test_login_redirects_to_safe_next(anon_client: TestClient, login_user: int) 
 def test_login_rejects_open_redirect(anon_client: TestClient, login_user: int, evil: str) -> None:
     r = _login(anon_client, TEST_EMAIL, TEST_PASSWORD, next_path=evil)
     assert r.status_code == 303
-    assert r.headers["location"] == "/"
+    assert r.headers["location"] == "/today"
 
 
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        (None, "/"),
-        ("", "/"),
+        (None, "/today"),
+        ("/", "/today"),
+        ("", "/today"),
         ("/today", "/today"),
         ("/plan?tab=year#x", "/plan?tab=year#x"),
-        ("//evil", "/"),
-        ("http://evil/", "/"),
-        ("/\x7f", "/"),
-        ("/auth/login?next=/x", "/"),
+        ("//evil", "/today"),
+        ("http://evil/", "/today"),
+        ("/\x7f", "/today"),
+        ("/auth/login?next=/x", "/today"),
         ("/auth/sessions", "/auth/sessions"),
     ],
 )

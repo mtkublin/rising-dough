@@ -170,6 +170,8 @@ Owner: application code. All tasks block Phase 2.
 
 ### ✅ T-D48 [P] Ledger Actual day net wrong with reconciliation entries (bug fix)
 - Day-group net negated pre-signed `adjustment` amounts and summed raw minor units across currencies. Now `services/ledger_totals.py` (ADR-0008 signs, per-row FX to base per ADR-0006, transit excluded). Tests: `tests/unit/services/test_ledger_totals.py`, `tests/integration/web/test_ledger.py`.
+### ✅ T-D50 [S] Retire legacy home page → T-D47
+- `/` (GET/HEAD) → 303 `/today`; post-login, post-rotation and `safe_next` fallback = `DEFAULT_LANDING` (`/today`). Legacy home router, `templates/home/**`, `/overview/upcoming` and the home nav/palette entries removed; shared Today data helpers moved to `web/today_data.py`. Reference: ADR-0077.
 
 ### ✅ T-D51 [P] Liability "Available" shows 2 decimals
 - Accounts page (`partials/accounts/_row.html`, `accounts/index.html`): the liability "Available" figure switches from `{:,.0f}` to `{:,.2f}` so sub-unit remainders are visible. Limit and Used are unchanged. Covered by `test_liability_available_shows_two_decimals`.

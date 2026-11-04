@@ -76,7 +76,7 @@ def test_get_carries_safe_next(forced: TestClient) -> None:
     html = forced.get("/settings/password?next=/ledger").text
     assert 'name="next" value="/ledger"' in html
     html = forced.get("/settings/password?next=https://evil.test/").text
-    assert 'name="next" value="/"' in html
+    assert 'name="next" value="/today"' in html
 
 
 def test_settings_and_nav_do_not_link_to_password(client: TestClient) -> None:
@@ -143,7 +143,7 @@ def test_post_success_next_password_path_falls_back_to_root(forced: TestClient) 
         data={**_form(), "next": "/settings/password"},
         follow_redirects=False,
     )
-    assert r.headers["location"] == "/"
+    assert r.headers["location"] == "/today"
 
 
 def test_post_wrong_current_audits_and_keeps_state(

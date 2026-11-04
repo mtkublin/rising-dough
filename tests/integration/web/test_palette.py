@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 
-def _soup(client: TestClient, path: str = "/") -> BeautifulSoup:
+def _soup(client: TestClient, path: str = "/today") -> BeautifulSoup:
     response = client.get(path)
     assert response.status_code == 200
     return BeautifulSoup(response.text, "html.parser")

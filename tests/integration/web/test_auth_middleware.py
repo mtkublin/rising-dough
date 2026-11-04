@@ -65,9 +65,9 @@ def test_html_request_redirects_to_login_with_next(anon_client: TestClient) -> N
     assert r.headers.get("X-Frame-Options") == "DENY"
 
 
-def test_root_redirects_to_bare_login(anon_client: TestClient) -> None:
+def test_root_redirects_to_login_with_today_next(anon_client: TestClient) -> None:
     r = anon_client.get("/", follow_redirects=False)
-    assert r.headers["location"] == "/auth/login"
+    assert r.headers["location"] == "/auth/login?next=%2Ftoday"
 
 
 def test_htmx_request_gets_401_with_hx_redirect(anon_client: TestClient) -> None:
@@ -87,12 +87,12 @@ def test_htmx_foreign_current_url_is_ignored(anon_client: TestClient) -> None:
         headers={"HX-Request": "true", "HX-Current-URL": "https://evil.example/steal"},
     )
     assert r.status_code == 401
-    assert r.headers["HX-Redirect"] == "/auth/login"
+    assert r.headers["HX-Redirect"] == "/auth/login?next=%2Ftoday"
 
 
 def test_htmx_without_current_url(anon_client: TestClient) -> None:
     r = anon_client.get("/accounts", headers={"HX-Request": "true"})
-    assert r.headers["HX-Redirect"] == "/auth/login"
+    assert r.headers["HX-Redirect"] == "/auth/login?next=%2Ftoday"
 
 
 def test_json_client_gets_401(anon_client: TestClient) -> None:

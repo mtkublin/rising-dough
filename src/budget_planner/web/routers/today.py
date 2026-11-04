@@ -1,8 +1,7 @@
 """Today router — Rising Dough v2.
 
-Delegates to the existing home router's data assembly, but renders the
-v2 Today template (hero + Can-I-afford + Net worth + Upcoming) at the
-canonical URL ``/today``. Phase 7 will retire ``/`` → ``/today`` shim.
+Renders the v2 Today template (hero + Can-I-afford + Net worth + Upcoming)
+at the canonical URL ``/today``. ``/`` redirects here (ADR-0077).
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.repositories import (
@@ -25,11 +24,18 @@ from budget_planner.services import (
     fortune as fortune_service,
     today as today_service,
 )
+from budget_planner.web import today_data
+from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
-from budget_planner.web.routers import home as home_router
 
 router = APIRouter(tags=["today"])
+
+
+@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+def root_redirect() -> RedirectResponse:
+    """ADR-0077: no home page — ``/`` lands on Today."""
+    return RedirectResponse(DEFAULT_LANDING, status_code=303)
 
 
 @router.get("/today", response_class=HTMLResponse)
@@ -46,12 +52,12 @@ def today(
     year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
     base_ccy = settings.base_currency
 
-    account_rows, totals_by_ccy, fortune_base = home_router._collect_account_rows(
+    account_rows, totals_by_ccy, fortune_base = today_data.collect_account_rows(
         conn, user_id, base_ccy
     )
     fortune = fortune_service.compute_fortune(conn, user_id, settings)
     summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
-    pace = home_router._pace_tag(
+    pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
     days_left = summary.days_until_next_income
@@ -60,8 +66,8 @@ def today(
         ratio = 100 * summary.totals.spent_minor / summary.totals.budgeted_minor
         bar_pct = max(0, min(100, int(ratio)))
 
-    window_label, window_days = home_router._window_from(request)
-    upcoming = home_router._list_upcoming(conn, user_id, today_d, window_days)
+    window_label, window_days = today_data.window_from(request)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
     categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
 
@@ -98,12 +104,11 @@ def today_upcoming_fragment(
 
     Returned by inline-promote Esc + after-promote refresh paths so the
     swap preserves the Today surface's row shape (category pill +
-    direction-aware amount) instead of falling back to the legacy
-    `home/_upcoming_fragment.html` layout.
+    direction-aware amount) instead of a generic list layout.
     """
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    window_label, window_days = home_router._window_from(request)
-    upcoming = home_router._list_upcoming(conn, user_id, today_d, window_days)
+    window_label, window_days = today_data.window_from(request)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
     categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
     return render(

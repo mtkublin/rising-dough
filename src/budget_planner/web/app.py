@@ -16,8 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from budget_planner.config import Settings, get_settings
@@ -31,14 +30,11 @@ from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
-from budget_planner.web.rendering import render
 from budget_planner.web.templating import build_jinja_env
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
     from contextlib import AbstractAsyncContextManager
-
-_HOME_ROUTER_NAME = "home"
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _SIGTERM_INSTALLED = False
@@ -200,15 +196,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _register_routers(app)
     register_exception_handlers(app)
 
-    # Fallback `/` dev index when the home router did not register (shouldn't
-    # happen in prod — the home module is in-tree). Kept for test rigs that
-    # intentionally skip the home router.
-    if not any(getattr(r, "path", None) == "/" for r in app.router.routes):
-
-        @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-        def dev_index(request: Request) -> HTMLResponse:
-            return render(request, "_dev_index.html")
-
     return app
 
 
@@ -218,7 +205,6 @@ _ROUTER_NAMES: tuple[str, ...] = (
     "health",
     # T-D02b — login / logout / passkeys / sessions (ADR-0070).
     "auth",
-    "home",
     "transactions",
     "accounts",
     "categories",
