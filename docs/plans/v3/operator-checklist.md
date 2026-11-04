@@ -114,6 +114,10 @@ Follow-up for the agent (Terraform risk, verify before T-D25):
   Check: `just dev`, log in with that email and password. Do the same for `data/demo.sqlite` if you use `just dev-demo` (e.g. `--set-email=admin@local.test`), or rebuild it after the demo builder learns to set a login.
 - [ ] The other users (up to about 10) and how their one-time passwords are delivered out of band.
 - [ ] Privacy: hosting others' financial data makes the operator a GDPR controller. Decide on a short privacy note. Hard-delete is out of v3 scope.
+- [ ] **Data-protection quick wins (Phase 5, ADR-0078).**
+  - [ ] T-D56: generate the Litestream age identity (`age-keygen -o litestream-age.key`), store it in the password manager, set the Terraform sensitive variable. Losing it makes the encrypted replica unrecoverable.
+  - [ ] T-D57: confirm the 37-day maximum copy age is acceptable (it bounds how far back a restore can go).
+  - [ ] T-D61: review `runbooks/data-inventory.md` and its "what the operator can see" statement; decide whether to share it with users now (recommended) or wait for v4's `/privacy` page.
 - [ ] Cost-alert threshold (T-D45) and alert email (T-D44).
 - [ ] T-D16 approach preference (the first attempt was reverted in `946330b`).
 
@@ -153,6 +157,6 @@ Follow-up for the agent (Terraform risk, verify before T-D25):
 ## F. Ongoing operations
 
 - [ ] Keep an offline, encrypted copy of the Terraform state (`terraform-state-YYYYMMDD.tar.gz`), which the DR runbook expects.
-- [ ] Keep every operator credential in the password manager: Scaleway operator key, read-only restore key, GHCR PAT, both SSH keypairs, admin password.
+- [ ] Keep every operator credential in the password manager: Scaleway operator key, read-only restore key, GHCR PAT, both SSH keypairs, admin password, Litestream age identity (T-D56).
 - [ ] Approve prod deploys. Read the monthly `restore-drill` results and handle any failure issues.
 - [ ] Rotate on schedule: GHCR PAT before expiry; Scaleway keys and the cookie secret via `terraform apply -replace=...` (see `terraform/README.md`).

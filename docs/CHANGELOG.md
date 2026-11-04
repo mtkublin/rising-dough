@@ -5,6 +5,13 @@
 - **Operator note - one-time sign-out:** migration `0015_session_hardening` revokes every live session (raw ids cannot be rehashed in SQL); every user signs in again once after the deploy.
 - **Rollback note (ADR-0071 §4):** 0015 is expand-only (one nullable column + an UPDATE), so an N-1 image still starts, but it looks raw cookie values up against hashed ids and finds nothing, so all users are sent to login. Acceptable; no restore needed. Down script `migrations/down/0015_session_hardening_down.sql` is forward-smoke-only and does not un-revoke sessions.
 
+## 2026-11-04 (T-D53 — follow-up docs)
+- **Docs(T-D53): ADR-0076 §5 deferred items listed under "Deferred to v3.1 or later"** in `tasks.md`. T-D53 acceptance now also covers the runbook updates (`user-admin.md`, `deploy.md`) and keeping the T-D43 smoke journey green under re-auth.
+
+## 2026-11-04 (docs — data protection: v3 quick wins + v4 plan)
+- **Docs: ADR-0078** — v3 data-protection quick wins; new v3 Phase 5 tasks T-D54..T-D61 (`docs/plans/v3/phase-5-data-protection/`): owner-scoped `/debug/audit-tail` (admin currently sees every user's audit payloads — ADR-0061 gap), `no-store` on authenticated responses, age-encrypted Litestream replica + version alignment, 37-day copy ceiling, `secure_delete`, log redaction, IP/UA 90-day purge, data inventory. Requirements §6.5, §6.11.
+- **Docs: ADR-0079..ADR-0083 + `docs/plans/v4/`** — v4 data-protection scope (requirements §7): threat model and option choice (per-user envelope encryption; client-side E2EE deferred to v5), key hierarchy and cookie-held session key, field-level encryption scope and query model, account lifecycle / recovery / escrow→claim migration, right to be forgotten (crypto-shred + purge + erasure ledger), export bundle, retention schedule. Tasks T-E00..T-E26.
+
 ## 2026-11-04 (T-D53 — session hardening docs)
 - **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
 
