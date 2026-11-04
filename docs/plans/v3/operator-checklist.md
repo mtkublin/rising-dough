@@ -12,11 +12,12 @@
 
 ### A1. Scaleway
 
-- [ ] Create or verify the account and add a payment method. Identity or business verification may be required before compute is allowed, and it can take days. Start this first.
+- [x] Account data verified (2026-11-04).
 - [ ] Create a dedicated project (e.g. `budget-planner`). Record the **project ID** and **organization ID** (`scaleway_project_id`, `scaleway_organization_id`).
 - [x] Stardust availability checked (2026-11-03): **sold out in `PL-WAW-1`, available in `PL-WAW-2`.** See [decision D1](#d1-compute-zone-pl-waw-2) for the follow-up the agent needs to make.
 - [ ] Create an **operator API key** (project-admin) for Terraform. Store it in a password manager. It is used locally and as GitHub secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY`.
-- [ ] Cost alert (T-D45): set it at about 2× the expected monthly cost. Test it by lowering the threshold to 0.01 PLN, confirm the email arrives, then restore the threshold.
+- [x] Budget alert created (2026-11-04): budget 10 EUR, threshold 75 % (alerts at 7.50 EUR), delivered by email + SMS.
+- [ ] Delivery test (T-D45 acceptance): temporarily lower the threshold so it fires, confirm both email and SMS arrive, then restore it. Expect one false alarm in the month the domain is bought if it is billed through Scaleway.
 
 ### A2. Domain and DNS
 
