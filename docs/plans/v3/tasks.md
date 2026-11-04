@@ -188,6 +188,9 @@ Owner: application code. All tasks block Phase 2.
 - Split: **T-D53a ✅** hashed ids + absolute cap + migration (`0015_session_hardening`); **T-D53b ✅** step-up re-auth + rotation (→ T-D53a).
 - File: `phase-1-prerequisites/T-D53-session-hardening.md`. Reference: ADR-0076.
 
+### ✅ T-VIS3 [P] /today mobile overflow + visual baseline refresh → T-VIS2
+- `/today` at 375px: the Upcoming panel header (`.rd-panel__head`, flex without wrap) pushed the filter buttons ("Promote all due", "+ Planned", "+ Recurring") past the viewport, and the mobile row grid (`1fr` + `auto` actions column) squeezed the description to a few pixels. Header now wraps; rows use `minmax(0, 1fr)` with actions on their own row. `/budget` yearly table (1440) sits inside `.ledger-scroll`, so it scrolls in its own container and does not widen the page (no change). `mobile___today.png` baseline refreshed (375px wide). `rising-dough.css` cache-bust `rd3` → `rd4`.
+
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
