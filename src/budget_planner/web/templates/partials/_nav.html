@@ -34,22 +34,6 @@
     {% if me %}
       <div class="rd-rail__account">
         <span class="rd-rail__who" title="{{ me.email or me.name }}">{{ me.email or me.name }}</span>
-        <ul class="rd-nav">
-          <li class="rd-nav__item">
-            <a href="/auth/sessions"
-               class="rd-nav__link"
-               {% if path.startswith('/auth/') %}aria-current="page"{% endif %}>
-              <span>Security</span>
-            </a>
-          </li>
-          <li class="rd-nav__item">
-            <a href="/settings/password"
-               class="rd-nav__link"
-               {% if path == '/settings/password' %}aria-current="page"{% endif %}>
-              <span>Password</span>
-            </a>
-          </li>
-        </ul>
         <form method="post" action="/auth/logout">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="rd-btn rd-btn--ghost rd-rail__signout">Sign out</button>

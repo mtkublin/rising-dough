@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-04 (T-D47 - Security + Password moved into Settings)
+- **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.
+- **Fix(T-D47): "The passkey wasn't added" in dev.** WebAuthn RP ID/origin are now derived from the request host when `env=dev` and `BUDGET_WEBAUTHN_*` are unset (static `localhost:8000` default rejected any other port); IP-literal hosts get an explanatory message (open `http://localhost:<port>`); failures are logged; `passkeys.js` reloads on same-page redirect. New e2e `tests/e2e/test_passkey_journey.py` (virtual authenticator). `just dev` prints the localhost URL. ADR-0075 addendum.
+
 ## 2026-11-04 (T-D51 — liability available precision)
 - **Fix(T-D51): liability "Available" on `/accounts` now renders with 2 decimals** (`{:,.2f}` in `partials/accounts/_row.html` and `accounts/index.html`); Limit and Used keep whole-unit precision.
 

@@ -156,3 +156,23 @@
     justify-content: center;
   }
 }
+
+/* Settings -> Security tab (T-D47, ADR-0075) */
+.rd-sec-stack {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.rd-sec-stack > section {
+  scroll-margin-top: 1rem;
+}
+
+.rd-sec-password {
+  max-width: 32rem;
+}
+
+.rd-sec-register {
+  max-width: 32rem;
+  padding: 1.25rem;
+}

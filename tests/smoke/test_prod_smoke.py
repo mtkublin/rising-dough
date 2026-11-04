@@ -179,10 +179,11 @@ def _register_passkey(page: Page) -> None:
             }
         },
     )
-    page.goto("/auth/register")
+    page.goto("/settings/security")
     page.fill('input[name="label"]', "smoke virtual key")
     page.click("form[data-passkey-register] button[type=submit]")
-    page.wait_for_url(lambda url: "/auth/register" not in url)
+    page.wait_for_url(lambda url: url.endswith("/settings/security#passkeys"))
+    expect(page.locator("#passkeys")).to_contain_text("smoke virtual key")
     creds: dict[str, Any] = cdp.send(
         "WebAuthn.getCredentials",
         {"authenticatorId": added["authenticatorId"]},

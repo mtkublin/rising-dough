@@ -177,6 +177,10 @@ Owner: application code. All tasks block Phase 2.
 
 Owner: `terraform/` directory. All tasks block Phase 3.
 
+
+### ✅ T-D47 [S] Move Security + Password into Settings → Security tab → T-D02b, T-D18, T-D17
+- Nav rail drops the "Security" and "Password" links (keeps email + Sign out; mobile gets a Sign out button). New Settings tab `/settings/security` (all users) with Password, Passkeys, Sessions sections. `GET /auth/sessions` and `GET /auth/register` → 303 to the tab; `GET /settings/password` → 303 unless `must_change_password` (standalone forced page, middleware exempt list unchanged). Template/CSS consolidated (`settings-security.css`). Reference: ADR-0075.
+
 ### ✅ T-D20 [S] Terraform bootstrap (state bucket, versions, providers)
 - `terraform/README.md` documents the one-shot `scw object bucket create` for `budget-planner-tfstate-pl-waw`.
 - `versions.tf`, `providers.tf`, `backend.tf` committed.
