@@ -299,6 +299,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
+### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
+- Plan → Budget: "Override" renders the form in a per-row slot (`#override-slot-<category_id>`, a full-width `<tr><td colspan>` right after the row), right-aligned; one open at a time; Cancel/Esc close it and return focus to the button; save closes it and refreshes the budget table. Static `js/budget-override.js` replaces the inline script.
+
 ### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`
 - `docs/plans/v3/runbooks/rollback.md`

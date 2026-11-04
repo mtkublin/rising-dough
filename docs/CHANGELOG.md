@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D49 - budget override form inline under its row)
+- **Fix(T-D49): Plan → Budget override form** now opens directly under the clicked row (per-row `#override-slot-<category_id>` table row), right-aligned, instead of beneath all categories. One form open at a time; Cancel / Esc close it and restore focus to the Override button; saving closes it and re-fetches the budget table. Inline script replaced by `static/js/budget-override.js`.
+
 ## 2026-11-03 (T-VIS — mobile nav overflow fix + visual baselines)
 - **Fix(T-VIS): horizontal page scroll on `/ledger` (375 px), `/budget` (375 / 1024 / 1440) and `/ledger` (1024 px).** Root causes were CSS-only and not in the auth nav: (1) `.sr-only` table headers inside `.ledger-scroll` were absolutely positioned against the viewport and escaped the scroller, widening the document — `.ledger-scroll` is now `position: relative`; (2) the ledger filter-chip row stayed `nowrap` until 960 px and overflowed 1024 px tablets — wraps at ≤1200 px; (3) mobile `.rd-shell` uses `minmax(0, 1fr)` so wide content cannot stretch the single grid column. `rising-dough.css` cache-bust bumped to `rd2`.
 - Refreshed all 12 visual baselines (`tests/visual/baselines/`); widths now equal their viewports (375 / 1024 / 1440).

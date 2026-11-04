@@ -211,6 +211,7 @@ def new_override_form(
             "partials/budget/_override_form.html",
             category=cat,
             errors={},
+            inline=True,
             today_year=tz_year,
             preset_month=preset_month,
             preset_year=preset_year,
