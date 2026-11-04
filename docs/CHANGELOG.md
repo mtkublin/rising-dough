@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D49 - budget override form inline under its row)
+- **Fix(T-D49): Plan → Budget override form** now opens directly under the clicked row (per-row `#override-slot-<category_id>` table row), right-aligned, instead of beneath all categories. One form open at a time; Cancel / Esc close it and restore focus to the Override button; saving closes it and re-fetches the budget table. Inline script replaced by `static/js/budget-override.js`.
+
 ## 2026-11-04 (T-D48 - ledger day totals with reconciliation entries)
 - **Fix(T-D48): Ledger Actual day-group "net" was wrong when reconciliation (adjustment) rows were present.** Root cause: the sum lived in `templates/ledger/_table.html` and treated every non-income row as `-amount`; adjustment amounts are stored already signed (ADR-0008), so a -700.00 reconciliation was added as +700.00. It also summed raw minor units across account currencies. The net is now computed by `services/ledger_totals.py` (income +, expense -, adjustment pass-through, transit excluded) with per-row conversion to base currency (ADR-0006); conversion uses cached FX rates only (`fx.convert_cached`; rendering never fetches from the network); a day with no cached rate omits the figure. Positive adjustment rows now show a `+` and green amount. Other views (Today, Analytics, Fortune/balance, forecast) filter by direction or use `balance.signed_legs`, which already handles adjustments correctly; unchanged.
 

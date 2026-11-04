@@ -10,87 +10,80 @@
 {% set spent_pct = (100.0 * spent_minor / budget_minor) if budget_minor > 0 else 0 %}
 {% set committed_pct = (100.0 * committed_minor / budget_minor) if budget_minor > 0 else 0 %}
 {% set per_day = (remaining / (summary.days_until_next_income or 1)) %}
-<section class="rd-period-bar">
-  <div class="rd-period-bar__left">
-    <div class="rd-eyebrow">Period</div>
-    <div class="rd-period-bar__range">
-      {{ summary.period_start.strftime("%-d %b") }} → {{ summary.next_income_date.strftime("%-d %b") }}
+<div id="plan-budget">
+  <section class="rd-period-bar">
+    <div class="rd-period-bar__left">
+      <div class="rd-eyebrow">Period</div>
+      <div class="rd-period-bar__range">
+        {{ summary.period_start.strftime("%-d %b") }} → {{ summary.next_income_date.strftime("%-d %b") }}
+      </div>
+      <div class="mut rd-period-bar__anchor">
+        anchor: {{ summary.anchor_category_name or '—' }} · <a href="/settings?tab=prefs#income-anchor">change</a>
+      </div>
     </div>
-    <div class="mut rd-period-bar__anchor">
-      anchor: {{ summary.anchor_category_name or '—' }} · <a href="/settings?tab=prefs#income-anchor">change</a>
+    <div class="rd-period-bar__bar">
+      {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent_minor > budget_minor and budget_minor > 0)) }}
     </div>
-  </div>
-  <div class="rd-period-bar__bar">
-    {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent_minor > budget_minor and budget_minor > 0)) }}
-  </div>
-  <div class="rd-period-bar__right">
-    <span class="num rd-period-bar__perday">{{ "{:,.2f}".format(per_day) }}</span>
-    <span class="cur num">{{ base_ccy }} / day</span>
-    <div class="mut num rd-period-bar__meta">
-      {{ "{:,.2f}".format(committed) }} committed · {{ summary.days_until_next_income }} days left
+    <div class="rd-period-bar__right">
+      <span class="num rd-period-bar__perday">{{ "{:,.2f}".format(per_day) }}</span>
+      <span class="cur num">{{ base_ccy }} / day</span>
+      <div class="mut num rd-period-bar__meta">
+        {{ "{:,.2f}".format(committed) }} committed · {{ summary.days_until_next_income }} days left
+      </div>
     </div>
-  </div>
-</section>
-<div class="rd-table-scroll">
-  <table class="rd-table">
-    <caption class="sr-only">Budget by category for {{ today.strftime("%B %Y") }}</caption>
-    <thead>
-      <tr>
-        <th scope="col">Category</th>
-        <th scope="col" class="num">Planned</th>
-        <th scope="col" class="num">Actual</th>
-        <th scope="col">Used</th>
-        <th scope="col" class="num">Remaining</th>
-        <th scope="col"><span class="sr-only">Actions</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in summary.lines %}
-        {% set p = (row.budgeted_minor|int) / 100.0 %}
-        {% set a = (row.spent_minor|int) / 100.0 %}
-        {% set r = p - a %}
-        {% set used = (100.0 * a / p) if p > 0 else 0 %}
+  </section>
+  <div class="rd-table-scroll">
+    <table class="rd-table">
+      <caption class="sr-only">Budget by category for {{ today.strftime("%B %Y") }}</caption>
+      <thead>
         <tr>
-          <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
-          <td class="num">{{ "{:,.2f}".format(p) }}</td>
-          <td class="num">{{ "{:,.2f}".format(a) }}</td>
-          <td>{{ progress_bar(used, over=(a > p)) }}</td>
-          <td class="num"><span class="{% if r < 0 %}neg{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
-          <td class="rd-actions">
-            <button type="button"
-                    class="rd-btn rd-btn--sm rd-btn--ghost"
-                    hx-get="/budget/rules/{{ row.category_id }}/overrides/new?inline=1"
-                    hx-target="#budget-override-slot"
-                    hx-swap="innerHTML"
-                    aria-label="Override {{ row.category_name }}">⋯</button>
-          </td>
+          <th scope="col">Category</th>
+          <th scope="col" class="num">Planned</th>
+          <th scope="col" class="num">Actual</th>
+          <th scope="col">Used</th>
+          <th scope="col" class="num">Remaining</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
         </tr>
-      {% endfor %}
-      <tr>
-        <td><strong>Total</strong></td>
-        <td class="num"><strong>{{ "{:,.2f}".format(budget) }}</strong></td>
-        <td class="num"><strong>{{ "{:,.2f}".format(spent) }}</strong></td>
-        <td></td>
-        <td class="num"><strong>{{ "{:,.2f}".format(remaining) }}</strong></td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for row in summary.lines %}
+          {% set p = (row.budgeted_minor|int) / 100.0 %}
+          {% set a = (row.spent_minor|int) / 100.0 %}
+          {% set r = p - a %}
+          {% set used = (100.0 * a / p) if p > 0 else 0 %}
+          <tr id="budget-row-{{ row.category_id }}">
+            <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
+            <td class="num">{{ "{:,.2f}".format(p) }}</td>
+            <td class="num">{{ "{:,.2f}".format(a) }}</td>
+            <td>{{ progress_bar(used, over=(a > p)) }}</td>
+            <td class="num"><span class="{% if r < 0 %}neg{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
+            <td class="rd-actions">
+              <button type="button"
+                      class="rd-btn rd-btn--sm rd-btn--ghost"
+                      hx-get="/budget/rules/{{ row.category_id }}/overrides/new?inline=1"
+                      hx-target="#override-slot-{{ row.category_id }}"
+                      hx-swap="innerHTML"
+                      data-override-open="{{ row.category_id }}"
+                      aria-label="Override {{ row.category_name }}">⋯</button>
+            </td>
+          </tr>
+          <tr class="rd-override-slot-row" id="override-row-{{ row.category_id }}">
+            <td colspan="6"
+                id="override-slot-{{ row.category_id }}"
+                data-override-slot></td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <td><strong>Total</strong></td>
+          <td class="num"><strong>{{ "{:,.2f}".format(budget) }}</strong></td>
+          <td class="num"><strong>{{ "{:,.2f}".format(spent) }}</strong></td>
+          <td></td>
+          <td class="num"><strong>{{ "{:,.2f}".format(remaining) }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
-<div id="budget-override-slot" class="rd-budget-override-slot"></div>
-<script>
-  (function () {
-    function closeSlot() {
-      var slot = document.getElementById('budget-override-slot');
-      if (slot && slot.innerHTML) slot.innerHTML = '';
-    }
-    document.addEventListener('click', function (evt) {
-      var slot = document.getElementById('budget-override-slot');
-      if (!slot || !slot.innerHTML) return;
-      if (slot.contains(evt.target)) return;
-      if (evt.target.closest('[hx-get*="overrides/new"]')) return;
-      closeSlot();
-    });
-    document.addEventListener('keydown', function (evt) { if (evt.key === 'Escape') closeSlot(); });
-  })();
-</script>
+<script src="{{ url_for('static', path='js/budget-override.js') }}?v=tD49"
+        defer></script>
