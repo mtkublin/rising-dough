@@ -353,3 +353,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - CDN in front of the host (Cloudflare).
 - Switching from Caddy ACME HTTP-01 to DNS-01 (`caddy-dns/scaleway`).
 - Replacing SSH deploy with pull-based self-update.
+- Periodic session token rotation (e.g. daily). Needs a grace window so concurrent HTMX requests don't race the cookie swap (ADR-0076 §5).
+- Binding sessions to user agent or IP, including a soft "unrecognised device" flag (ADR-0076 §5).
+- New-sign-in notifications. Needs a notification channel, and v3 has none (ADR-0076 §5).
