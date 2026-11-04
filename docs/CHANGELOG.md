@@ -1,7 +1,18 @@
 # Changelog
 
+## 2026-11-04 (T-D53 — session hardening docs)
+- **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
+
+## 2026-11-04 (T-D52 — reconcile by available credit)
+- **Add(T-D52): reconciling a liability account that has a credit limit now takes the bank's *available* credit.** `services.reconciliation.available_to_target_balance` converts it to the target balance (`-(limit - available)`); the adjustment is booked as before. Available outside `0..limit` is rejected (422). Other accounts unchanged. ADR-0011 amended.
+
+## 2026-11-04 (T-D49 - budget override form inline under its row)
+- **Fix(T-D49): Plan → Budget override form** now opens directly under the clicked row (per-row `#override-slot-<category_id>` table row), right-aligned, instead of beneath all categories. One form open at a time; Cancel / Esc close it and restore focus to the Override button; saving closes it and re-fetches the budget table. Inline script replaced by `static/js/budget-override.js`.
+
+## 2026-11-04 (T-D48 - ledger day totals with reconciliation entries)
+- **Fix(T-D48): Ledger Actual day-group "net" was wrong when reconciliation (adjustment) rows were present.** Root cause: the sum lived in `templates/ledger/_table.html` and treated every non-income row as `-amount`; adjustment amounts are stored already signed (ADR-0008), so a -700.00 reconciliation was added as +700.00. It also summed raw minor units across account currencies. The net is now computed by `services/ledger_totals.py` (income +, expense -, adjustment pass-through, transit excluded) with per-row conversion to base currency (ADR-0006); conversion uses cached FX rates only (`fx.convert_cached`; rendering never fetches from the network); a day with no cached rate omits the figure. Positive adjustment rows now show a `+` and green amount. Other views (Today, Analytics, Fortune/balance, forecast) filter by direction or use `balance.signed_legs`, which already handles adjustments correctly; unchanged.
 ## 2026-11-04 (T-D50 - legacy home page retired)
-- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0076.
+- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0077.
 
 ## 2026-11-04 (T-D47 - Security + Password moved into Settings)
 - **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.

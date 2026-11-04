@@ -1,4 +1,4 @@
-"""Data assembly shared by the Today surface (T-D50 / ADR-0076).
+"""Data assembly shared by the Today surface (T-D50 / ADR-0077).
 
 Moved from the retired home router: account rows, pace tag, upcoming window
 and the upcoming-row view model. No business logic — services only.

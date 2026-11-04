@@ -1,4 +1,4 @@
-# ADR-0076: Retire legacy home page; Today is the landing page
+# ADR-0077: Retire legacy home page; Today is the landing page
 
 - Status: Accepted
 - Date: 2026-11-04

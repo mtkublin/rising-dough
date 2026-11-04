@@ -32,7 +32,7 @@ CHALLENGE_COOKIE_NAME: Final = "__Host-passkey-challenge"
 CHALLENGE_DEV_COOKIE_NAME: Final = "passkey_challenge"
 CHALLENGE_TTL_SECONDS: Final = 300
 LOGIN_PATH: Final = "/auth/login"
-DEFAULT_LANDING: Final = "/today"  # ADR-0076
+DEFAULT_LANDING: Final = "/today"  # ADR-0077
 
 _SECONDS_PER_DAY: Final = 86_400
 _FIRST_PRINTABLE: Final = 0x20
@@ -209,7 +209,7 @@ def clear_challenge_cookie(response: Response, settings: Settings) -> None:
 
 
 def safe_next(value: str | None) -> str:
-    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0076)."""
+    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0077)."""
     if not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\")):
         return DEFAULT_LANDING
     if "\\" in value or any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value):

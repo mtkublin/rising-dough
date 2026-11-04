@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.accounts import NewAccount, PatchAccount
+from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import (
@@ -368,6 +368,24 @@ def take_snapshot(
     return resp
 
 
+def _uses_available(acc: Account) -> bool:
+    """T-D52 — liability with a credit limit reconciles by available credit."""
+    return bool(acc.is_liability and acc.credit_limit_minor)
+
+
+def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
+    if not _uses_available(acc):
+        return {"by_available": False}
+    limit = acc.credit_limit_minor or 0
+    used = max(-derived, 0)
+    return {
+        "by_available": True,
+        "credit_limit_minor": limit,
+        "used_minor": used,
+        "available_minor": max(limit - used, 0),
+    }
+
+
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)
 def reconcile_form(
     account_id: int,
@@ -398,6 +416,7 @@ def reconcile_form(
         categories=categories,
         reconciliation_cat=reconciliation_cat,
         errors={},
+        **_available_mode_context(acc, derived),
     )
 
 
@@ -414,20 +433,33 @@ def reconcile_submit(  # noqa: PLR0917
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
-    try:
-        actual = Decimal(actual_balance)
-    except InvalidOperation:
+    derived = balance_service.derive_balance(conn, user_id, account_id)
+
+    def _reject(message: str) -> Response:
         return render(
             request,
             "partials/accounts/_reconcile_modal.html",
             account=acc,
-            derived=0,
+            derived=derived,
             categories=[c for c in categories_repo.list_all(conn, user_id) if not c.is_system],
             reconciliation_cat=categories_repo.find_by_name(conn, user_id, "Reconciliation"),
-            errors={"actual_balance": "invalid number"},
+            errors={"actual_balance": message},
             status_code=422,
+            **_available_mode_context(acc, derived),
         )
+
+    try:
+        actual = Decimal(actual_balance.replace(",", ".").strip())
+    except InvalidOperation:
+        return _reject("invalid number")
     actual_minor = to_minor_units(actual, acc.currency)
+    if _uses_available(acc):
+        try:
+            actual_minor = reconciliation_service.available_to_target_balance(
+                acc.credit_limit_minor or 0, actual_minor
+            )
+        except reconciliation_service.InvalidAvailableError as exc:
+            return _reject(str(exc))
     chosen_cat_id: int | None = None
     if category_id.strip():
         try:

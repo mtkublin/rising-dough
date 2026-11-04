@@ -168,11 +168,25 @@ Owner: application code. All tasks block Phase 2.
 - Rollback policy: migrations must stay readable by the previous image (expand-only); a release that breaks N-1 compatibility is flagged in its CHANGELOG entry and rolls back via restore (pre-migration backup or Litestream PITR), not via `rollback`.
 - Runbooks updated: `deploy.md`, `rollback.md`, `restore.md`, `disaster-recovery.md`. Reference: ADR-0071.
 
+### ✅ T-D48 [P] Ledger Actual day net wrong with reconciliation entries (bug fix)
+- Day-group net negated pre-signed `adjustment` amounts and summed raw minor units across currencies. Now `services/ledger_totals.py` (ADR-0008 signs, per-row FX to base per ADR-0006, transit excluded). Tests: `tests/unit/services/test_ledger_totals.py`, `tests/integration/web/test_ledger.py`.
 ### ✅ T-D50 [S] Retire legacy home page → T-D47
-- `/` (GET/HEAD) → 303 `/today`; post-login, post-rotation and `safe_next` fallback = `DEFAULT_LANDING` (`/today`). Legacy home router, `templates/home/**`, `/overview/upcoming` and the home nav/palette entries removed; shared Today data helpers moved to `web/today_data.py`. Reference: ADR-0076.
+- `/` (GET/HEAD) → 303 `/today`; post-login, post-rotation and `safe_next` fallback = `DEFAULT_LANDING` (`/today`). Legacy home router, `templates/home/**`, `/overview/upcoming` and the home nav/palette entries removed; shared Today data helpers moved to `web/today_data.py`. Reference: ADR-0077.
 
 ### ✅ T-D51 [P] Liability "Available" shows 2 decimals
 - Accounts page (`partials/accounts/_row.html`, `accounts/index.html`): the liability "Available" figure switches from `{:,.0f}` to `{:,.2f}` so sub-unit remainders are visible. Limit and Used are unchanged. Covered by `test_liability_available_shows_two_decimals`.
+
+### ✅ T-D52 [P] Reconcile liability accounts by available credit
+- For liability accounts with a credit limit, the reconcile slide-over asks for **Available** (prefilled with current available, 2 decimals) with helper text showing limit and implied used. Service converts `target = -(limit - available)` (`available_to_target_balance`), then runs the existing adjustment logic. Available outside `0..limit` is rejected with 422. Liabilities without a limit and assets unchanged. Reference: ADR-0011 amendment.
+
+### ◻ T-D53 [S] Session hardening: absolute cap, step-up re-auth, hashed ids → T-D02, T-D09, T-D14, T-D17, T-D18 (UI placement: T-D47)
+- Sessions get an absolute lifetime (`session_absolute_lifetime_days`, default 30) on top of the 14-day sliding expiry. Cookie `Max-Age` follows the clamped expiry.
+- `sessions.id` stores `sha256(token)`. The raw token lives only in the cookie. The migration revokes all live sessions (one-time re-login) and adds `sessions.authenticated_at`.
+- Step-up re-auth (`/auth/reauth`, passkey or password, 10-minute window) guards passkey add/revoke, revoking *other* sessions, and every admin `POST` under `/settings/users`. Rate-limit scope `reauth`. Audited.
+- The session token rotates on re-auth and on password change, keeping `created_at` so the cap cannot be reset.
+- Access/refresh tokens, periodic rotation, UA/IP binding and sign-in notifications are rejected or deferred (ADR-0076 §5).
+- Split: **T-D53a** hashed ids + absolute cap + migration; **T-D53b** step-up re-auth + rotation (→ T-D53a).
+- File: `phase-1-prerequisites/T-D53-session-hardening.md`. Reference: ADR-0076.
 
 ---
 
@@ -308,6 +322,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ◻ T-D45 [S] Cost alert
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
+
+### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
+- Plan → Budget: "Override" renders the form in a per-row slot (`#override-slot-<category_id>`, a full-width `<tr><td colspan>` right after the row), right-aligned; one open at a time; Cancel/Esc close it and return focus to the button; save closes it and refreshes the budget table. Static `js/budget-override.js` replaces the inline script.
 
 ### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`

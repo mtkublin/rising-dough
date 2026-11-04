@@ -1,7 +1,7 @@
 """Today router — Rising Dough v2.
 
 Renders the v2 Today template (hero + Can-I-afford + Net worth + Upcoming)
-at the canonical URL ``/today``. ``/`` redirects here (ADR-0076).
+at the canonical URL ``/today``. ``/`` redirects here (ADR-0077).
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ router = APIRouter(tags=["today"])
 
 @router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 def root_redirect() -> RedirectResponse:
-    """ADR-0076: no home page — ``/`` lands on Today."""
+    """ADR-0077: no home page — ``/`` lands on Today."""
     return RedirectResponse(DEFAULT_LANDING, status_code=303)
 
 

@@ -1,4 +1,4 @@
-"""T-D50 / ADR-0076: `/` redirects to Today; shell + navigation on /today."""
+"""T-D50 / ADR-0077: `/` redirects to Today; shell + navigation on /today."""
 
 from __future__ import annotations
 
