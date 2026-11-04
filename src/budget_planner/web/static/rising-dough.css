@@ -2114,6 +2114,10 @@ kbd.rd-kbd {
 
 /* T-D49: the form lives in a per-row slot (<tr><td colspan>) under its row. */
 .rd-override-slot-row > td:empty { display: none; }
+
+/* T-D49a: a closed slot row must take zero height and draw no border at any
+   viewport; it only exists while the form is swapped in. */
+.rd-override-slot-row:not(:has(.rd-override)) { display: none; }
 .rd-override-slot-row > td { padding: 0.5rem 0.75rem 0.9rem; }
 .rd-override-slot-row .rd-override { margin: 0 0 0 auto; }
 

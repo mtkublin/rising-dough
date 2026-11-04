@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
@@ -242,6 +243,12 @@ def test_plan_budget_override_button_targets_per_row_slot(client: TestClient, ca
     btn_row = btn.find_parent("tr")
     assert isinstance(btn_row, Tag)
     assert btn_row.find_next_sibling("tr") is row
+    # T-D49a: closed slot is empty and its row is hidden by CSS (no row gaps).
+    assert slot.get_text(strip=True) == "" and not slot.find(True)
+    assert "rd-override-slot-row" in (row.get("class") or [])
+    static = Path(__file__).resolve().parents[3] / "src/budget_planner/web/static"
+    css = (static / "rising-dough.css").read_text()
+    assert ".rd-override-slot-row:not(:has(.rd-override)) { display: none; }" in css
     ids = [t["id"] for t in soup.find_all(id=True)]
     assert len(ids) == len(set(ids))
     assert soup.find(id="budget-override-slot") is None

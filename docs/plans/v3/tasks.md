@@ -332,6 +332,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
 - Plan → Budget: "Override" renders the form in a per-row slot (`#override-slot-<category_id>`, a full-width `<tr><td colspan>` right after the row), right-aligned; one open at a time; Cancel/Esc close it and return focus to the button; save closes it and refreshes the budget table. Static `js/budget-override.js` replaces the inline script.
 
+### ✅ T-D49a [S] No gaps between budget rows when override slots are closed (UI regression fix of T-D49)
+- Empty per-row slot rows (`tr.rd-override-slot-row`) are `display: none` via CSS (`:not(:has(.rd-override))`) at every viewport; a row appears only while its override form is swapped in. Open-form behaviour unchanged.
+
 ### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`
 - `docs/plans/v3/runbooks/rollback.md`

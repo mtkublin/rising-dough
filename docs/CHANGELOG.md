@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D49a - no gaps between budget rows)
+- **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in. Also bumped the stylesheet cache-bust (`?v=rd2` → `?v=rd3` in `base.html`) because T-D49 changed the CSS without bumping it, so browsers kept the old cached CSS next to the new slot-row markup.
+
 ## 2026-11-04 (T-D53b - step-up re-auth + session token rotation)
 - **Add(T-D53b): step-up re-authentication** (ADR-0076 §2). `web/deps.require_recent_auth` guards `POST /auth/register/begin|finish`, `POST /auth/passkeys/{id}/revoke`, `POST /auth/sessions/{handle}/revoke` (only for sessions other than the current one) and every `POST` under `/settings/users`. When the last login / re-auth is older than `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (default 10): HTMX gets `403` + `HX-Redirect`, JSON (`passkeys.js`, which now navigates to `redirect`) gets `403 {"error":"reauth_required","redirect"}`, anything else `303` to `/auth/reauth?next=<page you were on>` (validated by `safe_next`).
 - **Add(T-D53b): `/auth/reauth`** page (passkey restricted to the user's own credentials via `allowCredentials`, or current password) with `POST /auth/reauth`, `/auth/reauth/begin`, `/auth/reauth/finish`; challenge cookie purpose `reauth`. Rate limit scope `reauth` (5/min + 20/h per user, `BUDGET_RATE_LIMIT_REAUTH_PER_MINUTE/_PER_HOUR`), `429` + `Retry-After`. Audited as `auth_event` `reauth` / `reauth_failed` (`method`, `reason`).
