@@ -226,6 +226,44 @@ def test_yearly_cell_renders_major_decimal(client: TestClient, cat_id: int) -> N
     assert inp.get("value") == "22.33"
 
 
+def test_plan_budget_override_button_targets_per_row_slot(client: TestClient, cat_id: int) -> None:
+    """T-D49: each Override button targets its own slot row; ids are unique."""
+    r = client.get("/plan?tab=budget")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    btn = soup.find("button", {"data-override-open": str(cat_id)})
+    assert isinstance(btn, Tag)
+    assert btn.get("hx-target") == f"#override-slot-{cat_id}"
+    slot = soup.find("td", {"id": f"override-slot-{cat_id}"})
+    assert isinstance(slot, Tag)
+    assert slot.get("colspan") == "6"
+    row = slot.find_parent("tr")
+    assert isinstance(row, Tag)
+    btn_row = btn.find_parent("tr")
+    assert isinstance(btn_row, Tag)
+    assert btn_row.find_next_sibling("tr") is row
+    ids = [t["id"] for t in soup.find_all(id=True)]
+    assert len(ids) == len(set(ids))
+    assert soup.find(id="budget-override-slot") is None
+
+
+def test_inline_override_form_is_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1")
+    assert r.status_code == 200
+    assert "<html" not in r.text
+    soup = BeautifulSoup(r.text, "html.parser")
+    form = soup.select_one("form[data-override-form]")
+    assert isinstance(form, Tag)
+    assert form.has_attr("data-override-inline")
+    assert soup.select_one("[data-override-cancel]") is not None
+    assert "<script" not in r.text.split("</form>")[0]
+
+
+def test_slideover_override_form_has_no_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
+    assert "data-override-cancel" not in r.text
+
+
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
     r = client.get("/budget/rules/9999/overrides/new")
     assert r.status_code == 404

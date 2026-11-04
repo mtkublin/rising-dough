@@ -12,19 +12,8 @@
   else "planned-table" if view == "planned"
   else "recurring-table"
 ) %}
-{# Precompute per-day net (expense negative, income positive, transit excluded)
-   so the day-group header can show it on the right. Keyed by ISO date. #}
-{% set day_nets = namespace(by_date={}) %}
-{% if view == "actual" %}
-  {% for row in rows %}
-    {% set key = row.operation_date.isoformat() %}
-    {% set dir_value = row.category.direction.value if row.category else '' %}
-    {% if dir_value != "transit" %}
-      {% set sign = 1 if dir_value == 'income' else -1 %}
-      {% set _ = day_nets.by_date.update({key: day_nets.by_date.get(key, 0) + sign * row.amount}) %}
-    {% endif %}
-  {% endfor %}
-{% endif %}
+{# Per-day net comes from the router (services.ledger_totals, T-D48): base
+   currency, ADR-0008 signs (adjustment pre-signed), transit excluded. #}
 <div id="ledger-table"
      data-ledger-table-root
      data-view="{{ view }}"
@@ -69,13 +58,13 @@
             {% if view == "actual" %}
               {%- if ns.day != row.operation_date -%}
                 {%- set ns.day = row.operation_date -%}
-                {%- set day_net = day_nets.by_date.get(row.operation_date.isoformat(), 0) -%}
+                {%- set day_net = day_nets.get(row.operation_date.isoformat()) -%}
                 <tr class="rd-day-head">
                   <td colspan="4">
                     <span class="rd-eyebrow">{{ row.operation_date.strftime("%a %d %b") }}</span>
                   </td>
                   <td class="text-right">
-                    {% if day_net != 0 %}
+                    {% if day_net is not none and day_net != 0 %}
                       <span class="num {{ 'pos' if day_net > 0 else 'neg' }}">net {{ '{:+,.2f}'.format(day_net / 100.0) }}</span>
                     {% endif %}
                   </td>

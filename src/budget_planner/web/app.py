@@ -230,6 +230,7 @@ _ROUTER_NAMES: tuple[str, ...] = (
     "settings",
     "settings_users",
     "settings_password",
+    "settings_security",
     "debug",
     "ledger",
     "today",

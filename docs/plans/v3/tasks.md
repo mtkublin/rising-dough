@@ -168,8 +168,14 @@ Owner: application code. All tasks block Phase 2.
 - Rollback policy: migrations must stay readable by the previous image (expand-only); a release that breaks N-1 compatibility is flagged in its CHANGELOG entry and rolls back via restore (pre-migration backup or Litestream PITR), not via `rollback`.
 - Runbooks updated: `deploy.md`, `rollback.md`, `restore.md`, `disaster-recovery.md`. Reference: ADR-0071.
 
+### ✅ T-D48 [P] Ledger Actual day net wrong with reconciliation entries (bug fix)
+- Day-group net negated pre-signed `adjustment` amounts and summed raw minor units across currencies. Now `services/ledger_totals.py` (ADR-0008 signs, per-row FX to base per ADR-0006, transit excluded). Tests: `tests/unit/services/test_ledger_totals.py`, `tests/integration/web/test_ledger.py`.
+
 ### ✅ T-D51 [P] Liability "Available" shows 2 decimals
 - Accounts page (`partials/accounts/_row.html`, `accounts/index.html`): the liability "Available" figure switches from `{:,.0f}` to `{:,.2f}` so sub-unit remainders are visible. Limit and Used are unchanged. Covered by `test_liability_available_shows_two_decimals`.
+
+### ✅ T-D52 [P] Reconcile liability accounts by available credit
+- For liability accounts with a credit limit, the reconcile slide-over asks for **Available** (prefilled with current available, 2 decimals) with helper text showing limit and implied used. Service converts `target = -(limit - available)` (`available_to_target_balance`), then runs the existing adjustment logic. Available outside `0..limit` is rejected with 422. Liabilities without a limit and assets unchanged. Reference: ADR-0011 amendment.
 
 ### ◻ T-D53 [S] Session hardening: absolute cap, step-up re-auth, hashed ids → T-D02, T-D09, T-D14, T-D17, T-D18 (UI placement: T-D47)
 - Sessions get an absolute lifetime (`session_absolute_lifetime_days`, default 30) on top of the 14-day sliding expiry. Cookie `Max-Age` follows the clamped expiry.
@@ -185,6 +191,10 @@ Owner: application code. All tasks block Phase 2.
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
 
 Owner: `terraform/` directory. All tasks block Phase 3.
+
+
+### ✅ T-D47 [S] Move Security + Password into Settings → Security tab → T-D02b, T-D18, T-D17
+- Nav rail drops the "Security" and "Password" links (keeps email + Sign out; mobile gets a Sign out button). New Settings tab `/settings/security` (all users) with Password, Passkeys, Sessions sections. `GET /auth/sessions` and `GET /auth/register` → 303 to the tab; `GET /settings/password` → 303 unless `must_change_password` (standalone forced page, middleware exempt list unchanged). Template/CSS consolidated (`settings-security.css`). Reference: ADR-0075.
 
 ### ✅ T-D20 [S] Terraform bootstrap (state bucket, versions, providers)
 - `terraform/README.md` documents the one-shot `scw object bucket create` for `budget-planner-tfstate-pl-waw`.
@@ -310,6 +320,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ◻ T-D45 [S] Cost alert
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
 - File: `phase-4-validation/T-D45-cost-alert.md`.
+
+### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
+- Plan → Budget: "Override" renders the form in a per-row slot (`#override-slot-<category_id>`, a full-width `<tr><td colspan>` right after the row), right-aligned; one open at a time; Cancel/Esc close it and return focus to the button; save closes it and refreshes the budget table. Static `js/budget-override.js` replaces the inline script.
 
 ### ✅ T-D46 [S] Operational runbooks → T-D33, T-D40, T-D17
 - `docs/plans/v3/runbooks/deploy.md`

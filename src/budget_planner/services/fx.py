@@ -143,4 +143,25 @@ def convert(  # noqa: PLR0917
     return int(quantised)
 
 
-__all__ = ["FxUnavailableError", "convert", "get_rate"]
+def convert_cached(
+    conn: sqlite3.Connection,
+    amount_minor: int,
+    on_date: dt.date,
+    from_ccy: str,
+    to_ccy: str,
+) -> int:
+    """Like :func:`convert` but never touches the network (page-render safe).
+
+    Uses the exact-date cached rate, else the latest cached rate on or before
+    ``on_date``; raises ``FxUnavailableError`` when nothing is cached.
+    """
+    if from_ccy == to_ccy:
+        return amount_minor
+    hit = fx_repo.find_rate(conn, on_date, from_ccy, to_ccy)
+    rate = hit.rate if hit is not None else _fallback(conn, on_date, from_ccy, to_ccy)
+    major = Decimal(amount_minor) / (Decimal(10) ** currency_decimals(from_ccy))
+    converted = major * rate * (Decimal(10) ** currency_decimals(to_ccy))
+    return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
+
+
+__all__ = ["FxUnavailableError", "convert", "convert_cached", "get_rate"]

@@ -2111,8 +2111,33 @@ kbd.rd-kbd {
 .rd-rec-overrides { font-size: 0.75rem; }
 
 /* ─── Budget override inline slot (visual-audit V.8) ─────────────── */
-.rd-budget-override-slot:not(:empty) { margin-top: 0.75rem; }
-.rd-budget-override-slot .rd-override { margin: 0; }
+
+/* T-D49: the form lives in a per-row slot (<tr><td colspan>) under its row. */
+.rd-override-slot-row > td:empty { display: none; }
+.rd-override-slot-row > td { padding: 0.5rem 0.75rem 0.9rem; }
+.rd-override-slot-row .rd-override { margin: 0 0 0 auto; }
+
+@media (width <= 1024px) {
+  /* Table scrolls horizontally here: keep the form inside the viewport. */
+  .rd-table-scroll .rd-table tbody .rd-override-slot-row > td:first-child {
+    position: static;
+    box-shadow: none;
+  }
+
+  .rd-override-slot-row .rd-override {
+    position: sticky;
+    left: 0.75rem;
+    width: min(28rem, calc(100vw - 3.5rem));
+  }
+}
+
+@media (width <= 640px) {
+  /* Table is wider than the viewport: pin the form to the visible left edge. */
+  .rd-override-slot-row .rd-override { margin: 0; width: calc(100vw - 3.5rem); }
+  .rd-override-slot-row .rd-override__row { flex-wrap: wrap; }
+  .rd-override-slot-row .rd-override__input { flex: 1 1 100%; }
+  .rd-override-slot-row .rd-override__row .rd-btn { flex: 1 1 0; justify-content: center; }
+}
 
 /* ─── Settings · categories (visual-audit V.6) ────────────────────── */
 .rd-cat-group { margin-top: 1.25rem; }

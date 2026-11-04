@@ -92,9 +92,9 @@ def test_nav_has_four_primary_items_plus_settings(client: TestClient) -> None:
     primary = rail.select("nav > ul.rd-nav .rd-nav__link")
     footer = rail.select(".rd-rail__footer .rd-nav__link")
     assert len(primary) == 4, f"expected 4 primary rail items, got {len(primary)}"
-    # T-D02b: Settings + Security (account block), plus a Sign out form.
+    # T-D47: only Settings in the footer nav; account block = email + Sign out.
     labels = [a.get_text(strip=True) for a in footer]
-    assert labels == ["Settingsg s", "Security", "Password"], labels
+    assert labels == ["Settingsg s"], labels
     assert rail.select_one('.rd-rail__account form[action="/auth/logout"]') is not None
 
 

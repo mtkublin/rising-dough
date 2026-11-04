@@ -78,7 +78,7 @@ SMOKE_ADMIN_NEW_PASSWORD=<new admin password, 12+ chars> \
 uv run pytest -m smoke tests/smoke -v --no-cov
 ```
 
-Notes: the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data; it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL`. Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
+Notes: the passkey step registers from Settings → Security (`/settings/security#passkeys`, ADR-0075); the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data; it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL`. Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
 
 ## Troubleshooting
 
