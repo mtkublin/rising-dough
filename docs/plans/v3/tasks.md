@@ -179,13 +179,13 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-D52 [P] Reconcile liability accounts by available credit
 - For liability accounts with a credit limit, the reconcile slide-over asks for **Available** (prefilled with current available, 2 decimals) with helper text showing limit and implied used. Service converts `target = -(limit - available)` (`available_to_target_balance`), then runs the existing adjustment logic. Available outside `0..limit` is rejected with 422. Liabilities without a limit and assets unchanged. Reference: ADR-0011 amendment.
 
-### ◻ T-D53 [S] Session hardening: absolute cap, step-up re-auth, hashed ids → T-D02, T-D09, T-D14, T-D17, T-D18 (UI placement: T-D47)
+### ✅ T-D53 [S] Session hardening: absolute cap, step-up re-auth, hashed ids → T-D02, T-D09, T-D14, T-D17, T-D18 (UI placement: T-D47)
 - Sessions get an absolute lifetime (`session_absolute_lifetime_days`, default 30) on top of the 14-day sliding expiry. Cookie `Max-Age` follows the clamped expiry.
 - `sessions.id` stores `sha256(token)`. The raw token lives only in the cookie. The migration revokes all live sessions (one-time re-login) and adds `sessions.authenticated_at`.
 - Step-up re-auth (`/auth/reauth`, passkey or password, 10-minute window) guards passkey add/revoke, revoking *other* sessions, and every admin `POST` under `/settings/users`. Rate-limit scope `reauth`. Audited.
 - The session token rotates on re-auth and on password change, keeping `created_at` so the cap cannot be reset.
 - Access/refresh tokens, periodic rotation, UA/IP binding and sign-in notifications are rejected or deferred (ADR-0076 §5).
-- Split: **T-D53a** hashed ids + absolute cap + migration; **T-D53b** step-up re-auth + rotation (→ T-D53a).
+- Split: **T-D53a ✅** hashed ids + absolute cap + migration (`0015_session_hardening`); **T-D53b ✅** step-up re-auth + rotation (→ T-D53a).
 - File: `phase-1-prerequisites/T-D53-session-hardening.md`. Reference: ADR-0076.
 
 ---
@@ -223,9 +223,15 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - File: `phase-2-infrastructure/T-D23-cloud-init.md`. Reference: ADR-0035 §5, ADR-0061 §3.
 
 ### ✅ T-D24 [S] Compute module → T-D23
-- `modules/compute/`: instance (`stardust1-s`, `pl-waw-1`, Ubuntu 24.04), flex IP, security group (22/80/443).
+- `modules/compute/`: instance (`stardust1-s`, `pl-waw-2`, Ubuntu 24.04 `ubuntu_noble`), flex IP, security group (22/80/443). Zone + image per ADR-0084 (T-D62).
 - `user_data` wired to the cloud-init template.
 - File: `phase-2-infrastructure/T-D24-compute.md`.
+
+### ✅ T-D62 [P] Compute zone `pl-waw-2` + `ubuntu_noble` image default → T-D24
+- Stardust1-S is sold out in `pl-waw-1` (operator decision D1). The `scaleway_zone` default, both `envs/*/terraform.tfvars.example` files and `SCW_DEFAULT_ZONE` in `restore-drill.yml` move to `pl-waw-2`.
+- Compute module `image` default `ubuntu_jammy` (22.04) → `ubuntu_noble` (24.04), matching ADR-0032/0035. Plain Ubuntu only, no InstantApps (they conflict with cloud-init's Docker packages).
+- Re-check Stardust stock before T-D25 / T-D27. Override `scaleway_zone` in tfvars if needed.
+- Reference: ADR-0084.
 
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.

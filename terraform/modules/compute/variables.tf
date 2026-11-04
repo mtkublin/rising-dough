@@ -4,7 +4,7 @@ variable "name_prefix" {
 }
 
 variable "scaleway_zone" {
-  description = "Scaleway zone (e.g. 'pl-waw-1')."
+  description = "Scaleway zone (e.g. 'pl-waw-2')."
   type        = string
 }
 
@@ -17,7 +17,7 @@ variable "instance_type" {
 variable "image" {
   description = "Scaleway marketplace image slug. Ubuntu 24.04 minimal."
   type        = string
-  default     = "ubuntu_jammy"
+  default     = "ubuntu_noble"
 }
 
 variable "app_image_tag" {

@@ -12,16 +12,18 @@
 
 ### A1. Scaleway
 
-- [ ] Create or verify the account and add a payment method. Identity or business verification may be required before compute is allowed, and it can take days. Start this first.
-- [ ] Create a dedicated project (e.g. `budget-planner`). Record the **project ID** and **organization ID** (`scaleway_project_id`, `scaleway_organization_id`).
+- [x] Account data verified, payment method added, identity verification completed (2026-11-04).
+- [x] Dedicated project created (2026-11-04): organization **`mk-personal`**, project **`rising-dough`**. Terraform uses only the IDs.
+- [ ] Record the **project ID** and **organization ID** in `terraform/envs/{drill,prod}/terraform.tfvars` (gitignored; already created with `TODO` markers) and in the GitHub secrets `SCW_DEFAULT_PROJECT_ID` / `SCW_DEFAULT_ORG_ID`.
 - [x] Stardust availability checked (2026-11-03): **sold out in `PL-WAW-1`, available in `PL-WAW-2`.** See [decision D1](#d1-compute-zone-pl-waw-2) for the follow-up the agent needs to make.
-- [ ] Create an **operator API key** (project-admin) for Terraform. Store it in a password manager. It is used locally and as GitHub secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY`.
-- [ ] Cost alert (T-D45): set it at about 2× the expected monthly cost. Test it by lowering the threshold to 0.01 PLN, confirm the email arrives, then restore the threshold.
+- [x] (2026-11-04) Create an **operator API key** (project-admin) for Terraform. Store it in a password manager. It is used locally and as GitHub secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY`. Set the key's **preferred Object Storage project to `rising-dough`**. S3 requests carry no project, so buckets land in that project. Done: preferred project set. Keys are stored locally in `terraform/.env` (gitignored, mode 600). They were pasted into an agent chat, so rotate before prod. Then run `scw init` with project `rising-dough`, region `pl-waw`, zone `pl-waw-2`.
+- [x] Budget alert created (2026-11-04): budget 10 EUR, threshold 75 % (alerts at 7.50 EUR), delivered by email + SMS.
+- [ ] Delivery test (T-D45 acceptance): temporarily lower the threshold so it fires, confirm both email and SMS arrive, then restore it. Expect one false alarm in the month the domain is bought if it is billed through Scaleway.
 
 ### A2. Domain and DNS
 
-- [ ] Register the domain. See [decision D2](#d2-domain) for the recommended approach (Scaleway Domains, `managed_dns_zone = true`).
-- [ ] Enable WHOIS privacy (automatic for individuals on `.pl`; check for other TLDs).
+- [x] Domain registered (2026-11-04): **`rising-dough.eu`**. Hostnames: `budget.rising-dough.eu` (prod) and `drill.budget.rising-dough.eu` (drill). Set as `domain` in both `terraform.tfvars`. `managed_dns_zone` stays `false` until the D2 zone-ownership fix lands. See [decision D2](#d2-domain).
+- [ ] WHOIS privacy: for `.eu`, EURid hides a private registrant's personal data by default. Confirm with a public WHOIS lookup of `rising-dough.eu`.
 - [ ] Optional: add a CAA record allowing `letsencrypt.org`.
 - [ ] Note that HSTS `includeSubDomains; preload` is served for the app hostname. Nothing under `budget.<domain>` may need plain HTTP.
 
@@ -58,7 +60,7 @@
 ### A7. Terraform state bootstrap (T-D20)
 
 - [ ] With the operator key exported, run `./terraform/scripts/bootstrap-state.sh` (idempotent).
-- [ ] Fill in `terraform/envs/{drill,prod}/terraform.tfvars` from the `.example` files (gitignored).
+- [ ] Fill in `terraform/envs/{drill,prod}/terraform.tfvars`. Both were created on 2026-11-04 in the main checkout (gitignored), with the known values (`pl-waw` / `pl-waw-2`, `github_owner = "mtkublin"`) filled in and every remaining field marked `TODO`. `grep -n TODO terraform/envs/*/terraform.tfvars` must print nothing before apply.
 
 ### A8. Monitoring account (T-D44)
 
@@ -72,7 +74,7 @@
 
 **Decided 2026-11-03.** Stardust1-S is sold out in `pl-waw-1` and available in `pl-waw-2`. Region stays `pl-waw`, so Object Storage and the state bucket are unaffected (both are regional).
 
-Follow-up for the agent (docs first, per `CLAUDE.md`):
+Follow-up for the agent (docs first, per `CLAUDE.md`). **Done in T-D62 (ADR-0084, 2026-11-04)**, which also fixed the compute image default `ubuntu_jammy` → `ubuntu_noble`:
 
 - Amend ADR-0032 (§Decision and "Region / zone", which currently say `pl-waw-1`).
 - Change `terraform/variables.tf` (`scaleway_zone` default), both `terraform/envs/*/terraform.tfvars.example`, and `SCW_DEFAULT_ZONE` in `.github/workflows/restore-drill.yml`.
@@ -80,7 +82,7 @@ Follow-up for the agent (docs first, per `CLAUDE.md`):
 
 ### D2. Domain
 
-**No domain owned yet.** Recommendation:
+**Bought 2026-11-04 via Scaleway Domains: `rising-dough.eu`.** Its zone already exists at Scaleway, so the second agent follow-up below (collision with an existing zone) applies. The original recommendation follows:
 
 - **Register it through Scaleway Domains and set `managed_dns_zone = true`.** The reason is automation, not price. Every drill apply gets a new flex IP, and Caddy's ACME HTTP-01 challenge only succeeds once DNS points at that IP. The monthly automated restore drill (T-D41) can only update DNS by itself if Terraform owns the zone. With an external zone, `terraform/modules/dns` creates no records at all, so you would have to edit DNS by hand on every drill and the automated drill would fail.
 - **TLD:** pick on **renewal** price, not the first-year promotion. `.com` or `.pl` are sensible. `.pl` gives private-individual WHOIS privacy by default.

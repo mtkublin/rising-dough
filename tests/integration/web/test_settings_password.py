@@ -125,7 +125,9 @@ def test_post_success_rotates_and_revokes_others(
     row = _user(conn)
     assert row["must_change_password"] == 0
     assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
-    assert sessions_repo.get_session(conn, session_cookie[1]) is not None
+    # The caller's session survives under a rotated token (ADR-0076 §4).
+    assert sessions_repo.get_session(conn, session_cookie[1]) is None
+    assert sessions_repo.list_active_sessions(conn, 1)
     assert sessions_repo.get_session(conn, other) is None
     # Flag cleared → the next request is served normally.
     assert forced.get("/accounts", follow_redirects=False).status_code == 200

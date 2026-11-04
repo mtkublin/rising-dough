@@ -216,7 +216,17 @@ def _id_suffix(locator: Any, prefix: str) -> str:
     return str(value).removeprefix(prefix)
 
 
-def _remove_smoke_user(page: Page, email: str) -> None:
+def _reauth(page: Page, password: str, next_path: str) -> None:
+    """Exercise the step-up page (ADR-0076 §2) with the current password."""
+    page.goto(f"/auth/reauth?next={next_path}")
+    expect(page.locator("#reauth-heading")).to_be_visible()
+    page.fill('input[name="password"]', password)
+    page.click('form[action="/auth/reauth"] button[type="submit"]')
+    page.wait_for_url(lambda url: "/auth/reauth" not in url)
+
+
+def _remove_smoke_user(page: Page, email: str, password: str) -> None:
+    _reauth(page, password, "/settings/users")
     page.goto("/settings/users")
     row = page.locator("tr[id^='user-row-']", has_text=email)
     expect(row).to_have_count(1)
@@ -266,14 +276,14 @@ def test_post_deploy_journey(browser: Browser, smoke_env: dict[str, str]) -> Non
         assert "password_hash" not in resp.text()
 
         # 12. Cleanup: soft-delete the smoke user.
-        _remove_smoke_user(admin, user_email)
+        _remove_smoke_user(admin, user_email, admin_password)
         user_removed = True
     finally:
         if not user_removed:
             try:
                 if "/auth/login" in admin.url:
                     _sign_in(admin, smoke_env["SMOKE_ADMIN_EMAIL"], admin_password)
-                _remove_smoke_user(admin, user_email)
+                _remove_smoke_user(admin, user_email, admin_password)
             except Exception as exc:
                 print(f"[smoke] cleanup of {user_email} failed, remove it by hand: {exc}")
         admin_ctx.close()

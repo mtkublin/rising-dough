@@ -38,6 +38,7 @@ SCOPE_LOGIN_IP: Final = "login_ip"
 SCOPE_PASSKEY_LOGIN: Final = "passkey_login"
 SCOPE_REGISTER: Final = "passkey_register"
 SCOPE_PASSWORD_CHANGE: Final = "password_change"  # noqa: S105  # scope name, not a secret
+SCOPE_REAUTH: Final = "reauth"
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +190,15 @@ def password_change_rules(settings: Settings) -> tuple[RateRule, ...]:
         settings,
         (settings.rate_limit_password_change_per_minute, MINUTE),
         (settings.rate_limit_password_change_per_hour, HOUR),
+    )
+
+
+def reauth_rules(settings: Settings) -> tuple[RateRule, ...]:
+    """Per user: step-up re-authentication attempts (T-D53b, ADR-0076 §2)."""
+    return _rules(
+        settings,
+        (settings.rate_limit_reauth_per_minute, MINUTE),
+        (settings.rate_limit_reauth_per_hour, HOUR),
     )
 
 

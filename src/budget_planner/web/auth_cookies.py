@@ -19,6 +19,7 @@ import hmac
 import json
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Final, Literal
 from urllib.parse import urlsplit
 
@@ -34,12 +35,11 @@ CHALLENGE_TTL_SECONDS: Final = 300
 LOGIN_PATH: Final = "/auth/login"
 DEFAULT_LANDING: Final = "/today"  # ADR-0077
 
-_SECONDS_PER_DAY: Final = 86_400
 _FIRST_PRINTABLE: Final = 0x20
 _DEL: Final = 0x7F
 _CHALLENGE_DOMAIN: Final = b"passkey-challenge|"
 
-Purpose = Literal["register", "login"]
+Purpose = Literal["register", "login", "reauth"]
 
 
 def _is_dev(settings: Settings) -> bool:
@@ -56,12 +56,20 @@ def challenge_cookie_name(settings: Settings) -> str:
     return CHALLENGE_DEV_COOKIE_NAME if _is_dev(settings) else CHALLENGE_COOKIE_NAME
 
 
-def set_session_cookie(response: Response, settings: Settings, session_id: str) -> None:
-    """Attach the session cookie with the ADR-0070 §2 attributes."""
+def set_session_cookie(
+    response: Response,
+    settings: Settings,
+    token: str,
+    *,
+    expires_at: datetime,
+    now: datetime | None = None,
+) -> None:
+    """Attach the session cookie; ``Max-Age`` follows the clamped ``expires_at`` (ADR-0076 §1)."""
+    remaining = expires_at - (datetime.now(UTC) if now is None else now)
     response.set_cookie(
         key=session_cookie_name(settings),
-        value=session_id,
-        max_age=settings.session_lifetime_days * _SECONDS_PER_DAY,
+        value=token,
+        max_age=max(0, int(remaining.total_seconds())),
         path="/",
         httponly=True,
         secure=not _is_dev(settings),

@@ -91,7 +91,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.auth_users import AuthUser
-from budget_planner.repositories.sessions import Session, session_handle
+from budget_planner.repositories.sessions import IssuedSession, Session, session_handle
 from budget_planner.repositories.webauthn import WebAuthnCredential
 from budget_planner.services._passwords import dummy_hash, verify_password
 
@@ -180,9 +180,10 @@ def _issue_session(
     method: str,
     ip: str | None,
     user_agent: str | None,
-) -> Session:
+) -> IssuedSession:
     with transaction(conn):
-        session = sessions_repo.create_session(conn, user.id, ip=ip, user_agent=user_agent)
+        issued = sessions_repo.create_session(conn, user.id, ip=ip, user_agent=user_agent)
+        session = issued.session
         write_audit(
             conn,
             entity_type=SESSION_ENTITY,
@@ -197,7 +198,7 @@ def _issue_session(
             },
             request_ctx=replace(ctx, user_id=user.id, session_id=session.handle),
         )
-    return session
+    return issued
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +214,7 @@ def authenticate_password(
     ip: str | None,
     user_agent: str | None,
     request_ctx: RequestCtx | None = None,
-) -> Session | None:
+) -> IssuedSession | None:
     """Verify ``email`` + ``password`` and open a session; ``None`` on any failure."""
     ctx = _base_ctx(request_ctx, ip=ip, user_agent=user_agent)
     user = users_repo.find_live_by_email(conn, email)
@@ -248,7 +249,7 @@ def _revoke(
         ip=None, user_id=session.user_id, session_id=None, user_agent=None
     )
     with transaction(conn):
-        if not sessions_repo.revoke_session(conn, session.id):
+        if not sessions_repo.revoke_session_by_id(conn, session.id):
             return False  # pragma: no cover — raced with another revoke
         write_audit(
             conn,
@@ -275,13 +276,16 @@ def logout(
 def revoke_user_session(
     conn: sqlite3.Connection,
     user_id: int,
-    session_id: str,
+    handle: str,
     *,
     request_ctx: RequestCtx | None = None,
 ) -> bool:
-    """Revoke ``session_id`` only if it is live and owned by ``user_id``."""
-    session = sessions_repo.get_session(conn, session_id)
-    if session is None or session.user_id != user_id:
+    """Revoke the session with ``handle`` only if it is live and owned by ``user_id``."""
+    session = next(
+        (s for s in sessions_repo.list_active_sessions(conn, user_id) if s.handle == handle),
+        None,
+    )
+    if session is None:
         return False
     return _revoke(conn, session, event="session_revoked", request_ctx=request_ctx)
 
@@ -297,7 +301,9 @@ def load_session_user(
     if user is None:  # pragma: no cover — get_session already joins on live users
         return None
     if touch:
-        sessions_repo.touch_session(conn, session.id)
+        expires_at = sessions_repo.touch_session(conn, session_id)
+        if expires_at is not None:
+            session = replace(session, expires_at=expires_at)
     return session, user
 
 
@@ -416,7 +422,7 @@ def authenticate_passkey_finish(
     ip: str | None,
     user_agent: str | None,
     request_ctx: RequestCtx | None = None,
-) -> Session | None:
+) -> IssuedSession | None:
     """Verify the browser's assertion and open a session; ``None`` on failure."""
     ctx = _base_ctx(request_ctx, ip=ip, user_agent=user_agent)
     try:

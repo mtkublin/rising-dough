@@ -25,7 +25,9 @@ RAW_ID = b"\x10\x20\x30\x40"
 AuditRows = Callable[[str], list[sqlite3.Row]]
 
 
-def _login(conn: sqlite3.Connection, email: str, password: str) -> sessions_repo.Session | None:
+def _login(
+    conn: sqlite3.Connection, email: str, password: str
+) -> sessions_repo.IssuedSession | None:
     return auth.authenticate_password(
         conn, email, password, ip="203.0.113.9", user_agent="pytest/1"
     )
@@ -41,12 +43,13 @@ def test_password_login_happy_path(
 ) -> None:
     uid = make_user()
 
-    session = _login(conn, "  ALICE@Example.TEST ", PASSWORD)
+    issued = _login(conn, "  ALICE@Example.TEST ", PASSWORD)
 
-    assert session is not None
+    assert issued is not None
+    session = issued.session
     assert session.user_id == uid
     assert session.ip == "203.0.113.9"
-    assert sessions_repo.get_session(conn, session.id) is not None
+    assert sessions_repo.get_session(conn, issued.token) is not None
     rows = audit_rows(auth.SESSION_ENTITY)
     assert len(rows) == 1
     row = rows[0]
@@ -57,7 +60,7 @@ def test_password_login_happy_path(
     assert row["user_agent"] == "pytest/1"
     payload = json.loads(row["new_json"])
     assert payload["method"] == "password"
-    assert session.id not in row["new_json"]  # raw bearer id never audited
+    assert issued.token not in row["new_json"]  # raw bearer token never audited
 
 
 def test_wrong_password_returns_none_and_audits_failure(
@@ -139,13 +142,14 @@ def test_logout_revokes_and_audits(
     conn: sqlite3.Connection, make_user: Callable[..., int], audit_rows: AuditRows
 ) -> None:
     uid = make_user()
-    session = _login(conn, "alice@example.test", PASSWORD)
-    assert session is not None
+    issued = _login(conn, "alice@example.test", PASSWORD)
+    assert issued is not None
+    session = issued.session
 
-    assert auth.logout(conn, session.id) is True
+    assert auth.logout(conn, issued.token) is True
 
-    assert sessions_repo.get_session(conn, session.id) is None
-    assert auth.load_session_user(conn, session.id) is None
+    assert sessions_repo.get_session(conn, issued.token) is None
+    assert auth.load_session_user(conn, issued.token) is None
     delete_rows = [r for r in audit_rows(auth.SESSION_ENTITY) if r["operation"] == "delete"]
     assert len(delete_rows) == 1
     assert delete_rows[0]["entity_id"] == uid
@@ -153,7 +157,7 @@ def test_logout_revokes_and_audits(
         "event": "logout",
         "session": session.handle,
     }
-    assert auth.logout(conn, session.id) is False  # already revoked
+    assert auth.logout(conn, issued.token) is False  # already revoked
     assert auth.logout(conn, "unknown") is False
 
 
@@ -162,30 +166,32 @@ def test_revoke_user_session_requires_ownership(
 ) -> None:
     alice = make_user()
     bob = make_user(email="bob@example.test")
-    s = sessions_repo.create_session(conn, alice, ip=None, user_agent=None)
+    issued = sessions_repo.create_session(conn, alice, ip=None, user_agent=None)
+    handle = issued.session.handle
 
-    assert auth.revoke_user_session(conn, bob, s.id) is False
-    assert sessions_repo.get_session(conn, s.id) is not None
-    assert auth.revoke_user_session(conn, alice, s.id) is True
-    assert sessions_repo.get_session(conn, s.id) is None
+    assert auth.revoke_user_session(conn, bob, handle) is False
+    assert sessions_repo.get_session(conn, issued.token) is not None
+    assert auth.revoke_user_session(conn, alice, handle) is True
+    assert sessions_repo.get_session(conn, issued.token) is None
 
 
 def test_load_session_user_returns_user_and_touches(
     conn: sqlite3.Connection, make_user: Callable[..., int]
 ) -> None:
     uid = make_user()
-    s = sessions_repo.create_session(conn, uid, ip=None, user_agent=None)
+    issued = sessions_repo.create_session(conn, uid, ip=None, user_agent=None)
+    s = issued.session
 
-    loaded = auth.load_session_user(conn, s.id)
+    loaded = auth.load_session_user(conn, issued.token)
     assert loaded is not None
     session, user = loaded
     assert session.id == s.id
     assert (user.id, user.email, user.is_admin) == (uid, "alice@example.test", False)
-    refreshed = sessions_repo.get_session(conn, s.id)
+    refreshed = sessions_repo.get_session(conn, issued.token)
     assert refreshed is not None
     assert refreshed.last_seen_at >= s.last_seen_at
 
-    assert auth.load_session_user(conn, s.id, touch=False) is not None
+    assert auth.load_session_user(conn, issued.token, touch=False) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +345,7 @@ def passkey_user(conn: sqlite3.Connection, make_user: Callable[..., int]) -> int
 
 def _finish(
     conn: sqlite3.Connection, payload: str | dict[str, Any] | None = None
-) -> sessions_repo.Session | None:
+) -> sessions_repo.IssuedSession | None:
     return auth.authenticate_passkey_finish(
         conn,
         _assertion_json() if payload is None else payload,
@@ -373,10 +379,10 @@ def test_authenticate_finish_happy_path(
 
     monkeypatch.setattr(auth, "verify_authentication_response", _verify)
 
-    session = _finish(conn)
+    issued = _finish(conn)
 
-    assert session is not None
-    assert session.user_id == passkey_user
+    assert issued is not None
+    assert issued.session.user_id == passkey_user
     assert seen["credential_public_key"] == b"pk"
     assert seen["credential_current_sign_count"] == 0
     assert seen["require_user_verification"] is True

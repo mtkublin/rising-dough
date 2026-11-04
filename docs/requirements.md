@@ -276,7 +276,7 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 
 ### 6.1 Deployment target
 
-- **Compute**: Scaleway Stardust `STARDUST1-S` in region `pl-waw` zone `pl-waw-1` (Warsaw).
+- **Compute**: Scaleway Stardust `STARDUST1-S` in region `pl-waw` zone `pl-waw-2` (Warsaw), Ubuntu 24.04 LTS (`ubuntu_noble`). Zone overridable via tfvars; see [ADR-0084](adr/0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md).
 - **Durability**: Scaleway Object Storage bucket `budget-planner-prod-pl-waw` with Litestream continuous replication.
 - **TLS**: Caddy auto-HTTPS via Let's Encrypt (ACME HTTP-01).
 - **DNS**: operator-owned domain, A + AAAA records managed by Terraform.

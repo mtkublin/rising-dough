@@ -116,7 +116,9 @@ def test_change_own_password_happy_path(conn: sqlite3.Connection, user_id: int) 
     assert row["must_change_password"] == 0
     assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
     assert not _passwords.verify_password(TEST_PASSWORD, row["password_hash"])
-    assert sessions_repo.get_session(conn, current) is not None
+    assert outcome.rotated is not None
+    assert sessions_repo.get_session(conn, current) is None  # old token rotated away
+    assert sessions_repo.get_session(conn, outcome.rotated.token) is not None
     assert sessions_repo.get_session(conn, other_a) is None
     assert sessions_repo.get_session(conn, other_b) is None
     assert sessions_repo.get_session(conn, foreign) is not None

@@ -101,6 +101,7 @@
               <th scope="col">Device</th>
               <th scope="col" class="rd-auth-hide-sm">Signed in</th>
               <th scope="col" class="rd-auth-hide-sm">Last seen</th>
+              <th scope="col" class="rd-auth-hide-sm">Expires</th>
               <th scope="col">
                 <span class="sr-only">Actions</span>
               </th>
@@ -113,11 +114,12 @@
                 <td>
                   <span class="rd-auth-device"
                         title="{{ s.user_agent or 'Unknown device' }}">{{ s.user_agent or "Unknown device" }}</span>
-                  <span class="rd-auth-meta">{{ s.ip or "—" }}<span class="rd-auth-show-sm"> · seen {{ s.last_seen_at|dt_local("%d %b %H:%M") }}</span></span>
+                  <span class="rd-auth-meta">{{ s.ip or "—" }}<span class="rd-auth-show-sm"> · seen {{ s.last_seen_at|dt_local("%d %b %H:%M") }} · expires {{ row.absolute_expires_at|dt_local("%d %b %Y") }}</span></span>
                   {% if row.is_current %}<span class="rd-pill rd-pill--income">This device</span>{% endif %}
                 </td>
                 <td class="rd-auth-hide-sm">{{ s.created_at|dt_local }}</td>
                 <td class="rd-auth-hide-sm">{{ s.last_seen_at|dt_local }}</td>
+                <td class="rd-auth-hide-sm">{{ row.absolute_expires_at|dt_local("%d %b %Y") }}</td>
                 <td class="rd-auth-action">
                   <form method="post" action="/auth/sessions/{{ s.handle }}/revoke">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -137,5 +139,5 @@
   </section>
 {% endblock %}
 {% block scripts %}
-  <script src="{{ url_for('static', path='js/passkeys.js') }}?v=pk3" defer></script>
+  <script src="{{ url_for('static', path='js/passkeys.js') }}?v=pk4" defer></script>
 {% endblock %}
