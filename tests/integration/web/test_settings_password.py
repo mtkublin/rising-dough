@@ -49,7 +49,7 @@ def forced(client: TestClient, conn: sqlite3.Connection) -> TestClient:
 
 
 def test_get_renders_form(client: TestClient) -> None:
-    r = client.get("/settings/password")
+    r = client.get("/settings/security")
     assert r.status_code == 200
     html = r.text
     assert "Change password" in html
@@ -65,23 +65,43 @@ def test_get_forced_shows_banner(forced: TestClient) -> None:
     assert "Sign out instead" in html
 
 
-def test_get_htmx_returns_fragment(client: TestClient) -> None:
-    r = client.get("/settings/password", headers={"HX-Request": "true"})
+def test_get_htmx_returns_fragment(forced: TestClient) -> None:
+    r = forced.get("/settings/password", headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert r.text.lstrip().startswith("<form")
     assert "<html" not in r.text
 
 
-def test_get_carries_safe_next(client: TestClient) -> None:
-    html = client.get("/settings/password?next=/ledger").text
+def test_get_carries_safe_next(forced: TestClient) -> None:
+    html = forced.get("/settings/password?next=/ledger").text
     assert 'name="next" value="/ledger"' in html
-    html = client.get("/settings/password?next=https://evil.test/").text
+    html = forced.get("/settings/password?next=https://evil.test/").text
     assert 'name="next" value="/"' in html
 
 
-def test_settings_and_nav_link_to_password(client: TestClient) -> None:
+def test_settings_and_nav_do_not_link_to_password(client: TestClient) -> None:
     html = client.get("/settings").text
-    assert 'href="/settings/password"' in html
+    assert 'href="/settings/password"' not in html
+    assert 'href="/settings/security"' in html
+
+
+def test_forced_user_cannot_open_security_tab(forced: TestClient) -> None:
+    r = forced.get("/settings/security", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/settings/password?next=%2Fsettings%2Fsecurity"
+
+
+def test_forced_user_cannot_open_other_settings(forced: TestClient) -> None:
+    r = forced.get("/settings", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"].startswith("/settings/password")
+
+
+def test_forced_page_is_standalone(forced: TestClient) -> None:
+    r = forced.get("/settings/password")
+    assert r.status_code == 200
+    assert 'id="tab-security"' not in r.text
+    assert 'id="passkeys"' not in r.text
 
 
 def test_anonymous_redirected_to_login(anon_client: TestClient) -> None:
@@ -114,11 +134,11 @@ def test_post_success_rotates_and_revokes_others(
 def test_post_success_htmx_uses_hx_redirect(client: TestClient) -> None:
     r = client.post("/settings/password", data=_form(), headers={"HX-Request": "true"})
     assert r.status_code == 204
-    assert r.headers["HX-Redirect"] == "/"
+    assert r.headers["HX-Redirect"] == "/settings/security"
 
 
-def test_post_success_next_password_path_falls_back_to_root(client: TestClient) -> None:
-    r = client.post(
+def test_post_success_next_password_path_falls_back_to_root(forced: TestClient) -> None:
+    r = forced.post(
         "/settings/password",
         data={**_form(), "next": "/settings/password"},
         follow_redirects=False,
@@ -169,6 +189,7 @@ def test_post_policy_errors_render_inline(
     assert r.status_code == 422
     assert snippet in r.text
     assert "<html" in r.text
+    assert 'id="tab-security"' in r.text
     assert _user(conn)["password_hash"] == before
 
 

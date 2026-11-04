@@ -1,4 +1,4 @@
-"""T-D02b — ``/auth/sessions``: list + revoke own sessions and passkeys only."""
+"""T-D02b/T-D47 — Settings → Security: list + revoke own sessions and passkeys only."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def test_sessions_page_lists_own_sessions_by_handle(
 ) -> None:
     second = issue_session(conn)
     foreign = issue_session(conn, user_id=other_user)
-    r = client.get("/auth/sessions")
+    r = client.get("/settings/security")
     assert r.status_code == 200
     html = r.text
     current = session_cookie[1]
@@ -54,20 +54,20 @@ def test_sessions_page_lists_own_passkeys(
 ) -> None:
     _passkey(conn, 1, "My Laptop", b"cred-mine")
     _passkey(conn, other_user, "Mallory Key", b"cred-theirs")
-    html = client.get("/auth/sessions").text
+    html = client.get("/settings/security").text
     assert "My Laptop" in html
     assert "Mallory Key" not in html
 
 
 def test_sessions_page_empty_passkeys_state(client: TestClient) -> None:
-    assert "No passkeys yet" in client.get("/auth/sessions").text
+    assert "No passkeys yet" in client.get("/settings/security").text
 
 
 def test_revoke_other_own_session(client: TestClient, conn: sqlite3.Connection) -> None:
     second = issue_session(conn)
     r = client.post(f"/auth/sessions/{session_handle(second)}/revoke", follow_redirects=False)
     assert r.status_code == 303
-    assert r.headers["location"] == "/auth/sessions"
+    assert r.headers["location"] == "/settings/security#sessions"
     assert sessions_repo.get_session(conn, second) is None
     assert client.get("/accounts", follow_redirects=False).status_code == 200
 
@@ -108,7 +108,7 @@ def test_revoke_own_passkey(client: TestClient, conn: sqlite3.Connection) -> Non
     pk = _passkey(conn, 1, "Phone", b"cred-phone")
     r = client.post(f"/auth/passkeys/{pk}/revoke", follow_redirects=False)
     assert r.status_code == 303
-    assert r.headers["location"] == "/auth/sessions"
+    assert r.headers["location"] == "/settings/security#passkeys"
     assert webauthn_repo.list_credentials(conn, 1) == ()
 
 
@@ -122,13 +122,44 @@ def test_cannot_revoke_another_users_passkey(
 
 
 def test_sessions_requires_login(anon_client: TestClient) -> None:
-    r = anon_client.get("/auth/sessions", follow_redirects=False)
+    r = anon_client.get("/settings/security", follow_redirects=False)
     assert r.status_code == 302
-    assert r.headers["location"] == "/auth/login?next=%2Fauth%2Fsessions"
+    assert r.headers["location"] == "/auth/login?next=%2Fsettings%2Fsecurity"
 
 
-def test_app_nav_shows_security_and_sign_out(client: TestClient) -> None:
+def test_app_nav_shows_only_sign_out(client: TestClient) -> None:
     html = client.get("/accounts").text
-    assert 'href="/auth/sessions"' in html
+    assert 'href="/auth/sessions"' not in html
+    assert 'href="/settings/password"' not in html
     assert 'action="/auth/logout"' in html
     assert "owner@example.test" in html
+
+
+def test_security_tab_lists_all_sections_for_non_admin(client: TestClient) -> None:
+    html = client.get("/settings/security").text
+    assert 'id="tab-security"' in html
+    assert 'id="password"' in html
+    assert 'id="passkeys"' in html
+    assert 'id="sessions"' in html
+    assert html.index('id="password"') < html.index('id="passkeys"') < html.index('id="sessions"')
+    assert "data-passkey-register" in html
+    assert "/static/js/passkeys.js" in html
+    assert 'id="tab-users"' not in html
+
+
+def test_legacy_sessions_get_redirects_to_security_tab(client: TestClient) -> None:
+    r = client.get("/auth/sessions", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/settings/security#sessions"
+
+
+def test_legacy_register_get_redirects_to_security_tab(client: TestClient) -> None:
+    r = client.get("/auth/register", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/settings/security#passkeys"
+
+
+def test_password_get_redirects_to_security_tab_when_not_forced(client: TestClient) -> None:
+    r = client.get("/settings/password", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/settings/security#password"
