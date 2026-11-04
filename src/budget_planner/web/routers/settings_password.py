@@ -20,7 +20,7 @@ from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import password_change as password_service, rate_limit
 from budget_planner.services.rate_limit import RateDecision
-from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
+from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next, set_session_cookie
 from budget_planner.web.deps import current_user, get_db, get_request_ctx, get_settings_dep
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
@@ -126,6 +126,7 @@ def change_password(  # noqa: PLR0917
     confirm_password: str = Form(default=""),
     next_path: str = Form(default=DEFAULT_LANDING, alias="next"),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     ctx: RequestCtx = Depends(get_request_ctx),
     user: CurrentUser = Depends(current_user),
     limit: RateDecision = Depends(password_change_rate_limit),
@@ -151,6 +152,16 @@ def change_password(  # noqa: PLR0917
     )
     if not outcome.ok:
         return _render_form(request, conn, user, next_path=target, outcome=outcome)
+    done: Response
     if is_hx_request(request):
-        return Response(status_code=HTTPStatus.NO_CONTENT, headers={"HX-Redirect": target})
-    return RedirectResponse(target, status_code=HTTPStatus.SEE_OTHER)
+        done = Response(status_code=HTTPStatus.NO_CONTENT, headers={"HX-Redirect": target})
+    else:
+        done = RedirectResponse(target, status_code=HTTPStatus.SEE_OTHER)
+    if outcome.rotated is not None:
+        set_session_cookie(
+            done,
+            settings,
+            outcome.rotated.token,
+            expires_at=outcome.rotated.session.expires_at,
+        )
+    return done

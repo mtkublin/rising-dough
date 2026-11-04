@@ -39,7 +39,7 @@ _FIRST_PRINTABLE: Final = 0x20
 _DEL: Final = 0x7F
 _CHALLENGE_DOMAIN: Final = b"passkey-challenge|"
 
-Purpose = Literal["register", "login"]
+Purpose = Literal["register", "login", "reauth"]
 
 
 def _is_dev(settings: Settings) -> bool:

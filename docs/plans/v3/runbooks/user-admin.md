@@ -50,6 +50,10 @@ Every change writes an `audit_log` row (`entity_type='users'`, `operation='updat
 - Admin's own password has already been rotated (never leave the Terraform-generated bootstrap password in use beyond the first login — ADR-0061 §3).
 - 2FA / passkey is registered for the admin's own account (optional but strongly recommended).
 
+## Step-up re-authentication (T-D53b, ADR-0076 §2)
+
+Every admin `POST` under `/settings/users` (add, edit, reset password, remove) needs a login or re-auth within the last `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (default 10). Reading the roster never asks. If the window has passed, the action is not performed. The browser is sent to `/auth/reauth?next=/settings/users` (HTMX gets a `403` + `HX-Redirect`). Confirm with a passkey tap or your current password, and you land back on the roster with a fresh window and a new session cookie. Repeat the action there. After 5 failed attempts per minute (20 per hour) the page answers `429` + `Retry-After`; wait and retry.
+
 ## Procedure — Add a user
 
 1. Admin opens `GET /settings/users`.
@@ -175,6 +179,7 @@ Consequences the operator must honor:
 
 ## Troubleshooting
 
+- **An admin action bounces to "Confirm it's you"**: the session's last credential check is older than the re-auth window (T-D53b). Confirm on that page and repeat the action. Nothing was changed by the bounced request.
 - **"Add user" form rejects an email that was previously removed**: the `ux_users_email_live` unique index covers live rows only (ADR-0061 §2). If the index is still complaining, the soft-deleted row has `deleted_at IS NULL` by accident — inspect and fix via `sqlite3` with a dated audit note.
 - **New admin's first login succeeds but admin menu is missing**: browser cached the pre-promote session. User logs out + back in. Confirm the session carries the fresh `is_admin` claim (`SELECT ... FROM sessions WHERE user_id = <id> AND revoked_at IS NULL`).
 - **Password toast dismissed before copying**: no recovery of plaintext — admin re-triggers reset-password. This is a feature, not a bug.

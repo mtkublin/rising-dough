@@ -32,7 +32,7 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import users as users_service
 from budget_planner.services.users import UserConflict, UserInputError, UserNotFound
-from budget_planner.web.deps import current_user, get_db, get_request_ctx
+from budget_planner.web.deps import current_user, get_db, get_request_ctx, require_recent_auth
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render
 
@@ -145,7 +145,7 @@ def list_users(
     return render(request, _LIST_TEMPLATE, **_page_context(conn, admin))
 
 
-@router.post("", response_class=HTMLResponse)
+@router.post("", response_class=HTMLResponse, dependencies=[Depends(require_recent_auth)])
 def create_user(
     request: Request,
     *,
@@ -225,7 +225,7 @@ def edit_form(
     return _edit_response(request, user, me_id=admin.id, errors={})
 
 
-@router.post("/{user_id}", response_model=None)
+@router.post("/{user_id}", response_model=None, dependencies=[Depends(require_recent_auth)])
 def save_user(
     request: Request,
     user_id: int,
@@ -264,7 +264,11 @@ def save_user(
     return _table_with_flash(request, conn, admin, f"Saved {updated.email or updated.name}.")
 
 
-@router.post("/{user_id}/reset-password", response_class=HTMLResponse)
+@router.post(
+    "/{user_id}/reset-password",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_recent_auth)],
+)
 def reset_password(
     request: Request,
     user_id: int,
@@ -282,7 +286,7 @@ def reset_password(
     return _render_toast(request, conn, admin, _toast(user, password, kind="reset"))
 
 
-@router.post("/{user_id}/delete", response_model=None)
+@router.post("/{user_id}/delete", response_model=None, dependencies=[Depends(require_recent_auth)])
 def delete_user(
     request: Request,
     user_id: int,

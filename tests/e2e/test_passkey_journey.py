@@ -9,6 +9,7 @@ when ``BUDGET_WEBAUTHN_*`` are unset (ADR-0075).
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -52,6 +53,16 @@ def localhost_page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator
         context.close()
 
 
+def _age_sessions(db_path: Path) -> None:
+    """Move every session's ``authenticated_at`` far into the past (scratch DB only)."""
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE sessions SET authenticated_at = '2000-01-01T00:00:00.000000Z'")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _password_login(page: Page) -> None:
     page.goto("/auth/login")
     page.fill('input[name="email"]', TEST_EMAIL)
@@ -76,6 +87,56 @@ def test_register_then_sign_in_with_passkey(localhost_page: Page) -> None:
     page.click("[data-passkey-login]")
     page.wait_for_url(lambda url: "/auth/login" not in url)
     expect(page.locator("body")).not_to_contain_text("didn't work")
+
+
+def _add_passkey(page: Page, label: str) -> None:
+    page.fill('form[data-passkey-register] input[name="label"]', label)
+    page.click('form[data-passkey-register] button[type="submit"]')
+
+
+def test_stale_session_adds_passkey_after_password_reauth(
+    localhost_page: Page, live_server: tuple[str, Path]
+) -> None:
+    """Forced-stale window: the guarded add bounces to /auth/reauth, then succeeds."""
+    page = localhost_page
+    _password_login(page)
+    page.goto("/settings/security")
+    page.wait_for_load_state("networkidle")
+    _age_sessions(live_server[1])
+
+    _add_passkey(page, "Behind the gate")
+    page.wait_for_url("**/auth/reauth**")
+    expect(page.locator("[data-passkey-reauth]")).to_have_count(0)  # no passkey yet
+    page.fill('input[name="password"]', TEST_PASSWORD)
+    page.click('form[action="/auth/reauth"] button[type="submit"]')
+    page.wait_for_url("**/settings/security")
+
+    _add_passkey(page, "Behind the gate")
+    page.wait_for_url("**/settings/security#passkeys")
+    expect(page.locator("#passkeys")).to_contain_text("Behind the gate")
+
+
+def test_stale_session_reauths_with_passkey(
+    localhost_page: Page, live_server: tuple[str, Path]
+) -> None:
+    """With a passkey on file, the re-auth page offers it and a tap restores access."""
+    page = localhost_page
+    _password_login(page)
+    page.goto("/settings/security")
+    _add_passkey(page, "First key")
+    page.wait_for_url("**/settings/security#passkeys")
+    page.wait_for_load_state("networkidle")
+    _age_sessions(live_server[1])
+
+    page.goto("/settings/security")
+    _add_passkey(page, "Second key")  # same authenticator: bounced before the ceremony
+    page.wait_for_url("**/auth/reauth**")
+    page.click("[data-passkey-reauth]")
+    page.wait_for_url("**/settings/security")
+    expect(page.locator("[data-passkey-register]")).to_be_visible()
+    token = page.locator('meta[name="csrf-token"]').get_attribute("content") or ""
+    resp = page.context.request.post("/auth/register/begin", headers={"X-CSRF-Token": token})
+    assert resp.status == 200, "guard should pass right after passkey re-auth"
 
 
 def test_ip_literal_host_explains_passkeys_need_localhost(

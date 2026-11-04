@@ -27,6 +27,7 @@ from budget_planner.repositories import (
     users as users_repo,
 )
 from budget_planner.repositories._shared import transaction, write_audit
+from budget_planner.repositories.sessions import IssuedSession
 from budget_planner.services import _passwords
 
 MIN_PASSWORD_LENGTH: Final = 12
@@ -73,6 +74,8 @@ class PasswordChangeOutcome:
 
     errors: tuple[FieldError, ...] = ()
     revoked_sessions: int = 0
+    #: The caller's session after token rotation (ADR-0076 §4); set the cookie from it.
+    rotated: IssuedSession | None = None
 
     @property
     def ok(self) -> bool:
@@ -121,11 +124,11 @@ def _commit_change(
     new_hash: str,
     current_session_id: str | None,
     ctx: RequestCtx,
-) -> int | None:
-    """Write the new credential + revoke other sessions atomically.
+) -> tuple[int, IssuedSession | None] | None:
+    """Write the new credential, revoke other sessions, rotate this one, atomically.
 
-    Returns the number of revoked sessions, or ``None`` when the stored hash
-    no longer matches ``verified_hash`` (nothing is written).
+    Returns ``(revoked count, rotated session)``, or ``None`` when the stored
+    hash no longer matches ``verified_hash`` (nothing is written).
     """
     with transaction(conn):
         user = auth_users_repo.get_live_by_id(conn, user_id)
@@ -150,7 +153,10 @@ def _commit_change(
                 new=None,
                 request_ctx=ctx,
             )
-    return revoked
+        rotated = None
+        if current_session_id and sessions_repo.mark_authenticated(conn, current_session_id):
+            rotated = sessions_repo.rotate_session_token(conn, current_session_id)
+    return revoked, rotated
 
 
 def change_own_password(
@@ -185,7 +191,7 @@ def change_own_password(
         return PasswordChangeOutcome(errors=policy_errors)
 
     new_hash = _passwords.hash_password(req.new_password)
-    revoked = _commit_change(
+    committed = _commit_change(
         conn,
         user_id,
         verified_hash=user.password_hash,
@@ -193,11 +199,11 @@ def change_own_password(
         current_session_id=current_session_id,
         ctx=request_ctx,
     )
-    if revoked is None:
+    if committed is None:
         return PasswordChangeOutcome(
             errors=(FieldError(field="current_password", message=MSG_STALE),)
         )
-    return PasswordChangeOutcome(revoked_sessions=revoked)
+    return PasswordChangeOutcome(revoked_sessions=committed[0], rotated=committed[1])
 
 
 __all__ = [

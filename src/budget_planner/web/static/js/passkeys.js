@@ -60,7 +60,15 @@
         function (data) { return { ok: resp.ok, data: data || {} }; },
         function () { return { ok: resp.ok, data: {} }; }
       );
+    }).then(function (res) {
+      /* ADR-0076 §2: a stale login needs a fresh credential first. */
+      if (resp403(res) && res.data.redirect) window.location.assign(res.data.redirect);
+      return res;
     });
+  }
+
+  function resp403(res) {
+    return !res.ok && res.data && res.data.error === "reauth_required";
   }
 
   function descriptors(list) {
@@ -140,8 +148,52 @@
     });
   }
 
+  /* ── Step-up re-authentication (ADR-0076 §2) ─────────────────── */
+  var REAUTH_ERROR = "Passkey confirmation didn't work. Try again or use your password.";
+
+  function bindReauth(button) {
+    var status = document.querySelector("[data-passkey-status]");
+    if (!supported()) return markUnsupported(button, status);
+    button.addEventListener("click", function () {
+      var next = button.getAttribute("data-next") || "/";
+      button.setAttribute("aria-busy", "true");
+      setStatus(status, "Waiting for your passkey…", false);
+      postJson("/auth/reauth/begin")
+        .then(function (res) {
+          if (!res.ok) throw new Error("begin");
+          var opts = res.data;
+          opts.challenge = toBytes(opts.challenge);
+          opts.allowCredentials = descriptors(opts.allowCredentials);
+          return navigator.credentials.get({ publicKey: opts });
+        })
+        .then(function (cred) {
+          var r = cred.response;
+          return postJson(
+            "/auth/reauth/finish?next=" + encodeURIComponent(next),
+            serialise(cred, {
+              clientDataJSON: toB64url(r.clientDataJSON),
+              authenticatorData: toB64url(r.authenticatorData),
+              signature: toB64url(r.signature),
+              userHandle: toB64url(r.userHandle),
+            })
+          );
+        })
+        .then(function (res) {
+          if (!res.ok || !res.data.redirect) throw new Error("finish");
+          window.location.assign(res.data.redirect);
+        })
+        .catch(function () {
+          setStatus(status, REAUTH_ERROR, true);
+        })
+        .finally(function () {
+          button.removeAttribute("aria-busy");
+        });
+    });
+  }
+
   /* ── Registration ──────────────────────────────────────────────── */
   var REGISTER_ERRORS = {
+    reauth_required: "Confirm it's you first. Redirecting…",
     challenge_expired: "That took too long. Please try again.",
     duplicate_credential: "This passkey is already registered.",
     invalid_response: "Your device's response couldn't be verified.",
@@ -200,6 +252,8 @@
   function init() {
     var login = document.querySelector("[data-passkey-login]");
     if (login) bindLogin(login);
+    var reauth = document.querySelector("[data-passkey-reauth]");
+    if (reauth) bindReauth(reauth);
     var register = document.querySelector("form[data-passkey-register]");
     if (register) bindRegister(register);
   }
