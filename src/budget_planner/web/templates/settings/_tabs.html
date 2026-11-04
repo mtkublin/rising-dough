@@ -1,7 +1,7 @@
-{# Settings tab strip shared by /settings and /settings/users (T-D17).
+{# Settings tab strip shared by /settings, /settings/security and /settings/users (T-D17, T-D47).
    The "Users" tab is rendered for admins only (ADR-0061 §4). #}
 {% set me = request.state.user if request.state.user is defined else none %}
-{% set tabs = [('categories', 'Categories', '/settings?tab=categories'), ('fx', 'Currency & FX', '/settings?tab=fx'), ('prefs', 'Preferences', '/settings?tab=prefs')] %}
+{% set tabs = [('categories', 'Categories', '/settings?tab=categories'), ('fx', 'Currency & FX', '/settings?tab=fx'), ('prefs', 'Preferences', '/settings?tab=prefs'), ('security', 'Security', '/settings/security')] %}
 {% if me and me.is_admin %}
   {% set tabs = tabs + [('users', 'Users', '/settings/users')] %}
 {% endif %}

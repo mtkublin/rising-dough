@@ -183,7 +183,7 @@ def test_login_begin_requires_csrf(anon_client: TestClient) -> None:
 
 
 def test_register_page_renders(client: TestClient) -> None:
-    r = client.get("/auth/register")
+    r = client.get("/settings/security")
     assert r.status_code == 200
     assert "data-passkey-register" in r.text
     assert "/static/js/passkeys.js" in r.text
@@ -219,7 +219,7 @@ def test_register_finish_success(client: TestClient, monkeypatch: pytest.MonkeyP
         json={"label": "  MacBook  " + "x" * 100, "credential": _CREDENTIAL},
     )
     assert r.status_code == 200, r.text
-    assert r.json() == {"redirect": "/auth/sessions"}
+    assert r.json() == {"redirect": "/settings/security#passkeys"}
     assert seen["user_id"] == 1
     assert seen["challenge"] == issued
     assert seen["label"].startswith("MacBook")

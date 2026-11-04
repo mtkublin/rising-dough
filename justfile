@@ -44,6 +44,7 @@ dev *args:
     else
       echo "[dev] using default DB (data/budget.sqlite — prod)"
     fi
+    echo "[dev] open http://localhost:8000 (passkeys do not work on an IP address)"
     uv run uvicorn budget_planner.web.app:app \
       --reload --host 127.0.0.1 --port 8000
 

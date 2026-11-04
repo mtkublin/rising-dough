@@ -35,7 +35,10 @@
       <main id="main" tabindex="-1" class="rd-main">
         {% if request.state.user is defined and request.state.user and not request.url.path.startswith("/auth/") %}
           <nav class="rd-account-mobile" aria-label="Account">
-            <a class="rd-btn rd-btn--ghost rd-btn--sm" href="/auth/sessions">Account &amp; sign out</a>
+            <form method="post" action="/auth/logout">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="rd-btn rd-btn--ghost rd-btn--sm">Sign out</button>
+            </form>
           </nav>
         {% endif %}
         <div id="flash-region"
