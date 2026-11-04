@@ -1,10 +1,7 @@
-"""Home router (T-039 / T-063).
+"""Data assembly shared by the Today surface (T-D50 / ADR-0076).
 
-Three-panel Overview: Accounts, This month, Upcoming planned.
-See ADR-0023 and docs/plans/v1/phase-6/T-063-overview-composition.md.
-
-Services only — no business logic. FX conversion for the fortune hero
-batches rates per non-base currency to keep remote calls bounded.
+Moved from the retired home router: account rows, pace tag, upcoming window
+and the upcoming-row view model. No business logic — services only.
 """
 
 from __future__ import annotations
@@ -12,29 +9,20 @@ from __future__ import annotations
 import calendar
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Literal
-from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import Request
 
-from budget_planner.config import Settings
 from budget_planner.domain.money import currency_decimals
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
-    budget as budget_service,
-    fortune as fortune_service,
     fx as fx_service,
     upcoming as upcoming_service,
 )
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.rendering import render
-
-router = APIRouter(tags=["home"])
 
 PaceKind = Literal["on_track", "pacing_high", "over_budget"]
 
@@ -115,7 +103,7 @@ def _convert_minor(
     return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
 
 
-def _collect_account_rows(
+def collect_account_rows(
     conn: sqlite3.Connection,
     user_id: int,
     base_ccy: str,
@@ -158,7 +146,7 @@ def _collect_account_rows(
     return rows, totals, fortune_base
 
 
-def _pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> PaceTag:
+def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> PaceTag:
     """Compute pace signal from totals + elapsed fraction of the month."""
     if budgeted <= 0:
         return PaceTag(kind="on_track", label=_PACE_LABELS["on_track"])
@@ -172,7 +160,7 @@ def _pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> 
     return PaceTag(kind="on_track", label=_PACE_LABELS["on_track"])
 
 
-def _window_from(request: Request) -> tuple[str, int | None]:
+def window_from(request: Request) -> tuple[str, int | None]:
     """Parse ``?window=`` → (label, days). Falls back to the default."""
     raw = request.query_params.get("window", _DEFAULT_WINDOW)
     if raw not in _WINDOWS:
@@ -180,7 +168,7 @@ def _window_from(request: Request) -> tuple[str, int | None]:
     return raw, _WINDOWS[raw]
 
 
-def _list_upcoming(
+def list_upcoming(
     conn: sqlite3.Connection,
     user_id: int,
     today: date,
@@ -210,81 +198,4 @@ def _list_upcoming(
             dest_account_id=item.dest_account_id,
         )
         for item in items
-    )
-
-
-@router.get("/", response_class=HTMLResponse)
-def home(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """Legacy Overview surface kept at ``/`` for v1 compat.
-
-    Rising Dough v2 ships ``/today`` as the canonical landing (ADR-0051).
-    Phase 7 cleanup (T-R58) will swap this to a 302 → ``/today``; keeping
-    the direct render for now preserves bookmarks and the integration test
-    contract.
-    """
-    today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
-    # Fiscal cycle (ADR-0064) — see /today for the canonical surface.
-    year, month = budget_service.fiscal_month_for(conn, user_id, today)
-    base_ccy = settings.base_currency
-
-    account_rows, totals_by_ccy, fortune_base = _collect_account_rows(conn, user_id, base_ccy)
-    fortune = fortune_service.compute_fortune(conn, user_id, settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
-    pace = _pace_tag(summary.totals.spent_minor, summary.totals.budgeted_minor, today, year, month)
-    days_left = summary.days_until_next_income
-    bar_pct = 0
-    if summary.totals.budgeted_minor > 0:
-        ratio = 100 * summary.totals.spent_minor / summary.totals.budgeted_minor
-        bar_pct = max(0, min(100, int(ratio)))
-
-    window_label, window_days = _window_from(request)
-    upcoming = _list_upcoming(conn, user_id, today, window_days)
-
-    return render(
-        request,
-        "home/index.html",
-        today=today,
-        year=year,
-        month=month,
-        base_ccy=base_ccy,
-        fortune_base=fortune_base,
-        fortune=fortune,
-        account_rows=account_rows,
-        totals_by_ccy=totals_by_ccy,
-        summary=summary,
-        pace=pace,
-        days_left=days_left,
-        bar_pct=bar_pct,
-        upcoming=upcoming,
-        window_label=window_label,
-    )
-
-
-@router.get("/overview/upcoming", response_class=HTMLResponse)
-def upcoming_fragment(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """HTMX fragment for Panel C — swapped on window change or live events.
-
-    T-093: returns the list body plus an out-of-band swap of the segmented
-    range so active state stays in sync with ``window_label`` without any
-    new client JS.
-    """
-    today = datetime.now(ZoneInfo(settings.display_timezone)).date()  # ADR-0007
-    window_label, window_days = _window_from(request)
-    upcoming = _list_upcoming(conn, user_id, today, window_days)
-    return render(
-        request,
-        "home/_upcoming_fragment.html",
-        upcoming=upcoming,
-        today=today,
-        window_label=window_label,
     )

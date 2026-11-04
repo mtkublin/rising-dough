@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-04 (T-D50 - legacy home page retired)
+- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0076.
+
 ## 2026-11-04 (T-D47 - Security + Password moved into Settings)
 - **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.
 - **Fix(T-D47): "The passkey wasn't added" in dev.** WebAuthn RP ID/origin are now derived from the request host when `env=dev` and `BUDGET_WEBAUTHN_*` are unset (static `localhost:8000` default rejected any other port); IP-literal hosts get an explanatory message (open `http://localhost:<port>`); failures are logged; `passkeys.js` reloads on same-page redirect. New e2e `tests/e2e/test_passkey_journey.py` (virtual authenticator). `just dev` prints the localhost URL. ADR-0075 addendum.

@@ -168,6 +168,9 @@ Owner: application code. All tasks block Phase 2.
 - Rollback policy: migrations must stay readable by the previous image (expand-only); a release that breaks N-1 compatibility is flagged in its CHANGELOG entry and rolls back via restore (pre-migration backup or Litestream PITR), not via `rollback`.
 - Runbooks updated: `deploy.md`, `rollback.md`, `restore.md`, `disaster-recovery.md`. Reference: ADR-0071.
 
+### ✅ T-D50 [S] Retire legacy home page → T-D47
+- `/` (GET/HEAD) → 303 `/today`; post-login, post-rotation and `safe_next` fallback = `DEFAULT_LANDING` (`/today`). Legacy home router, `templates/home/**`, `/overview/upcoming` and the home nav/palette entries removed; shared Today data helpers moved to `web/today_data.py`. Reference: ADR-0076.
+
 ### ✅ T-D51 [P] Liability "Available" shows 2 decimals
 - Accounts page (`partials/accounts/_row.html`, `accounts/index.html`): the liability "Available" figure switches from `{:,.0f}` to `{:,.2f}` so sub-unit remainders are visible. Limit and Used are unchanged. Covered by `test_liability_available_shows_two_decimals`.
 

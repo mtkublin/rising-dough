@@ -39,6 +39,7 @@ from budget_planner.logging import get_logger
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import auth as auth_service
 from budget_planner.web.auth_cookies import (
+    DEFAULT_LANDING,
     LOGIN_PATH,
     clear_session_cookie,
     response_sets_cookie,
@@ -106,8 +107,6 @@ def _resolve(settings: Settings, session_id: str) -> CurrentUser | None:
 
 def _login_url(next_path: str) -> str:
     target = safe_next(next_path)
-    if target == "/":
-        return LOGIN_PATH
     return f"{LOGIN_PATH}?next={quote(target, safe='')}"
 
 
@@ -115,7 +114,7 @@ def _hx_current_path(request: Request) -> str:
     current = request.headers.get("hx-current-url", "")
     parts = urlsplit(current)
     if not parts.path or (parts.netloc and parts.netloc != request.url.netloc):
-        return "/"
+        return DEFAULT_LANDING
     return f"{parts.path}?{parts.query}" if parts.query else parts.path
 
 

@@ -32,7 +32,7 @@ CHALLENGE_COOKIE_NAME: Final = "__Host-passkey-challenge"
 CHALLENGE_DEV_COOKIE_NAME: Final = "passkey_challenge"
 CHALLENGE_TTL_SECONDS: Final = 300
 LOGIN_PATH: Final = "/auth/login"
-DEFAULT_NEXT: Final = "/"
+DEFAULT_LANDING: Final = "/today"  # ADR-0076
 
 _SECONDS_PER_DAY: Final = 86_400
 _FIRST_PRINTABLE: Final = 0x20
@@ -209,16 +209,16 @@ def clear_challenge_cookie(response: Response, settings: Settings) -> None:
 
 
 def safe_next(value: str | None) -> str:
-    """Return *value* iff it is a same-site relative path, else ``/`` (ADR-0070 §4)."""
-    if not value or not value.startswith("/") or value.startswith(("//", "/\\")):
-        return DEFAULT_NEXT
+    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0076)."""
+    if not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\")):
+        return DEFAULT_LANDING
     if "\\" in value or any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value):
-        return DEFAULT_NEXT
+        return DEFAULT_LANDING
     parts = urlsplit(value)
     if parts.scheme or parts.netloc:
-        return DEFAULT_NEXT
+        return DEFAULT_LANDING
     if parts.path == LOGIN_PATH or parts.path.startswith(f"{LOGIN_PATH}/"):
-        return DEFAULT_NEXT
+        return DEFAULT_LANDING
     return value
 
 
@@ -226,7 +226,7 @@ __all__ = [
     "CHALLENGE_COOKIE_NAME",
     "CHALLENGE_DEV_COOKIE_NAME",
     "CHALLENGE_TTL_SECONDS",
-    "DEFAULT_NEXT",
+    "DEFAULT_LANDING",
     "LOGIN_PATH",
     "SESSION_COOKIE_NAME",
     "SESSION_DEV_COOKIE_NAME",

@@ -78,3 +78,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0073 | [User Admin Panel — 404 Guard, One-Shot Password Delivery, Invariant Errors, Audit Attribution](0073-user-admin-panel-guard-and-one-shot-password.md) (amends ADR-0061 §4, §5) |
 | 0074 | [Password Change — Policy, Audit Shape, and Forced-Rotation Responses](0074-password-change-policy-and-forced-rotation.md) (amends ADR-0061 §4) |
 | 0075 | [Security Controls Live in Settings — Security Tab, Redirects, Forced-Rotation Page](0075-security-controls-live-in-settings.md) (amends ADR-0070, ADR-0073, ADR-0074) |
+| 0076 | [Retire Legacy Home Page; Today Is the Landing Page](0076-retire-legacy-home-page.md) (amends ADR-0051, ADR-0023, ADR-0070 §4) |

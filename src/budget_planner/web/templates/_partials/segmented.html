@@ -39,7 +39,7 @@
     {{ segmented(mode="htmx",
                  items=[("7","7 days"),("30","30 days"),("all","all")],
                  active=window_label, name="upcoming-range",
-                 hx_get="/overview/upcoming", hx_target="#upcoming-list",
+                 hx_get="/today/upcoming", hx_target="#upcoming-list",
                  hx_swap="innerHTML", hx_param="window", oob=oob) }}
 #}
 {% macro segmented(mode="link", items=None, active=None, name=None, href_tmpl=None, hx_get=None, hx_target=None, hx_swap="outerHTML", hx_param="view", hx_push_url=False, oob=False, extra="") -%}
