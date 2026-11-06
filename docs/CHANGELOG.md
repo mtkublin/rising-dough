@@ -2,6 +2,23 @@
 
 ## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
 - **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365, fed from the Terraform variable via the compose template) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
+## 2026-11-06 (T-D67 — SSH only over Tailscale)
+- **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
+## 2026-11-06 (T-FIX5b — ADR renumber)
+- **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
+
+## 2026-11-06 (T-FIX5 — budget committed converts to base currency)
+- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0093, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
+## 2026-11-06 (T-D70 — CI Terraform inputs via TF_VAR_* secrets)
+- **CI(T-D70): `terraform.yml` and `restore-drill.yml` pass every Terraform input as `TF_VAR_*` from environment-scoped GitHub secrets (`drill`, `prod`, ungated `prod-plan`); `-var-file` removed (tfvars are gitignored and were absent in CI). Guard script `terraform/scripts/check_tf_vars.py`, `-input=false` everywhere, architecture test, operator checklist A5 secrets table (ADR-0093).**
+
+## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
+- **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
+## 2026-11-06 (T-VIS6 — /accounts mobile table)
+- **Fix(T-VIS6): /accounts fits 375 px.** Below 640 px Trend/Checked/Txns columns are hidden; Balance (with planned sub-line), Account and Actions stay visible without sideways scroll. CSS cache-bust rd6 -> rd7; mobile baseline refreshed.
+## 2026-11-06 (T-D69 — Drill in its own Scaleway project)
+- **Infra(T-D69): drill runs in its own Scaleway project `rising-dough-drill`; DNS records go to the zone's project (`dns_zone_project_id`); prod state creates a stable read-only `restore-reader` principal for the restore drill (ADR-0092).
+
 ## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
 - **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
 
@@ -9,7 +26,11 @@
 - **Docs: opened T-FIX4, T-FIX5, T-VIS6** from the 2026-11-06 code review / T-VIS5 screenshots.
 ## 2026-11-06 (T-D66 — restore drill always destroys)
 - **Fix(T-D66): monthly restore drill always destroys its environment** (ADR-0034 §5 addendum). `terraform destroy` runs `if: always()`; failure evidence is uploaded as the `restore-drill-evidence` artifact before destroy; a post-destroy check fails the job if resources remain.
+## 2026-11-06 (T-D68 — bucket policy allow-list, per-env isolation, drill force_destroy)
+- **Fix(T-D68): object-storage bucket policy no longer locks out Litestream** (ADR-0091). Deny-only `2023-04-17` policy replaced by an Allow-only policy for the env's IAM application plus operator (`bucket_admin_principals`) and prod read-only restore (`bucket_readonly_principals`) principals; drill and prod buckets are mutually isolated. Drill bucket is `force_destroy`.
 
+## 2026-11-06 (T-D60 — IP / user-agent retention purge)
+- **Feat(T-D60): audit `ip`/`user_agent` nulled and ended sessions deleted after `retention_personal_days` (default 90).** Runs from the container entrypoint (after `startup_migrate`, non-fatal) and daily on the app lifespan. Audit rows are kept. ADR-0078 §7.
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
 ## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)

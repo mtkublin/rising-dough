@@ -260,11 +260,7 @@ def _collect_events(
         user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
-    dedup_keys: set[tuple[int, dt.date]] = {
-        (row.recurring_rule_id, row.occurrence_date)
-        for row in persisted
-        if row.recurring_rule_id is not None and row.occurrence_date is not None
-    }
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     events: dict[dt.date, list[_CashEvent]] = {}
     for row in persisted:
@@ -352,6 +348,8 @@ def _committed_future_for_category(
     category_id: int,
     window_start: dt.date,
     window_end_inclusive: dt.date,
+    *,
+    today: dt.date | None = None,
 ) -> int:
     """Sum unpromoted planned + active recurring expense amounts for one category.
 
@@ -364,6 +362,7 @@ def _committed_future_for_category(
         return 0
 
     total = 0
+    to_base = budget_svc.base_amount_converter(conn, user_id, today=today)
 
     planned_rows = planned_repo.list_filtered(
         conn,
@@ -376,7 +375,7 @@ def _committed_future_for_category(
             promoted=False,
         ),
     )
-    total += sum(r.amount for r in planned_rows)
+    total += sum(to_base(r.account_id, r.amount) for r in planned_rows)
 
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id != category_id:
@@ -388,7 +387,7 @@ def _committed_future_for_category(
         for occ in recurring_svc.rt_expand(
             conn, user_id, rule, overrides, rule_start, window_end_inclusive
         ):
-            total += occ.amount
+            total += to_base(occ.account_id, occ.amount)
 
     return total
 
@@ -465,7 +464,7 @@ def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0
 
             spent = _spent_so_far(conn, user_id, cat_id, month_start, min(today, month_end))
             committed = _committed_future_for_category(
-                conn, user_id, cat_id, window_start, month_end
+                conn, user_id, cat_id, window_start, month_end, today=today
             )
             unaccounted = budget - spent - committed
             if unaccounted <= 0:
@@ -699,7 +698,7 @@ def _planned_budget_per_month(
                 continue
             spent = _spent_so_far(conn, user_id, cat.id, month, min(today, month_end))
             committed = _committed_future_for_category(
-                conn, user_id, cat.id, window_start, month_end
+                conn, user_id, cat.id, window_start, month_end, today=today
             )
             remaining = amount - spent - committed
             if remaining > 0:
@@ -741,11 +740,7 @@ def _month_flow_sums(
         user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
-    dedup_keys: set[tuple[int, dt.date]] = {
-        (row.recurring_rule_id, row.occurrence_date)
-        for row in persisted
-        if row.recurring_rule_id is not None and row.occurrence_date is not None
-    }
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     for row in persisted:
         direction = directions_by_cat[row.category_id]

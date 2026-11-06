@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     session_absolute_lifetime_days: int = Field(default=30, ge=1, le=365)
     # ADR-0076 §2: how long a login / re-auth counts as "recent" (T-D53b).
     session_reauth_window_minutes: int = Field(default=10, ge=1, le=60)
+    # ADR-0078 §7: age after which audit ip / user_agent are nulled and ended
+    # sessions deleted (T-D60).
+    retention_personal_days: int = Field(default=90, ge=7, le=3650)
     fx_api_url: str = Field(default="https://api.frankfurter.app")
     # ADR-0078 §4 / T-D57: ceiling (days) on the age of any copy of user data
     # outside the live DB. Pre-migration backups are pruned once older than

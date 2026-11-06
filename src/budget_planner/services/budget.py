@@ -21,17 +21,21 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
+import logging
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 
+from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
+    accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
     planned as planned_repo,
@@ -39,10 +43,46 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import (
+    fx as fx_svc,
     income as income_svc,
     preferences as preferences_svc,
     recurring as recurring_svc,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def base_amount_converter(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    today: dt.date | None = None,
+    base_currency: str | None = None,
+) -> Callable[[int, int], int]:
+    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0093).
+
+    Planned / recurring items are future-dated, so the rate is the latest
+    cached one on or before ``today`` (never the item's date, never the
+    network). Base-currency accounts are untouched. A missing rate degrades to
+    the native amount (rate 1) with a warning, like the Today account rows.
+    """
+    ref = today if today is not None else dt.date.today()  # noqa: DTZ011 — ADR-0007
+    base = base_currency or get_settings().base_currency
+    ccy_by_account = {
+        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
+    }
+
+    def _convert(account_id: int, amount_minor: int) -> int:
+        ccy = ccy_by_account.get(account_id, base)
+        if ccy == base:
+            return amount_minor
+        try:
+            return fx_svc.convert_cached(conn, amount_minor, ref, ccy, base)
+        except fx_svc.FxUnavailableError:
+            logger.warning("no FX rate %s->%s; committed uses native amount", ccy, base)
+            return amount_minor
+
+    return _convert
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,8 +223,10 @@ def _committed_by_category(
     *,
     start: dt.date,
     end: dt.date,
+    today: dt.date | None = None,
+    base_currency: str | None = None,
 ) -> dict[int, int]:
-    """Return ``{category_id: committed_minor}`` for ``[start, end)``.
+    """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
 
     Expense-direction categories only (transit + adjustment + income
     excluded). Sources: unpromoted planned rows and active recurring-rule
@@ -193,6 +235,7 @@ def _committed_by_category(
     out: dict[int, int] = defaultdict(int)
     if end <= start:
         return out
+    to_base = base_amount_converter(conn, user_id, today=today, base_currency=base_currency)
 
     expense_ids = {
         cat.id
@@ -200,6 +243,7 @@ def _committed_by_category(
         if cat.direction is Direction.EXPENSE
     }
     inclusive_end = end - dt.timedelta(days=1)
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     planned_rows = planned_repo.list_filtered(
         conn,
@@ -212,7 +256,7 @@ def _committed_by_category(
         ),
     )
     for row in planned_rows:
-        out[row.category_id] += row.amount
+        out[row.category_id] += to_base(row.account_id, row.amount)
 
     # Clamp the generator window to [max(rule.next_due, start), end). Rules
     # advance ``next_due`` on promote; occurrences on-or-before the previous
@@ -229,7 +273,11 @@ def _committed_by_category(
         occurrences = recurring_svc.rt_expand(
             conn, user_id, rule, overrides, rule_start, inclusive_end
         )
-        out[rule.category_id] += sum(occ.amount for occ in occurrences)
+        out[rule.category_id] += sum(
+            to_base(occ.account_id, occ.amount)
+            for occ in occurrences
+            if (rule.id, occ.occurrence_date) not in dedup_keys
+        )
     return out
 
 
@@ -239,6 +287,8 @@ def committed_in_window(
     *,
     start: dt.date,
     end: dt.date,
+    today: dt.date | None = None,
+    base_currency: str | None = None,
 ) -> int:
     """Return the committed-minor sum for ``[start, end)`` over ALL expense categories.
 
@@ -247,7 +297,10 @@ def committed_in_window(
     Returns ``0`` when ``end <= start``. This is the unfiltered total; the
     budget "left" math uses :func:`committed_split_in_window` (ADR-0085).
     """
-    return sum(_committed_by_category(conn, user_id, start=start, end=end).values())
+    by_cat = _committed_by_category(
+        conn, user_id, start=start, end=end, today=today, base_currency=base_currency
+    )
+    return sum(by_cat.values())
 
 
 def committed_split_in_window(
@@ -257,13 +310,17 @@ def committed_split_in_window(
     start: dt.date,
     end: dt.date,
     budgeted_category_ids: frozenset[int],
+    today: dt.date | None = None,
+    base_currency: str | None = None,
 ) -> tuple[int, int]:
     """Return ``(budgeted_committed, unbudgeted_committed)`` for ``[start, end)``.
 
     ADR-0085: only commitments in categories with a resolved budget reduce
     "left"; the rest is surfaced as an informational figure.
     """
-    by_cat = _committed_by_category(conn, user_id, start=start, end=end)
+    by_cat = _committed_by_category(
+        conn, user_id, start=start, end=end, today=today, base_currency=base_currency
+    )
     budgeted = sum(v for k, v in by_cat.items() if k in budgeted_category_ids)
     unbudgeted = sum(v for k, v in by_cat.items() if k not in budgeted_category_ids)
     return budgeted, unbudgeted
@@ -470,6 +527,7 @@ def month_summary(  # noqa: PLR0915
             user_id,
             start=today,
             end=next_income_date,
+            today=today,
             budgeted_category_ids=frozenset(
                 cat_id for cat_id, amount in budgets_by_cat.items() if amount is not None
             ),

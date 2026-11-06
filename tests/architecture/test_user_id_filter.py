@@ -23,7 +23,12 @@ PKG_ROOT = REPO_ROOT / "src" / "budget_planner"
 SCANNED_DIRS = ("repositories", "services", "web/routers")
 
 # (path relative to repo root, function name) -> justification.
-SQL_ALLOWLIST: dict[tuple[str, str], str] = {}
+SQL_ALLOWLIST: dict[tuple[str, str], str] = {
+    (
+        "src/budget_planner/repositories/retention.py",
+        "delete_ended_sessions",
+    ): "T-D60: system retention sweeper, deliberately cross-user (ADR-0078 section 7)",
+}
 
 # Repository modules that do not own user data, or whose lookups happen
 # *before* the user is known (credential repos added by T-D02 resolve the
@@ -35,6 +40,7 @@ NON_USER_SCOPED_REPOSITORIES: dict[str, str] = {
     "audit.py": "audit_log is not user-owned (actor columns are attribution)",
     "fx.py": "fx_rates is global reference data",
     "rate_limit.py": "T-D09: auth_rate_limit counters keyed by opaque strings (ADR-0072)",
+    "retention.py": "T-D60: system retention sweeper (audit_log + sessions)",
     "sessions.py": "T-D02: resolves the user from an opaque session id",
     "users.py": "T-D19: writes the `users` identity table (bootstrap, operator CLI, T-D17)",
     "webauthn.py": "T-D02: resolves the user from a credential id",

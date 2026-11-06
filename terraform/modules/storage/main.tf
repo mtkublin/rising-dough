@@ -4,6 +4,9 @@ resource "scaleway_object_bucket" "durability" {
   name   = var.bucket_name
   region = var.scaleway_region
 
+  # true for drill only (ADR-0091): terraform destroy must empty the bucket.
+  force_destroy = var.force_destroy
+
   versioning {
     enabled = true
   }
@@ -33,28 +36,19 @@ resource "scaleway_object_bucket_acl" "durability" {
   acl    = "private"
 }
 
-# Belt-and-braces guard: refuse plaintext (non-TLS) requests at the bucket
-# policy layer. ACL=private on the bucket already blocks public access.
+# Allow-list policy (ADR-0091): per-env isolation + operator/read-only access.
+# Do not add Deny statements; they are ignored with Version 2023-04-17.
+module "policy" {
+  source = "../bucket_policy"
+
+  bucket_name         = scaleway_object_bucket.durability.name
+  env_application_id  = var.env_application_id
+  admin_principals    = var.admin_principals
+  readonly_principals = var.readonly_principals
+}
+
 resource "scaleway_object_bucket_policy" "durability" {
   bucket = scaleway_object_bucket.durability.name
   region = var.scaleway_region
-
-  policy = jsonencode({
-    Version = "2023-04-17"
-    Statement = [
-      {
-        Sid       = "DenyUnencryptedTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource = [
-          scaleway_object_bucket.durability.name,
-          "${scaleway_object_bucket.durability.name}/*",
-        ]
-        Condition = {
-          Bool = { "aws:SecureTransport" = "false" }
-        }
-      }
-    ]
-  })
+  policy = module.policy.policy_json
 }

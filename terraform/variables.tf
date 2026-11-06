@@ -67,6 +67,17 @@ variable "managed_dns_zone" {
   default     = false
 }
 
+variable "dns_zone_project_id" {
+  description = "Scaleway project that owns the DNS zone (the prod project, rising-dough). DNS records of every env are created there, even when the env's own resources live in another project (ADR-0092)."
+  type        = string
+  default     = "53175dd0-b944-489b-b05d-3f55d65d79af"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.dns_zone_project_id))
+    error_message = "dns_zone_project_id must be a UUID."
+  }
+}
+
 variable "app_image_tag" {
   description = "Container image tag the host should pull on first boot. Deploy pipeline updates it afterwards."
   type        = string
@@ -97,6 +108,34 @@ variable "github_owner" {
 }
 
 # ----------------------------------------------------------------------------
+# Bucket policy principals (ADR-0091, T-D68).
+# Format: "user_id:<uuid>" (scw iam user list) or "application_id:<uuid>"
+# (scw iam application list).
+# ----------------------------------------------------------------------------
+
+variable "bucket_admin_principals" {
+  description = "Operator principals granted full access to this env's bucket. Needed unless Terraform runs as the Organization owner."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.bucket_admin_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each entry must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}
+
+variable "bucket_readonly_principals" {
+  description = "Read-only principals for this env's bucket. Prod: the application owning the restore key (scw_access_key_restore). Leave empty on drill."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.bucket_readonly_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each entry must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}
+
+# ----------------------------------------------------------------------------
 # Computed locals derived from inputs (surfaced through outputs).
 # ----------------------------------------------------------------------------
 
@@ -112,6 +151,9 @@ locals {
 
   name_prefix = "budget-planner-${var.env}"
   bucket_name = "${local.name_prefix}-${var.scaleway_region}"
+
+  tailscale_tag      = "tag:${var.env}"
+  tailscale_hostname = "budget-planner-${var.env}" # MagicDNS name used by CI and the operator
 }
 
 # ----------------------------------------------------------------------------
@@ -177,4 +219,22 @@ variable "backup_max_age_days" {
     condition     = var.backup_max_age_days >= 31 && var.backup_max_age_days <= 365
     error_message = "backup_max_age_days must be 31..365 (30 d Litestream retention + at least 1 d noncurrent expiry)."
   }
+}
+
+# ----------------------------------------------------------------------------
+# Tailscale (T-D67, ADR-0094). SSH/admin access only. Supply via TF_VAR_*
+# (never committed). The OAuth client needs scope `auth_keys` (write) and must
+# own tag:prod + tag:drill.
+# ----------------------------------------------------------------------------
+
+variable "tailscale_oauth_client_id" {
+  description = "Tailscale OAuth client ID (scope auth_keys, tags tag:prod + tag:drill)."
+  type        = string
+  sensitive   = true
+}
+
+variable "tailscale_oauth_client_secret" {
+  description = "Tailscale OAuth client secret."
+  type        = string
+  sensitive   = true
 }

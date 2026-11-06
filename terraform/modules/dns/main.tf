@@ -12,19 +12,21 @@
 resource "scaleway_domain_record" "a" {
   count = var.managed_zone ? 1 : 0
 
-  dns_zone = var.domain
-  name     = var.subdomain
-  type     = "A"
-  data     = var.instance_ipv4
-  ttl      = var.record_ttl_secs
+  dns_zone   = var.domain
+  project_id = var.zone_project_id # ADR-0092: the zone lives in the prod project
+  name       = var.subdomain
+  type       = "A"
+  data       = var.instance_ipv4
+  ttl        = var.record_ttl_secs
 }
 
 resource "scaleway_domain_record" "aaaa" {
   count = var.managed_zone ? 1 : 0 # plan-time known; the address itself is not
 
-  dns_zone = var.domain
-  name     = var.subdomain
-  type     = "AAAA"
-  data     = var.instance_ipv6
-  ttl      = var.record_ttl_secs
+  dns_zone   = var.domain
+  project_id = var.zone_project_id # ADR-0092
+  name       = var.subdomain
+  type       = "AAAA"
+  data       = var.instance_ipv6
+  ttl        = var.record_ttl_secs
 }

@@ -33,17 +33,60 @@ module "storage" {
   scaleway_region   = var.scaleway_region
   lifecycle_days    = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
   log_bucket_suffix = "logs"
+
+  # ADR-0091: allow-list policy + drill-only force_destroy.
+  env_application_id  = module.iam.application_id
+  admin_principals    = var.bucket_admin_principals
+  readonly_principals = local.bucket_readonly_principals # ADR-0092: + restore-reader on prod
+  force_destroy       = var.env == "drill"
+}
+
+# ----------------------------------------------------------------------------
+# T-D69 / ADR-0092: stable read-only principal for the restore drill.
+# Prod state only; the drill env re-creates its own IAM app on every run, so it
+# cannot be listed in prod's bucket policy. This one is long-lived.
+# ----------------------------------------------------------------------------
+
+module "restore_reader" {
+  source = "./modules/restore_reader"
+  count  = var.env == "prod" ? 1 : 0
+
+  name_prefix         = local.name_prefix
+  scaleway_project_id = var.scaleway_project_id
+}
+
+locals {
+  bucket_readonly_principals = distinct(concat(
+    var.bucket_readonly_principals,
+    [for m in module.restore_reader : "application_id:${m.application_id}"],
+  ))
 }
 
 module "dns" {
   source = "./modules/dns"
 
   managed_zone    = var.managed_dns_zone
+  zone_project_id = var.dns_zone_project_id
   domain          = var.domain
   subdomain       = local.subdomain
   instance_ipv4   = module.compute.vm_ipv4
   instance_ipv6   = module.compute.vm_ipv6
   record_ttl_secs = 300
+}
+
+# ----------------------------------------------------------------------------
+# T-D67 / ADR-0094: single-use, pre-authorized, tag-bound Tailscale auth key.
+# Drill nodes are ephemeral: they vanish from the tailnet shortly after destroy.
+# The tailnet ACL is NOT managed here (tailnet-global; see runbooks/tailscale-acl.hujson).
+# ----------------------------------------------------------------------------
+
+resource "tailscale_tailnet_key" "vm" {
+  description   = "budget-planner-${var.env} first boot"
+  reusable      = false
+  ephemeral     = var.env == "drill"
+  preauthorized = true
+  expiry        = 3600
+  tags          = [local.tailscale_tag]
 }
 
 module "compute" {
@@ -66,6 +109,11 @@ module "compute" {
   admin_password    = random_password.admin_initial_password.result
   cookie_secret     = random_password.cookie_secret.result
   trusted_hosts_csv = local.fqdn
+
+  # T-D67: SSH only over Tailscale.
+  tailscale_authkey  = tailscale_tailnet_key.vm.key
+  tailscale_hostname = local.tailscale_hostname
+  tailscale_tag      = local.tailscale_tag
 
   # T-D41a: restore-from-prod helper, drill env only.
   enable_restore_helper  = var.env == "drill"

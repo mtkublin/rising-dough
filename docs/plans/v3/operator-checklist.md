@@ -14,7 +14,8 @@
 
 - [x] Account data verified, payment method added, identity verification completed (2026-11-04).
 - [x] Dedicated project created (2026-11-04): organization **`mk-personal`**, project **`rising-dough`**. Terraform uses only the IDs.
-- [ ] Record the **project ID** and **organization ID** in `terraform/envs/{drill,prod}/terraform.tfvars` (gitignored; already created with `TODO` markers) and in the GitHub secrets `SCW_DEFAULT_PROJECT_ID` / `SCW_DEFAULT_ORG_ID`.
+- [x] (2026-11-06, ADR-0092) Second project **`rising-dough-drill`** created for the drill env, id `f2facf0d-f2c9-40cc-8bcb-5b212dc44648`. Prod stays in `rising-dough` (`53175dd0-b944-489b-b05d-3f55d65d79af`), which also owns the DNS zone and the state bucket.
+- [ ] Record the **project ID** and **organization ID** in `terraform/envs/{drill,prod}/terraform.tfvars` (gitignored; drill = drill project id, prod = `rising-dough`; both set `dns_zone_project_id` = prod project) and in the GitHub secrets `SCW_DEFAULT_PROJECT_ID` (repo = prod) / `SCW_DEFAULT_ORG_ID`.
 - [x] Stardust availability checked (2026-11-03): **sold out in `PL-WAW-1`, available in `PL-WAW-2`.** See [decision D1](#d1-compute-zone-pl-waw-2) for the follow-up the agent needs to make.
 - [x] (2026-11-04) Create an **operator API key** (project-admin) for Terraform. Store it in a password manager. It is used locally and as GitHub secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY`. Set the key's **preferred Object Storage project to `rising-dough`**. S3 requests carry no project, so buckets land in that project. Done: preferred project set. Keys are stored locally in `terraform/.env` (gitignored, mode 600). They were pasted into an agent chat, so rotate before prod. Then run `scw init` with project `rising-dough`, region `pl-waw`, zone `pl-waw-2`.
 - [x] Budget alert created (2026-11-04): budget 10 EUR, threshold 75 % (alerts at 7.50 EUR), delivered by email + SMS.
@@ -46,9 +47,36 @@
 
 ### A5. GitHub secrets and variables (pre-apply)
 
-- [ ] Secrets: `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID`, `SCW_DEFAULT_ORG_ID`, `ADMIN_EMAIL`, `APP_DOMAIN`, `OPERATOR_SSH_PUBKEY`, `GITHUB_DEPLOY_PUBKEY`, `GHCR_PULL_PAT`, `DEPLOY_SSH_PRIVATE_KEY`. <!-- pragma: allowlist secret -->
-- [ ] Variables: `APP_DOMAIN`, `DRILL_URL`, `PROD_URL`.
-- [ ] Duplicate the needed secrets into the **`drill` environment**, because `restore-drill.yml` reads environment-scoped secrets.
+- [ ] Create GitHub environments `drill`, `prod` (required reviewers, ADR-0037) and `prod-plan` (**no** reviewers; holds the prod values for the PR plan job, ADR-0093). CI never reads a tfvars file; every Terraform input is a secret below. Local runs keep using the gitignored `terraform/envs/<env>/terraform.tfvars`.
+- [ ] Add these secrets (S = sensitive). Environment-scoped secrets use the **same name** in each environment; where the scope is "drill / prod / prod-plan", add it to each of the three (`prod-plan` = copy of `prod`).
+
+| Secret | Scope | Terraform var | S | Value comes from |
+|---|---|---|---|---|
+| `SCW_ACCESS_KEY` | repo | (provider auth, `AWS_ACCESS_KEY_ID`) | yes | Operator IAM API key (access part) |
+| `SCW_SECRET_KEY` | repo | (provider auth, `AWS_SECRET_ACCESS_KEY`) | yes | Operator IAM API key (secret part) |
+| `SCW_DEFAULT_ORG_ID` | repo | `scaleway_organization_id` | no | `scaleway_organization_id` in local tfvars |
+| `SCW_DEFAULT_PROJECT_ID` | drill / prod / prod-plan | `scaleway_project_id` | no | drill: `rising-dough-drill` id; prod and prod-plan: `rising-dough` id (local tfvars) |
+| `ADMIN_EMAIL` | repo | `admin_email` | no | local tfvars |
+| `APP_DOMAIN` | repo | `domain` | no | local tfvars (`rising-dough.eu`) |
+| `OPERATOR_SSH_PUBKEY` | repo | `operator_ssh_pubkey` | yes | local tfvars (public key, treated as sensitive by Terraform) |
+| `GITHUB_DEPLOY_PUBKEY` | repo | `github_deploy_pubkey` | yes | public half of the deploy keypair (A4) |
+| `GHCR_PULL_PAT` | repo | `ghcr_pull_pat` | yes | read-only GHCR PAT (A3) |
+| `LITESTREAM_AGE_IDENTITY` | repo | `litestream_age_identity` | yes | `age-keygen -o litestream-age.key` (whole file or the `AGE-SECRET-KEY-1...` line); same PROD identity for drill |
+| `LITESTREAM_AGE_RECIPIENT` | repo | `litestream_age_recipient` | no | `age-keygen -y litestream-age.key` (was a variable; now a secret) |
+| `MANAGED_DNS_ZONE` | drill / prod / prod-plan | `managed_dns_zone` | no | `true` or `false`, as in local tfvars (unset = `false`) |
+| `BUCKET_ADMIN_PRINCIPALS` | drill / prod / prod-plan | `bucket_admin_principals` | no | HCL/JSON list string, e.g. `["user_id:<uuid>"]` (`scw iam user list`); unset = `[]` |
+| `BUCKET_READONLY_PRINCIPALS` | prod / prod-plan | `bucket_readonly_principals` | no | optional list string, e.g. `["application_id:<uuid>"]`; unset = `[]` |
+| `PROD_REPLICA_RO_ACCESS_KEY` | drill | `scw_access_key_restore` | yes | `terraform output -raw restore_reader_access_key` (prod state, after the first prod apply) |
+| `PROD_REPLICA_RO_SECRET_KEY` | drill | `scw_secret_key_restore` | yes | `terraform output -raw restore_reader_secret_key` (prod state) |
+| `DEPLOY_SSH_PRIVATE_KEY` | repo | (not Terraform) | yes | private half of the deploy keypair (A4) |
+| `DEPLOY_SSH_KNOWN_HOSTS_DRILL` | drill | (not Terraform) | no | pinned `known_hosts` line of the drill host |
+
+- [ ] List inputs are strings: paste them exactly as HCL/JSON (`["user_id:00000000-0000-0000-0000-000000000000"]`, double quotes). A malformed value fails `terraform plan`.
+- [ ] Not secrets (set by the workflow): `TF_VAR_env`, `TF_VAR_github_owner` (repo owner). Defaulted: region, zone, subdomains, `dns_zone_project_id`, `app_image_tag`.
+- [ ] The guard `terraform/scripts/check_tf_vars.py` names any missing required secret as `TF_VAR_<name> is empty`.
+- [ ] Remove the obsolete repo secret `SCW_DRILL_PROJECT_ID` and variable `LITESTREAM_AGE_RECIPIENT` if you created them (T-D69 / T-D56 scheme).
+- [ ] Variables: `DRILL_URL`, `PROD_URL`.
+- [ ] Prod must be applied before the first automated restore drill (the `PROD_REPLICA_RO_*` values come from its outputs); the manual T-D25 drill apply can run first without a restore.
 - [ ] Optional: `CODEQL_TOKEN`. Without it, the SARIF upload in `security.yml` is skipped.
 
 ### A6. Local tooling
@@ -67,6 +95,19 @@
 - [ ] Create an UptimeRobot or Betterstack account. The monitor itself is added after prod exists.
 
 ---
+
+### A9. Tailscale (T-D67, ADR-0094)
+
+SSH to the VMs is only possible over the tailnet; port 22 is closed publicly. The app stays public on 80/443 and users never need Tailscale.
+
+- [ ] Create a Tailscale account (Personal plan, free) and install the app on your laptop (and phone). Keep MagicDNS enabled (default).
+- [ ] Admin console, Access controls: paste `docs/plans/v3/runbooks/tailscale-acl.hujson` (replace the placeholder owner email with yours). Details in `runbooks/tailscale-ssh.md`.
+- [ ] Settings, OAuth clients: create one client with scope **Auth Keys: write** and tags `tag:prod`, `tag:drill`, `tag:ci`. Store the client ID and secret in the password manager.
+- [ ] GitHub secrets `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`: repo level (used by `terraform.yml`, `deploy.yml`, `rollback.yml`) and in the `drill` environment (used by `restore-drill.yml`); also in the `prod` environment if secrets are environment-scoped.
+- [ ] Update secrets `DRILL_HOST` = `budget-planner-drill` and `PROD_HOST` = `budget-planner-prod` (tailnet MagicDNS names, no longer public hostnames). Public `/ready` probes keep using `DRILL_URL` / `PROD_URL`.
+- [ ] Local Terraform runs: `export TF_VAR_tailscale_oauth_client_id=...` and `TF_VAR_tailscale_oauth_client_secret=...` (never in tfvars).
+- [ ] After the first prod apply, from your laptop on the tailnet: `ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod` into the secret `DEPLOY_SSH_KNOWN_HOSTS` (the drill host is scanned at runtime; `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete).
+- [ ] Optional: enable Tailnet Lock (Settings, Device management).
 
 ## B. Decisions only the operator can make
 
@@ -144,10 +185,12 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 
 ## D. Drill environment (T-D25, T-D26)
 
+- [ ] Before the first apply (T-D68, ADR-0091): in both `envs/*/terraform.tfvars` set `bucket_admin_principals = ["user_id:<your user id>"]` (`scw iam user list`). Without it Terraform and you get 403 on the bucket unless you are the Organization owner.
+- [x] Prod read-only restore principal is now created by Terraform (`restore-reader`, ADR-0092) and added to the bucket policy automatically; `bucket_readonly_principals` stays empty unless you need extras.
 - [ ] `terraform apply -var-file=envs/drill/terraform.tfvars`.
 - [ ] If the DNS zone is external: add A/AAAA records for `drill.budget.<domain>` pointing at the flex IP.
 - [ ] Put the output of `terraform output -raw admin_initial_password` in the password manager. The T-D25 file still says `admin_fallback_password`; that name is stale.
-- [ ] Set `DRILL_HOST` and `DEPLOY_SSH_KNOWN_HOSTS_DRILL` (from `ssh-keyscan`; verify the fingerprint against the Scaleway console serial output).
+- [ ] Set `DRILL_HOST` = `budget-planner-drill` (A9). SSH works over the tailnet only; host keys via `ssh-keyscan budget-planner-drill` from your laptop (optionally compare with the Scaleway console serial output).
 - [ ] Do the seven post-apply checks in T-D25: health/ready, Observatory, `nslookup`, operator and deploy SSH, bucket exists, Litestream generation.
 - [ ] Log in as admin, confirm the forced password change, then change the password.
 - [ ] Teardown drill (T-D26). Check in the Scaleway console that nothing billable is left.
@@ -157,7 +200,7 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Prod apply and GitHub approval. DNS, admin password capture, `PROD_HOST`, `DEPLOY_SSH_KNOWN_HOSTS`.
 - [ ] Log in, change the password, register a passkey, create at least one non-admin user.
 - [ ] Rollback test (T-D33): approve the deliberately broken deploy and watch the auto-rollback. Run `rollback.yml` once by hand.
-- [ ] First restore drill (T-D40): create a **read-only** Scaleway key for the prod bucket, record audit counts, restore, add a row to `runbooks/restore-log.md`.
+- [ ] First restore drill (T-D40): use the prod `restore-reader` key (ADR-0092, from prod Terraform outputs), record audit counts, restore, add a row to `runbooks/restore-log.md`.
 - [ ] Smoke journey (T-D43): run it by hand after the deploy, with a second user and a real passkey.
 - [ ] External security scan (T-D42): Observatory, testssl.sh, nikto.
 - [ ] Uptime monitor (T-D44) on `/health`. Record its ID in `runbooks/disaster-recovery.md` (currently `<TBD>`).

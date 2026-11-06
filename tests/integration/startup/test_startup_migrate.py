@@ -20,7 +20,12 @@ from budget_planner import logging as bp_logging
 from budget_planner.config import Settings
 from budget_planner.db import startup_migrate
 from budget_planner.db.connection import get_connection
-from budget_planner.db.migrate import MIGRATIONS_DIR, applied_versions, discover
+from budget_planner.db.migrate import (
+    MIGRATIONS_DIR,
+    applied_versions,
+    apply_migrations,
+    discover,
+)
 from budget_planner.services import _passwords
 from budget_planner.web.app import create_app
 
@@ -290,3 +295,43 @@ def test_entrypoint_script_aborts_on_migration_failure(tmp_path: Path) -> None:
 
     assert proc.returncode == 1
     assert "should-not-run" not in proc.stdout
+
+
+def test_entrypoint_script_runs_retention_purge(tmp_path: Path) -> None:
+    """T-D60: entrypoint purges old audit ip/user_agent on a scratch DB after migrating."""
+    db = tmp_path / "budget.db"
+    conn = get_connection(_settings(db))
+    try:
+        apply_migrations(conn)
+        conn.execute(
+            "INSERT INTO audit_log (entity_type, entity_id, changed_at, operation, ip, "
+            "user_agent) VALUES ('x', 1, '2020-01-01T00:00:00.000Z', 'create', '1.2.3.4', 'UA')"
+        )
+    finally:
+        conn.close()
+    env = {k: v for k, v in os.environ.items() if not k.startswith("BUDGET_")}
+    env.update(
+        {
+            "BUDGET_ENV": "test",
+            "BUDGET_DATABASE_URL": f"sqlite:///{db.as_posix()}",
+            "PATH": f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}",
+        }
+    )
+
+    proc = subprocess.run(  # noqa: S603 — fixed argv, repo-owned script
+        [str(ENTRYPOINT), sys.executable, "-c", "print('exec-ok')"],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    conn = get_connection(_settings(db))
+    try:
+        row = conn.execute("SELECT ip, user_agent FROM audit_log").fetchone()
+    finally:
+        conn.close()
+    assert (row["ip"], row["user_agent"]) == (None, None)

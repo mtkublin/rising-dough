@@ -10,9 +10,10 @@
 #
 # Secrets expected:
 #   DEPLOY_SSH_PRIVATE_KEY  — ed25519 key paired to deploy user's authorized_keys
-#   DEPLOY_SSH_KNOWN_HOSTS  — ssh-keyscan output for drill + prod hosts
-#   DRILL_HOST              — hostname SSH targets for drill env
-#   PROD_HOST               — hostname SSH targets for prod env
+#   DEPLOY_SSH_KNOWN_HOSTS  — ssh-keyscan output for drill + prod hosts, keyed by the tailnet names (ADR-0094)
+#   DRILL_HOST              — tailnet MagicDNS SSH target for drill env: budget-planner-drill (ADR-0094)
+#   PROD_HOST               — tailnet MagicDNS SSH target for prod env: budget-planner-prod (ADR-0094)
+#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET — Tailscale OAuth client (scope auth_keys, tag:ci); SSH runs over the tailnet
 # Variables (vars.*):
 #   DRILL_URL               — https URL probed after drill deploy
 #   PROD_URL                — https URL probed after prod deploy
@@ -95,6 +96,13 @@ jobs:
               environment_url: '${{ vars.DRILL_URL }}',
               description: 'SSH deploy starting'
             });
+
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Install SSH key
         env:
@@ -210,6 +218,13 @@ jobs:
               environment_url: '${{ vars.PROD_URL }}',
               description: 'SSH deploy starting'
             });
+
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Install SSH key
         env:
