@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D72b — bootstrap state committed)
+- **Infra(T-D72b): `terraform/bootstrap/terraform.tfstate` and `.terraform.lock.hcl` committed after the operator's first apply** (ADR-0096). Scoped negations added to `terraform/.gitignore`; checklist A7 ticked (applied 2026-11-06).
+
 ## 2026-11-06 (T-D72 — Terraform state bootstrap stack)
 - **Infra(T-D72): state bucket is now created by the Terraform root stack `terraform/bootstrap/` instead of `bootstrap-state.sh`** (ADR-0096, amends ADR-0035 §4). Script deleted; checklist A7 updated. Operator action: apply once (or import the existing bucket) and commit `terraform/bootstrap/terraform.tfstate`.
 

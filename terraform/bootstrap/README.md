@@ -17,4 +17,6 @@ terraform apply
 git add terraform.tfstate && git commit -m "chore(T-D72): bootstrap state"
 ```
 
+2026-11-06: first apply done by the operator; state committed (T-D72b).
+
 The stack is applied once. Afterwards re-run `terraform plan` only to check drift. `prevent_destroy` and `force_destroy = false` guard the bucket; there is intentionally no bucket policy (ADR-0096).
