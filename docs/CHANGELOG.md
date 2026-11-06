@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-VIS5 — deterministic visual baselines)
+- **Test(T-VIS5): visual suite runs against a frozen clock (2026-10-31, the demo DB's last day)** via test-only launcher `tests/visual/frozen_server.py` + Playwright fixed time; fixes daily drift of today/accounts/budget snapshots. Baselines refreshed (T-FIX1, T-VIS4, T-ACC1 UI), `/plan` x3 viewports added. No app code changed.
 ## 2026-11-06 (T-D54 — owner-scoped audit tail)
 - **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
 ## 2026-11-06 (T-D59 — log hygiene)
