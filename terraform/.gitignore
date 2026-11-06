@@ -21,3 +21,4 @@ override.tf.json
 
 # T-D72 / ADR-0096: bootstrap stack state is committed (no secrets, bucket metadata only).
 !bootstrap/terraform.tfstate
+!bootstrap/.terraform.lock.hcl
