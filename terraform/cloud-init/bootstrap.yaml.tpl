@@ -1,7 +1,6 @@
+#cloud-config
 ## NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
 ## ADR-0035 §5: first-boot sequence (packages, users, templates, firewall, compose up).
-
-#cloud-config
 hostname: ${hostname}
 preserve_hostname: false
 fqdn: ${hostname}
