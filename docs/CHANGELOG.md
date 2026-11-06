@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D68 — bucket policy allow-list, per-env isolation, drill force_destroy)
+- **Fix(T-D68): object-storage bucket policy no longer locks out Litestream** (ADR-0091). Deny-only `2023-04-17` policy replaced by an Allow-only policy for the env's IAM application plus operator (`bucket_admin_principals`) and prod read-only restore (`bucket_readonly_principals`) principals; drill and prod buckets are mutually isolated. Drill bucket is `force_destroy`.
+
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
 ## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)

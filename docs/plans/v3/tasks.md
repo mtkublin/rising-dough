@@ -266,6 +266,13 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 ### ✅ T-D65 [P] DNS AAAA record count known at plan time → T-D63
 - `scaleway_domain_record.aaaa` count was `managed_zone && instance_ipv6 != null`, which fails first plan ("Invalid count argument", address unknown until apply). Compute always creates the IPv6 IP, so count is now `managed_zone ? 1 : 0` and `instance_ipv6` is required. Reference: ADR-0088.
 
+### ✅ T-D68 [S] Bucket policy explicit allow-list + per-env isolation + drill force_destroy → T-D21
+- The `2023-04-17` policy had only a `Deny`, which locks out every non-owner (Litestream got 403). Replaced by an Allow-only policy (`modules/bucket_policy`): the env's own IAM application (Litestream actions), optional `bucket_admin_principals` (operator, `s3:*`), optional `bucket_readonly_principals` (prod: the restore key's application).
+- Per-env isolation: drill and prod share a project; the allow-list stops a drill key touching the prod bucket.
+- `force_destroy` is a module variable: `true` on drill, `false` on prod.
+- Operator must fill `bucket_admin_principals` (both envs) and prod `bucket_readonly_principals` (see operator checklist).
+- Reference: ADR-0091 (amends ADR-0035 §3, ADR-0032 §3).
+
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.

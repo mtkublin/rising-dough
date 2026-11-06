@@ -144,6 +144,8 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 
 ## D. Drill environment (T-D25, T-D26)
 
+- [ ] Before the first apply (T-D68, ADR-0091): in both `envs/*/terraform.tfvars` set `bucket_admin_principals = ["user_id:<your user id>"]` (`scw iam user list`). Without it Terraform and you get 403 on the bucket unless you are the Organization owner.
+- [ ] Prod only: after creating the read-only restore key's IAM application (`scw iam application list`), set `bucket_readonly_principals = ["application_id:<id>"]` in prod tfvars and re-apply prod. The same application needs an IAM policy allowing object-storage read in the project. Drill leaves it empty.
 - [ ] `terraform apply -var-file=envs/drill/terraform.tfvars`.
 - [ ] If the DNS zone is external: add A/AAAA records for `drill.budget.<domain>` pointing at the flex IP.
 - [ ] Put the output of `terraform output -raw admin_initial_password` in the password manager. The T-D25 file still says `admin_fallback_password`; that name is stale.
