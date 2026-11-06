@@ -3,9 +3,10 @@
 # Provisions a disposable Scaleway drill environment via Terraform, restores
 # `/data/budget.db` from the prod Litestream bucket (read-only credential
 # baked into the drill cloud-init), verifies integrity + readiness, then
-# tears the environment down on success. On failure the drill host is
-# intentionally left standing and a GitHub issue is opened so the operator
-# can post-mortem.
+# tears the environment down ALWAYS (T-D66): success, failure or cancel. On
+# failure, best-effort debugging evidence is captured over SSH and uploaded as
+# a workflow artifact BEFORE destroy, then a GitHub issue is opened. A forgotten
+# failed drill host would cost ~EUR 4.46/month, so cost stays bounded per run.
 #
 # Secrets (environment-scoped to `drill`):
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID
@@ -129,32 +130,100 @@ jobs:
           echo "integrity_check=${result}"
           test "${result}" = "ok"
 
+      - name: Capture debugging evidence (best-effort)
+        # T-D66: runs only on failure, BEFORE destroy. Never blocks destroy:
+        # continue-on-error + hard timeouts. Secret-bearing files (env files,
+        # compose files, restore-source.env, age identity) are never read;
+        # log output is passed through a coarse key/secret redaction.
+        if: failure()
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          set -uo pipefail
+          mkdir -p drill-evidence
+          ssh_run() {
+            timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=10 \
+              operator@"${DRILL_HOST}" "$1" 2>&1 \
+              | sed -E 's/(secret|token|password|access_key|identity|AGE-SECRET-KEY)[^[:space:]]*/\1=REDACTED/Ig'
+          }
+          ssh_run 'sudo tail -n 500 /var/log/cloud-init-output.log' > drill-evidence/cloud-init-output.log || true
+          ssh_run 'sudo journalctl -u docker -u cloud-final --no-pager -n 500' > drill-evidence/journal.log || true
+          for svc in app litestream caddy; do
+            ssh_run "cd /etc/budget-planner && sudo docker compose logs --no-color --tail 500 ${svc}" \
+              > "drill-evidence/compose-${svc}.log" || true
+          done
+          ssh_run 'cd /etc/budget-planner && sudo docker compose ps -a' > drill-evidence/compose-ps.log || true
+          ssh_run 'df -h; free -m; ls -la /data' > drill-evidence/host-state.log || true
+          ls -la drill-evidence
+
+      - name: Upload debugging evidence
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: restore-drill-evidence
+          path: drill-evidence/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Terraform destroy (drill)
-        # Only runs if every verification step above succeeded. On failure
-        # the next step opens an issue instead and leaves the host standing.
-        if: success()
+        # T-D66: ALWAYS destroy, even after failure, partial apply, or
+        # cancellation. Re-runs init (idempotent) so it also works when an
+        # earlier step died before/during init.
+        id: destroy
+        if: always()
+        timeout-minutes: 20
         working-directory: terraform
         run: |
+          set -euo pipefail
+          terraform init -backend-config=envs/drill/backend.hcl
           terraform destroy \
             -auto-approve \
             -var-file=envs/drill/terraform.tfvars
 
+      - name: Verify drill environment destroyed
+        # Fails the job loudly if destroy failed or resources remain, so the
+        # failure issue fires and the operator knows something billable may
+        # remain.
+        id: verify-destroy
+        if: always()
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.destroy.outcome }}" != "success" ]; then
+            echo "::error::terraform destroy outcome=${{ steps.destroy.outcome }}; drill resources may still be billing"
+            exit 1
+          fi
+          remaining="$(terraform state list | grep -v '^data\.' || true)"
+          if [ -n "${remaining}" ]; then
+            echo "::error::resources remain in drill state after destroy:"
+            echo "${remaining}"
+            exit 1
+          fi
+          echo "drill state empty; destroy verified"
+
       - name: Open issue on failure
-        if: failure()
+        if: failure() || cancelled()
         env:
           REPO: ${{ github.repository }}
+          DESTROY_OUTCOME: ${{ steps.destroy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify-destroy.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           title="restore-drill-failure-$(date +%Y-%m)"
+          if [ "${DESTROY_OUTCOME}" = "success" ] && [ "${VERIFY_OUTCOME}" = "success" ]; then
+            destroy_line="The drill host (\`${DRILL_HOST}\`) was destroyed and verified (T-D66); nothing billable remains."
+          else
+            destroy_line="**WARNING: destroy failed or could not be verified (destroy=${DESTROY_OUTCOME}, verify=${VERIFY_OUTCOME}). Drill resources may still be billing (~EUR 4.46/month). Run \`terraform destroy -var-file=envs/drill/terraform.tfvars\` in \`terraform/\` (drill backend) manually.**"
+          fi
           body=$(cat <<EOF
           Automated restore drill failed.
 
           - Workflow run: ${RUN_URL}
-          - Drill host left standing for post-mortem: \`${DRILL_HOST}\`
-          - Next step: SSH in, inspect litestream + app logs, then
-            \`terraform destroy -var-file=envs/drill/terraform.tfvars\`
-            once root cause is captured.
+          - ${destroy_line}
+          - Debugging evidence (cloud-init, journal, app/litestream/caddy logs) is attached to the run as the \`restore-drill-evidence\` artifact (30 days).
+          - Next step: read the artifact, fix the root cause, then re-run the workflow via workflow_dispatch.
 
           Per ADR-0034 §5 this blocks the next monthly drill until closed.
           EOF
