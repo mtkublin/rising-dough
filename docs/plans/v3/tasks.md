@@ -211,8 +211,17 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS5 [S] Refresh drifting visual-regression baselines (frozen test clock)
 - Root cause: `data/demo.sqlite` ends 2026-10-31 but pages key off the wall clock (fiscal period, days left, overdue tint, "next 7 days"), so today/accounts/budget drifted daily; plus intentional UI changes (T-FIX1, T-VIS4, T-ACC1). The app has no clock hook, so the visual server now starts via `tests/visual/frozen_server.py`, which pins `datetime.date.today()`/`datetime.now()` to 2026-10-31 for that test process only (opt-in env `BUDGET_VISUAL_FROZEN_DATE`; nothing in `src/` references it, so prod is unaffected; no ADR needed). Playwright browser clock pinned to the same instant. Baselines refreshed; `/plan` snapshots added (15 total).
 
+### ✅ T-ACC1b [S] Accounts planned net must not crash on archived categories
+- `compute_accounts_planned` looked up category direction among live categories only, so archiving a category that still had unpromoted planned rows or active recurring rules raised `KeyError` (500 on `/accounts` and account create/update/reconcile). Direction lookup now includes archived categories, matching forecast/budget. Test also pins canonical-date window membership for recurring `date_override`. Reference: ADR-0089, ADR-0087.
+
+### ◻ T-FIX4 [P] Budget `committed` dedups planned rows linked to recurring occurrences → T-FIX1
+- `services/budget.py` `_committed_by_category` sums unpromoted planned rows and `rt_expand` occurrences independently; forecast (`_collect_events`, `_month_flow_sums`) and `services/account_planned.py` dedup by `(recurring_rule_id, occurrence_date)`. If a persisted planned row linked to a not-yet-promoted recurring occurrence exists, budget "left" double-counts it while Forecast/Accounts count it once. Latent (no current `src/` path found that creates such rows). Fix: apply the same dedup (ideally a shared helper) or document + assert such rows are never created. Add regression test. Found in code review 2026-11-06. Reference: ADR-0085, ADR-0087, ADR-0089.
+
+### ◻ T-FIX5 [S] Budget `committed` mixes account currencies → T-FIX1
+- `services/budget.py` `_committed_by_category` adds planned/recurring amounts as raw minor units regardless of account currency; a planned expense on a EUR account counts as PLN in `remaining_minor`, `left_daily_spend`, `unbudgeted_committed_minor`, and (via T-FIX1) Forecast current-row Expenses. Pre-existing, widened by T-FIX1. Decision needed (ADR first): convert to `base_currency` via the FX service (ADR-0006, historical/cached rates) vs. document single-currency limitation in ADR-0085. Found in code review 2026-11-06. Reference: ADR-0006, ADR-0008, ADR-0085.
+
 ### ✅ T-VIS6 [P] /accounts table clipped on mobile (375) → T-ACC1, T-VIS5
-- The shared `.rd-table-scroll .rd-table { min-width: 36rem }` mobile rule clipped Balance (pre-dates T-ACC1; T-ACC1's nowrap planned sub-line widened it further). At <=640px /accounts now hides Trend/Checked/Txns (`.rd-col-*`), lets the planned sub-line and liability pill wrap and stacks Reconcile over the kebab, so Account + Balance + Actions fit with no sideways scroll. Desktop/tablet unchanged. `/accounts` mobile baseline refreshed.
+- At 375 the Accounts table is horizontally clipped (Checked column cut, Balance not visible without sideways scroll inside `.rd-table-scroll`). Determine whether it predates T-ACC1 (compare v3 before merge 142cde3); decide mobile layout (e.g. hide Trend/Checked/Txns columns or stacked rows) so Balance + planned sub-line are visible without horizontal scroll. Run `frontend-visual-audit` at 1440/1024/375 and refresh `/accounts` visual baselines. Reference: ADR-0051 §6, ADR-0089. Outcome: predated T-ACC1 (the `.rd-table-scroll .rd-table { min-width: 36rem }` rule); Trend/Checked/Txns hidden at <=640px, planned sub-line and pill wrap, Reconcile stacks over kebab; table fits at 343px with no sideways scroll; desktop/tablet unchanged.
 
 ---
 
@@ -345,6 +354,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ✅ T-D41a [S] `restore-from-prod` drill host helper → T-D41, T-D19a
 - Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
 - Replication of the restored DB goes to the drill bucket only; the prod replica is only used in a restore-only config. References: ADR-0034 §5, ADR-0071.
+
+### ✅ T-D66 [S] Restore drill always destroys drill env → T-D41
+- `restore-drill.yml` runs `terraform destroy` `if: always()` (also after partial apply / cancel), preceded on failure by best-effort evidence capture uploaded as the `restore-drill-evidence` artifact, and followed by a verification step that fails the job loudly if destroy failed. Failure issue text updated. Operator decision 2026-11-06 (cost bound ~EUR 0.01/run). ADR-0034 §5 addendum.
 
 ### ◻ T-D42 [S] Security scan + external audit → T-D27
 - `trivy image` on the deployed SHA, `testssl.sh` + `nikto` against the prod hostname, Mozilla Observatory check.

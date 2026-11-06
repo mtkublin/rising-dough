@@ -94,6 +94,7 @@ Restores the latest known-good state (or `-timestamp 2026-11-15T08:00:00Z` for p
 - **First drill** = part of Phase 4 acceptance. Must succeed before v3 is declared live.
 - **Monthly drill** afterwards. The drill is: provision a scratch Stardust VM via `terraform workspace new drill-YYYY-MM` + `terraform apply -var env=drill`, restore from the primary bucket (read-only credential), verify `PRAGMA integrity_check` + audit log count, destroy. Logged in `docs/runbooks/restore-log.md`.
 - **Automation**: the monthly drill is driven by a scheduled GitHub Actions workflow that provisions, restores, verifies, and tears down. If it fails, the workflow opens a GitHub issue titled `restore-drill-failure-YYYY-MM`.
+- **Addendum 2026-11-06 (T-D66)**: the drill environment is always destroyed (`terraform destroy` runs `if: always()`, then a verification step fails the job if anything remains). The previous "leave the host standing for post-mortem" behaviour is superseded (cost: ~EUR 4.46/month if forgotten). Debugging evidence (cloud-init, journal, app/litestream/caddy logs; no secret-bearing files) is captured best-effort over SSH before destroy and kept as the `restore-drill-evidence` workflow artifact.
 
 ### 6. Operational guards
 
