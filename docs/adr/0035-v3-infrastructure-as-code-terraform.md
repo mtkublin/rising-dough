@@ -65,7 +65,7 @@ terraform/
 | Object storage bucket (TF state) | `scaleway_object_bucket` | `budget-planner-tfstate-pl-waw`. Created out-of-band once, bootstrap script in `terraform/README.md`. |
 | Instance | `scaleway_instance_server` | Stardust1-S, Ubuntu 24.04. `user_data` from `cloud-init/bootstrap.yaml.tpl`. |
 | Flex IP | `scaleway_instance_ip` | IPv4 attached to the instance. |
-| Security group | `scaleway_instance_security_group` | Inbound allow: `22/tcp`, `80/tcp`, `443/tcp`. Outbound: unrestricted (Litestream + ACME + GHCR). |
+| Security group | `scaleway_instance_security_group` | Inbound allow: `80/tcp`, `443/tcp`, `443/udp`; `22/tcp` removed by ADR-0094 (SSH over Tailscale). Outbound: unrestricted (Litestream + ACME + GHCR). |
 | DNS zone | `scaleway_domain_zone` | If the hostname is on a Scaleway-managed domain. Otherwise external DNS → documented out-of-band. |
 | DNS A/AAAA records | `scaleway_domain_record` | Points `budget.<domain>` at the instance IPs. |
 | Instance snapshot schedule | *out of scope v3* | Defence-in-depth; a cron on the host emits `scw` CLI calls, documented in the runbook. |
@@ -89,7 +89,7 @@ The instance is provisioned with `user_data` templated by Terraform. The templat
    - `/etc/budget-planner/Caddyfile` (template inputs: hostname).
    - `/etc/budget-planner/litestream.yml` (template inputs: bucket name).
    - `/etc/budget-planner/litestream.env` — IAM credentials, mode 0600, root.
-5. Firewall: `ufw default deny incoming`, allow 22/80/443, enable.
+5. Firewall: `ufw default deny incoming`, allow 22/80/443 (22 is gated by the security group, ADR-0094), enable.
 6. `fail2ban` jails: `sshd`, `caddy-auth` (reads Caddy access log for repeated 401s on `/auth/*`).
 7. Unattended-upgrades: security pocket enabled; auto-reboot at 04:00 Europe/Warsaw with a `pre-reboot` hook that `docker compose stop app` → waits 15 s for Litestream flush → `shutdown -r now`.
 8. First-boot pull: `docker login ghcr.io` using a deploy-only PAT (surfaced into cloud-init), `docker compose pull && docker compose up -d`.

@@ -9,6 +9,8 @@
 #
 # Secrets expected (shared with deploy.yml):
 #   DEPLOY_SSH_PRIVATE_KEY, DEPLOY_SSH_KNOWN_HOSTS, DRILL_HOST, PROD_HOST
+#   (DRILL_HOST/PROD_HOST = tailnet names budget-planner-drill/-prod, ADR-0094),
+#   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET (SSH only over Tailscale)
 # Variables expected: DRILL_URL, PROD_URL
 
 name: rollback
@@ -114,6 +116,13 @@ jobs:
               environment_url: '${{ steps.target.outputs.url }}',
               description: 'rollback starting (${{ steps.validate.outputs.subcommand }})'
             });
+
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Install SSH key
         env:

@@ -9,6 +9,7 @@ Operational procedures for v3. Each runbook is a check-list the operator (or an 
 | [`restore.md`](restore.md) | DB is corrupt / lost; restore from Litestream. |
 | [`disaster-recovery.md`](disaster-recovery.md) | Compute instance is gone; full re-provision from zero (includes lost-all-admins recovery). |
 | [`restore-log.md`](restore-log.md) | Append-only log of every restore drill (monthly cadence + any ad-hoc). |
+| [`tailscale-ssh.md`](tailscale-ssh.md) | Joining the tailnet, pasting the ACL, host keys, break-glass when SSH is unreachable. |
 | [`user-admin.md`](user-admin.md) | Add / reset / remove / promote users; enforce last-admin invariant and data-isolation guarantee. |
 
 Each runbook follows the shape: **Context** · **Preconditions** · **Procedure** · **Verification** · **Troubleshooting** · **Rollback**.

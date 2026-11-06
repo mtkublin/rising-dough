@@ -70,6 +70,19 @@
 
 ---
 
+### A9. Tailscale (T-D67, ADR-0094)
+
+SSH to the VMs is only possible over the tailnet; port 22 is closed publicly. The app stays public on 80/443 and users never need Tailscale.
+
+- [ ] Create a Tailscale account (Personal plan, free) and install the app on your laptop (and phone). Keep MagicDNS enabled (default).
+- [ ] Admin console, Access controls: paste `docs/plans/v3/runbooks/tailscale-acl.hujson` (replace the placeholder owner email with yours). Details in `runbooks/tailscale-ssh.md`.
+- [ ] Settings, OAuth clients: create one client with scope **Auth Keys: write** and tags `tag:prod`, `tag:drill`, `tag:ci`. Store the client ID and secret in the password manager.
+- [ ] GitHub secrets `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`: repo level (used by `terraform.yml`, `deploy.yml`, `rollback.yml`) and in the `drill` environment (used by `restore-drill.yml`); also in the `prod` environment if secrets are environment-scoped.
+- [ ] Update secrets `DRILL_HOST` = `budget-planner-drill` and `PROD_HOST` = `budget-planner-prod` (tailnet MagicDNS names, no longer public hostnames). Public `/ready` probes keep using `DRILL_URL` / `PROD_URL`.
+- [ ] Local Terraform runs: `export TF_VAR_tailscale_oauth_client_id=...` and `TF_VAR_tailscale_oauth_client_secret=...` (never in tfvars).
+- [ ] After the first prod apply, from your laptop on the tailnet: `ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod` into the secret `DEPLOY_SSH_KNOWN_HOSTS` (the drill host is scanned at runtime; `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete).
+- [ ] Optional: enable Tailnet Lock (Settings, Device management).
+
 ## B. Decisions only the operator can make
 
 ### D1. Compute zone: `PL-WAW-2`
@@ -151,7 +164,7 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] `terraform apply -var-file=envs/drill/terraform.tfvars`.
 - [ ] If the DNS zone is external: add A/AAAA records for `drill.budget.<domain>` pointing at the flex IP.
 - [ ] Put the output of `terraform output -raw admin_initial_password` in the password manager. The T-D25 file still says `admin_fallback_password`; that name is stale.
-- [ ] Set `DRILL_HOST` and `DEPLOY_SSH_KNOWN_HOSTS_DRILL` (from `ssh-keyscan`; verify the fingerprint against the Scaleway console serial output).
+- [ ] Set `DRILL_HOST` = `budget-planner-drill` (A9). SSH works over the tailnet only; host keys via `ssh-keyscan budget-planner-drill` from your laptop (optionally compare with the Scaleway console serial output).
 - [ ] Do the seven post-apply checks in T-D25: health/ready, Observatory, `nslookup`, operator and deploy SSH, bucket exists, Litestream generation.
 - [ ] Log in as admin, confirm the forced password change, then change the password.
 - [ ] Teardown drill (T-D26). Check in the Scaleway console that nothing billable is left.

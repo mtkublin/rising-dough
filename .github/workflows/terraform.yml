@@ -97,6 +97,9 @@ jobs:
       # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
       TF_VAR_env: ${{ matrix.env }}
 
     steps:
@@ -198,6 +201,9 @@ jobs:
       # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
       TF_VAR_env: prod
 
     steps:

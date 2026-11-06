@@ -60,3 +60,8 @@ output "scw_secret_key" {
   value       = module.iam.secret_key
   sensitive   = true
 }
+
+output "tailscale_hostname" {
+  description = "MagicDNS name of the VM on the tailnet (SSH target for CI and the operator; T-D67)."
+  value       = local.tailscale_hostname
+}

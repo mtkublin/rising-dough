@@ -73,6 +73,14 @@ write_files:
     content: |
       ${indent(6, age_identity)}
 
+  # T-D67 / ADR-0094: single-use Tailscale auth key on tmpfs (/run), 0600 root.
+  # Consumed and deleted by the `tailscale up` runcmd below (ADR-0069 secret-file pattern).
+  - path: /run/tailscale-authkey
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${tailscale_authkey}
+
   - path: /etc/budget-planner/litestream.env
     permissions: '0600'
     owner: root:root
@@ -163,6 +171,16 @@ write_files:
 runcmd:
   - mkdir -p /data && chown 10001:10001 /data && chmod 0700 /data
   - mkdir -p /var/log/caddy && chown root:root /var/log/caddy && chmod 0755 /var/log/caddy
+  # T-D67 / ADR-0094: join the tailnet (official apt repo, Ubuntu noble). The
+  # Scaleway security group has no port 22 (the SG is the gate; ufw stays open on 22 so
+  # the documented break-glass SG rule works).
+  - install -m 0755 -d /usr/share/keyrings
+  - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+  - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y tailscale
+  - systemctl enable --now tailscaled
+  - sh -c 'tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp

@@ -1,5 +1,7 @@
 # Runbook — Rollback
 
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+
 Revert production to the previously running image tag.
 
 ## Context
@@ -18,7 +20,7 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
 
 - A previous image tag exists on the host:
   ```sh
-  ssh app@<prod-host> "cat /etc/budget-planner/.previous-tag"
+  ssh app@budget-planner-prod "cat /etc/budget-planner/.previous-tag"
   # Expect: non-empty, matches ^sha-[0-9a-f]{7,40}$ or ^v[0-9]+\.[0-9]+\.[0-9]+$
   ```
 - The current situation is a code regression, not a data regression. If you are rolling back **because** of DB state, stop here and open `restore.md`.
@@ -38,11 +40,11 @@ Use when GitHub Actions is itself the problem (outage, token lockout, workflow m
 
 1. Confirm the previous tag:
    ```sh
-   ssh app@<prod-host> "cat /etc/budget-planner/.previous-tag"
+   ssh app@budget-planner-prod "cat /etc/budget-planner/.previous-tag"
    ```
 2. Invoke the restricted deploy shim via the `deploy` user:
    ```sh
-   ssh deploy@<prod-host> "rollback"
+   ssh deploy@budget-planner-prod "rollback"
    ```
 3. The shim runs `TAG="$(cat .previous-tag)" docker compose up -d app`.
 
@@ -60,17 +62,17 @@ Only use a SHA you can see in `git log origin/main` and that was in `prod` previ
 
 ```sh
 # App serves and reports ready.
-curl -fsS "https://<prod-host>/ready" | jq .
+curl -fsS "https://budget-planner-prod/ready" | jq .
 
 # Running revision matches the rollback target.
-ssh app@<prod-host> \
+ssh app@budget-planner-prod \
   "docker inspect --format='{{index .Config.Labels \"org.opencontainers.image.revision\"}}' budget-planner-app-1"
 
 # Older image tolerated the newer schema (expected after a migrating release).
-ssh app@<prod-host> "docker logs budget-planner-app 2>&1 | grep -E 'schema_ahead_of_image|startup_migrations' | tail -2"
+ssh app@budget-planner-prod "docker logs budget-planner-app 2>&1 | grep -E 'schema_ahead_of_image|startup_migrations' | tail -2"
 
 # Audit log is intact — rollback does not touch the DB.
-ssh app@<prod-host> \
+ssh app@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT count(*), max(id) FROM audit_log;'"
 ```
 
@@ -79,9 +81,9 @@ Spot-check the user-facing symptom that triggered the rollback. If it still repr
 ## Troubleshooting
 
 - **`.previous-tag` is empty or missing**: use the "Last-resort path" above with an explicit SHA. After the rollback stabilises, record the recovery in `../phase-4-validation/README.md` so the next deploy writes a fresh `.previous-tag`.
-- **`docker compose up -d app` fails on the rollback target**: image was GC'd from the local cache. Pull explicitly: `ssh app@<prod-host> "docker pull ghcr.io/<owner>/budget-planner:sha-<short>"` then retry. GHCR retention is indefinite for private images; the layer should still be fetchable.
+- **`docker compose up -d app` fails on the rollback target**: image was GC'd from the local cache. Pull explicitly: `ssh app@budget-planner-prod "docker pull ghcr.io/<owner>/budget-planner:sha-<short>"` then retry. GHCR retention is indefinite for private images; the layer should still be fetchable.
 - **Rollback target also fails `/ready`**: this is a data-shaped incident, not a code regression. Stop. Switch to [`restore.md`](restore.md).
-- **Caddy returns 502 after rollback**: the `app` container restarted on a port other than 8000 (unexpected). `ssh app@<prod-host> "docker compose logs app --tail 100"` and triage from there.
+- **Caddy returns 502 after rollback**: the `app` container restarted on a port other than 8000 (unexpected). `ssh app@budget-planner-prod "docker compose logs app --tail 100"` and triage from there.
 
 ## Rollback (of this rollback)
 

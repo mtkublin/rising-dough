@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D67 — SSH only over Tailscale)
+- **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
+
 ## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
 - **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
 ## 2026-11-06 (T-VIS6 — /accounts mobile table)
