@@ -43,7 +43,15 @@ ${hostname} {
             roll_keep 7
             roll_keep_for 168h
         }
-        format json
+        # T-D59 / ADR-0078 §5: no query strings (ledger search `q`, filters) and no
+        # credentials in the access log. Verified against Caddy 2.8 `filter` encoder.
+        format filter {
+            wrap json
+            request>uri regexp "\?.*$" ""
+            request>headers>Cookie delete
+            request>headers>Authorization delete
+            resp_headers>Set-Cookie delete
+        }
     }
 }
 

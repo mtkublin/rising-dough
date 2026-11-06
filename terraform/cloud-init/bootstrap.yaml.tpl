@@ -66,6 +66,21 @@ write_files:
       SCW_ACCESS_KEY=${scw_access_key}
       SCW_SECRET_KEY=${scw_secret_key}
 
+  - path: /etc/logrotate.d/caddy-access
+    permissions: '0644'
+    owner: root:root
+    content: |
+      # T-D59 / ADR-0078 §5: 14 daily generations of the Caddy access log.
+      /var/log/caddy/access.log {
+          daily
+          rotate 14
+          compress
+          delaycompress
+          missingok
+          notifempty
+          copytruncate
+      }
+
   - path: /etc/docker/daemon.json
     permissions: '0644'
     owner: root:root

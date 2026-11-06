@@ -382,7 +382,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 ### ◻ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
 - Deleted content zeroed on disk. File: `phase-5-data-protection/T-D58-sqlite-secure-delete.md`. Reference: ADR-0078 §6.
 
-### ◻ T-D59 [P] Log hygiene → T-D06, T-D23
+### ✅ T-D59 [P] Log hygiene → T-D06, T-D23
 - Structlog redaction processor (value-bearing keys); Caddy access log drops query strings; logrotate 14 d; sentinel test proves search terms never hit logs.
 - File: `phase-5-data-protection/T-D59-log-redaction.md`. Reference: ADR-0078 §5.
 

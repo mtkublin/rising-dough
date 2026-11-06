@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D59 — log hygiene)
+- **Feat(T-D59): value-bearing keys and query strings no longer reach logs** (ADR-0078 §5). New `redact_sensitive` structlog processor (amount*/description/name/note*/memo/formula/q/search/email/password*/token*/secret*/*_json -> `[redacted]`, recursive); `uvicorn.access` paths stripped of `?query`; Caddy access log (prod `Caddyfile.tpl` and prod-sim `deploy/Caddyfile`) uses `filter` encoder with `request>uri regexp "\?.*$" ""` and deletes Cookie/Authorization/Set-Cookie; cloud-init installs logrotate (daily, rotate 14, compress) for `/var/log/caddy/access.log`.
+
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 
