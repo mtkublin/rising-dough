@@ -5,6 +5,8 @@
 
 ## 2026-11-06 (T-D54 — owner-scoped audit tail)
 - **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
+## 2026-11-06 (T-D59 — log hygiene)
+- **Feat(T-D59): value-bearing keys and query strings no longer reach logs** (ADR-0078 §5). New `redact_sensitive` structlog processor (amount*/description/name/note*/memo/formula/q/search/email/password*/token*/secret*/*_json -> `[redacted]`, recursive); `uvicorn.access` paths stripped of `?query`; Caddy access log (prod `Caddyfile.tpl` and prod-sim `deploy/Caddyfile`) uses `filter` encoder with `request>uri regexp "\?.*$" ""` and deletes Cookie/Authorization/Set-Cookie; cloud-init installs logrotate (daily, rotate 14, compress) for `/var/log/caddy/access.log`.
 
 ## 2026-11-06 (T-D58 — PRAGMA secure_delete)
 - **T-D58: `PRAGMA secure_delete = ON` on every connection** (ADR-0078 §6). Set in `_apply_pragmas` next to the Litestream PRAGMAs, so deleted and overwritten rows are zeroed on disk instead of lingering in free pages. Unit tests assert the pragma and that a deleted sentinel is absent from the DB file after checkpoint. Negative control confirmed the sentinel survives without the pragma.
@@ -12,6 +14,8 @@
 - **Fix(T-D63): `modules/dns` no longer creates `scaleway_domain_zone`.** Drill and prod states would both have owned the `rising-dough.eu` zone, so a drill destroy could delete prod records. Records now reference the existing Scaleway Domains zone by name; each env owns only its own A/AAAA. ADR-0088 amends ADR-0035.
 ## 2026-11-06 (T-D55 — no-store on authenticated responses)
 - **Feat(T-D55): every authenticated, non-static response now carries `Cache-Control: no-store`; logout and self-session-revoke add `Clear-Site-Data: "cache", "storage"`** (ADR-0078 §2). New pure-ASGI `CacheControlMiddleware` registered inside `AuthRequired`, outside `MustChangePassword`. `/static/**`, `/health`, `/ready` and anonymous pages are untouched.
+## 2026-11-06 (T-ACC1 — Accounts planned net)
+- **Feat(T-ACC1): Accounts tab shows planned net + projected end-of-period balance per account**, and a base-currency "Planned" total in the hero (ADR-0089). New `services/account_planned.py`; shared `recurring.expand_unpromoted` (forecast behaviour unchanged). Cache-bust `rd5` -> `rd6` if CSS changed.
 
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.

@@ -349,6 +349,16 @@ def _resolve_period_start(  # noqa: PLR0917 — user_id gates isolation; ADR-006
     return max(row.operation_date for row in rows)
 
 
+def resolve_period_start(conn: sqlite3.Connection, user_id: int, today: date) -> date:
+    """Public period-start resolution for ``today`` (ADR-0041, ADR-0089).
+
+    Last landed income-anchor transaction ``<= today``; else the 1st of
+    ``today``'s month. Same logic as the budget's private resolver.
+    """
+    anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
+    return _resolve_period_start(conn, user_id, today, today.year, today.month, anchor)
+
+
 def month_summary(  # noqa: PLR0915
     conn: sqlite3.Connection,
     user_id: int,
@@ -554,5 +564,6 @@ __all__ = [
     "month_summary",
     "prev_year_month",
     "resolve_budget",
+    "resolve_period_start",
     "yearly_grid",
 ]

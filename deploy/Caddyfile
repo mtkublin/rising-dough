@@ -36,6 +36,18 @@ localhost:443 {
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Real-IP {remote_host}
 	}
+
+	# T-D59 / ADR-0078 §5: same log filter as production (no query strings / credentials).
+	log {
+		output stdout
+		format filter {
+			wrap json
+			request>uri regexp "\?.*$" ""
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			resp_headers>Set-Cookie delete
+		}
+	}
 }
 
 # Port 80 redirects everything to HTTPS. ACME HTTP-01 is unused in prod-sim
