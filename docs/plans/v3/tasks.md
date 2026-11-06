@@ -200,6 +200,10 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS4 [P] /plan budget period bar clipped at 375px → T-VIS3
 - `.rd-period-bar` (Plan · Budget only) used `auto 1fr auto` columns, so the right column (per-day figure, committed meta, T-FIX1 "not counted" line) sized to its max-content and overflowed at 375px (5 overflowing elements). Columns are now `auto minmax(0,1fr) minmax(0,auto)` with `min-width: 0` and wrapping text; at <=640px the bar stacks into one column. `rising-dough.css` cache-bust `rd4` → `rd5`.
 
+
+
+### ✅ T-FIX3 [P] Forecast must not re-project promoted recurring occurrences
+- Early promotion (salary 11-07 promoted 11-06) left the 11-07 occurrence in the forecast window, so current-row Income showed 29,517 instead of ~700 and EOM double-counted. Forecast flows + daily events now expand from `max(next_due, today+1)` by canonical date. Reference: ADR-0087 (amends ADR-0043); requirements F5.5.
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway

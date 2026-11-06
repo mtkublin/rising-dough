@@ -32,7 +32,7 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import currency_decimals
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
-from budget_planner.domain.recurring import Occurrence, RecurringRule
+from budget_planner.domain.recurring import Occurrence, RecurringOverride, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -277,13 +277,32 @@ def _collect_events(
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
+        for occ in _expand_unpromoted(conn, user_id, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             for ev in _events_from_occurrence(occ, direction):
                 events.setdefault(ev.on_date, []).append(ev)
 
     return events
+
+
+def _expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    overrides: list[RecurringOverride],
+    window_start: dt.date,
+    window_end: dt.date,
+) -> tuple[Occurrence, ...]:
+    """Expand ``rule`` from ``max(next_due, window_start)`` (ADR-0087).
+
+    Occurrences with canonical date before ``next_due`` are already promoted
+    (or skipped) and must not be projected again.
+    """
+    start = max(rule.next_due, window_start)
+    if start > window_end:
+        return ()
+    return recurring_svc.rt_expand(conn, user_id, rule, overrides, start, window_end)
 
 
 def _rule_outside_window(
@@ -764,7 +783,7 @@ def _month_flow_sums(
         ccy = acct_ccy.get(rule.account_id)
         if ccy is None:
             continue
-        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
+        for occ in _expand_unpromoted(conn, user_id, rule, overrides, event_start, end_date):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             base = _convert_native_to_base(occ.amount, ccy, base_currency, fx_rates)
