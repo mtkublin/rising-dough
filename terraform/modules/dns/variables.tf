@@ -19,9 +19,8 @@ variable "instance_ipv4" {
 }
 
 variable "instance_ipv6" {
-  description = "Public IPv6 address for the AAAA record. Nullable when IPv6 is not attached."
+  description = "Public IPv6 address for the AAAA record (compute always attaches one; unknown until apply, so never used in a count)."
   type        = string
-  default     = null
 }
 
 variable "record_ttl_secs" {

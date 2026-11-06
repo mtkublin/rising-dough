@@ -20,7 +20,7 @@ resource "scaleway_domain_record" "a" {
 }
 
 resource "scaleway_domain_record" "aaaa" {
-  count = var.managed_zone && var.instance_ipv6 != null ? 1 : 0
+  count = var.managed_zone ? 1 : 0 # plan-time known; the address itself is not
 
   dns_zone = var.domain
   name     = var.subdomain
