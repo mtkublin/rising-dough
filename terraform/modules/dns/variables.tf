@@ -1,5 +1,5 @@
 variable "managed_zone" {
-  description = "When true, Terraform owns the zone on Scaleway DNS; when false, only records are managed (operator maintains the zone elsewhere)."
+  description = "When true, the zone already exists at Scaleway DNS and this env's A/AAAA records are managed in it. Terraform never creates or owns the zone (ADR-0088). When false, nothing is created (operator maintains records elsewhere)."
   type        = bool
 }
 
@@ -19,9 +19,8 @@ variable "instance_ipv4" {
 }
 
 variable "instance_ipv6" {
-  description = "Public IPv6 address for the AAAA record. Nullable when IPv6 is not attached."
+  description = "Public IPv6 address for the AAAA record (compute always attaches one; unknown until apply, so never used in a count)."
   type        = string
-  default     = null
 }
 
 variable "record_ttl_secs" {

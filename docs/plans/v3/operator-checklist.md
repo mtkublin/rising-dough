@@ -22,7 +22,7 @@
 
 ### A2. Domain and DNS
 
-- [x] Domain registered (2026-11-04): **`rising-dough.eu`**. Hostnames: `budget.rising-dough.eu` (prod) and `drill.budget.rising-dough.eu` (drill). Set as `domain` in both `terraform.tfvars`. `managed_dns_zone` stays `false` until the D2 zone-ownership fix lands. See [decision D2](#d2-domain).
+- [x] Domain registered (2026-11-04): **`rising-dough.eu`**. Hostnames: `budget.rising-dough.eu` (prod) and `drill.budget.rising-dough.eu` (drill). Set as `domain` in both `terraform.tfvars`. `managed_dns_zone` can be set to `true` since the D2 zone-ownership fix landed (T-D63, ADR-0088). See [decision D2](#d2-domain).
 - [ ] WHOIS privacy: for `.eu`, EURid hides a private registrant's personal data by default. Confirm with a public WHOIS lookup of `rising-dough.eu`.
 - [ ] Optional: add a CAA record allowing `letsencrypt.org`.
 - [ ] Note that HSTS `includeSubDomains; preload` is served for the app hostname. Nothing under `budget.<domain>` may need plain HTTP.
@@ -89,7 +89,7 @@ Follow-up for the agent (docs first, per `CLAUDE.md`). **Done in T-D62 (ADR-0084
 - **Name:** something neutral. Hostnames are public (certificate-transparency logs), so avoid encoding anything sensitive.
 - **Layout:** `budget.<domain>` for prod and `drill.budget.<domain>` for drill (the current defaults).
 
-Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-04: not started.** There is no task for it in `tasks.md`, and `terraform/modules/dns/main.tf` is unchanged. It blocks `managed_dns_zone = true`, so it is the next infra prerequisite for T-D25. It needs a new task plus an ADR-0035 amendment:
+Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-06: fix landed in T-D63 ([ADR-0088](../../adr/0088-dns-zone-not-owned-by-env-state.md)).** `module.dns` no longer creates the zone and references the existing Scaleway Domains zone by name, each env managing only its own A/AAAA records. You can set `managed_dns_zone = true` in both `terraform.tfvars`. No import step is needed. If a same-name record was created by hand in the console, delete it before the first apply. The original risk analysis follows:
 
 - `module.dns` creates `scaleway_domain_zone` for the **whole domain** in **each** env's state when `managed_zone = true`. Two states would then own one zone, and `terraform destroy` on drill (T-D26, and every monthly drill) could delete the zone and with it the prod records. The zone should be owned once (e.g. created at bootstrap or in a shared state, or referenced as a data source), with each env managing only its own A/AAAA records.
 - A domain registered at Scaleway Domains already comes with its zone, so a `scaleway_domain_zone` with `subdomain = ""` may collide with it. Confirm the behaviour against the provider docs.

@@ -4,6 +4,6 @@ output "fqdn" {
 }
 
 output "managed_zone" {
-  description = "Whether Terraform owns the parent zone."
+  description = "Whether this env manages its records in the Scaleway-hosted zone (the zone itself is never owned by Terraform)."
   value       = var.managed_zone
 }

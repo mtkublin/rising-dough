@@ -27,6 +27,7 @@ from budget_planner.web import retention_task
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.admin import AdminRequiredMiddleware
 from budget_planner.web.middleware.auth import AuthRequiredMiddleware
+from budget_planner.web.middleware.cache_control import CacheControlMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
@@ -190,6 +191,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # once rotated, non-admins get the standard 404.
     app.add_middleware(AdminRequiredMiddleware)
     app.add_middleware(MustChangePasswordMiddleware)  # T-D18 / ADR-0074 §3
+    # T-D55 / ADR-0078 §2: no-store on authenticated responses; inside Auth
+    # (user hydrated), outside MustChangePassword so its redirects are covered.
+    app.add_middleware(CacheControlMiddleware)
     app.add_middleware(AuthRequiredMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)

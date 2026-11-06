@@ -200,6 +200,13 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS4 [P] /plan budget period bar clipped at 375px → T-VIS3
 - `.rd-period-bar` (Plan · Budget only) used `auto 1fr auto` columns, so the right column (per-day figure, committed meta, T-FIX1 "not counted" line) sized to its max-content and overflowed at 375px (5 overflowing elements). Columns are now `auto minmax(0,1fr) minmax(0,auto)` with `min-width: 0` and wrapping text; at <=640px the bar stacks into one column. `rising-dough.css` cache-bust `rd4` → `rd5`.
 
+
+
+### ✅ T-FIX3 [P] Forecast must not re-project promoted recurring occurrences
+- Early promotion (salary 11-07 promoted 11-06) left the 11-07 occurrence in the forecast window, so current-row Income showed 29,517 instead of ~700 and EOM double-counted. Forecast flows + daily events now expand from `max(next_due, today+1)` by canonical date. Reference: ADR-0087 (amends ADR-0043); requirements F5.5.
+
+### ✅ T-ACC1 [M] Accounts tab: planned net per account + projected end-of-period balance
+- Sub-line under Balance on `/accounts`: signed net of unpromoted planned + recurring payments (incl. overdue, all categories, transfer legs) in `[period_start, next income)` and the projected balance `balance + net`; hidden at 0; hero "Planned" total over base-currency accounts. Reference: ADR-0089; requirements F2.6.
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
@@ -245,7 +252,18 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Re-check Stardust stock before T-D25 / T-D27. Override `scaleway_zone` in tfvars if needed.
 - Reference: ADR-0084.
 
-### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24
+### ✅ T-D63 [S] DNS zone owned outside env state → T-D22
+- `modules/dns` no longer creates `scaleway_domain_zone`. The zone (created by Scaleway Domains at registration) is referenced by name in `scaleway_domain_record.dns_zone`. Each env state owns only its own A/AAAA records (`budget`, `drill.budget`), so `terraform destroy` on drill (T-D26, T-D41) cannot touch the zone or prod records.
+- `managed_dns_zone = true` now means "zone exists at Scaleway DNS, manage this env's records". `false` (external zone, no records) still works.
+- Reference: ADR-0088 (amends ADR-0035).
+
+### ✅ T-D64 [P] Terraform >= 1.10 + CI pin 1.17.1 → T-D20
+- Floor is `>= 1.10.0` (native S3 lockfile for `use_lockfile = true`). CI pins and `.terraform-version` are `1.17.1`, matching the operator. Reference: ADR-0090.
+
+### ✅ T-D65 [P] DNS AAAA record count known at plan time → T-D63
+- `scaleway_domain_record.aaaa` count was `managed_zone && instance_ipv6 != null`, which fails first plan ("Invalid count argument", address unknown until apply). Compute always creates the IPv6 IP, so count is now `managed_zone ? 1 : 0` and `instance_ipv6` is required. Reference: ADR-0088.
+
+### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
 - Verify admin login via `/auth/login` with that password; verify forced redirect to `/settings/password`; rotate password.
@@ -363,11 +381,11 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 
 Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/plans/v4/`, ADR-0079..0083). No key management, no schema redesign. Detail: `phase-5-data-protection/`.
 
-### ◻ T-D54 [P] Audit tail is owner-scoped → T-D43
+### ✅ T-D54 [P] Audit tail is owner-scoped → T-D43
 - `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows; other users' rows show metadata + `"[other-user]"`. Closes the one confirmed ADR-0061 leak (admin saw every user's audit payloads). Smoke journey asserts presence, not payload.
 - File: `phase-5-data-protection/T-D54-audit-tail-owner-scoped.md`. Reference: ADR-0078 §1.
 
-### ◻ T-D55 [P] `no-store` on authenticated responses; logout clears site data → T-D02b, T-D07
+### ✅ T-D55 [P] `no-store` on authenticated responses; logout clears site data → T-D02b, T-D07
 - Middleware sets `Cache-Control: no-store` on every authenticated response (not `/static/`); logout adds `Clear-Site-Data: "cache", "storage"`. Back button after logout never shows cached financial pages.
 - File: `phase-5-data-protection/T-D55-no-store-authenticated-responses.md`. Reference: ADR-0078 §2.
 
@@ -379,10 +397,10 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - Bucket noncurrent expiry 30 → 7 d; pre-migration backups pruned by age (≤30 d) and count; drill copies deleted per run. Setting `backup_max_age_days = 37`.
 - File: `phase-5-data-protection/T-D57-backup-copy-age-ceiling.md`. Reference: ADR-0078 §4.
 
-### ◻ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
+### ✅ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
 - Deleted content zeroed on disk. File: `phase-5-data-protection/T-D58-sqlite-secure-delete.md`. Reference: ADR-0078 §6.
 
-### ◻ T-D59 [P] Log hygiene → T-D06, T-D23
+### ✅ T-D59 [P] Log hygiene → T-D06, T-D23
 - Structlog redaction processor (value-bearing keys); Caddy access log drops query strings; logrotate 14 d; sentinel test proves search terms never hit logs.
 - File: `phase-5-data-protection/T-D59-log-redaction.md`. Reference: ADR-0078 §5.
 

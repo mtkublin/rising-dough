@@ -277,7 +277,9 @@ def _collect_events(
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
+        for occ in recurring_svc.expand_unpromoted(
+            conn, user_id, rule, overrides, event_start, end_date
+        ):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             for ev in _events_from_occurrence(occ, direction):
@@ -764,7 +766,9 @@ def _month_flow_sums(
         ccy = acct_ccy.get(rule.account_id)
         if ccy is None:
             continue
-        for occ in recurring_svc.rt_expand(conn, user_id, rule, overrides, event_start, end_date):
+        for occ in recurring_svc.expand_unpromoted(
+            conn, user_id, rule, overrides, event_start, end_date
+        ):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
             base = _convert_native_to_base(occ.amount, ccy, base_currency, fx_rates)

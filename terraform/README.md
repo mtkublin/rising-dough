@@ -12,7 +12,7 @@ Scaleway infrastructure as code for the v3 remote deployment. Authoritative refe
 
 ```text
 terraform/
-├── versions.tf              # terraform >= 1.9, scaleway + random providers
+├── versions.tf              # terraform >= 1.10, scaleway + random providers
 ├── providers.tf             # provider wiring (region/zone from vars)
 ├── backend.tf               # empty S3-compatible backend block; config via envs/<env>/backend.hcl
 ├── variables.tf             # operator inputs + computed locals
@@ -24,7 +24,7 @@ terraform/
 ├── modules/
 │   ├── iam/      # application + policy + API key
 │   ├── storage/  # durability bucket (versioning on, SSE, no public, 30d lifecycle)
-│   ├── dns/      # managed zone or external-zone records-only
+│   ├── dns/      # A/AAAA records only; zone is never owned by Terraform (ADR-0088)
 │   └── compute/  # Stardust1-S + Flex IPv4 + security group + user_data
 ├── cloud-init/
 │   ├── bootstrap.yaml.tpl           # first-boot sequence
@@ -111,5 +111,5 @@ CI replays the same gates on every PR via `.github/workflows/terraform.yml` and 
 ## Known limitations
 
 - `scaleway/scaleway` provider lags AWS in object-bucket primitives. Public-access blocking is enforced via a deny-plaintext bucket policy; the per-bucket encryption toggle is enforced by Scaleway at the account level.
-- `use_lockfile = true` in `backend.hcl` requires Terraform 1.10+ for native S3 lockfile support. On 1.9 the project runs in one-writer invariant mode (single operator). CI pins the version via `.terraform-version`.
+- `use_lockfile = true` in `backend.hcl` requires Terraform 1.10+ for native S3 lockfile support. The floor is `>= 1.10.0` (`versions.tf`, ADR-0090). CI and `.terraform-version` pin Terraform `1.17.1`.
 - The `deploy-budget-planner` script shipped here is a stub; T-D32 finalises the exact rollback catalog once the compose template stabilises in production.

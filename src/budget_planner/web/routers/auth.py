@@ -434,6 +434,11 @@ async def login_passkey_finish(  # noqa: PLR0917
 # ---------------------------------------------------------------------------
 
 
+#: ADR-0078 §2: wipe cache + storage on sign-out. "cookies" is omitted on
+#: purpose (the session cookie is already expired; the CSRF cookie must survive).
+_CLEAR_SITE_DATA = '"cache", "storage"'
+
+
 @router.post("/logout")
 def logout(
     request: Request,
@@ -448,6 +453,7 @@ def logout(
         auth_service.logout(conn, session_id, request_ctx=ctx)
     response = _redirect(LOGIN_PATH)
     clear_session_cookie(response, settings)
+    response.headers["Clear-Site-Data"] = _CLEAR_SITE_DATA
     return response
 
 
@@ -568,6 +574,7 @@ def revoke_session(  # noqa: PLR0917
     if is_current:
         response = _redirect(LOGIN_PATH)
         clear_session_cookie(response, settings)
+        response.headers["Clear-Site-Data"] = _CLEAR_SITE_DATA
         return response
     return _redirect(SECURITY_SESSIONS_URL)
 

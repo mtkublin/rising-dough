@@ -62,7 +62,7 @@ variable "subdomain_prod" {
 }
 
 variable "managed_dns_zone" {
-  description = "When true, Terraform owns the DNS zone on Scaleway DNS. When false, zone records only (operator maintains zone elsewhere)."
+  description = "When true, the domain's zone already exists at Scaleway DNS (Scaleway Domains registration) and this env manages only its own A/AAAA records in it; Terraform never creates the zone (ADR-0088). When false, no DNS resources are created (operator maintains records elsewhere)."
   type        = bool
   default     = false
 }

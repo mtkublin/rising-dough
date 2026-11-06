@@ -1,3 +1,4 @@
+{% from "_partials/components/_planned_net.html" import planned_net %}
 {% from "_partials/components/_sparkline.html" import sparkline %}
 {% from "_partials/kebab_menu.html" import kebab_menu %}
 {%- set a = card.account -%}
@@ -45,6 +46,7 @@
   <td class="num">{{ card.stats.txn_count }}</td>
   <td class="num {% if card.balance < 0 %}neg{% endif %}">
     {{ "{:,.2f}".format(card.balance / 100.0) }}<span class="cur">{{ a.currency }}</span>
+    {{ planned_net(card.planned) }}
   </td>
   <td class="rd-actions">
     <button class="rd-btn rd-btn--sm"

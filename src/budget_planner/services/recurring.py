@@ -633,6 +633,26 @@ from budget_planner.services.recurring_formula import (  # noqa: E402
     rt_expand,
 )
 
+
+def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    overrides: Sequence[RecurringOverride],
+    window_start: dt.date,
+    window_end: dt.date,
+) -> tuple[Occurrence, ...]:
+    """Expand ``rule`` from ``max(next_due, window_start)`` (ADR-0087, ADR-0089).
+
+    The filter is on the canonical occurrence date: occurrences before
+    ``next_due`` are already promoted (or skipped) and are never returned.
+    """
+    start = max(rule.next_due, window_start)
+    if start > window_end:
+        return ()
+    return rt_expand(conn, user_id, rule, overrides, start, window_end)
+
+
 __all__ = [
     "BatchPromoteResult",
     "CannotPromoteSkippedError",
@@ -643,6 +663,7 @@ __all__ = [
     "apply_overrides",
     "batch_promote_due",
     "expand",
+    "expand_unpromoted",
     "first_due_on_or_after",
     "generate_occurrences",
     "occurrence_in_month",

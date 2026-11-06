@@ -22,3 +22,5 @@ class AuditEntry:
     operation: AuditOperation
     prev_json: str | None
     new_json: str | None
+    user_id: int | None = None
+    actor_user_id: int | None = None

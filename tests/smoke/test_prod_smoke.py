@@ -12,8 +12,8 @@ registers a passkey (CDP virtual authenticator), adds an account,
 category and a transaction tagged with a random marker, sees it on
 ``/ledger`` -> signs out -> admin signs back in and asserts the marker is
 NOT on the admin's ``/ledger`` (data isolation) -> reads
-``/debug/audit-tail`` and finds the marker in an audit row -> admin
-removes the smoke user (soft delete).
+``/debug/audit-tail`` and finds the second user's transaction row with
+payload "[other-user]" -> admin removes the smoke user (soft delete).
 
 Environment (the test skips with a reason when any required one is unset):
 
@@ -272,7 +272,11 @@ def test_post_deploy_journey(browser: Browser, smoke_env: dict[str, str]) -> Non
         resp = admin.context.request.get("/debug/audit-tail?n=100")
         assert resp.ok, f"/debug/audit-tail -> {resp.status}"
         entries = resp.json()["entries"]
-        assert any(marker in json.dumps(e) for e in entries), "no audit row mentions the marker"
+        other = [
+            e for e in entries if e["entity_type"] == "transactions" and e["new"] == "[other-user]"
+        ]
+        assert other, "second user's transaction audit row missing or payload not scoped"
+        assert marker not in json.dumps(entries), "other user's payload leaked via audit tail"
         assert "password_hash" not in resp.text()
 
         # 12. Cleanup: soft-delete the smoke user.
