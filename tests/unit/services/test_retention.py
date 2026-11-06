@@ -216,3 +216,34 @@ def test_start_creates_cancellable_task(settings: Settings) -> None:
         assert task.done()
 
     _run_in_thread(scenario)
+
+
+def test_mixed_timestamp_formats_near_boundary(
+    conn: sqlite3.Connection, settings: Settings
+) -> None:
+    """Space separator, offsets and Z compare correctly (cutoff 2026-08-08 12:00 UTC)."""
+    cases = {
+        "2026-08-08 11:59:59": True,
+        "2026-08-08 12:00:01": False,
+        "2026-08-08T11:59:59+00:00": True,
+        "2026-08-08T13:59:59+02:00": True,  # == 11:59:59 UTC
+        "2026-08-08T12:00:01Z": False,
+    }
+    ids: dict[str, int | None] = {}
+    for stamp in cases:
+        cur = conn.execute(
+            "INSERT INTO audit_log (entity_type, entity_id, changed_at, operation, ip) "
+            "VALUES ('x', 1, ?, 'create', '1.1.1.1')",
+            (stamp,),
+        )
+        ids[stamp] = cur.lastrowid
+        _session(conn, f"s-{stamp}", expires_days=0)
+        conn.execute("UPDATE sessions SET expires_at = ? WHERE id = ?", (stamp, f"s-{stamp}"))
+
+    retention.purge(conn, NOW, settings)
+
+    for stamp, purged in cases.items():
+        ip = conn.execute("SELECT ip FROM audit_log WHERE id = ?", (ids[stamp],)).fetchone()["ip"]
+        session = conn.execute("SELECT 1 FROM sessions WHERE id = ?", (f"s-{stamp}",)).fetchone()
+        assert (ip is None) is purged, stamp
+        assert (session is None) is purged, stamp
