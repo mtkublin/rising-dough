@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-JPY — native-currency exponent in UI)
+- **Fix(T-JPY): native-currency amounts (account balances, planned-net, credit limit, reconcile modal, recently-deleted, `amount` macro) now use the currency's decimals** (JPY/KRW show 0 decimals instead of `/100`). New `money_num` filter. ADR-0006/0008 apply unchanged.
+
 ## 2026-11-06 (T-D67 — SSH only over Tailscale)
 - **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
 ## 2026-11-06 (T-FIX5b — ADR renumber)

@@ -224,6 +224,10 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS6 [P] /accounts table clipped on mobile (375) → T-ACC1, T-VIS5
 - At 375 the Accounts table is horizontally clipped (Checked column cut, Balance not visible without sideways scroll inside `.rd-table-scroll`). Determine whether it predates T-ACC1 (compare v3 before merge 142cde3); decide mobile layout (e.g. hide Trend/Checked/Txns columns or stacked rows) so Balance + planned sub-line are visible without horizontal scroll. Run `frontend-visual-audit` at 1440/1024/375 and refresh `/accounts` visual baselines. Reference: ADR-0051 §6, ADR-0089. Outcome: predated T-ACC1 (the `.rd-table-scroll .rd-table { min-width: 36rem }` rule); Trend/Checked/Txns hidden at <=640px, planned sub-line and pill wrap, Reconcile stacks over kebab; table fits at 343px with no sideways scroll; desktop/tablet unchanged.
 
+### ✅ T-JPY [S] Native-currency amounts honour the currency exponent (JPY/KRW = 0 decimals)
+- Finding: the domain already has a per-currency exponent (`domain/money.py` `currency_decimals`; JPY/KRW = 0) and input parsing (`to_minor_units`) stores JPY "1000" as 1000 minor units (ADR-0006, ADR-0008). Several native-currency templates formatted `minor / 100.0` with 2 decimals regardless, so a 1000 JPY balance rendered as "10.00 JPY". Base-currency (PLN) aggregates keep the 2-decimal format (base is 2-decimal; non-2-decimal base currencies remain out of scope).
+- Fix: new `money_num` Jinja filter (`format_money` sibling, number only, optional sign/force decimals) used for account balances, planned-net sub-line, credit limit/available, reconcile modal, recently-deleted rows, `amount` macro. Tests: unit + rendered JPY account. No ADR needed (applies ADR-0006/0008 as written). Reference: ADR-0006, ADR-0008.
+
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
