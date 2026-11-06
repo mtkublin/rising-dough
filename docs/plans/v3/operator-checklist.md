@@ -118,6 +118,10 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Privacy: hosting others' financial data makes the operator a GDPR controller. Decide on a short privacy note. Hard-delete is out of v3 scope.
 - [ ] **Data-protection quick wins (Phase 5, ADR-0078).**
   - [ ] T-D56: generate the Litestream age identity (`age-keygen -o litestream-age.key`), store it in the password manager, set the Terraform sensitive variable. Losing it makes the encrypted replica unrecoverable.
+    - Recipient: `age-keygen -y litestream-age.key` (prints `age1...`).
+    - Pass both to Terraform as `TF_VAR_litestream_age_identity` (contents of the key file, sensitive) and `TF_VAR_litestream_age_recipient` (public), or in the gitignored `envs/<env>/terraform.tfvars`. Both are required (no defaults) for prod and drill; the drill env uses the **prod** identity.
+    - GitHub: add secret `LITESTREAM_AGE_IDENTITY` and variable `LITESTREAM_AGE_RECIPIENT` (used by `terraform.yml` and `restore-drill.yml`).
+    - After the first apply follow the cut-over section of `runbooks/restore.md`, then delete the plaintext generations.
   - [ ] T-D57: confirm the 37-day maximum copy age is acceptable (it bounds how far back a restore can go).
   - [ ] T-D61: review `runbooks/data-inventory.md` and its "what the operator can see" statement; decide whether to share it with users now (recommended) or wait for v4's `/privacy` page.
 - [x] Cost-alert threshold (T-D45): 10 EUR / 75 %, email + SMS (see A1).

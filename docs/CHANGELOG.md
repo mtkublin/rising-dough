@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D56 — Litestream age encryption)
+- **Feat(T-D56): Litestream replicas are age-encrypted; one pinned Litestream tag** (ADR-0078 §3). Age is unsupported in Litestream 0.5.x (rejected since v0.5.1), so prod, prod-sim and the drill helper all pin `litestream/litestream:0.3.14`. New restore-only configs (`deploy/litestream-restore.yml`, `litestream-restore.yml.tpl`) carry `age.identities`; replicate configs carry only the recipient. Terraform: sensitive `litestream_age_identity` + `litestream_age_recipient`, cloud-init writes `/etc/budget-planner/litestream-age.key` (0600). Prod-sim uses committed dev-only `deploy/litestream-age-DEV-ONLY.key` (excluded in `.secrets.baseline`). Runbooks: identity path, lost-identity warning, cut-over procedure. Pending: prod-sim and drill acceptance runs.
+
 ## 2026-11-06 (T-D54 — owner-scoped audit tail)
 - **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
 ## 2026-11-06 (T-D59 — log hygiene)

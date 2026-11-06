@@ -72,4 +72,8 @@ module "compute" {
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
   scw_access_key_restore = var.env == "drill" ? var.scw_access_key_restore : ""
   scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
+
+  # T-D56: Litestream replica age encryption (ADR-0078 §3).
+  litestream_age_identity  = var.litestream_age_identity
+  litestream_age_recipient = var.litestream_age_recipient
 }

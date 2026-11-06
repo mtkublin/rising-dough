@@ -15,6 +15,7 @@ The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a 
 The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, installed by cloud-init from `terraform/cloud-init/bin/restore-from-prod.tpl` (T-D41a). The workflow runs it as `ssh operator@<drill-host> 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` reports `"status":"ok"`.
 
 - **Credential**: a read-only key (`GetObject` + `ListBucket` on the prod bucket) passed as `TF_VAR_scw_access_key_restore` / `TF_VAR_scw_secret_key_restore` (workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`). Cloud-init writes it to `/etc/budget-planner/restore-source.env` (0600, root). It is empty on prod and the helper does not exist there.
+- **Age identity (T-D56)**: the prod replica is age-encrypted (ADR-0078 §3). The helper reads the identity from `/etc/budget-planner/litestream-age.key` (0600, root; Terraform `litestream_age_identity`, which on the drill env must be the **prod** identity) and exports it to the restore container. It refuses to run if the file is missing. **A lost identity means the replica is unrecoverable.**
 - **Prod is never written**: the prod replica appears only in a throw-away config passed to `litestream restore`. The running Litestream service uses `/etc/budget-planner/litestream.yml`, which targets the drill bucket. The helper aborts if the source bucket equals the drill bucket or the read-only key equals the drill write key.
 
 ## Preconditions
@@ -24,6 +25,7 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
   - **Latest** — the default; recovers up to the most recent WAL segment uploaded (RPO ≤ 15 s).
   - **Point-in-time** — a specific UTC timestamp within the 30-day window.
 - A read-only IAM credential scoped to `budget-planner-prod-pl-waw` exists (preferred — do not reuse the write credential the host already has for Litestream). If not, create one in Scaleway console: IAM → Applications → New application → policy `read-only on budget-planner-prod-pl-waw` → generate access key + secret.
+- The age identity is available: `/etc/budget-planner/litestream-age.key` exists on the host (cloud-init writes it from `litestream_age_identity`), and the operator password manager holds the master copy. **Without the identity the replica cannot be decrypted; a restore attempted without it fails.**
 - You have operator SSH access as `app@<prod-host>`.
 - You have recorded the current audit-row count for a sanity check after restore:
   ```sh
@@ -56,29 +58,18 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
    export LITESTREAM_ACCESS_KEY_ID='<RO-KEY-ID>'
    export LITESTREAM_SECRET_ACCESS_KEY='<RO-KEY-SECRET>'
    ```
-6. Run the restore. Latest:
+6. Run the restore. Replicas are age-encrypted, so restore through the config file (a bare `s3://` URL carries no identity and cannot decrypt). `/etc/budget-planner/litestream-restore.yml` already holds the bucket and `age.identities: [${LITESTREAM_AGE_IDENTITY}]`; export the identity from the key file and pass the read-only credential as `SCW_ACCESS_KEY` / `SCW_SECRET_KEY`:
    ```sh
+   export LITESTREAM_AGE_IDENTITY="$(sudo grep -m1 '^AGE-SECRET-KEY-' /etc/budget-planner/litestream-age.key)"
+   export SCW_ACCESS_KEY="$LITESTREAM_ACCESS_KEY_ID" SCW_SECRET_KEY="$LITESTREAM_SECRET_ACCESS_KEY"
    sudo -E docker run --rm \
      -v /data:/data \
-     -v /etc/litestream.yml:/etc/litestream.yml:ro \
-     -e LITESTREAM_ACCESS_KEY_ID \
-     -e LITESTREAM_SECRET_ACCESS_KEY \
-     litestream/litestream:0.3 \
-     restore -o /data/budget.db \
-     s3://budget-planner-prod-pl-waw/db
+     -v /etc/budget-planner/litestream-restore.yml:/etc/litestream.yml:ro \
+     -e LITESTREAM_AGE_IDENTITY -e SCW_ACCESS_KEY -e SCW_SECRET_KEY \
+     litestream/litestream:0.3.14 \
+     restore -config /etc/litestream.yml -o /data/budget.db /data/budget.db
    ```
-   Point-in-time (replace with the actual UTC timestamp):
-   ```sh
-   sudo -E docker run --rm \
-     -v /data:/data \
-     -v /etc/litestream.yml:/etc/litestream.yml:ro \
-     -e LITESTREAM_ACCESS_KEY_ID \
-     -e LITESTREAM_SECRET_ACCESS_KEY \
-     litestream/litestream:0.3 \
-     restore -o /data/budget.db \
-     -timestamp 2026-11-15T08:00:00Z \
-     s3://budget-planner-prod-pl-waw/db
-   ```
+   Point-in-time: add `-timestamp 2026-11-15T08:00:00Z` before the final path argument. To prove the encryption, the same command with `LITESTREAM_AGE_IDENTITY` unset must fail.
 7. Fix ownership and permissions back to the `app` uid:
    ```sh
    sudo chown "$(id -u app):$(id -g app)" /data/budget.db
@@ -160,3 +151,12 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
    ```
 3. Start Litestream, then app. Verify as above.
 4. Rotate the read-only credential and triage the Litestream bucket contents before attempting another restore.
+
+## Cut-over to an encrypted replica (T-D56, ADR-0078 §3)
+
+Do this once, when first deploying the age-enabled config to a bucket that already holds plaintext generations.
+
+1. Generate the identity (`age-keygen -o litestream-age.key`), store it in the password manager, set `TF_VAR_litestream_age_identity` / `TF_VAR_litestream_age_recipient` (see the operator checklist) and apply Terraform so cloud-init rewrites `litestream.yml` and writes the key. Restart `litestream` (`docker compose up -d litestream`); it starts a **new generation** whose objects are age ciphertext.
+2. Confirm: `aws s3 cp s3://<bucket>/db/... - | head -c 32` starts with `age-encryption.org/v1` for objects of the new generation.
+3. Run the restore drill (`gh workflow run restore-drill.yml`, T-D41) with the prod identity and confirm it is green and logged in [`restore-log.md`](restore-log.md).
+4. Only then delete the unencrypted generations (`litestream generations -config /etc/budget-planner/litestream.yml s3://...` to list, then remove the old generation prefixes under `db/generations/<id>/` with the bucket tooling). Bucket versioning keeps noncurrent copies until the T-D57 lifecycle expires them.

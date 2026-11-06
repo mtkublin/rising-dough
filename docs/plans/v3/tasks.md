@@ -383,7 +383,8 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - Middleware sets `Cache-Control: no-store` on every authenticated response (not `/static/`); logout adds `Clear-Site-Data: "cache", "storage"`. Back button after logout never shows cached financial pages.
 - File: `phase-5-data-protection/T-D55-no-store-authenticated-responses.md`. Reference: ADR-0078 §2.
 
-### ◻ T-D56 [S] Litestream replica encryption (age) + version alignment → T-D21, T-D23, T-D41a
+### ◐ T-D56 [S] Litestream replica encryption (age) + version alignment → T-D21, T-D23, T-D41a
+- **Status: code done; prod-sim + drill acceptance pending (needs Docker / drill env).** Verified: age is absent in Litestream 0.5.x (rejected since v0.5.1), so everything pins `litestream/litestream:0.3.14` (see ADR-0078 §3 addendum).
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 

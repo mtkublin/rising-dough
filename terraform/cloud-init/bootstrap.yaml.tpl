@@ -59,6 +59,20 @@ write_files:
     content: |
       ${indent(6, litestream_rendered)}
 
+  # T-D56 / ADR-0078 §3: restore-only config + age identity (ADR-0069 secret-file pattern).
+  # Lost identity = unrecoverable replica; the operator keeps the master copy in the password manager.
+  - path: /etc/budget-planner/litestream-restore.yml
+    permissions: '0644'
+    owner: root:root
+    content: |
+      ${indent(6, litestream_restore_rendered)}
+
+  - path: /etc/budget-planner/litestream-age.key
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${indent(6, age_identity)}
+
   - path: /etc/budget-planner/litestream.env
     permissions: '0600'
     owner: root:root
