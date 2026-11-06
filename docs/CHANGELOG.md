@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D77 — offline cloud-init render check)
+- **CI(T-D77): the rendered cloud-init user-data is now validated offline.** A fixture root (`terraform/tests/render/`) renders the real compute module with dummy values and mocked/no credentials. `terraform test` asserts `#cloud-config` is line 1; `render_check.py` also checks YAML and `cloud-init schema`. Run with `just tf-render-check`; wired into `.github/workflows/terraform.yml`.
 ## 2026-11-06 (T-D78 — read-only Terraform preflight)
 - **Tooling(T-D78): `just drill-preflight` / `just tf-preflight <env>` check inputs, project match, GHCR image, Tailscale tag permission and state backend reachability before an apply.** Read-only, no secret values printed, non-zero exit on any FAIL. Script: `terraform/scripts/preflight.py`; test: `tests/unit/deploy/test_preflight.py`.
 

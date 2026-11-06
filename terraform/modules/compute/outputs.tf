@@ -22,3 +22,9 @@ output "user_data_sha256" {
   description = "sha256 of the rendered cloud-init payload. Useful for drift tracking."
   value       = sha256(local.user_data)
 }
+
+output "user_data" {
+  description = "Rendered cloud-init payload (contains secrets). Consumed only by the offline render check (T-D77)."
+  value       = local.user_data
+  sensitive   = true
+}
