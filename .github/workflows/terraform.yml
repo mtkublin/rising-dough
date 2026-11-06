@@ -48,6 +48,10 @@ jobs:
       - name: terraform validate
         run: terraform validate
 
+      - name: terraform init + validate (bootstrap stack, no backend)
+        working-directory: terraform/bootstrap
+        run: terraform init -backend=false && terraform validate
+
       - name: Set up tflint
         uses: terraform-linters/setup-tflint@acf4cf0ec6d41ca3cfe6cf15c53d99e3c7bb6d13 # v4.1.1
         with:

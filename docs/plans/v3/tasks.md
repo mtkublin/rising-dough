@@ -307,6 +307,10 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `deploy.yml`, `rollback.yml`, `restore-drill.yml` join the tailnet (`tailscale/github-action`, `tag:ci`) before SSH; SSH targets are `budget-planner-drill` / `budget-planner-prod`; restore drill waits for the drill host on the tailnet. `terraform.yml` plan receives `TF_VAR_tailscale_oauth_*`.
 - Operator: checklist A9. Reference: ADR-0094.
 
+### ✅ T-D72 [S] Terraform state bootstrap stack replaces script → T-D20
+- `terraform/bootstrap/` (local state, committed after the operator's first apply): versioned private `scaleway_object_bucket` with `prevent_destroy`, 90-day noncurrent expiry, no bucket policy. `terraform/scripts/bootstrap-state.sh` deleted; docs and operator checklist A7 updated.
+- CI: `terraform.yml` runs fmt/tflint recursively and init `-backend=false` + validate on the bootstrap dir. Test: `tests/unit/deploy/test_state_bootstrap.py`. Reference: ADR-0096 (amends ADR-0035 §4).
+
 ### ✅ T-D71 [S] ufw SSH only on tailscale0 → T-D67
 - `bootstrap.yaml.tpl`: `ufw allow 22/tcp` replaced by `ufw allow in on tailscale0 to any port 22 proto tcp`; 80/443 unchanged; rules precede `ufw --force enable`. Matches the SG that closes 22 publicly.
 - Test: `tests/unit/deploy/test_tailscale_ssh.py`. Reference: ADR-0094 (amended).

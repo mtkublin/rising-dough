@@ -2,6 +2,7 @@
 
 - **Status**: Proposed
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
+- **Amended by**: [ADR-0096](0096-terraform-state-bootstrap-stack.md) (§4 bootstrap)
 - **Related**: ADR-0032 (v3 remote deployment), ADR-0034 (Litestream), ADR-0036 (Caddy TLS), ADR-0037 (GHA deploy pipeline)
 
 ## Context
@@ -75,7 +76,8 @@ terraform/
 - Backend: **S3-compatible** on Scaleway Object Storage (`budget-planner-tfstate-pl-waw`).
 - State locking: provider `use_lockfile = true` (Terraform v1.10+ native state locking against S3-compatible stores) once the implementation phase confirms the provider version supports it. If not, a DynamoDB-compatible lock is left as a known gap and the user is the sole operator (one-writer invariant).
 - `backend.tf` is empty; backend config is passed per environment via `terraform init -backend-config=envs/<env>/backend.hcl`.
-- The bootstrap bucket is created by a one-shot script (`terraform/scripts/bootstrap-state.sh`) that runs `scw object bucket create` using the operator's personal API key *before* `terraform init`. This is the only non-Terraform step and is documented in `terraform/README.md`.
+- **Amended by [ADR-0096](0096-terraform-state-bootstrap-stack.md) (2026-11-06): the bootstrap bucket is now created by the separate Terraform root stack `terraform/bootstrap/` (local state); the script below was removed.**
+- (Historical) The bootstrap bucket was created by a one-shot script (`terraform/scripts/bootstrap-state.sh`) that runs `scw object bucket create` using the operator's personal API key *before* `terraform init`. This is the only non-Terraform step and is documented in `terraform/README.md`.
 
 ### 5. In-VM configuration (cloud-init)
 

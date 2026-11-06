@@ -98,3 +98,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0093 | [CI Terraform Inputs via TF_VAR_* from Environment Secrets](0093-ci-terraform-inputs-via-tf-var-environment-secrets.md) (amends ADR-0092 §4, ADR-0078 §3) |
 | 0094 | [SSH Only Over Tailscale; Port 22 Closed to the Internet](0094-ssh-only-over-tailscale-port-22-closed.md) (amends ADR-0035, ADR-0032; relates to ADR-0037, ADR-0069, ADR-0088) |
 | 0095 | [Budget `committed` Converts to Base Currency](0095-budget-committed-converts-to-base-currency.md) (amends ADR-0085) |
+| 0096 | [Terraform State Bucket Bootstrapped by a Separate Terraform Root Stack](0096-terraform-state-bootstrap-stack.md) (amends ADR-0035 §4; relates to ADR-0091, ADR-0093) |
