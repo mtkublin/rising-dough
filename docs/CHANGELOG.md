@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D78 — read-only Terraform preflight)
+- **Tooling(T-D78): `just drill-preflight` / `just tf-preflight <env>` check inputs, project match, GHCR image, Tailscale tag permission and state backend reachability before an apply.** Read-only, no secret values printed, non-zero exit on any FAIL. Script: `terraform/scripts/preflight.py`; test: `tests/unit/deploy/test_preflight.py`.
+
 ## 2026-11-06 (T-D80 — per-batch CI policy, fast pre-commit pytest)
 - **Chore(T-D80): orchestrator mode runs full `just ci` once per merge batch; item agents run scoped checks only** (ADR-0097 amends ADR-0066). Pre-commit `pytest-fast` restricted to `tests/unit tests/architecture` (about 31 s, was about 205 s) so parallel agents no longer stall commits. Full suite and 90% gate unchanged in `just ci` and CI.
 ## 2026-11-06 (T-D79 — module required_version aligned with root)

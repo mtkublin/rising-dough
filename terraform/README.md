@@ -71,6 +71,20 @@ CI (`terraform.yml`, `restore-drill.yml`) never uses a tfvars file: every input 
 
 For `prod`, swap `drill` → `prod` throughout. The prod apply is gated by the GitHub Actions `prod` environment approval in `.github/workflows/terraform.yml` (T-D28).
 
+## Preflight (T-D78)
+
+Before any apply, run `just drill-preflight` (or `just tf-preflight prod`). It is read-only, takes seconds, sources `terraform/.env` if present, and prints PASS or FAIL per check without ever printing a secret value (lengths and prefix status only). Exit code is non-zero if anything fails.
+
+| Check | Catches |
+|---|---|
+| Required inputs (`SCW_*`, Tailscale OAuth, age identity/recipient, GHCR PAT) | empty, `<placeholder>` or wrong-prefix values |
+| Project match | `SCW_DEFAULT_PROJECT_ID` differing from `scaleway_project_id` (the provider silently uses the env value). The drill recipe maps `SCW_DRILL_PROJECT_ID` onto it |
+| App image on GHCR | `ghcr.io/<github_owner>/budget-planner:<app_image_tag>` not published (`NAME_UNKNOWN`) |
+| Tailscale tag | OAuth client cannot mint a key for `tag:drill` / `tag:prod`; mints a 300 s ephemeral key and deletes it at once |
+| State backend | bucket from `backend.hcl` unreachable with the SCW keys (stdlib SigV4 `HEAD`, no extra dependency) |
+
+It does not run `terraform fmt -check` or `validate`; run those separately (T-D77 `tf-render-check` when present).
+
 ## Secret flow
 
 | Secret | Source | Sink |
