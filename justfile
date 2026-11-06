@@ -191,3 +191,28 @@ test-prod-stack:
     echo "[test-prod-stack] running smoke probe (Playwright journey ships with T-D43)..."
     uv run python -c "import httpx; r = httpx.get('https://localhost:8443/ready', verify=False); assert r.status_code == 200"
     echo "[test-prod-stack] OK"
+
+# T-D77: render the cloud-init user-data offline (real templatefile chain, dummy
+# values, no credentials) and lint it: line 1, YAML, cloud-init schema (skipped
+# with a message when the binary is missing).
+tf-render-check:
+    terraform -chdir=terraform init -backend=false -input=false
+    terraform -chdir=terraform test
+    uv run python terraform/tests/render/render_check.py
+
+# --- terraform preflight (T-D78) --------------------------------------------
+
+# Read-only checks before a terraform apply: inputs, project match, GHCR image,
+# Tailscale tag, state backend. Usage: just tf-preflight drill|prod
+tf-preflight env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f terraform/.env ]; then set -a; source terraform/.env; set +a; fi
+    if [ "{{env}}" = "drill" ] && [ -n "${SCW_DRILL_PROJECT_ID:-}" ]; then
+      export SCW_DEFAULT_PROJECT_ID="$SCW_DRILL_PROJECT_ID"
+    fi
+    uv run python terraform/scripts/preflight.py {{env}}
+
+# Preflight for the drill env. Run before every drill apply.
+drill-preflight:
+    just tf-preflight drill

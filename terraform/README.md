@@ -71,6 +71,20 @@ CI (`terraform.yml`, `restore-drill.yml`) never uses a tfvars file: every input 
 
 For `prod`, swap `drill` → `prod` throughout. The prod apply is gated by the GitHub Actions `prod` environment approval in `.github/workflows/terraform.yml` (T-D28).
 
+## Preflight (T-D78)
+
+Before any apply, run `just drill-preflight` (or `just tf-preflight prod`). It is read-only, takes seconds, sources `terraform/.env` if present, and prints PASS or FAIL per check without ever printing a secret value (lengths and prefix status only). Exit code is non-zero if anything fails.
+
+| Check | Catches |
+|---|---|
+| Required inputs (`SCW_*`, Tailscale OAuth, age identity/recipient, GHCR PAT) | empty, `<placeholder>` or wrong-prefix values |
+| Project match | `SCW_DEFAULT_PROJECT_ID` differing from `scaleway_project_id` (the provider silently uses the env value). The drill recipe maps `SCW_DRILL_PROJECT_ID` onto it |
+| App image on GHCR | `ghcr.io/<github_owner>/budget-planner:<app_image_tag>` not published (`NAME_UNKNOWN`) |
+| Tailscale tag | OAuth client cannot mint a key for `tag:drill` / `tag:prod`; mints a 300 s ephemeral key and deletes it at once |
+| State backend | bucket from `backend.hcl` unreachable with the SCW keys (stdlib SigV4 `HEAD`, no extra dependency) |
+
+It does not run `terraform fmt -check` or `validate`; run those separately (T-D77 `tf-render-check` when present).
+
 ## Secret flow
 
 | Secret | Source | Sink |
@@ -110,6 +124,20 @@ trivy config terraform/ || tfsec terraform/
 ```
 
 CI replays the same gates on every PR via `.github/workflows/terraform.yml` and additionally renders the cloud-init templates to check they parse as valid YAML / Caddyfile / Litestream TOML.
+
+## Offline user-data render check (T-D77)
+
+Catches first-boot config bugs (e.g. `#cloud-config` not on line 1, T-D75) without paying for a VM boot. `tests/render/` is a fixture root that calls the real `modules/compute` (same `templatefile()` chain as the server) with obviously fake values; no credentials, no API calls (dummy provider config only; just provider downloads).
+
+```sh
+just tf-render-check
+# = terraform -chdir=terraform init -backend=false && terraform -chdir=terraform test
+#   + python3 terraform/tests/render/render_check.py
+```
+
+- `terraform test` (`tests/render.tftest.hcl`, mocked scaleway provider) asserts line 1 is `#cloud-config`, with and without the drill restore helper.
+- `render_check.py` plans the fixture, extracts the rendered user-data, and checks line 1, YAML parsing, and `cloud-init schema --config-file`. Locally the schema step is skipped with a message when `cloud-init` is not installed; CI installs it and passes `--require-schema`.
+- `--out DIR` keeps the rendered files (dummy secrets only).
 
 ## Known limitations
 
