@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_partials/components/_amount.html" import amount %}
 {% from "_partials/components/_sparkline.html" import sparkline %}
+{% from "_partials/components/_planned_net.html" import planned_net %}
 {% from "_partials/kebab_menu.html" import kebab_menu %}
 {% block title %}Accounts · Rising Dough{% endblock %}
 {% block main %}
@@ -32,6 +33,10 @@
     <div class="rd-accounts-hero__item">
       <div class="rd-eyebrow">Liabilities</div>
       <div class="num neg rd-accounts-hero__sub">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
+    </div>
+    <div class="rd-accounts-hero__item" id="accounts-planned-total">
+      <div class="rd-eyebrow">Planned</div>
+      <div class="num rd-accounts-hero__sub {{ 'neg' if planned_base < 0 else ('pos' if planned_base > 0 else '') }}">{{ '−' if planned_base < 0 else ('+' if planned_base > 0 else '') }}{{ "{:,.2f}".format(planned_base|abs / 100.0) }}</div>
     </div>
   </section>
   <div class="rd-table-scroll">
@@ -101,6 +106,7 @@
             <td class="num">{{ card.stats.txn_count }}</td>
             <td class="num {% if card.balance < 0 %}neg{% endif %}">
               {{ "{:,.2f}".format(card.balance / 100.0) }}<span class="cur">{{ a.currency }}</span>
+              {{ planned_net(card.planned) }}
             </td>
             <td class="rd-actions">
               <button class="rd-btn rd-btn--sm"

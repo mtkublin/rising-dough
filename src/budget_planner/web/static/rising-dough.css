@@ -2216,7 +2216,7 @@ kbd.rd-kbd {
 /* ─── Accounts hero (manual-audit #51) ────────────────────────────── */
 .rd-accounts-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 1fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) 1fr 1fr 1fr;
   gap: 2rem;
   align-items: end;
   margin-bottom: 1.5rem;
@@ -2229,6 +2229,9 @@ kbd.rd-kbd {
 }
 .rd-accounts-hero__hint { font-size: 0.75rem; margin-top: 0.25rem; }
 .rd-accounts-hero__sub { font-size: 1.35rem; margin-top: 0.2rem; }
+
+/* ADR-0089 — planned net sub-line under an account balance */
+.rd-acct-planned { font-size: 0.75rem; margin-top: 0.15rem; white-space: nowrap; }
 
 @media (width <= 640px) {
   .rd-accounts-hero { grid-template-columns: 1fr; }

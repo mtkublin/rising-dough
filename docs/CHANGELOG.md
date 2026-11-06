@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-ACC1 — Accounts planned net)
+- **Feat(T-ACC1): Accounts tab shows planned net + projected end-of-period balance per account**, and a base-currency "Planned" total in the hero (ADR-0089). New `services/account_planned.py`; shared `recurring.expand_unpromoted` (forecast behaviour unchanged). Cache-bust `rd5` -> `rd6` if CSS changed.
+
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 
