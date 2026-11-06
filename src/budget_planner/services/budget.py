@@ -59,7 +59,7 @@ def base_amount_converter(
     today: dt.date | None = None,
     base_currency: str | None = None,
 ) -> Callable[[int, int], int]:
-    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0092).
+    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0093).
 
     Planned / recurring items are future-dated, so the rate is the latest
     cached one on or before ``today`` (never the item's date, never the

@@ -1,4 +1,4 @@
-"""T-FIX5 / ADR-0092: budget ``committed`` converts to base currency."""
+"""T-FIX5 / ADR-0093: budget ``committed`` converts to base currency."""
 
 from __future__ import annotations
 
