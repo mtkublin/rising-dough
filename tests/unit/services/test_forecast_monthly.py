@@ -412,7 +412,10 @@ def test_current_month_row_mirrors_budget_month_summary(
     with _dead_client() as http:
         monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     oct_row = _row_for(monthly, date(2026, 10, 1))
-    assert oct_row.expense_base_minor == summary.totals.committed_minor
+    assert (
+        oct_row.expense_base_minor
+        == summary.totals.committed_minor + summary.totals.unbudgeted_committed_minor
+    )
     assert oct_row.planned_budget_base_minor == max(summary.totals.remaining_minor, 0)
 
 

@@ -165,6 +165,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             new_totals = _dc.replace(
                 summary.totals,
                 committed_minor=new_committed,
+                unbudgeted_committed_minor=0,
                 remaining_minor=new_remaining,
             )
             summary = _dc.replace(

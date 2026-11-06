@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -15,11 +15,13 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
+    planned as planned_repo,
     transactions as transactions_repo,
 )
 
@@ -539,3 +541,41 @@ def test_monthly_summary_totals_row_leaves_analytics_blank(
     assert cells[3].get_text(strip=True) == ""
     assert cells[4].get_text(strip=True) == ""
     assert cells[5].get_text(strip=True) == ""
+
+
+# ---------------------------------------------------------------------------
+# T-FIX1 / ADR-0085 - unbudgeted commitments are informational only.
+# ---------------------------------------------------------------------------
+def test_budget_hero_unbudgeted_info_line_not_counted(
+    client: TestClient, _migrated: Settings, cat_id: int
+) -> None:
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Chk", currency="PLN")).id
+        rent = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        ).id
+        planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=datetime.now(UTC).date() + timedelta(days=1),
+                category_id=rent,
+                account_id=acc,
+                amount=35_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/budget")
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero = soup.find(id="left-daily-spend")
+    assert isinstance(hero, Tag)
+    info = hero.select_one(".budget-lds__unbudgeted")
+    assert isinstance(info, Tag)
+    assert info.get("data-unbudgeted-committed") == "35000"
+    assert "not counted" in info.get_text(" ", strip=True)
+    committed = hero.select_one(".budget-lds__committed")
+    assert isinstance(committed, Tag)
+    assert committed.get("data-committed") == "0"
