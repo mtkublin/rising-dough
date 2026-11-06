@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D67 — SSH only over Tailscale)
+- **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
 ## 2026-11-06 (T-FIX5b — ADR renumber)
 - **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
 

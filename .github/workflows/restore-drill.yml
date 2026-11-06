@@ -12,7 +12,12 @@
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY
 #   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
-#   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - pinned known_hosts entry for drill host.
+#   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - legacy pinned known_hosts entry (optional; the drill host
+#                                    key is scanned over the authenticated tailnet, ADR-0094).
+#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET
+#                                  - Tailscale OAuth client (scopes auth_keys; owns tag:ci,
+#                                    tag:drill): CI joins the tailnet as tag:ci and Terraform
+#                                    mints the drill host's ephemeral auth key (T-D67).
 #   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
 #                                  - read-only key of the prod `restore-reader`
 #                                    IAM application (prod outputs
@@ -71,6 +76,11 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
       DRILL_HOST: drill.budget.${{ secrets.APP_DOMAIN }}
+      # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
+      # DRILL_HOST stays the public name for the HTTPS /ready probe.
+      DRILL_SSH_HOST: budget-planner-drill
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # T-D41a: read-only credential for the PROD replica bucket; rendered
       # into the drill host's root-only restore-source.env by cloud-init.
@@ -104,6 +114,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Pin known_hosts for drill host
         run: |
           set -euo pipefail
@@ -126,6 +143,29 @@ jobs:
             -input=false \
             -auto-approve
 
+      - name: Wait for drill host on the tailnet (T-D67)
+        # The drill VM joins the tailnet from cloud-init (ephemeral node).
+        # Bounded wait until its MagicDNS name answers on 22, then record its
+        # host keys. ssh-keyscan over the tailnet is trustworthy: the peer is
+        # authenticated by WireGuard node identity and the ACL (tag:ci ->
+        # tag:drill:22 only), so this is not trust-on-first-use over the internet.
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          for i in $(seq 1 60); do
+            keys="$(ssh-keyscan -T 5 -t ed25519,ecdsa,rsa "${DRILL_SSH_HOST}" 2>/dev/null || true)"
+            if [ -n "${keys}" ]; then
+              printf '%s\n' "${keys}" >> ~/.ssh/known_hosts
+              echo "drill host reachable on the tailnet after attempt ${i}"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${DRILL_SSH_HOST} never answered on port 22 over the tailnet" >&2
+          exit 1
+
       - name: Trigger restore on drill host
         # The cloud-init helper lives at /usr/local/bin/restore-from-prod and
         # (per ADR-0034 §5 + the drill terraform.tfvars) runs
@@ -133,7 +173,7 @@ jobs:
         # using a read-only IAM credential scoped to the prod bucket.
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes operator@"${DRILL_HOST}" \
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             'sudo /usr/local/bin/restore-from-prod'
 
       - name: Verify /ready reports ok
@@ -146,7 +186,7 @@ jobs:
       - name: Verify PRAGMA integrity_check
         run: |
           set -euo pipefail
-          result="$(ssh -o BatchMode=yes operator@"${DRILL_HOST}" \
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             "sudo sqlite3 /data/budget.db 'PRAGMA integrity_check;'")"
           echo "integrity_check=${result}"
           test "${result}" = "ok"
@@ -164,7 +204,7 @@ jobs:
           mkdir -p drill-evidence
           ssh_run() {
             timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=10 \
-              operator@"${DRILL_HOST}" "$1" 2>&1 \
+              operator@"${DRILL_SSH_HOST}" "$1" 2>&1 \
               | sed -E 's/(secret|token|password|access_key|identity|AGE-SECRET-KEY)[^[:space:]]*/\1=REDACTED/Ig'
           }
           ssh_run 'sudo tail -n 500 /var/log/cloud-init-output.log' > drill-evidence/cloud-init-output.log || true

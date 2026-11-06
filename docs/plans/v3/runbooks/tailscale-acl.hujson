@@ -1,0 +1,30 @@
+// Intended Tailscale tailnet policy (T-D67, ADR-0094).
+// NOT managed by Terraform (tailnet-global; both env states would own it).
+// Paste in the admin console: Access controls -> edit file. Replace the owner
+// placeholder with your Tailscale login email before saving.
+{
+	// Who may apply each tag. The Terraform OAuth client and the GitHub Actions
+	// OAuth client must own the tags they mint keys for (create the OAuth client
+	// with tags tag:prod, tag:drill, tag:ci).
+	"tagOwners": {
+		"tag:prod":  ["you@example.com"],
+		"tag:drill": ["you@example.com"],
+		"tag:ci":    ["you@example.com"],
+	},
+
+	// Default-deny: only the rules below allow traffic.
+	"acls": [
+		// Operator's own devices -> SSH on prod and drill.
+		{
+			"action": "accept",
+			"src":    ["you@example.com"],
+			"dst":    ["tag:prod:22", "tag:drill:22"],
+		},
+		// GitHub Actions runners -> SSH on prod and drill.
+		{
+			"action": "accept",
+			"src":    ["tag:ci"],
+			"dst":    ["tag:prod:22", "tag:drill:22"],
+		},
+	],
+}

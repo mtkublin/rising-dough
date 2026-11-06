@@ -259,7 +259,7 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - File: `phase-2-infrastructure/T-D23-cloud-init.md`. Reference: ADR-0035 §5, ADR-0061 §3.
 
 ### ✅ T-D24 [S] Compute module → T-D23
-- `modules/compute/`: instance (`stardust1-s`, `pl-waw-2`, Ubuntu 24.04 `ubuntu_noble`), flex IP, security group (22/80/443). Zone + image per ADR-0084 (T-D62).
+- `modules/compute/`: instance (`stardust1-s`, `pl-waw-2`, Ubuntu 24.04 `ubuntu_noble`), flex IP, security group (80/443; port 22 closed, SSH over Tailscale per ADR-0094). Zone + image per ADR-0084 (T-D62).
 - `user_data` wired to the cloud-init template.
 - File: `phase-2-infrastructure/T-D24-compute.md`.
 
@@ -292,6 +292,12 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - DNS records of both envs are created in the zone's (prod) project via new `dns_zone_project_id` -> `scaleway_domain_record.project_id`.
 - Prod state creates a stable read-only `restore-reader` IAM application + key (`ObjectStorageReadOnly`, prod project) and adds it to the prod bucket policy; its key feeds the `drill` environment secrets `PROD_REPLICA_RO_*`.
 - Reference: ADR-0092 (supersedes ADR-0091 shared-project assumption).
+
+### ✅ T-D67 [S] SSH only over Tailscale → T-D24, T-D31
+- Security group drops inbound 22 (80/443 tcp + 443 udp stay). The VM joins the tailnet in cloud-init with a single-use, tag-bound `tailscale_tailnet_key` (ephemeral on drill) minted by the `tailscale` Terraform provider (OAuth client). No Tailscale SSH; sshd and users unchanged.
+- Tailnet ACL is NOT in env state; intended policy in `runbooks/tailscale-acl.hujson`, procedure + break-glass in `runbooks/tailscale-ssh.md`.
+- `deploy.yml`, `rollback.yml`, `restore-drill.yml` join the tailnet (`tailscale/github-action`, `tag:ci`) before SSH; SSH targets are `budget-planner-drill` / `budget-planner-prod`; restore drill waits for the drill host on the tailnet. `terraform.yml` plan receives `TF_VAR_tailscale_oauth_*`.
+- Operator: checklist A9. Reference: ADR-0094.
 
 ### ✅ T-D70 [S] CI Terraform inputs via TF_VAR_* secrets → T-D28
 - `terraform.yml` and `restore-drill.yml` no longer pass `-var-file` (the tfvars are gitignored and absent in CI). Every root variable is `TF_VAR_<name>` from GitHub secrets, environment-scoped (`drill`, `prod`, ungated `prod-plan` for the PR plan's prod leg) with identical secret names. No tfvars committed.

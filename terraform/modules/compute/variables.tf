@@ -139,3 +139,25 @@ variable "litestream_age_recipient" {
   description = "age public recipient (age1...) the replica is encrypted to; must match litestream_age_identity (age-keygen -y)."
   type        = string
 }
+
+# T-D67 / ADR-0094: Tailscale join (SSH/admin only).
+variable "tailscale_authkey" {
+  description = "Single-use, pre-authorized Tailscale auth key (tag-bound). Written to a 0600 tmpfs file, consumed by `tailscale up --auth-key=file:...`, then deleted."
+  type        = string
+  sensitive   = true
+}
+
+variable "tailscale_hostname" {
+  description = "Tailnet hostname (MagicDNS name) of the VM, e.g. budget-planner-prod."
+  type        = string
+}
+
+variable "tailscale_tag" {
+  description = "Tailscale ACL tag the node advertises, e.g. tag:prod. Must match the tag baked into the auth key."
+  type        = string
+
+  validation {
+    condition     = can(regex("^tag:[a-z][a-z0-9-]*$", var.tailscale_tag))
+    error_message = "tailscale_tag must look like tag:<name>."
+  }
+}

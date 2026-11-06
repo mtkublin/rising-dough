@@ -74,6 +74,21 @@ module "dns" {
   record_ttl_secs = 300
 }
 
+# ----------------------------------------------------------------------------
+# T-D67 / ADR-0094: single-use, pre-authorized, tag-bound Tailscale auth key.
+# Drill nodes are ephemeral: they vanish from the tailnet shortly after destroy.
+# The tailnet ACL is NOT managed here (tailnet-global; see runbooks/tailscale-acl.hujson).
+# ----------------------------------------------------------------------------
+
+resource "tailscale_tailnet_key" "vm" {
+  description   = "budget-planner-${var.env} first boot"
+  reusable      = false
+  ephemeral     = var.env == "drill"
+  preauthorized = true
+  expiry        = 3600
+  tags          = [local.tailscale_tag]
+}
+
 module "compute" {
   source = "./modules/compute"
 
@@ -94,6 +109,11 @@ module "compute" {
   admin_password    = random_password.admin_initial_password.result
   cookie_secret     = random_password.cookie_secret.result
   trusted_hosts_csv = local.fqdn
+
+  # T-D67: SSH only over Tailscale.
+  tailscale_authkey  = tailscale_tailnet_key.vm.key
+  tailscale_hostname = local.tailscale_hostname
+  tailscale_tag      = local.tailscale_tag
 
   # T-D41a: restore-from-prod helper, drill env only.
   enable_restore_helper  = var.env == "drill"

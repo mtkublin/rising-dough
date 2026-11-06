@@ -3,17 +3,15 @@
 
 resource "scaleway_instance_security_group" "app" {
   name                    = "${var.name_prefix}-sg"
-  description             = "Inbound SSH / HTTP / HTTPS for ${var.name_prefix}."
+  description             = "Inbound HTTP / HTTPS for ${var.name_prefix}; SSH only over Tailscale (ADR-0094)."
   inbound_default_policy  = "drop"
   outbound_default_policy = "accept"
   stateful                = true
   zone                    = var.scaleway_zone
 
-  inbound_rule {
-    action   = "accept"
-    protocol = "TCP"
-    port     = 22
-  }
+  # ADR-0094 (T-D67): no inbound TCP 22. SSH is reachable only over the
+  # Tailscale tailnet (outbound-only NAT traversal / DERP; no inbound UDP
+  # 41641 opened either).
 
   inbound_rule {
     action   = "accept"

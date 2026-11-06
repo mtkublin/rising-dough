@@ -74,5 +74,8 @@ locals {
     restore_script_rendered     = local.restore_script_rendered
     restore_access_key          = var.scw_access_key_restore
     restore_secret_key          = var.scw_secret_key_restore
+    tailscale_authkey           = var.tailscale_authkey
+    tailscale_hostname          = var.tailscale_hostname
+    tailscale_tag               = var.tailscale_tag
   })
 }

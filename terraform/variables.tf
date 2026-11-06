@@ -145,6 +145,9 @@ locals {
 
   name_prefix = "budget-planner-${var.env}"
   bucket_name = "${local.name_prefix}-${var.scaleway_region}"
+
+  tailscale_tag      = "tag:${var.env}"
+  tailscale_hostname = "budget-planner-${var.env}" # MagicDNS name used by CI and the operator
 }
 
 # ----------------------------------------------------------------------------
@@ -195,4 +198,22 @@ variable "litestream_age_recipient" {
     condition     = can(regex("^age1[0-9a-z]{58}$", var.litestream_age_recipient))
     error_message = "litestream_age_recipient must be an age public key (age1 + 58 chars), e.g. the output of age-keygen -y."
   }
+}
+
+# ----------------------------------------------------------------------------
+# Tailscale (T-D67, ADR-0094). SSH/admin access only. Supply via TF_VAR_*
+# (never committed). The OAuth client needs scope `auth_keys` (write) and must
+# own tag:prod + tag:drill.
+# ----------------------------------------------------------------------------
+
+variable "tailscale_oauth_client_id" {
+  description = "Tailscale OAuth client ID (scope auth_keys, tags tag:prod + tag:drill)."
+  type        = string
+  sensitive   = true
+}
+
+variable "tailscale_oauth_client_secret" {
+  description = "Tailscale OAuth client secret."
+  type        = string
+  sensitive   = true
 }

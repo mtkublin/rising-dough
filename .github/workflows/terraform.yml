@@ -110,6 +110,9 @@ jobs:
       TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
       TF_VAR_scw_access_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
       TF_VAR_scw_secret_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
 
     steps:
       - name: Checkout
@@ -221,6 +224,9 @@ jobs:
       TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
       TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
       TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
 
     steps:
       - name: Checkout

@@ -31,3 +31,9 @@ bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
 # Prod only: extra read-only principals. The stable restore-reader application
 # (ADR-0092) is added automatically; leave empty normally.
 # bucket_readonly_principals = ["application_id:00000000-0000-0000-0000-000000000000"]
+
+# Tailscale (T-D67, ADR-0094): SSH/admin only; port 22 is closed to the internet.
+# OAuth client credentials are sensitive; supply via the environment, never here:
+#   export TF_VAR_tailscale_oauth_client_id=...
+#   export TF_VAR_tailscale_oauth_client_secret=...
+# The VM joins the tailnet as budget-planner-prod (tag:prod); no non-secret inputs.
