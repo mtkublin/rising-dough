@@ -140,6 +140,12 @@ variable "bucket_readonly_principals" {
 # ----------------------------------------------------------------------------
 
 locals {
+  # T-D57 / ADR-0078 section 4: Litestream keeps generations for 720h (30 d, see
+  # cloud-init/compose/litestream.yml.tpl); the remainder of the ceiling is
+  # the bucket's noncurrent-version expiry (37 - 30 = 7 d by default).
+  litestream_retention_days = 30
+  lifecycle_days            = var.backup_max_age_days - local.litestream_retention_days
+
   subdomain = var.env == "prod" ? var.subdomain_prod : var.subdomain_drill
   fqdn      = "${local.subdomain}.${var.domain}"
 
@@ -197,6 +203,21 @@ variable "litestream_age_recipient" {
   validation {
     condition     = can(regex("^age1[0-9a-z]{58}$", var.litestream_age_recipient))
     error_message = "litestream_age_recipient must be an age public key (age1 + 58 chars), e.g. the output of age-keygen -y."
+  }
+}
+
+# T-D57 / ADR-0078 section 4: THE knob for the maximum age of any copy of user
+# data. Terraform derives the bucket noncurrent-expiry from it; the app's
+# BUDGET_BACKUP_MAX_AGE_DAYS (rendered into the compose template) derives the
+# pre-migration backup pruning.
+variable "backup_max_age_days" {
+  description = "Maximum age in days of any copy of user data outside the live DB (ADR-0078 section 4)."
+  type        = number
+  default     = 37
+
+  validation {
+    condition     = var.backup_max_age_days >= 31 && var.backup_max_age_days <= 365
+    error_message = "backup_max_age_days must be 31..365 (30 d Litestream retention + at least 1 d noncurrent expiry)."
   }
 }
 

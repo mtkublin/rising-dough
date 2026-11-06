@@ -191,6 +191,16 @@ jobs:
           echo "integrity_check=${result}"
           test "${result}" = "ok"
 
+      - name: Verify no extra DB copies remain (T-D57)
+        # ADR-0078 section 4: only the live budget.db (+ -wal/-shm) may be left under
+        # /data; moved-aside and pre-migration copies are deleted by the helper.
+        run: |
+          set -euo pipefail
+          extra="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            "sudo find /data -name '*.db*' ! -path '/data/.budget.db-litestream*' ! -name budget.db ! -name budget.db-wal ! -name budget.db-shm")"
+          echo "extra_db_copies=[${extra}]"
+          test -z "${extra}"
+
       - name: Capture debugging evidence (best-effort)
         # T-D66: runs only on failure, BEFORE destroy. Never blocks destroy:
         # continue-on-error + hard timeouts. Secret-bearing files (env files,

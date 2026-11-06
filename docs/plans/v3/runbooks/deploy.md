@@ -32,7 +32,7 @@ The happy-path contract: CI green → image signed by cosign → GHCR tag `sha-<
    - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.
    - Opens an SSH session to the `deploy` user: `ssh deploy@budget-planner-prod "deploy sha-<short>"`.
    - The on-host shim pulls the new tag, writes the previous tag to `.previous-tag`, runs `docker compose up -d app`, and probes `/ready` up to 30 times at 1 s intervals.
-   - The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. The old container is stopped before the new one starts, so there is only ever one writer.
+   - The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept, none older than `backup_max_age_days - 7` = 30 d) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. The old container is stopped before the new one starts, so there is only ever one writer.
 5. Watch the GitHub Actions step summary:
    - Successful run posts the deployed SHA + the compare link against the previous SHA.
    - Failed probe is auto-reverted by the shim (see Troubleshooting).

@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
+- **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365, fed from the Terraform variable via the compose template) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
 ## 2026-11-06 (T-D67 — SSH only over Tailscale)
 - **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
 ## 2026-11-06 (T-FIX5b — ADR renumber)

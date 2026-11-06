@@ -140,6 +140,14 @@ variable "litestream_age_recipient" {
   type        = string
 }
 
+# T-D57 / ADR-0078 section 4: single source of truth is the root variable
+# backup_max_age_days; it is passed to the app as BUDGET_BACKUP_MAX_AGE_DAYS.
+variable "backup_max_age_days" {
+  description = "Maximum age in days of any copy of user data (ADR-0078 section 4); exported to the app container."
+  type        = number
+  default     = 37
+}
+
 # T-D67 / ADR-0094: Tailscale join (SSH/admin only).
 variable "tailscale_authkey" {
   description = "Single-use, pre-authorized Tailscale auth key (tag-bound). Written to a 0600 tmpfs file, consumed by `tailscale up --auth-key=file:...`, then deleted."

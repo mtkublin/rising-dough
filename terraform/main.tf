@@ -31,7 +31,7 @@ module "storage" {
 
   bucket_name       = local.bucket_name
   scaleway_region   = var.scaleway_region
-  lifecycle_days    = 30
+  lifecycle_days    = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
   log_bucket_suffix = "logs"
 
   # ADR-0091: allow-list policy + drill-only force_destroy.
@@ -124,4 +124,7 @@ module "compute" {
   # T-D56: Litestream replica age encryption (ADR-0078 §3).
   litestream_age_identity  = var.litestream_age_identity
   litestream_age_recipient = var.litestream_age_recipient
+
+  # T-D57: single knob; also drives the app container env.
+  backup_max_age_days = var.backup_max_age_days
 }

@@ -48,7 +48,7 @@ All items are v3 scope, grouped as **Phase 5 — Data-protection quick wins** in
 
 ### 4. Maximum copy age: 37 days (T-D57)
 
-One documented ceiling, **`backup_max_age_days = 37`**, for every copy of user data outside the live DB:
+One documented ceiling, **`backup_max_age_days = 37`**, for every copy of user data outside the live DB. The single knob is Terraform variable `backup_max_age_days` (`lifecycle_days = backup_max_age_days - 30`); it is also rendered into the app container as `BUDGET_BACKUP_MAX_AGE_DAYS` (local backups pruned at `max - 7` d; app default 37 applies to dev/prod-sim only). Litestream keys `retention`, `retention-check-interval`, `snapshot-interval` (verified against v0.3.14 `ReplicaConfig`) stay at 720h/24h/24h:
 
 | Copy | v3 today | After T-D57 |
 |---|---|---|

@@ -438,8 +438,9 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 
-### ◻ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
+### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
 - Bucket noncurrent expiry 30 → 7 d; pre-migration backups pruned by age (≤30 d) and count; drill copies deleted per run. Setting `backup_max_age_days = 37`.
+- Done 2026-11-06. Single knob: Terraform variable `backup_max_age_days` (default 37), passed to the app container as `BUDGET_BACKUP_MAX_AGE_DAYS` via the compose template (app default 37 applies to dev/prod-sim only). Litestream `retention: 720h` unchanged; drill acceptance (no extra `*.db*` after a run) is asserted by the workflow and verified on the next drill.
 - File: `phase-5-data-protection/T-D57-backup-copy-age-ceiling.md`. Reference: ADR-0078 §4.
 
 ### ✅ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05

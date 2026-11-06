@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     # sessions deleted (T-D60).
     retention_personal_days: int = Field(default=90, ge=7, le=3650)
     fx_api_url: str = Field(default="https://api.frankfurter.app")
+    # ADR-0078 §4 / T-D57: ceiling (days) on the age of any copy of user data
+    # outside the live DB. Pre-migration backups are pruned once older than
+    # ``backup_max_age_days - 7``. The Terraform twin
+    # is ``var.backup_max_age_days`` (bucket noncurrent expiry).
+    backup_max_age_days: int = Field(default=37, ge=7, le=365)
     # ADR-0067 §1: WebAuthn relying-party identity. Production must set
     # these to the deployed hostname and its ``https://`` origin; the
     # defaults only work for ``just dev`` on localhost.

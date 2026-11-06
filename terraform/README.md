@@ -93,7 +93,7 @@ Rotation:
 terraform destroy -var-file=envs/drill/terraform.tfvars
 ```
 
-The durability bucket's 30-day lifecycle rule reclaims noncurrent versions; the bucket itself is destroyed in-place. Caddy's `/data` volume is destroyed with the VM.
+The durability bucket's lifecycle rule (7-day noncurrent expiry, derived from `backup_max_age_days = 37` minus the 30-day Litestream retention; T-D57) reclaims noncurrent versions; the bucket itself is destroyed in-place. Caddy's `/data` volume is destroyed with the VM.
 
 ## Validation hooks
 
