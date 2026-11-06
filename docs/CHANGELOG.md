@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D76 — build image on v3 pushes)
+- **CI(T-D76): `build.yml` also builds and pushes the app image on pushes to `v3`** so the drill can test v3 before merge. Tags: `sha-<short>` only (`main` stays default-branch gated). Temporary; remove the `v3` trigger after v3 merges. Test: `tests/unit/deploy/test_build_workflow.py`. Drill uses `app_image_tag = sha-<short>`.
 ## 2026-11-06 (T-D75 — cloud-config header on line 1)
 - **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
 ## 2026-11-06 (T-D74 — IAM API key default project and expiry)

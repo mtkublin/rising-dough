@@ -191,6 +191,7 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] If the DNS zone is external: add A/AAAA records for `drill.budget.<domain>` pointing at the flex IP.
 - [ ] Put the output of `terraform output -raw admin_initial_password` in the password manager. The T-D25 file still says `admin_fallback_password`; that name is stale.
 - [ ] Set `DRILL_HOST` = `budget-planner-drill` (A9). SSH works over the tailnet only; host keys via `ssh-keyscan budget-planner-drill` from your laptop (optionally compare with the Scaleway console serial output).
+- [ ] Drill on an unmerged v3 build (T-D76): push `v3`, wait for `build.yml` to go green, then set `TF_VAR_app_image_tag` (drill `app_image_tag`) to `sha-<short>` of the pushed commit. `main` is the default.
 - [ ] Do the seven post-apply checks in T-D25: health/ready, Observatory, `nslookup`, operator and deploy SSH, bucket exists, Litestream generation.
 - [ ] Log in as admin, confirm the forced password change, then change the password.
 - [ ] Teardown drill (T-D26). Check in the Scaleway console that nothing billable is left.

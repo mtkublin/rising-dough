@@ -510,3 +510,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/cloud-init/bootstrap.yaml.tpl`: `#cloud-config` moved to line 1. cloud-init only treats user-data as cloud-config when line 1 is exactly that header; with the NOTE lines above it, the first real drill boot (2026-11-06) ignored the whole payload (no packages, no Tailscale, no Docker, ports closed). Nothing else in the template changed.
 - Other user-data inputs checked: the compose, Caddyfile, Litestream and bin templates are embedded as `write_files` content, not user-data, so no header change was needed.
 - Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill on `drill` is pending (T-D25).
+
+### ✅ T-D76 [S] Build the app image on `v3` pushes for pre-merge drills → T-D75, T-D25
+- `.github/workflows/build.yml`: push trigger is now `branches: [main, v3]` (temporary, marked with a comment to remove after v3 merges). Tag rules unchanged: `sha-<short>` on every build, `main` only when `is_default_branch`, semver on tags. No step-level `if:` gates the push, so no other change was needed.
+- The drill sets `app_image_tag = "sha-<short>"` of the pushed `v3` commit (checklist D, T-D25).
+- Test: `tests/unit/deploy/test_build_workflow.py`.

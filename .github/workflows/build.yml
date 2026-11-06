@@ -13,7 +13,8 @@ name: build
 
 on:
   push:
-    branches: [main]
+    # v3: temporary, so the drill can run v3 images before merge to main (T-D76). Remove after v3 merges.
+    branches: [main, v3]
     tags: ['v*.*.*']
   release:
     types: [published]
