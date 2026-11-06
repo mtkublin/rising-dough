@@ -515,3 +515,17 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Why: the first drill boot (2026-11-06) silently ignored the user-data and we cannot SSH to a failed boot, so first-boot bugs must be caught before a VM boot.
 - `terraform/tests/render/` fixture root calls the real `modules/compute` with dummy values (no credentials). `terraform/tests/render.tftest.hcl` (`mock_provider "scaleway"`, `command = plan`) asserts `#cloud-config` is line 1. `render_check.py` plans the fixture, extracts the rendered user-data, and checks line 1, YAML parse and `cloud-init schema`. New sensitive module output `compute.user_data` (used only by the fixture).
 - Wiring: `just tf-render-check`; new steps in `.github/workflows/terraform.yml` (`terraform test`, install cloud-init, render + schema with `--require-schema`). Docs: `terraform/README.md`. Test: `tests/unit/deploy/test_render_check.py`.
+
+### ✅ T-D78 [S] Read-only Terraform preflight → T-D67, T-D70, T-D73
+- `terraform/scripts/preflight.py` (stdlib only, frozen-dataclass results) plus `just tf-preflight <env>` and `just drill-preflight`. Checks the things that broke or nearly broke the first drill apply (2026-11-06): required inputs set, not placeholders, right prefixes; `SCW_DEFAULT_PROJECT_ID` equals `scaleway_project_id`; app image exists on GHCR; the Tailscale OAuth client can mint a key for the env tag (test key deleted in `finally`; 400 gives the `tag:automation` hint, T-D73); state bucket reachable (SigV4 `HEAD`). Never prints secret values.
+- Docs: `terraform/README.md` Preflight section; operator checklist D. Test: `tests/unit/deploy/test_preflight.py`.
+
+### ✅ T-D79 [S] Align module `required_version` with root (>= 1.10) → ADR-0090
+- Five modules (`compute`, `dns`, `iam`, `restore_reader`, `storage`) still declared `required_version = ">= 1.9.0"`, so a 1.9 binary could plan them without state locking. All module and bootstrap `versions.tf` now match the root `>= 1.10.0`. Provider constraints unchanged (already compatible).
+- Test: `tests/unit/deploy/test_tf_versions.py` asserts the root floor is 1.10.0 and every module's `required_version` equals the root's.
+- Docs: ADR-0090 amendment (2026-11-06); CHANGELOG 2026-11-06.
+
+### ✅ T-D80 [S] Per-batch CI policy for orchestrator mode; fast pre-commit pytest → ADR-0097
+- Item agents run scoped checks plus pre-commit only; the orchestrator runs one full `just ci` per merge batch (skipped for docs-only batches). `ci.yml` stays the safety net. Single-agent work keeps `just ci` green before handoff.
+- `.pre-commit-config.yaml` `pytest-fast` now runs `tests/unit tests/architecture` only (974 tests, about 31 s, was 1508 tests, about 205 s). Full suite and the 90% gate are unchanged in `just ci` and CI.
+- Docs: ADR-0097, ADR-0066 "Amended by" note, CLAUDE.md handoff item 2, `orchestrator-mode` skill.
