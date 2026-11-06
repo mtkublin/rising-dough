@@ -197,6 +197,9 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-FIX2 [P] Formula source rules honour per-occurrence overrides in chains → T-VIS3
 - `_sum_category_in_month` ignored `amount_override` / `skipped` / `date_override` of *formula* source rules (fixed sources were fine), so a chained formula (e.g. `na osobiste` over PODATKI) did not see overrides on its formula sources. Formula sources now contribute effective per-occurrence amounts (override, else computed; skip = 0). Reference: ADR-0086 (clarifies ADR-0046/0047); requirements F3.6/F3.11.
 
+
+### ✅ T-FIX3 [P] Forecast must not re-project promoted recurring occurrences
+- Early promotion (salary 11-07 promoted 11-06) left the 11-07 occurrence in the forecast window, so current-row Income showed 29,517 instead of ~700 and EOM double-counted. Forecast flows + daily events now expand from `max(next_due, today+1)` by canonical date. Reference: ADR-0087 (amends ADR-0043); requirements F5.5.
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
