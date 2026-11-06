@@ -13,6 +13,7 @@ it for a tree walker leaves the primitives untouched.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import logging
 import sqlite3
@@ -142,6 +143,51 @@ def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
     return out
 
 
+def _source_rule_month_value(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    start: dt.date,
+    end: dt.date,
+    *,
+    in_progress: frozenset[int],
+    cache: dict[tuple[int, int, int], int],
+) -> int:
+    """Sum the effective amounts of ``rule``'s occurrences in ``[start, end]``.
+
+    Per ADR-0086 every source rule (fixed or formula) contributes its
+    *effective* per-occurrence amount: the computed formula value (or
+    ``default_amount`` for fixed rules) replaced by any ``amount_override``;
+    ``skipped`` occurrences contribute 0. Overrides come from
+    ``list_overrides_all`` so soft-consumed (promoted) overrides stay visible
+    (ADR-0046). A formula source whose schedule has no occurrence in the
+    month contributes 0 without being evaluated (ADR-0047 month-scope gate).
+    """
+    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+    from budget_planner.services.recurring import (  # noqa: PLC0415
+        apply_overrides,
+        generate_occurrences,
+    )
+
+    occs = generate_occurrences(rule, start, end)
+    if not occs:
+        return 0
+    if rule.amount_formula is not None:
+        per_occurrence = _evaluate(
+            conn,
+            user_id,
+            rule.amount_formula,
+            start.year,
+            start.month,
+            exclude_rule_id=rule.id,
+            in_progress=in_progress | {rule.id},
+            cache=cache,
+        )
+        occs = tuple(dataclasses.replace(occ, amount=per_occurrence) for occ in occs)
+    overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
+    return sum(occ.amount for occ in apply_overrides(occs, overrides))
+
+
 def _sum_category_in_month(
     conn: sqlite3.Connection,
     user_id: int,
@@ -165,7 +211,6 @@ def _sum_category_in_month(
     overrides stay visible).
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import expand, generate_occurrences  # noqa: PLC0415
 
     start, end = _month_bounds(year, month)
     cat_set = set(category_ids)
@@ -183,29 +228,15 @@ def _sum_category_in_month(
         if key in cache:
             total += cache[key]
             continue
-        if rule.amount_formula is None:
-            overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
-            value = sum(occ.amount for occ in expand(rule, overrides, start, end))
-        else:
-            # ADR-0047 month-scope fix: a formula source rule contributes only
-            # if its canonical schedule produces an occurrence in (year, month).
-            # Without this gate a yearly bonus formula would feed its computed
-            # value into every month's parent sum, not just the payout month.
-            n_occurrences = len(generate_occurrences(rule, start, end))
-            if n_occurrences == 0:
-                value = 0
-            else:
-                per_occurrence = _evaluate(
-                    conn,
-                    user_id,
-                    rule.amount_formula,
-                    year,
-                    month,
-                    exclude_rule_id=rule.id,
-                    in_progress=in_progress | {rule.id},
-                    cache=cache,
-                )
-                value = n_occurrences * per_occurrence
+        value = _source_rule_month_value(
+            conn,
+            user_id,
+            rule,
+            start,
+            end,
+            in_progress=in_progress,
+            cache=cache,
+        )
         cache[key] = value
         total += value
     return total
