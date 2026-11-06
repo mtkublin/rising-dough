@@ -65,3 +65,10 @@ output "tailscale_hostname" {
   description = "MagicDNS name of the VM on the tailnet (SSH target for CI and the operator; T-D67)."
   value       = local.tailscale_hostname
 }
+
+# T-D74 / ADR-0092: Scaleway applies a 1-year default expiry to the Litestream key.
+# Rotate before this date (runbooks/deploy.md, operator-checklist F).
+output "scw_app_key_expires_at" {
+  description = "Expiry of the Litestream IAM API key. Rotate 30 days before."
+  value       = module.iam.expires_at
+}

@@ -97,3 +97,14 @@ Notes: the passkey step registers from Settings → Security (`/settings/securit
 
 - Auto-rollback is built into the shim — a failing `/ready` probe reverts to `.previous-tag` without manual action.
 - Manual rollback (last known-good SHA, e.g. after discovering a prod-only bug minutes after a green deploy): see [`rollback.md`](rollback.md). Shape: `gh workflow run rollback.yml` or `ssh deploy@budget-planner-prod "rollback"`.
+
+## Rotate the Litestream API key (yearly, before expires_at)
+
+Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Terraform ignores that attribute, so nothing warns you. After expiry Litestream replication fails and backups stop.
+
+1. Read the date: `terraform -chdir=terraform output scw_app_key_expires_at`. Rotate at least 30 days before it (checklist F).
+2. Replace the key: `terraform -chdir=terraform apply -replace='module.iam.scaleway_iam_api_key.app'`.
+3. Impact: the key is rendered into the instance `cloud_init` (`/etc/budget-planner/litestream.env`), so the plan also shows a `cloud_init` change on `scaleway_instance_server.app`. Read the plan first. If it says the server is replaced, stop: that recreates the VM and takes the restore path (see `disaster-recovery.md`). If it is an in-place update, cloud-init does not re-run on an existing VM, so the host keeps the old key until step 4.
+4. Refresh the host secret by hand over Tailscale SSH. Print the new values with `terraform output -raw scw_access_key` and `scw_secret_key`. Update `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` in `/etc/budget-planner/litestream.env` (mode 0600). Then run `cd /etc/budget-planner && docker compose up -d --force-recreate litestream`.
+5. Verify: `docker compose logs --tail=50 litestream` shows no auth errors, and a fresh Litestream snapshot or generation appears in the bucket.
+6. Check `scw_app_key_expires_at` is about one year ahead. Replace deletes the old key immediately, so there is no overlap window. Do steps 2 to 4 in one sitting; replication is paused only for that gap.

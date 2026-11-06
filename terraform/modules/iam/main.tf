@@ -20,5 +20,15 @@ resource "scaleway_iam_api_key" "app" {
   application_id = scaleway_iam_application.app.id
   description    = "API key consumed by Litestream on the ${var.name_prefix} VM."
 
-  # Rotate by `terraform apply -replace='module.iam.scaleway_iam_api_key.app'`.
+  # ADR-0092 (amended, T-D74): S3 calls resolve buckets against the key's default
+  # project. Pin it to this env's project; otherwise Scaleway falls back to the
+  # organization default (the prod project), even for the drill key.
+  default_project_id = var.scaleway_project_id
+
+  # Scaleway sets a 1-year default expiry when expires_at is unset. Ignore it so
+  # plans stay clean; rotate before it, see runbooks/deploy.md "Rotate the
+  # Litestream API key". Read the date from the `scw_app_key_expires_at` output.
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }

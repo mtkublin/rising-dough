@@ -26,3 +26,9 @@
 - The restore-reader key is long-lived and read-only; rotate with `terraform apply -replace='module.restore_reader[0].scaleway_iam_api_key.restore_reader'` on prod, then update the two GitHub secrets.
 - Bucket-policy `bucket_admin_principals` remains needed for operators that are not Organization owner.
 - The state bucket stays in the prod project (outside Terraform).
+
+## Amendment 2026-11-06 (T-D74): API key default project pinned
+
+`scaleway_iam_api_key.app` now sets `default_project_id = var.scaleway_project_id`. Without it Scaleway used the organization default project (prod) for the drill key. S3 operations resolve buckets against the key's default project, so a drill key defaulting to prod broke the isolation above even though its IAM policy was scoped to the drill project. Each env's key now defaults to its own project.
+
+The key also gets `lifecycle { ignore_changes = [expires_at] }`. Scaleway applies a 1-year default expiry when none is configured; reading it back as a diff forced replacement on every plan. The expiry is exposed as root output `scw_app_key_expires_at`. Rotation before that date is an operator task (deploy runbook, checklist F). `default_project_id` changes once: the existing key is replaced on the next apply.

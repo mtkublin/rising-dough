@@ -212,3 +212,4 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Keep every operator credential in the password manager: Scaleway operator key, read-only restore key, GHCR PAT, both SSH keypairs, admin password, Litestream age identity (T-D56).
 - [ ] Approve prod deploys. Read the monthly `restore-drill` results and handle any failure issues.
 - [ ] Rotate on schedule: GHCR PAT before expiry; Scaleway keys and the cookie secret via `terraform apply -replace=...` (see `terraform/README.md`).
+- [ ] Calendar reminder: rotate the prod Litestream API key 30 days before `terraform output scw_app_key_expires_at` (Scaleway expires it after 1 year; `deploy.md` "Rotate the Litestream API key"). T-D74.
