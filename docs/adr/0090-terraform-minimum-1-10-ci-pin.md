@@ -22,3 +22,7 @@
 - Operators on 1.9 must upgrade before running `init` against the remote backend.
 - The "one-writer invariant mode" note in `terraform/README.md` no longer applies and is removed.
 - Historical ADRs and task records that mention 1.9 are left as written. They describe the state at their own date.
+
+## Amendment 2026-11-06 (T-D79): module floors aligned
+
+- Every `terraform/modules/*/versions.tf` and `terraform/bootstrap/versions.tf` now declares `required_version = ">= 1.10.0"`, the same floor as the root. Guarded by `tests/unit/deploy/test_tf_versions.py`.

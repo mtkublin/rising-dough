@@ -117,7 +117,7 @@ The toolchain the skill validates against (local Tailwind build, `stylelint`, Ji
 Before marking a task done:
 
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
-2. Code + tests committed; `just ci` green. **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
+2. Code + tests committed; `just ci` green (single-agent work). In orchestrator mode item agents run scoped checks only and the orchestrator runs full `just ci` once per merge batch on the main work branch ([ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md)). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 4. `docs/tasks.md` task line prefixed with `✅`.
 5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.

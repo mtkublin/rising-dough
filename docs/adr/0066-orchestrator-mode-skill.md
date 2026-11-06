@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-03
+- **Amended by**: ADR-0097 (verification policy: scoped checks per item, one full `just ci` per merge batch)
 - **Related**: ADR-0027 (frontend toolchain / `frontend-visual-audit` skill)
 
 ## Context

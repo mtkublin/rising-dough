@@ -3,6 +3,10 @@
 ## 2026-11-06 (T-D78 — read-only Terraform preflight)
 - **Tooling(T-D78): `just drill-preflight` / `just tf-preflight <env>` check inputs, project match, GHCR image, Tailscale tag permission and state backend reachability before an apply.** Read-only, no secret values printed, non-zero exit on any FAIL. Script: `terraform/scripts/preflight.py`; test: `tests/unit/deploy/test_preflight.py`.
 
+## 2026-11-06 (T-D80 — per-batch CI policy, fast pre-commit pytest)
+- **Chore(T-D80): orchestrator mode runs full `just ci` once per merge batch; item agents run scoped checks only** (ADR-0097 amends ADR-0066). Pre-commit `pytest-fast` restricted to `tests/unit tests/architecture` (about 31 s, was about 205 s) so parallel agents no longer stall commits. Full suite and 90% gate unchanged in `just ci` and CI.
+## 2026-11-06 (T-D79 — module required_version aligned with root)
+- **Infra(T-D79): every Terraform module and `terraform/bootstrap` now declares `required_version = ">= 1.10.0"`, matching the root.** Five modules still allowed 1.9, which has no S3 native state lock (ADR-0090 amended). Provider constraints unchanged. Guard test: `tests/unit/deploy/test_tf_versions.py`.
 ## 2026-11-06 (T-D75 — cloud-config header on line 1)
 - **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
 ## 2026-11-06 (T-D74 — IAM API key default project and expiry)
