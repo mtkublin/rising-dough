@@ -128,3 +128,18 @@ def test_hero_planned_total(client: TestClient, ids: dict[str, int]) -> None:
     assert hero is not None
     # -9824.01 + 700.00 - 100.00
     assert "\u22129,224.01" in hero.get_text()
+
+
+def test_archived_category_with_planned_row_does_not_crash(
+    client: TestClient, ids: dict[str, int], _migrated: Settings
+) -> None:
+    conn = get_connection(_migrated)
+    try:
+        bills = categories_repo.find_by_name(conn, USER_ID, "Bills")
+        assert bills is not None
+        categories_repo.soft_delete(conn, USER_ID, bills.id)
+    finally:
+        conn.close()
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    assert "\u22129,824.01 planned" in _row_text(r.text, ids["out"])

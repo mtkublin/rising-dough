@@ -88,7 +88,10 @@ def _collect_legs(
     conn: sqlite3.Connection, user_id: int, window: PlannedWindow
 ) -> list[tuple[int, int]]:
     last_day = window.end - _ONE_DAY
-    directions = {c.id: c.direction for c in categories_repo.list_all(conn, user_id)}
+    # Archived categories keep their unpromoted items; count them by direction (ADR-0089).
+    directions = {
+        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
+    }
     persisted = planned_repo.list_filtered(
         conn,
         user_id,

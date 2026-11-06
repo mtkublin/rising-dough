@@ -2,6 +2,13 @@
 
 ## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
 - **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
+## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
+- **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
+
+## 2026-11-06 (backlog — review follow-ups)
+- **Docs: opened T-FIX4, T-FIX5, T-VIS6** from the 2026-11-06 code review / T-VIS5 screenshots.
+## 2026-11-06 (T-D66 — restore drill always destroys)
+- **Fix(T-D66): monthly restore drill always destroys its environment** (ADR-0034 §5 addendum). `terraform destroy` runs `if: always()`; failure evidence is uploaded as the `restore-drill-evidence` artifact before destroy; a post-destroy check fails the job if resources remain.
 
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
