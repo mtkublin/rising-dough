@@ -97,3 +97,33 @@ def test_prod_readonly_principals_get_read_only_actions(tmp_path: Path) -> None:
 def test_invalid_principal_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AssertionError, match="admin principal"):
         _render(tmp_path, ["not-a-principal"], [])
+
+
+# --- T-D69 / ADR-0092: stable restore-reader wiring (static; no cloud) ---
+
+ROOT_TF = MODULE.parents[1] / "main.tf"
+READER_MODULE = MODULE.parent / "restore_reader" / "main.tf"
+
+
+def test_restore_reader_is_prod_only_and_merged_into_readonly_principals() -> None:
+    main_tf = ROOT_TF.read_text()
+
+    assert 'count  = var.env == "prod" ? 1 : 0' in main_tf
+    assert 'module "restore_reader"' in main_tf
+    assert "application_id:${m.application_id}" in main_tf
+    assert "var.bucket_readonly_principals," in main_tf
+    assert "readonly_principals = local.bucket_readonly_principals" in main_tf
+
+
+def test_restore_reader_is_read_only_and_project_scoped() -> None:
+    reader = READER_MODULE.read_text()
+
+    assert '"ObjectStorageReadOnly"' in reader
+    assert "FullAccess" not in reader
+    assert "project_ids          = [var.scaleway_project_id]" in reader
+
+
+def test_dns_records_use_zone_project() -> None:
+    dns = (MODULE.parent / "dns" / "main.tf").read_text()
+
+    assert dns.count("project_id = var.zone_project_id") == 2

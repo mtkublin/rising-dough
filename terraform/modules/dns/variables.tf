@@ -23,6 +23,11 @@ variable "instance_ipv6" {
   type        = string
 }
 
+variable "zone_project_id" {
+  description = "Scaleway project that owns the DNS zone (ADR-0092). Records must be created in the zone's project, not the env's own project (the provider default)."
+  type        = string
+}
+
 variable "record_ttl_secs" {
   description = "DNS record TTL in seconds."
   type        = number

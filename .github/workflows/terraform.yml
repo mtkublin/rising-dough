@@ -84,8 +84,9 @@ jobs:
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
-      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D69 / ADR-0092: drill resources live in their own project.
+      SCW_DEFAULT_PROJECT_ID: ${{ matrix.env == 'drill' && secrets.SCW_DRILL_PROJECT_ID || secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_scaleway_project_id: ${{ matrix.env == 'drill' && secrets.SCW_DRILL_PROJECT_ID || secrets.SCW_DEFAULT_PROJECT_ID }}
       TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
       TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}

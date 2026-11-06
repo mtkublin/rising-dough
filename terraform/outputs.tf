@@ -41,6 +41,20 @@ output "scw_access_key" {
   sensitive   = true
 }
 
+# T-D69 / ADR-0092: prod only (null on drill). Store as GitHub `drill`-environment
+# secrets PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY.
+output "restore_reader_access_key" {
+  description = "Read-only access key for the prod replica bucket (restore drill). Prod only."
+  value       = one(module.restore_reader[*].access_key)
+  sensitive   = true
+}
+
+output "restore_reader_secret_key" {
+  description = "Secret key paired with restore_reader_access_key. Prod only."
+  value       = one(module.restore_reader[*].secret_key)
+  sensitive   = true
+}
+
 output "scw_secret_key" {
   description = "IAM secret key scoped to the durability bucket."
   value       = module.iam.secret_key

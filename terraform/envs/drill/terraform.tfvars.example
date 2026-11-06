@@ -3,6 +3,7 @@
 
 env                      = "drill"
 admin_email              = "operator@example.com"
+# rising-dough-drill (f2facf0d-...); ADR-0092: each env lives in its own project.
 scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
 scaleway_organization_id = "00000000-0000-0000-0000-000000000000"
 scaleway_region          = "pl-waw"
@@ -13,6 +14,8 @@ subdomain_drill  = "drill.budget"
 # true = zone exists at Scaleway DNS, Terraform manages only this env's A/AAAA (ADR-0088).
 # false = zone elsewhere, no DNS resources created.
 managed_dns_zone = false
+# Project that owns the DNS zone = PROD project (rising-dough). Records of BOTH envs are created there (ADR-0092).
+dns_zone_project_id = "53175dd0-b944-489b-b05d-3f55d65d79af"
 
 app_image_tag = "main"
 github_owner  = "example-owner"

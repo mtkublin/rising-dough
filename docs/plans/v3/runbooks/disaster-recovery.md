@@ -21,6 +21,7 @@ Betterstack heartbeat url: <TBD>
 
 - Local workstation has `terraform`, `ssh`, `scw` CLI, and `gh` installed.
 - You have the Scaleway API credential pair with permissions to recreate the project resources (admin or project-admin IAM key, kept in the operator's password manager — distinct from the Litestream key).
+- Prod DR restores with the prod app's own key. Only the monthly drill uses the separate prod-state `restore-reader` read-only key (ADR-0092); keep its outputs recoverable (`terraform output` on prod) or re-create via apply.
 - You have the **Litestream age identity** (`AGE-SECRET-KEY-1...`, from the password manager) and its `age1...` recipient. They are Terraform inputs (`litestream_age_identity`, `litestream_age_recipient`); cloud-init writes the identity to `/etc/budget-planner/litestream-age.key` (0600) and the `litestream-restore` service uses it to decrypt the replica (T-D56, ADR-0078 §3). **If the identity is lost, the replica is unrecoverable: there is no other copy of the key and no way around the encryption.**
 - The Terraform state is reachable:
   - Primary: `s3://budget-planner-tfstate-pl-waw` (encrypted, versioned).
