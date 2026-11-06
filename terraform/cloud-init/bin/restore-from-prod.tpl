@@ -14,7 +14,10 @@
 #   4. runs PRAGMA integrity_check (aborts if not "ok"),
 #   5. chowns to the app uid 10001 (same as the compose litestream-restore service),
 #   6. starts litestream + app (the image entrypoint applies pending migrations,
-#      ADR-0071) and waits for /ready to report {"status":"ok"}.
+#      ADR-0071) and waits for /ready to report {"status":"ok"},
+#   7. on EXIT (success or failure; T-D57, ADR-0078 section 4) deletes the moved-aside
+#      DB copies and the pre-migration backups under /data/backups, so a drill
+#      run leaves no extra *.db* files besides the live budget.db(-wal/-shm).
 #
 # PROD SAFETY (the drill host must never write to the prod replica):
 #   * The prod replica is only ever referenced in the throw-away config written
@@ -63,9 +66,25 @@ readonly AGE_KEY_FILE='${age_key_file}'
 readonly READY_URL='https://localhost/ready'
 readonly READY_RETRIES=24
 readonly READY_SLEEP_S=5
+MOVED_ASIDE_DIR=''
 
 log() { printf '%s: %s\n' "$${PROGNAME}" "$${*}"; }
 die() { printf '%s: ERROR: %s\n' "$${PROGNAME}" "$${*}" >&2; exit 1; }
+
+# T-D57: runs via `trap ... EXIT`, so copies are removed on success AND failure.
+cleanup_copies() {
+  local rc=$?
+  set +e
+  if [[ -n "$${MOVED_ASIDE_DIR}" && -d "$${MOVED_ASIDE_DIR}" ]]; then
+    rm -rf -- "$${MOVED_ASIDE_DIR}"
+    log "deleted moved-aside copies $${MOVED_ASIDE_DIR}"
+  fi
+  if [[ -d "$${DATA_DIR}/backups" ]]; then
+    find "$${DATA_DIR}/backups" -maxdepth 1 -type f -name 'budget.db.pre-migrate-*' -delete
+    log "deleted pre-migration backups under $${DATA_DIR}/backups"
+  fi
+  exit "$${rc}"
+}
 
 compose() { docker compose -f "$${COMPOSE_FILE}" "$${@}"; }
 
@@ -106,6 +125,7 @@ move_local_db_aside() {
   local dest
   dest="$${DATA_DIR}/pre-restore-$(date -u +%Y%m%dT%H%M%SZ)"
   mkdir -p -- "$${dest}"
+  MOVED_ASIDE_DIR="$${dest}"
   # db + -wal + -shm + litestream's local metadata dir (stale generation state).
   find "$${DATA_DIR}" -maxdepth 1 \
     \( -name 'budget.db*' -o -name '.budget.db-litestream' \) \
@@ -179,6 +199,7 @@ start_stack_and_wait() {
 main() {
   local started
   started="$(date +%s)"
+  trap cleanup_copies EXIT
   preflight
   load_restore_credentials
   stop_stack

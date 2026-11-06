@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
+- **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
+
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
 ## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)

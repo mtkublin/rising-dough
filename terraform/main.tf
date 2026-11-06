@@ -31,7 +31,7 @@ module "storage" {
 
   bucket_name       = local.bucket_name
   scaleway_region   = var.scaleway_region
-  lifecycle_days    = 30
+  lifecycle_days    = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
   log_bucket_suffix = "logs"
 }
 

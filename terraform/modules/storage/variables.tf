@@ -9,9 +9,9 @@ variable "scaleway_region" {
 }
 
 variable "lifecycle_days" {
-  description = "Number of days before noncurrent versions are expired (ADR-0034 retention = 30d)."
+  description = "Days before noncurrent versions are expired (ADR-0078 section 4: 7 d, so 30 d Litestream retention + 7 d = 37 d ceiling)."
   type        = number
-  default     = 30
+  default     = 7
 }
 
 variable "log_bucket_suffix" {

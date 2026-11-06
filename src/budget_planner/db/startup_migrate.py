@@ -8,7 +8,9 @@ start-up policy:
 - **Idempotent** — up-to-date DB → nothing written, exit 0.
 - **Pre-migration backup** — when an already-initialised DB has pending
   migrations, ``VACUUM INTO`` a consistent copy under ``<db dir>/backups/``
-  first; only the newest :data:`DEFAULT_KEEP_BACKUPS` are kept.
+  first; only the newest :data:`DEFAULT_KEEP_BACKUPS` are kept **and** none
+  older than ``backup_max_age_days - 7`` days (T-D57, ADR-0078 §4). Pruning
+  runs on every start-up, not only when a backup was just written.
 - **Schema ahead of image** — versions recorded in the DB that this image
   does not ship (rollback onto a newer schema) are logged and tolerated,
   per the N-1 compatibility policy in ADR-0071 §4.
@@ -38,6 +40,9 @@ from budget_planner.db.migrate import (
 DEFAULT_KEEP_BACKUPS = 3
 BACKUP_DIRNAME = "backups"
 _BACKUP_MARKER = ".pre-migrate-"
+# ADR-0078 §4: 30 d Litestream generations + 7 d noncurrent = 37 d ceiling; a
+# local backup must be gone before the ceiling minus this margin.
+BACKUP_AGE_MARGIN_DAYS = 7
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -94,8 +99,20 @@ def backup_database(conn: sqlite3.Connection, dest: Path) -> Path:
     return dest
 
 
-def prune_backups(backup_dir: Path, db_name: str, keep: int) -> tuple[Path, ...]:
-    """Delete all but the newest ``keep`` pre-migration backups of ``db_name``."""
+def prune_backups(
+    backup_dir: Path,
+    db_name: str,
+    keep: int,
+    *,
+    max_age: dt.timedelta | None = None,
+    now: dt.datetime | None = None,
+) -> tuple[Path, ...]:
+    """Delete pre-migration backups of ``db_name`` beyond either retention rule.
+
+    A backup is removed when it is not among the newest ``keep`` **or** (when
+    ``max_age`` is given) its mtime is older than ``max_age`` before ``now``.
+    Idempotent.
+    """
     if not backup_dir.is_dir():
         return ()
     prefix = f"{db_name}{_BACKUP_MARKER}"
@@ -103,10 +120,19 @@ def prune_backups(backup_dir: Path, db_name: str, keep: int) -> tuple[Path, ...]
         (p for p in backup_dir.iterdir() if p.is_file() and p.name.startswith(prefix)),
         key=lambda p: (p.stat().st_mtime_ns, p.name),
     )
-    stale = tuple(backups[: max(len(backups) - keep, 0)])
-    for path in stale:
+    stale = set(backups[: max(len(backups) - keep, 0)])
+    if max_age is not None:
+        cutoff = ((now or _utcnow()) - max_age).timestamp()
+        stale.update(p for p in backups if p.stat().st_mtime < cutoff)
+    doomed = tuple(p for p in backups if p in stale)
+    for path in doomed:
         path.unlink()
-    return stale
+    return doomed
+
+
+def backup_max_local_age(settings: Settings) -> dt.timedelta:
+    """Age limit for local pre-migration backups: ceiling minus the 7 d margin."""
+    return dt.timedelta(days=settings.backup_max_age_days - BACKUP_AGE_MARGIN_DAYS)
 
 
 def _utcnow() -> dt.datetime:
@@ -133,10 +159,12 @@ def run_startup_migrations(
         applied = apply_migrations(conn, migrations_dir)
     finally:
         conn.close()
-    pruned = (
-        prune_backups(db_path.parent / BACKUP_DIRNAME, db_path.name, keep_backups)
-        if backup is not None
-        else ()
+    pruned = prune_backups(
+        db_path.parent / BACKUP_DIRNAME,
+        db_path.name,
+        keep_backups,
+        max_age=backup_max_local_age(settings),
+        now=now(),
     )
     return StartupMigrationResult(
         applied=tuple(m.filename for m in applied),
