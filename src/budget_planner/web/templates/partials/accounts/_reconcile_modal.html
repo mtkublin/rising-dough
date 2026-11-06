@@ -38,13 +38,15 @@
               data-reconcile-form
               data-currency="{{ account.currency }}"
               data-derived="{{ derived }}"
+              data-decimals="{{ account.currency|currency_decimals }}"
+              {%- if by_available %} data-by-available="1" data-limit="{{ credit_limit_minor }}" {%- endif %}
               data-reset-on-submit>
           <ol class="rd-reconcile-steps" aria-label="Reconcile steps">
             <li class="rd-reconcile-steps__item rd-reconcile-steps__item--active">
               <span>①</span> Open your bank
             </li>
             <li class="rd-reconcile-steps__item">
-              <span>②</span> Enter its balance
+              <span>②</span> Enter its {{ 'available credit' if by_available else 'balance' }}
             </li>
             <li class="rd-reconcile-steps__item">
               <span>③</span> Review
@@ -55,14 +57,14 @@
           </p>
           <div class="rd-form-row rd-form-row--2col rd-reconcile-grid">
             <div class="rd-field">
-              <span class="rd-field__label">Rising Dough says</span>
+              <span class="rd-field__label">Rising Dough says{% if by_available %} (available){% endif %}</span>
               <strong class="rd-reconcile-figure numeric">
-                {{ "{:,.2f}".format(derived / 100.0) }}
+                {{ (available_minor if by_available else derived)|money_num(account.currency) }}
                 <small>{{ account.currency }}</small>
               </strong>
             </div>
             <label class="rd-field">
-              <span class="rd-field__label">Your bank says</span>
+              <span class="rd-field__label">{{ "Available" if by_available else "Your bank says" }}</span>
               <span class="rd-field__suffix" data-suffix="{{ account.currency }}">
                 <input type="text"
                        name="actual_balance"
@@ -71,9 +73,19 @@
                        data-reconcile-actual
                        autocomplete="off"
                        autofocus
-                       placeholder="0.00"
+                       placeholder="{{ 0|money_major(account.currency) }}"
+                       {%- if by_available %} value="{{ available_minor|money_major(account.currency) }}" aria-describedby="rec-available-help" {%- endif %}
                        required>
               </span>
+              {%- if by_available %}
+                <small class="rd-field__help"
+                       id="rec-available-help"
+                       data-reconcile-available-help>
+                  Limit {{ credit_limit_minor|money_num(account.currency) }} {{ account.currency }}
+                  · implied used <span class="numeric"
+       data-reconcile-used>{{ used_minor|money_num(account.currency) }}</span> {{ account.currency }}
+                </small>
+              {%- endif %}
             </label>
           </div>
           <aside class="rd-reconcile-delta"
@@ -108,7 +120,7 @@
                 {% for snap in snapshots %}
                   <li>
                     <span>{{ snap.taken_at.strftime("%d %b") if snap.taken_at else "—" }}</span>
-                    <span class="numeric">{{ "{:,.2f}".format(snap.balance / 100.0) }}</span>
+                    <span class="numeric">{{ snap.balance|money_num(account.currency) }}</span>
                   </li>
                 {% endfor %}
               </ul>
@@ -136,7 +148,11 @@
       if (!form || form.dataset.recWired === "1") return;
       form.dataset.recWired = "1";
       var ccy = form.dataset.currency || "";
+      var decimals = parseInt(form.dataset.decimals || "2", 10);
+      var scale = Math.pow(10, decimals);
       var derivedMinor = parseInt(form.dataset.derived || "0", 10);
+      var limitMinor = form.dataset.byAvailable === "1" ? parseInt(form.dataset.limit || "0", 10) : null;
+      var usedEl = form.querySelector("[data-reconcile-used]");
       var input = form.querySelector("[data-reconcile-actual]");
       var delta = form.querySelector("[data-reconcile-delta]");
       var amountEl = form.querySelector("[data-reconcile-delta-amount]");
@@ -148,7 +164,7 @@
         return Number.isFinite(n) ? n : null;
       }
       function fmt(n) {
-        return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
       }
       function sync() {
         var val = parseMajor(input.value);
@@ -157,12 +173,14 @@
           if (submitBtn) submitBtn.textContent = "Record ↩";
           return;
         }
-        var deltaMajor = val - (derivedMinor / 100);
+        var target = limitMinor === null ? val : val - (limitMinor / scale);
+        if (usedEl && limitMinor !== null) usedEl.textContent = fmt(Math.max(limitMinor / scale - val, 0));
+        var deltaMajor = (Math.round(target * scale) - derivedMinor) / scale;
         var sign = deltaMajor > 0 ? "+" : (deltaMajor < 0 ? "−" : "");
         var absAmount = fmt(Math.abs(deltaMajor));
         if (amountEl) amountEl.textContent = sign + absAmount + " " + ccy;
         if (delta) delta.removeAttribute("hidden");
-        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? "0.00" : sign + absAmount) + " ↩";
+        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? fmt(0) : sign + absAmount) + " ↩";
       }
       input.addEventListener("input", sync);
       sync();

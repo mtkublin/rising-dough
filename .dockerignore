@@ -1,0 +1,65 @@
+# Keep the build context small and keep local-only state / secrets out of
+# the image. See docs/plans/v3/phase-1-prerequisites/T-D10-dockerfile.md.
+
+# VCS / CI metadata
+.git/
+.github/
+
+# Tests + docs + agent scratch — not needed at runtime
+tests/
+docs/
+local/
+.claude/
+
+# Databases & SQLite sidecars — never ship local data
+data/
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python / tooling caches
+.venv/
+venv/
+env/
+.uv/
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node (Tailwind build toolchain is dev-only, see ADR-0027)
+node_modules/
+
+# Terraform state / plan artifacts
+terraform/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Env files — keep the template only
+.env
+.env.*
+!.env.example
+
+# Visual-audit scratch
+tmp-fe-audit/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

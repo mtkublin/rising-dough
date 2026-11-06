@@ -67,3 +67,36 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0062 | [Recurring Override Overlay — Align With Plan/Budget `rd-override` Card](0062-recurring-override-overlay-alignment.md) (amends ADR-0031, ADR-0030) |
 | 0063 | [Recurring Rules — User-Facing Stop Date](0063-recurring-stop-date.md) (amends ADR-0038) |
 | 0064 | [Plan / Today / Overview Default Landing Month Follows the Fiscal Cycle](0064-plan-default-fiscal-month.md) (amends ADR-0041; surfaces F4.6) |
+| 0065 | [CSRF Cookie Name Is Env-Dependent; HTMX Reads the Token From a `<meta>` Tag](0065-csrf-dev-cookie-name-and-meta-token.md) (amends ADR-0033 §4) |
+| 0066 | [Orchestrator Mode Skill for Parallel Multi-Agent Work](0066-orchestrator-mode-skill.md) |
+| 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6) |
+| 0068 | [User-Scoping Static Check — Scope, Rules, and Allowlist Policy](0068-user-scoping-static-check-policy.md) (extends ADR-0022, ADR-0061 §5) |
+| 0069 | [Admin Bootstrap — Per-Environment Policy, Legacy-Row Adoption, Operator Password CLI](0069-admin-bootstrap-env-policy-and-operator-cli.md) (amends ADR-0061 §3) |
+| 0070 | [Auth Web Layer — Cookie Names, Unauthenticated Responses, Middleware Order](0070-auth-web-layer-cookies-middleware-order.md) (amends ADR-0033 §3, §5) |
+| 0071 | [Production Startup Migrations — Container Entrypoint, Restore-Before-Start, N-1 Rollback Policy](0071-production-startup-migrations.md) (extends ADR-0069, ADR-0034, ADR-0037 §3) |
+| 0072 | [Auth Rate Limiting — In-House Fixed-Window Counters on `auth_rate_limit`](0072-auth-rate-limit-sqlite-fixed-window.md) (amends ADR-0033 §2) |
+| 0073 | [User Admin Panel — 404 Guard, One-Shot Password Delivery, Invariant Errors, Audit Attribution](0073-user-admin-panel-guard-and-one-shot-password.md) (amends ADR-0061 §4, §5) |
+| 0074 | [Password Change — Policy, Audit Shape, and Forced-Rotation Responses](0074-password-change-policy-and-forced-rotation.md) (amends ADR-0061 §4) |
+| 0075 | [Security Controls Live in Settings — Security Tab, Redirects, Forced-Rotation Page](0075-security-controls-live-in-settings.md) (amends ADR-0070, ADR-0073, ADR-0074) |
+| 0076 | [Session Hardening — Absolute Lifetime Cap, Step-Up Re-Auth, Hashed Session Ids](0076-session-hardening-absolute-cap-step-up-hashed-ids.md) (amends ADR-0067 §2, ADR-0070 §2–§3) |
+| 0077 | [Retire Legacy Home Page; Today Is the Landing Page](0077-retire-legacy-home-page.md) (amends ADR-0051, ADR-0023, ADR-0070 §4) |
+| 0078 | [v3 Data-Protection Quick Wins — Close Cross-User Leaks, Bound Copies, Encrypt Backups](0078-v3-data-protection-quick-wins.md) (amends ADR-0034 §3, ADR-0071) |
+| 0079 | [v4 Threat Model and Data-Protection Approach](0079-v4-threat-model-and-data-protection-goals.md) (amends ADR-0061; lifts v3 non-goals "admin visibility" / "hard delete") |
+| 0080 | [v4 Envelope Encryption — Key Hierarchy, Server Secrets, Session Binding](0080-v4-envelope-encryption-key-hierarchy-and-sessions.md) (amends ADR-0067, ADR-0070 §2, ADR-0076, ADR-0019) |
+| 0081 | [v4 Field-Level Encryption — Column Scope, Query Model, Feature Preservation](0081-v4-field-level-encryption-scope-and-query-model.md) (amends ADR-0022, ADR-0068, ADR-0019, ADR-0071) |
+| 0082 | [v4 Account Lifecycle Under Encryption — Onboarding, Credentials, Recovery, Migration](0082-v4-account-lifecycle-recovery-and-migration.md) (amends ADR-0061, ADR-0069, ADR-0073, ADR-0074, ADR-0075) |
+| 0083 | [v4 Right to Be Forgotten, Data Portability, Retention Schedule, Keyless Operations](0083-v4-right-to-be-forgotten-portability-and-retention.md) (amends ADR-0019, ADR-0034, ADR-0061, ADR-0073, ADR-0078) |
+| 0084 | [v3 Compute Zone `pl-waw-2` and Ubuntu 24.04 (`ubuntu_noble`) Image Slug](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) (amends ADR-0032) |
+| 0085 | [Budget "Left" Counts Only Commitments in Budgeted Categories](0085-budget-left-counts-only-budgeted-commitments.md) (amends ADR-0039, ADR-0041; amended by ADR-0092) |
+| 0086 | [Formula Sources Honour Per-Occurrence Overrides in Chains](0086-formula-source-overrides-honoured-in-chains.md) (clarifies ADR-0046, ADR-0047) |
+| 0087 | [Forecast Honours Recurring `next_due`](0087-forecast-honours-recurring-next-due.md) (amends ADR-0043) |
+| 0088 | [DNS Zone Is Not Owned by Any Env Terraform State](0088-dns-zone-not-owned-by-env-state.md) (amends ADR-0035) |
+| 0089 | [Accounts Tab Planned Net per Account](0089-accounts-planned-net-per-account.md) (relates to ADR-0085, ADR-0087) |
+| 0090 | [Terraform >= 1.10 Minimum and CI Pin to 1.17.1](0090-terraform-minimum-1-10-ci-pin.md) (amends ADR-0035) |
+| 0091 | [Bucket Policy Is an Explicit Allow-List; Per-Env Isolation](0091-bucket-policy-allow-list-per-env-isolation.md) (amends ADR-0035, ADR-0032) |
+| 0092 | [Drill in Its Own Scaleway Project; Stable Restore-Reader Principal](0092-drill-in-separate-scaleway-project.md) (supersedes ADR-0091 shared-project assumption; relates to ADR-0088, ADR-0035) |
+| 0093 | [CI Terraform Inputs via TF_VAR_* from Environment Secrets](0093-ci-terraform-inputs-via-tf-var-environment-secrets.md) (amends ADR-0092 §4, ADR-0078 §3) |
+| 0094 | [SSH Only Over Tailscale; Port 22 Closed to the Internet](0094-ssh-only-over-tailscale-port-22-closed.md) (amends ADR-0035, ADR-0032; relates to ADR-0037, ADR-0069, ADR-0088) |
+| 0095 | [Budget `committed` Converts to Base Currency](0095-budget-committed-converts-to-base-currency.md) (amends ADR-0085) |
+| 0096 | [Terraform State Bucket Bootstrapped by a Separate Terraform Root Stack](0096-terraform-state-bootstrap-stack.md) (amends ADR-0035 §4; relates to ADR-0091, ADR-0093) |
+| 0097 | [Per-Batch CI in Orchestrator Mode; Fast Pre-commit Pytest](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) (amends ADR-0066; relates to ADR-0027) |

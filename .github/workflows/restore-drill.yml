@@ -1,0 +1,306 @@
+# Monthly automated restore drill (T-D41, ADR-0034 §5).
+#
+# Provisions a disposable Scaleway drill environment via Terraform, restores
+# `/data/budget.db` from the prod Litestream bucket (read-only credential
+# baked into the drill cloud-init), verifies integrity + readiness, then
+# tears the environment down ALWAYS (T-D66): success, failure or cancel. On
+# failure, best-effort debugging evidence is captured over SSH and uploaded as
+# a workflow artifact BEFORE destroy, then a GitHub issue is opened. A forgotten
+# failed drill host would cost ~EUR 4.46/month, so cost stays bounded per run.
+#
+# Secrets (environment-scoped to `drill`):
+#   SCW_ACCESS_KEY, SCW_SECRET_KEY
+#   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
+#   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
+#   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - legacy pinned known_hosts entry (optional; the drill host
+#                                    key is scanned over the authenticated tailnet, ADR-0094).
+#   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET
+#                                  - Tailscale OAuth client (scopes auth_keys; owns tag:ci,
+#                                    tag:drill): CI joins the tailnet as tag:ci and Terraform
+#                                    mints the drill host's ephemeral auth key (T-D67).
+#   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
+#                                  - read-only key of the prod `restore-reader`
+#                                    IAM application (prod outputs
+#                                    restore_reader_access_key/_secret_key;
+#                                    ADR-0092, T-D41a).
+#   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
+#   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56; a secret since ADR-0093).
+#   Plus every other TF_VAR_* input: see the env block and operator-checklist A5 (ADR-0093).
+#
+# Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
+# applies to our CI supply chain as well).
+
+name: Restore drill
+
+on:
+  schedule:
+    # 03:00 UTC on the 1st of every month.
+    - cron: "0 3 1 * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: restore-drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  restore-drill:
+    name: Provision → restore → verify → destroy
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: drill
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D70 / ADR-0093: all Terraform inputs are TF_VAR_* from `drill`
+      # environment secrets (falling back to repo secrets); no tfvars in CI.
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      TF_VAR_env: drill
+      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
+      TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
+      TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
+      TF_VAR_github_owner: ${{ github.repository_owner }}
+      TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
+      TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
+      SCW_DEFAULT_REGION: pl-waw
+      SCW_DEFAULT_ZONE: pl-waw-2
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      DRILL_HOST: drill.budget.${{ secrets.APP_DOMAIN }}
+      # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
+      # DRILL_HOST stays the public name for the HTTPS /ready probe.
+      DRILL_SSH_HOST: budget-planner-drill
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # T-D41a: read-only credential for the PROD replica bucket; rendered
+      # into the drill host's root-only restore-source.env by cloud-init.
+      TF_VAR_scw_access_key_restore: ${{ secrets.PROD_REPLICA_RO_ACCESS_KEY }}
+      TF_VAR_scw_secret_key_restore: ${{ secrets.PROD_REPLICA_RO_SECRET_KEY }}
+      # T-D56: the drill restores the PROD replica, so it needs the PROD age
+      # identity (written 0600 to the drill host). Never the dev-only key.
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.17.1"
+          terraform_wrapper: false
+
+      - name: Install Scaleway CLI
+        run: |
+          set -euo pipefail
+          SCW_VERSION="2.34.0"
+          curl -fsSL -o /tmp/scw \
+            "https://github.com/scaleway/scaleway-cli/releases/download/v${SCW_VERSION}/scaleway-cli_${SCW_VERSION}_linux_amd64"
+          sudo install -m 0755 /tmp/scw /usr/local/bin/scw
+          scw version
+
+      - name: Configure SSH agent
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Pin known_hosts for drill host
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS_DRILL }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Check required Terraform inputs
+        run: python3 terraform/scripts/check_tf_vars.py
+
+      - name: Terraform init (drill backend)
+        working-directory: terraform
+        run: terraform init -input=false -backend-config=envs/drill/backend.hcl
+
+      - name: Terraform apply (drill)
+        working-directory: terraform
+        run: |
+          terraform apply \
+            -input=false \
+            -auto-approve
+
+      - name: Wait for drill host on the tailnet (T-D67)
+        # The drill VM joins the tailnet from cloud-init (ephemeral node).
+        # Bounded wait until its MagicDNS name answers on 22, then record its
+        # host keys. ssh-keyscan over the tailnet is trustworthy: the peer is
+        # authenticated by WireGuard node identity and the ACL (tag:ci ->
+        # tag:drill:22 only), so this is not trust-on-first-use over the internet.
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          for i in $(seq 1 60); do
+            keys="$(ssh-keyscan -T 5 -t ed25519,ecdsa,rsa "${DRILL_SSH_HOST}" 2>/dev/null || true)"
+            if [ -n "${keys}" ]; then
+              printf '%s\n' "${keys}" >> ~/.ssh/known_hosts
+              echo "drill host reachable on the tailnet after attempt ${i}"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${DRILL_SSH_HOST} never answered on port 22 over the tailnet" >&2
+          exit 1
+
+      - name: Trigger restore on drill host
+        # The cloud-init helper lives at /usr/local/bin/restore-from-prod and
+        # (per ADR-0034 §5 + the drill terraform.tfvars) runs
+        #   litestream restore -o /data/budget.db s3://budget-planner-prod-pl-waw/db
+        # using a read-only IAM credential scoped to the prod bucket.
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            'sudo /usr/local/bin/restore-from-prod'
+
+      - name: Verify /ready reports ok
+        run: |
+          set -euo pipefail
+          status="$(curl -fsS "https://${DRILL_HOST}/ready" | jq -r .status)"
+          echo "ready.status=${status}"
+          test "${status}" = "ok"
+
+      - name: Verify PRAGMA integrity_check
+        run: |
+          set -euo pipefail
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            "sudo sqlite3 /data/budget.db 'PRAGMA integrity_check;'")"
+          echo "integrity_check=${result}"
+          test "${result}" = "ok"
+
+      - name: Verify no extra DB copies remain (T-D57)
+        # ADR-0078 section 4: only the live budget.db (+ -wal/-shm) may be left under
+        # /data; moved-aside and pre-migration copies are deleted by the helper.
+        run: |
+          set -euo pipefail
+          extra="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            "sudo find /data -name '*.db*' ! -path '/data/.budget.db-litestream*' ! -name budget.db ! -name budget.db-wal ! -name budget.db-shm")"
+          echo "extra_db_copies=[${extra}]"
+          test -z "${extra}"
+
+      - name: Capture debugging evidence (best-effort)
+        # T-D66: runs only on failure, BEFORE destroy. Never blocks destroy:
+        # continue-on-error + hard timeouts. Secret-bearing files (env files,
+        # compose files, restore-source.env, age identity) are never read;
+        # log output is passed through a coarse key/secret redaction.
+        if: failure()
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          set -uo pipefail
+          mkdir -p drill-evidence
+          ssh_run() {
+            timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=10 \
+              operator@"${DRILL_SSH_HOST}" "$1" 2>&1 \
+              | sed -E 's/(secret|token|password|access_key|identity|AGE-SECRET-KEY)[^[:space:]]*/\1=REDACTED/Ig'
+          }
+          ssh_run 'sudo tail -n 500 /var/log/cloud-init-output.log' > drill-evidence/cloud-init-output.log || true
+          ssh_run 'sudo journalctl -u docker -u cloud-final --no-pager -n 500' > drill-evidence/journal.log || true
+          for svc in app litestream caddy; do
+            ssh_run "cd /etc/budget-planner && sudo docker compose logs --no-color --tail 500 ${svc}" \
+              > "drill-evidence/compose-${svc}.log" || true
+          done
+          ssh_run 'cd /etc/budget-planner && sudo docker compose ps -a' > drill-evidence/compose-ps.log || true
+          ssh_run 'df -h; free -m; ls -la /data' > drill-evidence/host-state.log || true
+          ls -la drill-evidence
+
+      - name: Upload debugging evidence
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: restore-drill-evidence
+          path: drill-evidence/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Terraform destroy (drill)
+        # T-D66: ALWAYS destroy, even after failure, partial apply, or
+        # cancellation. Re-runs init (idempotent) so it also works when an
+        # earlier step died before/during init.
+        id: destroy
+        if: always()
+        timeout-minutes: 20
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          terraform init -input=false -backend-config=envs/drill/backend.hcl
+          terraform destroy \
+            -input=false \
+            -auto-approve
+
+      - name: Verify drill environment destroyed
+        # Fails the job loudly if destroy failed or resources remain, so the
+        # failure issue fires and the operator knows something billable may
+        # remain.
+        id: verify-destroy
+        if: always()
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.destroy.outcome }}" != "success" ]; then
+            echo "::error::terraform destroy outcome=${{ steps.destroy.outcome }}; drill resources may still be billing"
+            exit 1
+          fi
+          remaining="$(terraform state list | grep -v '^data\.' || true)"
+          if [ -n "${remaining}" ]; then
+            echo "::error::resources remain in drill state after destroy:"
+            echo "${remaining}"
+            exit 1
+          fi
+          echo "drill state empty; destroy verified"
+
+      - name: Open issue on failure
+        if: failure() || cancelled()
+        env:
+          REPO: ${{ github.repository }}
+          DESTROY_OUTCOME: ${{ steps.destroy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify-destroy.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="restore-drill-failure-$(date +%Y-%m)"
+          if [ "${DESTROY_OUTCOME}" = "success" ] && [ "${VERIFY_OUTCOME}" = "success" ]; then
+            destroy_line="The drill host (\`${DRILL_HOST}\`) was destroyed and verified (T-D66); nothing billable remains."
+          else
+            destroy_line="**WARNING: destroy failed or could not be verified (destroy=${DESTROY_OUTCOME}, verify=${VERIFY_OUTCOME}). Drill resources may still be billing (~EUR 4.46/month). Run \`terraform destroy\` in \`terraform/\` (drill backend; local drill tfvars or the TF_VAR_* inputs) manually.**"
+          fi
+          body=$(cat <<EOF
+          Automated restore drill failed.
+
+          - Workflow run: ${RUN_URL}
+          - ${destroy_line}
+          - Debugging evidence (cloud-init, journal, app/litestream/caddy logs) is attached to the run as the \`restore-drill-evidence\` artifact (30 days).
+          - Next step: read the artifact, fix the root cause, then re-run the workflow via workflow_dispatch.
+
+          Per ADR-0034 §5 this blocks the next monthly drill until closed.
+          EOF
+          )
+          gh issue create \
+            --repo "${REPO}" \
+            --title "${title}" \
+            --body "${body}" \
+            --label "restore-drill,incident"

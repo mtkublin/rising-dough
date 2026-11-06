@@ -8,7 +8,9 @@ from budget_planner.domain.audit import AuditEntry
 from budget_planner.domain.enums import AuditOperation
 from budget_planner.repositories._shared import parse_dt_required
 
-_COLUMNS = "id, entity_type, entity_id, changed_at, operation, prev_json, new_json"
+_COLUMNS = (
+    "id, entity_type, entity_id, changed_at, operation, prev_json, new_json, user_id, actor_user_id"
+)
 
 
 def _row_to_entry(row: sqlite3.Row) -> AuditEntry:
@@ -20,6 +22,8 @@ def _row_to_entry(row: sqlite3.Row) -> AuditEntry:
         operation=AuditOperation(row["operation"]),
         prev_json=row["prev_json"],
         new_json=row["new_json"],
+        user_id=row["user_id"],
+        actor_user_id=row["actor_user_id"],
     )
 
 

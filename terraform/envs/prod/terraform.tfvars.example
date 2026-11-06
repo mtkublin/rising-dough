@@ -1,0 +1,39 @@
+# Copy to terraform.tfvars (gitignored) and fill in before `terraform apply`.
+# See terraform/README.md for the full secret flow.
+
+env                      = "prod"
+admin_email              = "operator@example.com"
+# rising-dough, the org default project; ADR-0092: each env lives in its own project.
+scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
+scaleway_organization_id = "00000000-0000-0000-0000-000000000000"
+scaleway_region          = "pl-waw"
+scaleway_zone            = "pl-waw-2"
+
+domain           = "example.com"
+subdomain_prod   = "budget"
+# true = zone exists at Scaleway DNS, Terraform manages only this env's A/AAAA (ADR-0088).
+# false = zone elsewhere, no DNS resources created.
+managed_dns_zone = false
+# Project that owns the DNS zone = PROD project (rising-dough). Records of BOTH envs are created there (ADR-0092).
+dns_zone_project_id = "53175dd0-b944-489b-b05d-3f55d65d79af"
+
+app_image_tag = "main"
+github_owner  = "example-owner"
+
+operator_ssh_pubkey  = "ssh-ed25519 AAAA... operator@laptop"
+github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
+
+# ghcr_pull_pat = "ghp_..."
+
+# Bucket policy (ADR-0091): your Scaleway user id (scw iam user list).
+bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
+
+# Prod only: extra read-only principals. The stable restore-reader application
+# (ADR-0092) is added automatically; leave empty normally.
+# bucket_readonly_principals = ["application_id:00000000-0000-0000-0000-000000000000"]
+
+# Tailscale (T-D67, ADR-0094): SSH/admin only; port 22 is closed to the internet.
+# OAuth client credentials are sensitive; supply via the environment, never here:
+#   export TF_VAR_tailscale_oauth_client_id=...
+#   export TF_VAR_tailscale_oauth_client_secret=...
+# The VM joins the tailnet as budget-planner-prod (tag:prod); no non-secret inputs.

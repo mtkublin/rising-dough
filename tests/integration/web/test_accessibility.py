@@ -61,7 +61,7 @@ def test_semantic_landmarks(client: TestClient, path: str) -> None:
 
 
 def test_skip_link_is_first_focusable(client: TestClient) -> None:
-    soup = _soup(client, "/")
+    soup = _soup(client, "/today")
     skip = soup.find("a", href="#main")
     assert skip is not None
     main = soup.find("main", id="main")

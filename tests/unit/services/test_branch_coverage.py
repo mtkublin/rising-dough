@@ -29,17 +29,21 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import balance as balance_service, planned as planned_service
 
+USER_ID = 1
+
 pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
 def account_id(conn: sqlite3.Connection) -> int:
-    return accounts_repo.create(conn, NewAccount(name="ING", currency="PLN")).id
+    return accounts_repo.create(conn, USER_ID, NewAccount(name="ING", currency="PLN")).id
 
 
 @pytest.fixture
 def category_id(conn: sqlite3.Connection) -> int:
-    return categories_repo.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE)).id
+    return categories_repo.create(
+        conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+    ).id
 
 
 def test_account_stats_two_same_date_txns_keeps_first_date_assignment(
@@ -49,6 +53,7 @@ def test_account_stats_two_same_date_txns_keeps_first_date_assignment(
     reassignment (closes the 140->142 branch)."""
     txn_repo.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 3, 15),
             category_id=category_id,
@@ -58,6 +63,7 @@ def test_account_stats_two_same_date_txns_keeps_first_date_assignment(
     )
     txn_repo.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 3, 15),
             category_id=category_id,
@@ -65,7 +71,7 @@ def test_account_stats_two_same_date_txns_keeps_first_date_assignment(
             amount=2000,
         ),
     )
-    stats = balance_service.account_stats(conn, account_id)
+    stats = balance_service.account_stats(conn, USER_ID, account_id)
     assert stats.last_txn_date == "2026-03-15"
     assert stats.txn_count == 2
 
@@ -77,6 +83,7 @@ def test_list_planned_promoted_true_filter_keeps_promoted_rows(
     branch (view.is_promoted == filters.promoted → return True)."""
     unpromoted = planned_repo.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 1, 10),
             category_id=category_id,
@@ -86,6 +93,7 @@ def test_list_planned_promoted_true_filter_keeps_promoted_rows(
     )
     promoted = planned_repo.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 1, 20),
             category_id=category_id,
@@ -95,6 +103,7 @@ def test_list_planned_promoted_true_filter_keeps_promoted_rows(
     )
     txn = txn_repo.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 20),
             category_id=category_id,
@@ -103,10 +112,11 @@ def test_list_planned_promoted_true_filter_keeps_promoted_rows(
             promoted_from_planned_id=promoted.id,
         ),
     )
-    planned_repo.stamp_promotion(conn, promoted.id, txn.id)
+    planned_repo.stamp_promotion(conn, USER_ID, promoted.id, txn.id)
 
     result = planned_service.list_planned(
         conn,
+        USER_ID,
         PlannedFilter(
             date_from=date(2026, 1, 1),
             date_to=date(2026, 1, 31),
@@ -125,6 +135,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
     the final ternary branch in ``_match_non_date_filters``."""
     rule = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 15),
@@ -135,6 +146,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
     )
     linked = planned_repo.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 1, 15),
             category_id=category_id,
@@ -146,6 +158,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
     )
     unrelated = planned_repo.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 1, 20),
             category_id=category_id,
@@ -156,6 +169,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
 
     filtered = planned_service.list_planned(
         conn,
+        USER_ID,
         PlannedFilter(
             date_from=date(2026, 1, 1),
             date_to=date(2026, 1, 31),
@@ -171,6 +185,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
     # closes the ``return False`` branch at services/planned.py:134 (rule mismatch).
     nothing = planned_service.list_planned(
         conn,
+        USER_ID,
         PlannedFilter(
             date_from=date(2026, 1, 1),
             date_to=date(2026, 1, 31),

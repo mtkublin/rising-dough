@@ -25,7 +25,6 @@ class NewBudgetDefault:
 
     category_id: int
     amount: int
-    user_id: int = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -49,7 +48,6 @@ class NewBudgetRecurringOverride:
     category_id: int
     month: int
     amount: int
-    user_id: int = 1
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -75,4 +73,3 @@ class NewBudgetOneOffOverride:
     year: int
     month: int
     amount: int
-    user_id: int = 1

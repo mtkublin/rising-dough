@@ -1,0 +1,37 @@
+# Copy to terraform.tfvars (gitignored) and fill in before `terraform apply`.
+# See terraform/README.md for the full secret flow.
+
+env                      = "drill"
+admin_email              = "operator@example.com"
+# rising-dough-drill (f2facf0d-...); ADR-0092: each env lives in its own project.
+scaleway_project_id      = "00000000-0000-0000-0000-000000000000"
+scaleway_organization_id = "00000000-0000-0000-0000-000000000000"
+scaleway_region          = "pl-waw"
+scaleway_zone            = "pl-waw-2"
+
+domain           = "example.com"
+subdomain_drill  = "drill.budget"
+# true = zone exists at Scaleway DNS, Terraform manages only this env's A/AAAA (ADR-0088).
+# false = zone elsewhere, no DNS resources created.
+managed_dns_zone = false
+# Project that owns the DNS zone = PROD project (rising-dough). Records of BOTH envs are created there (ADR-0092).
+dns_zone_project_id = "53175dd0-b944-489b-b05d-3f55d65d79af"
+
+app_image_tag = "main"
+github_owner  = "example-owner"
+
+# Public keys only. See terraform/README.md on how to generate.
+operator_ssh_pubkey  = "ssh-ed25519 AAAA... operator@laptop"
+github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
+
+# GHCR read-only PAT. Pass via -var or the TF_VAR_ghcr_pull_pat env var.
+# ghcr_pull_pat = "ghp_..."
+
+# Bucket policy (ADR-0091): your Scaleway user id (scw iam user list).
+bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
+
+# Tailscale (T-D67, ADR-0094): SSH/admin only; port 22 is closed to the internet.
+# OAuth client credentials are sensitive; supply via the environment, never here:
+#   export TF_VAR_tailscale_oauth_client_id=...
+#   export TF_VAR_tailscale_oauth_client_secret=...
+# The VM joins the tailnet as budget-planner-drill (tag:drill); no non-secret inputs.

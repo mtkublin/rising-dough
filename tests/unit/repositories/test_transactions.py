@@ -14,6 +14,8 @@ from budget_planner.domain.transactions import (
 )
 from budget_planner.repositories import audit, recurring as recurring_repo, transactions
 
+USER_ID = 1
+
 
 def _mk(
     conn: sqlite3.Connection,
@@ -27,6 +29,7 @@ def _mk(
 ) -> int:
     txn = transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=on or date(2026, 1, 1),
             category_id=category_id,
@@ -41,7 +44,7 @@ def _mk(
 
 def test_create_round_trip(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
     tid = _mk(conn, account_id, category_id, amount=250)
-    fetched = transactions.find_by_id(conn, tid)
+    fetched = transactions.find_by_id(conn, USER_ID, tid)
     assert fetched is not None
     assert fetched.amount == 250
     assert audit.list_entries(conn, "transaction", tid)[0].operation.value == "create"
@@ -51,6 +54,7 @@ def test_update(conn: sqlite3.Connection, account_id: int, category_id: int) -> 
     tid = _mk(conn, account_id, category_id, amount=100)
     updated = transactions.update(
         conn,
+        USER_ID,
         tid,
         PatchTransaction(amount=150, operation_date=date(2026, 2, 1), description="x"),
     )
@@ -60,26 +64,26 @@ def test_update(conn: sqlite3.Connection, account_id: int, category_id: int) -> 
 
 def test_update_missing_raises(conn: sqlite3.Connection) -> None:
     with pytest.raises(LookupError):
-        transactions.update(conn, 999, PatchTransaction(amount=1))
+        transactions.update(conn, USER_ID, 999, PatchTransaction(amount=1))
 
 
 def test_soft_delete_and_undelete(
     conn: sqlite3.Connection, account_id: int, category_id: int
 ) -> None:
     tid = _mk(conn, account_id, category_id)
-    transactions.soft_delete(conn, tid)
-    assert transactions.find_by_id(conn, tid) is None
-    transactions.undelete(conn, tid)
-    assert transactions.find_by_id(conn, tid) is not None
+    transactions.soft_delete(conn, USER_ID, tid)
+    assert transactions.find_by_id(conn, USER_ID, tid) is None
+    transactions.undelete(conn, USER_ID, tid)
+    assert transactions.find_by_id(conn, USER_ID, tid) is not None
 
 
 def test_soft_delete_missing_is_noop(conn: sqlite3.Connection) -> None:
-    transactions.soft_delete(conn, 999)
+    transactions.soft_delete(conn, USER_ID, 999)
 
 
 def test_undelete_missing_raises(conn: sqlite3.Connection) -> None:
     with pytest.raises(LookupError):
-        transactions.undelete(conn, 999)
+        transactions.undelete(conn, USER_ID, 999)
 
 
 def test_list_filtered_date_range(
@@ -94,6 +98,7 @@ def test_list_filtered_date_range(
 
     filtered = transactions.list_filtered(
         conn,
+        USER_ID,
         TransactionFilter(
             date_from=date(2026, 2, 1),
             date_to=date(2026, 2, 28),
@@ -123,28 +128,34 @@ def test_list_filtered_full_matrix(
         dest=dest_account_id,
     )
 
-    r = transactions.list_filtered(conn, TransactionFilter(account_ids=(account_id,)))
+    r = transactions.list_filtered(conn, USER_ID, TransactionFilter(account_ids=(account_id,)))
     assert all(t.account_id == account_id for t in r)
 
-    r = transactions.list_filtered(conn, TransactionFilter(category_ids=(income_category_id,)))
+    r = transactions.list_filtered(
+        conn, USER_ID, TransactionFilter(category_ids=(income_category_id,))
+    )
     assert all(t.category_id == income_category_id for t in r)
 
-    r = transactions.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
+    r = transactions.list_filtered(
+        conn, USER_ID, TransactionFilter(directions=(Direction.EXPENSE,))
+    )
     assert len(r) == 2
 
-    r = transactions.list_filtered(conn, TransactionFilter(amount_min=200, amount_max=400))
+    r = transactions.list_filtered(conn, USER_ID, TransactionFilter(amount_min=200, amount_max=400))
     assert all(200 <= t.amount <= 400 for t in r)
 
-    r = transactions.list_filtered(conn, TransactionFilter(description_contains="apple"))
+    r = transactions.list_filtered(conn, USER_ID, TransactionFilter(description_contains="apple"))
     assert {t.description for t in r} == {"apple", "apples"}
 
-    r = transactions.list_filtered(conn, TransactionFilter(account_or_dest=dest_account_id))
+    r = transactions.list_filtered(
+        conn, USER_ID, TransactionFilter(account_or_dest=dest_account_id)
+    )
     assert len(r) == 2
 
-    r = transactions.list_filtered(conn, TransactionFilter(limit=1, offset=0))
+    r = transactions.list_filtered(conn, USER_ID, TransactionFilter(limit=1, offset=0))
     assert len(r) == 1
 
-    r = transactions.list_filtered(conn, TransactionFilter(up_to_date=date(2026, 1, 1)))
+    r = transactions.list_filtered(conn, USER_ID, TransactionFilter(up_to_date=date(2026, 1, 1)))
     # All seeded transactions are on 2026-01-01 by default.
     assert len(r) >= 1
 
@@ -153,9 +164,9 @@ def test_list_filtered_hides_soft_deleted(
     conn: sqlite3.Connection, account_id: int, category_id: int
 ) -> None:
     tid = _mk(conn, account_id, category_id)
-    transactions.soft_delete(conn, tid)
-    assert transactions.list_filtered(conn, TransactionFilter()) == []
-    all_rows = transactions.list_filtered(conn, TransactionFilter(), include_deleted=True)
+    transactions.soft_delete(conn, USER_ID, tid)
+    assert transactions.list_filtered(conn, USER_ID, TransactionFilter()) == []
+    all_rows = transactions.list_filtered(conn, USER_ID, TransactionFilter(), include_deleted=True)
     assert any(t.id == tid for t in all_rows)
 
 
@@ -169,6 +180,7 @@ def test_create_round_trips_recurring_provenance_fields(
     """
     rule = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 1),
@@ -180,6 +192,7 @@ def test_create_round_trips_recurring_provenance_fields(
     )
     txn = transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 1),
             category_id=category_id,
@@ -195,7 +208,7 @@ def test_create_round_trips_recurring_provenance_fields(
     assert txn.promoted_from_planned_id is None
 
     # list_filtered surfaces the same shape.
-    rows = transactions.list_filtered(conn, TransactionFilter())
+    rows = transactions.list_filtered(conn, USER_ID, TransactionFilter())
     hit = next(r for r in rows if r.id == txn.id)
     assert hit.promoted_from_recurring_rule_id == rule.id
     assert hit.promoted_from_recurring_date == date(2026, 1, 1)
@@ -206,7 +219,7 @@ def test_create_defaults_recurring_provenance_fields_to_none(
 ) -> None:
     """A plain user-entered transaction has no provenance stamps."""
     tid = _mk(conn, account_id, category_id)
-    hit = transactions.find_by_id(conn, tid)
+    hit = transactions.find_by_id(conn, USER_ID, tid)
     assert hit is not None
     assert hit.promoted_from_recurring_rule_id is None
     assert hit.promoted_from_recurring_date is None

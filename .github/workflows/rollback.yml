@@ -1,0 +1,193 @@
+# Manual rollback (ADR-0037 §5).
+#
+# Operator picks `drill` or `prod`, optionally specifies a target `image_sha`
+# (short or full hex). Workflow SSHes the restricted deploy user with either
+# `rollback` (uses the host-side previous-tag file) or `rollback <sha>`
+# (explicit target). A GitHub Deployment status is posted with state=inactive
+# → in_progress → success|failure so the environment timeline shows the
+# rollback event.
+#
+# Secrets expected (shared with deploy.yml):
+#   DEPLOY_SSH_PRIVATE_KEY, DEPLOY_SSH_KNOWN_HOSTS, DRILL_HOST, PROD_HOST
+#   (DRILL_HOST/PROD_HOST = tailnet names budget-planner-drill/-prod, ADR-0094),
+#   TS_OAUTH_CLIENT_ID, TS_OAUTH_SECRET (SSH only over Tailscale)
+# Variables expected: DRILL_URL, PROD_URL
+
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Target environment
+        type: choice
+        required: true
+        options:
+          - drill
+          - prod
+      image_sha:
+        description: Optional explicit target (short or full git SHA; empty = use host-recorded previous tag)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  deployments: write
+  id-token: write
+
+concurrency:
+  group: rollback-${{ inputs.env }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.env }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ inputs.env }}
+      url: ${{ inputs.env == 'prod' && vars.PROD_URL || vars.DRILL_URL }}
+    steps:
+      - name: Validate inputs
+        id: validate
+        env:
+          RAW_SHA: ${{ inputs.image_sha }}
+        run: |
+          set -euo pipefail
+          RAW="${RAW_SHA:-}"
+          if [ -z "${RAW}" ]; then
+            echo "subcommand=rollback" >> "$GITHUB_OUTPUT"
+            echo "target=(previous-tag file)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! [[ "${RAW}" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::image_sha must be 7-40 lowercase hex chars; got '${RAW}'" >&2
+            exit 1
+          fi
+          SHORT="${RAW:0:7}"
+          TAG="sha-${SHORT}"
+          echo "subcommand=rollback ${TAG}" >> "$GITHUB_OUTPUT"
+          echo "target=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve host + url
+        id: target
+        env:
+          ENV_NAME: ${{ inputs.env }}
+          DRILL_HOST: ${{ secrets.DRILL_HOST }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          DRILL_URL: ${{ vars.DRILL_URL }}
+          PROD_URL: ${{ vars.PROD_URL }}
+        run: |
+          set -euo pipefail
+          if [ "${ENV_NAME}" = "prod" ]; then
+            HOST="${PROD_HOST}"
+            URL="${PROD_URL}"
+          else
+            HOST="${DRILL_HOST}"
+            URL="${DRILL_URL}"
+          fi
+          echo "::add-mask::${HOST}"
+          echo "host=${HOST}" >> "$GITHUB_OUTPUT"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub deployment (rollback, in_progress)
+        id: deployment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const dep = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: '${{ inputs.env }}',
+              required_contexts: [],
+              auto_merge: false,
+              transient_environment: false,
+              production_environment: '${{ inputs.env }}' === 'prod',
+              description: 'rollback ${{ inputs.env }} → ${{ steps.validate.outputs.target }}'
+            });
+            core.setOutput('id', dep.data.id);
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: dep.data.id,
+              state: 'in_progress',
+              environment_url: '${{ steps.target.outputs.url }}',
+              description: 'rollback starting (${{ steps.validate.outputs.subcommand }})'
+            });
+
+      - name: Connect to tailnet (SSH only over Tailscale, T-D67)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Install SSH key
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${DEPLOY_SSH_PRIVATE_KEY}"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${DEPLOY_SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: SSH rollback
+        id: ssh-rollback
+        env:
+          HOST: ${{ steps.target.outputs.host }}
+          SUBCMD: ${{ steps.validate.outputs.subcommand }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes \
+            "deploy@${HOST}" "${SUBCMD}"
+
+      - name: Probe /ready after rollback
+        env:
+          URL: ${{ steps.target.outputs.url }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if curl -fsS --max-time 5 "${URL}/ready" >/dev/null; then
+              echo "ready after attempt ${i}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::${URL}/ready did not recover after rollback" >&2
+          exit 1
+
+      - name: Finalize deployment status (success)
+        if: success()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.id }},
+              state: 'success',
+              environment_url: '${{ steps.target.outputs.url }}',
+              description: 'rollback ok (${{ steps.validate.outputs.target }})'
+            });
+
+      - name: Finalize deployment status (failure)
+        if: failure()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.id }},
+              state: 'failure',
+              environment_url: '${{ steps.target.outputs.url }}',
+              description: 'rollback failed (${{ steps.validate.outputs.target }})'
+            });

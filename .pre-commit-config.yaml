@@ -41,8 +41,15 @@ repos:
           - jinja2>=3.1
           - markupsafe>=2.1
           - beautifulsoup4>=4.12
+          # T-D02a / ADR-0067 — keep in sync with pyproject + [tool.uv] constraints.
+          - bcrypt>=4.2
+          - webauthn>=2.7,<3
+          - cbor2<6
+          - cryptography<49
           - types-beautifulsoup4>=4.12
           - playwright>=1.47
+          - structlog>=24.4
+          - sqlglot>=25.0
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         files: ^(src|tests)/
@@ -50,10 +57,14 @@ repos:
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.1.1
     hooks:
+      # Scope to migrations only. tests/fixtures/*.sql is auto-generated
+      # by scripts/dump_schema.sh and must stay byte-for-byte identical to
+      # the SQLite master dump — sqlfluff's cosmetic rewrites would make
+      # it diverge from what the generator writes.
       - id: sqlfluff-lint
-        files: \.sql$
+        files: ^migrations/.*\.sql$
       - id: sqlfluff-fix
-        files: \.sql$
+        files: ^migrations/.*\.sql$
 
   - repo: https://github.com/djlint/djLint
     rev: v1.35.2
@@ -78,7 +89,7 @@ repos:
     hooks:
       - id: pytest-fast
         name: pytest (fast subset)
-        entry: uv run pytest -q -m "not integration and not e2e and not visual" --no-cov
+        entry: uv run pytest -q tests/unit tests/architecture -m "not integration and not e2e and not visual" --no-cov
         language: system
         pass_filenames: false
         stages: [pre-commit]

@@ -6,9 +6,11 @@ set dotenv-load := true
 
 # --- environment -----------------------------------------------------------
 
-# Install runtime + dev deps, sync lockfile, install pre-commit hooks + Node dev toolchain.
+# Install runtime + dev deps from the pinned uv.lock, install pre-commit
+# hooks + Node dev toolchain. `--frozen` fails if the lock drifts from
+# pyproject.toml so local installs mirror CI exactly (T-D12).
 install:
-    uv sync --group dev
+    uv sync --frozen --group dev
     uv run pre-commit install --install-hooks
     npm ci
 
@@ -42,6 +44,7 @@ dev *args:
     else
       echo "[dev] using default DB (data/budget.sqlite — prod)"
     fi
+    echo "[dev] open http://localhost:8000 (passkeys do not work on an IP address)"
     uv run uvicorn budget_planner.web.app:app \
       --reload --host 127.0.0.1 --port 8000
 
@@ -116,3 +119,100 @@ db-reset:
     rm -f data/budget.sqlite data/budget.sqlite-wal data/budget.sqlite-shm
     just migrate
     just seed
+
+# Set a user's password (operator tool, ADR-0069 §4). `--db=<path>` is
+# REQUIRED — there is no default DB, so this never hits prod by accident.
+# Prompts for the password twice. Examples:
+#   just set-password --db=/tmp/scratch.sqlite --email=admin@local.test
+#   just set-password --db=data/budget.sqlite --user-id=1 --set-email=me@example.com --make-admin
+# Other flags: --must-change-password, --password-stdin.
+set-password *args:
+    #!/usr/bin/env bash
+    set -eu
+    case " {{args}} " in
+      *" --db="*) ;;
+      *) echo "[set-password] --db=<path> is required (no default DB)" >&2; exit 2 ;;
+    esac
+    uv run python -m budget_planner.cli.set_password {{args}}
+
+# --- container -------------------------------------------------------------
+
+# Build the production OCI image locally (multi-stage, non-root). See T-D10
+# and ADR-0032 §2 for the image contract. Requires a running Docker daemon.
+docker-build:
+    docker build -t rising-dough:dev .
+
+# --- security --------------------------------------------------------------
+
+# T-D13 — local mirror of .github/workflows/security.yml. Requires `trivy`
+# installed on PATH (brew install aquasecurity/trivy/trivy) and a local
+# Docker daemon for the image scan. The CI workflow is the source of truth;
+# this recipe is for pre-push sanity checks.
+security-scan:
+    uv run pip-audit --strict
+    docker build -t rising-dough:scan .
+    trivy fs . --severity HIGH,CRITICAL --exit-code 1
+    trivy image rising-dough:scan --severity HIGH,CRITICAL --exit-code 1
+
+# --- prod-sim --------------------------------------------------------------
+
+# Boot the full prod-sim compose stack (app + caddy + litestream + minio),
+# wait for /ready via Caddy's self-signed TLS endpoint, run a smoke probe,
+# tear everything down (volumes included) even on failure.
+#
+# See docker-compose.yml for the service shapes and ADR-0032 §2,
+# ADR-0034, ADR-0036 for the production references.
+test-prod-stack:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    teardown() {
+      echo "[test-prod-stack] tearing down..."
+      docker compose -f docker-compose.yml down -v --remove-orphans >/dev/null 2>&1 || true
+    }
+    trap teardown EXIT
+    echo "[test-prod-stack] building images..."
+    docker compose -f docker-compose.yml build
+    echo "[test-prod-stack] starting stack..."
+    docker compose -f docker-compose.yml up -d
+    echo "[test-prod-stack] waiting for /ready via https://localhost:8443 ..."
+    for attempt in $(seq 1 12); do
+      if curl -k -fsS -o /dev/null -w "%{http_code}" https://localhost:8443/ready | grep -q '^200$'; then
+        echo "[test-prod-stack] /ready → 200 (attempt $attempt)"
+        break
+      fi
+      if [ "$attempt" -eq 12 ]; then
+        echo "[test-prod-stack] /ready never returned 200; dumping logs" >&2
+        docker compose -f docker-compose.yml ps >&2 || true
+        docker compose -f docker-compose.yml logs --tail=200 >&2 || true
+        exit 1
+      fi
+      sleep 5
+    done
+    echo "[test-prod-stack] running smoke probe (Playwright journey ships with T-D43)..."
+    uv run python -c "import httpx; r = httpx.get('https://localhost:8443/ready', verify=False); assert r.status_code == 200"
+    echo "[test-prod-stack] OK"
+
+# T-D77: render the cloud-init user-data offline (real templatefile chain, dummy
+# values, no credentials) and lint it: line 1, YAML, cloud-init schema (skipped
+# with a message when the binary is missing).
+tf-render-check:
+    terraform -chdir=terraform init -backend=false -input=false
+    terraform -chdir=terraform test
+    uv run python terraform/tests/render/render_check.py
+
+# --- terraform preflight (T-D78) --------------------------------------------
+
+# Read-only checks before a terraform apply: inputs, project match, GHCR image,
+# Tailscale tag, state backend. Usage: just tf-preflight drill|prod
+tf-preflight env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f terraform/.env ]; then set -a; source terraform/.env; set +a; fi
+    if [ "{{env}}" = "drill" ] && [ -n "${SCW_DRILL_PROJECT_ID:-}" ]; then
+      export SCW_DEFAULT_PROJECT_ID="$SCW_DRILL_PROJECT_ID"
+    fi
+    uv run python terraform/scripts/preflight.py {{env}}
+
+# Preflight for the drill env. Run before every drill apply.
+drill-preflight:
+    just tf-preflight drill

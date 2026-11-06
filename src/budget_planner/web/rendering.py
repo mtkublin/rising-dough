@@ -36,6 +36,8 @@ def render(
         "request": request,
         "settings": settings,
         "url_for": request.url_for,
+        "csp_nonce": getattr(request.state, "csp_nonce", ""),
+        "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     base_ctx.update(context)
     if template_name == "partials/_slideover.html" and not is_hx_request(request):
@@ -54,6 +56,8 @@ def render_str(request: Request, source: str, **context: Any) -> str:
         "request": request,
         "settings": settings,
         "url_for": request.url_for,
+        "csp_nonce": getattr(request.state, "csp_nonce", ""),
+        "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     base_ctx.update(context)
     rendered: str = env.from_string(source).render(**base_ctx)

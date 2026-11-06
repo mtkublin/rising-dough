@@ -21,17 +21,21 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
+import logging
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 
+from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
+    accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
     planned as planned_repo,
@@ -39,10 +43,77 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import (
+    fx as fx_svc,
     income as income_svc,
     preferences as preferences_svc,
     recurring as recurring_svc,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def base_amount_converter(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    today: dt.date | None = None,
+    base_currency: str | None = None,
+) -> Callable[[int, int], int]:
+    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095).
+
+    Planned / recurring items are future-dated, so the rate is the latest
+    cached one on or before ``today`` (never the item's date, never the
+    network). Base-currency accounts are untouched. A missing rate degrades to
+    the native amount (rate 1) with a warning, like the Today account rows.
+    """
+    ref = today if today is not None else dt.date.today()  # noqa: DTZ011 — ADR-0007
+    base = base_currency or get_settings().base_currency
+    ccy_by_account = {
+        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
+    }
+
+    def _convert(account_id: int, amount_minor: int) -> int:
+        ccy = ccy_by_account.get(account_id, base)
+        if ccy == base:
+            return amount_minor
+        try:
+            return fx_svc.convert_cached(conn, amount_minor, ref, ccy, base)
+        except fx_svc.FxUnavailableError:
+            logger.warning("no FX rate %s->%s; committed uses native amount", ccy, base)
+            return amount_minor
+
+    return _convert
+
+
+def base_txn_converter(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    base_currency: str | None = None,
+) -> Callable[[Transaction], int]:
+    """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095).
+
+    Per ADR-0006 aggregates use historical rates: each transaction converts at
+    the latest cached rate on or before its own ``operation_date`` (cache only,
+    no network). Base-currency accounts short-circuit with no lookup. A missing
+    rate degrades to the native amount with a warning.
+    """
+    base = base_currency or get_settings().base_currency
+    ccy_by_account = {
+        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
+    }
+
+    def _convert(txn: Transaction) -> int:
+        ccy = ccy_by_account.get(txn.account_id, base)
+        if ccy == base:
+            return txn.amount
+        try:
+            return fx_svc.convert_cached(conn, txn.amount, txn.operation_date, ccy, base)
+        except fx_svc.FxUnavailableError:
+            logger.warning("no FX rate %s->%s; spent uses native amount", ccy, base)
+            return txn.amount
+
+    return _convert
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +136,9 @@ class MonthTotals:
     spent_minor: int
     committed_minor: int
     remaining_minor: int
+    # ADR-0085: same-window planned + recurring expenses in categories with no
+    # budget. Informational only; never part of ``remaining_minor``.
+    unbudgeted_committed_minor: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,18 +182,19 @@ def prev_year_month(year: int, month: int) -> tuple[int, int]:
 
 def resolve_budget(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     year: int,
     month: int,
 ) -> int | None:
     """Null-coalesce: one-off → recurring → default. Zero is a valid value."""
-    one_off = budgets_repo.get_one_off(conn, category_id, year, month)
+    one_off = budgets_repo.get_one_off(conn, user_id, category_id, year, month)
     if one_off is not None:
         return one_off.amount
-    recurring = budgets_repo.get_recurring(conn, category_id, month)
+    recurring = budgets_repo.get_recurring(conn, user_id, category_id, month)
     if recurring is not None:
         return recurring.amount
-    default = budgets_repo.get_default(conn, category_id)
+    default = budgets_repo.get_default(conn, user_id, category_id)
     if default is not None:
         return default.amount
     return None
@@ -130,9 +205,12 @@ def _month_range(year: int, month: int) -> tuple[date, date]:
     return date(year, month, 1), date(year, month, last_day)
 
 
-def _expense_txns_in_range(conn: sqlite3.Connection, start: date, end: date) -> list[Transaction]:
+def _expense_txns_in_range(
+    conn: sqlite3.Connection, user_id: int, start: date, end: date
+) -> list[Transaction]:
     return transactions_repo.list_filtered(
         conn,
+        user_id,
         TransactionFilter(
             date_from=start,
             date_to=end,
@@ -141,10 +219,12 @@ def _expense_txns_in_range(conn: sqlite3.Connection, start: date, end: date) -> 
     )
 
 
-def _sum_by_category(txns: list[Transaction]) -> dict[int, int]:
+def _sum_by_category(
+    txns: list[Transaction], to_base: Callable[[Transaction], int]
+) -> dict[int, int]:
     out: dict[int, int] = defaultdict(int)
     for t in txns:
-        out[t.category_id] += t.amount
+        out[t.category_id] += to_base(t)
     return dict(out)
 
 
@@ -164,49 +244,43 @@ def _mean_minor(total: int, count: int) -> int:
     return int(quantised)
 
 
-def _all_expense_txns(conn: sqlite3.Connection) -> list[Transaction]:
-    return transactions_repo.list_filtered(conn, TransactionFilter(directions=(Direction.EXPENSE,)))
+def _all_expense_txns(conn: sqlite3.Connection, user_id: int) -> list[Transaction]:
+    return transactions_repo.list_filtered(
+        conn, user_id, TransactionFilter(directions=(Direction.EXPENSE,))
+    )
 
 
-def committed_in_window(
+def _committed_by_category(
     conn: sqlite3.Connection,
+    user_id: int,
     *,
     start: dt.date,
     end: dt.date,
-) -> int:
-    """Return the committed-minor sum for ``[start, end)`` (ADR-0039).
+    today: dt.date | None = None,
+    base_currency: str | None = None,
+) -> dict[int, int]:
+    """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
 
-    Composes two independent sources, both filtered to expense-direction
-    categories only (transit + adjustment + income excluded):
-
-    - **Planned**: ``planned_repo.list_filtered(promoted=False)`` with
-      ``operation_date`` in ``[start, end - 1 day]`` (inclusive date_to on
-      the repo).
-    - **Recurring**: ``services.recurring.expand`` enumerated across
-      every active rule within ``[start, end - 1 day]`` (inclusive upper
-      bound in the generator). Overrides apply - ``state=skipped``
-      drops the occurrence; ``state=overridden`` merges amount / date.
-
-    Returns ``0`` when ``end <= start`` (defensive — callers that pin
-    ``days_until_next_income`` to ``>= 1`` will never trip this branch).
+    Expense-direction categories only (transit + adjustment + income
+    excluded). Sources: unpromoted planned rows and active recurring-rule
+    occurrences (overrides applied) - see :func:`committed_in_window`.
     """
+    out: dict[int, int] = defaultdict(int)
     if end <= start:
-        return 0
+        return out
+    to_base = base_amount_converter(conn, user_id, today=today, base_currency=base_currency)
 
-    # Expense-direction category ids (cheap in-memory lookup).
     expense_ids = {
         cat.id
-        for cat in categories_repo.list_all(conn, include_deleted=True)
+        for cat in categories_repo.list_all(conn, user_id, include_deleted=True)
         if cat.direction is Direction.EXPENSE
     }
-
     inclusive_end = end - dt.timedelta(days=1)
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
-    total = 0
-
-    # --- Planned branch ---------------------------------------------------
     planned_rows = planned_repo.list_filtered(
         conn,
+        user_id,
         PlannedFilter(
             date_from=start,
             date_to=inclusive_end,
@@ -214,28 +288,80 @@ def committed_in_window(
             promoted=False,
         ),
     )
-    total += sum(row.amount for row in planned_rows)
+    for row in planned_rows:
+        out[row.category_id] += to_base(row.account_id, row.amount)
 
-    # --- Recurring branch -------------------------------------------------
     # Clamp the generator window to [max(rule.next_due, start), end). Rules
     # advance ``next_due`` on promote; occurrences on-or-before the previous
     # ``next_due`` have either been promoted (counted in ``spent``) or are
-    # historical no-ops — either way they are not committed future money.
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    # historical no-ops. The generator anchors on ``rule.start_date``, so the
+    # clamp never shifts the cadence (each occurrence is counted once).
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id not in expense_ids:
             continue
         rule_start = max(rule.next_due, start)
         if rule_start > inclusive_end:
             continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
-        occurrences = recurring_svc.rt_expand(conn, rule, overrides, rule_start, inclusive_end)
-        total += sum(occ.amount for occ in occurrences)
+        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
+        occurrences = recurring_svc.rt_expand(
+            conn, user_id, rule, overrides, rule_start, inclusive_end
+        )
+        out[rule.category_id] += sum(
+            to_base(occ.account_id, occ.amount)
+            for occ in occurrences
+            if (rule.id, occ.occurrence_date) not in dedup_keys
+        )
+    return out
 
-    return total
+
+def committed_in_window(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    start: dt.date,
+    end: dt.date,
+    today: dt.date | None = None,
+    base_currency: str | None = None,
+) -> int:
+    """Return the committed-minor sum for ``[start, end)`` over ALL expense categories.
+
+    Composes unpromoted planned expenses and active recurring-rule expense
+    occurrences (``state=skipped`` drops, ``state=overridden`` merges).
+    Returns ``0`` when ``end <= start``. This is the unfiltered total; the
+    budget "left" math uses :func:`committed_split_in_window` (ADR-0085).
+    """
+    by_cat = _committed_by_category(
+        conn, user_id, start=start, end=end, today=today, base_currency=base_currency
+    )
+    return sum(by_cat.values())
+
+
+def committed_split_in_window(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    start: dt.date,
+    end: dt.date,
+    budgeted_category_ids: frozenset[int],
+    today: dt.date | None = None,
+    base_currency: str | None = None,
+) -> tuple[int, int]:
+    """Return ``(budgeted_committed, unbudgeted_committed)`` for ``[start, end)``.
+
+    ADR-0085: only commitments in categories with a resolved budget reduce
+    "left"; the rest is surfaced as an informational figure.
+    """
+    by_cat = _committed_by_category(
+        conn, user_id, start=start, end=end, today=today, base_currency=base_currency
+    )
+    budgeted = sum(v for k, v in by_cat.items() if k in budgeted_category_ids)
+    unbudgeted = sum(v for k, v in by_cat.items() if k not in budgeted_category_ids)
+    return budgeted, unbudgeted
 
 
 def _resolve_anchor(
     conn: sqlite3.Connection,
+    user_id: int,
     today: date,
     budgeted_total: int,
     end_of_month: date,
@@ -248,32 +374,23 @@ def _resolve_anchor(
     """
     if budgeted_total == 0:
         return None, end_of_month
-    anchor = preferences_svc.resolve_income_anchor_category(conn)
+    anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
     if anchor is None:
         return None, end_of_month
-    hit = income_svc.next_anchor_date(conn, anchor.id, after=today)
+    hit = income_svc.next_anchor_date(conn, user_id, anchor.id, after=today)
     if hit is None:
         return None, end_of_month
     return anchor.name, hit
 
 
-def fiscal_month_for(conn: sqlite3.Connection, today: date) -> tuple[int, int]:
-    """Return the ``(year, month)`` of the cycle whose paycheck most recently landed.
-
-    Defined per ADR-0064: the Plan / Today / Overview surfaces default their
-    landing month to the month of ``last_anchor_date`` so a user still inside
-    the previous cycle (today is before the next scheduled anchor) sees the
-    budget for the cycle they are actually in.
-
-    Falls back to ``(today.year, today.month)`` when the anchor is unset or
-    when no promoted anchor-category transaction exists on-or-before today —
-    mirroring the ADR-0041 fallback used inside ``_resolve_period_start``.
-    """
-    anchor_category = preferences_svc.resolve_income_anchor_category(conn)
+def fiscal_month_for(conn: sqlite3.Connection, user_id: int, today: date) -> tuple[int, int]:
+    """Return the ``(year, month)`` of the cycle whose paycheck most recently landed."""
+    anchor_category = preferences_svc.resolve_income_anchor_category(conn, user_id)
     if anchor_category is None:
         return today.year, today.month
     rows = transactions_repo.list_filtered(
         conn,
+        user_id,
         TransactionFilter(
             date_to=today,
             category_ids=(anchor_category.id,),
@@ -286,8 +403,9 @@ def fiscal_month_for(conn: sqlite3.Connection, today: date) -> tuple[int, int]:
     return last_anchor_date.year, last_anchor_date.month
 
 
-def _resolve_period_start(
+def _resolve_period_start(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     conn: sqlite3.Connection,
+    user_id: int,
     today: date,
     year: int,
     month: int,
@@ -307,6 +425,7 @@ def _resolve_period_start(
         return month_start
     rows = transactions_repo.list_filtered(
         conn,
+        user_id,
         TransactionFilter(
             date_to=today,
             category_ids=(anchor_category.id,),
@@ -320,8 +439,19 @@ def _resolve_period_start(
     return max(row.operation_date for row in rows)
 
 
+def resolve_period_start(conn: sqlite3.Connection, user_id: int, today: date) -> date:
+    """Public period-start resolution for ``today`` (ADR-0041, ADR-0089).
+
+    Last landed income-anchor transaction ``<= today``; else the 1st of
+    ``today``'s month. Same logic as the budget's private resolver.
+    """
+    anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
+    return _resolve_period_start(conn, user_id, today, today.year, today.month, anchor)
+
+
 def month_summary(  # noqa: PLR0915
     conn: sqlite3.Connection,
+    user_id: int,
     year: int,
     month: int,
     *,
@@ -340,7 +470,7 @@ def month_summary(  # noqa: PLR0915
     actually landed inside that calendar month instead of inheriting the
     anchor-window Y-axis of the real today (V.32).
     """
-    cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
+    cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
 
     prev_y, prev_m = prev_year_month(year, month)
     prev_start, prev_end = _month_range(prev_y, prev_m)
@@ -351,7 +481,7 @@ def month_summary(  # noqa: PLR0915
     # paycheck-window shift (ADR-0041 keeps those on month-start to preserve
     # the pre-ADR-0041 per-category view).
     budgets_by_cat: dict[int, int | None] = {
-        cat.id: resolve_budget(conn, cat.id, year, month) for cat in cats
+        cat.id: resolve_budget(conn, user_id, cat.id, year, month) for cat in cats
     }
     budgeted_total = sum(amount or 0 for amount in budgets_by_cat.values())
 
@@ -365,18 +495,19 @@ def month_summary(  # noqa: PLR0915
         period_start = month_start
         period_end = today
     else:
-        anchor_category = preferences_svc.resolve_income_anchor_category(conn)
-        period_start = _resolve_period_start(conn, today, year, month, anchor_category)
+        anchor_category = preferences_svc.resolve_income_anchor_category(conn, user_id)
+        period_start = _resolve_period_start(conn, user_id, today, year, month, anchor_category)
         period_end = today
-    this_txns = _expense_txns_in_range(conn, period_start, period_end)
-    prev_txns = _expense_txns_in_range(conn, prev_start, prev_end)
-    year_txns = _expense_txns_in_range(conn, year_start, year_end)
-    all_txns = _all_expense_txns(conn)
+    this_txns = _expense_txns_in_range(conn, user_id, period_start, period_end)
+    prev_txns = _expense_txns_in_range(conn, user_id, prev_start, prev_end)
+    year_txns = _expense_txns_in_range(conn, user_id, year_start, year_end)
+    all_txns = _all_expense_txns(conn, user_id)
 
-    spent_this = _sum_by_category(this_txns)
-    spent_prev = _sum_by_category(prev_txns)
-    year_sums = _sum_by_category(year_txns)
-    overall_sum = _sum_by_category(all_txns)
+    txn_to_base = base_txn_converter(conn, user_id)
+    spent_this = _sum_by_category(this_txns, txn_to_base)
+    spent_prev = _sum_by_category(prev_txns, txn_to_base)
+    year_sums = _sum_by_category(year_txns, txn_to_base)
+    overall_sum = _sum_by_category(all_txns, txn_to_base)
     overall_mo = _active_month_counts(all_txns)
 
     elapsed_in_year = month if year_txns else max(month, 1)
@@ -412,19 +543,29 @@ def month_summary(  # noqa: PLR0915
 
     end_of_month = _month_range(year, month)[1]
     anchor_category_name, next_income_date = _resolve_anchor(
-        conn, today, budgeted_total, end_of_month
+        conn, user_id, today, budgeted_total, end_of_month
     )
     left_daily_spend_minor: int | None = None
     days_until_next_income = max((next_income_date - today).days, 1)
 
-    # ADR-0039: committed = unpromoted planned + active-recurring expense
-    # amounts due in [today, next_income_date). Zero-budget months keep
+    # ADR-0039/0085: committed = unpromoted planned + active-recurring expense
+    # amounts due in [today, next_income_date) in BUDGETED categories only. Zero-budget months keep
     # committed_minor=0 so the dim sub-line renders a flat zero (clearer
     # than hiding).
     if budgeted_total == 0:
         committed_total = 0
+        unbudgeted_committed = 0
     else:
-        committed_total = committed_in_window(conn, start=today, end=next_income_date)
+        committed_total, unbudgeted_committed = committed_split_in_window(
+            conn,
+            user_id,
+            start=today,
+            end=next_income_date,
+            today=today,
+            budgeted_category_ids=frozenset(
+                cat_id for cat_id, amount in budgets_by_cat.items() if amount is not None
+            ),
+        )
 
     remaining_total = pre_commit_remaining - committed_total
 
@@ -433,6 +574,7 @@ def month_summary(  # noqa: PLR0915
         spent_minor=spent_total,
         committed_minor=committed_total,
         remaining_minor=remaining_total,
+        unbudgeted_committed_minor=unbudgeted_committed,
     )
 
     if budgeted_total != 0:
@@ -455,22 +597,16 @@ def month_summary(  # noqa: PLR0915
     )
 
 
-def yearly_grid(conn: sqlite3.Connection, year: int) -> tuple[YearlyRow, ...]:
-    """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets.
-
-    Projection over the three persistence tables; no new storage per
-    ADR-0031 §3. Each cell carries both the resolved amount (or ``None``
-    when no tier is set) and the origin tag so the UI can encode tier
-    dominance via typography (bold = one-off, italic = recurring, plain =
-    default, em-dash = unset).
-    """
-    cats = [c for c in categories_repo.list_all(conn) if c.direction is Direction.EXPENSE]
-    defaults_by_cat = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn)}
+def yearly_grid(conn: sqlite3.Connection, user_id: int, year: int) -> tuple[YearlyRow, ...]:
+    """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets."""
+    cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
+    defaults_by_cat = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
     recurring_by_key: dict[tuple[int, int], int] = {
-        (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn)
+        (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn, user_id)
     }
     one_off_by_key: dict[tuple[int, int], int] = {
-        (o.category_id, o.month): o.amount for o in budgets_repo.list_one_off(conn, year=year)
+        (o.category_id, o.month): o.amount
+        for o in budgets_repo.list_one_off(conn, user_id, year=year)
     }
 
     rows: list[YearlyRow] = []
@@ -515,9 +651,11 @@ __all__ = [
     "YearlyCell",
     "YearlyRow",
     "committed_in_window",
+    "committed_split_in_window",
     "fiscal_month_for",
     "month_summary",
     "prev_year_month",
     "resolve_budget",
+    "resolve_period_start",
     "yearly_grid",
 ]

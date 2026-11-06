@@ -1,7 +1,0 @@
-{# T-093 — /overview/upcoming response: the list body (innerHTML target
-   #upcoming-list) plus an out-of-band swap of the segmented range so the
-   active state stays in sync with ``window_label`` without any new JS.
-   HTMX finds the matching ``id="upcoming-range"`` in the DOM and swaps. #}
-{% include "home/_upcoming_list.html" %}
-{%- set oob = true -%}
-{% include "home/_upcoming_range.html" %}

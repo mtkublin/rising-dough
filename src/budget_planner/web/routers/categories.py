@@ -12,7 +12,7 @@ from budget_planner.domain.categories import NewCategory, PatchCategory, normali
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import categories as categories_repo
 from budget_planner.services import categories as categories_service
-from budget_planner.web.deps import get_db
+from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
@@ -83,6 +83,7 @@ def create_category(  # noqa: PLR0917
     color: str | None = Form(None),
     clear_color: str | None = Form(None),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
     d = _validate_direction(direction)
@@ -106,7 +107,7 @@ def create_category(  # noqa: PLR0917
         )
     assert d is not None
     cat = categories_repo.create(
-        conn, NewCategory(name=name.strip(), direction=d, color=resolved_color)
+        conn, user_id, NewCategory(name=name.strip(), direction=d, color=resolved_color)
     )
     html = render(request, "partials/categories/_row.html", category=cat)
     trigger(html, "budget-stale")
@@ -115,9 +116,12 @@ def create_category(  # noqa: PLR0917
 
 @router.get("/{category_id}/edit", response_class=HTMLResponse)
 def edit_form(
-    category_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    category_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    cat = categories_repo.find_by_id(conn, category_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         return render(
             request,
@@ -146,8 +150,9 @@ def update_category(  # noqa: PLR0917
     color: str | None = Form(None),
     clear_color: str | None = Form(None),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    cat = categories_repo.find_by_id(conn, category_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         return render(
             request,
@@ -180,8 +185,8 @@ def update_category(  # noqa: PLR0917
         color=resolved_color,
         clear_color=clear_requested,
     )
-    categories_repo.update(conn, category_id, patch)
-    updated = categories_repo.find_by_id(conn, category_id)
+    categories_repo.update(conn, user_id, category_id, patch)
+    updated = categories_repo.find_by_id(conn, user_id, category_id)
     assert updated is not None
     html = render(request, "partials/categories/_row.html", category=updated)
     trigger(html, "budget-stale")
@@ -189,13 +194,17 @@ def update_category(  # noqa: PLR0917
 
 
 @router.post("/{category_id}/delete")
-def delete_category(category_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
-    cat = categories_repo.find_by_id(conn, category_id)
+def delete_category(
+    category_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
     if cat.is_system:
         return Response(status_code=409, content="system categories cannot be deleted")
-    categories_repo.soft_delete(conn, category_id)
+    categories_repo.soft_delete(conn, user_id, category_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "budget-stale")
     return resp
@@ -228,9 +237,10 @@ def _toast_trigger(
 def archive_category(
     category_id: int,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     try:
-        categories_service.archive(conn, category_id)
+        categories_service.archive(conn, user_id, category_id)
     except categories_service.CategoryNotFoundError:
         return Response(status_code=404, content="not found")
     except categories_service.SystemCategoryError:
@@ -251,9 +261,10 @@ def archive_category(
 def restore_category(
     category_id: int,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     try:
-        categories_service.restore(conn, category_id)
+        categories_service.restore(conn, user_id, category_id)
     except categories_service.CategoryNotFoundError:
         return Response(status_code=404, content="not found")
     resp = Response(status_code=204)

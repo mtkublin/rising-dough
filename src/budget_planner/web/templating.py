@@ -33,6 +33,23 @@ def _money_filter(amount_minor: int | None, currency: str) -> str:
     return format_money(int(amount_minor), currency)
 
 
+def _money_num_filter(
+    amount_minor: int | None, currency: str, signed: bool = False, abs_value: bool = False
+) -> str:
+    """Grouped number in the currency's own decimals, no currency suffix (T-JPY).
+
+    JPY/KRW render with 0 decimals, PLN/EUR with 2. ``signed`` forces a ``+``
+    on positives; ``abs_value`` drops the sign (caller renders it).
+    """
+    if amount_minor is None:
+        return ""
+    value = from_minor_units(int(amount_minor), currency)
+    if abs_value:
+        value = abs(value)
+    spec = f"{'+' if signed else ''},.{currency_decimals(currency)}f"
+    return format(value, spec)
+
+
 def _money_major_filter(amount_minor: int | None, currency: str) -> str:
     """Render minor-units as a bare major-unit decimal (no currency suffix).
 
@@ -188,6 +205,8 @@ def build_jinja_env(settings: Settings) -> Environment:
         enable_async=False,
     )
     env.filters["money"] = _money_filter
+    env.filters["money_num"] = _money_num_filter
+    env.filters["currency_decimals"] = currency_decimals
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)

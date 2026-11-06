@@ -14,13 +14,15 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import categories as categories_repo
 
+USER_ID = 1
+
 
 @pytest.fixture
 def cat_id(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         return cat.id
     finally:
@@ -100,7 +102,7 @@ def test_delete_404(client: TestClient) -> None:
 def test_delete_system_blocked(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        transit = next(c for c in categories_repo.list_all(conn) if c.is_system)
+        transit = next(c for c in categories_repo.list_all(conn, USER_ID) if c.is_system)
     finally:
         conn.close()
     r = client.post(f"/categories/{transit.id}/delete")
@@ -118,7 +120,7 @@ def test_create_with_color(client: TestClient, _migrated: Settings) -> None:
     assert r.status_code == 200
     conn = get_connection(_migrated)
     try:
-        cat = categories_repo.find_by_name(conn, "Travel")
+        cat = categories_repo.find_by_name(conn, USER_ID, "Travel")
     finally:
         conn.close()
     assert cat is not None
@@ -139,7 +141,7 @@ def test_create_clear_color_wins_over_color_value(client: TestClient, _migrated:
     assert r.status_code == 200
     conn = get_connection(_migrated)
     try:
-        cat = categories_repo.find_by_name(conn, "Reset")
+        cat = categories_repo.find_by_name(conn, USER_ID, "Reset")
     finally:
         conn.close()
     assert cat is not None
@@ -190,7 +192,7 @@ def test_archive_missing_404(client: TestClient) -> None:
 def test_archive_system_403(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        recon = categories_repo.find_by_name(conn, RECONCILIATION_CATEGORY_NAME)
+        recon = categories_repo.find_by_name(conn, USER_ID, RECONCILIATION_CATEGORY_NAME)
     finally:
         conn.close()
     assert recon is not None

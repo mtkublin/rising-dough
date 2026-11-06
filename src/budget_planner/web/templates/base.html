@@ -3,7 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token"
+          content="{{ csrf_token if csrf_token is string else '' }}">
     <title>{% block title %}Rising Dough{% endblock %}</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', path='favicon.svg') }}?v=fav1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
@@ -15,11 +20,14 @@
     <link rel="stylesheet"
           href="{{ url_for('static', path='app.css') }}?v=fit1">
     <link rel="stylesheet"
-          href="{{ url_for('static', path='rising-dough.css') }}?v=rd1">
+          href="{{ url_for('static', path='rising-dough.css') }}?v=rd7">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='auth.css') }}?v=auth1">
     <script src="https://unpkg.com/htmx.org@2"></script>
+    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="rd min-h-screen">
+  <body class="rd min-h-screen" hx-ext="csrf">
     <a class="skip-link sr-only focus:not-sr-only" href="#main">Skip to content</a>
     <div class="rd-shell">
       <aside class="rd-rail">
@@ -28,6 +36,14 @@
         {% endblock %}
       </aside>
       <main id="main" tabindex="-1" class="rd-main">
+        {% if request.state.user is defined and request.state.user and not request.url.path.startswith("/auth/") %}
+          <nav class="rd-account-mobile" aria-label="Account">
+            <form method="post" action="/auth/logout">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="rd-btn rd-btn--ghost rd-btn--sm">Sign out</button>
+            </form>
+          </nav>
+        {% endif %}
         <div id="flash-region"
              role="status"
              aria-live="polite"
@@ -58,7 +74,8 @@
     <script>
       window.__TODAY_LOCAL__ = "{{ today_local() }}";
       document.body.addEventListener("htmx:beforeSwap", function (evt) {
-        if (evt.detail.xhr && evt.detail.xhr.status === 422) {
+        if (evt.detail.xhr && (evt.detail.xhr.status === 422 || evt.detail.xhr.status === 429)) {
+          // 429: throttled form re-render (T-D18a, ADR-0072)
           evt.detail.shouldSwap = true;
           evt.detail.isError = false;
         }

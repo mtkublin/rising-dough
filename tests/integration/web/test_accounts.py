@@ -22,12 +22,16 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import balance as balance_service
 
+USER_ID = 1
+
 
 @pytest.fixture
 def acc_id(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         return acc.id
     finally:
         conn.close()
@@ -119,9 +123,12 @@ def test_delete(client: TestClient, acc_id: int, _migrated: Settings) -> None:
 def test_snapshot(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        cat = categories_repo.create(conn, NewCategory(name="X", direction=Direction.EXPENSE))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="X", direction=Direction.EXPENSE)
+        )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 1),
                 category_id=cat.id,
@@ -192,9 +199,12 @@ def test_card_renders_sparkline(client: TestClient, acc_id: int, _migrated: Sett
     # Give the account at least one historical transaction so the series is not flat-zero.
     conn = get_connection(_migrated)
     try:
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date.today(),  # noqa: DTZ011
                 category_id=cat.id,
@@ -221,7 +231,7 @@ def test_card_sparkline_empty_state_degrades_gracefully(client: TestClient, acc_
     # be drawn. The card should still render; graceful text replaces the SVG.
     original = balance_service.balance_series
 
-    def _one_point(conn, account_id, *, days=90, today=None):  # type: ignore[no-untyped-def]
+    def _one_point(conn, user_id, account_id, *, days=90, today=None):  # type: ignore[no-untyped-def]
         d = today or date(2026, 10, 26)
         return [(d, 0)]
 
@@ -331,6 +341,7 @@ def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated:
     try:
         acc = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -347,7 +358,7 @@ def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated:
     assert r.status_code == 200
     conn = get_connection(_migrated)
     try:
-        after = accounts_repo.find_by_id(conn, acc.id)
+        after = accounts_repo.find_by_id(conn, USER_ID, acc.id)
     finally:
         conn.close()
     assert after is not None
@@ -363,6 +374,7 @@ def test_card_shows_utilization_strip_only_for_liability(
     try:
         accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -370,7 +382,7 @@ def test_card_shows_utilization_strip_only_for_liability(
                 credit_limit_minor=1_000_000,
             ),
         )
-        accounts_repo.create(conn, NewAccount(name="Bank", currency="PLN"))
+        accounts_repo.create(conn, USER_ID, NewAccount(name="Bank", currency="PLN"))
     finally:
         conn.close()
     r = client.get("/accounts")
@@ -394,6 +406,7 @@ def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
     try:
         visa = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -401,9 +414,12 @@ def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
                 credit_limit_minor=100_000,
             ),
         )
-        cat = categories_repo.create(conn, NewCategory(name="X", direction=Direction.EXPENSE))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="X", direction=Direction.EXPENSE)
+        )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date.today(),  # noqa: DTZ011
                 category_id=cat.id,
@@ -425,6 +441,7 @@ def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Setti
     try:
         visa = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -432,9 +449,12 @@ def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Setti
                 credit_limit_minor=1_000_000,
             ),
         )
-        cat = categories_repo.create(conn, NewCategory(name="Y", direction=Direction.EXPENSE))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Y", direction=Direction.EXPENSE)
+        )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date.today(),  # noqa: DTZ011
                 category_id=cat.id,
@@ -456,10 +476,12 @@ def test_accounts_index_renders_assets_liabilities_net(
     try:
         accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(name="Bank", currency="PLN", opening_balance=100_000),
         )
         accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -523,6 +545,7 @@ def test_edit_form_shows_credit_limit_for_liability(
     try:
         visa = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -555,6 +578,7 @@ def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Set
     try:
         visa = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -587,3 +611,29 @@ def test_last_checked_with_accounts(client: TestClient, acc_id: int) -> None:
     assert r.status_code == 200
     assert 'data-rows="1"' in r.text
     assert 'data-source="none"' in r.text
+
+
+# ---------------------------------------------------------------------------
+# T-D51 — Liability "Available" renders with 2 decimals.
+
+
+def test_liability_available_shows_two_decimals(client: TestClient, _migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    try:
+        accounts_repo.create(
+            conn,
+            USER_ID,
+            NewAccount(
+                name="Visa T-D51",
+                currency="PLN",
+                is_liability=True,
+                credit_limit_minor=500_000,
+                opening_balance=-123_456,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    assert "Available 3,765.44 ·" in r.text
+    assert "Available 3,765 ·" not in r.text

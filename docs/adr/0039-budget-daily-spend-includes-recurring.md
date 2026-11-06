@@ -1,6 +1,6 @@
 # ADR-0039: Budget "Left to Spend per Day" Includes Recurring Commitments
 
-- **Status**: Accepted
+- **Status**: Accepted (amended by [ADR-0085](0085-budget-left-counts-only-budgeted-commitments.md): only budgeted categories' commitments reduce left)
 - **Date**: 2026-10-27
 - **Amends**: ADR-0025 §F4.6, ADR-0038
 
