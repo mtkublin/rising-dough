@@ -1846,7 +1846,7 @@ kbd.rd-kbd {
 /* ─── Plan · Budget top bar + override card (manual-audit #34, #35) ─ */
 .rd-period-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
   gap: 2rem;
   align-items: center;
   padding: 1rem 1.5rem;
@@ -1858,7 +1858,21 @@ kbd.rd-kbd {
 .rd-period-bar__range { font-family: var(--font-display); font-size: 1.1rem; margin-top: 0.15rem; }
 .rd-period-bar__anchor { font-size: 0.75rem; margin-top: 0.1rem; }
 .rd-period-bar__anchor a { color: var(--ink); text-underline-offset: 2px; }
-.rd-period-bar__right { text-align: right; }
+
+.rd-period-bar__left,
+.rd-period-bar__bar,
+.rd-period-bar__right { min-width: 0; }
+.rd-period-bar__right { text-align: right; overflow-wrap: anywhere; }
+
+@media (width <= 640px) {
+  /* T-VIS4: stack the three columns so the per-day figure and meta lines fit 375px. */
+  .rd-period-bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .rd-period-bar__right { text-align: left; }
+}
 .rd-period-bar__perday { font-size: 1.6rem; letter-spacing: -0.02em; }
 .rd-period-bar__meta { font-size: 0.75rem; margin-top: 0.15rem; }
 
