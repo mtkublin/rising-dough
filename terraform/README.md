@@ -24,7 +24,7 @@ terraform/
 ├── modules/
 │   ├── iam/      # application + policy + API key
 │   ├── storage/  # durability bucket (versioning on, SSE, no public, 30d lifecycle)
-│   ├── dns/      # managed zone or external-zone records-only
+│   ├── dns/      # A/AAAA records only; zone is never owned by Terraform (ADR-0088)
 │   └── compute/  # Stardust1-S + Flex IPv4 + security group + user_data
 ├── cloud-init/
 │   ├── bootstrap.yaml.tpl           # first-boot sequence
