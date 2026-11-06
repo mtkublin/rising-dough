@@ -92,3 +92,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0087 | [Forecast Honours Recurring `next_due`](0087-forecast-honours-recurring-next-due.md) (amends ADR-0043) |
 | 0088 | [DNS Zone Is Not Owned by Any Env Terraform State](0088-dns-zone-not-owned-by-env-state.md) (amends ADR-0035) |
 | 0089 | [Accounts Tab Planned Net per Account](0089-accounts-planned-net-per-account.md) (relates to ADR-0085, ADR-0087) |
+| 0090 | [Terraform >= 1.10 Minimum and CI Pin to 1.17.1](0090-terraform-minimum-1-10-ci-pin.md) (amends ADR-0035) |

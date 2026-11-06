@@ -257,6 +257,9 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `managed_dns_zone = true` now means "zone exists at Scaleway DNS, manage this env's records". `false` (external zone, no records) still works.
 - Reference: ADR-0088 (amends ADR-0035).
 
+### ✅ T-D64 [P] Terraform >= 1.10 + CI pin 1.17.1 → T-D20
+- Floor is `>= 1.10.0` (native S3 lockfile for `use_lockfile = true`). CI pins and `.terraform-version` are `1.17.1`, matching the operator. Reference: ADR-0090.
+
 ### ✅ T-D65 [P] DNS AAAA record count known at plan time → T-D63
 - `scaleway_domain_record.aaaa` count was `managed_zone && instance_ipv6 != null`, which fails first plan ("Invalid count argument", address unknown until apply). Compute always creates the IPv6 IP, so count is now `managed_zone ? 1 : 0` and `instance_ipv6` is required. Reference: ADR-0088.
 

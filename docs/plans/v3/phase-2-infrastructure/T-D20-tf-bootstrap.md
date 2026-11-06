@@ -13,11 +13,11 @@ Terraform cannot store its own state if the state bucket does not exist yet. The
 ## Deliverables
 
 1. `terraform/scripts/bootstrap-state.sh` — idempotent script that creates `budget-planner-tfstate-pl-waw` in `pl-waw` with versioning on, no public access. Reads `SCW_ACCESS_KEY` + `SCW_SECRET_KEY` from the operator's environment.
-2. `terraform/.terraform-version` — pins Terraform v1.9+.
+2. `terraform/.terraform-version` — pins Terraform 1.17.1 (raised from 1.9 by T-D64, ADR-0090).
 3. `terraform/versions.tf`:
    ```hcl
    terraform {
-     required_version = ">= 1.9.0"
+     required_version = ">= 1.10.0"
      required_providers {
        scaleway = {
          source  = "scaleway/scaleway"
