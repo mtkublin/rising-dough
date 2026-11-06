@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D58 — PRAGMA secure_delete)
+- **T-D58: `PRAGMA secure_delete = ON` on every connection** (ADR-0078 §6). Set in `_apply_pragmas` next to the Litestream PRAGMAs, so deleted and overwritten rows are zeroed on disk instead of lingering in free pages. Unit tests assert the pragma and that a deleted sentinel is absent from the DB file after checkpoint. Negative control confirmed the sentinel survives without the pragma.
+
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 

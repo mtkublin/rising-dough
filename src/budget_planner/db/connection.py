@@ -6,6 +6,8 @@ Every connection returned here has:
 - `synchronous = NORMAL` (safe with WAL).
 - `wal_autocheckpoint = 0` — Litestream owns checkpoint cadence (ADR-0034 §2).
 - `busy_timeout = 5000` ms — tolerates sidecar read bursts.
+- `secure_delete = ON` — deleted/overwritten content is zeroed on disk
+  instead of lingering in free pages (ADR-0078 §6).
 - `row_factory = sqlite3.Row` for column-name access.
 - `isolation_level = None` so transactions are managed explicitly.
 - `check_same_thread = False` so a request-scoped connection can cross the
@@ -36,7 +38,11 @@ def _resolve_db_path(database_url: str) -> Path:
 
 
 def _apply_pragmas(conn: sqlite3.Connection) -> None:
-    """Apply the four Litestream-mandated PRAGMAs on an existing connection.
+    """Apply the Litestream-mandated PRAGMAs plus ``secure_delete`` on an existing connection.
+
+    ``secure_delete`` (ADR-0078 §6) is a data-protection setting applied
+    alongside the four Litestream PRAGMAs so that deleted rows are zeroed
+    on disk rather than left readable in free pages.
 
     Separated from :func:`get_connection` so other factories (e.g. an
     in-memory test connection) can share the same invariant without
@@ -48,6 +54,7 @@ def _apply_pragmas(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA synchronous = NORMAL;")
     conn.execute("PRAGMA wal_autocheckpoint = 0;")
     conn.execute("PRAGMA busy_timeout = 5000;")
+    conn.execute("PRAGMA secure_delete = ON;")
 
 
 def get_connection(settings: Settings) -> sqlite3.Connection:
