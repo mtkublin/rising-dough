@@ -24,4 +24,5 @@ New service `services/account_planned.py` computes, per account and in the accou
 
 - `forecast._expand_unpromoted` becomes a thin caller of the shared `recurring.expand_unpromoted` (no behaviour change).
 - `services/budget.py` is untouched; period resolution is reused through a new public wrapper (`resolve_period_start`).
+- Archived categories' planned items still count, by their category's direction (as in forecast); archiving never removes them from the net.
 - Foreign-currency accounts show their own net; the hero ignores them (consistent with the Assets/Liabilities hero).

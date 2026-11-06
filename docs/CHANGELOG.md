@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
+- **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
+
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
 ## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)
