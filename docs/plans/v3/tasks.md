@@ -254,6 +254,9 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `managed_dns_zone = true` now means "zone exists at Scaleway DNS, manage this env's records". `false` (external zone, no records) still works.
 - Reference: ADR-0088 (amends ADR-0035).
 
+### ✅ T-D65 [P] DNS AAAA record count known at plan time → T-D63
+- `scaleway_domain_record.aaaa` count was `managed_zone && instance_ipv6 != null`, which fails first plan ("Invalid count argument", address unknown until apply). Compute always creates the IPv6 IP, so count is now `managed_zone ? 1 : 0` and `instance_ipv6` is required. Reference: ADR-0088.
+
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
