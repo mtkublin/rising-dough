@@ -1,7 +1,10 @@
 # Changelog
 
+## 2026-11-06 (T-FIX5b — ADR renumber)
+- **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
+
 ## 2026-11-06 (T-FIX5 — budget committed converts to base currency)
-- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0092, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
+- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0093, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
 ## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
 - **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
 ## 2026-11-06 (T-VIS6 — /accounts mobile table)
