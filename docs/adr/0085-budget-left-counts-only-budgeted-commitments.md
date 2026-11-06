@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-06
 - **Amends**: ADR-0039, ADR-0041 (`left_daily_spend` numerator)
-- **Amended by**: ADR-0093 (committed figures convert to base currency)
+- **Amended by**: ADR-0095 (committed figures convert to base currency)
 
 ## Context
 

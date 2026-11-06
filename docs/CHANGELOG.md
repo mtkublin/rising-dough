@@ -6,7 +6,7 @@
 - **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
 
 ## 2026-11-06 (T-FIX5 — budget committed converts to base currency)
-- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0093, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
+- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0095, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
 ## 2026-11-06 (T-D70 — CI Terraform inputs via TF_VAR_* secrets)
 - **CI(T-D70): `terraform.yml` and `restore-drill.yml` pass every Terraform input as `TF_VAR_*` from environment-scoped GitHub secrets (`drill`, `prod`, ungated `prod-plan`); `-var-file` removed (tfvars are gitignored and were absent in CI). Guard script `terraform/scripts/check_tf_vars.py`, `-input=false` everywhere, architecture test, operator checklist A5 secrets table (ADR-0093).**
 

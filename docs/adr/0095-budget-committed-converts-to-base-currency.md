@@ -1,4 +1,4 @@
-# ADR-0093: Budget `committed` Converts to Base Currency
+# ADR-0095: Budget `committed` Converts to Base Currency
 
 - **Status**: Accepted
 - **Date**: 2026-11-06
