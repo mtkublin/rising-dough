@@ -89,3 +89,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0084 | [v3 Compute Zone `pl-waw-2` and Ubuntu 24.04 (`ubuntu_noble`) Image Slug](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) (amends ADR-0032) |
 | 0085 | [Budget "Left" Counts Only Commitments in Budgeted Categories](0085-budget-left-counts-only-budgeted-commitments.md) (amends ADR-0039, ADR-0041) |
 | 0086 | [Formula Sources Honour Per-Occurrence Overrides in Chains](0086-formula-source-overrides-honoured-in-chains.md) (clarifies ADR-0046, ADR-0047) |
+| 0087 | [Forecast Honours Recurring `next_due`](0087-forecast-honours-recurring-next-due.md) (amends ADR-0043) |
