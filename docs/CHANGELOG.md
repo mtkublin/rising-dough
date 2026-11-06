@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D60 — IP / user-agent retention purge)
+- **Feat(T-D60): audit `ip`/`user_agent` nulled and ended sessions deleted after `retention_personal_days` (default 90).** Runs from the container entrypoint (after `startup_migrate`, non-fatal) and daily on the app lifespan. Audit rows are kept. ADR-0078 §7.
+
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 
