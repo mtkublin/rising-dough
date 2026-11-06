@@ -10,6 +10,8 @@ scaleway_zone            = "pl-waw-2"
 
 domain           = "example.com"
 subdomain_drill  = "drill.budget"
+# true = zone exists at Scaleway DNS, Terraform manages only this env's A/AAAA (ADR-0088).
+# false = zone elsewhere, no DNS resources created.
 managed_dns_zone = false
 
 app_image_tag = "main"

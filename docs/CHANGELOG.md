@@ -5,6 +5,8 @@
 
 ## 2026-11-06 (T-D58 — PRAGMA secure_delete)
 - **T-D58: `PRAGMA secure_delete = ON` on every connection** (ADR-0078 §6). Set in `_apply_pragmas` next to the Litestream PRAGMAs, so deleted and overwritten rows are zeroed on disk instead of lingering in free pages. Unit tests assert the pragma and that a deleted sentinel is absent from the DB file after checkpoint. Negative control confirmed the sentinel survives without the pragma.
+## 2026-11-06 (T-D63 — DNS zone not owned by env state)
+- **Fix(T-D63): `modules/dns` no longer creates `scaleway_domain_zone`.** Drill and prod states would both have owned the `rising-dough.eu` zone, so a drill destroy could delete prod records. Records now reference the existing Scaleway Domains zone by name; each env owns only its own A/AAAA. ADR-0088 amends ADR-0035.
 
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.

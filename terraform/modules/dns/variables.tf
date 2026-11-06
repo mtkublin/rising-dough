@@ -1,5 +1,5 @@
 variable "managed_zone" {
-  description = "When true, Terraform owns the zone on Scaleway DNS; when false, only records are managed (operator maintains the zone elsewhere)."
+  description = "When true, the zone already exists at Scaleway DNS and this env's A/AAAA records are managed in it. Terraform never creates or owns the zone (ADR-0088). When false, nothing is created (operator maintains records elsewhere)."
   type        = bool
 }
 

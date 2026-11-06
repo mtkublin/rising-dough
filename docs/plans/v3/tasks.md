@@ -249,7 +249,12 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Re-check Stardust stock before T-D25 / T-D27. Override `scaleway_zone` in tfvars if needed.
 - Reference: ADR-0084.
 
-### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24
+### ✅ T-D63 [S] DNS zone owned outside env state → T-D22
+- `modules/dns` no longer creates `scaleway_domain_zone`. The zone (created by Scaleway Domains at registration) is referenced by name in `scaleway_domain_record.dns_zone`. Each env state owns only its own A/AAAA records (`budget`, `drill.budget`), so `terraform destroy` on drill (T-D26, T-D41) cannot touch the zone or prod records.
+- `managed_dns_zone = true` now means "zone exists at Scaleway DNS, manage this env's records". `false` (external zone, no records) still works.
+- Reference: ADR-0088 (amends ADR-0035).
+
+### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
 - Verify admin login via `/auth/login` with that password; verify forced redirect to `/settings/password`; rotate password.
