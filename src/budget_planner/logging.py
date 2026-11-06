@@ -28,6 +28,51 @@ if TYPE_CHECKING:
 
 _CONFIGURED = False
 
+# T-D59 / ADR-0078 §5: keys whose values never reach a log line.
+REDACTED = "[redacted]"
+_DENY_EXACT = frozenset({"description", "name", "memo", "formula", "q", "search", "email"})
+_DENY_PREFIXES = ("amount", "note", "password", "token", "secret")
+_DENY_SUFFIXES = ("_json",)
+_PATH_ARG = 2  # index of the request path in uvicorn.access log args
+
+
+def _is_sensitive_key(key: object) -> bool:
+    if not isinstance(key, str):
+        return False
+    k = key.lower()
+    return k in _DENY_EXACT or k.startswith(_DENY_PREFIXES) or k.endswith(_DENY_SUFFIXES)
+
+
+def _redact(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: (REDACTED if _is_sensitive_key(k) else _redact(v)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_redact(v) for v in value]
+    return value
+
+
+def redact_sensitive(_logger: Any, _method: str, event_dict: Any) -> Any:
+    """structlog processor: replace value-bearing keys with ``[redacted]``.
+
+    Case-insensitive, prefix/suffix aware, recursive into dicts and lists.
+    Returns a new dict; the input is not mutated.
+    """
+    return _redact(dict(event_dict))
+
+
+class _StripQueryFilter(logging.Filter):
+    """Drop the query string from ``uvicorn.access`` request paths."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        idx = _PATH_ARG
+        if not (isinstance(args, tuple) and len(args) > idx):
+            return True
+        path = args[idx]
+        if isinstance(path, str):
+            record.args = (*args[:idx], path.split("?", 1)[0], *args[idx + 1 :])
+        return True
+
 
 def _processors() -> list[Any]:
     """Shared processor chain. Order matters.
@@ -43,6 +88,7 @@ def _processors() -> list[Any]:
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
+        redact_sensitive,
         structlog.processors.JSONRenderer(),
     ]
 
@@ -75,6 +121,7 @@ def configure() -> None:
                 structlog.contextvars.merge_contextvars,
                 structlog.stdlib.add_log_level,
                 structlog.processors.TimeStamper(fmt="iso", utc=True),
+                redact_sensitive,
             ],
             processor=structlog.processors.JSONRenderer(),
         )
@@ -94,6 +141,7 @@ def configure() -> None:
         logger = logging.getLogger(name)
         logger.handlers = []
         logger.propagate = True
+    logging.getLogger("uvicorn.access").addFilter(_StripQueryFilter())
 
     _CONFIGURED = True
 
