@@ -260,11 +260,7 @@ def _collect_events(
         user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
-    dedup_keys: set[tuple[int, dt.date]] = {
-        (row.recurring_rule_id, row.occurrence_date)
-        for row in persisted
-        if row.recurring_rule_id is not None and row.occurrence_date is not None
-    }
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     events: dict[dt.date, list[_CashEvent]] = {}
     for row in persisted:
@@ -741,11 +737,7 @@ def _month_flow_sums(
         user_id,
         PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
     )
-    dedup_keys: set[tuple[int, dt.date]] = {
-        (row.recurring_rule_id, row.occurrence_date)
-        for row in persisted
-        if row.recurring_rule_id is not None and row.occurrence_date is not None
-    }
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     for row in persisted:
         direction = directions_by_cat[row.category_id]

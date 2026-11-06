@@ -17,3 +17,7 @@ Forecast flows and daily events expand a rule from `max(rule.next_due, today+1)`
 - Current-row Income and the daily/EOM chain no longer double-count early-promoted occurrences.
 - Skipped occurrences keep being excluded (skip advances `next_due` / carries a skip override).
 - No schema change; `services/budget.py` and `recurring_formula.py` untouched.
+
+## Amendment (T-FIX4): linked planned rows suppress their occurrence everywhere
+
+A persisted, **unpromoted** planned row with `(recurring_rule_id, occurrence_date)` represents that recurring occurrence wherever it lives. The dedup key set is therefore built from **all** such rows for the user, not only those inside the consumer's window, so re-dating a linked row outside the window still suppresses the virtual occurrence. One shared helper (`recurring.linked_occurrence_keys`) feeds Budget `committed` (previously not deduped at all, so it double-counted), Forecast (`_collect_events`, `_month_flow_sums`) and Accounts planned net (`_collect_legs`). Promoted linked rows need no handling: `next_due` already excludes their occurrences. Unlinked planned rows never suppress anything. No `src/` path currently creates linked rows (only the repository accepts the fields), so this closes a latent double-count.
