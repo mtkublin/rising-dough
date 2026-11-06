@@ -7,7 +7,7 @@ provider "scaleway" {
 
 provider "random" {}
 
-# T-D67 / ADR-0094: OAuth client (scope auth_keys:write, tags tag:prod/tag:drill).
+# T-D67 / ADR-0094: OAuth client (scope auth_keys:write, tag tag:automation; owns prod/drill/ci).
 # `tailnet` is omitted: it defaults to the tailnet that owns the OAuth client.
 provider "tailscale" {
   oauth_client_id     = var.tailscale_oauth_client_id

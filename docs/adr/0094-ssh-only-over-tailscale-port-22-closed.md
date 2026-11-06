@@ -43,3 +43,21 @@
 - Hostname collision risk: if a destroyed ephemeral drill node has not yet been garbage-collected, a new `budget-planner-drill` registers as `budget-planner-drill-1`; the bounded wait would then time out or reach the stale entry and fail safely (destroy still runs, T-D66). Re-run later.
 - Optional hardening (operator choice): Tailnet Lock.
 - `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete.
+
+## Amendment (2026-11-06): OAuth client owns `tag:automation`, which owns the minted tags
+
+**Problem.** The OAuth client was created with tags `tag:prod`, `tag:drill`, `tag:ci`, and `tagOwners` listed only the operator's email. Tailscale checks an auth-key request against the OAuth client's own tags and its `tagOwners` chain. Every single-tag key request failed with `requested tags [tag:drill] are invalid or not permitted (400)`. This broke `terraform apply` (`tailscale_tailnet_key`) and would have broken `tailscale/github-action` with `tags: tag:ci`.
+
+**Fix (applied in the Tailscale console, verified against the API).**
+- The OAuth client carries only `tag:automation`, scope Auth Keys: write.
+- `tag:automation` is ownership-only; no device carries it.
+- `tagOwners` is the owner chain:
+
+```
+"tag:automation": ["<operator email>"],
+"tag:prod":  ["<operator email>", "tag:automation"],
+"tag:drill": ["<operator email>", "tag:automation"],
+"tag:ci":    ["<operator email>", "tag:automation"],
+```
+
+The `acls` rules, the Terraform code and the workflows are unchanged. Decision item 4 above describes the tag set as it stood before this amendment. The ACL file (`runbooks/tailscale-acl.hujson`), checklist A9 and runbook `tailscale-ssh.md` now reflect the owner-tag pattern. The security consequence in Consequences is unchanged: the OAuth client still cannot read or write the ACL.

@@ -320,6 +320,11 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `terraform/scripts/check_tf_vars.py` fails fast listing empty required inputs; all terraform commands use `-input=false`. Test: `tests/architecture/test_ci_terraform_inputs.py`.
 - Reference: ADR-0093 (amends ADR-0092 §4, ADR-0078 §3).
 
+### ✅ T-D73 [S] Tailscale OAuth client owns tag:automation → T-D67
+- The OAuth client carries only `tag:automation` (scope Auth Keys: write). `tagOwners` makes `tag:automation` own `tag:prod`, `tag:drill` and `tag:ci`. Before this, single-tag auth keys failed with `requested tags [tag:drill] are invalid or not permitted (400)`.
+- Docs only: `runbooks/tailscale-acl.hujson`, checklist A9, `runbooks/tailscale-ssh.md`, and the Tailscale comments in `terraform/providers.tf` and `terraform/variables.tf`. The Terraform code and the workflows are unchanged.
+- Reference: ADR-0094 (amendment 2026-11-06).
+
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.

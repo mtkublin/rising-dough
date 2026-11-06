@@ -2,6 +2,8 @@
 
 ## 2026-11-06 (T-Q00 — post-v3 code-quality audit plan)
 - **Docs: post-v3 code-quality audit plan added** (`docs/plans/quality-audit/`, requirements §8). The audit is read-only and pinned to one commit. It has seven review tracks (duplication, layering, correctness, security, frontend, tests, drift), a findings register, and a sequential prevention pass over CLAUDE.md, skills and docs. The Mutmut mutation-testing plan is folded in (baseline during the audit; tooling ADR during prevention). Not started. Timing decided: after v3 ships and before v4 starts. The audit is added to the v4 T-E00 gate. `[pre-v4-P3]` remediation (Critical/High duplication, repository bypass, scoping) must be done before v4 Phase 3.
+## 2026-11-06 (T-D73 — Tailscale OAuth client owns tag:automation)
+- **Infra(T-D73): the Tailscale OAuth client now carries only `tag:automation`, and `tagOwners` makes it own `tag:prod`, `tag:drill` and `tag:ci`.** This fixes the 400 `requested tags [tag:drill] are invalid or not permitted` on `tailscale_tailnet_key` (ADR-0094 amended). Docs and comments only; checklist A9, the ACL runbook and the Terraform comments updated.
 ## 2026-11-06 (T-D72b — bootstrap state committed)
 - **Infra(T-D72b): `terraform/bootstrap/terraform.tfstate` and `.terraform.lock.hcl` committed after the operator's first apply** (ADR-0096). Scoped negations added to `terraform/.gitignore`; checklist A7 ticked (applied 2026-11-06).
 

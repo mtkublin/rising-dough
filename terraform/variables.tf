@@ -223,12 +223,12 @@ variable "backup_max_age_days" {
 
 # ----------------------------------------------------------------------------
 # Tailscale (T-D67, ADR-0094). SSH/admin access only. Supply via TF_VAR_*
-# (never committed). The OAuth client needs scope `auth_keys` (write) and must
-# own tag:prod + tag:drill.
+# (never committed). The OAuth client needs scope `auth_keys` (write) and carries
+# only tag:automation, which owns tag:prod + tag:drill (ADR-0094 amendment).
 # ----------------------------------------------------------------------------
 
 variable "tailscale_oauth_client_id" {
-  description = "Tailscale OAuth client ID (scope auth_keys, tags tag:prod + tag:drill)."
+  description = "Tailscale OAuth client ID (scope auth_keys, tag tag:automation)."
   type        = string
   sensitive   = true
 }
