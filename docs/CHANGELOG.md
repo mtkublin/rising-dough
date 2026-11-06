@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D55 — no-store on authenticated responses)
+- **Feat(T-D55): every authenticated, non-static response now carries `Cache-Control: no-store`; logout and self-session-revoke add `Clear-Site-Data: "cache", "storage"`** (ADR-0078 §2). New pure-ASGI `CacheControlMiddleware` registered inside `AuthRequired`, outside `MustChangePassword`. `/static/**`, `/health`, `/ready` and anonymous pages are untouched.
+
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 
