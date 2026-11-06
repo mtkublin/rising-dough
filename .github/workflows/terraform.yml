@@ -52,6 +52,22 @@ jobs:
         working-directory: terraform/bootstrap
         run: terraform init -backend=false && terraform validate
 
+      # T-D77: offline render of the real user-data path (mock providers,
+      # dummy values, no credentials) + cloud-init schema validation.
+      - name: terraform test (mocked providers)
+        run: terraform test
+
+      - name: Install cloud-init
+        run: |
+          if ! command -v cloud-init >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y cloud-init
+          fi
+          cloud-init --version
+
+      - name: Render user-data + cloud-init schema
+        run: python3 tests/render/render_check.py --require-schema
+
       - name: Set up tflint
         uses: terraform-linters/setup-tflint@acf4cf0ec6d41ca3cfe6cf15c53d99e3c7bb6d13 # v4.1.1
         with:

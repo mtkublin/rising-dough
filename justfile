@@ -191,3 +191,11 @@ test-prod-stack:
     echo "[test-prod-stack] running smoke probe (Playwright journey ships with T-D43)..."
     uv run python -c "import httpx; r = httpx.get('https://localhost:8443/ready', verify=False); assert r.status_code == 200"
     echo "[test-prod-stack] OK"
+
+# T-D77: render the cloud-init user-data offline (real templatefile chain, dummy
+# values, no credentials) and lint it: line 1, YAML, cloud-init schema (skipped
+# with a message when the binary is missing).
+tf-render-check:
+    terraform -chdir=terraform init -backend=false -input=false
+    terraform -chdir=terraform test
+    uv run python terraform/tests/render/render_check.py

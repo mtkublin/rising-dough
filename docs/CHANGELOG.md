@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D77 — offline cloud-init render check)
+- **CI(T-D77): the rendered cloud-init user-data is now validated offline.** A fixture root (`terraform/tests/render/`) renders the real compute module with dummy values and mocked/no credentials. `terraform test` asserts `#cloud-config` is line 1; `render_check.py` also checks YAML and `cloud-init schema`. Run with `just tf-render-check`; wired into `.github/workflows/terraform.yml`.
 ## 2026-11-06 (T-D75 — cloud-config header on line 1)
 - **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
 ## 2026-11-06 (T-D74 — IAM API key default project and expiry)

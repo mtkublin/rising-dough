@@ -111,6 +111,20 @@ trivy config terraform/ || tfsec terraform/
 
 CI replays the same gates on every PR via `.github/workflows/terraform.yml` and additionally renders the cloud-init templates to check they parse as valid YAML / Caddyfile / Litestream TOML.
 
+## Offline user-data render check (T-D77)
+
+Catches first-boot config bugs (e.g. `#cloud-config` not on line 1, T-D75) without paying for a VM boot. `tests/render/` is a fixture root that calls the real `modules/compute` (same `templatefile()` chain as the server) with obviously fake values; no credentials, no API calls (dummy provider config only; just provider downloads).
+
+```sh
+just tf-render-check
+# = terraform -chdir=terraform init -backend=false && terraform -chdir=terraform test
+#   + python3 terraform/tests/render/render_check.py
+```
+
+- `terraform test` (`tests/render.tftest.hcl`, mocked scaleway provider) asserts line 1 is `#cloud-config`, with and without the drill restore helper.
+- `render_check.py` plans the fixture, extracts the rendered user-data, and checks line 1, YAML parsing, and `cloud-init schema --config-file`. Locally the schema step is skipped with a message when `cloud-init` is not installed; CI installs it and passes `--require-schema`.
+- `--out DIR` keeps the rendered files (dummy secrets only).
+
 ## Known limitations
 
 - `scaleway/scaleway` provider lags AWS in object-bucket primitives. Public-access blocking is enforced via a deny-plaintext bucket policy; the per-bucket encryption toggle is enforced by Scaleway at the account level.
