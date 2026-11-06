@@ -70,7 +70,7 @@ scw instance security-group list-rules security-group-id="$SG_ID" zone=pl-waw-2
 scw instance security-group delete-rule security-group-id="$SG_ID" security-group-rule-id=<rule-id> zone=pl-waw-2
 ```
 
-Use `budget-planner-drill-sg` for the drill env. The Scaleway web serial console shows boot and cloud-init output for diagnosis but is not a login path (account passwords are locked). Do not leave the rule in place; a later `terraform apply` also removes it (drift).
+Note (T-D71): host `ufw` also allows 22 only on `tailscale0`, so this SG rule alone does not restore public SSH; the host rule must be widened from an existing session. Use `budget-planner-drill-sg` for the drill env. The Scaleway web serial console shows boot and cloud-init output for diagnosis but is not a login path (account passwords are locked). Do not leave the rule in place; a later `terraform apply` also removes it (drift).
 
 ## Rollback
 

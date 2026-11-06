@@ -51,6 +51,17 @@ def test_cloud_init_joins_tailnet_with_tag_and_cleans_key() -> None:
     assert "--ssh" not in tpl  # no Tailscale SSH; normal sshd stays
 
 
+def test_ufw_allows_ssh_only_on_tailscale_interface() -> None:
+    tpl = BOOTSTRAP.read_text()
+
+    rule = "ufw allow in on tailscale0 to any port 22 proto tcp"
+    assert rule in tpl
+    assert "ufw allow 22/tcp" not in tpl
+    assert tpl.index(rule) < tpl.index("ufw --force enable")
+    assert "ufw allow 80/tcp" in tpl
+    assert "ufw allow 443/tcp" in tpl
+
+
 def test_auth_key_is_single_use_tagged_and_drill_ephemeral() -> None:
     tf = ROOT_MAIN.read_text()
     block = re.search(r'resource "tailscale_tailnet_key" "vm" \{(.*?)\n\}', tf, flags=re.DOTALL)
