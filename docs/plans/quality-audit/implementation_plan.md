@@ -313,13 +313,15 @@ Expected controls, to be confirmed against the actual findings:
 
 ---
 
-## 9 · Sequencing vs v4
+## 9 · Sequencing vs v4 (decided)
 
 v4 Phase 3 sweeps every repository for field encryption and moves aggregates into Python (ADR-0081). Each duplicated aggregate or conversion path would be ported separately, which multiplies the T-FIX6 class of bug inside code that is harder to inspect (encrypted columns).
 
-**Recommendation:** Phases 0–4 of this audit, plus the Critical and High `duplicate-logic`, `repo-bypass` and `scoping-gap` remediation, should land **before** v4 Phase 3 starts. v4 Phases 1–2 (crypto core, session binding) are largely independent and can overlap.
+**Decision (operator, 2026-11-06): the audit runs after v3 ships and before v4 starts.**
 
-**Open decision for the operator:** whether to add this as a v4 Phase 0 precondition in `docs/plans/v4/implementation_plan.md`. Not changed by this plan.
+- **The whole audit (T-Q01…T-Q17) is a v4 Phase 0 precondition.** It is a T-E00 gate item in `docs/plans/v4/`.
+- **Critical and High remediation** of the `duplicate-logic`, `repo-bypass` and `scoping-gap` classes must also be ✅ before v4 Phase 3 (field encryption) starts.
+- **Other remediation** can run alongside v4 Phases 1–2, or after v4.
 
 ---
 

@@ -1,6 +1,6 @@
 # Post-v3 Code-Quality Audit
 
-> **When**: after v3 ships (v3 Phase 4 validation complete and prod cut over). Not before.
+> **When**: after v3 ships (v3 Phase 4 validation complete and prod cut over), **before v4 starts**. The audit is a v4 Phase 0 (T-E00) precondition; decided 2026-11-06.
 > **Scope**: the whole repository at one pinned commit: `src/`, `tests/`, templates, static assets, migrations, `terraform/`, CI workflows, `CLAUDE.md`, `.claude/skills/`, `docs/`.
 > **Mode**: read-only audit. No production code changes during the audit. Fixes are a separate remediation effort that the audit's output feeds.
 > Requirements: [`docs/requirements.md` §8](../../requirements.md#8-post-v3-code-quality-audit-added-2026-11-06).
@@ -17,7 +17,7 @@ The project started with explicit principles: functional-first (ADR-0021), thin 
 
 These numbers are from a quick grep on 2026-11-06. The audit re-measures them at its pinned commit.
 
-v4 (field-level encryption) does a repository sweep and moves aggregates into Python (ADR-0081). Each duplicated aggregate or conversion path would then have to be encrypted and decrypted separately. That makes this audit, and at least its Critical/High remediation, a strong precursor to v4 Phase 3. See [implementation_plan.md §9](implementation_plan.md#9--sequencing-vs-v4).
+v4 (field-level encryption) does a repository sweep and moves aggregates into Python (ADR-0081). Each duplicated aggregate or conversion path would then have to be encrypted and decrypted separately. So the audit runs before v4, and its Critical/High remediation for duplication, repository bypass and scoping gaps lands before v4 Phase 3. See [implementation_plan.md §9](implementation_plan.md#9--sequencing-vs-v4-decided).
 
 ## Outputs
 
@@ -44,4 +44,4 @@ Mutation testing (Mutmut) is folded in. A baseline run during the audit adds its
 | 2 — Review tracks (parallel, read-only) | A duplication · B layering · C correctness · D security · E frontend · F tests · G dead code and doc drift | each track file complete against its checklist |
 | 3 — Verify and consolidate | adversarial verification, dedupe, severity calibration, single best mitigation | `findings.md` final; operator review |
 | 4 — Prevention (sequential, after 3) | root-cause classes → controls in CLAUDE.md, skills, docs and automated guards | `prevention.md` signed off; doc/skill edits merged |
-| 5 — Remediation backlog | findings → T-Q2xx tasks and ADRs, ordered by severity | backlog reviewed; v4 sequencing decided |
+| 5 — Remediation backlog | findings → T-Q2xx tasks and ADRs, ordered by severity | backlog reviewed; pre-v4-Phase-3 subset tagged |

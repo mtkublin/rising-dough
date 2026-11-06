@@ -462,4 +462,5 @@ This is a read-only audit of the whole repository at a pinned commit, run **afte
 
 - No production code changes during the audit. No dependency changes committed. No access to `data/budget.sqlite`.
 - Mutation testing (Mutmut, `domain` and `services`) runs as a baseline during the audit. Adopting it as tooling needs its own ADR (next free number) during the prevention pass. It is tracked as a score and is not a CI gate.
-- Recommended to complete, together with Critical/High duplication and repository-bypass remediation, before v4 Phase 3 (field encryption). The operator decides.
+- Timing: after v3 ships and **before v4 starts**. The audit is a v4 Phase 0 precondition.
+- Critical/High remediation of duplicated logic, repository bypass and user-scoping gaps must land before v4 Phase 3 (field encryption).

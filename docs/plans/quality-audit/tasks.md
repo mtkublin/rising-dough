@@ -3,7 +3,7 @@
 > Flat index. The method for each task is in [implementation_plan.md](implementation_plan.md).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-Qxx` depends on upstream task.
 > Acceptance = output file complete against its checklist + the guardrails in implementation_plan §11 respected + `✅` prefix added here.
-> **Not started.** Blocked until v3 ships.
+> **Not started.** Blocked until v3 ships. Must complete before v4 starts (v4 T-E00 gate).
 
 ---
 
@@ -85,7 +85,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 
 ### T-Q17 [S] Write the remediation backlog
 - Accepted findings turned into `T-Q2xx` tasks in this file, ordered Critical → High → allowlist burn-down → Medium → Low. Each task lists its finding ids, ADRs, acceptance criteria and the allowlist entries it removes.
-- Decision on v4 sequencing (implementation_plan §9) recorded.
+- Tasks that must be ✅ before v4 Phase 3 are tagged `[pre-v4-P3]`: Critical/High `duplicate-logic`, `repo-bypass` and `scoping-gap` (implementation_plan §9).
 
 ---
 
