@@ -217,8 +217,9 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-FIX4 [P] Budget `committed` dedups planned rows linked to recurring occurrences → T-FIX1
 - `services/budget.py` `_committed_by_category` sums unpromoted planned rows and `rt_expand` occurrences independently; forecast (`_collect_events`, `_month_flow_sums`) and `services/account_planned.py` dedup by `(recurring_rule_id, occurrence_date)`. If a persisted planned row linked to a not-yet-promoted recurring occurrence exists, budget "left" double-counts it while Forecast/Accounts count it once. Latent (no current `src/` path found that creates such rows). Fix: apply the same dedup (ideally a shared helper) or document + assert such rows are never created. Add regression test. Found in code review 2026-11-06. Reference: ADR-0085, ADR-0087, ADR-0089. Outcome: latent, no current `src/` path creates linked rows; Budget, Forecast and Accounts now share `recurring.linked_occurrence_keys` (window-independent, so a re-dated linked row still suppresses its occurrence); ADR-0087 amendment.
 
-### ◻ T-FIX5 [S] Budget `committed` mixes account currencies → T-FIX1
+### ✅ T-FIX5 [S] Budget `committed` mixes account currencies → T-FIX1
 - `services/budget.py` `_committed_by_category` adds planned/recurring amounts as raw minor units regardless of account currency; a planned expense on a EUR account counts as PLN in `remaining_minor`, `left_daily_spend`, `unbudgeted_committed_minor`, and (via T-FIX1) Forecast current-row Expenses. Pre-existing, widened by T-FIX1. Decision needed (ADR first): convert to `base_currency` via the FX service (ADR-0006, historical/cached rates) vs. document single-currency limitation in ADR-0085. Found in code review 2026-11-06. Reference: ADR-0006, ADR-0008, ADR-0085.
+- **Outcome**: converted to base currency ([ADR-0093](../../adr/0093-budget-committed-converts-to-base-currency.md)): latest cached rate on/before today via `fx.convert_cached`, missing rate degrades to native amount (as Today account rows). Same helper fixes the Forecast overlay `_committed_future_for_category`. `account_planned` untouched.
 
 ### ✅ T-VIS6 [P] /accounts table clipped on mobile (375) → T-ACC1, T-VIS5
 - At 375 the Accounts table is horizontally clipped (Checked column cut, Balance not visible without sideways scroll inside `.rd-table-scroll`). Determine whether it predates T-ACC1 (compare v3 before merge 142cde3); decide mobile layout (e.g. hide Trend/Checked/Txns columns or stacked rows) so Balance + planned sub-line are visible without horizontal scroll. Run `frontend-visual-audit` at 1440/1024/375 and refresh `/accounts` visual baselines. Reference: ADR-0051 §6, ADR-0089. Outcome: predated T-ACC1 (the `.rd-table-scroll .rd-table { min-width: 36rem }` rule); Trend/Checked/Txns hidden at <=640px, planned sub-line and pill wrap, Reconcile stacks over kebab; table fits at 343px with no sideways scroll; desktop/tablet unchanged.
@@ -297,6 +298,11 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Tailnet ACL is NOT in env state; intended policy in `runbooks/tailscale-acl.hujson`, procedure + break-glass in `runbooks/tailscale-ssh.md`.
 - `deploy.yml`, `rollback.yml`, `restore-drill.yml` join the tailnet (`tailscale/github-action`, `tag:ci`) before SSH; SSH targets are `budget-planner-drill` / `budget-planner-prod`; restore drill waits for the drill host on the tailnet. `terraform.yml` plan receives `TF_VAR_tailscale_oauth_*`.
 - Operator: checklist A9. Reference: ADR-0094.
+
+### ✅ T-D70 [S] CI Terraform inputs via TF_VAR_* secrets → T-D28
+- `terraform.yml` and `restore-drill.yml` no longer pass `-var-file` (the tfvars are gitignored and absent in CI). Every root variable is `TF_VAR_<name>` from GitHub secrets, environment-scoped (`drill`, `prod`, ungated `prod-plan` for the PR plan's prod leg) with identical secret names. No tfvars committed.
+- `terraform/scripts/check_tf_vars.py` fails fast listing empty required inputs; all terraform commands use `-input=false`. Test: `tests/architecture/test_ci_terraform_inputs.py`.
+- Reference: ADR-0093 (amends ADR-0092 §4, ADR-0078 §3).
 
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.

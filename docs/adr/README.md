@@ -87,7 +87,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0082 | [v4 Account Lifecycle Under Encryption — Onboarding, Credentials, Recovery, Migration](0082-v4-account-lifecycle-recovery-and-migration.md) (amends ADR-0061, ADR-0069, ADR-0073, ADR-0074, ADR-0075) |
 | 0083 | [v4 Right to Be Forgotten, Data Portability, Retention Schedule, Keyless Operations](0083-v4-right-to-be-forgotten-portability-and-retention.md) (amends ADR-0019, ADR-0034, ADR-0061, ADR-0073, ADR-0078) |
 | 0084 | [v3 Compute Zone `pl-waw-2` and Ubuntu 24.04 (`ubuntu_noble`) Image Slug](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) (amends ADR-0032) |
-| 0085 | [Budget "Left" Counts Only Commitments in Budgeted Categories](0085-budget-left-counts-only-budgeted-commitments.md) (amends ADR-0039, ADR-0041) |
+| 0085 | [Budget "Left" Counts Only Commitments in Budgeted Categories](0085-budget-left-counts-only-budgeted-commitments.md) (amends ADR-0039, ADR-0041; amended by ADR-0092) |
 | 0086 | [Formula Sources Honour Per-Occurrence Overrides in Chains](0086-formula-source-overrides-honoured-in-chains.md) (clarifies ADR-0046, ADR-0047) |
 | 0087 | [Forecast Honours Recurring `next_due`](0087-forecast-honours-recurring-next-due.md) (amends ADR-0043) |
 | 0088 | [DNS Zone Is Not Owned by Any Env Terraform State](0088-dns-zone-not-owned-by-env-state.md) (amends ADR-0035) |
@@ -96,3 +96,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0091 | [Bucket Policy Is an Explicit Allow-List; Per-Env Isolation](0091-bucket-policy-allow-list-per-env-isolation.md) (amends ADR-0035, ADR-0032) |
 | 0092 | [Drill in Its Own Scaleway Project; Stable Restore-Reader Principal](0092-drill-in-separate-scaleway-project.md) (supersedes ADR-0091 shared-project assumption; relates to ADR-0088, ADR-0035) |
 | 0094 | [SSH Only Over Tailscale; Port 22 Closed to the Internet](0094-ssh-only-over-tailscale-port-22-closed.md) (amends ADR-0035, ADR-0032; relates to ADR-0037, ADR-0069, ADR-0088) |
+| 0093 | [Budget `committed` Converts to Base Currency](0093-budget-committed-converts-to-base-currency.md) (amends ADR-0085) |
+| 0093 | [CI Terraform Inputs via TF_VAR_* from Environment Secrets](0093-ci-terraform-inputs-via-tf-var-environment-secrets.md) (amends ADR-0092 §4, ADR-0078 §3) |

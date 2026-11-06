@@ -47,10 +47,36 @@
 
 ### A5. GitHub secrets and variables (pre-apply)
 
-- [ ] Secrets: `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID`, `SCW_DEFAULT_ORG_ID`, `ADMIN_EMAIL`, `APP_DOMAIN`, `OPERATOR_SSH_PUBKEY`, `GITHUB_DEPLOY_PUBKEY`, `GHCR_PULL_PAT`, `DEPLOY_SSH_PRIVATE_KEY`. <!-- pragma: allowlist secret -->
-- [ ] Variables: `APP_DOMAIN`, `DRILL_URL`, `PROD_URL`.
-- [ ] Duplicate the needed secrets into the **`drill` environment**, because `restore-drill.yml` reads environment-scoped secrets. In it, `SCW_DEFAULT_PROJECT_ID` = the **drill** project id (ADR-0092). Also add repo secret `SCW_DRILL_PROJECT_ID` (drill project id) for the `terraform.yml` drill plan leg.
-- [ ] After the first **prod** apply: copy `terraform output -raw restore_reader_access_key` / `restore_reader_secret_key` (prod state) into the `drill` environment secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`. Prod must be applied before the first automated restore drill; the manual T-D25 drill apply can run first without a restore.
+- [ ] Create GitHub environments `drill`, `prod` (required reviewers, ADR-0037) and `prod-plan` (**no** reviewers; holds the prod values for the PR plan job, ADR-0093). CI never reads a tfvars file; every Terraform input is a secret below. Local runs keep using the gitignored `terraform/envs/<env>/terraform.tfvars`.
+- [ ] Add these secrets (S = sensitive). Environment-scoped secrets use the **same name** in each environment; where the scope is "drill / prod / prod-plan", add it to each of the three (`prod-plan` = copy of `prod`).
+
+| Secret | Scope | Terraform var | S | Value comes from |
+|---|---|---|---|---|
+| `SCW_ACCESS_KEY` | repo | (provider auth, `AWS_ACCESS_KEY_ID`) | yes | Operator IAM API key (access part) |
+| `SCW_SECRET_KEY` | repo | (provider auth, `AWS_SECRET_ACCESS_KEY`) | yes | Operator IAM API key (secret part) |
+| `SCW_DEFAULT_ORG_ID` | repo | `scaleway_organization_id` | no | `scaleway_organization_id` in local tfvars |
+| `SCW_DEFAULT_PROJECT_ID` | drill / prod / prod-plan | `scaleway_project_id` | no | drill: `rising-dough-drill` id; prod and prod-plan: `rising-dough` id (local tfvars) |
+| `ADMIN_EMAIL` | repo | `admin_email` | no | local tfvars |
+| `APP_DOMAIN` | repo | `domain` | no | local tfvars (`rising-dough.eu`) |
+| `OPERATOR_SSH_PUBKEY` | repo | `operator_ssh_pubkey` | yes | local tfvars (public key, treated as sensitive by Terraform) |
+| `GITHUB_DEPLOY_PUBKEY` | repo | `github_deploy_pubkey` | yes | public half of the deploy keypair (A4) |
+| `GHCR_PULL_PAT` | repo | `ghcr_pull_pat` | yes | read-only GHCR PAT (A3) |
+| `LITESTREAM_AGE_IDENTITY` | repo | `litestream_age_identity` | yes | `age-keygen -o litestream-age.key` (whole file or the `AGE-SECRET-KEY-1...` line); same PROD identity for drill |
+| `LITESTREAM_AGE_RECIPIENT` | repo | `litestream_age_recipient` | no | `age-keygen -y litestream-age.key` (was a variable; now a secret) |
+| `MANAGED_DNS_ZONE` | drill / prod / prod-plan | `managed_dns_zone` | no | `true` or `false`, as in local tfvars (unset = `false`) |
+| `BUCKET_ADMIN_PRINCIPALS` | drill / prod / prod-plan | `bucket_admin_principals` | no | HCL/JSON list string, e.g. `["user_id:<uuid>"]` (`scw iam user list`); unset = `[]` |
+| `BUCKET_READONLY_PRINCIPALS` | prod / prod-plan | `bucket_readonly_principals` | no | optional list string, e.g. `["application_id:<uuid>"]`; unset = `[]` |
+| `PROD_REPLICA_RO_ACCESS_KEY` | drill | `scw_access_key_restore` | yes | `terraform output -raw restore_reader_access_key` (prod state, after the first prod apply) |
+| `PROD_REPLICA_RO_SECRET_KEY` | drill | `scw_secret_key_restore` | yes | `terraform output -raw restore_reader_secret_key` (prod state) |
+| `DEPLOY_SSH_PRIVATE_KEY` | repo | (not Terraform) | yes | private half of the deploy keypair (A4) |
+| `DEPLOY_SSH_KNOWN_HOSTS_DRILL` | drill | (not Terraform) | no | pinned `known_hosts` line of the drill host |
+
+- [ ] List inputs are strings: paste them exactly as HCL/JSON (`["user_id:00000000-0000-0000-0000-000000000000"]`, double quotes). A malformed value fails `terraform plan`.
+- [ ] Not secrets (set by the workflow): `TF_VAR_env`, `TF_VAR_github_owner` (repo owner). Defaulted: region, zone, subdomains, `dns_zone_project_id`, `app_image_tag`.
+- [ ] The guard `terraform/scripts/check_tf_vars.py` names any missing required secret as `TF_VAR_<name> is empty`.
+- [ ] Remove the obsolete repo secret `SCW_DRILL_PROJECT_ID` and variable `LITESTREAM_AGE_RECIPIENT` if you created them (T-D69 / T-D56 scheme).
+- [ ] Variables: `DRILL_URL`, `PROD_URL`.
+- [ ] Prod must be applied before the first automated restore drill (the `PROD_REPLICA_RO_*` values come from its outputs); the manual T-D25 drill apply can run first without a restore.
 - [ ] Optional: `CODEQL_TOKEN`. Without it, the SARIF upload in `security.yml` is skipped.
 
 ### A6. Local tooling
