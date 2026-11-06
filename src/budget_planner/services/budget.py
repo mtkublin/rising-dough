@@ -85,6 +85,37 @@ def base_amount_converter(
     return _convert
 
 
+def base_txn_converter(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    base_currency: str | None = None,
+) -> Callable[[Transaction], int]:
+    """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095).
+
+    Per ADR-0006 aggregates use historical rates: each transaction converts at
+    the latest cached rate on or before its own ``operation_date`` (cache only,
+    no network). Base-currency accounts short-circuit with no lookup. A missing
+    rate degrades to the native amount with a warning.
+    """
+    base = base_currency or get_settings().base_currency
+    ccy_by_account = {
+        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
+    }
+
+    def _convert(txn: Transaction) -> int:
+        ccy = ccy_by_account.get(txn.account_id, base)
+        if ccy == base:
+            return txn.amount
+        try:
+            return fx_svc.convert_cached(conn, txn.amount, txn.operation_date, ccy, base)
+        except fx_svc.FxUnavailableError:
+            logger.warning("no FX rate %s->%s; spent uses native amount", ccy, base)
+            return txn.amount
+
+    return _convert
+
+
 @dataclass(frozen=True, slots=True)
 class CategoryBudgetLine:
     category_id: int
@@ -188,10 +219,12 @@ def _expense_txns_in_range(
     )
 
 
-def _sum_by_category(txns: list[Transaction]) -> dict[int, int]:
+def _sum_by_category(
+    txns: list[Transaction], to_base: Callable[[Transaction], int]
+) -> dict[int, int]:
     out: dict[int, int] = defaultdict(int)
     for t in txns:
-        out[t.category_id] += t.amount
+        out[t.category_id] += to_base(t)
     return dict(out)
 
 
@@ -470,10 +503,11 @@ def month_summary(  # noqa: PLR0915
     year_txns = _expense_txns_in_range(conn, user_id, year_start, year_end)
     all_txns = _all_expense_txns(conn, user_id)
 
-    spent_this = _sum_by_category(this_txns)
-    spent_prev = _sum_by_category(prev_txns)
-    year_sums = _sum_by_category(year_txns)
-    overall_sum = _sum_by_category(all_txns)
+    txn_to_base = base_txn_converter(conn, user_id)
+    spent_this = _sum_by_category(this_txns, txn_to_base)
+    spent_prev = _sum_by_category(prev_txns, txn_to_base)
+    year_sums = _sum_by_category(year_txns, txn_to_base)
+    overall_sum = _sum_by_category(all_txns, txn_to_base)
     overall_mo = _active_month_counts(all_txns)
 
     elapsed_in_year = month if year_txns else max(month, 1)

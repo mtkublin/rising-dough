@@ -16,6 +16,7 @@ from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
 from budget_planner.domain.recurring import NewRecurringRule, PatchRecurringRule
+from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts,
     budgets,
@@ -24,6 +25,7 @@ from budget_planner.repositories import (
     planned,
     preferences as preferences_repo,
     recurring,
+    transactions,
 )
 from budget_planner.services import budget as bs, forecast
 
@@ -145,3 +147,51 @@ def test_forecast_overlay_committed_converted(
         conn, USER_ID, world["groceries"], date(2026, 2, 16), date(2026, 2, 28), today=TODAY
     )
     assert got == 48_000
+
+
+# --- T-FIX6: posted spent converts at the historical (tx-date) rate -----------
+
+
+def _spend(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) -> None:
+    transactions.create(
+        conn,
+        USER_ID,
+        NewTransaction(operation_date=on, category_id=cat, account_id=acc, amount=amount),
+    )
+
+
+def _groceries_line(conn: sqlite3.Connection, world: dict[str, int]) -> bs.CategoryBudgetLine:
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY)
+    return next(ln for ln in s.lines if ln.category_id == world["groceries"])
+
+
+def test_eur_spent_converted_in_spent_and_remaining(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    _rate(conn, date(2026, 2, 10), "4.00")
+    _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 10))
+    line = _groceries_line(conn, world)
+    assert line.spent_minor == 40_000
+    assert line.remaining_minor == 100_000 - 40_000
+
+
+def test_pln_spent_unchanged(conn: sqlite3.Connection, world: dict[str, int]) -> None:
+    _spend(conn, world["groceries"], world["pln"], 10_000, date(2026, 2, 10))
+    assert _groceries_line(conn, world).spent_minor == 10_000
+
+
+def test_spent_missing_rate_falls_back_to_native(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 10))
+    assert _groceries_line(conn, world).spent_minor == 10_000
+
+
+def test_spent_uses_rate_of_each_transaction_date(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    _rate(conn, date(2026, 2, 1), "4.00")
+    _rate(conn, date(2026, 2, 12), "5.00")
+    _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 5))  # 4.00
+    _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 13))  # 5.00
+    assert _groceries_line(conn, world).spent_minor == 40_000 + 50_000

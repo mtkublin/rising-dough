@@ -2,6 +2,8 @@
 
 ## 2026-11-06 (T-D67 — SSH only over Tailscale)
 - **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
+## 2026-11-06 (T-FIX6 — budget spent converts to base currency)
+- **Fix(T-FIX6): Budget per-category `spent` (and remaining, left/day, analytics derived from posted expenses) now converts non-base-account transactions to base currency at the rate for each transaction date** (ADR-0095 amendment, ADR-0006). Missing rate: native amount + warning. Also renumbered the budget base-currency ADR 0093 → 0095 (collided with the Terraform CI-inputs ADR-0093).
 ## 2026-11-06 (T-FIX5b — ADR renumber)
 - **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
 
