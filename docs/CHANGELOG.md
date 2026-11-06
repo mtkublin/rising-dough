@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D54 — owner-scoped audit tail)
+- **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
+
 ## 2026-11-06 (T-D58 — PRAGMA secure_delete)
 - **T-D58: `PRAGMA secure_delete = ON` on every connection** (ADR-0078 §6). Set in `_apply_pragmas` next to the Litestream PRAGMAs, so deleted and overwritten rows are zeroed on disk instead of lingering in free pages. Unit tests assert the pragma and that a deleted sentinel is absent from the DB file after checkpoint. Negative control confirmed the sentinel survives without the pragma.
 

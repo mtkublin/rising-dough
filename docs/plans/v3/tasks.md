@@ -367,7 +367,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 
 Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/plans/v4/`, ADR-0079..0083). No key management, no schema redesign. Detail: `phase-5-data-protection/`.
 
-### ◻ T-D54 [P] Audit tail is owner-scoped → T-D43
+### ✅ T-D54 [P] Audit tail is owner-scoped → T-D43
 - `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows; other users' rows show metadata + `"[other-user]"`. Closes the one confirmed ADR-0061 leak (admin saw every user's audit payloads). Smoke journey asserts presence, not payload.
 - File: `phase-5-data-protection/T-D54-audit-tail-owner-scoped.md`. Reference: ADR-0078 §1.
 

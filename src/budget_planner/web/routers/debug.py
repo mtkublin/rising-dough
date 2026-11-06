@@ -24,10 +24,10 @@ router = APIRouter(prefix="/debug", tags=["debug"], include_in_schema=False)
 def audit_tail(
     n: int = Query(default=audit_tail_service.DEFAULT_TAIL),
     conn: sqlite3.Connection = Depends(get_db),
-    _admin: CurrentUser = Depends(current_admin),
+    admin: CurrentUser = Depends(current_admin),
 ) -> JSONResponse:
-    """Latest audit rows, newest first, secrets redacted."""
-    rows = audit_tail_service.audit_tail(conn, n)
+    """Latest audit rows, newest first, own payloads only, secrets redacted."""
+    rows = audit_tail_service.audit_tail(conn, admin.id, n)
     return JSONResponse(
         {"count": len(rows), "entries": rows}, headers={"Cache-Control": "no-store"}
     )
