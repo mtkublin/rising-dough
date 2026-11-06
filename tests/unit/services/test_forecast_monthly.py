@@ -141,7 +141,7 @@ def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) ->
 def test_expense_sum_in_month_includes_recurring(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    recurring.create_rule(
+    rule = recurring.create_rule(
         conn,
         USER_ID,
         NewRecurringRule(
@@ -152,6 +152,9 @@ def test_expense_sum_in_month_includes_recurring(
             default_amount=300_000,
             default_description="rent",
         ),
+    )
+    recurring.set_next_due(
+        conn, USER_ID, rule.id, next_due=date(2026, 11, 1), last_promoted_date=None
     )
     planned.create(
         conn,

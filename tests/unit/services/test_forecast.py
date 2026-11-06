@@ -123,6 +123,8 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
             default_description="rent",
         ),
     ).id
+    # create_rule anchors next_due on the wall clock; pin it relative to TODAY (ADR-0087).
+    recurring.set_next_due(conn, USER_ID, rule, next_due=date(2026, 11, 1), last_promoted_date=None)
     # Cache EUR->PLN rate for TODAY
     fx_repo.upsert_rate(
         conn,
