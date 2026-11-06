@@ -1,4 +1,4 @@
-# ADR-0093: Budget `committed` Converts to Base Currency
+# ADR-0095: Budget `committed` Converts to Base Currency
 
 - **Status**: Accepted
 - **Date**: 2026-11-06
@@ -17,7 +17,11 @@
 4. The same helper (`budget.base_amount_converter`) is used by `forecast._committed_future_for_category`, so the overlay and the fiscal row agree.
 5. `services/account_planned.py` is unchanged: per-account figures stay in account currency; its hero sums base-currency accounts only.
 
-Out of scope (noted, unchanged): per-category `spent_minor` is a raw sum of transaction amounts today and is not converted.
+### Amendment (T-FIX6): `spent` converts too, at the historical rate
+
+6. Per-category posted `spent_minor` (and the analytics derived from the same transaction lists: delta vs previous month, this-year / overall averages, month totals spent, `remaining_minor`, `left_daily_spend_minor`, Today hero spent/left, Forecast figures consuming them) converts to `base_currency`.
+7. Unlike `committed` (future-dated, rate at today), posted transactions follow ADR-0006: each converts at the latest cached rate on or before **its own `operation_date`** (`budget.base_txn_converter`, using `fx.convert_cached`; no network).
+8. Missing rate: native amount plus a logged warning (same fallback as §3). Base-currency accounts short-circuit with no lookup. Existing exclusions (expense direction only; transfers/adjustments out) are unchanged.
 
 ## Consequences
 
