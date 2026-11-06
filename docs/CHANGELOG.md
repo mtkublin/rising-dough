@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D70 — CI Terraform inputs via TF_VAR_* secrets)
+- **CI(T-D70): `terraform.yml` and `restore-drill.yml` pass every Terraform input as `TF_VAR_*` from environment-scoped GitHub secrets (`drill`, `prod`, ungated `prod-plan`); `-var-file` removed (tfvars are gitignored and were absent in CI). Guard script `terraform/scripts/check_tf_vars.py`, `-input=false` everywhere, architecture test, operator checklist A5 secrets table (ADR-0093).**
+
 ## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
 - **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
 ## 2026-11-06 (T-VIS6 — /accounts mobile table)

@@ -19,8 +19,8 @@
 #                                    restore_reader_access_key/_secret_key;
 #                                    ADR-0092, T-D41a).
 #   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
-# Variables (environment-scoped):
-#   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56).
+#   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56; a secret since ADR-0093).
+#   Plus every other TF_VAR_* input: see the env block and operator-checklist A5 (ADR-0093).
 #
 # Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
 # applies to our CI supply chain as well).
@@ -51,13 +51,26 @@ jobs:
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
-      # T-D69 / ADR-0092: `drill` environment secret = the DRILL project id.
+      # T-D70 / ADR-0093: all Terraform inputs are TF_VAR_* from `drill`
+      # environment secrets (falling back to repo secrets); no tfvars in CI.
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      TF_VAR_env: drill
       TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
+      TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
+      TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
+      TF_VAR_github_owner: ${{ github.repository_owner }}
+      TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
+      TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
       SCW_DEFAULT_REGION: pl-waw
       SCW_DEFAULT_ZONE: pl-waw-2
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
-      DRILL_HOST: drill.budget.${{ vars.APP_DOMAIN }}
+      DRILL_HOST: drill.budget.${{ secrets.APP_DOMAIN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # T-D41a: read-only credential for the PROD replica bucket; rendered
       # into the drill host's root-only restore-source.env by cloud-init.
@@ -66,7 +79,7 @@ jobs:
       # T-D56: the drill restores the PROD replica, so it needs the PROD age
       # identity (written 0600 to the drill host). Never the dev-only key.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
-      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -99,16 +112,19 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS_DRILL }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Check required Terraform inputs
+        run: python3 terraform/scripts/check_tf_vars.py
+
       - name: Terraform init (drill backend)
         working-directory: terraform
-        run: terraform init -backend-config=envs/drill/backend.hcl
+        run: terraform init -input=false -backend-config=envs/drill/backend.hcl
 
       - name: Terraform apply (drill)
         working-directory: terraform
         run: |
           terraform apply \
-            -auto-approve \
-            -var-file=envs/drill/terraform.tfvars
+            -input=false \
+            -auto-approve
 
       - name: Trigger restore on drill host
         # The cloud-init helper lives at /usr/local/bin/restore-from-prod and
@@ -181,10 +197,10 @@ jobs:
         working-directory: terraform
         run: |
           set -euo pipefail
-          terraform init -backend-config=envs/drill/backend.hcl
+          terraform init -input=false -backend-config=envs/drill/backend.hcl
           terraform destroy \
-            -auto-approve \
-            -var-file=envs/drill/terraform.tfvars
+            -input=false \
+            -auto-approve
 
       - name: Verify drill environment destroyed
         # Fails the job loudly if destroy failed or resources remain, so the
@@ -220,7 +236,7 @@ jobs:
           if [ "${DESTROY_OUTCOME}" = "success" ] && [ "${VERIFY_OUTCOME}" = "success" ]; then
             destroy_line="The drill host (\`${DRILL_HOST}\`) was destroyed and verified (T-D66); nothing billable remains."
           else
-            destroy_line="**WARNING: destroy failed or could not be verified (destroy=${DESTROY_OUTCOME}, verify=${VERIFY_OUTCOME}). Drill resources may still be billing (~EUR 4.46/month). Run \`terraform destroy -var-file=envs/drill/terraform.tfvars\` in \`terraform/\` (drill backend) manually.**"
+            destroy_line="**WARNING: destroy failed or could not be verified (destroy=${DESTROY_OUTCOME}, verify=${VERIFY_OUTCOME}). Drill resources may still be billing (~EUR 4.46/month). Run \`terraform destroy\` in \`terraform/\` (drill backend; local drill tfvars or the TF_VAR_* inputs) manually.**"
           fi
           body=$(cat <<EOF
           Automated restore drill failed.

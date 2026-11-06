@@ -292,6 +292,11 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Prod state creates a stable read-only `restore-reader` IAM application + key (`ObjectStorageReadOnly`, prod project) and adds it to the prod bucket policy; its key feeds the `drill` environment secrets `PROD_REPLICA_RO_*`.
 - Reference: ADR-0092 (supersedes ADR-0091 shared-project assumption).
 
+### ✅ T-D70 [S] CI Terraform inputs via TF_VAR_* secrets → T-D28
+- `terraform.yml` and `restore-drill.yml` no longer pass `-var-file` (the tfvars are gitignored and absent in CI). Every root variable is `TF_VAR_<name>` from GitHub secrets, environment-scoped (`drill`, `prod`, ungated `prod-plan` for the PR plan's prod leg) with identical secret names. No tfvars committed.
+- `terraform/scripts/check_tf_vars.py` fails fast listing empty required inputs; all terraform commands use `-input=false`. Test: `tests/architecture/test_ci_terraform_inputs.py`.
+- Reference: ADR-0093 (amends ADR-0092 §4, ADR-0078 §3).
+
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.

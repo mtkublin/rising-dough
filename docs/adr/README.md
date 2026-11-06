@@ -95,3 +95,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0090 | [Terraform >= 1.10 Minimum and CI Pin to 1.17.1](0090-terraform-minimum-1-10-ci-pin.md) (amends ADR-0035) |
 | 0091 | [Bucket Policy Is an Explicit Allow-List; Per-Env Isolation](0091-bucket-policy-allow-list-per-env-isolation.md) (amends ADR-0035, ADR-0032) |
 | 0092 | [Drill in Its Own Scaleway Project; Stable Restore-Reader Principal](0092-drill-in-separate-scaleway-project.md) (supersedes ADR-0091 shared-project assumption; relates to ADR-0088, ADR-0035) |
+| 0093 | [CI Terraform Inputs via TF_VAR_* from Environment Secrets](0093-ci-terraform-inputs-via-tf-var-environment-secrets.md) (amends ADR-0092 §4, ADR-0078 §3) |
