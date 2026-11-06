@@ -877,7 +877,11 @@ def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
         if is_fiscal_row and current_month_totals is not None:
             # Current fiscal period reuses services.budget.month_summary so the
             # Forecast table lines up with the Budget page + Overview panel.
-            expense = current_month_totals.committed_minor
+            # ADR-0085: unbudgeted bills still leave the account.
+            expense = (
+                current_month_totals.committed_minor
+                + current_month_totals.unbudgeted_committed_minor
+            )
             planned_budget = max(current_month_totals.remaining_minor, 0)
         else:
             planned_budget = planned_budget_by_month[month]

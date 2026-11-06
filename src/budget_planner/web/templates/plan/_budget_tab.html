@@ -30,6 +30,12 @@
       <div class="mut num rd-period-bar__meta">
         {{ "{:,.2f}".format(committed) }} committed · {{ summary.days_until_next_income }} days left
       </div>
+      {% if summary.totals.unbudgeted_committed_minor > 0 %}
+        <div class="mut num rd-period-bar__meta"
+             data-unbudgeted-committed="{{ summary.totals.unbudgeted_committed_minor }}">
+          + {{ "{:,.2f}".format(summary.totals.unbudgeted_committed_minor / 100.0) }} planned in unbudgeted categories (not counted)
+        </div>
+      {% endif %}
     </div>
   </section>
   <div class="rd-table-scroll">

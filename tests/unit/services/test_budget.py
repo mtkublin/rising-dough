@@ -32,7 +32,11 @@ from budget_planner.repositories import (
     recurring,
     transactions,
 )
-from budget_planner.services import budget as bs, recurring as recurring_svc
+from budget_planner.services import (
+    budget as bs,
+    planned as planned_svc,
+    recurring as recurring_svc,
+)
 
 USER_ID = 1
 
@@ -766,3 +770,159 @@ def test_fiscal_month_for_picks_latest_of_multiple_anchors(conn: sqlite3.Connect
     assert bs.fiscal_month_for(conn, USER_ID, date(2026, 11, 1)) == (2026, 10)
     # Today pinned before Oct 7 → previous (Sep) anchor wins.
     assert bs.fiscal_month_for(conn, USER_ID, date(2026, 10, 6)) == (2026, 9)
+
+
+# ---------------------------------------------------------------------------
+# T-FIX1 (ADR-0085) — only budgeted categories' commitments reduce "left"
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def fix1_world(conn: sqlite3.Connection) -> dict[str, int]:
+    """Budgeted Groceries + Fun; unbudgeted Rent + Subs; Salary anchor."""
+    w: dict[str, int] = {}
+    w["checking"] = accounts.create(
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=0)
+    ).id
+    for key, name, direction in (
+        ("groceries", "Groceries", Direction.EXPENSE),
+        ("fun", "Fun", Direction.EXPENSE),
+        ("rent", "Rent", Direction.EXPENSE),
+        ("subs", "Subs", Direction.EXPENSE),
+        ("salary", "Salary", Direction.INCOME),
+    ):
+        w[key] = categories.create(conn, USER_ID, NewCategory(name=name, direction=direction)).id
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=w["groceries"], amount=200_000))
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=w["fun"], amount=100_000))
+    _bind_anchor(conn, w["salary"])
+    return w
+
+
+def _plan(conn: sqlite3.Connection, w: dict[str, int], key: str, day: date, amount: int) -> int:
+    return planned.create(
+        conn,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=day,
+            category_id=w[key],
+            account_id=w["checking"],
+            amount=amount,
+        ),
+    ).id
+
+
+def test_unbudgeted_planned_does_not_reduce_remaining(
+    conn: sqlite3.Connection, fix1_world: dict[str, int]
+) -> None:
+    w = fix1_world
+    _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
+    _plan(conn, w, "rent", date(2026, 11, 10), 350_000)
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    assert s.totals.committed_minor == 0
+    assert s.totals.unbudgeted_committed_minor == 350_000
+    assert s.totals.remaining_minor == 300_000
+    assert s.days_until_next_income == 19
+    assert s.left_daily_spend_minor == 15_789  # 300_000 / 19, half-even
+
+
+def test_unbudgeted_recurring_does_not_reduce_remaining(
+    conn: sqlite3.Connection, fix1_world: dict[str, int]
+) -> None:
+    w = fix1_world
+    _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
+    rule = recurring.create_rule(
+        conn,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 11, 15),
+            category_id=w["subs"],
+            account_id=w["checking"],
+            default_amount=60_000,
+        ),
+    )
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 11, 15)))
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    assert s.totals.committed_minor == 0
+    assert s.totals.unbudgeted_committed_minor == 60_000
+    assert s.totals.remaining_minor == 300_000
+
+
+def test_budgeted_planned_still_reduces_remaining(
+    conn: sqlite3.Connection, fix1_world: dict[str, int]
+) -> None:
+    w = fix1_world
+    _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
+    _plan(conn, w, "groceries", date(2026, 11, 12), 40_000)
+    _plan(conn, w, "rent", date(2026, 11, 10), 350_000)
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    assert s.totals.committed_minor == 40_000
+    assert s.totals.unbudgeted_committed_minor == 350_000
+    assert s.totals.remaining_minor == 300_000 - 40_000
+
+
+@pytest.mark.parametrize(("key", "amount"), [("groceries", 40_000), ("rent", 350_000)])
+def test_promotion_is_net_zero_on_remaining(
+    conn: sqlite3.Connection, fix1_world: dict[str, int], key: str, amount: int
+) -> None:
+    w = fix1_world
+    _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
+    pid = _plan(conn, w, key, date(2026, 11, 6), amount)
+    before = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    planned_svc.promote_to_actual(
+        conn, USER_ID, pid, planned_svc.PromotionEdits(operation_date=date(2026, 11, 6))
+    )
+    after = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    assert after.totals.remaining_minor == before.totals.remaining_minor
+    assert after.totals.committed_minor + after.totals.unbudgeted_committed_minor == 0
+
+
+def test_early_anchor_promotion_regression(
+    conn: sqlite3.Connection, fix1_world: dict[str, int]
+) -> None:
+    """Promoting the cutoff row a day early must not swallow unbudgeted bills."""
+    w = fix1_world
+    old = _plan(conn, w, "salary", date(2026, 10, 7), 500_000)
+    cut = _plan(conn, w, "salary", date(2026, 11, 7), 500_000)
+    _plan(conn, w, "rent", date(2026, 11, 10), 350_000)
+    _plan(conn, w, "subs", date(2026, 11, 15), 60_000)
+    _plan(conn, w, "subs", date(2026, 11, 25), 40_000)
+    _plan(conn, w, "salary", date(2026, 12, 7), 500_000)
+    planned_svc.promote_to_actual(
+        conn, USER_ID, old, planned_svc.PromotionEdits(operation_date=date(2026, 10, 7))
+    )
+    planned_svc.promote_to_actual(
+        conn, USER_ID, cut, planned_svc.PromotionEdits(operation_date=date(2026, 11, 6))
+    )
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6))
+    assert s.totals.spent_minor == 0
+    assert s.totals.committed_minor == 0
+    assert s.totals.unbudgeted_committed_minor == 450_000
+    assert s.totals.remaining_minor == s.totals.budgeted_minor == 300_000
+
+
+def test_recurring_counted_once_per_occurrence_across_long_window(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """Window clamp to max(next_due, start) must not shift the cadence anchor."""
+    rule = recurring.create_rule(
+        conn,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 1, 5),
+            category_id=committed_world["rent"],
+            account_id=committed_world["checking"],
+            default_amount=100_000,
+        ),
+    )
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
+    split = bs.committed_split_in_window(
+        conn,
+        USER_ID,
+        start=date(2026, 2, 20),
+        end=date(2026, 5, 20),
+        budgeted_category_ids=frozenset({committed_world["rent"]}),
+    )
+    # Mar 5, Apr 5, May 5 only (Feb 5 is before the window).
+    assert split == (300_000, 0)
+    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 20), end=date(2026, 5, 20))
+    assert total == 300_000
