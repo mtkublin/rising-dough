@@ -21,3 +21,9 @@ operator_ssh_pubkey  = "ssh-ed25519 AAAA... operator@laptop"
 github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
 
 # ghcr_pull_pat = "ghp_..."
+
+# Bucket policy (ADR-0091): your Scaleway user id (scw iam user list).
+bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
+
+# Prod only: application that owns the read-only restore key (ADR-0091).
+# bucket_readonly_principals = ["application_id:00000000-0000-0000-0000-000000000000"]

@@ -23,3 +23,6 @@ github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
 
 # GHCR read-only PAT. Pass via -var or the TF_VAR_ghcr_pull_pat env var.
 # ghcr_pull_pat = "ghp_..."
+
+# Bucket policy (ADR-0091): your Scaleway user id (scw iam user list).
+bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]

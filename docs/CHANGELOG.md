@@ -7,6 +7,8 @@
 - **Docs: opened T-FIX4, T-FIX5, T-VIS6** from the 2026-11-06 code review / T-VIS5 screenshots.
 ## 2026-11-06 (T-D66 — restore drill always destroys)
 - **Fix(T-D66): monthly restore drill always destroys its environment** (ADR-0034 §5 addendum). `terraform destroy` runs `if: always()`; failure evidence is uploaded as the `restore-drill-evidence` artifact before destroy; a post-destroy check fails the job if resources remain.
+## 2026-11-06 (T-D68 — bucket policy allow-list, per-env isolation, drill force_destroy)
+- **Fix(T-D68): object-storage bucket policy no longer locks out Litestream** (ADR-0091). Deny-only `2023-04-17` policy replaced by an Allow-only policy for the env's IAM application plus operator (`bucket_admin_principals`) and prod read-only restore (`bucket_readonly_principals`) principals; drill and prod buckets are mutually isolated. Drill bucket is `force_destroy`.
 
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).

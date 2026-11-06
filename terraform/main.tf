@@ -33,6 +33,12 @@ module "storage" {
   scaleway_region   = var.scaleway_region
   lifecycle_days    = 30
   log_bucket_suffix = "logs"
+
+  # ADR-0091: allow-list policy + drill-only force_destroy.
+  env_application_id  = module.iam.application_id
+  admin_principals    = var.bucket_admin_principals
+  readonly_principals = var.bucket_readonly_principals
+  force_destroy       = var.env == "drill"
 }
 
 module "dns" {

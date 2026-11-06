@@ -97,6 +97,34 @@ variable "github_owner" {
 }
 
 # ----------------------------------------------------------------------------
+# Bucket policy principals (ADR-0091, T-D68).
+# Format: "user_id:<uuid>" (scw iam user list) or "application_id:<uuid>"
+# (scw iam application list).
+# ----------------------------------------------------------------------------
+
+variable "bucket_admin_principals" {
+  description = "Operator principals granted full access to this env's bucket. Needed unless Terraform runs as the Organization owner."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.bucket_admin_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each entry must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}
+
+variable "bucket_readonly_principals" {
+  description = "Read-only principals for this env's bucket. Prod: the application owning the restore key (scw_access_key_restore). Leave empty on drill."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.bucket_readonly_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each entry must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}
+
+# ----------------------------------------------------------------------------
 # Computed locals derived from inputs (surfaced through outputs).
 # ----------------------------------------------------------------------------
 
