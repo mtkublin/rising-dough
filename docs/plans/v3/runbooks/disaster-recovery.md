@@ -21,6 +21,7 @@ Betterstack heartbeat url: <TBD>
 
 - Local workstation has `terraform`, `ssh`, `scw` CLI, and `gh` installed.
 - You have the Scaleway API credential pair with permissions to recreate the project resources (admin or project-admin IAM key, kept in the operator's password manager — distinct from the Litestream key).
+- You have the **Litestream age identity** (`AGE-SECRET-KEY-1...`, from the password manager) and its `age1...` recipient. They are Terraform inputs (`litestream_age_identity`, `litestream_age_recipient`); cloud-init writes the identity to `/etc/budget-planner/litestream-age.key` (0600) and the `litestream-restore` service uses it to decrypt the replica (T-D56, ADR-0078 §3). **If the identity is lost, the replica is unrecoverable: there is no other copy of the key and no way around the encryption.**
 - The Terraform state is reachable:
   - Primary: `s3://budget-planner-tfstate-pl-waw` (encrypted, versioned).
   - If the state bucket is also gone: use the latest state file snapshot the operator keeps offline. If none exists, see Troubleshooting ("state bucket also lost").
@@ -156,6 +157,7 @@ ssh app@<prod-host> \
 - **State bucket also lost**: restore state from the latest offline snapshot (`terraform-state-YYYYMMDD.tar.gz` in the operator's encrypted backup). If no snapshot exists, re-adopt resources by writing `import` blocks against the live Scaleway resources before applying — slow (hours), but recoverable.
 - **Caddy fails ACME challenge during cloud-init**: port 80 blocked by security group or DNS not yet resolving. Check `scw instance server list`, confirm security group allows `80/tcp`, confirm `dig +short <prod-host>` returns the new IPv4.
 - **App came up with an empty DB instead of the restored data**: `litestream-restore` found no replica (wrong bucket / credential) and exited 0 under `-if-replica-exists`, so the entrypoint migrated a fresh DB. Check `docker compose logs litestream-restore`. Then stop `app` + `litestream`, move `/data/budget.db*` aside, fix the credential and run the restore manually per [`restore.md`](restore.md).
+- **Restore fails with an age / "no identity matched" error**: the identity supplied to Terraform does not match the recipient the replica was encrypted to. Check `age-keygen -y <identity file>` against the `age1...` recipient in `litestream.yml`, fix the variable and re-run the restore manually per [`restore.md`](restore.md).
 - **Litestream restore returns "no snapshots found"**: the IAM key cloud-init rendered cannot read the bucket. SSH as `app`, re-source the credential, and run the restore manually (see [`restore.md`](restore.md) steps 5–7).
 - **Admin bootstrap did not run**: check `docker compose logs app --tail 100` for the `system-bootstrap` audit entry. If missing, the lifespan hook short-circuited because at least one admin was found. Confirm with `SELECT count(*) FROM users WHERE is_admin=1 AND deleted_at IS NULL;`.
 - **New admin email never arrives at login**: ADR-0061 §3 — the env var is read only at startup. Re-run `deploy.yml` (or `docker compose restart app`) after Terraform apply.

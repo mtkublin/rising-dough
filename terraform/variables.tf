@@ -127,3 +127,33 @@ variable "scw_secret_key_restore" {
   default     = ""
   sensitive   = true
 }
+
+# ----------------------------------------------------------------------------
+# Litestream replica encryption (T-D56, ADR-0078 section 3). Required on every env.
+# Generate with `age-keygen -o litestream-age.key`; derive the recipient with
+# `age-keygen -y litestream-age.key`. Supply via TF_VAR_* (never committed).
+# A lost identity makes the encrypted replica unrecoverable. The drill env gets
+# the PROD identity (it restores the prod replica). The committed dev-only
+# identity under deploy/ must never be used here.
+# ----------------------------------------------------------------------------
+
+variable "litestream_age_identity" {
+  description = "age private identity for the Litestream replica (AGE-SECRET-KEY-1... line or the full age-keygen output file). Rendered to /etc/budget-planner/litestream-age.key at 0600."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("AGE-SECRET-KEY-1[0-9A-Z]{50,}", var.litestream_age_identity))
+    error_message = "litestream_age_identity must contain an AGE-SECRET-KEY-1... line (from age-keygen)."
+  }
+}
+
+variable "litestream_age_recipient" {
+  description = "age public recipient (age1...) the replica is encrypted to; derive with `age-keygen -y <identity file>`."
+  type        = string
+
+  validation {
+    condition     = can(regex("^age1[0-9a-z]{58}$", var.litestream_age_recipient))
+    error_message = "litestream_age_recipient must be an age public key (age1 + 58 chars), e.g. the output of age-keygen -y."
+  }
+}

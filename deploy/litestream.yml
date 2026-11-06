@@ -6,6 +6,12 @@
 # Prod-sim is short-lived: `sync-interval: 10s` matches the prod RPO target
 # (ADR-0034 §3) and `retention: 24h` keeps bucket churn bounded for throwaway
 # runs. Prod retention is 720h in the Terraform template.
+#
+# T-D56 / ADR-0078 §3: replica objects are client-side encrypted with age.
+# The recipient below is the PUBLIC half of deploy/litestream-age-DEV-ONLY.key
+# (committed, dev-only, never used for drill/prod). Replication needs only the
+# recipient; the identity is used by deploy/litestream-restore.yml.
+# Litestream 0.3.x only: 0.5.x rejects any `age:` block (ADR-0078 §3 addendum).
 
 dbs:
   - path: /data/budget.db
@@ -22,3 +28,6 @@ dbs:
         retention-check-interval: 1h
         snapshot-interval: 1h
         sync-interval: 10s
+        age:
+          recipients:
+            - age1cuvksp9v0x0wwlfhtmu84j94h4vmr3gw75tv9t7rl7esferfaq0qtgdj74

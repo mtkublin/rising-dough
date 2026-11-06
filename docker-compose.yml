@@ -75,10 +75,12 @@ services:
   # One-shot (ADR-0071 §3): restore /data/budget.db from the replica when the
   # DB file is missing and a replica exists; no-op otherwise. Litestream runs
   # as root, so hand /data + restored files back to the app uid (10001).
-  # Pinned to 0.5.17: 0.5.0 lists `-if-replica-exists` in `restore -h` but
-  # rejects it ("flag provided but not defined"). The replicator stays on 0.5.0.
+  # T-D56 / ADR-0078 §3: one exact Litestream tag for BOTH services and for
+  # prod (terraform/cloud-init/compose/docker-compose.yml.tpl). 0.3.14 is the
+  # latest 0.3.x and the only line with age replica encryption (0.5.x >= 0.5.1
+  # refuses to start with an `age:` block). Restores read the DEV-ONLY identity.
   litestream-restore:
-    image: litestream/litestream:0.5.17
+    image: litestream/litestream:0.3.14
     container_name: budget-planner-prodsim-litestream-restore
     restart: "no"
     entrypoint:
@@ -86,6 +88,8 @@ services:
       - "-c"
       - |
         set -eu
+        LITESTREAM_AGE_IDENTITY="$$(grep -m1 '^AGE-SECRET-KEY-' /run/litestream-age.key)"
+        export LITESTREAM_AGE_IDENTITY
         litestream restore -if-db-not-exists -if-replica-exists \
           -config /etc/litestream.yml /data/budget.db
         chown 10001:10001 /data
@@ -96,7 +100,9 @@ services:
       AWS_SECRET_ACCESS_KEY: "minio12345"  # pragma: allowlist secret
     volumes:
       - data:/data:rw
-      - ./deploy/litestream.yml:/etc/litestream.yml:ro
+      - ./deploy/litestream-restore.yml:/etc/litestream.yml:ro
+      # DEV-ONLY identity (never drill/prod); see the file header.
+      - ./deploy/litestream-age-DEV-ONLY.key:/run/litestream-age.key:ro
     networks:
       - edge
     depends_on:
@@ -106,7 +112,7 @@ services:
         condition: service_completed_successfully
 
   litestream:
-    image: litestream/litestream:0.5.0
+    image: litestream/litestream:0.3.14
     container_name: budget-planner-prodsim-litestream
     restart: on-failure
     command: ["replicate", "-config", "/etc/litestream.yml"]

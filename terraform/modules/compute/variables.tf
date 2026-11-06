@@ -127,3 +127,15 @@ variable "scw_secret_key_restore" {
   default     = ""
   sensitive   = true
 }
+
+# T-D56 / ADR-0078 section 3: Litestream replica age encryption.
+variable "litestream_age_identity" {
+  description = "age private identity (AGE-SECRET-KEY-1... line or the full age-keygen file) written to /etc/budget-planner/litestream-age.key (0600). Used by restores only."
+  type        = string
+  sensitive   = true
+}
+
+variable "litestream_age_recipient" {
+  description = "age public recipient (age1...) the replica is encrypted to; must match litestream_age_identity (age-keygen -y)."
+  type        = string
+}

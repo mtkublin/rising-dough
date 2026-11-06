@@ -26,6 +26,10 @@
 #   * The long-running litestream service reads /etc/budget-planner/litestream.yml,
 #     which targets the DRILL bucket only; after the restore it replicates the
 #     restored DB to the drill bucket as a new generation.
+#   * T-D56 / ADR-0078 §3: the prod replica is age-encrypted. The identity is read
+#     from ${age_key_file} (0600) and handed to litestream via the environment;
+#     it is never written into the throw-away config. A lost identity means the
+#     replica cannot be restored.
 #   * The script refuses to run if the source bucket equals the drill bucket or
 #     if the read-only key equals the drill's write key.
 #
@@ -37,6 +41,7 @@
 #   ${source_endpoint}  — S3 endpoint of the prod bucket.
 #   ${source_region}    — region of the prod bucket.
 #   ${drill_bucket}     — this drill environment's own bucket.
+#   ${age_key_file}     — root-only age identity file (T-D56); must be the PROD replica's identity.
 #
 # Shell-side variables use the `$${…}` escape so Terraform leaves them alone.
 
@@ -53,7 +58,8 @@ readonly DRILL_BUCKET='${drill_bucket}'
 readonly DATA_DIR='/data'
 readonly DB_PATH="$${DATA_DIR}/budget.db"
 readonly APP_UID=10001
-readonly LITESTREAM_IMAGE='litestream/litestream:0.3'
+readonly LITESTREAM_IMAGE='litestream/litestream:0.3.14'  # same pin as compose (T-D56)
+readonly AGE_KEY_FILE='${age_key_file}'
 readonly READY_URL='https://localhost/ready'
 readonly READY_RETRIES=24
 readonly READY_SLEEP_S=5
@@ -70,6 +76,7 @@ preflight() {
   command -v jq >/dev/null || die "jq not found"
   [[ -f "$${COMPOSE_FILE}" ]] || die "missing $${COMPOSE_FILE}"
   [[ -r "$${RESTORE_ENV_FILE}" ]] || die "missing $${RESTORE_ENV_FILE}"
+  [[ -r "$${AGE_KEY_FILE}" ]] || die "missing age identity $${AGE_KEY_FILE} (set litestream_age_identity; T-D56)"
   [[ -n "$${SOURCE_BUCKET}" ]] || die "source bucket is empty"
   [[ "$${SOURCE_BUCKET}" != "$${DRILL_BUCKET}" ]] \
     || die "source bucket equals drill bucket ($${SOURCE_BUCKET}); refusing"
@@ -108,11 +115,14 @@ move_local_db_aside() {
 
 restore_from_prod() {
   local cfg
+  LITESTREAM_AGE_IDENTITY="$(grep -m1 '^AGE-SECRET-KEY-' "$${AGE_KEY_FILE}" || true)"
+  [[ -n "$${LITESTREAM_AGE_IDENTITY}" ]] || die "no AGE-SECRET-KEY line in $${AGE_KEY_FILE}"
+  export LITESTREAM_AGE_IDENTITY
   cfg="$(mktemp /run/restore-source.XXXXXX.yml)"
   trap 'rm -f -- "$${cfg}"' RETURN
   # Restore-only config: points at the PROD replica, read-only credential.
-  # Never passed to `litestream replicate`. Credentials are expanded by
-  # litestream from the container environment, not stored in this file.
+  # Never passed to `litestream replicate`. Credentials and the age identity
+  # are expanded by litestream from the container environment, not stored here.
   cat > "$${cfg}" <<'CFG'
 dbs:
   - path: /data/budget.db
@@ -124,12 +134,16 @@ dbs:
         path: ${source_path}
         access-key-id: $${RESTORE_ACCESS_KEY_ID}
         secret-access-key: $${RESTORE_SECRET_ACCESS_KEY}
+        age:
+          identities:
+            - $${LITESTREAM_AGE_IDENTITY}
 CFG
   log "restoring from s3://$${SOURCE_BUCKET}/${source_path} (read-only)"
   docker run --rm \
     -v "$${DATA_DIR}:$${DATA_DIR}:rw" \
     -v "$${cfg}:/etc/litestream-restore.yml:ro" \
     -e RESTORE_ACCESS_KEY_ID -e RESTORE_SECRET_ACCESS_KEY \
+    -e LITESTREAM_AGE_IDENTITY \
     "$${LITESTREAM_IMAGE}" \
     restore -config /etc/litestream-restore.yml -o "$${DB_PATH}" "$${DB_PATH}"
 }

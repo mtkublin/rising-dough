@@ -15,3 +15,10 @@ dbs:
         retention-check-interval: 24h
         snapshot-interval: 24h
         sync-interval: 10s
+        # T-D56 / ADR-0078 §3: client-side age encryption (Litestream 0.3.x only).
+        # Public recipient only; the identity lives in
+        # /etc/budget-planner/litestream-age.key and is used by restores
+        # (litestream-restore.yml). Lost identity = unrecoverable replica.
+        age:
+          recipients:
+            - ${age_recipient}

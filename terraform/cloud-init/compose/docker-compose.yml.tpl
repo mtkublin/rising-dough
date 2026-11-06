@@ -48,7 +48,7 @@ services:
   # exists or no replica exists; re-runs harmlessly on every `up -d app`.
   # Litestream runs as root, so hand the files back to the app uid (10001).
   litestream-restore:
-    image: litestream/litestream:0.3
+    image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream-restore
     restart: "no"
     entrypoint:
@@ -56,6 +56,10 @@ services:
       - "-c"
       - |
         set -eu
+        # T-D56: the replica is age-encrypted; expand the identity (the
+        # AGE-SECRET-KEY line of the 0600 key file) into the restore config.
+        LITESTREAM_AGE_IDENTITY="$$(grep -m1 '^AGE-SECRET-KEY-' /run/litestream-age.key)"
+        export LITESTREAM_AGE_IDENTITY
         litestream restore -if-db-not-exists -if-replica-exists \
           -config /etc/litestream.yml /data/budget.db
         chown 10001:10001 /data
@@ -66,12 +70,13 @@ services:
       SCW_SECRET_KEY: "${scw_secret_key}"
     volumes:
       - /data:/data:rw
-      - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-restore.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
       - edge
 
   litestream:
-    image: litestream/litestream:0.3
+    image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream
     restart: unless-stopped
     command: ["replicate", "-config", "/etc/litestream.yml"]

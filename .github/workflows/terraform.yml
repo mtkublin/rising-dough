@@ -93,6 +93,9 @@ jobs:
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
       TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
       TF_VAR_env: ${{ matrix.env }}
 
     steps:
@@ -191,6 +194,9 @@ jobs:
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
       TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
       TF_VAR_env: prod
 
     steps:

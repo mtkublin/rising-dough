@@ -14,6 +14,9 @@
 #   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
 #                                  - read-only (GetObject + ListBucket) IAM key
 #                                    for the prod replica bucket (T-D41a).
+#   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
+# Variables (environment-scoped):
+#   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56).
 #
 # Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
 # applies to our CI supply chain as well).
@@ -54,6 +57,10 @@ jobs:
       # into the drill host's root-only restore-source.env by cloud-init.
       TF_VAR_scw_access_key_restore: ${{ secrets.PROD_REPLICA_RO_ACCESS_KEY }}
       TF_VAR_scw_secret_key_restore: ${{ secrets.PROD_REPLICA_RO_SECRET_KEY }}
+      # T-D56: the drill restores the PROD replica, so it needs the PROD age
+      # identity (written 0600 to the drill host). Never the dev-only key.
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

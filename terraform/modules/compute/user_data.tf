@@ -25,6 +25,14 @@ locals {
     bucket_name     = var.bucket_name
     bucket_endpoint = var.bucket_endpoint
     bucket_region   = var.bucket_region
+    age_recipient   = var.litestream_age_recipient
+  })
+
+  # T-D56: restore-only config (age identity via $LITESTREAM_AGE_IDENTITY).
+  litestream_restore_rendered = templatefile("${path.module}/../../cloud-init/compose/litestream-restore.yml.tpl", {
+    bucket_name     = var.bucket_name
+    bucket_endpoint = var.bucket_endpoint
+    bucket_region   = var.bucket_region
   })
 
   deploy_script_rendered = templatefile("${path.module}/../../cloud-init/bin/deploy-budget-planner.tpl", {
@@ -44,24 +52,27 @@ locals {
     source_endpoint  = var.bucket_endpoint
     source_region    = var.bucket_region
     drill_bucket     = var.bucket_name
+    age_key_file     = "/etc/budget-planner/litestream-age.key"
   }) : ""
 
   ghcr_auth_b64 = base64encode("deploy:${var.ghcr_pull_pat}")
 
   user_data = templatefile("${path.module}/../../cloud-init/bootstrap.yaml.tpl", {
-    hostname                = var.hostname
-    operator_ssh_pubkey     = var.operator_ssh_pub
-    github_deploy_pubkey    = var.deploy_ssh_pub
-    scw_access_key          = var.scw_access_key
-    scw_secret_key          = var.scw_secret_key
-    ghcr_auth_b64           = local.ghcr_auth_b64
-    docker_compose_rendered = local.docker_compose_rendered
-    caddyfile_rendered      = local.caddyfile_rendered
-    litestream_rendered     = local.litestream_rendered
-    deploy_script_rendered  = local.deploy_script_rendered
-    enable_restore_helper   = var.enable_restore_helper
-    restore_script_rendered = local.restore_script_rendered
-    restore_access_key      = var.scw_access_key_restore
-    restore_secret_key      = var.scw_secret_key_restore
+    hostname                    = var.hostname
+    operator_ssh_pubkey         = var.operator_ssh_pub
+    github_deploy_pubkey        = var.deploy_ssh_pub
+    scw_access_key              = var.scw_access_key
+    scw_secret_key              = var.scw_secret_key
+    ghcr_auth_b64               = local.ghcr_auth_b64
+    docker_compose_rendered     = local.docker_compose_rendered
+    caddyfile_rendered          = local.caddyfile_rendered
+    litestream_rendered         = local.litestream_rendered
+    litestream_restore_rendered = local.litestream_restore_rendered
+    age_identity                = var.litestream_age_identity
+    deploy_script_rendered      = local.deploy_script_rendered
+    enable_restore_helper       = var.enable_restore_helper
+    restore_script_rendered     = local.restore_script_rendered
+    restore_access_key          = var.scw_access_key_restore
+    restore_secret_key          = var.scw_secret_key_restore
   })
 }
