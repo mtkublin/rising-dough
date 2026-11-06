@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D78 — read-only Terraform preflight)
+- **Tooling(T-D78): `just drill-preflight` / `just tf-preflight <env>` check inputs, project match, GHCR image, Tailscale tag permission and state backend reachability before an apply.** Read-only, no secret values printed, non-zero exit on any FAIL. Script: `terraform/scripts/preflight.py`; test: `tests/unit/deploy/test_preflight.py`.
+
 ## 2026-11-06 (T-D75 — cloud-config header on line 1)
 - **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
 ## 2026-11-06 (T-D74 — IAM API key default project and expiry)

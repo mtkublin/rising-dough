@@ -510,3 +510,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/cloud-init/bootstrap.yaml.tpl`: `#cloud-config` moved to line 1. cloud-init only treats user-data as cloud-config when line 1 is exactly that header; with the NOTE lines above it, the first real drill boot (2026-11-06) ignored the whole payload (no packages, no Tailscale, no Docker, ports closed). Nothing else in the template changed.
 - Other user-data inputs checked: the compose, Caddyfile, Litestream and bin templates are embedded as `write_files` content, not user-data, so no header change was needed.
 - Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill on `drill` is pending (T-D25).
+
+### ✅ T-D78 [S] Read-only Terraform preflight → T-D67, T-D70, T-D73
+- `terraform/scripts/preflight.py` (stdlib only, frozen-dataclass results) plus `just tf-preflight <env>` and `just drill-preflight`. Checks the things that broke or nearly broke the first drill apply (2026-11-06): required inputs set, not placeholders, right prefixes; `SCW_DEFAULT_PROJECT_ID` equals `scaleway_project_id`; app image exists on GHCR; the Tailscale OAuth client can mint a key for the env tag (test key deleted in `finally`; 400 gives the `tag:automation` hint, T-D73); state bucket reachable (SigV4 `HEAD`). Never prints secret values.
+- Docs: `terraform/README.md` Preflight section; operator checklist D. Test: `tests/unit/deploy/test_preflight.py`.
