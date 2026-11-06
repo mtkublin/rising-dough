@@ -1793,6 +1793,22 @@ kbd.rd-kbd {
 @media (width <= 640px) {
   .rd-table-scroll .rd-table { min-width: 36rem; }
 
+  /* T-VIS6 — /accounts: drop Trend / Checked / Txns so Account + Balance
+   * (with planned sub-line) + Actions fit 375 px without sideways scroll. */
+  .rd-table-scroll .rd-table--accounts { min-width: 0; table-layout: auto; }
+
+  .rd-table--accounts .rd-col-trend,
+  .rd-table--accounts .rd-col-checked,
+  .rd-table--accounts .rd-col-txns { display: none; }
+
+  .rd-table--accounts th,
+  .rd-table--accounts td { padding-inline: 0.5rem; }
+  .rd-table--accounts td.num { text-align: right; white-space: normal; }
+  .rd-table--accounts .rd-acct-planned { white-space: normal; }
+  .rd-table--accounts .rd-actions { padding-inline: 0.25rem; text-align: right; }
+  .rd-table--accounts .rd-actions .rd-btn { display: block; margin-inline-start: auto; margin-bottom: 0.25rem; }
+  .rd-table--accounts .rd-desc > .rd-pill { white-space: normal; }
+
   /* T-R54 — Swap the Plan · Year heatmap table for per-category cards. */
   .rd-plan-year__scroll { display: none; }
   .rd-plan-year__cards { display: block; }

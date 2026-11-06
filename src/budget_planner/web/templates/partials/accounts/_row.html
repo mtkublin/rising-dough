@@ -27,8 +27,8 @@
       </div>
     {%- endif %}
   </td>
-  <td>{{ sparkline(card.sparkline_values) }}</td>
-  <td>
+  <td class="rd-col-trend">{{ sparkline(card.sparkline_values) }}</td>
+  <td class="rd-col-checked">
     {% if last_checked and checked_delta_days is not none %}
       {% if checked_delta_days == 0 %}
         <span class="rd-checked rd-checked--today">today</span>
@@ -43,7 +43,7 @@
       <span class="rd-checked rd-checked--stale">never</span>
     {% endif %}
   </td>
-  <td class="num">{{ card.stats.txn_count }}</td>
+  <td class="num rd-col-txns">{{ card.stats.txn_count }}</td>
   <td class="num {% if card.balance < 0 %}neg{% endif %}">
     {{ "{:,.2f}".format(card.balance / 100.0) }}<span class="cur">{{ a.currency }}</span>
     {{ planned_net(card.planned) }}

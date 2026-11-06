@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-VIS6 — /accounts mobile table)
+- **Fix(T-VIS6): /accounts fits 375 px.** Below 640 px Trend/Checked/Txns columns are hidden; Balance (with planned sub-line), Account and Actions stay visible without sideways scroll. CSS cache-bust rd6 -> rd7; mobile baseline refreshed.
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
 ## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)

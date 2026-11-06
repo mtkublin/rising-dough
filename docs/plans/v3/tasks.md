@@ -210,6 +210,10 @@ Owner: application code. All tasks block Phase 2.
 
 ### ✅ T-VIS5 [S] Refresh drifting visual-regression baselines (frozen test clock)
 - Root cause: `data/demo.sqlite` ends 2026-10-31 but pages key off the wall clock (fiscal period, days left, overdue tint, "next 7 days"), so today/accounts/budget drifted daily; plus intentional UI changes (T-FIX1, T-VIS4, T-ACC1). The app has no clock hook, so the visual server now starts via `tests/visual/frozen_server.py`, which pins `datetime.date.today()`/`datetime.now()` to 2026-10-31 for that test process only (opt-in env `BUDGET_VISUAL_FROZEN_DATE`; nothing in `src/` references it, so prod is unaffected; no ADR needed). Playwright browser clock pinned to the same instant. Baselines refreshed; `/plan` snapshots added (15 total).
+
+### ✅ T-VIS6 [P] /accounts table clipped on mobile (375) → T-ACC1, T-VIS5
+- The shared `.rd-table-scroll .rd-table { min-width: 36rem }` mobile rule clipped Balance (pre-dates T-ACC1; T-ACC1's nowrap planned sub-line widened it further). At <=640px /accounts now hides Trend/Checked/Txns (`.rd-col-*`), lets the planned sub-line and liability pill wrap and stacks Reconcile over the kebab, so Account + Balance + Actions fit with no sideways scroll. Desktop/tablet unchanged. `/accounts` mobile baseline refreshed.
+
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
