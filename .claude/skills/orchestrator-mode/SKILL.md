@@ -142,8 +142,12 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - Server binds 127.0.0.1 only. No secrets committed.
 - Template/CSS/HTMX changes: run the `frontend-visual-audit` skill on the affected routes at
   1440 / 1024 / 375 before you finish.
-- `just ci` must be green (coverage gate 90%) before your final commit.
-- Handoff checklist: mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
+- Run only checks scoped to your area (the relevant test files or dirs, linters, terraform
+  checks) plus the pre-commit hooks on commit. Do NOT run full `just ci` (ADR-0097); the
+  orchestrator runs it once per merge batch. Never use `--no-verify`. If the pre-commit
+  pytest hook stalls because other agents are running pytest, wait until no other pytest is
+  running (`pgrep -fl pytest`), then retry.
+- Handoff checklist: scoped checks green, mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
   reference the ADR(s) in the commit.
 - Commit format: `<type>(<ID>): <description>` (conventional commits).
 - You run autonomously (auto mode). Do not stop to ask for confirmation. Prod-DB access is the
@@ -152,7 +156,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 ## Report back (final message)
 - branch name + final commit sha
 - files changed (short list)
-- `just ci` result (pass/fail + coverage); frontend audit summary if applicable
+- scoped check results (commands + pass/fail); frontend audit summary if applicable
 - anything left undone, assumptions you made, or changes you needed in files you do not own
 ```
 
@@ -161,7 +165,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 Merge each item as soon as it finishes. Do not wait for the whole wave, because
 early merges keep later conflicts small.
 
-1. Check the report: `just ci` green, docs updated, scope respected
+1. Check the report: scoped checks green, docs updated, scope respected
    (`git diff --stat <MAIN>...wi/<MAIN>/<ID>`). If something is missing, `SendMessage`
    the same agent to finish it (it keeps its context). Do not fix it yourself.
 2. In the main checkout, on `<MAIN>`:
@@ -182,12 +186,13 @@ early merges keep later conflicts small.
      resolve the hunks yourself in the item worktree, `git add`, `git commit --no-edit`.
    - Semantic conflicts (both sides changed the same logic, or the result needs new
      code): `SendMessage` the owning agent: "Merge `<MAIN>` into your branch and resolve
-     the conflicts, then rerun `just ci`." If that agent has exited, dispatch a fresh
+     the conflicts, then rerun your scoped checks." If that agent has exited, dispatch a fresh
      agent into that worktree with the conflict context.
-   - After resolving, rerun `just ci` in the item worktree (or have the agent do it),
+   - After resolving, rerun the scoped checks in the item worktree (or have the agent do it),
      then repeat step 2. The merge into `<MAIN>` is now clean.
-4. After each merge, run `just ci` on `<MAIN>`. If it fails, dispatch a fix agent. Do not
-   fix it yourself.
+4. After a batch of merges (not each merge), run ONE full `just ci` on `<MAIN>`. Skip it
+   for docs-only batches; the pre-commit hooks are enough. If it fails, dispatch a fix
+   agent. Do not fix it yourself. GitHub `ci.yml` on push remains the safety net (ADR-0097).
 5. **Prune at once:**
 
    ```sh
