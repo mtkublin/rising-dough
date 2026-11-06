@@ -16,7 +16,7 @@
        aria-label="Liability account">Credit card</p>
   {% endif %}
   <p class="mt-3 text-3xl tabular-nums">{{ card.balance|money(a.currency) }}</p>
-  {{ planned_net(card.planned) }}
+  {{ planned_net(card.planned, a.currency) }}
   <p class="mt-1 text-muted text-sm">{{ card.stats.txn_count }} txns</p>
   {% if a.is_liability and a.credit_limit_minor %}
     <dl class="credit-strip mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
