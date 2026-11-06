@@ -75,18 +75,26 @@ jobs:
       fail-fast: false
       matrix:
         env: [drill, prod]
+    # ADR-0093: `prod` has required reviewers (ADR-0037), which would gate
+    # every PR plan. The prod leg reads the ungated `prod-plan` environment
+    # (same secret names, prod values) instead.
+    environment: ${{ matrix.env == 'prod' && 'prod-plan' || 'drill' }}
     defaults:
       run:
         working-directory: terraform
 
     env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      # T-D69 / ADR-0092: drill resources live in their own project.
-      SCW_DEFAULT_PROJECT_ID: ${{ matrix.env == 'drill' && secrets.SCW_DRILL_PROJECT_ID || secrets.SCW_DEFAULT_PROJECT_ID }}
-      TF_VAR_scaleway_project_id: ${{ matrix.env == 'drill' && secrets.SCW_DRILL_PROJECT_ID || secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D70 / ADR-0093: every Terraform input is TF_VAR_* from secrets
+      # (environment-scoped, same names per env); no tfvars file in CI.
+      TF_VAR_env: ${{ matrix.env }}
+      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
       TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
@@ -94,10 +102,14 @@ jobs:
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
       TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
-      # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
-      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
-      TF_VAR_env: ${{ matrix.env }}
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
+      # Optional inputs; fall back to the variables.tf defaults when unset.
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
+      TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
+      TF_VAR_scw_access_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
+      TF_VAR_scw_secret_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
 
     steps:
       - name: Checkout
@@ -109,8 +121,11 @@ jobs:
           terraform_version: 1.17.1
           terraform_wrapper: false
 
+      - name: Check required Terraform inputs
+        run: python3 scripts/check_tf_vars.py
+
       - name: terraform init (${{ matrix.env }})
-        run: terraform init -backend-config=envs/${{ matrix.env }}/backend.hcl -reconfigure
+        run: terraform init -input=false -backend-config=envs/${{ matrix.env }}/backend.hcl -reconfigure
 
       - name: terraform plan (${{ matrix.env }})
         id: plan
@@ -182,11 +197,16 @@ jobs:
         working-directory: terraform
 
     env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
       SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D70 / ADR-0093: every Terraform input is TF_VAR_* from secrets
+      # (environment-scoped, same names per env); no tfvars file in CI.
+      TF_VAR_env: prod
       TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
       TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
@@ -195,10 +215,12 @@ jobs:
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
       TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
-      # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
-      TF_VAR_litestream_age_recipient: ${{ vars.LITESTREAM_AGE_RECIPIENT }}
-      TF_VAR_env: prod
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
+      # Optional inputs; fall back to the variables.tf defaults when unset.
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
+      TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
 
     steps:
       - name: Checkout
@@ -210,8 +232,11 @@ jobs:
           terraform_version: 1.17.1
           terraform_wrapper: false
 
+      - name: Check required Terraform inputs
+        run: python3 scripts/check_tf_vars.py
+
       - name: terraform init (prod)
-        run: terraform init -backend-config=envs/prod/backend.hcl -reconfigure
+        run: terraform init -input=false -backend-config=envs/prod/backend.hcl -reconfigure
 
       - name: terraform plan (prod)
         run: terraform plan -no-color -input=false -out=plan.bin
