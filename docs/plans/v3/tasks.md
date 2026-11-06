@@ -510,3 +510,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/cloud-init/bootstrap.yaml.tpl`: `#cloud-config` moved to line 1. cloud-init only treats user-data as cloud-config when line 1 is exactly that header; with the NOTE lines above it, the first real drill boot (2026-11-06) ignored the whole payload (no packages, no Tailscale, no Docker, ports closed). Nothing else in the template changed.
 - Other user-data inputs checked: the compose, Caddyfile, Litestream and bin templates are embedded as `write_files` content, not user-data, so no header change was needed.
 - Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill on `drill` is pending (T-D25).
+
+### ✅ T-D79 [S] Align module `required_version` with root (>= 1.10) → ADR-0090
+- Five modules (`compute`, `dns`, `iam`, `restore_reader`, `storage`) still declared `required_version = ">= 1.9.0"`, so a 1.9 binary could plan them without state locking. All module and bootstrap `versions.tf` now match the root `>= 1.10.0`. Provider constraints unchanged (already compatible).
+- Test: `tests/unit/deploy/test_tf_versions.py` asserts the root floor is 1.10.0 and every module's `required_version` equals the root's.
+- Docs: ADR-0090 amendment (2026-11-06); CHANGELOG 2026-11-06.
