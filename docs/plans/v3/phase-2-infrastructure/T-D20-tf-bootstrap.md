@@ -1,5 +1,7 @@
 # T-D20 — Terraform bootstrap (state bucket, versions, providers)
 
+> **Superseded in part (2026-11-06, T-D72, ADR-0096):** deliverable 1 (`terraform/scripts/bootstrap-state.sh`) was replaced by the Terraform root stack `terraform/bootstrap/`. The script text below is historical.
+
 - **Phase**: 2 — Infrastructure
 - **Sequential**: this is the first infrastructure task; everything else in Phase 2 depends on it
 - **Depends on**: nothing (one-shot bootstrap before `terraform init`)

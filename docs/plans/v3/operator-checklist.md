@@ -87,7 +87,7 @@
 
 ### A7. Terraform state bootstrap (T-D20)
 
-- [ ] With the operator key exported, run `./terraform/scripts/bootstrap-state.sh` (idempotent).
+- [ ] In `terraform/bootstrap/`: `set -a; source ../.env; set +a`, export `TF_VAR_scaleway_project_id` / `TF_VAR_scaleway_organization_id`, then `terraform init`, `terraform plan`, `terraform apply`; commit `terraform/bootstrap/terraform.tfstate` (ADR-0096, T-D72; replaces `bootstrap-state.sh`). Applied once; re-plan to check drift.
 - [ ] Fill in `terraform/envs/{drill,prod}/terraform.tfvars`. Both were created on 2026-11-04 in the main checkout (gitignored), with the known values (`pl-waw` / `pl-waw-2`, `github_owner = "mtkublin"`) filled in and every remaining field marked `TODO`. `grep -n TODO terraform/envs/*/terraform.tfvars` must print nothing before apply. Still open as of 2026-11-04 (both envs): `admin_email`, `scaleway_project_id`, `scaleway_organization_id`, `operator_ssh_pubkey`, `github_deploy_pubkey`, and `managed_dns_zone` (waits on D2).
 
 ### A8. Monitoring account (T-D44)

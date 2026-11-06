@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D72 — Terraform state bootstrap stack)
+- **Infra(T-D72): state bucket is now created by the Terraform root stack `terraform/bootstrap/` instead of `bootstrap-state.sh`** (ADR-0096, amends ADR-0035 §4). Script deleted; checklist A7 updated. Operator action: apply once (or import the existing bucket) and commit `terraform/bootstrap/terraform.tfstate`.
+
 ## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
 - **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365, fed from the Terraform variable via the compose template) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
 ## 2026-11-06 (T-JPY — native-currency exponent in UI)

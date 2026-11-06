@@ -33,21 +33,22 @@ terraform/
 │   │   ├── Caddyfile.tpl            # auto-TLS, CSP nonce, access log
 │   │   └── litestream.yml.tpl       # WAL replication to Scaleway Object Storage
 │   └── bin/deploy-budget-planner.tpl # restricted deploy command (T-D32 finalises)
+├── bootstrap/                       # state-bucket root stack, local state (ADR-0096)
 └── scripts/
-    └── bootstrap-state.sh           # idempotent state-bucket bootstrap
 ```
 
 ## One-time state bootstrap (ADR-0035 §4)
 
-Terraform cannot store its own state in a bucket that does not exist yet. Run the bootstrap script once per operator machine before the first `terraform init`.
+Terraform cannot store its own state in a bucket that does not exist yet. The bucket is created once by the separate root stack in [`bootstrap/`](bootstrap/README.md) (local state, committed after the first apply; ADR-0096, which replaced `scripts/bootstrap-state.sh`).
 
 ```sh
-export SCW_ACCESS_KEY=...        # operator's personal Scaleway key
-export SCW_SECRET_KEY=...
-./terraform/scripts/bootstrap-state.sh   # idempotent; safe to re-run
+cd terraform/bootstrap
+set -a; source ../.env; set +a
+export TF_VAR_scaleway_project_id=... TF_VAR_scaleway_organization_id=...
+terraform init && terraform plan && terraform apply
 ```
 
-The script creates `budget-planner-tfstate-pl-waw` in `pl-waw` with versioning enabled and all public-access blocks on. A second run is a no-op (exit 0 with `already exists`).
+The stack creates `budget-planner-tfstate-pl-waw` in `pl-waw`, versioned and private. Re-run `terraform plan` later only to check drift.
 
 ## Per-environment apply
 
