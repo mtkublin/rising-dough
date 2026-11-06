@@ -376,7 +376,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows; other users' rows show metadata + `"[other-user]"`. Closes the one confirmed ADR-0061 leak (admin saw every user's audit payloads). Smoke journey asserts presence, not payload.
 - File: `phase-5-data-protection/T-D54-audit-tail-owner-scoped.md`. Reference: ADR-0078 §1.
 
-### ◻ T-D55 [P] `no-store` on authenticated responses; logout clears site data → T-D02b, T-D07
+### ✅ T-D55 [P] `no-store` on authenticated responses; logout clears site data → T-D02b, T-D07
 - Middleware sets `Cache-Control: no-store` on every authenticated response (not `/static/`); logout adds `Clear-Site-Data: "cache", "storage"`. Back button after logout never shows cached financial pages.
 - File: `phase-5-data-protection/T-D55-no-store-authenticated-responses.md`. Reference: ADR-0078 §2.
 
