@@ -30,6 +30,9 @@ VISUAL_ROOT = Path(__file__).parent
 BASELINES = VISUAL_ROOT / "baselines"
 REPO_ROOT = VISUAL_ROOT.parents[1]
 DEMO_DB = REPO_ROOT / "data" / "demo.sqlite"
+# demo.sqlite's newest transaction is 2026-10-31; pin the server clock there so
+# "today"-relative UI (fiscal period, days left, overdue tint) is stable (T-VIS5).
+FROZEN_DATE = "2026-10-31"
 
 
 # Deterministic text raster: no GPU tiling, no LCD/subpixel glyph positioning,
@@ -86,21 +89,11 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
         "BUDGET_DATABASE_URL": f"sqlite:///{scratch_db[0].as_posix()}",
         # Plain HTTP → dev cookie names without ``Secure`` (ADR-0065/0070).
         "BUDGET_ENV": "dev",
+        "BUDGET_VISUAL_FROZEN_DATE": FROZEN_DATE,
         # pragma: allowlist nextline secret
         "BUDGET_COOKIE_SECRET": "visual-dev-cookie-secret-not-a-real-secret",
     }
-    cmd = [
-        "uv",
-        "run",
-        "uvicorn",
-        "budget_planner.web.app:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        str(port),
-        "--log-level",
-        "warning",
-    ]
+    cmd = ["uv", "run", "python", "-m", "tests.visual.frozen_server", str(port)]
     with subprocess.Popen(cmd, env=env) as proc:  # noqa: S603 — fixed args, local loopback port
         try:
             deadline = time.monotonic() + 45

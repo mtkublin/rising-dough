@@ -207,6 +207,22 @@ Owner: application code. All tasks block Phase 2.
 
 ### ✅ T-ACC1 [M] Accounts tab: planned net per account + projected end-of-period balance
 - Sub-line under Balance on `/accounts`: signed net of unpromoted planned + recurring payments (incl. overdue, all categories, transfer legs) in `[period_start, next income)` and the projected balance `balance + net`; hidden at 0; hero "Planned" total over base-currency accounts. Reference: ADR-0089; requirements F2.6.
+
+### ✅ T-VIS5 [S] Refresh drifting visual-regression baselines (frozen test clock)
+- Root cause: `data/demo.sqlite` ends 2026-10-31 but pages key off the wall clock (fiscal period, days left, overdue tint, "next 7 days"), so today/accounts/budget drifted daily; plus intentional UI changes (T-FIX1, T-VIS4, T-ACC1). The app has no clock hook, so the visual server now starts via `tests/visual/frozen_server.py`, which pins `datetime.date.today()`/`datetime.now()` to 2026-10-31 for that test process only (opt-in env `BUDGET_VISUAL_FROZEN_DATE`; nothing in `src/` references it, so prod is unaffected; no ADR needed). Playwright browser clock pinned to the same instant. Baselines refreshed; `/plan` snapshots added (15 total).
+
+### ✅ T-ACC1b [S] Accounts planned net must not crash on archived categories
+- `compute_accounts_planned` looked up category direction among live categories only, so archiving a category that still had unpromoted planned rows or active recurring rules raised `KeyError` (500 on `/accounts` and account create/update/reconcile). Direction lookup now includes archived categories, matching forecast/budget. Test also pins canonical-date window membership for recurring `date_override`. Reference: ADR-0089, ADR-0087.
+
+### ◻ T-FIX4 [P] Budget `committed` dedups planned rows linked to recurring occurrences → T-FIX1
+- `services/budget.py` `_committed_by_category` sums unpromoted planned rows and `rt_expand` occurrences independently; forecast (`_collect_events`, `_month_flow_sums`) and `services/account_planned.py` dedup by `(recurring_rule_id, occurrence_date)`. If a persisted planned row linked to a not-yet-promoted recurring occurrence exists, budget "left" double-counts it while Forecast/Accounts count it once. Latent (no current `src/` path found that creates such rows). Fix: apply the same dedup (ideally a shared helper) or document + assert such rows are never created. Add regression test. Found in code review 2026-11-06. Reference: ADR-0085, ADR-0087, ADR-0089.
+
+### ◻ T-FIX5 [S] Budget `committed` mixes account currencies → T-FIX1
+- `services/budget.py` `_committed_by_category` adds planned/recurring amounts as raw minor units regardless of account currency; a planned expense on a EUR account counts as PLN in `remaining_minor`, `left_daily_spend`, `unbudgeted_committed_minor`, and (via T-FIX1) Forecast current-row Expenses. Pre-existing, widened by T-FIX1. Decision needed (ADR first): convert to `base_currency` via the FX service (ADR-0006, historical/cached rates) vs. document single-currency limitation in ADR-0085. Found in code review 2026-11-06. Reference: ADR-0006, ADR-0008, ADR-0085.
+
+### ◻ T-VIS6 [P] /accounts table clipped on mobile (375) → T-ACC1, T-VIS5
+- At 375 the Accounts table is horizontally clipped (Checked column cut, Balance not visible without sideways scroll inside `.rd-table-scroll`). Determine whether it predates T-ACC1 (compare v3 before merge 142cde3); decide mobile layout (e.g. hide Trend/Checked/Txns columns or stacked rows) so Balance + planned sub-line are visible without horizontal scroll. Run `frontend-visual-audit` at 1440/1024/375 and refresh `/accounts` visual baselines. Reference: ADR-0051 §6, ADR-0089.
+
 ---
 
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
@@ -339,6 +355,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
 - Replication of the restored DB goes to the drill bucket only; the prod replica is only used in a restore-only config. References: ADR-0034 §5, ADR-0071.
 
+### ✅ T-D66 [S] Restore drill always destroys drill env → T-D41
+- `restore-drill.yml` runs `terraform destroy` `if: always()` (also after partial apply / cancel), preceded on failure by best-effort evidence capture uploaded as the `restore-drill-evidence` artifact, and followed by a verification step that fails the job loudly if destroy failed. Failure issue text updated. Operator decision 2026-11-06 (cost bound ~EUR 0.01/run). ADR-0034 §5 addendum.
+
 ### ◻ T-D42 [S] Security scan + external audit → T-D27
 - `trivy image` on the deployed SHA, `testssl.sh` + `nikto` against the prod hostname, Mozilla Observatory check.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
@@ -396,7 +415,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 
 ### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
 - Bucket noncurrent expiry 30 → 7 d; pre-migration backups pruned by age (≤30 d) and count; drill copies deleted per run. Setting `backup_max_age_days = 37`.
-- Done 2026-11-06. Knobs: `backup_max_age_days` (Terraform variable `backup_max_age_days`, app `BUDGET_BACKUP_MAX_AGE_DAYS`, both default 37). Litestream `retention: 720h` unchanged; drill acceptance (no extra `*.db*` after a run) is asserted by the workflow and verified on the next drill.
+- Done 2026-11-06. Single knob: Terraform variable `backup_max_age_days` (default 37), passed to the app container as `BUDGET_BACKUP_MAX_AGE_DAYS` via the compose template (app default 37 applies to dev/prod-sim only). Litestream `retention: 720h` unchanged; drill acceptance (no extra `*.db*` after a run) is asserted by the workflow and verified on the next drill.
 - File: `phase-5-data-protection/T-D57-backup-copy-age-ceiling.md`. Reference: ADR-0078 §4.
 
 ### ✅ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05

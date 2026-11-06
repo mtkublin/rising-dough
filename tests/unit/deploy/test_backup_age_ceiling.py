@@ -63,3 +63,11 @@ def test_drill_workflow_asserts_no_extra_db_files() -> None:
     wf = _read(".github/workflows/restore-drill.yml")
     assert "Verify no extra DB copies remain" in wf
     assert wf.index("Verify no extra DB copies remain") < wf.index("Terraform destroy (drill)")
+
+
+def test_terraform_knob_reaches_app_container_env() -> None:
+    compose = _read("terraform/cloud-init/compose/docker-compose.yml.tpl")
+    assert 'BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"' in compose
+    user_data = _read("terraform/modules/compute/user_data.tf")
+    assert "backup_max_age_days    = var.backup_max_age_days" in user_data
+    assert "backup_max_age_days = var.backup_max_age_days" in _read("terraform/main.tf")

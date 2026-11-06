@@ -1,6 +1,6 @@
 """Full-page screenshot regression suite (ADR-0027 section 4).
 
-Twelve snapshots: four top-level nav routes x three viewports (desktop,
+Fifteen snapshots: five top-level nav routes x three viewports (desktop,
 tablet, mobile). First run with a missing baseline writes the baseline
 and skips the test; `VISUAL_UPDATE=1` overwrites existing baselines.
 
@@ -22,6 +22,8 @@ from typing import TypedDict
 import pytest
 from playwright.sync_api import Browser
 
+from tests.visual.conftest import FROZEN_DATE
+
 
 class _Viewport(TypedDict):
     label: str
@@ -39,6 +41,7 @@ ROUTES = [
     pytest.param("/ledger", id="ledger"),
     pytest.param("/accounts", id="accounts"),
     pytest.param("/budget", id="budget"),
+    pytest.param("/plan", id="plan"),
 ]
 
 
@@ -85,6 +88,8 @@ def test_route_snapshot(
             device_scale_factor=1,
         )
         context.add_cookies(session_cookies)  # type: ignore[arg-type]
+        # Browser clock pinned to the same day as the server (T-VIS5).
+        context.clock.set_fixed_time(f"{FROZEN_DATE}T10:00:00Z")
         page = context.new_page()
         if not os.environ.get("VISUAL_REAL_FONTS"):
             # Hermetic fonts: Google Fonts load nondeterministically (swap

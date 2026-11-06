@@ -76,4 +76,7 @@ module "compute" {
   # T-D56: Litestream replica age encryption (ADR-0078 §3).
   litestream_age_identity  = var.litestream_age_identity
   litestream_age_recipient = var.litestream_age_recipient
+
+  # T-D57: single knob; also drives the app container env.
+  backup_max_age_days = var.backup_max_age_days
 }

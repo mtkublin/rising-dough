@@ -21,6 +21,7 @@ services:
       BUDGET_TRUSTED_HOSTS: "${trusted_hosts}"
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
+      BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"
       TZ: "Europe/Warsaw"
     volumes:
       - /data:/data:rw

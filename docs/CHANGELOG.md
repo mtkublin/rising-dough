@@ -1,7 +1,14 @@
 # Changelog
 
 ## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
-- **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
+- **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365, fed from the Terraform variable via the compose template) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
+## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
+- **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
+
+## 2026-11-06 (backlog — review follow-ups)
+- **Docs: opened T-FIX4, T-FIX5, T-VIS6** from the 2026-11-06 code review / T-VIS5 screenshots.
+## 2026-11-06 (T-D66 — restore drill always destroys)
+- **Fix(T-D66): monthly restore drill always destroys its environment** (ADR-0034 §5 addendum). `terraform destroy` runs `if: always()`; failure evidence is uploaded as the `restore-drill-evidence` artifact before destroy; a post-destroy check fails the job if resources remain.
 
 ## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
 - **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
@@ -10,6 +17,8 @@
 ## 2026-11-06 (T-D56 — Litestream age encryption)
 - **Feat(T-D56): Litestream replicas are age-encrypted; one pinned Litestream tag** (ADR-0078 §3). Age is unsupported in Litestream 0.5.x (rejected since v0.5.1), so prod, prod-sim and the drill helper all pin `litestream/litestream:0.3.14`. New restore-only configs (`deploy/litestream-restore.yml`, `litestream-restore.yml.tpl`) carry `age.identities`; replicate configs carry only the recipient. Terraform: sensitive `litestream_age_identity` + `litestream_age_recipient`, cloud-init writes `/etc/budget-planner/litestream-age.key` (0600). Prod-sim uses committed dev-only `deploy/litestream-age-DEV-ONLY.key` (excluded in `.secrets.baseline`). Runbooks: identity path, lost-identity warning, cut-over procedure. Pending: prod-sim and drill acceptance runs.
 
+## 2026-11-06 (T-VIS5 — deterministic visual baselines)
+- **Test(T-VIS5): visual suite runs against a frozen clock (2026-10-31, the demo DB's last day)** via test-only launcher `tests/visual/frozen_server.py` + Playwright fixed time; fixes daily drift of today/accounts/budget snapshots. Baselines refreshed (T-FIX1, T-VIS4, T-ACC1 UI), `/plan` x3 viewports added. No app code changed.
 ## 2026-11-06 (T-D54 — owner-scoped audit tail)
 - **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
 ## 2026-11-06 (T-D59 — log hygiene)

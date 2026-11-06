@@ -13,6 +13,7 @@ locals {
     trusted_hosts          = var.trusted_hosts_csv
     admin_email            = var.admin_email
     admin_initial_password = var.admin_password
+    backup_max_age_days    = var.backup_max_age_days
     scw_access_key         = var.scw_access_key
     scw_secret_key         = var.scw_secret_key
   })

@@ -166,8 +166,8 @@ variable "litestream_age_recipient" {
 
 # T-D57 / ADR-0078 section 4: THE knob for the maximum age of any copy of user
 # data. Terraform derives the bucket noncurrent-expiry from it; the app's
-# BUDGET_BACKUP_MAX_AGE_DAYS (same default) derives the pre-migration backup
-# pruning. Change both together.
+# BUDGET_BACKUP_MAX_AGE_DAYS (rendered into the compose template) derives the
+# pre-migration backup pruning.
 variable "backup_max_age_days" {
   description = "Maximum age in days of any copy of user data outside the live DB (ADR-0078 section 4)."
   type        = number
