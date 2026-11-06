@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D75 — cloud-config header on line 1)
+- **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
 ## 2026-11-06 (T-D74 — IAM API key default project and expiry)
 - **Infra(T-D74): Litestream IAM API key pinned to the env project; provider-set expiry ignored** (ADR-0092 amended). `default_project_id` is set, so the drill key no longer defaults to the prod project. `ignore_changes = [expires_at]` stops the replace-on-every-plan caused by Scaleway's 1-year default expiry. New output `scw_app_key_expires_at`; yearly rotation documented in the deploy runbook and checklist F.
 

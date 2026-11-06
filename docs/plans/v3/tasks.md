@@ -505,3 +505,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D74 [S] Pin IAM API key default project, ignore provider-set expiry → T-D69
 - `scaleway_iam_api_key.app`: `default_project_id = var.scaleway_project_id` (the drill key no longer defaults to the prod project) and `lifecycle { ignore_changes = [expires_at] }` (Scaleway's 1-year default expiry no longer forces replacement on every plan). New root output `scw_app_key_expires_at`.
 - Docs: ADR-0092 amendment; deploy runbook "Rotate the Litestream API key"; checklist F reminder. Test: `tests/unit/deploy/test_iam_api_key.py`.
+
+### ✅ T-D75 [S] `#cloud-config` must be the first line of user-data → T-D23, T-D25
+- `terraform/cloud-init/bootstrap.yaml.tpl`: `#cloud-config` moved to line 1. cloud-init only treats user-data as cloud-config when line 1 is exactly that header; with the NOTE lines above it, the first real drill boot (2026-11-06) ignored the whole payload (no packages, no Tailscale, no Docker, ports closed). Nothing else in the template changed.
+- Other user-data inputs checked: the compose, Caddyfile, Litestream and bin templates are embedded as `write_files` content, not user-data, so no header change was needed.
+- Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill on `drill` is pending (T-D25).
