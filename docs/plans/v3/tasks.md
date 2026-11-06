@@ -383,7 +383,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - Bucket noncurrent expiry 30 → 7 d; pre-migration backups pruned by age (≤30 d) and count; drill copies deleted per run. Setting `backup_max_age_days = 37`.
 - File: `phase-5-data-protection/T-D57-backup-copy-age-ceiling.md`. Reference: ADR-0078 §4.
 
-### ◻ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
+### ✅ T-D58 [P] `PRAGMA secure_delete = ON` → T-D05
 - Deleted content zeroed on disk. File: `phase-5-data-protection/T-D58-sqlite-secure-delete.md`. Reference: ADR-0078 §6.
 
 ### ◻ T-D59 [P] Log hygiene → T-D06, T-D23
