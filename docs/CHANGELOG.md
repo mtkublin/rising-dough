@@ -6,6 +6,9 @@
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
 
+## 2026-11-06 (T-FIX3 — forecast honours next_due)
+- **Fix(T-FIX3): forecast no longer re-projects early-promoted recurring occurrences** (ADR-0087). Current-row Income is now only the remaining not-yet-received income; EOM/net-worth chain no longer double-counts. Confined to `services/forecast.py`.
+
 ## 2026-11-06 (T-FIX1 — left counts only budgeted commitments)
 - **Fix(T-FIX1): budget "left" no longer drops by unbudgeted planned/recurring bills.** Early promotion of the income-anchor payment widened the commitment window and subtracted a month of unbudgeted bills (-9,824.01 with 0 spent). `committed_minor` is now restricted to budgeted categories; `unbudgeted_committed_minor` is shown as an informational "not counted" line on /budget and Plan · Budget. Forecast current row Expenses = committed + unbudgeted. ADR-0085 amends ADR-0039.
 
