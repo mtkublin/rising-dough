@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-Q00 — post-v3 code-quality audit plan)
+- **Docs: post-v3 code-quality audit plan added** (`docs/plans/quality-audit/`, requirements §8). The audit is read-only and pinned to one commit. It has seven review tracks (duplication, layering, correctness, security, frontend, tests, drift), a findings register, and a sequential prevention pass over CLAUDE.md, skills and docs. The Mutmut mutation-testing plan is folded in (baseline during the audit; tooling ADR during prevention). Not started: blocked on v3 shipping.
+
 ## 2026-11-06 (T-D72 — Terraform state bootstrap stack)
 - **Infra(T-D72): state bucket is now created by the Terraform root stack `terraform/bootstrap/` instead of `bootstrap-state.sh`** (ADR-0096, amends ADR-0035 §4). Script deleted; checklist A7 updated. Operator action: apply once (or import the existing bucket) and commit `terraform/bootstrap/terraform.tfstate`.
 

@@ -440,3 +440,26 @@ v4 keeps the v3 functional surface and deployment, and makes per-user data **cry
 - No user in `plaintext` state on prod; contract migration released; byte-scan of the live DB finds no plaintext sentinel.
 - Restore drill passes with the decrypt canary.
 - `/privacy` published; dated v4 go-live entry in `docs/CHANGELOG.md`.
+
+---
+
+## 8. Post-v3 Code-Quality Audit (added 2026-11-06)
+
+This is a read-only audit of the whole repository at a pinned commit, run **after v3 ships**. The plan is in `docs/plans/quality-audit/` (tasks T-Q01..T-Q17).
+
+### 8.1 Outputs
+
+- **Findings register** (`docs/plans/quality-audit/findings.md`). Every issue, vulnerability or bug, with:
+  - code location(s) at the audit commit;
+  - description and evidence;
+  - one best mitigation;
+  - severity (Critical / High / Medium / Low);
+  - confidence and effort.
+- **Prevention pass** (`docs/plans/quality-audit/prevention.md`). Starts only after the register is frozen. `CLAUDE.md`, repo skills, agent briefs, ADRs, plans and the lint/test/CI config are audited against the root causes of Critical/High findings, then corrected. Duplicated domain logic is always in scope. Automated guards land in allowlist mode.
+- **Remediation backlog** (T-Q2xx). Fixes are executed later and are not part of the audit.
+
+### 8.2 Constraints
+
+- No production code changes during the audit. No dependency changes committed. No access to `data/budget.sqlite`.
+- Mutation testing (Mutmut, `domain` and `services`) runs as a baseline during the audit. Adopting it as tooling needs its own ADR (next free number) during the prevention pass. It is tracked as a score and is not a CI gate.
+- Recommended to complete, together with Critical/High duplication and repository-bypass remediation, before v4 Phase 3 (field encryption). The operator decides.
