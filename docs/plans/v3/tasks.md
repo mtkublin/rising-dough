@@ -191,6 +191,9 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS3 [P] /today mobile overflow + visual baseline refresh → T-VIS2
 - `/today` at 375px: the Upcoming panel header (`.rd-panel__head`, flex without wrap) pushed the filter buttons ("Promote all due", "+ Planned", "+ Recurring") past the viewport, and the mobile row grid (`1fr` + `auto` actions column) squeezed the description to a few pixels. Header now wraps; rows use `minmax(0, 1fr)` with actions on their own row. `/budget` yearly table (1440) sits inside `.ledger-scroll`, so it scrolls in its own container and does not widen the page (no change). `mobile___today.png` baseline refreshed (375px wide). `rising-dough.css` cache-bust `rd3` → `rd4`.
 
+### ✅ T-FIX1 [S] Budget "left" counts only budgeted-category commitments → T-VIS3
+- Bug: promoting the income-anchor planned payment one day early moved `next_income_date` a month out, so `committed_in_window` subtracted a month of unbudgeted bills (rent, subs) and left showed -9,824.01 with 0 spent. `committed_minor` now counts only planned + recurring expenses in categories with a resolved budget; new `unbudgeted_committed_minor` renders as an informational sub-line on /budget and Plan · Budget and never affects left. Forecast current row Expenses = committed + unbudgeted. Reference: ADR-0085 (amends ADR-0039).
+
 ### ✅ T-FIX2 [P] Formula source rules honour per-occurrence overrides in chains → T-VIS3
 - `_sum_category_in_month` ignored `amount_override` / `skipped` / `date_override` of *formula* source rules (fixed sources were fine), so a chained formula (e.g. `na osobiste` over PODATKI) did not see overrides on its formula sources. Formula sources now contribute effective per-occurrence amounts (override, else computed; skip = 0). Reference: ADR-0086 (clarifies ADR-0046/0047); requirements F3.6/F3.11.
 

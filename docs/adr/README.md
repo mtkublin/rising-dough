@@ -87,4 +87,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0082 | [v4 Account Lifecycle Under Encryption — Onboarding, Credentials, Recovery, Migration](0082-v4-account-lifecycle-recovery-and-migration.md) (amends ADR-0061, ADR-0069, ADR-0073, ADR-0074, ADR-0075) |
 | 0083 | [v4 Right to Be Forgotten, Data Portability, Retention Schedule, Keyless Operations](0083-v4-right-to-be-forgotten-portability-and-retention.md) (amends ADR-0019, ADR-0034, ADR-0061, ADR-0073, ADR-0078) |
 | 0084 | [v3 Compute Zone `pl-waw-2` and Ubuntu 24.04 (`ubuntu_noble`) Image Slug](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) (amends ADR-0032) |
+| 0085 | [Budget "Left" Counts Only Commitments in Budgeted Categories](0085-budget-left-counts-only-budgeted-commitments.md) (amends ADR-0039, ADR-0041) |
 | 0086 | [Formula Sources Honour Per-Occurrence Overrides in Chains](0086-formula-source-overrides-honoured-in-chains.md) (clarifies ADR-0046, ADR-0047) |

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-FIX1 — left counts only budgeted commitments)
+- **Fix(T-FIX1): budget "left" no longer drops by unbudgeted planned/recurring bills.** Early promotion of the income-anchor payment widened the commitment window and subtracted a month of unbudgeted bills (-9,824.01 with 0 spent). `committed_minor` is now restricted to budgeted categories; `unbudgeted_committed_minor` is shown as an informational "not counted" line on /budget and Plan · Budget. Forecast current row Expenses = committed + unbudgeted. ADR-0085 amends ADR-0039.
+
 ## 2026-11-06 (T-FIX2 — formula source overrides in chains)
 - **Fix(T-FIX2): overrides/skips on a formula-based recurring rule are now honoured when it is read as a source by another formula** (ADR-0086). Previously only fixed source rules applied `list_overrides_all`; formula sources used the computed value, so chained formulas (e.g. `na osobiste` over PODATKI) were off by (computed default - override). Confined to `services/recurring_formula.py`.
 
