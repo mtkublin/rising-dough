@@ -262,3 +262,45 @@ def test_adjustment_direction_ignored() -> None:
     from budget_planner.services.account_planned import _legs  # noqa: PLC0415
 
     assert _legs(Direction.ADJUSTMENT, 1, None, 5) == ()
+
+
+def test_archived_category_items_still_counted(conn: sqlite3.Connection, w: dict[str, int]) -> None:
+    _anchor(conn, w, landed=date(2026, 11, 2), next_on=date(2026, 11, 25))
+    _plan(conn, w, "rent", "a", 300, date(2026, 11, 10))  # expense, unpromoted
+    _plan(conn, w, "bonus", "b", 700, date(2026, 11, 12))  # income, unpromoted
+    _rule(conn, w, "fun", 500, date(2026, 11, 14))  # expense, active rule
+    for key in ("rent", "bonus", "fun"):
+        categories.soft_delete(conn, USER_ID, w[key])
+    # No KeyError; legs keep the sign of their (archived) category's direction.
+    assert _nets(conn) == {w["a"]: -800, w["b"]: 700}
+
+
+def test_recurring_date_override_uses_canonical_date_for_window(
+    conn: sqlite3.Connection, w: dict[str, int]
+) -> None:
+    _anchor(conn, w, landed=date(2026, 11, 2), next_on=date(2026, 11, 25))
+    # Canonical 11-20 is inside the window; override moves it past the end -> still counted.
+    inside = _rule(conn, w, "rent", 400, date(2026, 11, 20))
+    recurring.upsert_override(
+        conn,
+        USER_ID,
+        NewRecurringOverride(
+            rule_id=inside,
+            occurrence_date=date(2026, 11, 20),
+            state=OverrideState.OVERRIDDEN,
+            date_override=date(2026, 12, 5),
+        ),
+    )
+    # Canonical 11-27 is outside the window; override pulls it inside -> not counted.
+    outside = _rule(conn, w, "fun", 900, date(2026, 11, 27))
+    recurring.upsert_override(
+        conn,
+        USER_ID,
+        NewRecurringOverride(
+            rule_id=outside,
+            occurrence_date=date(2026, 11, 27),
+            state=OverrideState.OVERRIDDEN,
+            date_override=date(2026, 11, 10),
+        ),
+    )
+    assert _nets(conn) == {w["a"]: -400}
