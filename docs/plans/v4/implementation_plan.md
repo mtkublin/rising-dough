@@ -39,7 +39,7 @@ server secrets: PEPPER, ESCROW_MASTER ← Scaleway Secret Manager (tmpfs at boot
 
 ### Phase 0 — Preconditions (T-E00)
 
-Entry: none. Exit: v3 Phase 5 merged; T-D53 merged; T-D50 ADR renumbered off 0076; ADR-0079..0083 Accepted.
+Entry: none. Exit: v3 Phase 5 merged; T-D53 merged; T-D50 ADR renumbered off 0076; ADR-0079..0083 Accepted; post-v3 code-quality audit complete (`docs/plans/quality-audit/`, T-Q01..T-Q17). Phase 3 additionally requires every `[pre-v4-P3]` quality-audit remediation task ✅.
 
 ### Phase 1 — Crypto core and secrets (T-E01..T-E04)
 

@@ -34,7 +34,7 @@
 
 | Phase | What | Gate |
 |---|---|---|
-| 0 — Preconditions | v3 Phase 5 (T-D54..T-D61) and T-D53 session hardening merged; ADR-0079..0083 Accepted | operator sign-off |
+| 0 — Preconditions | v3 Phase 5 (T-D54..T-D61) and T-D53 session hardening merged; ADR-0079..0083 Accepted; post-v3 quality audit complete (`docs/plans/quality-audit/`) | operator sign-off |
 | 1 — Crypto core and secrets | `budget_planner.crypto`, server secrets, key-wrap schema | property tests green; prod refuses to start without secrets |
 | 2 — Session binding and unlock | keys from login, cookie-held SWK, locked sessions, PRF passkeys, claim + recovery code | auth e2e green; frontend audit |
 | 3 — Field encryption | expand migration, repository sweep, aggregates in Python, static check, backfill, perf budget | full suite green unchanged; ≤ +50 ms p95; byte-scan clean |

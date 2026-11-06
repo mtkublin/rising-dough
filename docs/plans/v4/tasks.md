@@ -14,6 +14,8 @@
 - T-D53 merged (ADR-0076: hashed session ids, step-up re-auth, id rotation). v4 builds on all three.
 - T-D50's ADR renumbered off 0076 (now owned by T-D53).
 - The operator reviews ADR-0079..0083 and flips them to Accepted.
+- Post-v3 code-quality audit complete (`docs/plans/quality-audit/`, T-Q01..T-Q17 ✅, requirements §8).
+- Before Phase 3 (not Phase 0) starts: every quality-audit remediation task tagged `[pre-v4-P3]` is ✅.
 
 ---
 
