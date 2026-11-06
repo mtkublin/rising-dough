@@ -3,13 +3,18 @@
 // Paste in the admin console: Access controls -> edit file. Replace the owner
 // placeholder with your Tailscale login email before saving.
 {
-	// Who may apply each tag. The Terraform OAuth client and the GitHub Actions
-	// OAuth client must own the tags they mint keys for (create the OAuth client
-	// with tags tag:prod, tag:drill, tag:ci).
+	// Who may apply each tag. A Tailscale OAuth client acts as a tagged identity
+	// that carries its own tags, and it can only mint auth keys for tags it owns.
+	// The OAuth client therefore carries only tag:automation (scope Auth Keys:
+	// write), and tag:automation owns the tags it mints keys for. Without this
+	// owner chain, single-tag keys fail with "requested tags [tag:drill] are
+	// invalid or not permitted (400)". tag:automation is ownership-only: no
+	// device carries it.
 	"tagOwners": {
-		"tag:prod":  ["you@example.com"],
-		"tag:drill": ["you@example.com"],
-		"tag:ci":    ["you@example.com"],
+		"tag:automation": ["you@example.com"],
+		"tag:prod":       ["you@example.com", "tag:automation"],
+		"tag:drill":      ["you@example.com", "tag:automation"],
+		"tag:ci":         ["you@example.com", "tag:automation"],
 	},
 
 	// Default-deny: only the rules below allow traffic.

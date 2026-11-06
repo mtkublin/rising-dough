@@ -102,7 +102,7 @@ SSH to the VMs is only possible over the tailnet; port 22 is closed publicly. Th
 
 - [ ] Create a Tailscale account (Personal plan, free) and install the app on your laptop (and phone). Keep MagicDNS enabled (default).
 - [ ] Admin console, Access controls: paste `docs/plans/v3/runbooks/tailscale-acl.hujson` (replace the placeholder owner email with yours). Details in `runbooks/tailscale-ssh.md`.
-- [ ] Settings, OAuth clients: create one client with scope **Auth Keys: write** and tags `tag:prod`, `tag:drill`, `tag:ci`. Store the client ID and secret in the password manager.
+- [ ] Settings, OAuth clients: create one client with scope **Auth Keys: write** and tag `tag:automation` only (not prod/drill/ci; the client mints keys for those tags through `tagOwners`, see the ACL runbook). Store the client ID and secret in the password manager.
 - [ ] GitHub secrets `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`: repo level (used by `terraform.yml`, `deploy.yml`, `rollback.yml`) and in the `drill` environment (used by `restore-drill.yml`); also in the `prod` environment if secrets are environment-scoped.
 - [ ] Update secrets `DRILL_HOST` = `budget-planner-drill` and `PROD_HOST` = `budget-planner-prod` (tailnet MagicDNS names, no longer public hostnames). Public `/ready` probes keep using `DRILL_URL` / `PROD_URL`.
 - [ ] Local Terraform runs: `export TF_VAR_tailscale_oauth_client_id=...` and `TF_VAR_tailscale_oauth_client_secret=...` (never in tfvars).

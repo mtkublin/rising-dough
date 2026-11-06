@@ -38,7 +38,7 @@ Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is auth
 
 ### 4. Rotating the OAuth client
 
-Create a new client (scope Auth Keys: write, tags `tag:prod`, `tag:drill`, `tag:ci`), update `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in GitHub and your local `TF_VAR_tailscale_oauth_*`, then delete the old client. Running nodes are unaffected; the client is only used to mint keys.
+Create a new client (scope Auth Keys: write, tag `tag:automation` only), update `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in GitHub and your local `TF_VAR_tailscale_oauth_*`, then delete the old client. Running nodes are unaffected; the client is only used to mint keys.
 
 ## Verification
 
