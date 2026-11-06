@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
 
 from budget_planner.domain.enums import Cadence, OverrideState
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
     Occurrence,
@@ -29,6 +30,7 @@ from budget_planner.domain.recurring import (
     RecurringRule,
 )
 from budget_planner.domain.transactions import NewTransaction, Transaction
+from budget_planner.repositories import planned as planned_repo
 
 logger = logging.getLogger(__name__)
 
@@ -653,6 +655,23 @@ def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §
     return rt_expand(conn, user_id, rule, overrides, start, window_end)
 
 
+def linked_occurrence_keys(
+    conn: sqlite3.Connection, user_id: int
+) -> frozenset[tuple[int, dt.date]]:
+    """Return ``(rule_id, occurrence_date)`` for every unpromoted linked planned row.
+
+    Window-independent (ADR-0087 amendment): a linked row represents its
+    occurrence wherever it was re-dated, so consumers skip matching virtual
+    occurrences. Unlinked rows never suppress anything.
+    """
+    rows = planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False))
+    return frozenset(
+        (row.recurring_rule_id, row.occurrence_date)
+        for row in rows
+        if row.recurring_rule_id is not None and row.occurrence_date is not None
+    )
+
+
 __all__ = [
     "BatchPromoteResult",
     "CannotPromoteSkippedError",
@@ -666,6 +685,7 @@ __all__ = [
     "expand_unpromoted",
     "first_due_on_or_after",
     "generate_occurrences",
+    "linked_occurrence_keys",
     "occurrence_in_month",
     "promote_recurring",
     "resolve_rule_amount",

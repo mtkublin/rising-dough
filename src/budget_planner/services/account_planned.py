@@ -95,10 +95,8 @@ def _collect_legs(
         PlannedFilter(date_from=window.start, date_to=last_day, promoted=False),
     )
     legs: list[tuple[int, int]] = []
-    dedup: set[tuple[int, dt.date]] = set()
+    dedup = recurring_svc.linked_occurrence_keys(conn, user_id)
     for row in persisted:
-        if row.recurring_rule_id is not None and row.occurrence_date is not None:
-            dedup.add((row.recurring_rule_id, row.occurrence_date))
         legs.extend(
             _legs(directions[row.category_id], row.account_id, row.dest_account_id, row.amount)
         )

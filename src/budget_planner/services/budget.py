@@ -200,6 +200,7 @@ def _committed_by_category(
         if cat.direction is Direction.EXPENSE
     }
     inclusive_end = end - dt.timedelta(days=1)
+    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
     planned_rows = planned_repo.list_filtered(
         conn,
@@ -229,7 +230,9 @@ def _committed_by_category(
         occurrences = recurring_svc.rt_expand(
             conn, user_id, rule, overrides, rule_start, inclusive_end
         )
-        out[rule.category_id] += sum(occ.amount for occ in occurrences)
+        out[rule.category_id] += sum(
+            occ.amount for occ in occurrences if (rule.id, occ.occurrence_date) not in dedup_keys
+        )
     return out
 
 

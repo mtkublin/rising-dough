@@ -205,6 +205,9 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-FIX3 [P] Forecast must not re-project promoted recurring occurrences
 - Early promotion (salary 11-07 promoted 11-06) left the 11-07 occurrence in the forecast window, so current-row Income showed 29,517 instead of ~700 and EOM double-counted. Forecast flows + daily events now expand from `max(next_due, today+1)` by canonical date. Reference: ADR-0087 (amends ADR-0043); requirements F5.5.
 
+### ✅ T-FIX4 [P] Budget committed dedups planned rows linked to recurring occurrences → T-FIX1
+- Budget `committed` summed unpromoted planned rows and recurring occurrences independently, unlike Forecast/Accounts. Now all three share `recurring.linked_occurrence_keys` (keys from all unpromoted linked rows, window-independent, so a re-dated linked row still suppresses its occurrence). Reference: ADR-0087 amendment.
+
 ### ✅ T-ACC1 [M] Accounts tab: planned net per account + projected end-of-period balance
 - Sub-line under Balance on `/accounts`: signed net of unpromoted planned + recurring payments (incl. overdue, all categories, transfer legs) in `[period_start, next income)` and the projected balance `balance + net`; hidden at 0; hero "Planned" total over base-currency accounts. Reference: ADR-0089; requirements F2.6.
 
