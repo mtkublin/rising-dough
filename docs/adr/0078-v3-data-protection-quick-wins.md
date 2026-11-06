@@ -35,6 +35,7 @@ All items are v3 scope, grouped as **Phase 5 — Data-protection quick wins** in
 
 - A middleware sets `Cache-Control: no-store` on every response served to an authenticated session, HTML, HTMX partials and JSON alike. `/static/**`, `/health` and `/ready` are untouched.
 - `POST /auth/logout` (and the session-revoke-self path) adds `Clear-Site-Data: "cache", "storage"`. `"cookies"` is deliberately omitted: logout already expires the session cookie, and wiping every cookie would also drop the CSRF cookie mid-flow.
+- **Addendum to ADR-0070 §6 (middleware order).** `CacheControlMiddleware` (pure ASGI) slots between `AuthRequired` and `MustChangePassword`. Outermost first: RequestId → SecurityHeaders → AuthRequired → **CacheControl** → MustChangePassword → AdminRequired → CSRF → routers. It must sit inside `AuthRequired` so `request.state.user` is populated, and outside the later guards so their redirects and 404s for authenticated users are also `no-store`.
 
 ### 3. Litestream replicas are encrypted with age (T-D56)
 
