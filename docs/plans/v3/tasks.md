@@ -496,3 +496,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Periodic session token rotation (e.g. daily). Needs a grace window so concurrent HTMX requests don't race the cookie swap (ADR-0076 §5).
 - Binding sessions to user agent or IP, including a soft "unrecognised device" flag (ADR-0076 §5).
 - New-sign-in notifications. Needs a notification channel, and v3 has none (ADR-0076 §5).
+
+### ✅ T-D74 [S] Pin IAM API key default project, ignore provider-set expiry → T-D69
+- `scaleway_iam_api_key.app`: `default_project_id = var.scaleway_project_id` (the drill key no longer defaults to the prod project) and `lifecycle { ignore_changes = [expires_at] }` (Scaleway's 1-year default expiry no longer forces replacement on every plan). New root output `scw_app_key_expires_at`.
+- Docs: ADR-0092 amendment; deploy runbook "Rotate the Litestream API key"; checklist F reminder. Test: `tests/unit/deploy/test_iam_api_key.py`.

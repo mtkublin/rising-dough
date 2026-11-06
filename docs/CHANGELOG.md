@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D74 — IAM API key default project and expiry)
+- **Infra(T-D74): Litestream IAM API key pinned to the env project; provider-set expiry ignored** (ADR-0092 amended). `default_project_id` is set, so the drill key no longer defaults to the prod project. `ignore_changes = [expires_at]` stops the replace-on-every-plan caused by Scaleway's 1-year default expiry. New output `scw_app_key_expires_at`; yearly rotation documented in the deploy runbook and checklist F.
+
 ## 2026-11-06 (T-Q00 — post-v3 code-quality audit plan)
 - **Docs: post-v3 code-quality audit plan added** (`docs/plans/quality-audit/`, requirements §8). The audit is read-only and pinned to one commit. It has seven review tracks (duplication, layering, correctness, security, frontend, tests, drift), a findings register, and a sequential prevention pass over CLAUDE.md, skills and docs. The Mutmut mutation-testing plan is folded in (baseline during the audit; tooling ADR during prevention). Not started. Timing decided: after v3 ships and before v4 starts. The audit is added to the v4 T-E00 gate. `[pre-v4-P3]` remediation (Critical/High duplication, repository bypass, scoping) must be done before v4 Phase 3.
 ## 2026-11-06 (T-D72b — bootstrap state committed)

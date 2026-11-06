@@ -14,3 +14,8 @@ output "secret_key" {
   value       = scaleway_iam_api_key.app.secret_key
   sensitive   = true
 }
+
+output "expires_at" {
+  description = "Expiry of the Litestream API key (Scaleway sets a 1-year default)."
+  value       = scaleway_iam_api_key.app.expires_at
+}
