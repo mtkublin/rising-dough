@@ -122,7 +122,7 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
     - Pass both to Terraform as `TF_VAR_litestream_age_identity` (contents of the key file, sensitive) and `TF_VAR_litestream_age_recipient` (public), or in the gitignored `envs/<env>/terraform.tfvars`. Both are required (no defaults) for prod and drill; the drill env uses the **prod** identity.
     - GitHub: add secret `LITESTREAM_AGE_IDENTITY` and variable `LITESTREAM_AGE_RECIPIENT` (used by `terraform.yml` and `restore-drill.yml`).
     - After the first apply follow the cut-over section of `runbooks/restore.md`, then delete the plaintext generations.
-  - [ ] T-D57: confirm the 37-day maximum copy age is acceptable (it bounds how far back a restore can go). To change it set only Terraform `backup_max_age_days` (default 37, min 31); it also feeds the app container as `BUDGET_BACKUP_MAX_AGE_DAYS`.
+  - [x] T-D57 (confirmed 2026-11-06; 30-day guaranteed PITR + 7-day best-effort noncurrent versions): confirm the 37-day maximum copy age is acceptable (it bounds how far back a restore can go). To change it set only Terraform `backup_max_age_days` (default 37, min 31); it also feeds the app container as `BUDGET_BACKUP_MAX_AGE_DAYS`.
   - [ ] T-D61: review `runbooks/data-inventory.md` and its "what the operator can see" statement; decide whether to share it with users now (recommended) or wait for v4's `/privacy` page.
 - [x] Cost-alert threshold (T-D45): 10 EUR / 75 %, email + SMS (see A1).
 - [ ] Alert email for the uptime monitor (T-D44).
