@@ -511,6 +511,11 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Other user-data inputs checked: the compose, Caddyfile, Litestream and bin templates are embedded as `write_files` content, not user-data, so no header change was needed.
 - Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill on `drill` is pending (T-D25).
 
+### ✅ T-D76 [S] Build the app image on `v3` pushes for pre-merge drills → T-D75, T-D25
+- `.github/workflows/build.yml`: push trigger is now `branches: [main, v3]` (temporary, marked with a comment to remove after v3 merges). Tag rules unchanged: `sha-<short>` on every build, `main` only when `is_default_branch`, semver on tags. No step-level `if:` gates the push, so no other change was needed.
+- The drill sets `app_image_tag = "sha-<short>"` of the pushed `v3` commit (checklist D, T-D25).
+- Test: `tests/unit/deploy/test_build_workflow.py`.
+
 ### ✅ T-D77 [S] Offline render + cloud-init schema check of user-data → T-D75
 - Why: the first drill boot (2026-11-06) silently ignored the user-data and we cannot SSH to a failed boot, so first-boot bugs must be caught before a VM boot.
 - `terraform/tests/render/` fixture root calls the real `modules/compute` with dummy values (no credentials). `terraform/tests/render.tftest.hcl` (`mock_provider "scaleway"`, `command = plan`) asserts `#cloud-config` is line 1. `render_check.py` plans the fixture, extracts the rendered user-data, and checks line 1, YAML parse and `cloud-init schema`. New sensitive module output `compute.user_data` (used only by the fixture).

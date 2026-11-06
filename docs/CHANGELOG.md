@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-06 (T-D76 — build image on v3 pushes)
+- **CI(T-D76): `build.yml` also builds and pushes the app image on pushes to `v3`** so the drill can test v3 before merge. Tags: `sha-<short>` only (`main` stays default-branch gated). Temporary; remove the `v3` trigger after v3 merges. Test: `tests/unit/deploy/test_build_workflow.py`. Drill uses `app_image_tag = sha-<short>`.
 ## 2026-11-06 (T-D77 — offline cloud-init render check)
 - **CI(T-D77): the rendered cloud-init user-data is now validated offline.** A fixture root (`terraform/tests/render/`) renders the real compute module with dummy values and mocked/no credentials. `terraform test` asserts `#cloud-config` is line 1; `render_check.py` also checks YAML and `cloud-init schema`. Run with `just tf-render-check`; wired into `.github/workflows/terraform.yml`.
 ## 2026-11-06 (T-D78 — read-only Terraform preflight)
