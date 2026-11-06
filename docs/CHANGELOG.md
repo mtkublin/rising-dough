@@ -9,6 +9,8 @@
 - **Fix(T-D63): `modules/dns` no longer creates `scaleway_domain_zone`.** Drill and prod states would both have owned the `rising-dough.eu` zone, so a drill destroy could delete prod records. Records now reference the existing Scaleway Domains zone by name; each env owns only its own A/AAAA. ADR-0088 amends ADR-0035.
 ## 2026-11-06 (T-D55 — no-store on authenticated responses)
 - **Feat(T-D55): every authenticated, non-static response now carries `Cache-Control: no-store`; logout and self-session-revoke add `Clear-Site-Data: "cache", "storage"`** (ADR-0078 §2). New pure-ASGI `CacheControlMiddleware` registered inside `AuthRequired`, outside `MustChangePassword`. `/static/**`, `/health`, `/ready` and anonymous pages are untouched.
+## 2026-11-06 (T-ACC1 — Accounts planned net)
+- **Feat(T-ACC1): Accounts tab shows planned net + projected end-of-period balance per account**, and a base-currency "Planned" total in the hero (ADR-0089). New `services/account_planned.py`; shared `recurring.expand_unpromoted` (forecast behaviour unchanged). Cache-bust `rd5` -> `rd6` if CSS changed.
 
 ## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
 - **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.

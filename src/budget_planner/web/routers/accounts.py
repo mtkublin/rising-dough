@@ -27,6 +27,7 @@ from budget_planner.repositories import (
     snapshots as snapshots_repo,
 )
 from budget_planner.services import (
+    account_planned as planned_service,
     accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
@@ -45,12 +46,23 @@ def _today() -> date:
     return date.today()  # noqa: DTZ011 — intentional naive local date
 
 
+def _planned_now(
+    conn: sqlite3.Connection, user_id: int, settings: Settings
+) -> planned_service.AccountsPlanned:
+    return planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
+
+
 _SPARKLINE_WIDTH = 120
 _SPARKLINE_HEIGHT = 32
 
 
-def _card_context(conn: sqlite3.Connection, user_id: int, account_id: int) -> dict[str, Any]:
-    """Build the full context dict a single `_card.html` include needs."""
+def _card_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    account_id: int,
+    planned: planned_service.AccountsPlanned,
+) -> dict[str, Any]:
+    """Build the full context dict a single `_card.html` / `_row.html` needs."""
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     assert acc is not None
     bal = balance_service.derive_balance(conn, user_id, account_id)
@@ -77,12 +89,14 @@ def _card_context(conn: sqlite3.Connection, user_id: int, account_id: int) -> di
         "sparkline_width": _SPARKLINE_WIDTH,
         "sparkline_height": _SPARKLINE_HEIGHT,
         "snapshots": snapshots,
+        "planned": planned.by_account.get(account_id),
     }
 
 
 def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, Any]:
     accs = accounts_repo.list_all(conn, user_id)
-    cards: list[dict[str, Any]] = [_card_context(conn, user_id, a.id) for a in accs]
+    planned = planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
+    cards: list[dict[str, Any]] = [_card_context(conn, user_id, a.id, planned) for a in accs]
     # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
     # to the bottom. Assets land first, biggest first; liabilities land last,
     # smallest-liability-first so the credit card with the largest balance
@@ -101,6 +115,7 @@ def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict
         "totals_by_ccy": fortune.net_by_ccy,
         "fortune_base": fortune.net_base,
         "today_date": _today(),
+        "planned_base": planned.base_net_minor,
     }
 
 
@@ -177,6 +192,7 @@ def create_account(  # noqa: PLR0917
     is_liability: str = Form(""),
     credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
@@ -221,7 +237,7 @@ def create_account(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, acc.id),
+        card=_card_context(conn, user_id, acc.id, _planned_now(conn, user_id, settings)),
     )
     trigger(html, "balance-stale")
     return html
@@ -264,6 +280,7 @@ def update_account(  # noqa: PLR0917
     is_liability: str = Form(""),
     credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
@@ -318,7 +335,7 @@ def update_account(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, account_id),
+        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
     )
     trigger(html, "balance-stale")
     return html
@@ -428,6 +445,7 @@ def reconcile_submit(  # noqa: PLR0917
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
@@ -480,7 +498,7 @@ def reconcile_submit(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_row.html",
-        card=_card_context(conn, user_id, account_id),
+        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
         today_date=_today(),
     )
     trigger(html, "balance-stale", "forecast-stale")
