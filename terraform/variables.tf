@@ -67,6 +67,17 @@ variable "managed_dns_zone" {
   default     = false
 }
 
+variable "dns_zone_project_id" {
+  description = "Scaleway project that owns the DNS zone (the prod project, rising-dough). DNS records of every env are created there, even when the env's own resources live in another project (ADR-0092)."
+  type        = string
+  default     = "53175dd0-b944-489b-b05d-3f55d65d79af"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.dns_zone_project_id))
+    error_message = "dns_zone_project_id must be a UUID."
+  }
+}
+
 variable "app_image_tag" {
   description = "Container image tag the host should pull on first boot. Deploy pipeline updates it afterwards."
   type        = string

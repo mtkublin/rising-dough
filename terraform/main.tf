@@ -37,14 +37,36 @@ module "storage" {
   # ADR-0091: allow-list policy + drill-only force_destroy.
   env_application_id  = module.iam.application_id
   admin_principals    = var.bucket_admin_principals
-  readonly_principals = var.bucket_readonly_principals
+  readonly_principals = local.bucket_readonly_principals # ADR-0092: + restore-reader on prod
   force_destroy       = var.env == "drill"
+}
+
+# ----------------------------------------------------------------------------
+# T-D69 / ADR-0092: stable read-only principal for the restore drill.
+# Prod state only; the drill env re-creates its own IAM app on every run, so it
+# cannot be listed in prod's bucket policy. This one is long-lived.
+# ----------------------------------------------------------------------------
+
+module "restore_reader" {
+  source = "./modules/restore_reader"
+  count  = var.env == "prod" ? 1 : 0
+
+  name_prefix         = local.name_prefix
+  scaleway_project_id = var.scaleway_project_id
+}
+
+locals {
+  bucket_readonly_principals = distinct(concat(
+    var.bucket_readonly_principals,
+    [for m in module.restore_reader : "application_id:${m.application_id}"],
+  ))
 }
 
 module "dns" {
   source = "./modules/dns"
 
   managed_zone    = var.managed_dns_zone
+  zone_project_id = var.dns_zone_project_id
   domain          = var.domain
   subdomain       = local.subdomain
   instance_ipv4   = module.compute.vm_ipv4

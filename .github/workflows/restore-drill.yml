@@ -9,12 +9,15 @@
 # failed drill host would cost ~EUR 4.46/month, so cost stays bounded per run.
 #
 # Secrets (environment-scoped to `drill`):
-#   SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID
+#   SCW_ACCESS_KEY, SCW_SECRET_KEY
+#   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
 #   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - pinned known_hosts entry for drill host.
 #   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
-#                                  - read-only (GetObject + ListBucket) IAM key
-#                                    for the prod replica bucket (T-D41a).
+#                                  - read-only key of the prod `restore-reader`
+#                                    IAM application (prod outputs
+#                                    restore_reader_access_key/_secret_key;
+#                                    ADR-0092, T-D41a).
 #   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
 # Variables (environment-scoped):
 #   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56).
@@ -48,6 +51,8 @@ jobs:
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
       SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D69 / ADR-0092: `drill` environment secret = the DRILL project id.
+      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       SCW_DEFAULT_REGION: pl-waw
       SCW_DEFAULT_ZONE: pl-waw-2
       TF_IN_AUTOMATION: "true"

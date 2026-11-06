@@ -1,6 +1,6 @@
 # ADR-0091: Bucket Policy Is an Explicit Allow-List; It Provides Per-Env Isolation
 
-- **Status**: Accepted
+- **Status**: Accepted (shared-project assumption superseded by [ADR-0092](0092-drill-in-separate-scaleway-project.md))
 - **Date**: 2026-11-06
 - **Amends**: [ADR-0035](0035-v3-infrastructure-as-code-terraform.md) §3 (storage hardening), [ADR-0032](0032-v3-hosting-scaleway-poland.md) §3
 - **Related**: [ADR-0034](0034-v3-backups-litestream-to-object-storage.md) §5 (restore drill), [ADR-0088](0088-dns-zone-not-owned-by-env-state.md), T-D21 (storage module), T-D26 / T-D41 (drill teardown, monthly restore drill), T-D68 (this change)

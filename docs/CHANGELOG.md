@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D69 — Drill in its own Scaleway project)
+- **Infra(T-D69): drill runs in its own Scaleway project `rising-dough-drill`; DNS records go to the zone's project (`dns_zone_project_id`); prod state creates a stable read-only `restore-reader` principal for the restore drill (ADR-0092).
+
 ## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
 - **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
 

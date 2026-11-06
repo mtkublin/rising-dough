@@ -286,7 +286,13 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Operator must fill `bucket_admin_principals` (both envs) and prod `bucket_readonly_principals` (see operator checklist).
 - Reference: ADR-0091 (amends ADR-0035 §3, ADR-0032 §3).
 
-### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
+### ✅ T-D69 [S] Drill in its own Scaleway project → T-D68
+- Drill resources go to project `rising-dough-drill`; prod stays in `rising-dough`. `scaleway_project_id` is per-env tfvar and feeds provider + IAM scope.
+- DNS records of both envs are created in the zone's (prod) project via new `dns_zone_project_id` -> `scaleway_domain_record.project_id`.
+- Prod state creates a stable read-only `restore-reader` IAM application + key (`ObjectStorageReadOnly`, prod project) and adds it to the prod bucket policy; its key feeds the `drill` environment secrets `PROD_REPLICA_RO_*`.
+- Reference: ADR-0092 (supersedes ADR-0091 shared-project assumption).
+
+### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
 - Verify admin login via `/auth/login` with that password; verify forced redirect to `/settings/password`; rotate password.
