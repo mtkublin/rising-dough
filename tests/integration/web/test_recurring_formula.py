@@ -28,7 +28,11 @@ from budget_planner.domain.recurring import (
 from budget_planner.repositories import (
     recurring as recurring_repo,
 )
-from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
+from budget_planner.services import (
+    recurring as recurring_svc,
+    recurring_formula as formula_svc,
+    upcoming as upcoming_svc,
+)
 from budget_planner.services._promotion import ValidationError
 
 USER_ID = 1
@@ -547,3 +551,226 @@ class TestFormulaRouter:
             },
         )
         assert response.status_code == 200, response.text
+
+
+NOV = date(2026, 11, 1)
+
+
+class TestFormulaSourceOverrides:
+    """ADR-0086: formula source rules contribute effective (overridden) amounts."""
+
+    @staticmethod
+    def _override(
+        conn: sqlite3.Connection,
+        rule_id: int,
+        amount: int | None = None,
+        *,
+        skip: bool = False,
+    ) -> None:
+        recurring_repo.upsert_override(
+            conn,
+            USER_ID,
+            NewRecurringOverride(
+                rule_id=rule_id,
+                occurrence_date=NOV,
+                state=OverrideState.SKIPPED if skip else OverrideState.OVERRIDDEN,
+                amount_override=amount,
+            ),
+        )
+
+    @staticmethod
+    def _compute(conn: sqlite3.Connection, formula: AmountFormula) -> int:
+        return formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 11)
+
+    def _setup(
+        self,
+        make_rule: Callable[..., int],
+        account_id: int,
+        base: int,
+        tax: int,
+    ) -> int:
+        make_rule(account_id=account_id, category_id=base, amount=10_000_00, start_date=NOV)
+        return make_rule(
+            account_id=account_id,
+            category_id=tax,
+            amount=1,
+            start_date=NOV,
+            amount_formula=_formula(("+", 1000, (base,))),  # 10 % -> 1 000.00
+        )
+
+    def test_amount_override_on_formula_source(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+    ) -> None:
+        tax_id = self._setup(make_rule, account_id, income_a, expense_tax)
+        parent = _formula(("+", 10_000, (expense_tax,)))
+        assert self._compute(conn, parent) == 1_000_00
+        self._override(conn, tax_id, 700_00)
+        assert self._compute(conn, parent) == 700_00
+
+    def test_override_survives_promotion(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+    ) -> None:
+        tax_id = self._setup(make_rule, account_id, income_a, expense_tax)
+        parent = _formula(("+", 10_000, (expense_tax,)))
+        self._override(conn, tax_id, 700_00)
+        recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
+        assert self._compute(conn, parent) == 700_00
+
+    def test_skipped_formula_source_contributes_zero(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+    ) -> None:
+        tax_id = self._setup(make_rule, account_id, income_a, expense_tax)
+        self._override(conn, tax_id, skip=True)
+        assert self._compute(conn, _formula(("+", 10_000, (expense_tax,)))) == 0
+
+    def test_two_formula_sources_same_category_each_overridden(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+    ) -> None:
+        t1 = self._setup(make_rule, account_id, income_a, expense_tax)
+        t2 = make_rule(
+            account_id=account_id,
+            category_id=expense_tax,
+            amount=1,
+            start_date=NOV,
+            amount_formula=_formula(("+", 2000, (income_a,))),  # 2 000.00
+        )
+        parent = _formula(("+", 10_000, (expense_tax,)))
+        assert self._compute(conn, parent) == 3_000_00
+        self._override(conn, t1, 700_00)
+        self._override(conn, t2, 300_00)
+        assert self._compute(conn, parent) == 1_000_00
+
+    def test_override_at_middle_of_chain(  # noqa: PLR0917
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        income_a: int,
+        expense_tax: int,
+        expense_surcharge: int,
+    ) -> None:
+        """grand = 100 % surcharge; surcharge = 50 % tax; tax = 10 % salary."""
+        tax_id = self._setup(make_rule, account_id, income_a, expense_tax)
+        sur_id = make_rule(
+            account_id=account_id,
+            category_id=expense_surcharge,
+            amount=1,
+            start_date=NOV,
+            amount_formula=_formula(("+", 5000, (expense_tax,))),
+        )
+        grand = _formula(("+", 10_000, (expense_surcharge,)))
+        assert self._compute(conn, grand) == 500_00
+        self._override(conn, tax_id, 800_00)  # flows into surcharge computation
+        assert self._compute(conn, grand) == 400_00
+        self._override(conn, sur_id, 123_00)  # middle-level override wins
+        assert self._compute(conn, grand) == 123_00
+
+    def test_cycle_guard_still_raises(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        account_id: int,
+        expense_tax: int,
+        expense_surcharge: int,
+    ) -> None:
+        a = make_rule(
+            account_id=account_id,
+            category_id=expense_tax,
+            amount=1,
+            start_date=NOV,
+            amount_formula=_formula(("+", 1000, (expense_surcharge,))),
+        )
+        make_rule(
+            account_id=account_id,
+            category_id=expense_surcharge,
+            amount=1,
+            start_date=NOV,
+            amount_formula=_formula(("+", 1000, (expense_tax,))),
+        )
+        self._override(conn, a, 5_00)
+        with pytest.raises(formula_svc.FormulaCycleError):
+            self._compute(conn, _formula(("+", 10_000, (expense_tax,))))
+
+    def test_user_shape_regression_and_surface_parity(
+        self,
+        conn: sqlite3.Connection,
+        make_rule: Callable[..., int],
+        make_category: Callable[..., int],
+        account_id: int,
+    ) -> None:
+        base = make_category(name="Base", direction=Direction.INCOME)
+        wyplata = make_category(name="Wyplata", direction=Direction.INCOME)
+        vat = make_category(name="Wyplata VAT", direction=Direction.INCOME)
+        podatki = make_category(name="Podatki", direction=Direction.EXPENSE)
+        osobiste = make_category(name="Osobiste", direction=Direction.EXPENSE)
+
+        def mk(cat: int, amt: int, f: AmountFormula | None = None) -> int:
+            return make_rule(
+                account_id=account_id,
+                category_id=cat,
+                amount=amt,
+                start_date=NOV,
+                amount_formula=f,
+            )
+
+        mk(base, 4_000_00)
+        w = mk(wyplata, 10_000_00)  # fixed
+        wv = mk(vat, 1, _formula(("+", 5000, (base,))))  # formula, not chained
+        p1 = mk(podatki, 1, _formula(("+", 1000, (wyplata,)), ("+", 1000, (vat,))))  # chained
+        p2 = mk(podatki, 1, _formula(("+", 2000, (vat,))))  # chained
+        parent_formula = _formula(
+            ("+", 10_000, (wyplata,)),
+            ("+", 10_000, (vat,)),
+            ("-", 10_000, (podatki,)),
+        )
+        parent = mk(osobiste, 1, parent_formula)
+
+        for rid, amt in ((w, 12_000_00), (wv, 6_000_00), (p1, 700_00), (p2, 300_00)):
+            self._override(conn, rid, amt)
+        for rid in (w, wv):
+            recurring_svc.promote_recurring(conn, USER_ID, rid, recurring_svc.PromotionEdits())
+
+        expected = (12_000 + 6_000 - 700 - 300) * 100
+        assert self._compute(conn, parent_formula) == expected
+
+        rule = recurring_repo.find_rule(conn, USER_ID, parent)
+        assert rule is not None
+        assert formula_svc.resolve_rule_amount(conn, USER_ID, rule, NOV) == expected
+        occs = formula_svc.rt_expand(
+            conn,
+            USER_ID,
+            rule,
+            recurring_repo.list_overrides_all(conn, USER_ID, parent),
+            NOV,
+            date(2026, 11, 30),
+        )
+        assert [o.amount for o in occs] == [expected]
+        # Upcoming resolves the amount through the same entry point.
+        item = next(
+            i
+            for i in upcoming_svc.list_upcoming(conn, USER_ID, today=NOV, window_days=None)
+            if i.rule_id == parent
+        )
+        assert item.amount_minor == formula_svc.resolve_rule_amount(
+            conn, USER_ID, rule, item.effective_date
+        )
