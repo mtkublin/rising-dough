@@ -172,8 +172,8 @@ runcmd:
   - mkdir -p /data && chown 10001:10001 /data && chmod 0700 /data
   - mkdir -p /var/log/caddy && chown root:root /var/log/caddy && chmod 0755 /var/log/caddy
   # T-D67 / ADR-0094: join the tailnet (official apt repo, Ubuntu noble). The
-  # Scaleway security group has no port 22 (the SG is the gate; ufw stays open on 22 so
-  # the documented break-glass SG rule works).
+  # Scaleway security group has no port 22 and ufw allows 22/tcp only on tailscale0
+  # (defence in depth). Break-glass needs both the SG rule and a temporary ufw rule.
   - install -m 0755 -d /usr/share/keyrings
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
@@ -183,7 +183,7 @@ runcmd:
   - sh -c 'tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
   - ufw default deny incoming
   - ufw default allow outgoing
-  - ufw allow 22/tcp
+  - ufw allow in on tailscale0 to any port 22 proto tcp
   - ufw allow 80/tcp
   - ufw allow 443/tcp
   - ufw --force enable

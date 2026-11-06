@@ -7,7 +7,7 @@
 
 ## Context
 
-1. Inbound TCP 22 was open to `0.0.0.0/0` on the security group and in `ufw`. Even with key-only auth this exposes sshd to scanners, `fail2ban` noise and any future sshd CVE.
+1. Inbound TCP 22 was open to `0.0.0.0/0` on the security group and in `ufw` (all interfaces). Even with key-only auth this exposes sshd to scanners, `fail2ban` noise and any future sshd CVE.
 2. The app itself must stay public on 80/443 (TCP) and 443 (UDP, HTTP/3) through Caddy. Only admin/CI traffic (operator SSH, GitHub Actions deploy/rollback/restore-drill) needs a private path.
 3. Operator decision (2026-11-06): use Tailscale (Personal plan, free) for SSH/admin only. App users never need Tailscale.
 4. The tailnet ACL is tailnet-global. If both the `drill` and `prod` Terraform states managed it, they would fight over one object (the same trap as the DNS zone, ADR-0088).
@@ -15,7 +15,7 @@
 ## Decision
 
 1. **Security group** (`modules/compute`): remove inbound TCP 22. Keep default-drop inbound plus 80/tcp, 443/tcp, 443/udp. Inbound UDP 41641 (Tailscale direct path) is deliberately **not** opened: Tailscale works outbound-only through NAT traversal and DERP relays (outbound policy is `accept`), and a direct path is only a latency optimisation for an admin shell. Fewer open ports wins.
-2. **Host firewall**: `ufw allow 22/tcp` is kept on purpose. The Scaleway security group is the single gate for port 22, so the break-glass rule in item 7 works without host access (the locked `operator`/`deploy` accounts give no console login). Reachability over `tailscale0` needs no extra ufw rule beyond this.
+2. **Host firewall** (amended by T-D71): `ufw allow in on tailscale0 to any port 22 proto tcp` replaces `ufw allow 22/tcp`, so host SSH is reachable only on the Tailscale interface (defence in depth behind the security group). Rules by interface name are valid before `tailscale0` exists; `ufw --force enable` runs after them. Break-glass (item 7) now also needs a temporary `ufw allow 22/tcp` on the host, which has no console login, so break-glass is effectively limited to hosts already reachable by other means; accepted trade-off.
 3. **VM join** (Terraform + cloud-init):
    - Root module configures the `tailscale/tailscale` provider with an OAuth client (`tailscale_oauth_client_id` / `tailscale_oauth_client_secret`, sensitive, supplied via `TF_VAR_*`; `scopes = ["auth_keys"]`). `tailnet` is omitted: per provider docs it defaults to the tailnet owning the credentials.
    - `tailscale_tailnet_key.vm`: `preauthorized = true`, `reusable = false`, `tags = ["tag:<env>"]`, `ephemeral = (env == "drill")`, `expiry = 3600`. Prod stays a normal (non-ephemeral) node; drill nodes are removed from the tailnet automatically after they go offline, so the monthly destroy leaves nothing behind.

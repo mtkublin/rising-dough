@@ -299,6 +299,10 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `deploy.yml`, `rollback.yml`, `restore-drill.yml` join the tailnet (`tailscale/github-action`, `tag:ci`) before SSH; SSH targets are `budget-planner-drill` / `budget-planner-prod`; restore drill waits for the drill host on the tailnet. `terraform.yml` plan receives `TF_VAR_tailscale_oauth_*`.
 - Operator: checklist A9. Reference: ADR-0094.
 
+### ✅ T-D71 [S] ufw SSH only on tailscale0 → T-D67
+- `bootstrap.yaml.tpl`: `ufw allow 22/tcp` replaced by `ufw allow in on tailscale0 to any port 22 proto tcp`; 80/443 unchanged; rules precede `ufw --force enable`. Matches the SG that closes 22 publicly.
+- Test: `tests/unit/deploy/test_tailscale_ssh.py`. Reference: ADR-0094 (amended).
+
 ### ✅ T-D70 [S] CI Terraform inputs via TF_VAR_* secrets → T-D28
 - `terraform.yml` and `restore-drill.yml` no longer pass `-var-file` (the tfvars are gitignored and absent in CI). Every root variable is `TF_VAR_<name>` from GitHub secrets, environment-scoped (`drill`, `prod`, ungated `prod-plan` for the PR plan's prod leg) with identical secret names. No tfvars committed.
 - `terraform/scripts/check_tf_vars.py` fails fast listing empty required inputs; all terraform commands use `-input=false`. Test: `tests/architecture/test_ci_terraform_inputs.py`.

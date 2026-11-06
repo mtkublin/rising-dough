@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-06 (T-D71 — ufw SSH only on tailscale0)
+- **Infra(T-D71): host ufw allows port 22 only on `tailscale0` (was all interfaces)** (ADR-0094 amended). Cloud-init, runbook and tests updated.
+
 ## 2026-11-06 (T-D67 — SSH only over Tailscale)
 - **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
 ## 2026-11-06 (T-FIX5b — ADR renumber)
