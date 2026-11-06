@@ -254,6 +254,9 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - `managed_dns_zone = true` now means "zone exists at Scaleway DNS, manage this env's records". `false` (external zone, no records) still works.
 - Reference: ADR-0088 (amends ADR-0035).
 
+### ✅ T-D64 [P] Terraform >= 1.10 + CI pin 1.17.1 → T-D20
+- Floor is `>= 1.10.0` (native S3 lockfile for `use_lockfile = true`). CI pins and `.terraform-version` are `1.17.1`, matching the operator. Reference: ADR-0090.
+
 ### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
