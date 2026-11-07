@@ -558,3 +558,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Bug fix: top-level cloud-init `groups: [docker]` so `useradd -G sudo,docker` cannot fail before `docker.io` installs.
 - Docs: ADR-0094 amendment (2026-11-07), runbook `tailscale-ssh.md` section, CHANGELOG.
 - Tests: `tests/unit/deploy/test_console_password.py`; `terraform/tests/render.tftest.hcl`.
+
+### ✅ T-D85 [S] Redact whole cloud-init/user_data heredocs in masked plan output → ADR-0098
+- Finding (2026-11-07): after T-D83 the first plan printed the prior `user_data["cloud-init"]` value unmasked; random passwords/cookie secrets/UUID keys have no matchable shape.
+- `terraform/scripts/mask_plan.py`: heredoc bodies under `cloud-init`/`cloud_init`/`user_data`/`user-data` keys replaced by `(redacted by mask_plan.py: N lines)` (delimiters kept; unterminated -> redact to EOF); values of `*PASSWORD*`/`*SECRET*`/`*TOKEN*`/`*AUTHKEY*`/`*IDENTITY*`/`*_KEY` keys masked. Streaming, stdlib only.
+- Docs: ADR-0098 amendment (2026-11-07), CHANGELOG.
+- Tests: `tests/unit/deploy/test_mask_plan.py`.
