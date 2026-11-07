@@ -33,3 +33,9 @@ Stop passing secrets in user-data: fetch them at boot from a secret manager (Sca
 - Plans and applies are safe to log; masking is defence in depth, not the primary control.
 - Random secrets (cookie secret, admin password) have no recognisable shape and rely on `sensitive()`.
 - The `plan.bin` artifact is gone; `plan.txt` (masked) remains.
+
+## Amendment 2026-11-07 (T-D85)
+
+The first plan after T-D83 printed the PRIOR state value of `user_data["cloud-init"]` as a removal block (`- "cloud-init" = <<-EOT ...`). Pattern masking missed random values (admin password, cookie secret, UUID-format Scaleway secret keys), so they appeared in clear text. This can recur whenever a prior value of a rendered template shows up in plan output.
+
+`mask_plan.py` now additionally (1) redacts the whole body of any heredoc opened by a `cloud-init` / `cloud_init` / `user_data` / `user-data` key (any `+`/`-`/`~` marker, quoted or not, any delimiter word), replacing it with one `(redacted by mask_plan.py: N lines)` line while keeping the opening and closing delimiter lines; an unterminated heredoc is redacted to EOF; and (2) masks values of YAML/env/HCL keys whose name contains PASSWORD, SECRET, TOKEN, AUTHKEY or IDENTITY, or ends in `_KEY`, as defence in depth outside heredocs. Other heredocs (e.g. policy JSON) are untouched. No new decision; the filter remains secondary to `sensitive()`.

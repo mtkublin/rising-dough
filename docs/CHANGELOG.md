@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-07 (T-D85 — redact cloud-init heredocs in masked plan output)
+- **Security(T-D85): `mask_plan.py` now redacts the whole body of `cloud-init`/`cloud_init`/`user_data`/`user-data` heredocs and masks values of secret-named keys** (PASSWORD, SECRET, TOKEN, AUTHKEY, IDENTITY, `*_KEY`). Fixes the prior-state `user_data["cloud-init"]` removal block printing random secrets in clear after T-D83 (ADR-0098 amended). Tests: `tests/unit/deploy/test_mask_plan.py`.
 ## 2026-11-07 (T-D84 — drill-only console password; docker group fix)
 - **Infra(T-D84): new `break_glass_console_password` Terraform variable gives `operator` a generated password for the Scaleway serial console, drill only** (validation rejects it on prod; ADR-0094 amended). Only the bcrypt hash enters user-data; plaintext via `terraform output -raw console_password`. SSH password login stays disabled. **Fix:** cloud-init now declares a top-level `groups: [docker]` so `operator` creation no longer depends on `docker.io` having created the group. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_console_password.py`, `terraform/tests/render.tftest.hcl`.
 ## 2026-11-07 (T-D83 — user-data secrets out of plan output)
