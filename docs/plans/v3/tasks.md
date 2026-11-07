@@ -559,6 +559,12 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Docs: ADR-0094 amendment (2026-11-07), runbook `tailscale-ssh.md` section, CHANGELOG.
 - Tests: `tests/unit/deploy/test_console_password.py`; `terraform/tests/render.tftest.hcl`.
 
+### ✅ T-D86 [S] Drill-only boot-log upload from `bootcmd` to the drill bucket → ADR-0094
+- Root variable `boot_log_upload` (bool, default `false`, rejected unless `env = "drill"`), passed to compute. Template: `bootcmd` writes uploader + 0600 creds to `/run`, starts it detached; uploads logs every 30 s for 60 min then every 5 min for 2 h to `boot-logs/<instance-id>/<boot-id>/` with secret redaction. Reuses the existing bucket credential.
+- Storage: `expire_boot_logs` (drill only) lifecycle rule, 7 days on `boot-logs/`.
+- Docs: ADR-0094 amendment, runbook `tailscale-ssh.md` "Boot logs (drill)", CHANGELOG.
+- Tests: `tests/unit/deploy/test_boot_log_upload.py`; `terraform/tests/render.tftest.hcl`.
+
 ### ✅ T-D85 [S] Redact whole cloud-init/user_data heredocs in masked plan output → ADR-0098
 - Finding (2026-11-07): after T-D83 the first plan printed the prior `user_data["cloud-init"]` value unmasked; random passwords/cookie secrets/UUID keys have no matchable shape.
 - `terraform/scripts/mask_plan.py`: heredoc bodies under `cloud-init`/`cloud_init`/`user_data`/`user-data` keys replaced by `(redacted by mask_plan.py: N lines)` (delimiters kept; unterminated -> redact to EOF); values of `*PASSWORD*`/`*SECRET*`/`*TOKEN*`/`*AUTHKEY*`/`*IDENTITY*`/`*_KEY` keys masked. Streaming, stdlib only.

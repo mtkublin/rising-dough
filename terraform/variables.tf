@@ -39,6 +39,17 @@ variable "break_glass_console_password" {
   }
 }
 
+variable "boot_log_upload" {
+  description = "Drill-only, temporary: upload boot diagnostics (cloud-init logs, journal, dmesg, ...) from the VM to the drill bucket under boot-logs/ from cloud-init bootcmd (T-D86, ADR-0094). Must be false unless env = drill."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.boot_log_upload || var.env == "drill"
+    error_message = "boot_log_upload is drill-only (env must be 'drill')."
+  }
+}
+
 variable "admin_email" {
   description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
   type        = string
