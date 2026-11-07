@@ -144,6 +144,17 @@ jobs:
           terraform_version: 1.17.1
           terraform_wrapper: false
 
+      - name: Mask secret inputs (T-D83)
+        run: |
+          # GitHub secrets are masked already; this also covers each line of
+          # multi-line values. Secrets minted inside Terraform (Tailscale key,
+          # IAM keys) are only caught by scripts/mask_plan.py patterns.
+          for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret SCW_SECRET_KEY; do
+            while IFS= read -r line; do
+              [ -n "$line" ] && echo "::add-mask::$line"
+            done <<< "${!v:-}"
+          done
+
       - name: Check required Terraform inputs
         run: python3 scripts/check_tf_vars.py
 
@@ -153,17 +164,19 @@ jobs:
       - name: terraform plan (${{ matrix.env }})
         id: plan
         run: |
+          # T-D83 / ADR-0098: never print raw plan output (cloud_init embeds
+          # secrets and Terraform may show the prior state value unmasked).
           set -o pipefail
-          terraform plan -no-color -input=false -lock=false -out=plan.bin | tee plan.out
-          terraform show -no-color plan.bin > plan.txt
+          terraform plan -no-color -input=false -lock=false -out=plan.bin | python3 scripts/mask_plan.py | tee plan.out
+          terraform show -no-color plan.bin | python3 scripts/mask_plan.py > plan.txt
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: tfplan-${{ matrix.env }}
-          path: |
-            terraform/plan.bin
-            terraform/plan.txt
+          # plan.bin is not uploaded: the binary plan embeds raw config and
+          # state values, including the rendered user-data (T-D83).
+          path: terraform/plan.txt
           retention-days: 7
 
       - name: Comment plan on PR
@@ -258,6 +271,17 @@ jobs:
           terraform_version: 1.17.1
           terraform_wrapper: false
 
+      - name: Mask secret inputs (T-D83)
+        run: |
+          # GitHub secrets are masked already; this also covers each line of
+          # multi-line values. Secrets minted inside Terraform (Tailscale key,
+          # IAM keys) are only caught by scripts/mask_plan.py patterns.
+          for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret SCW_SECRET_KEY; do
+            while IFS= read -r line; do
+              [ -n "$line" ] && echo "::add-mask::$line"
+            done <<< "${!v:-}"
+          done
+
       - name: Check required Terraform inputs
         run: python3 scripts/check_tf_vars.py
 
@@ -265,7 +289,11 @@ jobs:
         run: terraform init -input=false -backend-config=envs/prod/backend.hcl -reconfigure
 
       - name: terraform plan (prod)
-        run: terraform plan -no-color -input=false -out=plan.bin
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false -out=plan.bin | python3 scripts/mask_plan.py
 
       - name: terraform apply (prod)
-        run: terraform apply -no-color -input=false plan.bin
+        run: |
+          set -o pipefail
+          terraform apply -no-color -input=false plan.bin | python3 scripts/mask_plan.py

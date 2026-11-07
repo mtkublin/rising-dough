@@ -66,6 +66,11 @@ module "compute" {
   backup_max_age_days      = 37
 }
 
+output "cloud_init_is_sensitive" {
+  description = "Whether scaleway_instance_server.app.cloud_init is marked sensitive (T-D83)."
+  value       = module.compute.cloud_init_is_sensitive
+}
+
 output "user_data" {
   description = "Rendered cloud-init user-data (contains dummy secrets only)."
   value       = module.compute.user_data

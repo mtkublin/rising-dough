@@ -545,3 +545,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - cloud-init `swap:` key (`cc_mounts`, init stage) creates `/swapfile` (1 GiB) before `package_update_upgrade_install` and `runcmd`, protecting the 1 GB STARDUST1-S from first-boot OOM peaks. `vm.swappiness = 10` via `/etc/sysctl.d/99-swappiness.conf` and an early idempotent `bootcmd` `sysctl -w`.
 - Docs: ADR-0032 amendment (2026-11-07, sizing note), `deploy.md` "Memory check", CHANGELOG.
 - Tests: `tests/unit/deploy/test_swap.py`; `terraform/tests/render.tftest.hcl`.
+
+### ✅ T-D83 [S] Keep rendered user-data secrets out of plan output → ADR-0098
+- Compute module: `cloud_init = sensitive(local.user_data)` so state records the sensitive attribute; new `cloud_init_is_sensitive` output as a test hook. Prior state values written before this fix may print once on the first apply (mask it).
+- `terraform/scripts/mask_plan.py` (stdlib filter) wired into `terraform.yml` plan/show/apply steps plus `::add-mask::` step; `plan.bin` no longer uploaded as an artifact; `just tf-plan-safe <env>` for local plans.
+- Finding documented: a `cloud_init` change plans as in-place but cloud-init does not re-run; user-data changes need `-replace=module.compute.scaleway_instance_server.app`. Runbooks `deploy.md` (incl. T-D74 key rotation) and `disaster-recovery.md` updated.
+- Future hardening (secrets out of user-data) described in ADR-0098, not built.
+- Tests: `terraform/tests/render.tftest.hcl` (`issensitive`), `tests/unit/deploy/test_mask_plan.py`.

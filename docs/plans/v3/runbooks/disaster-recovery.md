@@ -115,7 +115,7 @@ Trigger only if the DB has zero live admins (ADR-0061 §3). The admin-bootstrap 
    # No static password: random_password.admin_initial_password rerolls on apply.
    ```
 2. `terraform apply -var-file=envs/prod/terraform.tfvars`.
-3. Cloud-init re-renders `/etc/budget-planner/app.env` with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
+3. Cloud-init re-renders `/etc/budget-planner/app.env` (only on a NEW VM: cloud-init runs once, so an in-place `cloud_init` update changes nothing on the host; add `-replace=module.compute.scaleway_instance_server.app` to step 2, ADR-0098; mask plan output with `just tf-plan-safe prod`) with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
 4. `ssh deploy@budget-planner-prod "deploy sha-<current>"` (or trigger `deploy.yml` to roll the app container so the lifespan startup hook re-runs the bootstrap routine).
 5. Capture `terraform output -raw admin_initial_password` into the password manager.
 6. Log in as the new admin at `https://budget-planner-prod/auth/login`. The first login forces password rotation (`must_change_password = 1`).

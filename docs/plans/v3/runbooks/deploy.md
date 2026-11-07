@@ -118,7 +118,13 @@ Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Ter
 
 1. Read the date: `terraform -chdir=terraform output scw_app_key_expires_at`. Rotate at least 30 days before it (checklist F).
 2. Replace the key: `terraform -chdir=terraform apply -replace='module.iam.scaleway_iam_api_key.app'`.
-3. Impact: the key is rendered into the instance `cloud_init` (`/etc/budget-planner/litestream.env`), so the plan also shows a `cloud_init` change on `scaleway_instance_server.app`. Read the plan first. If it says the server is replaced, stop: that recreates the VM and takes the restore path (see `disaster-recovery.md`). If it is an in-place update, cloud-init does not re-run on an existing VM, so the host keeps the old key until step 4.
+3. Impact: the key is rendered into the instance `cloud_init` (`/etc/budget-planner/litestream.env`), so the plan also shows a `cloud_init` change on `scaleway_instance_server.app`. Read the plan first. If it says the server is replaced, stop: that recreates the VM and takes the restore path (see `disaster-recovery.md`). If it is an in-place update, cloud-init does not re-run on an existing VM (a `cloud_init` change only takes effect via `-replace=module.compute.scaleway_instance_server.app`, ADR-0098), so the host keeps the old key until step 4. Always read the plan through `just tf-plan-safe <env>` or `| python3 terraform/scripts/mask_plan.py`; the first plan after ADR-0098 may still print the old `cloud_init` unmasked once.
 4. Refresh the host secret by hand over Tailscale SSH. Print the new values with `terraform output -raw scw_access_key` and `scw_secret_key`. Update `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` in `/etc/budget-planner/litestream.env` (mode 0600). Then run `cd /etc/budget-planner && docker compose up -d --force-recreate litestream`.
 5. Verify: `docker compose logs --tail=50 litestream` shows no auth errors, and a fresh Litestream snapshot or generation appears in the bucket.
 6. Check `scw_app_key_expires_at` is about one year ahead. Replace deletes the old key immediately, so there is no overlap window. Do steps 2 to 4 in one sitting; replication is paused only for that gap.
+
+## Terraform plans and cloud-init changes (T-D83, ADR-0098)
+
+- `cloud_init` embeds secrets. Run plans via `just tf-plan-safe drill|prod`, or pipe through `python3 terraform/scripts/mask_plan.py`. CI already does.
+- The first apply after ADR-0098 can show the OLD `cloud_init` once (state lacks the sensitive mark); mask it as above. That apply records the mark.
+- cloud-init runs once. A user-data change (`cloud_init`) plans as `updated in-place` but does nothing on the running VM. To apply it, replace the server: `terraform apply -replace=module.compute.scaleway_instance_server.app` (recreates the VM, data restores from Litestream; see `disaster-recovery.md`).
