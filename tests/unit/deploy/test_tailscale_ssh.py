@@ -25,15 +25,18 @@ def _inbound_rules(tf: str) -> list[dict[str, str]]:
 
 
 def test_security_group_has_no_port_22_rule() -> None:
-    rules = _inbound_rules(COMPUTE_MAIN.read_text())
+    tf = COMPUTE_MAIN.read_text()
 
-    assert rules, "expected inbound rules to parse"
-    assert all(rule.get("port") != "22" for rule in rules)
+    # The only port-22 rule is the drill-only break-glass dynamic block (T-D81).
+    assert len(re.findall(r"port\s*=\s*22\b", tf)) == 1
+    assert "for_each = toset(var.break_glass_ssh_cidrs)" in tf
+    assert all(rule.get("port") != "22" for rule in _inbound_rules(tf))
 
 
 def test_security_group_keeps_web_ports_and_default_drop() -> None:
     tf = COMPUTE_MAIN.read_text()
-    rules = {(r["protocol"], r["port"]) for r in _inbound_rules(tf)}
+    # ADR-0101: the web rules are a dynamic block (empty on the tailnet-only drill).
+    rules = set(re.findall(r'\{ protocol = "(\w+)", port = (\d+) \}', tf))
 
     assert rules == {("TCP", "80"), ("TCP", "443"), ("UDP", "443")}
     assert 'inbound_default_policy  = "drop"' in tf

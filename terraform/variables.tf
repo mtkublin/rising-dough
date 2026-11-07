@@ -132,6 +132,27 @@ variable "dns_zone_project_id" {
   }
 }
 
+variable "tailnet_dns_name" {
+  description = "Drill only (T-D97, ADR-0101): the tailnet's MagicDNS suffix, e.g. 'tail1234.ts.net' (admin console > DNS). The drill is tailnet-only: its hostname is budget-planner-drill.<tailnet_dns_name>, it gets no public DNS record and no public 80/443. Not a secret. Required when env = drill, must be empty on prod."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tailnet_dns_name == "" || can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?\\.ts\\.net$", var.tailnet_dns_name))
+    error_message = "tailnet_dns_name must look like 'tail1234.ts.net' (lowercase label + .ts.net)."
+  }
+
+  validation {
+    condition     = var.env != "drill" || var.tailnet_dns_name != ""
+    error_message = "tailnet_dns_name is required when env = 'drill' (ADR-0101)."
+  }
+
+  validation {
+    condition     = var.env != "prod" || var.tailnet_dns_name == ""
+    error_message = "tailnet_dns_name must be empty on prod (prod uses subdomain + domain, ADR-0101)."
+  }
+}
+
 variable "app_image_tag" {
   description = "Container image tag the host should pull on first boot. Deploy pipeline updates it afterwards."
   type        = string
@@ -201,7 +222,11 @@ locals {
   lifecycle_days            = var.backup_max_age_days - local.litestream_retention_days
 
   subdomain = var.env == "prod" ? var.subdomain_prod : var.subdomain_drill
-  fqdn      = "${local.subdomain}.${var.domain}"
+
+  # ADR-0101: drill is tailnet-only and answers on its MagicDNS name; prod keeps
+  # <subdomain>.<domain> (public DNS + ACME).
+  tailnet_only = var.env == "drill"
+  fqdn         = local.tailnet_only ? "${local.tailscale_hostname}.${var.tailnet_dns_name}" : "${local.subdomain}.${var.domain}"
 
   name_prefix = "budget-planner-${var.env}"
   bucket_name = "${local.name_prefix}-${var.scaleway_region}"

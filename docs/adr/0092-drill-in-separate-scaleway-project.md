@@ -32,3 +32,7 @@
 `scaleway_iam_api_key.app` now sets `default_project_id = var.scaleway_project_id`. Without it Scaleway used the organization default project (prod) for the drill key. S3 operations resolve buckets against the key's default project, so a drill key defaulting to prod broke the isolation above even though its IAM policy was scoped to the drill project. Each env's key now defaults to its own project.
 
 The key also gets `lifecycle { ignore_changes = [expires_at] }`. Scaleway applies a 1-year default expiry when none is configured; reading it back as a diff forced replacement on every plan. The expiry is exposed as root output `scw_app_key_expires_at`. Rotation before that date is an operator task (deploy runbook, checklist F). `default_project_id` changes once: the existing key is replaced on the next apply.
+
+## Amendment 2026-11-07 (T-D97, ADR-0101)
+
+DNS records of the drill are no longer created in the prod project's zone: the drill is tailnet-only and uses its MagicDNS name ([ADR-0101](0101-drill-environment-is-tailnet-only.md)). Only prod records live in that zone.

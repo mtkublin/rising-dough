@@ -10,7 +10,7 @@
 # consistent. Shares concurrency group `drill` with drill.yml / drill-destroy.yml
 # / restore-drill.yml (queued, never cancelling a running apply).
 #
-# Environment `drill` secrets: SCW_SECRET_KEY (ci-drill key, ADR-0100),
+# Environment `drill-teardown` (ungated, same secrets as `drill`): SCW_SECRET_KEY (ci-drill key, ADR-0100),
 # SCW_DEFAULT_PROJECT_ID (the drill project) + everything terraform.yml needs.
 
 name: drill-sweeper
@@ -32,7 +32,7 @@ jobs:
     name: look for expired drills
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: drill
+    environment: drill-teardown # ungated (ADR-0101): the sweeper must never wait for approval
     permissions: {}
     outputs:
       expired: ${{ steps.scan.outputs.expired }}

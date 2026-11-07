@@ -6,14 +6,18 @@
 
 - [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **Selected branches: `main` only**. Used by `deploy-prod`, `apply-prod`, `rollback` (env prod).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
-- [ ] **`drill`**: no required reviewers. Deployment branches: selected `main` and `*-deploy` (add a pattern per deploy branch convention); allow PR refs only if PR-time drill checks (T-D90) need it, in which case treat the drill environment as untrusted-reachable (it only holds the drill key).
+- [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
+- [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
+- [ ] **`drill-plan`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by the drill leg of the PR plan in `terraform.yml` (mirrors `prod-plan`). Same drill secrets as `drill`.
+- Private repositories: **Required reviewers on environments need GitHub Pro/Team** (or an org plan); on the free plan the setting is unavailable. Not needed with the recommended no-reviewer setup.
+- Only relevant if reviewers are configured on `drill`: a run waiting for approval holds the `drill` concurrency group, so the sweeper and `drill-destroy.yml` queue behind it. Approve or cancel pending drill runs promptly.
 - [ ] Delete **repo-level** `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (and any repo-level copy of the env secrets below) so a missing environment secret fails instead of falling back.
 
 ## 2. Secrets and variables per environment
 
-Same names in every environment, different values (ADR-0093). Verified against `.github/workflows/*.yml`.
+Same names in every environment, different values (ADR-0093). The three drill environments (`drill`, `drill-teardown`, `drill-plan`) hold identical copies of the drill column; keep them in sync when rotating (`key-rotation.md`). Verified against `.github/workflows/*.yml`.
 
-| Secret | `prod` | `prod-plan` | `drill` | Notes |
+| Secret | `prod` | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
 |---|:-:|:-:|:-:|---|
 | `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` | ci-prod | ci-plan (read-only) | ci-drill | outputs of `terraform/bootstrap/ci` |
 | `SCW_DEFAULT_PROJECT_ID` | prod project | prod project | drill project | |
@@ -32,10 +36,13 @@ Same names in every environment, different values (ADR-0093). Verified against `
 | `PROD_HOST` | x | | | tailnet name, e.g. `budget-planner-prod` |
 | `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
-| Variable | `prod` | `drill` |
+| Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
 | `PROD_URL` | x | |
-| `DRILL_URL` | | x |
+| `TAILNET_DNS_NAME` (ADR-0101), e.g. `tail1234.ts.net` (admin console > DNS; not a secret) | | x |
+| `DRILL_URL` (only for ad-hoc `deploy.yml` / `rollback.yml` on drill; set to `https://budget-planner-drill.<TAILNET_DNS_NAME>`) | | x |
+
+`drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
 Repo-level (not environment): `CODEQL_TOKEN` (security.yml). `GITHUB_TOKEN` is automatic.
 
@@ -44,22 +51,28 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 
 - [ ] Require a pull request before merging; dismiss stale approvals; no bypass for admins (so break-glass changes also land via PR afterwards).
-- [ ] Require status checks, branch up to date: `ci`, the pre-merge drill check (T-D90), `fmt + validate + lint` and `plan (drill)` / `plan (prod)` from the Terraform workflow, `uv lock --check`.
+- [ ] Require status checks, branch up to date: `ci`, **`drill-gate`** (commit status posted by `drill.yml` mode=gate on the exact head SHA, T-D98; add it by name once it has been posted at least once), `fmt + validate + lint` and `plan (drill)` / `plan (prod)` from the Terraform workflow, `uv lock --check`.
+- [ ] "Require branches to be up to date before merging" is optional: `drill-gate` is already tied to the head SHA, so a new push (including merging `main` into the branch) needs a fresh gate run anyway.
 - [ ] Require linked conversation resolution; block force pushes and deletions.
 - [ ] Restrict who can push to matching branches (operator only).
 
-## 4. Tailscale OAuth clients (admin console > Settings > OAuth clients)
+## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
-Two separate clients so a leaked drill secret cannot mint prod-tagged keys:
+One OAuth client, used by every environment:
 
-| Client | Scope | Allowed tags | Goes to |
+| Client | Scope | Tag assigned to the client | Goes to |
 |---|---|---|---|
-| `budget-planner-prod` | `auth_keys` write | `tag:prod`, `tag:ci` | `prod` and `prod-plan` env: `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` |
-| `budget-planner-drill` | `auth_keys` write | `tag:drill`, `tag:ci` | `drill` env: same secret names |
+| `budget-planner-automation` | `auth_keys` write | `tag:automation` | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in `prod`, `prod-plan`, `drill`, `drill-teardown`, `drill-plan` |
 
-- `tag:ci` is needed in both because the deploy workflows join the tailnet as `tag:ci` using the same secret names (limitation: the tag cannot be split without renaming secrets in the workflows; tracked as follow-up).
-- Tag owners (`tagOwners`) in the ACL must allow the OAuth client to own each tag (`tailscale-acl.hujson`).
+- The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).
+
+### Tailscale admin console prerequisites for the tailnet-only drill (ADR-0101)
+
+- [ ] **DNS > MagicDNS**: enabled.
+- [ ] **DNS > HTTPS Certificates**: enabled (Caddy on the drill gets its `*.ts.net` certificate from tailscaled; without this the TLS handshake fails).
+- [ ] ACL (`tailscale-acl.hujson`): grant `tag:ci -> tag:drill:443` (the smoke test and `restore-drill.yml` probe `/ready`) in addition to the existing SSH rules. Operators' own devices need `443` to `tag:drill` to browse the drill UI.
+- [ ] Copy the tailnet DNS name (e.g. `tail1234.ts.net`) into the `TAILNET_DNS_NAME` variable of `drill`, `drill-teardown` and `drill-plan`.
 
 ## 5. Actions settings (Settings > Actions > General)
 

@@ -74,8 +74,10 @@ locals {
   ))
 }
 
+# ADR-0101: the drill is tailnet-only and creates no DNS records (prod only).
 module "dns" {
   source = "./modules/dns"
+  count  = local.tailnet_only ? 0 : 1
 
   managed_zone    = var.managed_dns_zone
   zone_project_id = var.dns_zone_project_id
@@ -84,6 +86,12 @@ module "dns" {
   instance_ipv4   = module.compute.vm_ipv4
   instance_ipv6   = module.compute.vm_ipv6
   record_ttl_secs = 300
+}
+
+# The module became conditional (T-D97); keep the existing prod records.
+moved {
+  from = module.dns
+  to   = module.dns[0]
 }
 
 # ----------------------------------------------------------------------------
@@ -121,6 +129,9 @@ module "compute" {
   admin_password    = random_password.admin_initial_password.result
   cookie_secret     = random_password.cookie_secret.result
   trusted_hosts_csv = local.fqdn
+
+  # T-D97 / ADR-0101: drill = tailnet only (no public 80/443, Caddy cert from tailscaled).
+  tailnet_only = local.tailnet_only
 
   # T-D67: SSH only over Tailscale.
   tailscale_authkey  = tailscale_tailnet_key.vm.key

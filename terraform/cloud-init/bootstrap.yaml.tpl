@@ -258,8 +258,13 @@ runcmd:
 %{ for cidr in break_glass_ssh_cidrs ~}
   - ufw allow from ${cidr} to any port 22 proto tcp
 %{ endfor ~}
+%{~ if tailnet_only }
+  # ADR-0101: tailnet-only drill; the web port is reachable on tailscale0 only.
+  - ufw allow in on tailscale0 to any port 443
+%{~ else }
   - ufw allow 80/tcp
   - ufw allow 443/tcp
+%{~ endif }
   - ufw --force enable
   # T-D67 / ADR-0094: join the tailnet (official apt repo, Ubuntu noble). The
   # Scaleway security group has no port 22 and ufw allows 22/tcp only on tailscale0
@@ -274,6 +279,10 @@ runcmd:
   - systemctl enable --now unattended-upgrades
   - systemctl enable --now docker
   - sh -c 'cd /etc/budget-planner && docker compose pull && docker compose up -d'
+%{~ if tailnet_only }
+  - sh -c 'for i in $(seq 1 60); do curl -fsS --resolve ${hostname}:443:127.0.0.1 https://${hostname}/ready && break; sleep 1; done'
+%{~ else }
   - sh -c 'for i in $(seq 1 60); do curl -fsS -k https://localhost/ready && break; sleep 1; done'
+%{~ endif }
 
 final_message: "budget-planner bootstrap complete at $UPTIME seconds; app reachable on ${hostname}."

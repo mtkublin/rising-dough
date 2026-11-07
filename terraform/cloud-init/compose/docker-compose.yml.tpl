@@ -99,7 +99,9 @@ services:
     container_name: budget-planner-caddy
     restart: unless-stopped
     ports:
+%{~ if !tailnet_only }
       - "80:80"
+%{~ endif }
       - "443:443"
       - "443:443/udp"
     volumes:
@@ -107,6 +109,13 @@ services:
       - caddy-data:/data
       - caddy-config:/config
       - /var/log/caddy:/var/log/caddy
+%{~ if tailnet_only }
+      # ADR-0101: certificate for the *.ts.net name comes from the host tailscaled.
+      # The directory (not the socket file) is mounted so a tailscaled restart
+      # does not leave a stale bind mount. Caddy runs as root, which tailscaled
+      # accepts for cert requests; a non-root Caddy would need TS_PERMIT_CERT_UID.
+      - /var/run/tailscale:/var/run/tailscale
+%{~ endif }
     networks:
       - edge
     depends_on:

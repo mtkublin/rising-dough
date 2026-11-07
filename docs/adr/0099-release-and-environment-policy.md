@@ -48,3 +48,19 @@ v3 has two environments, `prod` and `drill` (disposable). Until now nothing stat
 - The drill pipeline smoke-tests instead of calling `deploy.yml`: every drill apply replaces the server, and the fresh boot's cloud-init already runs `app_image_tag` (the freshly built tag), so the SSH swap would be a no-op. The smoke job waits for the public `/ready` (budget 10 min; fresh boot ~3.5 min). `deploy.yml` still accepts `env: drill` for ad-hoc use.
 - TTL is stored as the Scaleway server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_expires_at`, drill-only) so the sweeper needs no state access.
 - Destroy runs pass the placeholder `image_tag: sha-0000000`; `app_image_tag` only feeds user-data, which a destroy plan never creates.
+
+## Amendment 2026-11-07 (T-D96, T-D97, ADR-0101)
+
+- Drill apply is human-gated: environment `drill` has required reviewers; destroy/sweeper/smoke use the ungated `drill-teardown`, the PR plan leg uses `drill-plan`.
+- The drill is tailnet-only (no public DNS, no public 80/443). The smoke job joins the tailnet and probes `https://budget-planner-drill.<tailnet>.ts.net/ready`; the "public `/ready`" wording above is superseded for the drill. See [ADR-0101](0101-drill-environment-is-tailnet-only.md).
+
+## Amendment 2026-11-07 (T-D98): drill is manual-only; the PR gate is a commit status
+
+Supersedes the `*-deploy` push and `pull_request` triggers of decision 3 (and the matching line in decision 5). `drill.yml` is triggered by `workflow_dispatch` only, so nothing is applied to the drill without a human dispatch.
+
+- Input `mode`: `gate` (default) or `explore`.
+  - `gate`: the pre-merge validation. Short TTL (90 min sweeper backstop), `keep` ignored, ALWAYS torn down once apply was attempted. Posts commit status `drill-gate` on the dispatched SHA (`github.sha`, the commit that is built and applied): `pending` at start, then `success` iff apply and smoke succeeded, otherwise `failure`.
+  - `explore`: browse the drill (`ttl_minutes`, `keep`, `boot_logs` as before). Never posts a status.
+- Branch protection on `main` requires status `drill-gate` (plus the existing CI checks). Any later push changes the PR head SHA, which has no `drill-gate`, so the merge is blocked again until someone re-dispatches the gate. This is intended: the gate always describes the exact commit that merges.
+- The status reflects apply and smoke only. If teardown fails the workflow run fails but the status is unchanged; the sweeper (expires-at tag) is the backstop.
+- Because a manual dispatch is itself a human action, the required reviewer on the `drill` environment (T-D96, ADR-0101) becomes optional (see `runbooks/github-settings.md`).

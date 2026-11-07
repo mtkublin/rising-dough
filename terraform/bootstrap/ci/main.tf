@@ -71,7 +71,7 @@ resource "scaleway_iam_application" "ci_drill" {
 
 resource "scaleway_iam_policy" "ci_drill" {
   name           = "budget-planner-ci-drill"
-  description    = "Drill project resources + DNS records in the prod-project zone + IAM management (ADR-0100)."
+  description    = "Drill project resources + IAM management; no DNS (ADR-0100, ADR-0101)."
   application_id = scaleway_iam_application.ci_drill.id
 
   rule {
@@ -79,12 +79,8 @@ resource "scaleway_iam_policy" "ci_drill" {
     permission_set_names = ["InstancesFullAccess", "ObjectStorageFullAccess"]
   }
 
-  # Drill DNS records live in the prod project's zone. Scaleway cannot scope
-  # DNS permissions to a single zone, so this grants DNS in the whole prod project.
-  rule {
-    project_ids          = [var.prod_project_id]
-    permission_set_names = ["DomainsDNSFullAccess"]
-  }
+  # ADR-0101: the drill is tailnet-only and creates no DNS records, so ci-drill
+  # holds no permission on the prod project (it used to have DomainsDNSFullAccess).
 
   rule {
     organization_id      = var.scaleway_organization_id

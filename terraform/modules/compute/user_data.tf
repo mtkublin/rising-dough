@@ -16,10 +16,12 @@ locals {
     backup_max_age_days    = var.backup_max_age_days
     scw_access_key         = var.scw_access_key
     scw_secret_key         = var.scw_secret_key
+    tailnet_only           = var.tailnet_only
   })
 
   caddyfile_rendered = templatefile("${path.module}/../../cloud-init/compose/Caddyfile.tpl", {
-    hostname = var.hostname
+    hostname     = var.hostname
+    tailnet_only = var.tailnet_only
   })
 
   litestream_rendered = templatefile("${path.module}/../../cloud-init/compose/litestream.yml.tpl", {
@@ -83,5 +85,6 @@ locals {
     boot_log_upload             = var.boot_log_upload
     bucket_name                 = var.bucket_name
     bucket_region               = var.bucket_region
+    tailnet_only                = var.tailnet_only
   })
 }

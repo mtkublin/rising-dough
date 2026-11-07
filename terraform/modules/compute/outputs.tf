@@ -38,3 +38,8 @@ output "server_tags" {
   description = "Tags set on the app server (T-D90 test hook; not a secret)."
   value       = scaleway_instance_server.app.tags
 }
+
+output "public_web_rules" {
+  description = "Public inbound web rules of the security group (empty on a tailnet-only drill, ADR-0101; test hook, not a secret)."
+  value       = local.public_web_rules
+}

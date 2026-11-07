@@ -75,7 +75,9 @@ jobs:
       SCW_DEFAULT_ZONE: pl-waw-2
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
-      DRILL_HOST: drill.budget.${{ secrets.APP_DOMAIN }}
+      # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
+      DRILL_HOST: budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      TF_VAR_tailnet_dns_name: ${{ vars.TAILNET_DNS_NAME }}
       # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
       # DRILL_HOST stays the public name for the HTTPS /ready probe.
       DRILL_SSH_HOST: budget-planner-drill

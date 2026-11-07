@@ -199,3 +199,9 @@ variable "expires_at" {
   type        = string
   default     = ""
 }
+
+variable "tailnet_only" {
+  description = "ADR-0101 (drill): no public inbound 80/443 in the security group, ufw allows 443 only on tailscale0, Caddy gets its *.ts.net certificate from the local tailscaled (socket mounted) instead of ACME. false (prod) keeps the public ACME setup unchanged."
+  type        = bool
+  default     = false
+}

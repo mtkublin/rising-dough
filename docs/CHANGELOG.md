@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-07 (T-D98 — drill manual-only, PR gate = `drill-gate` status)
+- **CI(T-D98, ADR-0099): `drill.yml` runs on `workflow_dispatch` only (push `*-deploy` and `pull_request` triggers removed).** `mode=gate` (default) applies, smokes over the tailnet, always tears down and posts commit status `drill-gate` on the built SHA (pending, then success/failure from apply + smoke); `mode=explore` keeps the TTL behaviour. Branch protection on `main` must require `drill-gate`. The `drill` environment's required reviewer is now optional.
+
+## 2026-11-07 (T-D97 — drill is tailnet-only)
+- **Feat(T-D97, ADR-0101): the drill has no public DNS and no public 80/443.** `module.dns` is prod-only, the security group opens web ports only for prod, drill hostname is `budget-planner-drill.<tailnet_dns_name>` (new variable) with the TLS certificate issued by tailscaled through Caddy. `ci-drill` loses `DomainsDNSFullAccess` on the prod project (`terraform/bootstrap/ci`, operator applies locally per ADR-0096). Drill smoke joins the tailnet. Needs MagicDNS + HTTPS certificates and ACL `tag:ci -> tag:drill:443`.
+
+## 2026-11-07 (T-D96 — drill apply human-gated)
+- **CI(T-D96, ADR-0099/0101): drill apply waits for the required reviewer of environment `drill`;** teardown/sweeper/smoke use ungated `drill-teardown`, the drill PR plan leg uses `drill-plan`. `runbooks/github-settings.md` documents environments, secrets/vars and the corrected Tailscale OAuth model.
+
 ## 2026-11-07 (T-D95 — runbooks and plans aligned with ADR-0099)
 - **Docs(T-D95): runbooks and v3 plans describe only the ADR-0099 flow** (prod via `release.yml` from `main`; drill via `drill.yml`; rollback via `rollback.yml`, prod from `main` only). Stale local `terraform apply` and `deploy.yml` dispatch steps replaced; break-glass and drill `break_glass_*` local applies documented as logged exceptions. Superseded notes on the T-D25, T-D31 and T-D40 specs; ADR-0037 amended in part.
 

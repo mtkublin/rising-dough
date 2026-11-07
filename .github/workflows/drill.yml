@@ -1,42 +1,60 @@
-# Drill deploy pipeline (T-D90, ADR-0099 decision 3): build -> terraform apply
-# drill -> smoke. Runs on the ephemeral `drill` environment only; never touches prod.
+# Drill deploy pipeline (T-D90, T-D98, ADR-0099 decision 3): ci -> build ->
+# terraform apply drill -> smoke. Runs on the ephemeral `drill` environment only;
+# never touches prod.
 #
-# Triggers
-#   push `*-deploy` branches   deploy the branch to drill; kept until the TTL expires
-#                              (default 60 min) and then swept by drill-sweeper.yml.
-#   workflow_dispatch          same, with `ttl_minutes` (15..480), `keep` (false =
-#                              tear down right after the smoke test) and `boot_logs`.
-#   pull_request -> main       pre-merge gate: apply + smoke, ALWAYS torn down at the
-#                              end (even when apply/smoke failed). The PR's CI run is
-#                              the separate ci.yml PR run, so `ci` is not repeated here.
+# Trigger: workflow_dispatch ONLY (T-D98). No push and no pull_request trigger, so
+# nothing is applied to the drill unless a human dispatches it:
+#   gh workflow run drill.yml --ref <branch> -f mode=gate      (default)
+#   gh workflow run drill.yml --ref <branch> -f mode=explore -f ttl_minutes=90
+#
+#   mode=gate     merge gate for a PR to main. Short TTL (sweeper backstop), `keep` is
+#                 ignored (forced false), the drill is ALWAYS torn down once apply was
+#                 attempted. The result is posted as commit status `drill-gate` on the
+#                 exact SHA that was built and applied (`pending` at start, then
+#                 `success` iff apply AND smoke succeeded, else `failure`). Branch
+#                 protection on `main` requires `drill-gate`. A later push to the PR
+#                 produces a new head SHA without the status, so the gate must be
+#                 re-dispatched. A failing teardown fails the workflow run but not the
+#                 status (apply + smoke only); the sweeper is the backstop.
+#   mode=explore  browse the drill: `ttl_minutes` (15..480, default 60), `keep` (false =
+#                 tear down right after the smoke test), `boot_logs`. Never posts a
+#                 status.
 #
 # Smoke instead of deploy.yml (documented in ADR-0099, Amendment 2026-11-07):
 # every drill apply replaces the server (and the tailnet key), and a fresh boot
 # runs cloud-init, which already pulls and starts `app_image_tag` (= the tag built
 # here). deploy.yml's SSH swap would re-pull the same image: a no-op that adds a
 # tailnet join and a race with cloud-init. The smoke job instead waits for the
-# public /ready (fresh boot to ready takes ~3.5 min; the budget is 10 min).
+# /ready over the tailnet (fresh boot to ready takes ~3.5 min; the budget is 10 min).
 #
 # Concurrency: group `drill` is shared with restore-drill.yml, the sweeper and
 # drill-destroy.yml; runs queue, never cancel a running apply/destroy.
 #
-# Environment `drill` secrets/vars: see terraform.yml / restore-drill.yml headers;
-# vars.DRILL_URL (public URL of the drill host).
+# Environments (ADR-0101, T-D96): `drill` has required reviewers and gates every
+# apply (terraform.yml job `apply`). `drill-teardown` (ungated, same secrets/vars)
+# serves smoke and every destroy, so teardown never waits for approval.
+# Secrets/vars: see terraform.yml / restore-drill.yml headers; vars.TAILNET_DNS_NAME
+# (MagicDNS suffix, e.g. tail1234.ts.net). The drill is tailnet-only (ADR-0101): the
+# smoke job joins the tailnet as tag:ci; ACL must allow tag:ci -> tag:drill:443.
 
 name: drill
 
 on:
-  push:
-    branches: ["**-deploy"]
   workflow_dispatch:
     inputs:
+      mode:
+        description: "gate = PR merge gate (posts drill-gate status, always torn down); explore = browse until TTL"
+        type: choice
+        options: [gate, explore]
+        required: false
+        default: gate
       ttl_minutes:
-        description: Minutes until the sweeper destroys the drill (15..480)
+        description: Explore only. Minutes until the sweeper destroys the drill (15..480)
         type: number
         required: false
         default: 60
       keep:
-        description: Keep the drill up until the TTL (false = destroy right after smoke)
+        description: Explore only. Keep the drill up until the TTL (false = destroy right after smoke). Ignored in gate mode (always destroyed).
         type: boolean
         required: false
         default: true
@@ -45,8 +63,6 @@ on:
         type: boolean
         required: false
         default: false
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: drill
@@ -56,18 +72,43 @@ permissions:
   contents: read
 
 jobs:
-  # Pull requests already run ci.yml on their own; push/dispatch run it here.
+  # Gate mode only: mark the exact commit as pending as soon as the run starts
+  # (it may have queued behind other drill work).
+  gate-start:
+    name: gate status (pending)
+    if: ${{ inputs.mode == 'gate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+      REF_NAME: ${{ github.ref_name }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Post drill-gate pending
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/statuses/${SHA}" \
+            -f state=pending -f context=drill-gate \
+            -f description="drill gate running" -f target_url="${RUN_URL}"
+          {
+            echo "### drill gate"
+            echo "- ref: \`${REF_NAME}\`"
+            echo "- sha: \`${SHA}\`"
+            echo "- status: pending (\`drill-gate\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   ci:
     name: ci
-    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
     secrets: inherit  # pragma: allowlist secret
 
   build:
     name: build
     needs: ci
-    # ci is skipped on pull_request; anything else must have passed.
-    if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/build.yml
     secrets: inherit  # pragma: allowlist secret
 
@@ -84,15 +125,15 @@ jobs:
       - name: Compute expires-at (RFC3339 UTC)
         id: ttl
         env:
-          EVENT: ${{ github.event_name }}
+          MODE: ${{ inputs.mode }}
           INPUT_TTL: ${{ inputs.ttl_minutes }}
         run: |
           set -euo pipefail
-          # PR runs are torn down by the teardown job; the 120 min tag is the
-          # sweeper's backstop if teardown itself fails.
+          # Gate runs are torn down by the teardown job; the 90 min tag is the
+          # sweeper's backstop if teardown itself fails. Explore uses ttl_minutes.
           ttl=60
-          if [ "${EVENT}" = "pull_request" ]; then ttl=120; fi
-          if [ "${EVENT}" = "workflow_dispatch" ] && [ -n "${INPUT_TTL}" ]; then ttl="${INPUT_TTL}"; fi
+          if [ "${MODE}" = "gate" ]; then ttl=90; fi
+          if [ "${MODE}" = "explore" ] && [ -n "${INPUT_TTL}" ]; then ttl="${INPUT_TTL}"; fi
           if ! [[ "${ttl}" =~ ^[0-9]+$ ]] || [ "${ttl}" -lt 15 ] || [ "${ttl}" -gt 480 ]; then
             echo "::error::ttl_minutes must be an integer in 15..480 (got '${ttl}')" >&2
             exit 1
@@ -108,7 +149,7 @@ jobs:
       image_tag: ${{ needs.build.outputs.image-tag }}
       replace: module.compute.scaleway_instance_server.app tailscale_tailnet_key.vm
       drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
-      boot_log_upload: ${{ github.event_name == 'workflow_dispatch' && inputs.boot_logs }}
+      boot_log_upload: ${{ inputs.boot_logs }}
     secrets: inherit  # pragma: allowlist secret
 
   smoke:
@@ -117,17 +158,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: drill
-      url: ${{ vars.DRILL_URL }}
+      name: drill-teardown # ungated: the apply job already waited for approval
+      url: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
     permissions: {}
     env:
-      TARGET_URL: ${{ vars.DRILL_URL }}
+      # ADR-0101: the drill has no public DNS or ports; probe its MagicDNS name over the tailnet.
+      TARGET_URL: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      TAILNET_DNS_NAME: ${{ vars.TAILNET_DNS_NAME }}
     steps:
+      - name: Connect to tailnet (tag:ci, ACL tag:ci -> tag:drill:443)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Wait for /ready (fresh boot ~3.5 min, budget 10 min)
         run: |
           set -euo pipefail
-          if [ -z "${TARGET_URL}" ]; then
-            echo "::error::vars.DRILL_URL is not set in environment drill" >&2
+          if [ -z "${TAILNET_DNS_NAME}" ]; then
+            echo "::error::vars.TAILNET_DNS_NAME is not set in the drill environments" >&2
             exit 1
           fi
           for i in $(seq 1 60); do
@@ -140,16 +190,15 @@ jobs:
           echo "::error::drill /ready never came up within 10 minutes" >&2
           exit 1
 
-  # Pull requests (always) and dispatches with keep=false: destroy even when the
-  # apply or smoke failed, as long as apply was attempted (a partial apply can
-  # leave resources behind). Push and keep=true runs stay up until the TTL.
+  # Gate mode (always) and explore with keep=false: destroy even when the apply
+  # or smoke failed, as long as apply was attempted (a partial apply can leave
+  # resources behind). Explore with keep=true stays up until the TTL.
   teardown:
     name: teardown (drill)
     needs: [apply, smoke]
     if: >-
       ${{ always() && needs.apply.result != 'skipped' &&
-      (github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && !inputs.keep)) }}
+      (inputs.mode == 'gate' || !inputs.keep) }}
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill
@@ -158,3 +207,43 @@ jobs:
       image_tag: sha-0000000
       destroy: true
     secrets: inherit  # pragma: allowlist secret
+
+  # Gate mode: final verdict on the built SHA. Depends on apply + smoke ONLY, so a
+  # failing teardown (sweeper backstop) cannot flip a green gate, and a slow
+  # teardown does not delay it.
+  gate-result:
+    name: gate status (result)
+    needs: [apply, smoke]
+    if: ${{ always() && inputs.mode == 'gate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+      REF_NAME: ${{ github.ref_name }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      APPLY_RESULT: ${{ needs.apply.result }}
+      SMOKE_RESULT: ${{ needs.smoke.result }}
+    steps:
+      - name: Post drill-gate result
+        run: |
+          set -euo pipefail
+          state=failure
+          desc="drill gate failed (apply=${APPLY_RESULT}, smoke=${SMOKE_RESULT})"
+          if [ "${APPLY_RESULT}" = "success" ] && [ "${SMOKE_RESULT}" = "success" ]; then
+            state=success
+            desc="drill gate passed (apply + smoke)"
+          fi
+          gh api "repos/${REPO}/statuses/${SHA}" \
+            -f state="${state}" -f context=drill-gate \
+            -f description="${desc}" -f target_url="${RUN_URL}"
+          {
+            echo "### drill gate"
+            echo "- ref: \`${REF_NAME}\`"
+            echo "- sha: \`${SHA}\`"
+            echo "- apply: ${APPLY_RESULT}, smoke: ${SMOKE_RESULT}"
+            echo "- status: ${state} (\`drill-gate\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
