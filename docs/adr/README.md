@@ -101,4 +101,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0096 | [Terraform State Bucket Bootstrapped by a Separate Terraform Root Stack](0096-terraform-state-bootstrap-stack.md) (amends ADR-0035 §4; relates to ADR-0091, ADR-0093) |
 | 0097 | [Per-Batch CI in Orchestrator Mode; Fast Pre-commit Pytest](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) (amends ADR-0066; relates to ADR-0027) |
 | 0098 | [Keep Rendered User-Data Secrets Out of Plan Output](0098-keep-rendered-user-data-secrets-out-of-plan-output.md) (relates to ADR-0032, ADR-0094) |
+| 0100 | [Least-Privilege CI Credentials per Environment, Separate Drill State Bucket, Key-Expiry Monitor](0100-least-privilege-ci-credentials.md) (amends ADR-0096; relates to ADR-0091, ADR-0093, ADR-0099) |
 | 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |

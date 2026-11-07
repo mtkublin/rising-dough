@@ -588,8 +588,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D91 [S] Fix security workflow (pip-audit, Trivy fs) → ADR-0099
 - Repair the `security` workflow jobs `pip-audit` and Trivy filesystem scan so they run green on `main` and PRs.
 
-### T-D92 [L] Least-privilege CI credentials, separate drill state bucket, key-expiry monitor, break-glass and key-rotation runbooks, GitHub settings checklist → ADR-0099, ADR-0100
-- Per-env least-privilege CI IAM application created by the bootstrap stack (ADR-0100); prod-write secrets only in GitHub `prod` environment; rotate the leaked admin key; separate drill state bucket; key-expiry monitor. Runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md` (environment `prod`/`drill` branch policies, branch protection on `main`).
+### ✅ T-D92 [M] Least-privilege per-env CI credentials, drill state bucket, key-expiry monitor, runbooks → ADR-0100
+- Bootstrap: drill state bucket in the drill project (`terraform/bootstrap/drill_bucket.tf`); new local-state root `terraform/bootstrap/ci/` (uncommitted state) with CI applications `ci-prod`, `ci-drill`, `ci-plan`, expiring API keys, state-bucket policies. `envs/drill/backend.hcl` -> new bucket.
+- `.github/workflows/key-expiry.yml` weekly expiry monitor; runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md`.
+- Operator applies both bootstrap roots after plan review (ADR-0096 exception); see `runbooks/key-rotation.md`.
 
 ### T-D93 [S] Prod DB seed runbook and script → ADR-0099
 - `docs/plans/v3/runbooks/prod-db-seed.md` plus script: `sqlite3 .backup` snapshot of `data/budget.sqlite` (read-only use), transfer over tailnet, app and Litestream stopped, migrations on start, new Litestream generation. Executed only with explicit in-session user go.
