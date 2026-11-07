@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D90 — drill deploy pipeline)
+- **CI(T-D90, ADR-0099): `drill.yml` (push `*-deploy`, dispatch with `ttl_minutes`/`keep`/`boot_logs`, PR-to-main pre-merge gate with always-teardown), `drill-sweeper.yml` (every 15 min, destroys expired or orphaned drills) and `drill-destroy.yml` (manual).** TTL is recorded as server tag `expires-at=<RFC3339>` via new root var `drill_expires_at` (drill-only, validated; prod plan unchanged). `terraform.yml` gained optional inputs `drill_expires_at` and `boot_log_upload`. Smoke-only after apply (no deploy.yml re-pull). Runbook `docs/plans/v3/runbooks/drill.md`.
+
 ## 2026-11-07 (T-D93 — one-time prod DB seed)
 - **Ops(T-D93): `scripts/prod_db_seed.sh` / `just prod-db-seed` and runbook `docs/plans/v3/runbooks/prod-db-seed.md`** copy the local DB onto the freshly provisioned prod VM once (ADR-0099 exception d): consistent snapshot, integrity/sha256 checks, refuses to overwrite a non-empty remote DB, moved-aside copy plus automatic rollback, new litestream generation shown. Requires `--yes-i-own-prod-data`.
 ## 2026-11-07 (T-D91 — green security workflow)

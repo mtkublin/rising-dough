@@ -193,3 +193,9 @@ variable "boot_log_upload" {
   type        = bool
   default     = false
 }
+
+variable "expires_at" {
+  description = "Drill-only (T-D90, ADR-0099): RFC3339 UTC expiry appended to the server tags as `expires-at=<value>`. Empty = no tag (prod)."
+  type        = string
+  default     = ""
+}

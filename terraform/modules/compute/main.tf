@@ -73,10 +73,13 @@ resource "scaleway_instance_server" "app" {
   # only rewrites the stored value).
   cloud_init = sensitive(local.user_data)
 
-  tags = [
-    "budget-planner",
-    var.name_prefix,
-  ]
+  tags = concat(
+    [
+      "budget-planner",
+      var.name_prefix,
+    ],
+    var.expires_at == "" ? [] : ["expires-at=${var.expires_at}"],
+  )
 
   lifecycle {
     create_before_destroy = false

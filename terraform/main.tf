@@ -136,6 +136,9 @@ module "compute" {
   # T-D86: drill-only boot log upload to the drill bucket (false = nothing rendered).
   boot_log_upload = var.boot_log_upload
 
+  # T-D90: drill TTL, read by the sweeper from the server tags ("" = no tag).
+  expires_at = var.drill_expires_at
+
   # T-D41a: restore-from-prod helper, drill env only.
   enable_restore_helper  = var.env == "drill"
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
