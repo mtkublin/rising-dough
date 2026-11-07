@@ -98,3 +98,22 @@ run "break_glass_rejected_on_prod" {
 
   expect_failures = [var.break_glass_ssh_cidrs]
 }
+
+# T-D82: swapfile + swappiness are rendered.
+run "user_data_renders_swapfile_and_swappiness" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "filename: /swapfile")
+    error_message = "cloud-init must create /swapfile via the swap: key (T-D82)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "vm.swappiness")
+    error_message = "vm.swappiness must be set (T-D82)."
+  }
+}

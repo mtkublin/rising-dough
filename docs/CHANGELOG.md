@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-07 (T-D82 — 1 GiB swapfile)
+- **Infra(T-D82): cloud-init creates a 1 GiB `/swapfile` (native `swap:` key, init stage, before package install) and sets `vm.swappiness = 10`.** Peak safety net for the 1 GB STARDUST1-S during first boot; not capacity. ADR-0032 sizing-note amendment; runbook `deploy.md` "Memory check". Tests: `tests/unit/deploy/test_swap.py`, `terraform/tests/render.tftest.hcl`.
 ## 2026-11-07 (T-D81 — drill-only break-glass public SSH)
 - **Infra(T-D81): new `break_glass_ssh_cidrs` Terraform variable opens public SSH for listed CIDRs, drill only** (validation rejects it on prod; ADR-0094 amended). Adds an SG rule and a ufw rule per CIDR. cloud-init now sets up ufw first and wraps `tailscale up` in `timeout 120`, so a failed Tailscale join no longer blocks debugging. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_break_glass.py`, `terraform/tests/render.tftest.hcl`.
 

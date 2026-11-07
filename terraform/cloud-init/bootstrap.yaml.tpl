@@ -6,6 +6,18 @@ preserve_hostname: false
 fqdn: ${hostname}
 manage_etc_hosts: true
 
+# T-D82 / ADR-0032 sizing note: 1 GiB swapfile as a peak safety net on the 1 GB STARDUST1-S.
+# cc_mounts runs in the init stage, before package_update_upgrade_install and runcmd.
+swap:
+  filename: /swapfile
+  size: 1073741824
+  maxsize: 1073741824
+
+# Early and idempotent: applies swappiness now (write_files has not run yet in this stage);
+# the sysctl.d file below persists it across reboots.
+bootcmd:
+  - [sysctl, -w, vm.swappiness=10]
+
 package_update: true
 package_upgrade: true
 packages:
@@ -40,6 +52,12 @@ users:
       - '${operator_ssh_pubkey}'
 
 write_files:
+  - path: /etc/sysctl.d/99-swappiness.conf
+    permissions: '0644'
+    owner: root:root
+    content: |
+      vm.swappiness = 10
+
   - path: /etc/budget-planner/docker-compose.yml
     permissions: '0640'
     owner: root:docker

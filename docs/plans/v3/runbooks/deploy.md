@@ -84,6 +84,20 @@ uv run pytest -m smoke tests/smoke -v --no-cov
 
 Notes: the passkey step registers from Settings → Security (`/settings/security#passkeys`, ADR-0075); the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data; it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL`. Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
 
+## Memory check
+
+The VM has 1 GB RAM plus a 1 GiB swapfile (T-D82, ADR-0032 amendment). Run on the VM after first boot and after deploys:
+
+```sh
+free -m                          # swap "used" should stay near 0
+swapon --show                    # /swapfile, 1024M
+sysctl vm.swappiness             # 10
+docker stats --no-stream
+sudo dmesg | grep -i oom         # expect no output
+```
+
+Resize to a larger type only if steady state exceeds about 700 MB or swap is used continuously. Resizing is manual and causes downtime.
+
 ## Troubleshooting
 
 - **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Re-run `build.yml` on the same SHA; if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
