@@ -134,3 +134,10 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 
 1. Hostname strategy — subdomain of an existing user-owned domain vs a brand-new domain registered through Scaleway Domains. Deferred to the runbook step in Phase 2.
 2. Backup bucket geographic redundancy — Scaleway Object Storage in `pl-waw` is already multi-AZ within region. Cross-region replication to `fr-par` adds €0.01/GB storage; defer until data > 10 GB.
+
+## Amendment 2026-11-07 — Sizing note (T-D82)
+
+- **RAM budget.** STARDUST1-S has 1 shared vCPU, 1 GB RAM, 10 GB SSD and no swap. Estimated steady state of the full stack (Ubuntu, Docker, tailscaled, fail2ban, the app with 1 uvicorn worker, Litestream, Caddy) is about 500-800 MB. First boot adds peaks: `package_upgrade: true`, the Docker install, then `docker pull`. On 2026-11-07 the drill VM set its hostname (so cloud-init ran) but stalled for over 18 minutes; OOM is a suspect.
+- **Decision.** Add a 1 GiB swapfile (`/swapfile`) created by cloud-init's native `swap:` key (`cc_mounts`, init stage, before package install and `runcmd`), with `vm.swappiness = 10`. It is a peak safety net, not capacity. It costs 1 GB of the 10 GB disk.
+- **Measure on drill** with `free -m`, `docker stats --no-stream` and `dmesg | grep -i oom`. Resize to a larger instance type only if steady state exceeds about 700 MB or swap is used continuously.
+- **Resizing is manual and incurs downtime** (stop, change type, start; Litestream keeps data safe).

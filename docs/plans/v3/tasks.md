@@ -540,3 +540,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - cloud-init: ufw block moved first in `runcmd` (before the Tailscale install) so break-glass survives a failed or hanging Tailscale join; `tailscale up` wrapped in `timeout 120`. sshd was not bound to `tailscale0`, so no sshd change.
 - Docs: ADR-0094 amendment (2026-11-07), runbook `tailscale-ssh.md` section, CHANGELOG.
 - Tests: `tests/unit/deploy/test_break_glass.py`; `terraform/tests/render.tftest.hcl` (rendered rule, prod rejection).
+
+### ✅ T-D82 [S] 1 GiB swapfile via cloud-init before package install → ADR-0032
+- cloud-init `swap:` key (`cc_mounts`, init stage) creates `/swapfile` (1 GiB) before `package_update_upgrade_install` and `runcmd`, protecting the 1 GB STARDUST1-S from first-boot OOM peaks. `vm.swappiness = 10` via `/etc/sysctl.d/99-swappiness.conf` and an early idempotent `bootcmd` `sysctl -w`.
+- Docs: ADR-0032 amendment (2026-11-07, sizing note), `deploy.md` "Memory check", CHANGELOG.
+- Tests: `tests/unit/deploy/test_swap.py`; `terraform/tests/render.tftest.hcl`.
