@@ -601,3 +601,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D93 [S] One-time copy of the local prod DB onto the prod VM → ADR-0099 exception (d)
 - `scripts/prod_db_seed.sh` (+ `just prod-db-seed`): `.backup` snapshot of `data/budget.sqlite` (read-only), integrity + row counts + sha256, refuse if the remote DB already has accounts/transactions (`--force-overwrite`), scp over tailnet as `operator`, remote swap with moved-aside `/data/pre-seed-<ts>/`, auto-rollback, `/ready` wait, litestream generations. Needs `--yes-i-own-prod-data` (exit 2 otherwise); `--dry-run` is local-only.
 - Runbook: `docs/plans/v3/runbooks/prod-db-seed.md`. Tests: `tests/unit/deploy/test_prod_db_seed.py` (temp DBs only; fake ssh/scp).
+
+### ✅ T-D94 [S] Fix `/ready` probe in `prod_db_seed.sh` → ADR-0099 exception (d)
+- Real run rolled back: probe hit `https://localhost/ready` but Caddy has a cert only for the FQDN (TLS alert, `-k` no help). Now `curl --resolve "$FQDN:443:127.0.0.1" https://$FQDN/ready` (new `--fqdn`, default `budget.rising-dough.eu`, passed as `$2` to the remote script); second accepted signal: `budget-planner-app` healthy AND in-container `/ready` ok. 180 s timeout, rollback, aside dir, sha check unchanged. Tests and runbook updated.

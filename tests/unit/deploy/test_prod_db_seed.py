@@ -137,6 +137,29 @@ def test_full_flow_with_fake_ssh(tmp_path: Path, fake_bin: Path) -> None:
     assert "scp" in calls
     assert "operator@h.example:/tmp/seed.db" in calls
     assert "sudo bash -s -- " in calls
+    assert calls.rstrip().splitlines()[-1].endswith(" budget.rising-dough.eu")
+
+
+def test_full_flow_passes_custom_fqdn(tmp_path: Path, fake_bin: Path) -> None:
+    db = _make_db(tmp_path / "src.sqlite")
+    r = _run(
+        ["--source", str(db), "--fqdn", "x.example.org", "--yes-i-own-prod-data"],
+        env_path=str(fake_bin),
+    )
+    assert r.returncode == 0, r.stderr
+    calls = (tmp_path / "calls.log").read_text()
+    assert "sudo bash -s -- " in calls
+    assert " x.example.org" in calls
+
+
+def test_remote_ready_probe_uses_fqdn_not_localhost() -> None:
+    text = SCRIPT.read_text()
+    assert '--resolve "${FQDN}:443:127.0.0.1" "https://${FQDN}/ready"' in text
+    assert "https://localhost/ready" not in text
+    assert "--fqdn" in text
+    assert "FQDN='budget.rising-dough.eu'" in text
+    assert "docker inspect -f '{{.State.Health.Status}}' budget-planner-app" in text
+    assert "docker exec budget-planner-app curl" in text
 
 
 def test_aborts_when_remote_has_data(tmp_path: Path, fake_bin: Path) -> None:

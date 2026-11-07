@@ -27,13 +27,14 @@ Script: `scripts/prod_db_seed.sh` (via `just prod-db-seed <args>`).
    reads `data/budget.sqlite`.
 2. Real run:
    `just prod-db-seed --yes-i-own-prod-data`
-   Optional: `--host <tailnet-host>`, `--source <path>`.
+   Optional: `--host <tailnet-host>`, `--source <path>`, `--fqdn <site-name>`
+   (default `budget.rising-dough.eu`; the name Caddy has a certificate for).
    Without the flag the script prints its plan and exits 2.
 3. The script then: checks the remote DB is empty, scp's the snapshot to
    `/tmp/seed.db` (0600), verifies sha256 remotely, stops `app` and `litestream`,
    moves `/data/budget.db{,-wal,-shm}` and `.budget.db-litestream` to
    `/data/pre-seed-<ts>/`, installs the seed (uid 10001, 0600), starts litestream
-   and app (entrypoint applies pending migrations, ADR-0071), waits for `/ready`,
+   and app (entrypoint applies pending migrations, ADR-0071), waits for `/ready` (up to 180 s; ready = `https://<fqdn>/ready` pinned to loopback OK, or app container healthy and in-container `/ready` OK),
    and prints `litestream generations`.
 
 ### Bootstrap admin (ADR-0061, ADR-0069)
@@ -74,3 +75,11 @@ After verification only: `ssh operator@<host> sudo rm -rf /data/pre-seed-<ts>`
 (the script prints the exact path). The local snapshot is removed automatically on
 exit; `/tmp/seed.db` on the VM is moved into place or deleted. Record the seed in
 `restore-log.md` if desired.
+
+## Known issue fixed in T-D94
+
+The first real run (2026-11-07) rolled back although the app was healthy: the
+readiness probe used `https://localhost/ready`, but Caddy only has a certificate
+for the site FQDN, so the TLS handshake with SNI `localhost` failed (`-k` does not
+help). The probe now uses `--resolve <fqdn>:443:127.0.0.1` against the real FQDN
+(`--fqdn`), with the container health plus in-container `/ready` as a second signal.
