@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D88 — release and environment policy)
+- **Docs(T-D88): ADR-0099 records the release and environment policy** (prod only via GitHub Actions from `main`; `release.yml` main pipeline; drill pipeline with `*-deploy`/dispatch/PR-gate triggers and TTL sweeper; exceptions: initial bring-up, bootstrap stack, break-glass, prod DB seed; enforcement by credentials per ADR-0100). Aligned requirements 6.4, CLAUDE.md, implementation plan, terraform README and deploy/rollback/operator runbooks; added tasks T-D88..T-D93.
+
 ## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
 - **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
 ## 2026-11-07 (T-D86 — drill-only boot log upload)

@@ -76,6 +76,17 @@ Agents working on frontend tasks must invoke this skill rather than inferring vi
 
 The toolchain the skill validates against (local Tailwind build, `stylelint`, Jinja partials, Playwright visual regression) is defined in [ADR-0027](docs/adr/0027-frontend-toolchain-hardening.md).
 
+## Releases & environments (MANDATORY)
+
+Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
+
+- Prod is released **only** by GitHub Actions from `main` (ci, build, terraform apply prod with approval, deploy prod, smoke). Never run `terraform apply`/`destroy` against prod, and never build or push images for prod from a laptop or another branch.
+- Drill deploys go through the drill pipeline: push to a `*-deploy` branch, `workflow_dispatch` (`ttl_minutes`, default 60), or the pre-merge PR check. Agent-driven local drill work only with explicit user go.
+- All drill workflows share the `drill` concurrency group (queued, not cancelled).
+- Allowed non-GitHub exceptions: bootstrap stack (`terraform/bootstrap`, ADR-0096), logged break-glass runbook, one-time prod DB seed (explicit in-session user go).
+- Enforcement is by credentials: prod-write keys live only in the GitHub `prod` environment (ADR-0100); keep none in `terraform/.env`.
+- Until T-D89/T-D90 land, existing workflows (the `deploy.yml` `workflow_run` flow) differ from this policy; do not extend them.
+
 ## Rules & scope
 
 - **Scope guard**: `docs/requirements.md` section 3.8 lists what is **out of scope** for v1. Do not add v2 features without first writing a new ADR and updating `docs/requirements.md`.
