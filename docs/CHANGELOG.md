@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D99 — terraform workflow trivy pin)
+- **CI(T-D99): `terraform.yml` trivy config scan bumped from `trivy-action` v0.29.0 to v0.36.0 (`ed142fd0…`, same pin as `security.yml`).** v0.29.0 resolved `aquasecurity/setup-trivy@v0.2.2`, a tag that no longer exists, so the `Terraform` workflow failed at "Set up job". Inputs unchanged and valid for v0.36.0.
+
 ## 2026-11-07 (T-D98 — drill manual-only, PR gate = `drill-gate` status)
 - **CI(T-D98, ADR-0099): `drill.yml` runs on `workflow_dispatch` only (push `*-deploy` and `pull_request` triggers removed).** `mode=gate` (default) applies, smokes over the tailnet, always tears down and posts commit status `drill-gate` on the built SHA (pending, then success/failure from apply + smoke); `mode=explore` keeps the TTL behaviour. Branch protection on `main` must require `drill-gate`. The `drill` environment's required reviewer is now optional.
 
