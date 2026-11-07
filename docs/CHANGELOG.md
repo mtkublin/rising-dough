@@ -933,3 +933,6 @@
 
 ## 2026-11-07 (T-D92 — least-privilege CI credentials)
 - **Security(T-D92): per-environment CI IAM applications (`ci-prod`, `ci-drill`, read-only `ci-plan`) with expiring keys, a separate drill state bucket in the drill project, state-bucket policies, a weekly `key-expiry.yml` monitor, and break-glass / key-rotation / GitHub-settings runbooks** (ADR-0100). Code: `terraform/bootstrap/drill_bucket.tf`, `terraform/bootstrap/ci/`. Not applied; operator applies after plan review.
+
+## 2026-11-07 (T-D100 — open v3 items and operator go-live checklist)
+- **Docs(T-D100): `docs/plans/v3/runbooks/operator-checklist.md` lists the human-only go-live steps; `docs/plans/v3/tasks.md` records open tasks T-D101..T-D109** (trivy fs failure, PR-check consolidation, IAM-to-bootstrap move, prod `replace` input, drill explore inputs, public-drill cleanup, tailnet cert verification, per-env Tailscale clients, deploy-key mismatch).

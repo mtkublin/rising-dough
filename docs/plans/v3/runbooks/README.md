@@ -16,6 +16,7 @@ Operational procedures for v3. Each runbook is a check-list the operator (or an 
 | [`key-rotation.md`](key-rotation.md) | Rotating the leaked org-admin key and the per-environment CI keys; cadence and expiry alerts (ADR-0100). |
 | [`github-settings.md`](github-settings.md) | Manual GitHub environment and branch-protection checklist that enforces ADR-0099 and ADR-0100. |
 | [`prod-db-seed.md`](prod-db-seed.md) | One-time copy of the local DB onto prod (ADR-0099 exception d; done 2026-11-07). |
+| [`operator-checklist.md`](operator-checklist.md) | Ordered human-only go-live steps as of 2026-11-07 (GitHub, Tailscale, Scaleway, bootstrap). |
 
 Each runbook follows the shape: **Context** · **Preconditions** · **Procedure** · **Verification** · **Troubleshooting** · **Rollback**.
 
