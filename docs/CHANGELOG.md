@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D93 — one-time prod DB seed)
+- **Ops(T-D93): `scripts/prod_db_seed.sh` / `just prod-db-seed` and runbook `docs/plans/v3/runbooks/prod-db-seed.md`** copy the local DB onto the freshly provisioned prod VM once (ADR-0099 exception d): consistent snapshot, integrity/sha256 checks, refuses to overwrite a non-empty remote DB, moved-aside copy plus automatic rollback, new litestream generation shown. Requires `--yes-i-own-prod-data`.
+
 ## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
 - **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
 ## 2026-11-07 (T-D86 — drill-only boot log upload)

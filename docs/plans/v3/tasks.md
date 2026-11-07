@@ -575,3 +575,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
+
+### ✅ T-D93 [S] One-time copy of the local prod DB onto the prod VM → ADR-0099 exception (d)
+- `scripts/prod_db_seed.sh` (+ `just prod-db-seed`): `.backup` snapshot of `data/budget.sqlite` (read-only), integrity + row counts + sha256, refuse if the remote DB already has accounts/transactions (`--force-overwrite`), scp over tailnet as `operator`, remote swap with moved-aside `/data/pre-seed-<ts>/`, auto-rollback, `/ready` wait, litestream generations. Needs `--yes-i-own-prod-data` (exit 2 otherwise); `--dry-run` is local-only.
+- Runbook: `docs/plans/v3/runbooks/prod-db-seed.md`. Tests: `tests/unit/deploy/test_prod_db_seed.py` (temp DBs only; fake ssh/scp).
