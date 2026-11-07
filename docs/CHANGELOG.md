@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-07 (T-D84 — drill-only console password; docker group fix)
+- **Infra(T-D84): new `break_glass_console_password` Terraform variable gives `operator` a generated password for the Scaleway serial console, drill only** (validation rejects it on prod; ADR-0094 amended). Only the bcrypt hash enters user-data; plaintext via `terraform output -raw console_password`. SSH password login stays disabled. **Fix:** cloud-init now declares a top-level `groups: [docker]` so `operator` creation no longer depends on `docker.io` having created the group. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_console_password.py`, `terraform/tests/render.tftest.hcl`.
 ## 2026-11-07 (T-D83 — user-data secrets out of plan output)
 - **Security(T-D83): rendered cloud-init user-data no longer prints in plain text in `terraform plan`/`apply`** (ADR-0098). `cloud_init = sensitive(...)`, a `mask_plan.py` filter in `terraform.yml` and `just tf-plan-safe`, and `plan.bin` is no longer uploaded as a CI artifact. Documented: user-data changes need `-replace` of the server (in-place update does not re-run cloud-init). First apply after the fix may show the old value once; mask it.
 ## 2026-11-07 (T-D82 — 1 GiB swapfile)

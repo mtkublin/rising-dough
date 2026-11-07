@@ -29,6 +29,12 @@ variable "break_glass_ssh_cidrs" {
   default     = []
 }
 
+variable "console_password_hash" {
+  description = "Dummy bcrypt hash for the drill-only console break-glass render (T-D84)."
+  type        = string
+  default     = ""
+}
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -55,6 +61,7 @@ module "compute" {
   tailscale_tag      = "tag:drill"
 
   break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
+  console_password_hash = var.console_password_hash
 
   enable_restore_helper  = var.enable_restore_helper
   restore_source_bucket  = "render-check-prod-bucket"

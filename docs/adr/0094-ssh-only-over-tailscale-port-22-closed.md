@@ -72,3 +72,16 @@ The `acls` rules, the Terraform code and the workflows are unchanged. Decision i
 - The firewall block (defaults, rules, `ufw --force enable`) now runs first in `runcmd`, before the Tailscale install and join, so break-glass works even if Tailscale fails or hangs. `tailscale up` is wrapped in `timeout 120`.
 - sshd keeps its default (all interfaces); nothing binds it to `tailscale0`. The `operator` user and key work over the public IP.
 - Supersedes the manual `scw` rule procedure in item 7 for the drill; the runbook documents the Terraform path. The variable is temporary: apply without it to close port 22.
+
+## Amendment (2026-11-07): drill-only serial-console password for `operator`; `docker` group created before `users`
+
+**Problem.** In the 2026-11-07 drill the VM booted with break-glass SSH (T-D81). Port 22 opened about 20 s after boot, but `operator` and `deploy` both got `Permission denied (publickey)` for 4 minutes; then sshd stopped listening. The VM never joined the tailnet. The Scaleway serial console only showed `login:` and every user is `lock_passwd: true`, so the boot could not be inspected. Separately, `operator` has `groups: [sudo, docker]`, but the `docker` group only exists after the `docker.io` package installs (packages stage), so `useradd -G sudo,docker` can fail in the init stage and the user is never created (cloud-init version dependent).
+
+**Decision (T-D84).**
+- New root variable `break_glass_console_password` (`bool`, default `false`). Validation: must be `false` unless `env = "drill"` (`break_glass_console_password is drill-only`). Prod cannot enable it through Terraform.
+- `random_password.console` (`count` 0 or 1, length 24, `special = false` so it is easy to type in the web console). Sensitive root output `console_password` (null when disabled); read with `terraform output -raw console_password`.
+- Only the bcrypt hash enters user-data: `random_password.console[0].bcrypt_hash` is passed through the new sensitive compute variable `console_password_hash` into the template, which sets `lock_passwd: false` and `hashed_passwd: '<hash>'` for `operator` only (init stage, earliest possible). The plaintext never enters user-data. When disabled the rendered `operator` user is unchanged (`lock_passwd: true`, no `hashed_passwd`).
+- `bcrypt_hash` exists in hashicorp/random 3.9.1 (pinned `~> 3.6` in `versions.tf`). Ubuntu 24.04 uses libxcrypt, which supports `$2a$`/`$2b$`/`$2y$` bcrypt hashes in `/etc/shadow` (`yescrypt` is only the default for new hashes), so PAM and `login` on the serial console accept it.
+- SSH password login stays disabled: the template now sets `ssh_pwauth: false` explicitly. The password works on the console only.
+- `docker` group fix: a top-level cloud-init `groups: [docker]` key. `cc_users_groups` creates groups before users; the later `docker.io` install reuses the existing group. Users are otherwise unchanged.
+- The variable is temporary. Disable by applying without it and `-replace` of the server (ADR-0098: user-data changes do not re-run on an in-place update). Runbook: `tailscale-ssh.md`.

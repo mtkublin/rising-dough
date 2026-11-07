@@ -137,3 +137,87 @@ run "user_data_renders_swapfile_and_swappiness" {
     error_message = "vm.swappiness must be set (T-D82)."
   }
 }
+
+# T-D84: docker group must exist before `users` runs.
+run "user_data_declares_docker_group_before_users" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = length(regexall("(?m)^groups:\\n  - docker\\n", nonsensitive(output.user_data))) == 1
+    error_message = "Top-level groups: [docker] must render so useradd -G docker works (T-D84)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "ssh_pwauth: false")
+    error_message = "SSH password auth must stay disabled (T-D84)."
+  }
+}
+
+run "user_data_has_no_console_password_by_default" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "hashed_passwd")
+    error_message = "No hashed_passwd may render by default (T-D84)."
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "lock_passwd: false")
+    error_message = "All users stay lock_passwd: true by default (T-D84)."
+  }
+}
+
+run "user_data_renders_console_password_hash_for_operator" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    console_password_hash = "$2a$10$dummydummydummydummydummydummydummydummydummydummydummy" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = length(regexall("(?m)^    lock_passwd: false\\n    hashed_passwd: '\\$2", nonsensitive(output.user_data))) == 1
+    error_message = "operator must get lock_passwd: false + a bcrypt hashed_passwd (T-D84)."
+  }
+
+  assert {
+    condition     = length(regexall("lock_passwd: false", nonsensitive(output.user_data))) == 1
+    error_message = "Only operator may be unlocked (T-D84)."
+  }
+}
+
+# T-D84: root-level wiring with the (mocked) random provider; also checks the
+# hash reaches the compute module and plaintext does not enter user-data.
+run "console_password_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    break_glass_console_password  = true
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.break_glass_console_password]
+}

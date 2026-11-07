@@ -552,3 +552,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Finding documented: a `cloud_init` change plans as in-place but cloud-init does not re-run; user-data changes need `-replace=module.compute.scaleway_instance_server.app`. Runbooks `deploy.md` (incl. T-D74 key rotation) and `disaster-recovery.md` updated.
 - Future hardening (secrets out of user-data) described in ADR-0098, not built.
 - Tests: `terraform/tests/render.tftest.hcl` (`issensitive`), `tests/unit/deploy/test_mask_plan.py`.
+
+### ✅ T-D84 [S] Drill-only serial-console password for `operator`; create `docker` group before users → ADR-0094
+- Root variable `break_glass_console_password` (bool, default `false`, rejected unless `env = "drill"`); `random_password.console` (24 chars, no specials); sensitive output `console_password`. Only the `bcrypt_hash` goes into user-data (compute variable `console_password_hash`, sensitive): `operator` gets `lock_passwd: false` + `hashed_passwd`. `ssh_pwauth: false` set explicitly.
+- Bug fix: top-level cloud-init `groups: [docker]` so `useradd -G sudo,docker` cannot fail before `docker.io` installs.
+- Docs: ADR-0094 amendment (2026-11-07), runbook `tailscale-ssh.md` section, CHANGELOG.
+- Tests: `tests/unit/deploy/test_console_password.py`; `terraform/tests/render.tftest.hcl`.
