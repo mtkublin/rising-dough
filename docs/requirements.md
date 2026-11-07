@@ -311,6 +311,13 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - Prod deploy requires explicit `prod` environment approval; drill deploys automatically.
 - Rollback is one SSH call or one `workflow_dispatch`.
 
+Release and environment policy (ADR-0099):
+
+- Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval) -> `deploy prod` -> smoke `/ready`, orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
+- Drill deploys run through one reusable drill pipeline (T-D90): on push to `*-deploy` branches and `workflow_dispatch` (`ttl_minutes`, default 60, swept every 15 min), and as an ephemeral pre-merge check on pull requests to `main` (required). All drill workflows share the `drill` concurrency group.
+- Only exceptions: initial prod bring-up (2026-11-07), the local-only bootstrap stack (ADR-0096), a logged break-glass runbook, and a one-time prod DB seed copy (explicit user go). Enforced by credentials: prod-write secrets exist only in the GitHub `prod` environment (ADR-0100, T-D92).
+- Until T-D89/T-D90 land, the `deploy.yml` `workflow_run` flow above is superseded by this policy.
+
 ### 6.5 Durability (amends §3.7 for v3)
 
 - SQLite file at `/data/budget.db` with `journal_mode=WAL`, `synchronous=NORMAL`, `wal_autocheckpoint=0`, `busy_timeout=5000` (ADR-0034).

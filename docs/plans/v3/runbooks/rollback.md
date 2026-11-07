@@ -50,6 +50,8 @@ Use when GitHub Actions is itself the problem (outage, token lockout, workflow m
 
 ### Last-resort path — pin a specific older SHA
 
+> Note (ADR-0099): `deploy.yml` is being reworked by T-D89 into a reusable workflow called from `release.yml`; prod deploys only run from `main`.
+
 If `.previous-tag` is empty (first deploy ever, or someone wiped it), redeploy a known-good SHA explicitly through `deploy.yml`:
 
 ```sh

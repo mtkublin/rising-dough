@@ -575,3 +575,21 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
+
+### ✅ T-D88 [S] Release and environment policy; align local docs → ADR-0099
+- ADR-0099 records: prod only via GitHub Actions from `main`; main pipeline; drill triggers (`*-deploy`, dispatch with TTL, PR pre-merge gate); exceptions; credential-based enforcement. Docs aligned (requirements 6.4, CLAUDE.md, implementation plan, terraform README, deploy/rollback/operator runbooks).
+
+### T-D89 [M] Release pipeline: `release.yml` + reusable ci/build/terraform/deploy workflows; remove `v3` push trigger; fix tflint pin → ADR-0099
+- New orchestrating `release.yml` on push to `main`; ci/build/terraform/deploy become `workflow_call`; image tag flows from build to terraform to deploy; smoke `/ready`; drop the temporary `v3` trigger in `build.yml` (T-D76); fix the tflint version pin.
+
+### T-D90 [M] Drill deploy pipeline and sweeper → ADR-0099
+- One reusable drill pipeline (build, terraform apply drill with server and tailnet key replaced, deploy, smoke). Triggers: push `*-deploy`, `workflow_dispatch` (`ttl_minutes`, default 60), `pull_request` to `main` (ephemeral, torn down at end, required check). Scheduled sweeper every 15 min; `drill-destroy` dispatch. Shared concurrency group `drill` (queued); `restore-drill.yml` joins it.
+
+### T-D91 [S] Fix security workflow (pip-audit, Trivy fs) → ADR-0099
+- Repair the `security` workflow jobs `pip-audit` and Trivy filesystem scan so they run green on `main` and PRs.
+
+### T-D92 [L] Least-privilege CI credentials, separate drill state bucket, key-expiry monitor, break-glass and key-rotation runbooks, GitHub settings checklist → ADR-0099, ADR-0100
+- Per-env least-privilege CI IAM application created by the bootstrap stack (ADR-0100); prod-write secrets only in GitHub `prod` environment; rotate the leaked admin key; separate drill state bucket; key-expiry monitor. Runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md` (environment `prod`/`drill` branch policies, branch protection on `main`).
+
+### T-D93 [S] Prod DB seed runbook and script → ADR-0099
+- `docs/plans/v3/runbooks/prod-db-seed.md` plus script: `sqlite3 .backup` snapshot of `data/budget.sqlite` (read-only use), transfer over tailnet, app and Litestream stopped, migrations on start, new Litestream generation. Executed only with explicit in-session user go.
