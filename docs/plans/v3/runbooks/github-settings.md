@@ -36,10 +36,13 @@ Same names in every environment, different values (ADR-0093). The three drill en
 | `PROD_HOST` | x | | | tailnet name, e.g. `budget-planner-prod` |
 | `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
-| Variable | `prod` | `drill` |
+| Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
 | `PROD_URL` | x | |
-| `DRILL_URL` | | x |
+| `TAILNET_DNS_NAME` (ADR-0101), e.g. `tail1234.ts.net` (admin console > DNS; not a secret) | | x |
+| `DRILL_URL` (only for ad-hoc `deploy.yml` / `rollback.yml` on drill; set to `https://budget-planner-drill.<TAILNET_DNS_NAME>`) | | x |
+
+`drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
 Repo-level (not environment): `CODEQL_TOKEN` (security.yml). `GITHUB_TOKEN` is automatic.
 
@@ -62,6 +65,13 @@ One OAuth client, used by every environment:
 
 - The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).
+
+### Tailscale admin console prerequisites for the tailnet-only drill (ADR-0101)
+
+- [ ] **DNS > MagicDNS**: enabled.
+- [ ] **DNS > HTTPS Certificates**: enabled (Caddy on the drill gets its `*.ts.net` certificate from tailscaled; without this the TLS handshake fails).
+- [ ] ACL (`tailscale-acl.hujson`): grant `tag:ci -> tag:drill:443` (the smoke test and `restore-drill.yml` probe `/ready`) in addition to the existing SSH rules. Operators' own devices need `443` to `tag:drill` to browse the drill UI.
+- [ ] Copy the tailnet DNS name (e.g. `tail1234.ts.net`) into the `TAILNET_DNS_NAME` variable of `drill`, `drill-teardown` and `drill-plan`.
 
 ## 5. Actions settings (Settings > Actions > General)
 

@@ -149,3 +149,7 @@ just tf-render-check
 ## Projects (ADR-0092)
 
 Each env lives in its own Scaleway project via `scaleway_project_id` (drill: `rising-dough-drill`, prod: `rising-dough`). DNS records of both envs are created in the zone's project (`dns_zone_project_id`, default = prod project). Prod also owns the stable read-only `restore-reader` IAM application used by the restore drill, so apply prod before the first automated drill.
+
+## Drill is tailnet-only (T-D97, ADR-0101)
+
+`env = drill` creates no DNS records (`module.dns` is prod-only), opens no public 80/443 in the security group and serves `https://budget-planner-drill.<tailnet_dns_name>` (variable `tailnet_dns_name`, e.g. `tail1234.ts.net`, required on drill, rejected on prod). Caddy takes its certificate from the local tailscaled (the `/var/run/tailscale` directory is mounted into the Caddy container, drill only); prod keeps ACME. Needs MagicDNS and HTTPS certificates enabled in the Tailscale admin console. `ci-drill` has no DNS permission on the prod project.

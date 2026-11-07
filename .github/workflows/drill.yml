@@ -15,7 +15,7 @@
 # runs cloud-init, which already pulls and starts `app_image_tag` (= the tag built
 # here). deploy.yml's SSH swap would re-pull the same image: a no-op that adds a
 # tailnet join and a race with cloud-init. The smoke job instead waits for the
-# public /ready (fresh boot to ready takes ~3.5 min; the budget is 10 min).
+# /ready over the tailnet (fresh boot to ready takes ~3.5 min; the budget is 10 min).
 #
 # Concurrency: group `drill` is shared with restore-drill.yml, the sweeper and
 # drill-destroy.yml; runs queue, never cancel a running apply/destroy.
@@ -23,8 +23,9 @@
 # Environments (ADR-0101, T-D96): `drill` has required reviewers and gates every
 # apply (terraform.yml job `apply`). `drill-teardown` (ungated, same secrets/vars)
 # serves smoke and every destroy, so teardown never waits for approval.
-# Secrets/vars: see terraform.yml / restore-drill.yml headers; vars.DRILL_URL
-# (URL of the drill host).
+# Secrets/vars: see terraform.yml / restore-drill.yml headers; vars.TAILNET_DNS_NAME
+# (MagicDNS suffix, e.g. tail1234.ts.net). The drill is tailnet-only (ADR-0101): the
+# smoke job joins the tailnet as tag:ci; ACL must allow tag:ci -> tag:drill:443.
 
 name: drill
 
@@ -121,16 +122,25 @@ jobs:
     timeout-minutes: 15
     environment:
       name: drill-teardown # ungated: the apply job already waited for approval
-      url: ${{ vars.DRILL_URL }}
+      url: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
     permissions: {}
     env:
-      TARGET_URL: ${{ vars.DRILL_URL }}
+      # ADR-0101: the drill has no public DNS or ports; probe its MagicDNS name over the tailnet.
+      TARGET_URL: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      TAILNET_DNS_NAME: ${{ vars.TAILNET_DNS_NAME }}
     steps:
+      - name: Connect to tailnet (tag:ci, ACL tag:ci -> tag:drill:443)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
       - name: Wait for /ready (fresh boot ~3.5 min, budget 10 min)
         run: |
           set -euo pipefail
-          if [ -z "${TARGET_URL}" ]; then
-            echo "::error::vars.DRILL_URL is not set in environment drill" >&2
+          if [ -z "${TAILNET_DNS_NAME}" ]; then
+            echo "::error::vars.TAILNET_DNS_NAME is not set in the drill environments" >&2
             exit 1
           fi
           for i in $(seq 1 60); do

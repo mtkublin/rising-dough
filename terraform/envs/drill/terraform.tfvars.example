@@ -34,4 +34,8 @@ bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
 # OAuth client credentials are sensitive; supply via the environment, never here:
 #   export TF_VAR_tailscale_oauth_client_id=...
 #   export TF_VAR_tailscale_oauth_client_secret=...
-# The VM joins the tailnet as budget-planner-drill (tag:drill); no non-secret inputs.
+# The VM joins the tailnet as budget-planner-drill (tag:drill).
+# ADR-0101: the drill is tailnet-only (no public DNS, no public 80/443). Its hostname is
+# budget-planner-drill.<tailnet_dns_name>; MagicDNS and HTTPS certificates must be enabled
+# in the Tailscale admin console. Not a secret.
+tailnet_dns_name = "tail0000.ts.net"

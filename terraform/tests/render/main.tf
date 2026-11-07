@@ -41,6 +41,12 @@ variable "boot_log_upload" {
   default     = false
 }
 
+variable "tailnet_only" {
+  description = "Render the tailnet-only drill variant (ADR-0101): ts.net host, tailscaled socket mount, no port 80."
+  type        = bool
+  default     = false
+}
+
 variable "expires_at" {
   description = "Drill TTL tag (T-D90)."
   type        = string
@@ -53,7 +59,7 @@ module "compute" {
   name_prefix       = "render-check"
   scaleway_zone     = "pl-waw-2"
   app_image_tag     = "render-check"
-  hostname          = "render-check.example.invalid"
+  hostname          = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"
   bucket_name       = "render-check-bucket"
   bucket_endpoint   = "https://s3.pl-waw.scw.cloud"
   bucket_region     = "pl-waw"
@@ -66,7 +72,8 @@ module "compute" {
   admin_email       = "admin@example.invalid"
   admin_password    = "dummy-admin-password" # pragma: allowlist secret
   cookie_secret     = "dummy-cookie-secret"  # pragma: allowlist secret
-  trusted_hosts_csv = "render-check.example.invalid"
+  trusted_hosts_csv = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"
+  tailnet_only      = var.tailnet_only
 
   tailscale_authkey  = "tskey-auth-DUMMY" # pragma: allowlist secret
   tailscale_hostname = "render-check"
@@ -96,6 +103,11 @@ output "user_data" {
   description = "Rendered cloud-init user-data (contains dummy secrets only)."
   value       = module.compute.user_data
   sensitive   = true
+}
+
+output "security_group_rules" {
+  description = "Inbound rules of the compute security group (ADR-0101)."
+  value       = module.compute.public_web_rules
 }
 
 output "server_tags" {

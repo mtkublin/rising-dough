@@ -1,9 +1,17 @@
 # Scaleway Stardust1-S + Flex IPv4 + security group + cloud-init user_data.
 # ADR-0032 §1, ADR-0035 §5.
 
+locals {
+  public_web_rules = var.tailnet_only ? [] : [
+    { protocol = "TCP", port = 80 },
+    { protocol = "TCP", port = 443 },
+    { protocol = "UDP", port = 443 },
+  ]
+}
+
 resource "scaleway_instance_security_group" "app" {
   name                    = "${var.name_prefix}-sg"
-  description             = "Inbound HTTP / HTTPS for ${var.name_prefix}; SSH only over Tailscale (ADR-0094)."
+  description             = "Inbound HTTP / HTTPS for ${var.name_prefix} (none on a tailnet-only drill, ADR-0101); SSH only over Tailscale (ADR-0094)."
   inbound_default_policy  = "drop"
   outbound_default_policy = "accept"
   stateful                = true
@@ -13,22 +21,16 @@ resource "scaleway_instance_security_group" "app" {
   # Tailscale tailnet (outbound-only NAT traversal / DERP; no inbound UDP
   # 41641 opened either).
 
-  inbound_rule {
-    action   = "accept"
-    protocol = "TCP"
-    port     = 80
-  }
-
-  inbound_rule {
-    action   = "accept"
-    protocol = "TCP"
-    port     = 443
-  }
-
-  inbound_rule {
-    action   = "accept"
-    protocol = "UDP"
-    port     = 443
+  # ADR-0101: public web ports only when the env is public (prod). A
+  # tailnet-only drill has no public inbound web rule at all (tailnet traffic
+  # arrives through the outbound-established WireGuard/DERP path).
+  dynamic "inbound_rule" {
+    for_each = local.public_web_rules
+    content {
+      action   = "accept"
+      protocol = inbound_rule.value.protocol
+      port     = inbound_rule.value.port
+    }
   }
 
   # T-D81 / ADR-0094: drill-only break-glass. Empty list (default, always on

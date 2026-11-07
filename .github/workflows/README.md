@@ -48,4 +48,7 @@ Expected configuration: environments `prod` and `drill` (both with required
 reviewers: every prod/drill apply waits for approval), plus ungated `prod-plan`,
 `drill-plan` (PR plan legs) and `drill-teardown` (every drill destroy path and the
 drill smoke job; ADR-0101). The three drill environments hold identical secrets; secrets as listed in `terraform.yml` / `deploy.yml` headers;
-vars `DRILL_URL`, `PROD_URL`.
+vars `PROD_URL`, `TAILNET_DNS_NAME` (drill environments; the drill is tailnet-only, ADR-0101,
+so `drill.yml` smoke joins the tailnet as `tag:ci` and probes
+`https://budget-planner-drill.${TAILNET_DNS_NAME}/ready`; ACL `tag:ci -> tag:drill:443`),
+`DRILL_URL` (only for ad-hoc `deploy.yml`/`rollback.yml` on drill).

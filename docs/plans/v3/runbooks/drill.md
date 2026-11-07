@@ -7,7 +7,15 @@ Policy: ADR-0099 decision 3. The drill is the only place a non-`main` branch run
 - Push a branch named `<name>-deploy`, or
 - `gh workflow run drill.yml --ref <branch> -f ttl_minutes=60` (`ttl_minutes` 15..480; `-f keep=false` destroys right after the smoke test).
 
-Pipeline: ci -> build -> terraform apply drill (server and tailnet key always replaced, so cloud-init picks up the new tag) -> smoke (waits up to 10 min for `$DRILL_URL/ready`; a fresh boot takes ~3.5 min). There is no separate deploy step: the fresh VM already runs the built image (ADR-0099 amendment). Runs queue behind other drill work (concurrency group `drill`).
+Pipeline: ci -> build -> terraform apply drill (server and tailnet key always replaced, so cloud-init picks up the new tag) -> smoke (the runner joins the tailnet as `tag:ci` and waits up to 10 min for `https://budget-planner-drill.$TAILNET_DNS_NAME/ready`; a fresh boot takes ~3.5 min). There is no separate deploy step: the fresh VM already runs the built image (ADR-0099 amendment). Runs queue behind other drill work (concurrency group `drill`).
+
+## Tailnet-only (ADR-0101)
+
+The drill has no public DNS record and no public 80/443. Browse it from a device on the tailnet at `https://budget-planner-drill.<tailnet>.ts.net` (certificate from tailscaled). Prerequisites: MagicDNS + HTTPS certificates enabled, ACL `tag:ci -> tag:drill:443` and your device allowed to `tag:drill:443`, `TAILNET_DNS_NAME` set in the drill environments (see `github-settings.md`). SSH stays tailnet-only too. If a stale node of the same name still exists the new node registers as `budget-planner-drill-1` and the certificate name will not match; wait for the old ephemeral node to expire or remove it in the admin console.
+
+## Approval
+
+Drill apply waits for the required reviewer of the `drill` GitHub environment (T-D96); teardown, sweeper and plan never wait (`drill-teardown`, `drill-plan`). A run waiting for approval holds the `drill` concurrency group, so approve or cancel it promptly.
 
 ## PR gate
 
@@ -27,7 +35,7 @@ Dispatch with `-f boot_logs=true` to set `boot_log_upload` (ADR-0094, T-D86): cl
 
 ## Required in environment `drill`
 
-Secrets: everything `terraform.yml` lists (SCW keys of `ci-drill`, `SCW_DEFAULT_PROJECT_ID` = drill project, Tailscale OAuth, `PROD_REPLICA_RO_*`, ...). Variable: `DRILL_URL`. The sweeper needs `SCW_SECRET_KEY` with read access to instance servers in the drill project.
+Secrets: everything `terraform.yml` lists (SCW keys of `ci-drill`, `SCW_DEFAULT_PROJECT_ID` = drill project, Tailscale OAuth, `PROD_REPLICA_RO_*`, ...). Variable: `TAILNET_DNS_NAME` (tailnet MagicDNS suffix). The same secrets and variables live in `drill-teardown` and `drill-plan` (ungated). The sweeper needs `SCW_SECRET_KEY` with read access to instance servers in the drill project.
 
 ## Cost
 

@@ -356,6 +356,7 @@ run "drill_expires_at_rejects_malformed" {
   variables {
     env                           = "drill"
     drill_expires_at              = "tomorrow"
+    tailnet_dns_name              = "tail0000.ts.net"
     admin_email                   = "admin@example.invalid"
     scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
     scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
@@ -371,4 +372,128 @@ run "drill_expires_at_rejects_malformed" {
   }
 
   expect_failures = [var.drill_expires_at]
+}
+
+# T-D97 / ADR-0101: tailnet-only drill render. Public prod render stays ACME.
+run "prod_render_keeps_public_web" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = length(output.security_group_rules) == 3
+    error_message = "Prod keeps 80/tcp, 443/tcp and 443/udp public (ADR-0101)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "ufw allow 80/tcp") && strcontains(nonsensitive(output.user_data), "email ops@render-check.example.invalid") && strcontains(nonsensitive(output.user_data), "\"80:80\"")
+    error_message = "Prod keeps ufw 80, ACME email and the 80:80 port mapping."
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "/var/run/tailscale")
+    error_message = "Prod Caddy must not mount the tailscaled socket."
+  }
+}
+
+run "drill_render_is_tailnet_only" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    tailnet_only = true
+  }
+
+  assert {
+    condition     = length(output.security_group_rules) == 0
+    error_message = "Tailnet-only drill must have no public web security-group rule (ADR-0101)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "budget-planner-drill.tail0000.ts.net {") && strcontains(nonsensitive(output.user_data), "- /var/run/tailscale:/var/run/tailscale")
+    error_message = "Drill Caddy serves the ts.net host and mounts the tailscaled socket directory."
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "ufw allow 80/tcp") && !strcontains(nonsensitive(output.user_data), "\"80:80\"") && !strcontains(nonsensitive(output.user_data), "email ops@") && !strcontains(nonsensitive(output.user_data), "redir https://")
+    error_message = "Drill opens no port 80 and has no ACME email or redirect site."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "ufw allow in on tailscale0 to any port 443")
+    error_message = "Drill allows 443 only on tailscale0."
+  }
+}
+
+run "drill_requires_tailnet_dns_name" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.tailnet_dns_name]
+}
+
+run "tailnet_dns_name_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    tailnet_dns_name              = "tail0000.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.tailnet_dns_name]
+}
+
+run "tailnet_dns_name_rejects_malformed" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "example.com"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.tailnet_dns_name]
 }

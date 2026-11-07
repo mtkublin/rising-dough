@@ -1,8 +1,13 @@
 # NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
 # ADR-0036 §1: Caddyfile shape (auto-TLS, security headers, CSP nonce, rate limit, access logs).
 
+# ADR-0101: on the tailnet-only drill (`tailnet_only`) the hostname is a *.ts.net
+# MagicDNS name; Caddy obtains its certificate from the local tailscaled (socket
+# mounted in docker-compose), so there is no ACME email and no port-80 site.
 {
+%{~ if !tailnet_only }
     email ops@${hostname}
+%{~ endif }
     admin off
     servers {
         protocols h1 h2 h3
@@ -55,7 +60,10 @@ ${hostname} {
     }
 }
 
+%{~ if !tailnet_only }
+
 # Port 80 serves the ACME HTTP-01 challenge and redirects everything else to HTTPS.
 :80 {
     redir https://{host}{uri} 308
 }
+%{~ endif }
