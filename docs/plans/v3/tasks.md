@@ -622,6 +622,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `drill.yml`: only `workflow_dispatch`; input `mode` = `gate` (default: TTL backstop 90 min, `keep` ignored, always torn down) | `explore` (`ttl_minutes`, `keep`, `boot_logs`). Gate mode posts `pending` then `success`/`failure` (apply + smoke only) as commit status `drill-gate` on `github.sha`; run summary records ref and sha. Branch protection on `main` requires `drill-gate`; a new push needs a re-dispatch. Required reviewer on `drill` is now optional (T-D96).
 - Docs: ADR-0099 amendment, ADR-0101 note, `runbooks/drill.md`, `runbooks/github-settings.md`, CLAUDE.md drill bullet, workflows README. Tests: `tests/unit/deploy/test_drill_workflows.py`.
 
+### ✅ T-D99 [S] Fix failing `Terraform` workflow: bump stale trivy-action pin → (no ADR; CI fix)
+- `terraform.yml` "Trivy config scan" pinned `aquasecurity/trivy-action@18f2510…` (v0.29.0), which pulls `aquasecurity/setup-trivy@v0.2.2`, a tag that no longer exists; job failed at "Set up job". Bumped to `ed142fd0673e97e23eac54620cfb913e5ce36c25` (v0.36.0), the same pin `security.yml` uses. Inputs used (`scan-type`, `scan-ref`, `exit-code`, `severity`, `ignore-unfixed`) are still valid in v0.36.0's `action.yaml`.
+
 ### ✅ T-D100 [S] Record open v3 items and operator go-live checklist → ADR-0099, ADR-0100
 - Docs only. New `runbooks/operator-checklist.md` (ordered, human-only steps) and task entries T-D101..T-D109 below. T-D99 (trivy-action pin bump in `terraform.yml`) is tracked separately.
 
