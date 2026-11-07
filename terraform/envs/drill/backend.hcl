@@ -1,4 +1,4 @@
-bucket                      = "budget-planner-tfstate-pl-waw"
+bucket                      = "budget-planner-tfstate-drill-pl-waw"
 key                         = "drill/terraform.tfstate"
 endpoints                   = { s3 = "https://s3.pl-waw.scw.cloud" }
 region                      = "pl-waw"

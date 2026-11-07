@@ -576,6 +576,23 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
 
+### ✅ T-D88 [S] Release and environment policy; align local docs → ADR-0099
+- ADR-0099 records: prod only via GitHub Actions from `main`; main pipeline; drill triggers (`*-deploy`, dispatch with TTL, PR pre-merge gate); exceptions; credential-based enforcement. Docs aligned (requirements 6.4, CLAUDE.md, implementation plan, terraform README, deploy/rollback/operator runbooks).
+
+### T-D89 [M] Release pipeline: `release.yml` + reusable ci/build/terraform/deploy workflows; remove `v3` push trigger; fix tflint pin → ADR-0099
+- New orchestrating `release.yml` on push to `main`; ci/build/terraform/deploy become `workflow_call`; image tag flows from build to terraform to deploy; smoke `/ready`; drop the temporary `v3` trigger in `build.yml` (T-D76); fix the tflint version pin.
+
+### T-D90 [M] Drill deploy pipeline and sweeper → ADR-0099
+- One reusable drill pipeline (build, terraform apply drill with server and tailnet key replaced, deploy, smoke). Triggers: push `*-deploy`, `workflow_dispatch` (`ttl_minutes`, default 60), `pull_request` to `main` (ephemeral, torn down at end, required check). Scheduled sweeper every 15 min; `drill-destroy` dispatch. Shared concurrency group `drill` (queued); `restore-drill.yml` joins it.
+
+### T-D91 [S] Fix security workflow (pip-audit, Trivy fs) → ADR-0099
+- Repair the `security` workflow jobs `pip-audit` and Trivy filesystem scan so they run green on `main` and PRs.
+
+### ✅ T-D92 [M] Least-privilege per-env CI credentials, drill state bucket, key-expiry monitor, runbooks → ADR-0100
+- Bootstrap: drill state bucket in the drill project (`terraform/bootstrap/drill_bucket.tf`); new local-state root `terraform/bootstrap/ci/` (uncommitted state) with CI applications `ci-prod`, `ci-drill`, `ci-plan`, expiring API keys, state-bucket policies. `envs/drill/backend.hcl` -> new bucket.
+- `.github/workflows/key-expiry.yml` weekly expiry monitor; runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md`.
+- Operator applies both bootstrap roots after plan review (ADR-0096 exception); see `runbooks/key-rotation.md`.
+
 ### ✅ T-D93 [S] One-time copy of the local prod DB onto the prod VM → ADR-0099 exception (d)
 - `scripts/prod_db_seed.sh` (+ `just prod-db-seed`): `.backup` snapshot of `data/budget.sqlite` (read-only), integrity + row counts + sha256, refuse if the remote DB already has accounts/transactions (`--force-overwrite`), scp over tailnet as `operator`, remote swap with moved-aside `/data/pre-seed-<ts>/`, auto-rollback, `/ready` wait, litestream generations. Needs `--yes-i-own-prod-data` (exit 2 otherwise); `--dry-run` is local-only.
 - Runbook: `docs/plans/v3/runbooks/prod-db-seed.md`. Tests: `tests/unit/deploy/test_prod_db_seed.py` (temp DBs only; fake ssh/scp).
