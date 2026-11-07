@@ -30,6 +30,18 @@ resource "scaleway_instance_security_group" "app" {
     protocol = "UDP"
     port     = 443
   }
+
+  # T-D81 / ADR-0094: drill-only break-glass. Empty list (default, always on
+  # prod) renders no rule. `ip_range` accepts IPv4 and IPv6 CIDRs.
+  dynamic "inbound_rule" {
+    for_each = toset(var.break_glass_ssh_cidrs)
+    content {
+      action   = "accept"
+      protocol = "TCP"
+      port     = 22
+      ip_range = inbound_rule.value
+    }
+  }
 }
 
 resource "scaleway_instance_ip" "ipv4" {

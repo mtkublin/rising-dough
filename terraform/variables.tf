@@ -12,6 +12,22 @@ variable "env" {
   }
 }
 
+variable "break_glass_ssh_cidrs" {
+  description = "Drill-only, temporary: CIDRs allowed public SSH (TCP 22) to debug a failed boot when Tailscale does not come up (T-D81, ADR-0094). Must be empty unless env = drill; remove after debugging."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for c in var.break_glass_ssh_cidrs : can(cidrhost(c, 0))])
+    error_message = "Every break_glass_ssh_cidrs entry must be a valid CIDR, e.g. 203.0.113.7/32."
+  }
+
+  validation {
+    condition     = length(var.break_glass_ssh_cidrs) == 0 || var.env == "drill"
+    error_message = "break_glass_ssh_cidrs is drill-only (env must be 'drill')."
+  }
+}
+
 variable "admin_email" {
   description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
   type        = string

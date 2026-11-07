@@ -115,6 +115,9 @@ module "compute" {
   tailscale_hostname = local.tailscale_hostname
   tailscale_tag      = local.tailscale_tag
 
+  # T-D81: drill-only break-glass public SSH (empty by default; prod forbidden).
+  break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
+
   # T-D41a: restore-from-prod helper, drill env only.
   enable_restore_helper  = var.env == "drill"
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"

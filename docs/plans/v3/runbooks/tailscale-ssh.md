@@ -72,6 +72,20 @@ scw instance security-group delete-rule security-group-id="$SG_ID" security-grou
 
 Note (T-D71): host `ufw` also allows 22 only on `tailscale0`, so this SG rule alone does not restore public SSH; the host rule must be widened from an existing session. Use `budget-planner-drill-sg` for the drill env. The Scaleway web serial console shows boot and cloud-init output for diagnosis but is not a login path (account passwords are locked). Do not leave the rule in place; a later `terraform apply` also removes it (drift).
 
+## Break-glass for the drill: `break_glass_ssh_cidrs` (T-D81)
+
+Drill only (the variable is rejected when `env = "prod"`). Use it when the VM booted but never joined the tailnet. It opens public TCP 22 for the listed CIDRs in the security group and host ufw. The firewall is configured first in cloud-init, so it works even if Tailscale failed or hung.
+
+1. Apply with your current IP (new VM, or `-replace=module.compute.scaleway_instance_server.app` for an existing one, because cloud-init runs once):
+
+   ```sh
+   TF_VAR_break_glass_ssh_cidrs='["<ip>/32"]' just drill-apply   # or terraform apply with the same env var
+   ```
+
+2. SSH in with the operator key: `ssh -i <operator key> operator@<vm_ipv4>`.
+3. Read: `sudo cloud-init status --long`, `sudo less /var/log/cloud-init-output.log`, `sudo journalctl -u tailscaled --no-pager`, `sudo ufw status verbose`.
+4. Remove: apply again without the variable (security group rule goes away). The host ufw rule remains until the VM is replaced; the drill VM is disposable.
+
 ## Rollback
 
 Reverting ADR-0094 means re-adding the `22/tcp` inbound rule in `modules/compute/main.tf` and applying.

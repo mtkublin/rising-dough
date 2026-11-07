@@ -23,6 +23,12 @@ variable "enable_restore_helper" {
   default     = true
 }
 
+variable "break_glass_ssh_cidrs" {
+  description = "Render the drill-only break-glass ufw rules (T-D81)."
+  type        = list(string)
+  default     = []
+}
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -47,6 +53,8 @@ module "compute" {
   tailscale_authkey  = "tskey-auth-DUMMY" # pragma: allowlist secret
   tailscale_hostname = "render-check"
   tailscale_tag      = "tag:drill"
+
+  break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
 
   enable_restore_helper  = var.enable_restore_helper
   restore_source_bucket  = "render-check-prod-bucket"

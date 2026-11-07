@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D81 — drill-only break-glass public SSH)
+- **Infra(T-D81): new `break_glass_ssh_cidrs` Terraform variable opens public SSH for listed CIDRs, drill only** (validation rejects it on prod; ADR-0094 amended). Adds an SG rule and a ufw rule per CIDR. cloud-init now sets up ufw first and wraps `tailscale up` in `timeout 120`, so a failed Tailscale join no longer blocks debugging. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_break_glass.py`, `terraform/tests/render.tftest.hcl`.
+
 ## 2026-11-06 (T-D76 — build image on v3 pushes)
 - **CI(T-D76): `build.yml` also builds and pushes the app image on pushes to `v3`** so the drill can test v3 before merge. Tags: `sha-<short>` only (`main` stays default-branch gated). Temporary; remove the `v3` trigger after v3 merges. Test: `tests/unit/deploy/test_build_workflow.py`. Drill uses `app_image_tag = sha-<short>`.
 ## 2026-11-06 (T-D77 — offline cloud-init render check)
