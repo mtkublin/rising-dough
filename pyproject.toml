@@ -55,9 +55,11 @@ packages = ["src/budget_planner"]
 [tool.uv]
 package = true
 # ADR-0067: webauthn 3.x needs cbor2>=6 / cryptography>=49, which ship no
-# macOS x86_64 wheels (dev machines run an x86_64 interpreter). Cap the
-# transitive deps until wheels exist; Linux prod images are unaffected.
-constraint-dependencies = ["cbor2<6", "cryptography<49"]
+# macOS x86_64 wheels (dev machines run an x86_64 interpreter). Cap cbor2 and
+# (on that platform only) cryptography. Everywhere else cryptography floats to
+# >=50, which carries the fixes for PYSEC-2026-3552/3553/3554 (T-D91). Linux
+# prod images and CI are therefore unaffected by the macOS cap.
+constraint-dependencies = ["cbor2<6", "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'"]
 
 # ---------------------------------------------------------------------------
 # ruff — lint + format + import sort

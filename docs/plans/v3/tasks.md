@@ -585,8 +585,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D90 [M] Drill deploy pipeline and sweeper → ADR-0099
 - One reusable drill pipeline (build, terraform apply drill with server and tailnet key replaced, deploy, smoke). Triggers: push `*-deploy`, `workflow_dispatch` (`ttl_minutes`, default 60), `pull_request` to `main` (ephemeral, torn down at end, required check). Scheduled sweeper every 15 min; `drill-destroy` dispatch. Shared concurrency group `drill` (queued); `restore-drill.yml` joins it.
 
-### T-D91 [S] Fix security workflow (pip-audit, Trivy fs) → ADR-0099
-- Repair the `security` workflow jobs `pip-audit` and Trivy filesystem scan so they run green on `main` and PRs.
+### ✅ T-D91 [S] Green `security.yml` (pip-audit + Trivy fs) → T-D13, ADR-0067
+- pip-audit failed with "budget-planner: Dependency not found on PyPI" (audited the live env incl. the editable project); now audits the hash-pinned `uv export --no-emit-project` of `uv.lock`. Allowlist/materialize steps run via `uv run` / `uv run --with pyyaml` so PyYAML is guaranteed.
+- cryptography 48.0.1 carried PYSEC-2026-3552/3553/3554 (CVE-2026-69247/69249 in Trivy): the global `cryptography<49` cap is now macOS-x86_64-only; Linux/CI/prod resolve 50.0.2. Lock's darwin-x86_64 fork (48.0.1) is allowlisted in `trivy_fs` until 2027-02-01.
 
 ### ✅ T-D92 [M] Least-privilege per-env CI credentials, drill state bucket, key-expiry monitor, runbooks → ADR-0100
 - Bootstrap: drill state bucket in the drill project (`terraform/bootstrap/drill_bucket.tf`); new local-state root `terraform/bootstrap/ci/` (uncommitted state) with CI applications `ci-prod`, `ci-drill`, `ci-plan`, expiring API keys, state-bucket policies. `envs/drill/backend.hcl` -> new bucket.

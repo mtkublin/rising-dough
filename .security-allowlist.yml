@@ -26,7 +26,23 @@ pip_audit: []
 #     reason: "upstream fix pending in dep X; not reachable from our call sites"
 #     expires: 2026-12-31
 
-trivy_fs: []
+trivy_fs:
+  # T-D91: uv.lock carries a platform-forked cryptography 48.0.1 entry that is
+  # selected ONLY on macOS x86_64 (pyproject [tool.uv] constraint-dependencies;
+  # ADR-0067 — cryptography>=49 ships no wheels for that platform). Linux
+  # (CI, Docker image, prod) resolves cryptography 50.0.2, which contains both
+  # fixes. Trivy fs scans every fork in the lockfile, so it flags the dev-only
+  # one. Not shipped to prod; Review by 2027-02-01 — drop the entries and the
+  # darwin-x86_64 cap once macOS x86_64 wheels exist or dev machines move off
+  # x86_64 interpreters.
+  - cve: CVE-2026-69247
+    scanner: trivy_fs
+    reason: "cryptography 48.0.1 lock fork is macOS-x86_64 dev only (ADR-0067); Linux/prod resolves 50.0.2 (fixed)"
+    expires: 2027-02-01
+  - cve: CVE-2026-69249
+    scanner: trivy_fs
+    reason: "cryptography 48.0.1 lock fork is macOS-x86_64 dev only (ADR-0067); Linux/prod resolves 50.0.2 (fixed)"
+    expires: 2027-02-01
 # Example:
 #   - cve: CVE-2026-00000
 #     scanner: trivy_fs
