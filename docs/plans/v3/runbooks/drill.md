@@ -4,8 +4,10 @@ Policy: ADR-0099 decision 3. The drill is the only place a non-`main` branch run
 
 ## Deploy a branch to drill
 
-- Push a branch named `<name>-deploy`, or
-- `gh workflow run drill.yml --ref <branch> -f ttl_minutes=60` (`ttl_minutes` 15..480; `-f keep=false` destroys right after the smoke test).
+`drill.yml` starts only from `workflow_dispatch` (T-D98): no push or pull_request trigger. Two modes:
+
+- **gate** (default), the PR merge gate: `gh workflow run drill.yml --ref <branch> -f mode=gate`. Applies, runs the tailnet `/ready` smoke, ALWAYS tears down (once apply was attempted) and posts commit status `drill-gate` on the dispatched SHA: `pending` at start, `success` only if apply AND smoke passed, else `failure`. The ref and sha are in the run summary. A teardown failure fails the workflow run but does not change the status; the sweeper (90 min `expires-at` tag) is the backstop.
+- **explore**, to browse the drill: `gh workflow run drill.yml --ref <branch> -f mode=explore -f ttl_minutes=90` (`ttl_minutes` 15..480, default 60; `-f keep=false` destroys right after the smoke test; `-f boot_logs=true` for boot diagnostics). Never posts a status.
 
 Pipeline: ci -> build -> terraform apply drill (server and tailnet key always replaced, so cloud-init picks up the new tag) -> smoke (the runner joins the tailnet as `tag:ci` and waits up to 10 min for `https://budget-planner-drill.$TAILNET_DNS_NAME/ready`; a fresh boot takes ~3.5 min). There is no separate deploy step: the fresh VM already runs the built image (ADR-0099 amendment). Runs queue behind other drill work (concurrency group `drill`).
 
@@ -13,13 +15,13 @@ Pipeline: ci -> build -> terraform apply drill (server and tailnet key always re
 
 The drill has no public DNS record and no public 80/443. Browse it from a device on the tailnet at `https://budget-planner-drill.<tailnet>.ts.net` (certificate from tailscaled). Prerequisites: MagicDNS + HTTPS certificates enabled, ACL `tag:ci -> tag:drill:443` and your device allowed to `tag:drill:443`, `TAILNET_DNS_NAME` set in the drill environments (see `github-settings.md`). SSH stays tailnet-only too. If a stale node of the same name still exists the new node registers as `budget-planner-drill-1` and the certificate name will not match; wait for the old ephemeral node to expire or remove it in the admin console.
 
-## Approval
+## Approval (optional)
 
-Drill apply waits for the required reviewer of the `drill` GitHub environment (T-D96); teardown, sweeper and plan never wait (`drill-teardown`, `drill-plan`). A run waiting for approval holds the `drill` concurrency group, so approve or cancel it promptly.
+A manual dispatch is already a human action, so a required reviewer on the `drill` GitHub environment is optional (T-D96; recommended off for a single-maintainer repo, see `github-settings.md`). If one is configured, a run waiting for approval holds the `drill` concurrency group: approve or cancel it promptly. Teardown, sweeper and plan never wait (`drill-teardown`, `drill-plan`).
 
 ## PR gate
 
-Every PR to `main` runs build -> apply -> smoke -> teardown. Teardown runs even if apply or smoke failed (as long as apply was attempted). PR CI is the separate `ci.yml` run. The server also carries a 120 min `expires-at` tag as a backstop.
+Every PR to `main` needs a passing `drill-gate` status on its head SHA (branch protection, `github-settings.md`). Dispatch the gate on the PR branch when the PR is otherwise ready: `gh workflow run drill.yml --ref <pr-branch> -f mode=gate`, and watch the `drill-gate` check on the PR. The status belongs to that exact commit: any new push (new head SHA) has no `drill-gate`, which blocks the merge again until the gate is re-dispatched. This is intended. PR CI is the separate `ci.yml` run (the gate run also runs `ci` and `build` for the dispatched ref).
 
 ## TTL and sweeper
 

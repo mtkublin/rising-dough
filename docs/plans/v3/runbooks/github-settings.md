@@ -6,11 +6,11 @@
 
 - [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **Selected branches: `main` only**. Used by `deploy-prod`, `apply-prod`, `rollback` (env prod).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
-- [ ] **`drill`** (gated, ADR-0101): **Required reviewers** = you (every drill apply, from any trigger: `*-deploy` push, dispatch, PR pre-merge, waits for approval; prevent self-review only if a second reviewer exists). Deployment branches and tags: selected `main` and `*-deploy` (plus PR refs only if the pre-merge drill check must run for PRs from branches that are not `*-deploy`; the approval is then what stops unreviewed code). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
+- [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
 - [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
 - [ ] **`drill-plan`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by the drill leg of the PR plan in `terraform.yml` (mirrors `prod-plan`). Same drill secrets as `drill`.
-- Private repositories: **Required reviewers on environments need GitHub Pro/Team** (or an org plan). On the free plan the setting is unavailable and the drill apply is NOT gated; do not rely on this checklist until the plan supports it.
-- A drill run waiting for approval holds the `drill` concurrency group, so the sweeper and `drill-destroy.yml` queue behind it. Approve or reject/cancel pending drill runs promptly.
+- Private repositories: **Required reviewers on environments need GitHub Pro/Team** (or an org plan); on the free plan the setting is unavailable. Not needed with the recommended no-reviewer setup.
+- Only relevant if reviewers are configured on `drill`: a run waiting for approval holds the `drill` concurrency group, so the sweeper and `drill-destroy.yml` queue behind it. Approve or cancel pending drill runs promptly.
 - [ ] Delete **repo-level** `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (and any repo-level copy of the env secrets below) so a missing environment secret fails instead of falling back.
 
 ## 2. Secrets and variables per environment
@@ -51,7 +51,8 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 
 - [ ] Require a pull request before merging; dismiss stale approvals; no bypass for admins (so break-glass changes also land via PR afterwards).
-- [ ] Require status checks, branch up to date: `ci`, the pre-merge drill check (T-D90), `fmt + validate + lint` and `plan (drill)` / `plan (prod)` from the Terraform workflow, `uv lock --check`.
+- [ ] Require status checks, branch up to date: `ci`, **`drill-gate`** (commit status posted by `drill.yml` mode=gate on the exact head SHA, T-D98; add it by name once it has been posted at least once), `fmt + validate + lint` and `plan (drill)` / `plan (prod)` from the Terraform workflow, `uv lock --check`.
+- [ ] "Require branches to be up to date before merging" is optional: `drill-gate` is already tied to the head SHA, so a new push (including merging `main` into the branch) needs a fresh gate run anyway.
 - [ ] Require linked conversation resolution; block force pushes and deletions.
 - [ ] Restrict who can push to matching branches (operator only).
 

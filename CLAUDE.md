@@ -81,7 +81,7 @@ The toolchain the skill validates against (local Tailwind build, `stylelint`, Ji
 Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 
 - Prod is released **only** by GitHub Actions from `main` (ci, build, terraform apply prod with approval, deploy prod, smoke). Never run `terraform apply`/`destroy` against prod, and never build or push images for prod from a laptop or another branch.
-- Drill deploys go through the drill pipeline: push to a `*-deploy` branch, `workflow_dispatch` (`ttl_minutes`, default 60), or the pre-merge PR check. Agent-driven local drill work only with explicit user go.
+- Drill deploys go through the drill pipeline, `workflow_dispatch` only (no push/PR trigger): `mode=gate` (default; the PR merge gate, posts the `drill-gate` commit status, always torn down) or `mode=explore` (`ttl_minutes`, default 60). Every PR to `main` needs a passing `drill-gate` on its head SHA (ADR-0099, T-D98). Agent-driven local drill work only with explicit user go.
 - All drill workflows share the `drill` concurrency group (queued, not cancelled).
 - Allowed non-GitHub exceptions: bootstrap stack (`terraform/bootstrap`, ADR-0096), logged break-glass runbook, one-time prod DB seed (explicit in-session user go).
 - Enforcement is by credentials: prod-write keys live only in the GitHub `prod` environment (ADR-0100); keep none in `terraform/.env`.

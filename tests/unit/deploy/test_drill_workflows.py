@@ -28,9 +28,11 @@ def _triggers(name: str) -> dict[str, Any]:
 def test_drill_triggers() -> None:
     triggers = _triggers("drill.yml")
 
-    assert triggers["push"]["branches"] == ["**-deploy"]
-    assert triggers["pull_request"]["branches"] == ["main"]
+    # T-D98: manual only; no push and no pull_request trigger.
+    assert set(triggers) == {"workflow_dispatch"}
     inputs = triggers["workflow_dispatch"]["inputs"]
+    assert inputs["mode"]["default"] == "gate"
+    assert inputs["mode"]["options"] == ["gate", "explore"]
     assert inputs["ttl_minutes"]["default"] == 60
     assert inputs["keep"]["default"] is True
     assert inputs["boot_logs"]["default"] is False
@@ -56,7 +58,7 @@ def test_drill_workflows_never_reference_prod(name: str) -> None:
 def test_drill_pipeline_chain_and_replace() -> None:
     jobs = _load("drill.yml")["jobs"]
 
-    assert jobs["ci"]["if"] == "github.event_name != 'pull_request'"
+    assert "if" not in jobs["ci"]
     assert jobs["build"]["needs"] == "ci"
     assert jobs["apply"]["uses"] == "./.github/workflows/terraform.yml"
     assert "build" in jobs["apply"]["needs"]
@@ -68,7 +70,7 @@ def test_drill_pipeline_chain_and_replace() -> None:
     assert jobs["smoke"]["needs"] == "apply"
 
 
-def test_pr_path_has_always_teardown_with_destroy() -> None:
+def test_gate_mode_has_always_teardown_with_destroy() -> None:
     teardown = _load("drill.yml")["jobs"]["teardown"]
     condition = " ".join(str(teardown["if"]).split())
 
@@ -76,7 +78,8 @@ def test_pr_path_has_always_teardown_with_destroy() -> None:
     assert teardown["with"]["env"] == "drill"
     assert teardown["with"]["destroy"] is True
     assert "always()" in condition
-    assert "github.event_name == 'pull_request'" in condition
+    # Gate mode is torn down regardless of `keep`.
+    assert "inputs.mode == 'gate' || !inputs.keep" in condition
     # Runs after a failed apply/smoke, but only when apply was attempted.
     assert "needs.apply.result != 'skipped'" in condition
     assert set(teardown["needs"]) == {"apply", "smoke"}
@@ -93,6 +96,42 @@ def test_sweeper_runs_every_15_minutes_and_destroys_conditionally() -> None:
     assert jobs["destroy"]["if"] == "needs.check.outputs.expired == 'true'"
     assert jobs["destroy"]["with"]["destroy"] is True
     assert jobs["destroy"]["with"]["env"] == "drill"
+
+
+def test_gate_status_jobs_post_drill_gate_on_built_sha() -> None:
+    wf = _load("drill.yml")
+    jobs = wf["jobs"]
+
+    # Only the two status jobs may write statuses; the workflow default stays read-only.
+    assert wf["permissions"] == {"contents": "read"}
+    for name in ("gate-start", "gate-result"):
+        assert jobs[name]["permissions"] == {"statuses": "write"}
+        assert "inputs.mode == 'gate'" in str(jobs[name]["if"])
+        env = jobs[name]["env"]
+        assert env["SHA"] == "${{ github.sha }}"
+        run = "\n".join(str(s.get("run", "")) for s in jobs[name]["steps"])
+        assert "repos/${REPO}/statuses/${SHA}" in run
+        assert "context=drill-gate" in run
+        assert "GITHUB_STEP_SUMMARY" in run
+    assert sum("statuses" in (j.get("permissions") or {}) for j in jobs.values()) == 2
+
+
+def test_gate_result_reflects_apply_and_smoke_only() -> None:
+    result = _load("drill.yml")["jobs"]["gate-result"]
+    run = "\n".join(str(s.get("run", "")) for s in result["steps"])
+
+    assert set(result["needs"]) == {"apply", "smoke"}  # not teardown
+    assert "always()" in str(result["if"])
+    assert '[ "${APPLY_RESULT}" = "success" ] && [ "${SMOKE_RESULT}" = "success" ]' in run
+    assert "state=failure" in run
+
+
+def test_gate_start_has_no_dependencies_and_explore_posts_nothing() -> None:
+    jobs = _load("drill.yml")["jobs"]
+
+    assert "needs" not in jobs["gate-start"]
+    assert str(jobs["gate-start"]["if"]) == "${{ inputs.mode == 'gate' }}"
+    assert "inputs.mode == 'gate'" in str(jobs["gate-result"]["if"])
 
 
 def test_destroy_is_dispatch_only() -> None:

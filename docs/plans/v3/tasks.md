@@ -617,3 +617,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/bootstrap/ci`: `ci-drill` loses `DomainsDNSFullAccess` on the prod project.
 - `drill.yml` smoke joins the tailnet (`tag:ci`) and probes `https://budget-planner-drill.${TAILNET_DNS_NAME}/ready`; `vars.DRILL_URL` dropped there. `restore-drill.yml` probe/TF var adjusted. Operator: MagicDNS + HTTPS certificates on, ACL `tag:ci -> tag:drill:443`.
 - Tests: `tests/unit/deploy/test_tailnet_only_drill.py`, `terraform/tests/render.tftest.hcl`, `test_tailscale_ssh.py`, `test_drill_workflows.py`.
+
+### ✅ T-D98 [S] Drill pipeline is manual-only; PR merge gate via `drill-gate` commit status → ADR-0099
+- `drill.yml`: only `workflow_dispatch`; input `mode` = `gate` (default: TTL backstop 90 min, `keep` ignored, always torn down) | `explore` (`ttl_minutes`, `keep`, `boot_logs`). Gate mode posts `pending` then `success`/`failure` (apply + smoke only) as commit status `drill-gate` on `github.sha`; run summary records ref and sha. Branch protection on `main` requires `drill-gate`; a new push needs a re-dispatch. Required reviewer on `drill` is now optional (T-D96).
+- Docs: ADR-0099 amendment, ADR-0101 note, `runbooks/drill.md`, `runbooks/github-settings.md`, CLAUDE.md drill bullet, workflows README. Tests: `tests/unit/deploy/test_drill_workflows.py`.

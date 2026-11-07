@@ -52,3 +52,7 @@ SSH is already tailnet-only (ADR-0094); the web UI should follow.
 - **Tailscale Funnel / serve proxy instead of Caddy**: second TLS terminator with different headers; Caddy stays the one reverse proxy (ADR-0036). Rejected.
 - **Internal CA / self-signed**: runner and browsers would need trust configuration. Rejected.
 - **Gate only PR/branch pushes, not dispatch**: dispatch from a branch is exactly the path to run arbitrary code. Rejected; every trigger is gated.
+
+## Amendment 2026-11-07 (T-D98)
+
+The drill now starts only from `workflow_dispatch` (ADR-0099 amendment, T-D98), which is a human action, so the required reviewer on `drill` is optional; for a single-maintainer repository it is recommended to leave it off (the approval would be redundant). The ungated `drill-teardown` and `drill-plan` environments are unchanged.
