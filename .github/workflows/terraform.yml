@@ -28,6 +28,16 @@ on:
         type: boolean
         required: false
         default: false
+      drill_expires_at:
+        description: Drill only (T-D90) - RFC3339 UTC expiry recorded as the server tag expires-at=<value> (read by the sweeper). Ignored for prod.
+        type: string
+        required: false
+        default: ""
+      boot_log_upload:
+        description: Drill only (T-D90, ADR-0094) - upload boot diagnostics to the drill bucket. Ignored for prod.
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -282,6 +292,9 @@ jobs:
       IMAGE_TAG: ${{ inputs.image_tag }}
       TF_REPLACE: ${{ inputs.replace }}
       TF_DESTROY: ${{ inputs.destroy }}
+      # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
+      TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
+      TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
 

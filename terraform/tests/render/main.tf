@@ -41,6 +41,12 @@ variable "boot_log_upload" {
   default     = false
 }
 
+variable "expires_at" {
+  description = "Drill TTL tag (T-D90)."
+  type        = string
+  default     = ""
+}
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -69,6 +75,7 @@ module "compute" {
   break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
   console_password_hash = var.console_password_hash
   boot_log_upload       = var.boot_log_upload
+  expires_at            = var.expires_at
 
   enable_restore_helper  = var.enable_restore_helper
   restore_source_bucket  = "render-check-prod-bucket"
@@ -89,4 +96,9 @@ output "user_data" {
   description = "Rendered cloud-init user-data (contains dummy secrets only)."
   value       = module.compute.user_data
   sensitive   = true
+}
+
+output "server_tags" {
+  description = "Compute server tags (T-D90)."
+  value       = module.compute.server_tags
 }

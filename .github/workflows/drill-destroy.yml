@@ -1,0 +1,27 @@
+# Manual early teardown of the drill environment (T-D90, ADR-0099 decision 3).
+# Dispatch from any ref; it only ever targets env `drill`. Shares concurrency
+# group `drill` with drill.yml, the sweeper and restore-drill.yml.
+
+name: drill-destroy
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    name: terraform destroy (drill)
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      # Placeholder: app_image_tag is only rendered into user-data, which a
+      # -destroy plan never creates (terraform.yml accepts any valid tag).
+      image_tag: sha-0000000
+      destroy: true
+    secrets: inherit  # pragma: allowlist secret

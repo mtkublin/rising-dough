@@ -50,6 +50,22 @@ variable "boot_log_upload" {
   }
 }
 
+variable "drill_expires_at" {
+  description = "Drill-only (T-D90, ADR-0099): RFC3339 UTC expiry of the drill environment, recorded as the server tag `expires-at=<value>` so the sweeper can read it from the Scaleway API without state access. Empty = no tag. Must be empty unless env = drill."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.drill_expires_at == "" || var.env == "drill"
+    error_message = "drill_expires_at is drill-only (env must be 'drill')."
+  }
+
+  validation {
+    condition     = var.drill_expires_at == "" || can(regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", var.drill_expires_at))
+    error_message = "drill_expires_at must be an RFC3339 UTC timestamp like 2026-11-07T18:30:00Z."
+  }
+}
+
 variable "admin_email" {
   description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
   type        = string

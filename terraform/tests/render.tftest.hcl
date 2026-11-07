@@ -295,3 +295,80 @@ run "boot_log_upload_rejected_on_prod" {
 
   expect_failures = [var.boot_log_upload]
 }
+
+# T-D90: drill TTL tag. Prod (default) never carries an expires-at tag.
+run "server_has_no_expires_at_tag_by_default" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = length([for t in output.server_tags : t if startswith(t, "expires-at=")]) == 0
+    error_message = "No expires-at tag may be set when expires_at is empty (T-D90)."
+  }
+}
+
+run "server_carries_expires_at_tag_when_set" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    expires_at = "2026-11-07T18:30:00Z"
+  }
+
+  assert {
+    condition     = contains(output.server_tags, "expires-at=2026-11-07T18:30:00Z")
+    error_message = "expires_at must be rendered as the expires-at=<RFC3339> server tag (T-D90)."
+  }
+}
+
+run "drill_expires_at_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    drill_expires_at              = "2026-11-07T18:30:00Z"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_expires_at]
+}
+
+run "drill_expires_at_rejects_malformed" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    drill_expires_at              = "tomorrow"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_expires_at]
+}

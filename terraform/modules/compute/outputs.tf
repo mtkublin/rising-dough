@@ -33,3 +33,8 @@ output "user_data" {
   value       = local.user_data
   sensitive   = true
 }
+
+output "server_tags" {
+  description = "Tags set on the app server (T-D90 test hook; not a secret)."
+  value       = scaleway_instance_server.app.tags
+}

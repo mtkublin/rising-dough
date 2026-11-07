@@ -1,0 +1,91 @@
+# Drill TTL sweeper (T-D90, ADR-0099 decision 3).
+#
+# Every 15 minutes: list the servers of the DRILL project straight from the
+# Scaleway API (no Terraform state access needed) and read the
+# `expires-at=<RFC3339>` tag that drill.yml wrote through Terraform.
+#   - expired tag                                  -> destroy the drill
+#   - drill server WITHOUT the tag, older than 8 h -> orphan, destroy
+#   - nothing up / not yet expired                 -> no-op
+# Destroy goes through terraform.yml (env drill, destroy=true), so state stays
+# consistent. Shares concurrency group `drill` with drill.yml / drill-destroy.yml
+# / restore-drill.yml (queued, never cancelling a running apply).
+#
+# Environment `drill` secrets: SCW_SECRET_KEY (ci-drill key, ADR-0100),
+# SCW_DEFAULT_PROJECT_ID (the drill project) + everything terraform.yml needs.
+
+name: drill-sweeper
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: look for expired drills
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill
+    permissions: {}
+    outputs:
+      expired: ${{ steps.scan.outputs.expired }}
+    env:
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_ZONE: pl-waw-2
+      ORPHAN_AGE_SECONDS: "28800" # 8 h
+    steps:
+      - name: List drill servers and evaluate expires-at
+        id: scan
+        run: |
+          set -euo pipefail
+          echo "expired=false" >> "$GITHUB_OUTPUT"
+          curl -fsS --max-time 30 -H "X-Auth-Token: ${SCW_SECRET_KEY}" \
+            "https://api.scaleway.com/instance/v1/zones/${SCW_ZONE}/servers?project=${SCW_PROJECT_ID}&per_page=100" \
+            -o servers.json
+          now=$(date -u +%s)
+          # One line per server: name <TAB> expires-at tag ("" if none) <TAB> creation_date
+          jq -r '.servers[] | [.name, ((.tags // []) | map(select(startswith("expires-at="))) | (.[0] // "") | sub("^expires-at="; "")), (.creation_date // "")] | @tsv' servers.json > rows.tsv
+          if [ ! -s rows.tsv ]; then
+            echo "No drill server is up; nothing to do."
+            exit 0
+          fi
+          while IFS=$'\t' read -r name expires created; do
+            if [ -n "${expires}" ]; then
+              exp_s=$(date -u -d "${expires}" +%s)
+              if [ "${now}" -ge "${exp_s}" ]; then
+                echo "::notice::${name} expired at ${expires}"
+                echo "expired=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "${name}: expires ${expires}, still valid"
+              fi
+            else
+              created_s=$(date -u -d "${created}" +%s)
+              if [ $((now - created_s)) -ge "${ORPHAN_AGE_SECONDS}" ]; then
+                echo "::warning::${name} has no expires-at tag and is older than 8 h; treating as orphan"
+                echo "expired=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "${name}: no expires-at tag, younger than 8 h; leaving it"
+              fi
+            fi
+          done < rows.tsv
+
+  destroy:
+    name: destroy expired drill
+    needs: check
+    if: needs.check.outputs.expired == 'true'
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      # Placeholder: app_image_tag is only rendered into user-data, which a
+      # -destroy plan never creates (terraform.yml accepts any valid tag).
+      image_tag: sha-0000000
+      destroy: true
+    secrets: inherit  # pragma: allowlist secret
