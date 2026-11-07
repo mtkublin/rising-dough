@@ -86,6 +86,17 @@ The `acls` rules, the Terraform code and the workflows are unchanged. Decision i
 - `docker` group fix: a top-level cloud-init `groups: [docker]` key. `cc_users_groups` creates groups before users; the later `docker.io` install reuses the existing group. Users are otherwise unchanged.
 - The variable is temporary. Disable by applying without it and `-replace` of the server (ADR-0098: user-data changes do not re-run on an in-place update). Runbook: `tailscale-ssh.md`.
 
+## Amendment 2026-11-07 (T-D86): boot log upload
+
+**Problem.** The drill VM's first boot stalls in cloud-init's init stage (hostname set, users never created; no SSH, no console login). Without rescue mode there is no way to read logs. `bootcmd` is known to run on these boots.
+
+**Decision (T-D86).**
+- New root variable `boot_log_upload` (`bool`, default `false`). Validation: must be `false` unless `env = "drill"` (`boot_log_upload is drill-only`). Passed to the compute module and the template.
+- When enabled, `bootcmd` writes an uploader script and a 0600 root-only env file (bucket write credential already rendered for Litestream, bucket name, region; no new secrets) under `/run` (tmpfs) itself, because `write_files` runs after `bootcmd`. It then starts the script detached (`nohup setsid ... &`; the whole step is wrapped in `|| true`, no `set -e`).
+- The script snapshots every 30 s for 60 min, then every 5 min for 2 h, then exits: `cloud-init.log`, `cloud-init-output.log`, `journalctl -b`, `dmesg`, `cloud-init status --long`, `ps auxf`, `free -m`. Each is piped through a `sed` that redacts `tskey-...`, `AGE-SECRET-KEY-1...` and values of keys containing PASSWORD/SECRET/TOKEN/_KEY. Upload uses `curl --aws-sigv4` (curl 8.5 on Ubuntu 24.04, no apt needed) to `s3://<drill bucket>/boot-logs/<instance-id>/<boot-id>/<file>`. Instance id comes from the Scaleway metadata service, falling back to the hostname.
+- The storage module gets a lifecycle rule expiring prefix `boot-logs/` after 7 days, created only when `expire_boot_logs` is true (`env == "drill"`), so the prod bucket is unchanged.
+- Disabled renders nothing (no `boot-log` text in user-data). Temporary: apply without the variable and `-replace` the server (ADR-0098). Runbook: `tailscale-ssh.md`.
+
 ## Amendment (2026-11-07, T-D87): init-stage ordering
 
 Two init-stage failures (cloud-init 26.2, Ubuntu 24.04) broke every first boot. (1) `write_files` runs before `users_groups` and before `docker.io` installs, so `owner: root:docker` raised `KeyError: getgrnam(): name not found: 'docker'`, aborting the whole module and dropping every later file (Caddyfile, litestream config, deploy script); runcmd then failed with `docker compose` "no configuration file provided". (2) `useradd operator` failed (exit 9) because Ubuntu ships a system group `operator` (gid 37), so the user was never created.

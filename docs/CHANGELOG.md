@@ -2,6 +2,8 @@
 
 ## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
 - **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
+## 2026-11-07 (T-D86 — drill-only boot log upload)
+- **Infra(T-D86): new `boot_log_upload` Terraform variable (default false, drill only) makes cloud-init `bootcmd` start a detached uploader that pushes cloud-init logs, journal, dmesg, status, ps and free (secrets redacted) to `s3://<drill bucket>/boot-logs/<instance-id>/<boot-id>/`** (ADR-0094 amended). Drill bucket gets a 7-day expiry rule for `boot-logs/`; prod unchanged. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_boot_log_upload.py`, `terraform/tests/render.tftest.hcl`.
 
 ## 2026-11-07 (T-D85 — redact cloud-init heredocs in masked plan output)
 - **Security(T-D85): `mask_plan.py` now redacts the whole body of `cloud-init`/`cloud_init`/`user_data`/`user-data` heredocs and masks values of secret-named keys** (PASSWORD, SECRET, TOKEN, AUTHKEY, IDENTITY, `*_KEY`). Fixes the prior-state `user_data["cloud-init"]` removal block printing random secrets in clear after T-D83 (ADR-0098 amended). Tests: `tests/unit/deploy/test_mask_plan.py`.

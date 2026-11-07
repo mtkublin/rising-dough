@@ -221,3 +221,77 @@ run "console_password_rejected_on_prod" {
 
   expect_failures = [var.break_glass_console_password]
 }
+
+# T-D86: drill-only boot log uploader started from bootcmd.
+run "boot_log_upload_enabled_renders_uploader" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    boot_log_upload = true
+  }
+
+  assert {
+    condition     = startswith(nonsensitive(output.user_data), "#cloud-config\n")
+    error_message = "#cloud-config must stay line 1 (T-D75)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "/run/boot-log-upload.sh")
+    error_message = "Enabled: bootcmd must write and start the uploader (T-D86)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "https://$BUCKET.s3.$REGION.scw.cloud/boot-logs/")
+    error_message = "Enabled: uploader must target the bucket virtual-host URL (T-D86)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "'render-check-bucket' 'pl-waw'")
+    error_message = "Enabled: the drill bucket name must be rendered into the creds file (T-D86)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "tskey-[A-Za-z0-9-]+") && strcontains(nonsensitive(output.user_data), "AGE-SECRET-KEY-1[A-Z0-9]+")
+    error_message = "Enabled: uploader must redact tailscale and age keys (T-D86)."
+  }
+}
+
+run "boot_log_upload_disabled_renders_nothing" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "boot-log")
+    error_message = "Disabled: no boot-log artefact may be rendered (T-D86)."
+  }
+}
+
+run "boot_log_upload_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    boot_log_upload               = true
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.boot_log_upload]
+}

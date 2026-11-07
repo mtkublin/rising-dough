@@ -22,6 +22,27 @@ resource "scaleway_object_bucket" "durability" {
     abort_incomplete_multipart_upload_days = 7
   }
 
+  # T-D86: drill-only boot diagnostics expire after 7 d (versioned bucket: also
+  # drop noncurrent versions and the delete markers).
+  dynamic "lifecycle_rule" {
+    for_each = var.expire_boot_logs ? [1] : []
+    content {
+      id      = "expire-boot-logs-7d"
+      enabled = true
+      prefix  = "boot-logs/"
+
+      expiration {
+        days = 7
+      }
+
+      noncurrent_version_expiration {
+        noncurrent_days = 1
+      }
+
+      abort_incomplete_multipart_upload_days = 1
+    }
+  }
+
   tags = {
     managed_by = "terraform"
     project    = "budget-planner"

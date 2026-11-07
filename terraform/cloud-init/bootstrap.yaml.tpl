@@ -17,6 +17,50 @@ swap:
 # the sysctl.d file below persists it across reboots.
 bootcmd:
   - [sysctl, -w, vm.swappiness=10]
+%{ if boot_log_upload }
+  # T-D86 (drill only, ADR-0094): write_files has not run yet, so this bootcmd writes the uploader
+  # and its 0600 credentials under /run (tmpfs) itself, then starts it detached. Never fails boot.
+  - |
+    (
+      umask 077
+      printf 'AK=%s\nSK=%s\nBUCKET=%s\nREGION=%s\n' '${scw_access_key}' '${scw_secret_key}' '${bucket_name}' '${bucket_region}' > /run/boot-log-upload.env
+      cat > /run/boot-log-upload.sh <<'BOOT_LOG_UPLOAD_EOF'
+    #!/bin/sh
+    # T-D86: push boot diagnostics to the drill bucket. Best effort; errors are ignored.
+    . /run/boot-log-upload.env
+    BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown-boot)
+    IID=$(curl -s -m 5 'http://169.254.42.42/conf?format=json' 2>/dev/null | grep -o '"id": *"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')
+    [ -n "$IID" ] || IID=$(hostname 2>/dev/null || echo unknown-host)
+    D=/run/boot-log-upload.d
+    mkdir -p "$D"
+    redact() {
+      sed -E \
+        -e 's/tskey-[A-Za-z0-9-]+/tskey-REDACTED/g' \
+        -e 's/AGE-SECRET-KEY-1[A-Z0-9]+/AGE-SECRET-KEY-REDACTED/g' \
+        -e 's/([A-Za-z0-9_]*(PASSWORD|SECRET|TOKEN|_KEY)[A-Za-z0-9_]*"?[=:] *"?)[^ ,"]+/\1REDACTED/gI'
+    }
+    push() {
+      curl -s -m 60 -o /dev/null --aws-sigv4 "aws:amz:$REGION:s3" --user "$AK:$SK" \
+        -T "$D/$1" "https://$BUCKET.s3.$REGION.scw.cloud/boot-logs/$IID/$BID/$1" || true
+    }
+    snap() {
+      for f in cloud-init.log cloud-init-output.log; do
+        [ -r "/var/log/$f" ] && redact < "/var/log/$f" > "$D/$f" 2>/dev/null && push "$f"
+      done
+      timeout 30 journalctl -b --no-pager 2>&1 | redact > "$D/journal.txt"; push journal.txt
+      timeout 30 dmesg 2>&1 | redact > "$D/dmesg.txt"; push dmesg.txt
+      timeout 30 cloud-init status --long 2>&1 | redact > "$D/cloud-init-status.txt"; push cloud-init-status.txt
+      ps auxf 2>&1 | redact > "$D/ps.txt"; push ps.txt
+      free -m > "$D/free.txt" 2>&1; push free.txt
+    }
+    i=0
+    while [ "$i" -lt 120 ]; do snap; sleep 30; i=$((i + 1)); done
+    i=0
+    while [ "$i" -lt 24 ]; do snap; sleep 300; i=$((i + 1)); done
+    BOOT_LOG_UPLOAD_EOF
+      nohup setsid sh /run/boot-log-upload.sh > /dev/null 2>&1 &
+    ) || true
+%{ endif }
 
 package_update: true
 package_upgrade: true

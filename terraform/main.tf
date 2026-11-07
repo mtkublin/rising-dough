@@ -43,6 +43,9 @@ module "storage" {
   lifecycle_days    = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
   log_bucket_suffix = "logs"
 
+  # T-D86: expire boot-logs/ after 7 d on drill only (prod bucket unchanged).
+  expire_boot_logs = var.env == "drill"
+
   # ADR-0091: allow-list policy + drill-only force_destroy.
   env_application_id  = module.iam.application_id
   admin_principals    = var.bucket_admin_principals
@@ -129,6 +132,9 @@ module "compute" {
 
   # T-D84: drill-only console break-glass (bcrypt hash only; empty = disabled).
   console_password_hash = var.break_glass_console_password ? random_password.console[0].bcrypt_hash : ""
+
+  # T-D86: drill-only boot log upload to the drill bucket (false = nothing rendered).
+  boot_log_upload = var.boot_log_upload
 
   # T-D41a: restore-from-prod helper, drill env only.
   enable_restore_helper  = var.env == "drill"

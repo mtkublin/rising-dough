@@ -110,6 +110,26 @@ Drill only (rejected when `env = "prod"`). Use it when SSH is unusable (for exam
 
 5. Disable: apply without the variable, then `-replace=module.compute.scaleway_instance_server.app` (ADR-0098: an in-place update does not re-run cloud-init, so the hash stays on the old VM until it is replaced). The drill VM is disposable.
 
+## Boot logs (drill): `boot_log_upload` (T-D86)
+
+Drill only (rejected when `env = "prod"`). Use it when a boot stalls and neither SSH nor the console works. `bootcmd` starts a detached uploader that pushes boot diagnostics to the private drill bucket: every 30 s for 60 min, then every 5 min for 2 h. Files: `cloud-init.log`, `cloud-init-output.log`, `journal.txt`, `dmesg.txt`, `cloud-init-status.txt`, `ps.txt`, `free.txt` (tskey/age keys/PASSWORD-SECRET-TOKEN-_KEY values redacted). Objects expire after 7 days.
+
+1. Enable (new VM, or `-replace=module.compute.scaleway_instance_server.app`):
+
+   ```sh
+   TF_VAR_boot_log_upload=true just drill-apply
+   ```
+
+2. Read from a laptop (needs an operator credential for the bucket):
+
+   ```sh
+   aws s3 ls --endpoint-url https://s3.pl-waw.scw.cloud s3://budget-planner-drill-pl-waw/boot-logs/ --recursive
+   aws s3 cp --endpoint-url https://s3.pl-waw.scw.cloud s3://budget-planner-drill-pl-waw/boot-logs/ ./boot-logs --recursive
+   ```
+
+   Layout: `boot-logs/<instance-id>/<boot-id>/<file>`; files are overwritten on each snapshot.
+3. Disable: apply without the variable and `-replace` the server (ADR-0098).
+
 ## Rollback
 
 Reverting ADR-0094 means re-adding the `22/tcp` inbound rule in `modules/compute/main.tf` and applying.
