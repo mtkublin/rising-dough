@@ -37,7 +37,7 @@
 - [ ] Add branch protection on `main`: required status checks, no force-push.
 - [ ] Under Settings → Actions, allow workflows to create issues. `restore-drill.yml` opens `restore-drill-failure-YYYY-MM` on failure.
 - [ ] Create a GHCR pull token (classic PAT, `read:packages` only) for `GHCR_PULL_PAT` / `TF_VAR_ghcr_pull_pat`. Add a calendar reminder for its expiry.
-- [ ] After the first `build.yml` run, check that the GHCR package is linked to the repo and that Actions has access to it.
+- [ ] After the first `release.yml` run, check that the GHCR package is linked to the repo and that Actions has access to it.
 - [ ] Be aware that cosign keyless signing writes the repo and workflow identity to the public Rekor log, even for a private repo.
 
 ### A4. SSH keys
@@ -105,7 +105,7 @@ SSH to the VMs is only possible over the tailnet; port 22 is closed publicly. Th
 - [ ] Settings, OAuth clients: create one client with scope **Auth Keys: write** and tag `tag:automation` only (not prod/drill/ci; the client mints keys for those tags through `tagOwners`, see the ACL runbook). Store the client ID and secret in the password manager.
 - [ ] GitHub secrets `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`: repo level (used by `terraform.yml`, `deploy.yml`, `rollback.yml`) and in the `drill` environment (used by `restore-drill.yml`); also in the `prod` environment if secrets are environment-scoped.
 - [ ] Update secrets `DRILL_HOST` = `budget-planner-drill` and `PROD_HOST` = `budget-planner-prod` (tailnet MagicDNS names, no longer public hostnames). Public `/ready` probes keep using `DRILL_URL` / `PROD_URL`.
-- [ ] Local Terraform runs: `export TF_VAR_tailscale_oauth_client_id=...` and `TF_VAR_tailscale_oauth_client_secret=...` (never in tfvars).
+- [ ] Bootstrap and break-glass Terraform runs only: `export TF_VAR_tailscale_oauth_client_id=...` and `TF_VAR_tailscale_oauth_client_secret=...` (never in tfvars).
 - [ ] After the first prod apply, from your laptop on the tailnet: `ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod` into the secret `DEPLOY_SSH_KNOWN_HOSTS` (the drill host is scanned at runtime; `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete).
 - [ ] Optional: enable Tailnet Lock (Settings, Device management).
 
@@ -188,11 +188,11 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Before the first apply (T-D68, ADR-0091): in both `envs/*/terraform.tfvars` set `bucket_admin_principals = ["user_id:<your user id>"]` (`scw iam user list`). Without it Terraform and you get 403 on the bucket unless you are the Organization owner.
 - [x] Prod read-only restore principal is now created by Terraform (`restore-reader`, ADR-0092) and added to the bucket policy automatically; `bucket_readonly_principals` stays empty unless you need extras.
 - [ ] Run `just drill-preflight` before any drill apply (T-D78): inputs, project match, GHCR image, Tailscale tag, state backend. All PASS, then apply. (Needs `SCW_DRILL_PROJECT_ID` in `terraform/.env`.)
-- [ ] `terraform apply -var-file=envs/drill/terraform.tfvars` (drill only; prod applies run only in GitHub Actions from `main`, ADR-0099; pipelines being changed by T-D89/T-D90).
+- [ ] Drill apply through the pipeline: push a `<name>-deploy` branch or run `gh workflow run drill.yml --ref <branch> -f ttl_minutes=60` (ADR-0099, `runbooks/drill.md`). No local drill apply. Prod applies run only in GitHub Actions from `main` (`release.yml`).
 - [ ] If the DNS zone is external: add A/AAAA records for `drill.budget.<domain>` pointing at the flex IP.
 - [ ] Put the output of `terraform output -raw admin_initial_password` in the password manager. The T-D25 file still says `admin_fallback_password`; that name is stale.
 - [ ] Set `DRILL_HOST` = `budget-planner-drill` (A9). SSH works over the tailnet only; host keys via `ssh-keyscan budget-planner-drill` from your laptop (optionally compare with the Scaleway console serial output).
-- [ ] Drill on an unmerged v3 build (T-D76): push `v3`, wait for `build.yml` to go green, then set `TF_VAR_app_image_tag` (drill `app_image_tag`) to `sha-<short>` of the pushed commit. `main` is the default.
+- [ ] Drill on an unmerged build: push a `<name>-deploy` branch (or dispatch `drill.yml` on the branch). The drill builds its own image; no manual `app_image_tag`. The `v3` push trigger was removed by T-D89 (ADR-0099).
 - [ ] Do the seven post-apply checks in T-D25: health/ready, Observatory, `nslookup`, operator and deploy SSH, bucket exists, Litestream generation.
 - [ ] Log in as admin, confirm the forced password change, then change the password.
 - [ ] Teardown drill (T-D26). Check in the Scaleway console that nothing billable is left.
@@ -213,5 +213,5 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Keep an offline, encrypted copy of the Terraform state (`terraform-state-YYYYMMDD.tar.gz`), which the DR runbook expects.
 - [ ] Keep every operator credential in the password manager: Scaleway operator key, read-only restore key, GHCR PAT, both SSH keypairs, admin password, Litestream age identity (T-D56).
 - [ ] Approve prod deploys. Read the monthly `restore-drill` results and handle any failure issues.
-- [ ] Rotate on schedule: GHCR PAT before expiry; Scaleway keys and the cookie secret via `terraform apply -replace=...` (see `terraform/README.md`).
+- [ ] Rotate on schedule: GHCR PAT before expiry; CI keys via `runbooks/key-rotation.md`; Scaleway app keys and the cookie secret via break-glass `terraform apply -replace=...` (see `terraform/README.md` and `runbooks/break-glass.md`).
 - [ ] Calendar reminder: rotate the prod Litestream API key 30 days before `terraform output scw_app_key_expires_at` (Scaleway expires it after 1 year; `deploy.md` "Rotate the Litestream API key"). T-D74.

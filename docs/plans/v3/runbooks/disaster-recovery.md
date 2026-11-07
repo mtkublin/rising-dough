@@ -8,7 +8,7 @@ Full re-provision from zero plus restore. Target end-to-end RTO: < 60 min (ADR-0
 
 Use this runbook when the production Scaleway Stardust VM is **gone** or must be considered compromised: Scaleway destroyed the instance, the operator ran `terraform destroy`, the disk is unrecoverable, or an intrusion means the host cannot be trusted. The DB itself lives in `s3://budget-planner-prod-pl-waw/db/` and is independent of the compute instance — Litestream makes the VM disposable (ADR-0034).
 
-The recovery path is: `terraform apply` from the committed state → cloud-init renders the compose stack → Litestream restores `/data/budget.db` from the bucket on first boot → the app comes up on `/ready`.
+The recovery path is: a prod `terraform apply` from the committed state (break-glass only, ADR-0099 exception c; see [`break-glass.md`](break-glass.md)) → cloud-init renders the compose stack → Litestream restores `/data/budget.db` from the bucket on first boot → the app comes up on `/ready`.
 
 This runbook also covers the "lost all admins" scenario (ADR-0061 §3): the DB is fine but no `is_admin = 1 AND deleted_at IS NULL` row exists. The admin-bootstrap routine re-promotes a user when provided a new email + initial password via Terraform.
 
@@ -42,11 +42,14 @@ Betterstack heartbeat url: <TBD>
 
 ### 2. Re-provision the VM via Terraform
 
+Run this only under [`break-glass.md`](break-glass.md) with explicit user go: `TF_VAR_*` inputs (no tfvars file), a masked plan, and the saved plan applied. The commands below show the same Terraform steps.
+
 ```sh
 cd terraform
 terraform init -upgrade
 terraform workspace select prod   # must already exist in state
-terraform apply -var-file=envs/prod/terraform.tfvars
+terraform plan -out=tfplan        # masked, see break-glass.md
+terraform apply tfplan
 ```
 
 Terraform recreates:
@@ -114,9 +117,9 @@ Trigger only if the DB has zero live admins (ADR-0061 §3). The admin-bootstrap 
    admin_email = "<new-or-recovered-admin-email>"
    # No static password: random_password.admin_initial_password rerolls on apply.
    ```
-2. `terraform apply -var-file=envs/prod/terraform.tfvars`.
-3. Cloud-init re-renders `/etc/budget-planner/app.env` (only on a NEW VM: cloud-init runs once, so an in-place `cloud_init` update changes nothing on the host; add `-replace=module.compute.scaleway_instance_server.app` to step 2, ADR-0098; mask plan output with `just tf-plan-safe prod`) with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
-4. `ssh deploy@budget-planner-prod "deploy sha-<current>"` (or trigger `deploy.yml` to roll the app container so the lifespan startup hook re-runs the bootstrap routine).
+2. Plan and apply as in §2 (break-glass).
+3. Cloud-init re-renders `/etc/budget-planner/app.env` (only on a NEW VM: cloud-init runs once, so an in-place `cloud_init` update changes nothing on the host; add `-replace=module.compute.scaleway_instance_server.app` to the step 2 plan, ADR-0098; mask plan output with `just tf-plan-safe prod`) with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
+4. No separate deploy: the fresh VM starts the current image from cloud-init, and the lifespan startup hook runs the bootstrap routine on that start. If the container must be rolled anyway, that is a break-glass SSH deploy (`ssh deploy@budget-planner-prod "deploy sha-<current>"`, explicit user go, logged in `docs/CHANGELOG.md`).
 5. Capture `terraform output -raw admin_initial_password` into the password manager.
 6. Log in as the new admin at `https://budget-planner-prod/auth/login`. The first login forces password rotation (`must_change_password = 1`).
 7. Audit: `/debug/audit-tail` shows a `users.create` or `users.update` row with `actor='system-bootstrap'`.
@@ -163,7 +166,7 @@ ssh app@budget-planner-prod \
 - **Restore fails with an age / "no identity matched" error**: the identity supplied to Terraform does not match the recipient the replica was encrypted to. Check `age-keygen -y <identity file>` against the `age1...` recipient in `litestream.yml`, fix the variable and re-run the restore manually per [`restore.md`](restore.md).
 - **Litestream restore returns "no snapshots found"**: the IAM key cloud-init rendered cannot read the bucket. SSH as `app`, re-source the credential, and run the restore manually (see [`restore.md`](restore.md) steps 5–7).
 - **Admin bootstrap did not run**: check `docker compose logs app --tail 100` for the `system-bootstrap` audit entry. If missing, the lifespan hook short-circuited because at least one admin was found. Confirm with `SELECT count(*) FROM users WHERE is_admin=1 AND deleted_at IS NULL;`.
-- **New admin email never arrives at login**: ADR-0061 §3 — the env var is read only at startup. Re-run `deploy.yml` (or `docker compose restart app`) after Terraform apply.
+- **New admin email never arrives at login**: ADR-0061 §3 — the env var is read only at startup. Restart the app container after the apply (`docker compose restart app` over tailnet SSH, explicit user go; ADR-0099).
 - **Deploy pipeline cannot push images after DR**: `GHCR_PAT` or `DEPLOY_SSH_PRIVATE_KEY` was rotated as part of recovery and GitHub Actions secrets still hold the old value. Update the GHA secrets and re-run.
 
 ## Secrets rotation checklist (when DR was triggered by suspected compromise)
@@ -172,7 +175,7 @@ ssh app@budget-planner-prod \
 - [ ] Rotate `GHCR_PAT`.
 - [ ] Rotate `DEPLOY_SSH_PRIVATE_KEY` (and update `authorized_keys` on the new host via Terraform cloud-init).
 - [ ] Rotate the operator SSH key for the `app` user if the previous host was reachable.
-- [ ] Rotate the admin password (force via `terraform apply -replace=random_password.admin_initial_password`).
+- [ ] Rotate the admin password (break-glass: `terraform apply -replace=random_password.admin_initial_password`, see `break-glass.md`).
 - [ ] Rotate Scaleway project-admin API key the operator uses for Terraform.
 - [ ] Confirm bucket versioning kept pre-compromise versions reachable; export them before changing bucket policy if forensic is needed.
 

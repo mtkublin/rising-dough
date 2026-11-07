@@ -24,19 +24,19 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
   # Expect: non-empty, matches ^sha-[0-9a-f]{7,40}$ or ^v[0-9]+\.[0-9]+\.[0-9]+$
   ```
 - The current situation is a code regression, not a data regression. If you are rolling back **because** of DB state, stop here and open `restore.md`.
-- Operator has either GitHub Actions `prod` approval rights (preferred path) or SSH access as `app`/`deploy` (fallback path).
+- Operator has GitHub Actions `prod` approval rights (the routine path, ADR-0099). SSH is the break-glass fallback below.
 
 ## Procedure
 
-### Primary path — manual GitHub Actions dispatch
+### Primary path — `rollback.yml` dispatch
 
-1. `gh workflow run rollback.yml` (no inputs — uses `.previous-tag`).
-2. Approve the `prod` environment when it parks.
-3. GHA step summary reports the SHA it reverted to.
+1. `gh workflow run rollback.yml --ref main -f env=prod` (empty `image_sha` uses `.previous-tag`; add `-f image_sha=<sha>` to pin a known-good SHA).
+2. Approve the `prod` environment when it parks. `rollback.yml` refuses `env=prod` unless the ref is `main`.
+3. The GHA step summary reports the SHA it reverted to. `env=drill` can be dispatched from any ref.
 
-### Fallback path — direct SSH (operator workstation)
+### Break-glass path — direct SSH (operator workstation)
 
-Use when GitHub Actions is itself the problem (outage, token lockout, workflow mis-wired).
+Not a routine path. Use it only during a GitHub Actions outage, with explicit user go, and log the reason and SHA in `docs/CHANGELOG.md`. ADR-0099 item 1 allows prod changes only from GitHub Actions, and an SSH deploy is not one of the item 4 exceptions.
 
 1. Confirm the previous tag:
    ```sh
@@ -48,14 +48,12 @@ Use when GitHub Actions is itself the problem (outage, token lockout, workflow m
    ```
 3. The shim runs `TAG="$(cat .previous-tag)" docker compose up -d app`.
 
-### Last-resort path — pin a specific older SHA
+### Pinned-SHA path — `image_sha`
 
-> Note (ADR-0099): `deploy.yml` is being reworked by T-D89 into a reusable workflow called from `release.yml`; prod deploys only run from `main`.
-
-If `.previous-tag` is empty (first deploy ever, or someone wiped it), redeploy a known-good SHA explicitly through `deploy.yml`:
+If `.previous-tag` is empty (first deploy ever, or someone wiped it), dispatch `rollback.yml` with an explicit target. Prod is accepted from `main` only.
 
 ```sh
-gh workflow run deploy.yml -f sha=<known-good-short-sha>
+gh workflow run rollback.yml --ref main -f env=prod -f image_sha=<known-good-short-sha>
 ```
 
 Only use a SHA you can see in `git log origin/main` and that was in `prod` previously (GHCR tag `sha-<short>` still exists).
@@ -82,7 +80,7 @@ Spot-check the user-facing symptom that triggered the rollback. If it still repr
 
 ## Troubleshooting
 
-- **`.previous-tag` is empty or missing**: use the "Last-resort path" above with an explicit SHA. After the rollback stabilises, record the recovery in `../phase-4-validation/README.md` so the next deploy writes a fresh `.previous-tag`.
+- **`.previous-tag` is empty or missing**: use the "Pinned-SHA path" above with an explicit SHA. After the rollback stabilises, record the recovery in `../phase-4-validation/README.md` so the next deploy writes a fresh `.previous-tag`.
 - **`docker compose up -d app` fails on the rollback target**: image was GC'd from the local cache. Pull explicitly: `ssh app@budget-planner-prod "docker pull ghcr.io/<owner>/budget-planner:sha-<short>"` then retry. GHCR retention is indefinite for private images; the layer should still be fetchable.
 - **Rollback target also fails `/ready`**: this is a data-shaped incident, not a code regression. Stop. Switch to [`restore.md`](restore.md).
 - **Caddy returns 502 after rollback**: the `app` container restarted on a port other than 8000 (unexpected). `ssh app@budget-planner-prod "docker compose logs app --tail 100"` and triage from there.
@@ -91,7 +89,7 @@ Spot-check the user-facing symptom that triggered the rollback. If it still repr
 
 If the "previous" SHA is itself broken and the current SHA was better than the state we just rolled back to:
 
-1. `gh workflow run deploy.yml -f sha=<current-sha-you-just-left>`.
+1. `gh workflow run rollback.yml --ref main -f env=prod -f image_sha=<current-sha-you-just-left>`.
 2. Approve `prod`.
 3. Verify `/ready` + the symptom you were originally debugging.
 4. Treat the subsequent debugging as a code-only investigation; the DB has not moved.

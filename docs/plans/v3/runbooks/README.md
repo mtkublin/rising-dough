@@ -4,13 +4,18 @@ Operational procedures for v3. Each runbook is a check-list the operator (or an 
 
 | Runbook | Trigger |
 |---|---|
-| [`deploy.md`](deploy.md) | Standard release of a new SHA to prod. |
+| [`deploy.md`](deploy.md) | Standard release of a new SHA to prod (`release.yml` from `main`, ADR-0099). |
 | [`rollback.md`](rollback.md) | Deploy went bad; need the previous SHA. |
 | [`restore.md`](restore.md) | DB is corrupt / lost; restore from Litestream. |
 | [`disaster-recovery.md`](disaster-recovery.md) | Compute instance is gone; full re-provision from zero (includes lost-all-admins recovery). |
 | [`restore-log.md`](restore-log.md) | Append-only log of every restore drill (monthly cadence + any ad-hoc). |
 | [`tailscale-ssh.md`](tailscale-ssh.md) | Joining the tailnet, pasting the ACL, host keys, break-glass when SSH is unreachable. |
 | [`user-admin.md`](user-admin.md) | Add / reset / remove / promote users; enforce last-admin invariant and data-isolation guarantee. |
+| [`drill.md`](drill.md) | Deploy a branch to the drill environment: `*-deploy` push, dispatch with TTL, PR gate, sweeper, boot logs. |
+| [`break-glass.md`](break-glass.md) | Exception path (ADR-0099 c): org-admin key for a GitHub outage, stuck state lock, or bootstrap roots. |
+| [`key-rotation.md`](key-rotation.md) | Rotating the leaked org-admin key and the per-environment CI keys; cadence and expiry alerts (ADR-0100). |
+| [`github-settings.md`](github-settings.md) | Manual GitHub environment and branch-protection checklist that enforces ADR-0099 and ADR-0100. |
+| [`prod-db-seed.md`](prod-db-seed.md) | One-time copy of the local DB onto prod (ADR-0099 exception d; done 2026-11-07). |
 
 Each runbook follows the shape: **Context** · **Preconditions** · **Procedure** · **Verification** · **Troubleshooting** · **Rollback**.
 

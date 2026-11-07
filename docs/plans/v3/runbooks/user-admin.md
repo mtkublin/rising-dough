@@ -28,7 +28,7 @@ It then promotes the live user with that email, or else adopts the pre-v3 email-
 
 If no admin exists and the env vars are missing (or only one is set), the process exits non-zero (`event="admin_bootstrap_failed"`). The env vars are read only at bootstrap — rotating them does not change an existing admin's password.
 
-**Lost all admins** (prod): either restore admin on an existing user with the operator CLI on the host (`--make-admin`, see below), or `terraform taint random_password.admin_initial_password && terraform apply` and follow the DR runbook's rebuild path, then log in with the new one-time password.
+**Lost all admins** (prod): either restore admin on an existing user with the operator CLI on the host (`--make-admin`, see below), or regenerate the bootstrap password under break-glass (`terraform apply -replace=random_password.admin_initial_password`, ADR-0099 exception c; [`break-glass.md`](break-glass.md)) and follow the DR runbook's rebuild path, then log in with the new one-time password.
 
 **Operator CLI** (local or on the host, never over HTTP):
 

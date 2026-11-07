@@ -38,7 +38,7 @@ Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is auth
 
 ### 4. Rotating the OAuth client
 
-Create a new client (scope Auth Keys: write, tag `tag:automation` only), update `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in GitHub and your local `TF_VAR_tailscale_oauth_*`, then delete the old client. Running nodes are unaffected; the client is only used to mint keys.
+Create a new client (scope Auth Keys: write, tag `tag:automation` only), update `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in GitHub (and the local `TF_VAR_tailscale_oauth_*` copy, used only for bootstrap and break-glass runs), then delete the old client. Running nodes are unaffected; the client is only used to mint keys.
 
 ## Verification
 
@@ -49,11 +49,11 @@ Create a new client (scope Auth Keys: write, tag `tag:automation` only), update 
 
 - **Name does not resolve**: MagicDNS off or Tailscale not running; use `tailscale ip -4 budget-planner-prod`.
 - **Drill node named `budget-planner-drill-1`**: a destroyed ephemeral node was not yet garbage-collected. Delete the stale machine in the admin console (or wait) and re-run.
-- **Node never joined** (first boot): the auth key lives 1 h and is single-use. Check `sudo tail /var/log/cloud-init-output.log` through break-glass below, then re-apply with `terraform apply -replace=tailscale_tailnet_key.vm -replace=module.compute.scaleway_instance_server.app` (replaces the VM; data restores from Litestream).
+- **Node never joined** (first boot): the auth key lives 1 h and is single-use. Check `sudo tail /var/log/cloud-init-output.log` through break-glass below, then: drill, re-dispatch `drill.yml` on the branch (every drill apply replaces the server and tailnet key). Prod is not a pipeline action: break-glass with explicit user go, `terraform apply -replace=tailscale_tailnet_key.vm -replace=module.compute.scaleway_instance_server.app` (replaces the VM; data restores from Litestream).
 
 ## Break-glass (Tailscale unreachable)
 
-Open port 22 for your current IP only, fix, close again. Find the group and your IP:
+Open port 22 for your current IP only, fix, close again. Prod use is a change outside the pipeline (ADR-0099): explicit user go, and log it in `docs/CHANGELOG.md`. Find the group and your IP:
 
 ```sh
 SG_ID=$(scw instance security-group list zone=pl-waw-2 name=budget-planner-prod-sg -o json | jq -r '.[0].id')
@@ -73,6 +73,8 @@ scw instance security-group delete-rule security-group-id="$SG_ID" security-grou
 Note (T-D71): host `ufw` also allows 22 only on `tailscale0`, so this SG rule alone does not restore public SSH; the host rule must be widened from an existing session. Use `budget-planner-drill-sg` for the drill env. The Scaleway web serial console shows boot and cloud-init output for diagnosis but is not a login path (account passwords are locked). Do not leave the rule in place; a later `terraform apply` also removes it (drift).
 
 ## Break-glass for the drill: `break_glass_ssh_cidrs` (T-D81)
+
+> Scope (applies to the `break_glass_*` sections below): `drill.yml` has no input for these variables, and the pipeline never sets them. Setting one is a local drill apply outside the pipeline (ADR-0099): explicit user go only, logged in `docs/CHANGELOG.md`. The one drill diagnostic the pipeline exposes is the `boot_logs` dispatch input (see Boot logs below).
 
 Drill only (the variable is rejected when `env = "prod"`). Use it when the VM booted but never joined the tailnet. It opens public TCP 22 for the listed CIDRs in the security group and host ufw. The firewall is configured first in cloud-init, so it works even if Tailscale failed or hung.
 
@@ -114,10 +116,10 @@ Drill only (rejected when `env = "prod"`). Use it when SSH is unusable (for exam
 
 Drill only (rejected when `env = "prod"`). Use it when a boot stalls and neither SSH nor the console works. `bootcmd` starts a detached uploader that pushes boot diagnostics to the private drill bucket: every 30 s for 60 min, then every 5 min for 2 h. Files: `cloud-init.log`, `cloud-init-output.log`, `journal.txt`, `dmesg.txt`, `cloud-init-status.txt`, `ps.txt`, `free.txt` (tskey/age keys/PASSWORD-SECRET-TOKEN-_KEY values redacted). Objects expire after 7 days.
 
-1. Enable (new VM, or `-replace=module.compute.scaleway_instance_server.app`):
+1. Enable (the pipeline replaces the drill server on every dispatch):
 
    ```sh
-   TF_VAR_boot_log_upload=true just drill-apply
+   gh workflow run drill.yml --ref <branch> -f boot_logs=true
    ```
 
 2. Read from a laptop (needs an operator credential for the bucket):
@@ -128,7 +130,7 @@ Drill only (rejected when `env = "prod"`). Use it when a boot stalls and neither
    ```
 
    Layout: `boot-logs/<instance-id>/<boot-id>/<file>`; files are overwritten on each snapshot.
-3. Disable: apply without the variable and `-replace` the server (ADR-0098).
+3. Disable: dispatch `drill.yml` without `boot_logs` (the next drill apply replaces the server, ADR-0098).
 
 ## Rollback
 
