@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D94 — prod DB seed readiness probe)
+- **Fix(T-D94): `scripts/prod_db_seed.sh` probes `/ready` via the site FQDN pinned to loopback (`--fqdn`, default `budget.rising-dough.eu`)** instead of `https://localhost` (Caddy has no cert for it, which caused a needless rollback). Also accepts container healthy plus in-container `/ready`. ADR-0099.
+
 ## 2026-11-07 (T-D90 — drill deploy pipeline)
 - **CI(T-D90, ADR-0099): `drill.yml` (push `*-deploy`, dispatch with `ttl_minutes`/`keep`/`boot_logs`, PR-to-main pre-merge gate with always-teardown), `drill-sweeper.yml` (every 15 min, destroys expired or orphaned drills) and `drill-destroy.yml` (manual).** TTL is recorded as server tag `expires-at=<RFC3339>` via new root var `drill_expires_at` (drill-only, validated; prod plan unchanged). `terraform.yml` gained optional inputs `drill_expires_at` and `boot_log_upload`. Smoke-only after apply (no deploy.yml re-pull). Runbook `docs/plans/v3/runbooks/drill.md`.
 

@@ -16,6 +16,7 @@ readonly SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 
 SOURCE='data/budget.sqlite'
 HOST='budget-planner-prod'
+FQDN='budget.rising-dough.eu'
 CONFIRMED=0
 DRY_RUN=0
 FORCE=0
@@ -29,6 +30,7 @@ usage() {
 Usage: ${PROGNAME}.sh [--source PATH] [--host HOST] --yes-i-own-prod-data [--dry-run] [--force-overwrite]
   --source PATH          local DB to copy (default: ${SOURCE})
   --host HOST            tailnet host of the prod VM (default: ${HOST})
+  --fqdn NAME            public site name used for the /ready probe on the VM (default: ${FQDN})
   --yes-i-own-prod-data  required to touch the remote; without it a plan is printed (exit 2)
   --dry-run              local snapshot + checks only; no ssh/scp
   --force-overwrite      proceed even if the remote DB already has user data
@@ -49,6 +51,7 @@ while (($#)); do
   case "$1" in
     --source) SOURCE="${2:?--source needs a value}"; shift 2 ;;
     --host) HOST="${2:?--host needs a value}"; shift 2 ;;
+    --fqdn) FQDN="${2:?--fqdn needs a value}"; shift 2 ;;
     --yes-i-own-prod-data) CONFIRMED=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --force-overwrite) FORCE=1; shift ;;
@@ -128,10 +131,11 @@ fi
 log "transferring snapshot"
 scp "${SSH_OPTS[@]}" -q "${SNAP}" "${REMOTE}:${REMOTE_SEED}"
 
-# Runs on the VM as root. $1 = expected sha256.
+# Runs on the VM as root. $1 = expected sha256, $2 = site FQDN (Caddy only has a cert for it).
 read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 EXPECTED="$1"
+FQDN="$2"
 SEED=/tmp/seed.db
 DATA=/data
 DB=/data/budget.db
@@ -173,9 +177,18 @@ chmod 0700 "$DATA"
 chmod 0600 "$DB"
 $COMPOSE up -d litestream app
 ready=0
+ready_re='"status" *: *"(ready|ok)"'
 for _ in $(seq 1 36); do
-  if body="$(curl -fsS --max-time 5 -k --resolve localhost:443:127.0.0.1 https://localhost/ready 2>/dev/null)" \
-    && printf '%s' "$body" | grep -Eq '"status" *: *"(ready|ok)"'; then
+  # Signal 1: public path via the real FQDN pinned to loopback (valid cert, SNI matches).
+  if body="$(curl -fsS --max-time 5 --resolve "${FQDN}:443:127.0.0.1" "https://${FQDN}/ready" 2>/dev/null)" \
+    && printf '%s' "$body" | grep -Eq "$ready_re"; then
+    ready=1
+    break
+  fi
+  # Signal 2: container healthy AND in-container /ready ok (image ships curl).
+  if [ "$(docker inspect -f '{{.State.Health.Status}}' budget-planner-app 2>/dev/null)" = healthy ] \
+    && body="$(docker exec budget-planner-app curl -fsS --max-time 5 http://127.0.0.1:8000/ready 2>/dev/null)" \
+    && printf '%s' "$body" | grep -Eq "$ready_re"; then
     ready=1
     break
   fi
@@ -192,5 +205,5 @@ echo "Delete after verification: ssh operator@<host> sudo rm -rf $ASIDE"
 REMOTE
 
 log "swapping DB on ${HOST}"
-printf '%s\n' "${REMOTE_SCRIPT}" | ssh "${SSH_OPTS[@]}" "${REMOTE}" "sudo bash -s -- ${SHA}"
+printf '%s\n' "${REMOTE_SCRIPT}" | ssh "${SSH_OPTS[@]}" "${REMOTE}" "sudo bash -s -- ${SHA} ${FQDN}"
 log "seed complete. Verify in the app, then delete the moved-aside copy (see output above)."
