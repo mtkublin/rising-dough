@@ -53,24 +53,26 @@ jobs:
       - name: Build pip-audit ignore args from .security-allowlist.yml
         id: allowlist
         run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import pathlib, sys
-          try:
-              import yaml
-          except ImportError:
-              sys.stderr.write("PyYAML missing; install via uv add --group dev pyyaml\n")
-              sys.exit(1)
+          uv run python - <<'PY' >> "$GITHUB_OUTPUT"
+          import pathlib
+          import yaml
           data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
           entries = data.get("pip_audit") or []
           args = " ".join(f"--ignore-vuln {e['cve']}" for e in entries if e.get("cve"))
           print(f"ignore_args={args}")
           PY
 
+      - name: Export locked requirements
+        # The project itself is an editable local package that pip-audit cannot
+        # resolve on PyPI ("Dependency not found on PyPI"), so audit the
+        # hash-pinned export of uv.lock instead of the live environment.
+        run: uv export --frozen --no-emit-project --group dev -o requirements-audit.txt
+
       - name: Run pip-audit
         run: |
           # --strict exits non-zero on any finding; allowlist entries become
           # --ignore-vuln args so matching CVEs are skipped with justification.
-          uv run pip-audit --strict ${{ steps.allowlist.outputs.ignore_args }}
+          uv run pip-audit --strict --disable-pip -r requirements-audit.txt ${{ steps.allowlist.outputs.ignore_args }}
 
   # ---------------------------------------------------------------------------
   # 2. trivy-fs — filesystem scan of the repo
@@ -86,9 +88,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
+
       - name: Materialize .trivyignore from .security-allowlist.yml
         run: |
-          python - <<'PY'
+          uv run --no-project --with pyyaml python - <<'PY'
           import pathlib, yaml
           data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
           entries = data.get("trivy_fs") or []
@@ -148,9 +153,12 @@ jobs:
         run: |
           docker build --load -t rising-dough:scan -f Dockerfile .
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
+
       - name: Materialize .trivyignore from .security-allowlist.yml
         run: |
-          python - <<'PY'
+          uv run --no-project --with pyyaml python - <<'PY'
           import pathlib, yaml
           data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
           entries = data.get("trivy_image") or []

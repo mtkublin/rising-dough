@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-07 (T-D91 — green security workflow)
+- **Fix(T-D91): `security.yml` pip-audit and Trivy fs pass.** pip-audit now audits the hash-pinned `uv export --no-emit-project` of `uv.lock` (the editable project package made it fail with "not found on PyPI"); YAML helper steps run through uv. Upgraded `cryptography` 48.0.1 -> 50.0.2 and `pyopenssl` 26.2.0 -> 26.4.0 on non-macOS-x86_64 platforms (fixes PYSEC-2026-3552/3553/3554, CVE-2026-69247/69249); the ADR-0067 `cryptography<49` cap now applies to macOS x86_64 only. Ignores: `trivy_fs` CVE-2026-69247 and CVE-2026-69249 (lockfile's macOS-x86_64-only 48.0.1 fork, dev-only), review by 2027-02-01. All pinned action SHAs verified to exist.
 ## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
 - **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
 ## 2026-11-07 (T-D86 — drill-only boot log upload)

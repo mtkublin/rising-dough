@@ -575,3 +575,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
+
+### ✅ T-D91 [S] Green `security.yml` (pip-audit + Trivy fs) → T-D13, ADR-0067
+- pip-audit failed with "budget-planner: Dependency not found on PyPI" (audited the live env incl. the editable project); now audits the hash-pinned `uv export --no-emit-project` of `uv.lock`. Allowlist/materialize steps run via `uv run` / `uv run --with pyyaml` so PyYAML is guaranteed.
+- cryptography 48.0.1 carried PYSEC-2026-3552/3553/3554 (CVE-2026-69247/69249 in Trivy): the global `cryptography<49` cap is now macOS-x86_64-only; Linux/CI/prod resolve 50.0.2. Lock's darwin-x86_64 fork (48.0.1) is allowlisted in `trivy_fs` until 2027-02-01.
