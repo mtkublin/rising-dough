@@ -534,3 +534,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Item agents run scoped checks plus pre-commit only; the orchestrator runs one full `just ci` per merge batch (skipped for docs-only batches). `ci.yml` stays the safety net. Single-agent work keeps `just ci` green before handoff.
 - `.pre-commit-config.yaml` `pytest-fast` now runs `tests/unit tests/architecture` only (974 tests, about 31 s, was 1508 tests, about 205 s). Full suite and the 90% gate are unchanged in `just ci` and CI.
 - Docs: ADR-0097, ADR-0066 "Amended by" note, CLAUDE.md handoff item 2, `orchestrator-mode` skill.
+
+### ✅ T-D81 [S] Drill-only break-glass public SSH for boot debugging → ADR-0094
+- Root variable `break_glass_ssh_cidrs` (default `[]`, CIDR-validated, rejected unless `env = "drill"`) feeds the compute module: one SG inbound TCP 22 rule per CIDR (`dynamic` block) and one `ufw allow from <cidr> to any port 22 proto tcp` in cloud-init. Empty list leaves the SG and user-data unchanged.
+- cloud-init: ufw block moved first in `runcmd` (before the Tailscale install) so break-glass survives a failed or hanging Tailscale join; `tailscale up` wrapped in `timeout 120`. sshd was not bound to `tailscale0`, so no sshd change.
+- Docs: ADR-0094 amendment (2026-11-07), runbook `tailscale-ssh.md` section, CHANGELOG.
+- Tests: `tests/unit/deploy/test_break_glass.py`; `terraform/tests/render.tftest.hcl` (rendered rule, prod rejection).

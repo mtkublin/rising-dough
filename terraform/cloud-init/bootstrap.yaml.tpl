@@ -170,22 +170,29 @@ write_files:
 runcmd:
   - mkdir -p /data && chown 10001:10001 /data && chmod 0700 /data
   - mkdir -p /var/log/caddy && chown root:root /var/log/caddy && chmod 0755 /var/log/caddy
+  # T-D81 / ADR-0094: firewall FIRST, before any network-dependent step, so the
+  # drill-only break-glass SSH rules below are in place even if the Tailscale
+  # install or join fails or hangs. `tailscale0` rules are valid before the
+  # interface exists.
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow in on tailscale0 to any port 22 proto tcp
+%{ for cidr in break_glass_ssh_cidrs ~}
+  - ufw allow from ${cidr} to any port 22 proto tcp
+%{ endfor ~}
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
   # T-D67 / ADR-0094: join the tailnet (official apt repo, Ubuntu noble). The
   # Scaleway security group has no port 22 and ufw allows 22/tcp only on tailscale0
-  # (defence in depth). Break-glass needs both the SG rule and a temporary ufw rule.
+  # (defence in depth). Break-glass (T-D81, drill only) adds an SG rule and a ufw rule per `break_glass_ssh_cidrs` entry.
   - install -m 0755 -d /usr/share/keyrings
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
   - apt-get update
   - DEBIAN_FRONTEND=noninteractive apt-get install -y tailscale
   - systemctl enable --now tailscaled
-  - sh -c 'tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
-  - ufw default deny incoming
-  - ufw default allow outgoing
-  - ufw allow in on tailscale0 to any port 22 proto tcp
-  - ufw allow 80/tcp
-  - ufw allow 443/tcp
-  - ufw --force enable
+  - sh -c 'timeout 120 tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
   - systemctl enable --now unattended-upgrades
   - systemctl enable --now docker
   - sh -c 'cd /etc/budget-planner && docker compose pull && docker compose up -d'

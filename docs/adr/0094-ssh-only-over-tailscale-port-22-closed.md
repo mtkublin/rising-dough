@@ -61,3 +61,14 @@
 ```
 
 The `acls` rules, the Terraform code and the workflows are unchanged. Decision item 4 above describes the tag set as it stood before this amendment. The ACL file (`runbooks/tailscale-acl.hujson`), checklist A9 and runbook `tailscale-ssh.md` now reflect the owner-tag pattern. The security consequence in Consequences is unchanged: the OAuth client still cannot read or write the ACL.
+
+## Amendment (2026-11-07): break-glass implemented as drill-only `break_glass_ssh_cidrs`; prod forbidden by validation
+
+**Problem.** The first drill VM applied cloud-init (hostname set) but never joined the tailnet and ports 80/443 stayed closed for 18+ minutes. With no port 22 and ufw limited to `tailscale0`, the failed boot could not be debugged.
+
+**Decision (T-D81).**
+- New root variable `break_glass_ssh_cidrs` (`list(string)`, default `[]`). Validation: every entry is a valid CIDR, and the list must be empty unless `env = "drill"` (`break_glass_ssh_cidrs is drill-only`). Prod cannot open public SSH through Terraform.
+- Per CIDR: one inbound TCP 22 accept rule on the security group (`dynamic` block, `ip_range`, IPv4 and IPv6) and one `ufw allow from <cidr> to any port 22 proto tcp` in cloud-init. Empty list renders exactly the previous security group and user-data.
+- The firewall block (defaults, rules, `ufw --force enable`) now runs first in `runcmd`, before the Tailscale install and join, so break-glass works even if Tailscale fails or hangs. `tailscale up` is wrapped in `timeout 120`.
+- sshd keeps its default (all interfaces); nothing binds it to `tailscale0`. The `operator` user and key work over the public IP.
+- Supersedes the manual `scw` rule procedure in item 7 for the drill; the runbook documents the Terraform path. The variable is temporary: apply without it to close port 22.

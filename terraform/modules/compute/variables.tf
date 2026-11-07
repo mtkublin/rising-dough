@@ -169,3 +169,14 @@ variable "tailscale_tag" {
     error_message = "tailscale_tag must look like tag:<name>."
   }
 }
+
+variable "break_glass_ssh_cidrs" {
+  description = "Drill-only, temporary: CIDRs allowed public TCP 22 (security group + host ufw) to debug a failed first boot (T-D81, ADR-0094). Empty = no port 22."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for c in var.break_glass_ssh_cidrs : can(cidrhost(c, 0))])
+    error_message = "Every break_glass_ssh_cidrs entry must be a valid CIDR."
+  }
+}
