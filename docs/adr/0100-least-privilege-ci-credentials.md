@@ -73,3 +73,7 @@ GitHub settings (environments, required reviewers, deployment branch rules, bran
 - After rotation the laptop has no prod-write key; prod applies happen in the `prod` environment only (ADR-0099).
 - Workflows keep the same secret names (`SCW_ACCESS_KEY`, `SCW_SECRET_KEY`) but with environment-scoped, different values. Repo-level copies of these secrets must be deleted so a missing environment secret fails loudly instead of falling back to a stronger key.
 - `terraform/bootstrap/ci` is not covered by the existing `terraform.yml` validate step (it validates `terraform/bootstrap` only). Follow-up: add a validate line for it.
+
+## Amendment 2026-11-07 (T-D97, ADR-0101)
+
+`ci-drill` no longer holds `DomainsDNSFullAccess` on the prod project: the drill creates no DNS records ([ADR-0101](0101-drill-environment-is-tailnet-only.md)). The drill gains the ungated environments `drill-plan` and `drill-teardown` (same drill secrets); `drill` itself is gated by required reviewers.

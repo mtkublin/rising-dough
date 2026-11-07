@@ -88,7 +88,7 @@ def test_sweeper_runs_every_15_minutes_and_destroys_conditionally() -> None:
 
     assert triggers["schedule"] == [{"cron": "*/15 * * * *"}]
     assert "workflow_dispatch" in triggers
-    assert jobs["check"]["environment"] == "drill"
+    assert jobs["check"]["environment"] == "drill-teardown"
     assert jobs["destroy"]["needs"] == "check"
     assert jobs["destroy"]["if"] == "needs.check.outputs.expired == 'true'"
     assert jobs["destroy"]["with"]["destroy"] is True
@@ -116,3 +116,29 @@ def test_terraform_workflow_drill_only_inputs_are_gated() -> None:
     assert inputs["boot_log_upload"]["default"] is False
     assert "inputs.env == 'drill'" in env["TF_VAR_drill_expires_at"]
     assert "inputs.env == 'drill'" in env["TF_VAR_boot_log_upload"]
+
+
+def test_drill_apply_is_gated_and_teardown_paths_are_not() -> None:
+    """ADR-0101: apply -> `drill` (reviewers); destroy, plan, smoke -> ungated envs."""
+    tf = _load("terraform.yml")["jobs"]
+    apply_env = str(tf["apply"]["environment"]["name"])
+
+    # Non-destroy drill (and any prod) apply resolves to inputs.env (gated).
+    assert apply_env.endswith("|| inputs.env }}")
+    # Drill destroy never waits for approval.
+    assert "inputs.destroy && inputs.env == 'drill'" in apply_env
+    assert "'drill-teardown'" in apply_env
+    assert "'drill-plan'" in tf["plan"]["environment"]
+    assert "'prod-plan'" in tf["plan"]["environment"]
+
+    drill = _load("drill.yml")["jobs"]
+    assert drill["smoke"]["environment"]["name"] == "drill-teardown"
+    assert drill["teardown"]["with"]["destroy"] is True  # -> drill-teardown via terraform.yml
+    assert "environment" not in drill["apply"]  # gate lives in terraform.yml's apply job
+
+
+def test_no_drill_workflow_uses_gated_drill_environment_for_teardown() -> None:
+    for name in ("drill-sweeper.yml", "drill-destroy.yml"):
+        text = (WORKFLOWS / name).read_text()
+        code = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+        assert "environment: drill\n" not in code

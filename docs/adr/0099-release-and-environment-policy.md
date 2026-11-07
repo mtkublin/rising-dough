@@ -48,3 +48,8 @@ v3 has two environments, `prod` and `drill` (disposable). Until now nothing stat
 - The drill pipeline smoke-tests instead of calling `deploy.yml`: every drill apply replaces the server, and the fresh boot's cloud-init already runs `app_image_tag` (the freshly built tag), so the SSH swap would be a no-op. The smoke job waits for the public `/ready` (budget 10 min; fresh boot ~3.5 min). `deploy.yml` still accepts `env: drill` for ad-hoc use.
 - TTL is stored as the Scaleway server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_expires_at`, drill-only) so the sweeper needs no state access.
 - Destroy runs pass the placeholder `image_tag: sha-0000000`; `app_image_tag` only feeds user-data, which a destroy plan never creates.
+
+## Amendment 2026-11-07 (T-D96, T-D97, ADR-0101)
+
+- Drill apply is human-gated: environment `drill` has required reviewers; destroy/sweeper/smoke use the ungated `drill-teardown`, the PR plan leg uses `drill-plan`.
+- The drill is tailnet-only (no public DNS, no public 80/443). The smoke job joins the tailnet and probes `https://budget-planner-drill.<tailnet>.ts.net/ready`; the "public `/ready`" wording above is superseded for the drill. See [ADR-0101](0101-drill-environment-is-tailnet-only.md).

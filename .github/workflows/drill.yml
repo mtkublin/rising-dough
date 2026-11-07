@@ -20,8 +20,11 @@
 # Concurrency: group `drill` is shared with restore-drill.yml, the sweeper and
 # drill-destroy.yml; runs queue, never cancel a running apply/destroy.
 #
-# Environment `drill` secrets/vars: see terraform.yml / restore-drill.yml headers;
-# vars.DRILL_URL (public URL of the drill host).
+# Environments (ADR-0101, T-D96): `drill` has required reviewers and gates every
+# apply (terraform.yml job `apply`). `drill-teardown` (ungated, same secrets/vars)
+# serves smoke and every destroy, so teardown never waits for approval.
+# Secrets/vars: see terraform.yml / restore-drill.yml headers; vars.DRILL_URL
+# (URL of the drill host).
 
 name: drill
 
@@ -117,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: drill
+      name: drill-teardown # ungated: the apply job already waited for approval
       url: ${{ vars.DRILL_URL }}
     permissions: {}
     env:

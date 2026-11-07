@@ -122,10 +122,10 @@ jobs:
       fail-fast: false
       matrix:
         env: [drill, prod]
-    # ADR-0093: `prod` has required reviewers (ADR-0037), which would gate
-    # every PR plan. The prod leg reads the ungated `prod-plan` environment
-    # (same secret names, prod values) instead.
-    environment: ${{ matrix.env == 'prod' && 'prod-plan' || 'drill' }}
+    # ADR-0093 / ADR-0101: `prod` and `drill` have required reviewers, which
+    # would gate every PR plan. Both legs read ungated plan environments
+    # (`prod-plan`, `drill-plan`: same secret names, per-env values) instead.
+    environment: ${{ matrix.env == 'prod' && 'prod-plan' || 'drill-plan' }}
     defaults:
       run:
         working-directory: terraform
@@ -253,9 +253,13 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # ADR-0099: `prod` has required reviewers (approval gate before apply).
+    # ADR-0099 / ADR-0101: `prod` and `drill` have required reviewers (approval
+    # gate before apply). A drill destroy must never wait for approval (sweeper
+    # cron, drill-destroy, end-of-pipeline teardown), so it runs in the ungated
+    # `drill-teardown` environment, which holds the same drill secrets/vars.
+    # Prod destroy keeps the gated `prod` environment.
     environment:
-      name: ${{ inputs.env }}
+      name: ${{ (inputs.destroy && inputs.env == 'drill') && 'drill-teardown' || inputs.env }}
     defaults:
       run:
         working-directory: terraform

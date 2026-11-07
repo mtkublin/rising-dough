@@ -308,7 +308,7 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - GitHub Actions: `build.yml` (image + cosign) → `deploy.yml` (SSH to deploy user, auto-rollback on `/ready` probe failure).
 - Deploy user has `/usr/sbin/nologin` + `command=".../deploy-budget-planner"` restriction. No arbitrary SSH.
 - Immutable SHA-tagged images; cosign keyless via GitHub OIDC.
-- Prod deploy requires explicit `prod` environment approval; drill deploys automatically.
+- Prod deploy requires explicit `prod` environment approval; drill apply requires approval of the `drill` environment's required reviewer (ADR-0101, T-D96). Teardown, sweeping and plan are ungated (`drill-teardown`, `drill-plan`).
 - Rollback is one SSH call or one `workflow_dispatch`.
 
 Release and environment policy (ADR-0099):
@@ -316,6 +316,7 @@ Release and environment policy (ADR-0099):
 - Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval) -> `deploy prod` -> smoke `/ready`, orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
 - Drill deploys run through one reusable drill pipeline (T-D90): on push to `*-deploy` branches and `workflow_dispatch` (`ttl_minutes`, default 60, swept every 15 min), and as an ephemeral pre-merge check on pull requests to `main` (required). All drill workflows share the `drill` concurrency group.
 - Only exceptions: initial prod bring-up (2026-11-07), the local-only bootstrap stack (ADR-0096), a logged break-glass runbook, and a one-time prod DB seed copy (explicit user go). Enforced by credentials: prod-write secrets exist only in the GitHub `prod` environment (ADR-0100, T-D92).
+- The drill is tailnet-only (ADR-0101, T-D97): no public DNS record and no public 80/443; the app answers on its MagicDNS name `budget-planner-drill.<tailnet>.ts.net` with a certificate from the local tailscaled. The smoke job joins the tailnet (`tag:ci`, ACL `tag:ci -> tag:drill:443`) and probes that URL (environment variable `TAILNET_DNS_NAME`). `ci-drill` holds no DNS permission on the prod project.
 - Until T-D89/T-D90 land, the `deploy.yml` `workflow_run` flow above is superseded by this policy.
 
 ### 6.5 Durability (amends §3.7 for v3)

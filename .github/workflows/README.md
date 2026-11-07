@@ -20,7 +20,7 @@ push to main
 | `terraform.yml` | pull_request (fmt/validate/tflint/plan, masked), workflow_call | inputs `env`, `image_tag`, `replace`, `destroy`, drill-only `drill_expires_at`, `boot_log_upload`; prod requires `main`; plan masked via `mask_plan.py`, `plan.bin` never uploaded (ADR-0098) |
 | `deploy.yml` | workflow_call | inputs `env` (drill\|prod), `image_tag`; tailnet SSH, `/ready` probe, rollback on failure |
 | `rollback.yml` | dispatch | prod only from `main` |
-| `drill.yml` | push `*-deploy`, dispatch, PR to `main` | env `drill` only; smoke-only after apply |
+| `drill.yml` | push `*-deploy`, dispatch, PR to `main` | drill only; apply gated by env `drill` reviewers; smoke + teardown in `drill-teardown` |
 | `drill-sweeper.yml` | cron every 15 min, dispatch | destroys expired/orphan drills |
 | `drill-destroy.yml` | dispatch | manual teardown |
 | `restore-drill.yml` | monthly schedule, dispatch | concurrency group `drill` |
@@ -44,6 +44,8 @@ drill-destroy.yml  dispatch: destroy now
 
 Runbook: `docs/plans/v3/runbooks/drill.md`.
 
-Expected configuration: environments `drill`, `prod` (required reviewers),
-`prod-plan`; secrets as listed in `terraform.yml` / `deploy.yml` headers;
+Expected configuration: environments `prod` and `drill` (both with required
+reviewers: every prod/drill apply waits for approval), plus ungated `prod-plan`,
+`drill-plan` (PR plan legs) and `drill-teardown` (every drill destroy path and the
+drill smoke job; ADR-0101). The three drill environments hold identical secrets; secrets as listed in `terraform.yml` / `deploy.yml` headers;
 vars `DRILL_URL`, `PROD_URL`.

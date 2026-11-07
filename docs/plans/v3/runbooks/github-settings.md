@@ -6,14 +6,18 @@
 
 - [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **Selected branches: `main` only**. Used by `deploy-prod`, `apply-prod`, `rollback` (env prod).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
-- [ ] **`drill`**: no required reviewers. Deployment branches: selected `main` and `*-deploy` (add a pattern per deploy branch convention); allow PR refs only if PR-time drill checks (T-D90) need it, in which case treat the drill environment as untrusted-reachable (it only holds the drill key).
+- [ ] **`drill`** (gated, ADR-0101): **Required reviewers** = you (every drill apply, from any trigger: `*-deploy` push, dispatch, PR pre-merge, waits for approval; prevent self-review only if a second reviewer exists). Deployment branches and tags: selected `main` and `*-deploy` (plus PR refs only if the pre-merge drill check must run for PRs from branches that are not `*-deploy`; the approval is then what stops unreviewed code). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
+- [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
+- [ ] **`drill-plan`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by the drill leg of the PR plan in `terraform.yml` (mirrors `prod-plan`). Same drill secrets as `drill`.
+- Private repositories: **Required reviewers on environments need GitHub Pro/Team** (or an org plan). On the free plan the setting is unavailable and the drill apply is NOT gated; do not rely on this checklist until the plan supports it.
+- A drill run waiting for approval holds the `drill` concurrency group, so the sweeper and `drill-destroy.yml` queue behind it. Approve or reject/cancel pending drill runs promptly.
 - [ ] Delete **repo-level** `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (and any repo-level copy of the env secrets below) so a missing environment secret fails instead of falling back.
 
 ## 2. Secrets and variables per environment
 
-Same names in every environment, different values (ADR-0093). Verified against `.github/workflows/*.yml`.
+Same names in every environment, different values (ADR-0093). The three drill environments (`drill`, `drill-teardown`, `drill-plan`) hold identical copies of the drill column; keep them in sync when rotating (`key-rotation.md`). Verified against `.github/workflows/*.yml`.
 
-| Secret | `prod` | `prod-plan` | `drill` | Notes |
+| Secret | `prod` | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
 |---|:-:|:-:|:-:|---|
 | `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` | ci-prod | ci-plan (read-only) | ci-drill | outputs of `terraform/bootstrap/ci` |
 | `SCW_DEFAULT_PROJECT_ID` | prod project | prod project | drill project | |
@@ -48,17 +52,15 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 - [ ] Require linked conversation resolution; block force pushes and deletions.
 - [ ] Restrict who can push to matching branches (operator only).
 
-## 4. Tailscale OAuth clients (admin console > Settings > OAuth clients)
+## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
-Two separate clients so a leaked drill secret cannot mint prod-tagged keys:
+One OAuth client, used by every environment:
 
-| Client | Scope | Allowed tags | Goes to |
+| Client | Scope | Tag assigned to the client | Goes to |
 |---|---|---|---|
-| `budget-planner-prod` | `auth_keys` write | `tag:prod`, `tag:ci` | `prod` and `prod-plan` env: `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` |
-| `budget-planner-drill` | `auth_keys` write | `tag:drill`, `tag:ci` | `drill` env: same secret names |
+| `budget-planner-automation` | `auth_keys` write | `tag:automation` | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in `prod`, `prod-plan`, `drill`, `drill-teardown`, `drill-plan` |
 
-- `tag:ci` is needed in both because the deploy workflows join the tailnet as `tag:ci` using the same secret names (limitation: the tag cannot be split without renaming secrets in the workflows; tracked as follow-up).
-- Tag owners (`tagOwners`) in the ACL must allow the OAuth client to own each tag (`tailscale-acl.hujson`).
+- The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).
 
 ## 5. Actions settings (Settings > Actions > General)

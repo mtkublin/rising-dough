@@ -1,6 +1,8 @@
 # Manual early teardown of the drill environment (T-D90, ADR-0099 decision 3).
 # Dispatch from any ref; it only ever targets env `drill`. Shares concurrency
-# group `drill` with drill.yml, the sweeper and restore-drill.yml.
+# group `drill` with drill.yml, the sweeper and restore-drill.yml. Destroy runs in
+# the ungated environment `drill-teardown` (terraform.yml picks it from
+# `destroy: true`, ADR-0101), so it never waits for a reviewer.
 
 name: drill-destroy
 
