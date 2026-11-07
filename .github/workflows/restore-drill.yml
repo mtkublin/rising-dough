@@ -39,7 +39,7 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: restore-drill
+  group: drill # shared drill group with the pre-merge drill validation (ADR-0099)
   cancel-in-progress: false
 
 permissions:

@@ -579,8 +579,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D88 [S] Release and environment policy; align local docs → ADR-0099
 - ADR-0099 records: prod only via GitHub Actions from `main`; main pipeline; drill triggers (`*-deploy`, dispatch with TTL, PR pre-merge gate); exceptions; credential-based enforcement. Docs aligned (requirements 6.4, CLAUDE.md, implementation plan, terraform README, deploy/rollback/operator runbooks).
 
-### T-D89 [M] Release pipeline: `release.yml` + reusable ci/build/terraform/deploy workflows; remove `v3` push trigger; fix tflint pin → ADR-0099
-- New orchestrating `release.yml` on push to `main`; ci/build/terraform/deploy become `workflow_call`; image tag flows from build to terraform to deploy; smoke `/ready`; drop the temporary `v3` trigger in `build.yml` (T-D76); fix the tflint version pin.
+### ✅ T-D89 [M] Main-only release pipeline ci→build→tf apply→deploy; fix tflint pin → ADR-0099
+- New `.github/workflows/release.yml` (push main, `concurrency: release-prod`): `ci` → `build` → `tf-apply-prod` (env `prod`, `-var app_image_tag=<build tag>`) → `deploy-prod` (env `prod`, `/ready` smoke inside deploy). ci/build/terraform/deploy are reusable (`workflow_call`); build/terraform-apply/deploy lose their own push/tag/release/workflow_run triggers. Prod apply/deploy/rollback refuse any ref other than `main`.
+- terraform.yml: `setup-tflint` pinned to real v4.1.1 SHA (old SHA did not exist); apply job takes `env`, `image_tag`, `replace`, `destroy` for T-D90 (drill). restore-drill shares concurrency group `drill`.
+- Tests: `tests/unit/deploy/test_build_workflow.py` (trigger shape + needs chain). `.github/workflows/README.md` documents the graph.
 
 ### T-D90 [M] Drill deploy pipeline and sweeper → ADR-0099
 - One reusable drill pipeline (build, terraform apply drill with server and tailnet key replaced, deploy, smoke). Triggers: push `*-deploy`, `workflow_dispatch` (`ttl_minutes`, default 60), `pull_request` to `main` (ephemeral, torn down at end, required check). Scheduled sweeper every 15 min; `drill-destroy` dispatch. Shared concurrency group `drill` (queued); `restore-drill.yml` joins it.

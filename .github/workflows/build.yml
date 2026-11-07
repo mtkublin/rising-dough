@@ -1,9 +1,9 @@
 # Build + publish signed container images.
 #
 # ADR-0037 §2 — Immutable SHA-tagged images; cosign keyless-signed via GitHub OIDC.
-# Downstream deploy workflow (.github/workflows/deploy.yml) consumes this run's
-# conclusion via `workflow_run` and reads the published tag/digest from the
-# step-summary / annotations below.
+# ADR-0099: only reusable (called by release.yml after ci passes) or manually
+# dispatched from main. No push / tag / release triggers. The image tag and
+# digest are exposed as workflow_call outputs for terraform apply + deploy.
 #
 # Pinned third-party actions by 40-char SHA (never floating tags). Update the
 # comment next to each pin when bumping, and verify the new SHA against the
@@ -12,12 +12,17 @@
 name: build
 
 on:
-  push:
-    # v3: temporary, so the drill can run v3 images before merge to main (T-D76). Remove after v3 merges.
-    branches: [main, v3]
-    tags: ['v*.*.*']
-  release:
-    types: [published]
+  workflow_call:
+    outputs:
+      image-tag:
+        description: Primary immutable image tag (sha-<short>)
+        value: ${{ jobs.build-and-push.outputs.image-tag }}
+      image-digest:
+        description: Image manifest digest (sha256:...)
+        value: ${{ jobs.build-and-push.outputs.image-digest }}
+      image-ref:
+        description: Full primary image reference (registry/name:sha-<short>)
+        value: ${{ jobs.build-and-push.outputs.image-ref }}
   workflow_dispatch:
 
 permissions:
@@ -38,7 +43,10 @@ jobs:
     name: Build + push image
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Guard: manual dispatch only from main (ADR-0099).
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     outputs:
+      image-tag: ${{ steps.image-ref.outputs.tag }}
       image-ref: ${{ steps.image-ref.outputs.ref }}
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}
@@ -94,6 +102,7 @@ jobs:
         run: |
           REF="${REGISTRY}/${IMAGE_NAME}:sha-${SHORT}"
           echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${SHORT}" >> "$GITHUB_OUTPUT"
           {
             echo "## Build summary"
             echo
