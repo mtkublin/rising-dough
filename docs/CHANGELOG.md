@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D89 — main-only release pipeline)
+- **CI(T-D89, ADR-0099): prod releases run only from `main` via `release.yml` (ci → build → terraform apply prod → deploy prod).** ci/build/terraform/deploy became reusable workflows; `build.yml` no longer triggers on push/tags/release, `deploy.yml` no longer chains drill→prod via `workflow_run`. Fixed non-existent `setup-tflint` SHA (now v4.1.1). Prod rollback restricted to `main`; drill concurrency group shared with restore-drill.
+
 ## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
 - **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
 ## 2026-11-07 (T-D86 — drill-only boot log upload)

@@ -1,14 +1,15 @@
 name: CI
 
+# ADR-0099: pushes to main are handled by release.yml (ci -> build -> tf apply
+# -> deploy), which calls this workflow via workflow_call. PRs run it directly.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:

@@ -49,6 +49,13 @@ jobs:
       name: ${{ inputs.env }}
       url: ${{ inputs.env == 'prod' && vars.PROD_URL || vars.DRILL_URL }}
     steps:
+      - name: Ref guard (ADR-0099)
+        run: |
+          if [ "${{ inputs.env }}" = "prod" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::prod rollback runs only from main (got ${GITHUB_REF})" >&2
+            exit 1
+          fi
+
       - name: Validate inputs
         id: validate
         env:

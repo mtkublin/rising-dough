@@ -6,11 +6,28 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
-  push:
-    branches: [main]
-    paths:
-      - "terraform/**"
-      - ".github/workflows/terraform.yml"
+  # ADR-0099: apply is reachable only via workflow_call (release.yml for prod;
+  # the pre-merge drill validation workflow for drill). No push trigger.
+  workflow_call:
+    inputs:
+      env:
+        description: Target environment (drill | prod). prod requires ref main.
+        type: string
+        required: true
+      image_tag:
+        description: Image tag passed as -var app_image_tag (sha-<short>)
+        type: string
+        required: true
+      replace:
+        description: Space-separated resource addresses for -replace (optional)
+        type: string
+        required: false
+        default: ""
+      destroy:
+        description: Run a destroy plan/apply (-destroy)
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -69,7 +86,7 @@ jobs:
         run: python3 tests/render/render_check.py --require-schema
 
       - name: Set up tflint
-        uses: terraform-linters/setup-tflint@acf4cf0ec6d41ca3cfe6cf15c53d99e3c7bb6d13 # v4.1.1
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
         with:
           tflint_version: v0.53.0
 
@@ -220,14 +237,15 @@ jobs:
               });
             }
 
-  apply-prod:
-    name: apply (prod)
+  apply:
+    name: apply (${{ inputs.env }})
     needs: fmt-validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # ADR-0099: `prod` has required reviewers (approval gate before apply).
     environment:
-      name: prod
+      name: ${{ inputs.env }}
     defaults:
       run:
         working-directory: terraform
@@ -242,7 +260,7 @@ jobs:
       SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       # T-D70 / ADR-0093: every Terraform input is TF_VAR_* from secrets
       # (environment-scoped, same names per env); no tfvars file in CI.
-      TF_VAR_env: prod
+      TF_VAR_env: ${{ inputs.env }}
       TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
       TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
@@ -257,7 +275,13 @@ jobs:
       TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
       TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
       TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
-      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_scw_access_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
+      TF_VAR_scw_secret_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting).
+      TARGET_ENV: ${{ inputs.env }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      TF_REPLACE: ${{ inputs.replace }}
+      TF_DESTROY: ${{ inputs.destroy }}
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
 
@@ -270,6 +294,23 @@ jobs:
         with:
           terraform_version: 1.17.1
           terraform_wrapper: false
+
+      - name: Guard env / ref / image tag (ADR-0099)
+        run: |
+          set -euo pipefail
+          case "${TARGET_ENV}" in
+            drill) ;;
+            prod)
+              if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+                echo "::error::prod apply runs only from main (got ${GITHUB_REF})" >&2
+                exit 1
+              fi ;;
+            *) echo "::error::env must be drill or prod" >&2; exit 1 ;;
+          esac
+          if ! [[ "${IMAGE_TAG}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::invalid image_tag '${IMAGE_TAG}'" >&2
+            exit 1
+          fi
 
       - name: Mask secret inputs (T-D83)
         run: |
@@ -285,15 +326,20 @@ jobs:
       - name: Check required Terraform inputs
         run: python3 scripts/check_tf_vars.py
 
-      - name: terraform init (prod)
-        run: terraform init -input=false -backend-config=envs/prod/backend.hcl -reconfigure
+      - name: terraform init (${{ inputs.env }})
+        run: terraform init -input=false -backend-config=envs/${{ inputs.env }}/backend.hcl -reconfigure
 
-      - name: terraform plan (prod)
+      # T-D83 / ADR-0098: plan output is always piped through mask_plan.py and
+      # plan.bin is never uploaded (it embeds raw config/state values).
+      - name: terraform plan (${{ inputs.env }})
         run: |
-          set -o pipefail
-          terraform plan -no-color -input=false -out=plan.bin | python3 scripts/mask_plan.py
+          set -euo pipefail
+          args=(-no-color -out=plan.bin -var "app_image_tag=${IMAGE_TAG}")
+          if [ "${TF_DESTROY}" = "true" ]; then args+=(-destroy); fi
+          for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
+          terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
 
-      - name: terraform apply (prod)
+      - name: terraform apply (${{ inputs.env }})
         run: |
           set -o pipefail
           terraform apply -no-color -input=false plan.bin | python3 scripts/mask_plan.py

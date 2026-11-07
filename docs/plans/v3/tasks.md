@@ -575,3 +575,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
+
+### ✅ T-D89 [M] Main-only release pipeline ci→build→tf apply→deploy; fix tflint pin → ADR-0099
+- New `.github/workflows/release.yml` (push main, `concurrency: release-prod`): `ci` → `build` → `tf-apply-prod` (env `prod`, `-var app_image_tag=<build tag>`) → `deploy-prod` (env `prod`, `/ready` smoke inside deploy). ci/build/terraform/deploy are reusable (`workflow_call`); build/terraform-apply/deploy lose their own push/tag/release/workflow_run triggers. Prod apply/deploy/rollback refuse any ref other than `main`.
+- terraform.yml: `setup-tflint` pinned to real v4.1.1 SHA (old SHA did not exist); apply job takes `env`, `image_tag`, `replace`, `destroy` for T-D90 (drill). restore-drill shares concurrency group `drill`.
+- Tests: `tests/unit/deploy/test_build_workflow.py` (trigger shape + needs chain). `.github/workflows/README.md` documents the graph.
