@@ -64,12 +64,12 @@ export TF_VAR_ghcr_pull_pat=ghp_...                                 # read-only 
 terraform init -backend-config=envs/drill/backend.hcl -reconfigure
 terraform validate
 terraform plan  -var-file=envs/drill/terraform.tfvars
-terraform apply -var-file=envs/drill/terraform.tfvars
+# No local drill apply: dispatch drill.yml instead (ADR-0099, runbooks/drill.md).
 ```
 
 CI (`terraform.yml`, `restore-drill.yml`) never uses a tfvars file: every input is a `TF_VAR_<name>` env var from GitHub secrets, scoped by the `drill` / `prod` / `prod-plan` environments (ADR-0093; secret table in `docs/plans/v3/operator-checklist.md` A5). `scripts/check_tf_vars.py` fails fast on any empty required input. List inputs are passed as HCL/JSON strings, e.g. `TF_VAR_bucket_admin_principals='["user_id:<uuid>"]'`.
 
-For `prod`, do not apply from a laptop: per [ADR-0099](../docs/adr/0099-release-and-environment-policy.md) prod is applied only by GitHub Actions from `main` (environment `prod`, reviewer approval). The only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack and the break-glass runbook. The pipelines are being changed by T-D89 (release) and T-D90 (drill); the local drill commands above remain for now but drill deploys move to the drill pipeline.
+For `prod`, do not apply from a laptop: per [ADR-0099](../docs/adr/0099-release-and-environment-policy.md) prod is applied only by GitHub Actions from `main` (environment `prod`, reviewer approval). The only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack and the break-glass runbook. The pipelines landed with T-D89 (release) and T-D90 (drill). Locally, use the drill commands above for `plan` only; drill applies go through `drill.yml`.
 
 ## Preflight (T-D78)
 
@@ -96,15 +96,16 @@ It does not run `terraform fmt -check` or `validate`; run those separately (T-D7
 | Admin initial password | `random_password.admin_initial_password` | Compose env `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`. Capture once from `terraform output -raw admin_initial_password`. |
 | Session cookie signing secret | `random_password.cookie_secret` | Compose env `BUDGET_COOKIE_SECRET`. |
 
-Rotation:
+Rotation (prod changes are break-glass only, ADR-0099; drill: re-dispatch `drill.yml`):
 
-- Admin password: `terraform apply -replace='random_password.admin_initial_password'`. The env var is **not** reconciled continuously — the on-host app only consumes it on first-boot bootstrap. To rotate an existing admin, use `/settings/password` as that admin, or `/settings/users/<id>/reset-password` as another admin (ADR-0061 §4).
-- Scaleway IAM key: `terraform apply -replace='module.iam.scaleway_iam_api_key.app'`.
-- Cookie secret: `terraform apply -replace='random_password.cookie_secret'`.
+- Admin password: break-glass `terraform apply -replace='random_password.admin_initial_password'`. The env var is **not** reconciled continuously — the on-host app only consumes it on first-boot bootstrap. To rotate an existing admin, use `/settings/password` as that admin, or `/settings/users/<id>/reset-password` as another admin (ADR-0061 §4).
+- Scaleway IAM key: break-glass `terraform apply -replace='module.iam.scaleway_iam_api_key.app'`.
+- Cookie secret: break-glass `terraform apply -replace='random_password.cookie_secret'`.
 
 ## Destroy
 
 ```sh
+# Routine drill teardown: `gh workflow run drill-destroy.yml` (ADR-0099). The local form is break-glass only.
 terraform destroy -var-file=envs/drill/terraform.tfvars
 ```
 

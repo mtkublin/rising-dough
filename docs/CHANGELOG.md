@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-07 (T-D95 — runbooks and plans aligned with ADR-0099)
+- **Docs(T-D95): runbooks and v3 plans describe only the ADR-0099 flow** (prod via `release.yml` from `main`; drill via `drill.yml`; rollback via `rollback.yml`, prod from `main` only). Stale local `terraform apply` and `deploy.yml` dispatch steps replaced; break-glass and drill `break_glass_*` local applies documented as logged exceptions. Superseded notes on the T-D25, T-D31 and T-D40 specs; ADR-0037 amended in part.
+
 ## 2026-11-07 (T-D94 — prod DB seed readiness probe)
 - **Fix(T-D94): `scripts/prod_db_seed.sh` probes `/ready` via the site FQDN pinned to loopback (`--fqdn`, default `budget.rising-dough.eu`)** instead of `https://localhost` (Caddy has no cert for it, which caused a needless rollback). Also accepts container healthy plus in-container `/ready`. ADR-0099.
 

@@ -604,3 +604,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### ✅ T-D94 [S] Fix `/ready` probe in `prod_db_seed.sh` → ADR-0099 exception (d)
 - Real run rolled back: probe hit `https://localhost/ready` but Caddy has a cert only for the FQDN (TLS alert, `-k` no help). Now `curl --resolve "$FQDN:443:127.0.0.1" https://$FQDN/ready` (new `--fqdn`, default `budget.rising-dough.eu`, passed as `$2` to the remote script); second accepted signal: `budget-planner-app` healthy AND in-container `/ready` ok. 180 s timeout, rollback, aside dir, sha check unchanged. Tests and runbook updated.
+
+### ✅ T-D95 [S] Runbooks and plans aligned with ADR-0099 release flow → ADR-0099, ADR-0037
+- Docs only. Stale `workflow_run`, local `terraform apply` and `deploy.yml` dispatch instructions replaced in `runbooks/{deploy,rollback,tailscale-ssh,user-admin,disaster-recovery,restore}.md`, `operator-checklist.md`, `README.md`, `implementation_plan.md`, `terraform/README.md`. Superseded notes on T-D25, T-D31, T-D40. `runbooks/README.md` indexes drill, break-glass, key-rotation, github-settings, prod-db-seed. ADR-0037 amended in part.

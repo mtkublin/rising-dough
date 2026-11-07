@@ -89,7 +89,7 @@ Order within phase:
 4. `modules/dns` (zone + records).
 5. `modules/compute` (instance + flex IP + security group + cloud-init render).
 6. Cloud-init templates (`bootstrap.yaml.tpl`, `docker-compose.yml.tpl`, `Caddyfile.tpl`, `litestream.yml.tpl`) — compose env now carries `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` (ADR-0061 §3).
-7. `envs/drill/` wiring + first `terraform apply -var-file=envs/drill/terraform.tfvars` — operator supplies `admin_email` input variable; Terraform generates `admin_initial_password` via `random_password` and surfaces it as a sensitive output.
+7. `envs/drill/` wiring + first drill apply (originally a local `terraform apply`; now via `drill.yml`, ADR-0099) — operator supplies `admin_email` input variable; Terraform generates `admin_initial_password` via `random_password` and surfaces it as a sensitive output.
 
 Exit criteria:
 - `terraform plan` emits zero changes after a clean apply.
@@ -184,7 +184,7 @@ Phase 2  (sequential within):
             │
             ▼
 Phase 3:
-   build.yml → deploy.yml (drill) → rollback.yml → promote prod env approval
+   drill.yml (pre-merge gate) → release.yml (prod, from main) → rollback.yml → prod env approval
             │
             ▼
 Phase 4:
@@ -217,7 +217,7 @@ The flat index in `tasks.md` is the quick-reference view; detail lives in the ta
 
 ## Release policy
 
-Governed by [ADR-0099](../../adr/0099-release-and-environment-policy.md): prod is released only by GitHub Actions from `main` (`release.yml`: ci -> build -> terraform apply prod -> deploy prod -> smoke); drill deploys run through one reusable drill pipeline (`*-deploy` push, dispatch with TTL, pre-merge PR gate); the only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack, a logged break-glass runbook and the one-time prod DB seed. Pipelines are being changed by T-D89 / T-D90; the `deploy.yml` `workflow_run` flow described in earlier phases is superseded.
+Governed by [ADR-0099](../../adr/0099-release-and-environment-policy.md): prod is released only by GitHub Actions from `main` (`release.yml`: ci -> build -> terraform apply prod -> deploy prod -> smoke); drill deploys run through one reusable drill pipeline (`*-deploy` push, dispatch with TTL, pre-merge PR gate); the only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack, a logged break-glass runbook and the one-time prod DB seed. Pipelines landed with T-D89 / T-D90; the `deploy.yml` `workflow_run` flow described in earlier phases is superseded (see the superseded notes on the phase-2, phase-3 and phase-4 task specs).
 
 ---
 

@@ -1,5 +1,7 @@
 # T-D31 — Deploy workflow (SSH drill, prod via env approval)
 
+> **Superseded by ADR-0099 (2026-11-07).** The `workflow_run` chain (build, drill deploy, then prod approval) is replaced: `deploy.yml` is now a reusable `workflow_call` workflow driven by `release.yml` (prod, from `main`) and `drill.yml` (drill). See [`runbooks/deploy.md`](../runbooks/deploy.md) and [`runbooks/drill.md`](../runbooks/drill.md). The text below is the original spec, kept as written.
+
 - **Phase**: 3 — Deployment pipeline
 - **Sequential**: after T-D30
 - **Depends on**: T-D27 (prod infra up), T-D30 (build + cosign)
