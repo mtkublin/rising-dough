@@ -593,5 +593,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `.github/workflows/key-expiry.yml` weekly expiry monitor; runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md`.
 - Operator applies both bootstrap roots after plan review (ADR-0096 exception); see `runbooks/key-rotation.md`.
 
-### T-D93 [S] Prod DB seed runbook and script → ADR-0099
-- `docs/plans/v3/runbooks/prod-db-seed.md` plus script: `sqlite3 .backup` snapshot of `data/budget.sqlite` (read-only use), transfer over tailnet, app and Litestream stopped, migrations on start, new Litestream generation. Executed only with explicit in-session user go.
+### ✅ T-D93 [S] One-time copy of the local prod DB onto the prod VM → ADR-0099 exception (d)
+- `scripts/prod_db_seed.sh` (+ `just prod-db-seed`): `.backup` snapshot of `data/budget.sqlite` (read-only), integrity + row counts + sha256, refuse if the remote DB already has accounts/transactions (`--force-overwrite`), scp over tailnet as `operator`, remote swap with moved-aside `/data/pre-seed-<ts>/`, auto-rollback, `/ready` wait, litestream generations. Needs `--yes-i-own-prod-data` (exit 2 otherwise); `--dry-run` is local-only.
+- Runbook: `docs/plans/v3/runbooks/prod-db-seed.md`. Tests: `tests/unit/deploy/test_prod_db_seed.py` (temp DBs only; fake ssh/scp).

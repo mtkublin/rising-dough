@@ -58,6 +58,15 @@ demo-build:
     uv run python data/scripts/build_demo_db.py \
       --from data/budget.sqlite --to data/demo.sqlite --force
 
+# ONE-TIME prod DB seed (ADR-0099 exception d; runbook docs/plans/v3/runbooks/prod-db-seed.md).
+# Reads data/budget.sqlite (read-only snapshot) and overwrites the prod VM DB. Needs --yes-i-own-prod-data.
+prod-db-seed *args:
+    @echo "################################################################"
+    @echo "# WARNING: copies your LOCAL PROD DB onto the PRODUCTION VM.   #"
+    @echo "# One-time operation. Requires explicit in-session user go.    #"
+    @echo "################################################################"
+    bash scripts/prod_db_seed.sh {{args}}
+
 # Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
 css:
     npm run css

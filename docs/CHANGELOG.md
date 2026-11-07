@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-07 (T-D93 — one-time prod DB seed)
+- **Ops(T-D93): `scripts/prod_db_seed.sh` / `just prod-db-seed` and runbook `docs/plans/v3/runbooks/prod-db-seed.md`** copy the local DB onto the freshly provisioned prod VM once (ADR-0099 exception d): consistent snapshot, integrity/sha256 checks, refuses to overwrite a non-empty remote DB, moved-aside copy plus automatic rollback, new litestream generation shown. Requires `--yes-i-own-prod-data`.
 ## 2026-11-07 (T-D88 — release and environment policy)
 - **Docs(T-D88): ADR-0099 records the release and environment policy** (prod only via GitHub Actions from `main`; `release.yml` main pipeline; drill pipeline with `*-deploy`/dispatch/PR-gate triggers and TTL sweeper; exceptions: initial bring-up, bootstrap stack, break-glass, prod DB seed; enforcement by credentials per ADR-0100). Aligned requirements 6.4, CLAUDE.md, implementation plan, terraform README and deploy/rollback/operator runbooks; added tasks T-D88..T-D93.
 
