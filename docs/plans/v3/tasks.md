@@ -575,3 +575,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
 - Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
 - Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).
+
+### ✅ T-D92 [M] Least-privilege per-env CI credentials, drill state bucket, key-expiry monitor, runbooks → ADR-0100
+- Bootstrap: drill state bucket in the drill project (`terraform/bootstrap/drill_bucket.tf`); new local-state root `terraform/bootstrap/ci/` (uncommitted state) with CI applications `ci-prod`, `ci-drill`, `ci-plan`, expiring API keys, state-bucket policies. `envs/drill/backend.hcl` -> new bucket.
+- `.github/workflows/key-expiry.yml` weekly expiry monitor; runbooks `break-glass.md`, `key-rotation.md`, `github-settings.md`.
+- Operator applies both bootstrap roots after plan review (ADR-0096 exception); see `runbooks/key-rotation.md`.
