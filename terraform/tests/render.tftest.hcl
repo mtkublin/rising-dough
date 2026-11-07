@@ -75,6 +75,26 @@ run "user_data_renders_break_glass_ufw_rules_before_enable" {
   }
 }
 
+# T-D83 / ADR-0098: the server's cloud_init (rendered secrets) must be marked
+# sensitive so plans never print it.
+run "server_cloud_init_is_sensitive" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = output.cloud_init_is_sensitive
+    error_message = "scaleway_instance_server.app.cloud_init must be sensitive (T-D83, ADR-0098)."
+  }
+
+  assert {
+    condition     = issensitive(output.user_data)
+    error_message = "The compute user_data output must stay sensitive (T-D83)."
+  }
+}
+
 # T-D81: the cross-variable validation lives on the ROOT variable.
 run "break_glass_rejected_on_prod" {
   command = plan

@@ -65,7 +65,13 @@ resource "scaleway_instance_server" "app" {
     scaleway_instance_ip.ipv6.id,
   ]
 
-  cloud_init = local.user_data
+  # T-D83 / ADR-0098: the provider schema does not mark cloud_init sensitive,
+  # and Terraform printed the PRIOR (state) value in plain text on update or
+  # -replace. sensitive() makes the state record it as a sensitive attribute.
+  # Note: cloud-init runs once; a user-data change needs
+  # -replace=module.compute.scaleway_instance_server.app (an in-place update
+  # only rewrites the stored value).
+  cloud_init = sensitive(local.user_data)
 
   tags = [
     "budget-planner",

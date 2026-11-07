@@ -23,6 +23,11 @@ output "user_data_sha256" {
   value       = sha256(local.user_data)
 }
 
+output "cloud_init_is_sensitive" {
+  description = "True when the server's cloud_init attribute carries the sensitive mark (T-D83 test hook; not a secret)."
+  value       = issensitive(scaleway_instance_server.app.cloud_init)
+}
+
 output "user_data" {
   description = "Rendered cloud-init payload (contains secrets). Consumed only by the offline render check (T-D77)."
   value       = local.user_data

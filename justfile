@@ -216,3 +216,17 @@ tf-preflight env:
 # Preflight for the drill env. Run before every drill apply.
 drill-preflight:
     just tf-preflight drill
+
+# --- masked terraform plan (T-D83) -------------------------------------------
+
+# Terraform plan with secret-looking tokens masked (ADR-0098); cloud_init embeds
+# secrets and the prior state value can print unmasked. Extra args pass through
+# the env's tfvars file selection, e.g. `just tf-plan-safe drill`.
+# Usage: just tf-plan-safe drill|prod
+tf-plan-safe env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f terraform/.env ]; then set -a; source terraform/.env; set +a; fi
+    cd terraform
+    terraform init -input=false -backend-config=envs/{{env}}/backend.hcl -reconfigure >/dev/null
+    terraform plan -no-color -input=false -var-file=envs/{{env}}/terraform.tfvars | python3 scripts/mask_plan.py
