@@ -32,6 +32,14 @@ packages:
   - unattended-upgrades
   - needrestart
 
+# T-D84: create `docker` before `users` (cc_users_groups creates groups first); the later
+# docker.io install reuses it. Otherwise `useradd -G sudo,docker` can fail and drop `operator`.
+groups:
+  - docker
+
+# T-D84: SSH password login stays off; the drill-only console password (below) is console-only.
+ssh_pwauth: false
+
 users:
   - name: app
     uid: 10001
@@ -47,7 +55,10 @@ users:
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     groups: [sudo, docker]
     shell: /bin/bash
-    lock_passwd: true
+    lock_passwd: ${console_password_hash != "" ? "false" : "true"}
+%{~ if console_password_hash != "" }
+    hashed_passwd: '${console_password_hash}'
+%{~ endif }
     ssh_authorized_keys:
       - '${operator_ssh_pubkey}'
 

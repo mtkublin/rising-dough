@@ -180,3 +180,10 @@ variable "break_glass_ssh_cidrs" {
     error_message = "Every break_glass_ssh_cidrs entry must be a valid CIDR."
   }
 }
+
+variable "console_password_hash" {
+  description = "Drill-only, temporary (T-D84, ADR-0094): bcrypt hash set as the operator's password so the Scaleway serial console works. Empty = operator stays lock_passwd. Hash only, never plaintext."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -86,6 +86,30 @@ Drill only (the variable is rejected when `env = "prod"`). Use it when the VM bo
 3. Read: `sudo cloud-init status --long`, `sudo less /var/log/cloud-init-output.log`, `sudo journalctl -u tailscaled --no-pager`, `sudo ufw status verbose`.
 4. Remove: apply again without the variable (security group rule goes away). The host ufw rule remains until the VM is replaced; the drill VM is disposable.
 
+## Break-glass for the drill: serial-console password `break_glass_console_password` (T-D84)
+
+Drill only (rejected when `env = "prod"`). Use it when SSH is unusable (for example `Permission denied (publickey)` or sshd not listening) and the Scaleway serial console only shows `login:`. It sets a generated password for `operator`; SSH password login stays disabled (`ssh_pwauth: false`), so the password works on the console only. Only the bcrypt hash is placed in user-data.
+
+1. Enable (new VM, or `-replace=module.compute.scaleway_instance_server.app` because cloud-init runs once):
+
+   ```sh
+   TF_VAR_break_glass_console_password=true just drill-apply   # or terraform apply with the same env var
+   ```
+
+2. Read the password: `terraform output -raw console_password`. <!-- pragma: allowlist secret -->
+3. Open the Scaleway console, the instance, "Console" (serial), and log in as `operator` with that password.
+4. Run:
+
+   ```sh
+   sudo cloud-init status --long
+   sudo tail -n 100 /var/log/cloud-init-output.log
+   sudo journalctl -b -u cloud-final -u ssh -u tailscaled --no-pager | tail -100
+   free -m
+   dmesg | grep -i -E 'oom|killed'
+   ```
+
+5. Disable: apply without the variable, then `-replace=module.compute.scaleway_instance_server.app` (ADR-0098: an in-place update does not re-run cloud-init, so the hash stays on the old VM until it is replaced). The drill VM is disposable.
+
 ## Rollback
 
 Reverting ADR-0094 means re-adding the `22/tcp` inbound rule in `modules/compute/main.tf` and applying.

@@ -79,5 +79,6 @@ locals {
     tailscale_hostname          = var.tailscale_hostname
     tailscale_tag               = var.tailscale_tag
     break_glass_ssh_cidrs       = var.break_glass_ssh_cidrs
+    console_password_hash       = var.console_password_hash
   })
 }

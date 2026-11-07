@@ -28,6 +28,17 @@ variable "break_glass_ssh_cidrs" {
   }
 }
 
+variable "break_glass_console_password" {
+  description = "Drill-only, temporary: generate a password for the operator user so it can log in on the Scaleway serial console to debug a failed boot (T-D84, ADR-0094). SSH password login stays disabled. Must be false unless env = drill."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.break_glass_console_password || var.env == "drill"
+    error_message = "break_glass_console_password is drill-only (env must be 'drill')."
+  }
+}
+
 variable "admin_email" {
   description = "Email address of the bootstrap admin user (ADR-0061 §3). Used by the app's startup bootstrap routine."
   type        = string

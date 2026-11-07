@@ -10,6 +10,12 @@ output "cookie_secret" {
   sensitive   = true
 }
 
+output "console_password" {
+  description = "Drill-only (T-D84): operator serial-console password; null unless break_glass_console_password = true. Read with `terraform output -raw console_password`."
+  value       = var.break_glass_console_password ? random_password.console[0].result : null
+  sensitive   = true
+}
+
 output "vm_ipv4" {
   description = "Public IPv4 address of the application VM."
   value       = module.compute.vm_ipv4
