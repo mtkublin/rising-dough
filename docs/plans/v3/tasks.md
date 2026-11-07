@@ -564,3 +564,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/scripts/mask_plan.py`: heredoc bodies under `cloud-init`/`cloud_init`/`user_data`/`user-data` keys replaced by `(redacted by mask_plan.py: N lines)` (delimiters kept; unterminated -> redact to EOF); values of `*PASSWORD*`/`*SECRET*`/`*TOKEN*`/`*AUTHKEY*`/`*IDENTITY*`/`*_KEY` keys masked. Streaming, stdlib only.
 - Docs: ADR-0098 amendment (2026-11-07), CHANGELOG.
 - Tests: `tests/unit/deploy/test_mask_plan.py`.
+
+### ✅ T-D87 [S] Fix cloud-init init-stage failures: root:docker write_files and `operator` group collision → ADR-0094
+- Root cause (drill VM `/var/log/cloud-init.log`, cloud-init 26.2): (1) `config-write_files` raised `getgrnam(): name not found: 'docker'` for the `owner: root:docker` compose entry (write_files runs before users_groups and before docker.io installs); the exception aborted the module, so Caddyfile, litestream config, deploy script etc. were never written. (2) `useradd operator` exit 9: Ubuntu's system group `operator` (gid 37) exists, so `operator` was never created.
+- Fix: compose entry `defer: true` (written in the final stage, before `scripts_user`/runcmd); `operator` gets `no_user_group: true`.
+- Tests: `tests/unit/deploy/test_cloud_init_ordering.py` (non-root-owned write_files must defer; no user named after a stock system group without `no_user_group`/`primary_group`).

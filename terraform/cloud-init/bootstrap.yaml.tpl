@@ -52,6 +52,8 @@ users:
     ssh_authorized_keys:
       - 'command="/usr/local/bin/deploy-budget-planner",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ${github_deploy_pubkey}'
   - name: operator
+    # T-D87: Ubuntu ships a system group `operator` (gid 37); the default per-user group collides.
+    no_user_group: true
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     groups: [sudo, docker]
     shell: /bin/bash
@@ -72,6 +74,9 @@ write_files:
   - path: /etc/budget-planner/docker-compose.yml
     permissions: '0640'
     owner: root:docker
+    # T-D87: write_files runs in the init stage, before the `docker` group exists on some
+    # cloud-init versions; deferred entries are written in the final stage, before runcmd.
+    defer: true
     content: |
       ${indent(6, docker_compose_rendered)}
 

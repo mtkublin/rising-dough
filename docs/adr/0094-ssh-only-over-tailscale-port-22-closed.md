@@ -85,3 +85,9 @@ The `acls` rules, the Terraform code and the workflows are unchanged. Decision i
 - SSH password login stays disabled: the template now sets `ssh_pwauth: false` explicitly. The password works on the console only.
 - `docker` group fix: a top-level cloud-init `groups: [docker]` key. `cc_users_groups` creates groups before users; the later `docker.io` install reuses the existing group. Users are otherwise unchanged.
 - The variable is temporary. Disable by applying without it and `-replace` of the server (ADR-0098: user-data changes do not re-run on an in-place update). Runbook: `tailscale-ssh.md`.
+
+## Amendment (2026-11-07, T-D87): init-stage ordering
+
+Two init-stage failures (cloud-init 26.2, Ubuntu 24.04) broke every first boot. (1) `write_files` runs before `users_groups` and before `docker.io` installs, so `owner: root:docker` raised `KeyError: getgrnam(): name not found: 'docker'`, aborting the whole module and dropping every later file (Caddyfile, litestream config, deploy script); runcmd then failed with `docker compose` "no configuration file provided". (2) `useradd operator` failed (exit 9) because Ubuntu ships a system group `operator` (gid 37), so the user was never created.
+
+Rules: any `write_files` entry owned by a non-root user or group must set `defer: true` (written by `write_files_deferred` in the final stage, after packages and before `scripts_user` runs runcmd). Any `users[]` entry named like a stock Ubuntu system group must set `no_user_group: true` (or `primary_group`). The `operator` name is kept (workflows SSH as `operator@`). Enforced by `tests/unit/deploy/test_cloud_init_ordering.py`. Related first-boot sequence: ADR-0035.
