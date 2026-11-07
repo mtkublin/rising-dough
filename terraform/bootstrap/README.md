@@ -20,3 +20,7 @@ git add terraform.tfstate && git commit -m "chore(T-D72): bootstrap state"
 2026-11-06: first apply done by the operator; state committed (T-D72b).
 
 The stack is applied once. Afterwards re-run `terraform plan` only to check drift. `prevent_destroy` and `force_destroy = false` guard the bucket; there is intentionally no bucket policy (ADR-0096).
+
+## T-D92 additions (ADR-0100)
+
+`drill_bucket.tf` adds the drill state bucket `budget-planner-tfstate-drill-pl-waw` in the drill project (extra input `TF_VAR_drill_project_id`); its state stays secret-free and committed. CI identities and their API keys live in `ci/` (local state, **not** committed, holds secrets). See `docs/adr/0100-least-privilege-ci-credentials.md` and `docs/plans/v3/runbooks/key-rotation.md`.

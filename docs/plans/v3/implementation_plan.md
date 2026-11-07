@@ -215,10 +215,16 @@ The flat index in `tasks.md` is the quick-reference view; detail lives in the ta
 
 ---
 
+## Release policy
+
+Governed by [ADR-0099](../../adr/0099-release-and-environment-policy.md): prod is released only by GitHub Actions from `main` (`release.yml`: ci -> build -> terraform apply prod -> deploy prod -> smoke); drill deploys run through one reusable drill pipeline (`*-deploy` push, dispatch with TTL, pre-merge PR gate); the only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack, a logged break-glass runbook and the one-time prod DB seed. Pipelines are being changed by T-D89 / T-D90; the `deploy.yml` `workflow_run` flow described in earlier phases is superseded.
+
+---
+
 ## Guardrails
 
 - **Do not** touch `src/budget_planner/` business logic in Phase 1 beyond what the task files prescribe. If a task would require it, stop and add an ADR.
-- **Do not** run `terraform apply` outside of CI except for the explicit bootstrap step in `terraform/README.md`.
+- **Do not** run `terraform apply` outside of CI except for the exceptions listed in ADR-0099 (initial bring-up, bootstrap stack, break-glass, prod DB seed).
 - **Do not** share secrets through chat, PR descriptions, or commit messages. Secrets flow Terraform → cloud-init → disk only.
 - **Do** write a dated line in `docs/CHANGELOG.md` after each merged task, prefixed with the task id.
 - **Do** mark the task line in `docs/plans/v3/tasks.md` with `✅` on completion.

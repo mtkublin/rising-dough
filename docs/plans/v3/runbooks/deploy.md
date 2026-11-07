@@ -27,6 +27,8 @@ The happy-path contract: CI green → image signed by cosign → GHCR tag `sha-<
 2. Trigger the deploy workflow:
    - Automatic trigger: `build.yml` success enqueues `deploy.yml` and parks it on the `prod` environment approval gate.
    - Manual trigger (re-deploy same SHA, e.g. after rolling back): `gh workflow run deploy.yml -f sha=<short-sha>`.
+> Note (ADR-0099): this flow is being replaced by T-D89 (`release.yml`: ci -> build -> terraform apply prod -> deploy prod -> smoke, all from `main`) and T-D90 (drill pipeline). Until then the steps below describe the current `deploy.yml`.
+
 3. Approve the `prod` environment in the GitHub Actions UI (or `gh run approve <run-id>`). The approval line is the single human gate on prod.
 4. Deploy step executes (CI runner, not the host):
    - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.

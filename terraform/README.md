@@ -69,7 +69,7 @@ terraform apply -var-file=envs/drill/terraform.tfvars
 
 CI (`terraform.yml`, `restore-drill.yml`) never uses a tfvars file: every input is a `TF_VAR_<name>` env var from GitHub secrets, scoped by the `drill` / `prod` / `prod-plan` environments (ADR-0093; secret table in `docs/plans/v3/operator-checklist.md` A5). `scripts/check_tf_vars.py` fails fast on any empty required input. List inputs are passed as HCL/JSON strings, e.g. `TF_VAR_bucket_admin_principals='["user_id:<uuid>"]'`.
 
-For `prod`, swap `drill` → `prod` throughout. The prod apply is gated by the GitHub Actions `prod` environment approval in `.github/workflows/terraform.yml` (T-D28).
+For `prod`, do not apply from a laptop: per [ADR-0099](../docs/adr/0099-release-and-environment-policy.md) prod is applied only by GitHub Actions from `main` (environment `prod`, reviewer approval). The only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack and the break-glass runbook. The pipelines are being changed by T-D89 (release) and T-D90 (drill); the local drill commands above remain for now but drill deploys move to the drill pipeline.
 
 ## Preflight (T-D78)
 
