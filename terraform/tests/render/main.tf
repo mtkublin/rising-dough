@@ -35,6 +35,12 @@ variable "console_password_hash" {
   default     = ""
 }
 
+variable "boot_log_upload" {
+  description = "Render the drill-only boot log uploader (T-D86)."
+  type        = bool
+  default     = false
+}
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -62,6 +68,7 @@ module "compute" {
 
   break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
   console_password_hash = var.console_password_hash
+  boot_log_upload       = var.boot_log_upload
 
   enable_restore_helper  = var.enable_restore_helper
   restore_source_bucket  = "render-check-prod-bucket"

@@ -42,3 +42,9 @@ variable "force_destroy" {
   type        = bool
   default     = false
 }
+
+variable "expire_boot_logs" {
+  description = "Drill-only (T-D86, ADR-0094): add a lifecycle rule expiring the boot-logs/ prefix after 7 days. false leaves the bucket unchanged (prod)."
+  type        = bool
+  default     = false
+}

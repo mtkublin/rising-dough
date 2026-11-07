@@ -187,3 +187,9 @@ variable "console_password_hash" {
   default     = ""
   sensitive   = true
 }
+
+variable "boot_log_upload" {
+  description = "Drill-only, temporary (T-D86, ADR-0094): bootcmd starts a detached uploader that pushes boot diagnostics to s3://<bucket>/boot-logs/. Reuses the bucket write credential already in user-data."
+  type        = bool
+  default     = false
+}

@@ -80,5 +80,8 @@ locals {
     tailscale_tag               = var.tailscale_tag
     break_glass_ssh_cidrs       = var.break_glass_ssh_cidrs
     console_password_hash       = var.console_password_hash
+    boot_log_upload             = var.boot_log_upload
+    bucket_name                 = var.bucket_name
+    bucket_region               = var.bucket_region
   })
 }
