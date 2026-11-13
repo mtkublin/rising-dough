@@ -60,3 +60,13 @@ variable "ci_key_ttl_hours" {
   type        = number
   default     = 8760
 }
+
+variable "ci_prod_iam_transition" {
+  description = <<-EOT
+    Grant ci-prod IAMReadOnly (ADR-0104 section 4). Keep true until the first prod
+    release has applied the `removed` blocks for module.iam / module.restore_reader,
+    then set false and re-apply.
+  EOT
+  type        = bool
+  default     = true
+}

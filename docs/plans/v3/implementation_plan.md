@@ -85,7 +85,7 @@ Entry: Phase 1 exit criteria met. Operator has a Scaleway account with a project
 Order within phase:
 1. Bootstrap state bucket (one-shot `scw object bucket create`).
 2. `terraform/providers.tf` + `versions.tf` + `backend.tf`.
-3. `modules/iam` + `modules/storage` (bucket + IAM app + policy + key).
+3. `modules/iam` + `modules/storage` (bucket + IAM app + policy + key). (`modules/iam` moved to `bootstrap/ci` in T-D103, ADR-0104.)
 4. `modules/dns` (zone + records).
 5. `modules/compute` (instance + flex IP + security group + cloud-init render).
 6. Cloud-init templates (`bootstrap.yaml.tpl`, `docker-compose.yml.tpl`, `Caddyfile.tpl`, `litestream.yml.tpl`) — compose env now carries `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` (ADR-0061 §3).

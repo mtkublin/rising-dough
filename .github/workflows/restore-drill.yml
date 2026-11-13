@@ -20,9 +20,12 @@
 #                                    mints the drill host's ephemeral auth key (T-D67).
 #   PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY
 #                                  - read-only key of the prod `restore-reader`
-#                                    IAM application (prod outputs
+#                                    IAM application (terraform/bootstrap/ci outputs
 #                                    restore_reader_access_key/_secret_key;
-#                                    ADR-0092, T-D41a).
+#                                    ADR-0092, ADR-0104, T-D41a).
+#   APP_APPLICATION_ID, APP_SCW_ACCESS_KEY / APP_SCW_SECRET_KEY
+#                                  - drill Litestream identity (terraform/bootstrap/ci
+#                                    module.app_drill; ADR-0104).
 #   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
 #   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56; a secret since ADR-0093).
 #   Plus every other TF_VAR_* input: see the env block and operator-checklist A5 (ADR-0093).
@@ -88,6 +91,10 @@ jobs:
       # into the drill host's root-only restore-source.env by cloud-init.
       TF_VAR_scw_access_key_restore: ${{ secrets.PROD_REPLICA_RO_ACCESS_KEY }}
       TF_VAR_scw_secret_key_restore: ${{ secrets.PROD_REPLICA_RO_SECRET_KEY }}
+      # T-D103 / ADR-0104: drill Litestream identity from terraform/bootstrap/ci.
+      TF_VAR_app_application_id: ${{ secrets.APP_APPLICATION_ID }}
+      TF_VAR_app_scw_access_key: ${{ secrets.APP_SCW_ACCESS_KEY }}
+      TF_VAR_app_scw_secret_key: ${{ secrets.APP_SCW_SECRET_KEY }}
       # T-D56: the drill restores the PROD replica, so it needs the PROD age
       # identity (written 0600 to the drill host). Never the dev-only key.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}

@@ -28,11 +28,22 @@ resource "random_password" "console" {
 # Module composition.
 # ----------------------------------------------------------------------------
 
-module "iam" {
-  source = "./modules/iam"
+# T-D103 / ADR-0104: the app and restore-reader identities moved to
+# terraform/bootstrap/ci. Forget them here without deleting them.
+removed {
+  from = module.iam
 
-  name_prefix         = local.name_prefix
-  scaleway_project_id = var.scaleway_project_id
+  lifecycle {
+    destroy = false
+  }
+}
+
+removed {
+  from = module.restore_reader
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 module "storage" {
@@ -46,30 +57,18 @@ module "storage" {
   expire_boot_logs = var.env == "drill"
 
   # ADR-0091: allow-list policy + drill-only force_destroy.
-  env_application_id  = module.iam.application_id
+  env_application_id  = var.app_application_id
   admin_principals    = var.bucket_admin_principals
   readonly_principals = local.bucket_readonly_principals # ADR-0092: + restore-reader on prod
   force_destroy       = var.env == "drill"
 }
 
-# ----------------------------------------------------------------------------
-# T-D69 / ADR-0092: stable read-only principal for the restore drill.
-# Prod state only; the drill env re-creates its own IAM app on every run, so it
-# cannot be listed in prod's bucket policy. This one is long-lived.
-# ----------------------------------------------------------------------------
-
-module "restore_reader" {
-  source = "./modules/restore_reader"
-  count  = var.env == "prod" ? 1 : 0
-
-  name_prefix         = local.name_prefix
-  scaleway_project_id = var.scaleway_project_id
-}
-
+# T-D69 / ADR-0092: the long-lived restore-reader principal is read-only on the
+# prod bucket. It lives in terraform/bootstrap/ci (ADR-0104); prod only.
 locals {
   bucket_readonly_principals = distinct(concat(
     var.bucket_readonly_principals,
-    [for m in module.restore_reader : "application_id:${m.application_id}"],
+    var.restore_reader_application_id == "" ? [] : ["application_id:${var.restore_reader_application_id}"],
   ))
 }
 
@@ -118,8 +117,8 @@ module "compute" {
   bucket_name       = module.storage.bucket_name
   bucket_endpoint   = module.storage.endpoint_url
   bucket_region     = var.scaleway_region
-  scw_access_key    = module.iam.access_key
-  scw_secret_key    = module.iam.secret_key
+  scw_access_key    = var.app_scw_access_key
+  scw_secret_key    = var.app_scw_secret_key
   operator_ssh_pub  = var.operator_ssh_pubkey
   deploy_ssh_pub    = var.github_deploy_pubkey
   ghcr_pull_pat     = var.ghcr_pull_pat

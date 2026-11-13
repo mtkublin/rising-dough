@@ -83,6 +83,9 @@ INPUT_SPECS: tuple[InputSpec, ...] = (
     InputSpec("TF_VAR_litestream_age_identity", ("AGE-SECRET-KEY-1",), any_line=True),
     InputSpec("TF_VAR_litestream_age_recipient", ("age1",)),
     InputSpec("TF_VAR_ghcr_pull_pat", ("ghp_", "github_pat_")),
+    # T-D103 / ADR-0104: Litestream identity from terraform/bootstrap/ci.
+    InputSpec("TF_VAR_app_scw_access_key", ("SCW",)),
+    InputSpec("TF_VAR_app_scw_secret_key"),
 )
 
 

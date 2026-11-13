@@ -66,8 +66,12 @@
 | `MANAGED_DNS_ZONE` | drill / prod / prod-plan | `managed_dns_zone` | no | `true` or `false`, as in local tfvars (unset = `false`) |
 | `BUCKET_ADMIN_PRINCIPALS` | drill / prod / prod-plan | `bucket_admin_principals` | no | HCL/JSON list string, e.g. `["user_id:<uuid>"]` (`scw iam user list`); unset = `[]` |
 | `BUCKET_READONLY_PRINCIPALS` | prod / prod-plan | `bucket_readonly_principals` | no | optional list string, e.g. `["application_id:<uuid>"]`; unset = `[]` |
-| `PROD_REPLICA_RO_ACCESS_KEY` | drill | `scw_access_key_restore` | yes | `terraform output -raw restore_reader_access_key` (prod state, after the first prod apply) |
-| `PROD_REPLICA_RO_SECRET_KEY` | drill | `scw_secret_key_restore` | yes | `terraform output -raw restore_reader_secret_key` (prod state) |
+| `PROD_REPLICA_RO_ACCESS_KEY` | drill | `scw_access_key_restore` | yes | restore-reader key (`runbooks/key-rotation.md` part 2, ADR-0104) |
+| `PROD_REPLICA_RO_SECRET_KEY` | drill | `scw_secret_key_restore` | yes | restore-reader key (same) |
+| `APP_APPLICATION_ID` | drill / prod / prod-plan | `app_application_id` | no | `bootstrap/ci` output `app_application_ids` (ADR-0104) |
+| `APP_SCW_ACCESS_KEY` | drill / prod / prod-plan | `app_scw_access_key` | yes | Litestream key per env (`runbooks/key-rotation.md` part 2) |
+| `APP_SCW_SECRET_KEY` | drill / prod / prod-plan | `app_scw_secret_key` | yes | same |
+| `RESTORE_READER_APPLICATION_ID` | prod / prod-plan | `restore_reader_application_id` | no | `bootstrap/ci` output `restore_reader_application_id` |
 | `DEPLOY_SSH_PRIVATE_KEY` | repo | (not Terraform) | yes | private half of the deploy keypair (A4) |
 | `DEPLOY_SSH_KNOWN_HOSTS_DRILL` | drill | (not Terraform) | no | pinned `known_hosts` line of the drill host |
 
@@ -214,4 +218,4 @@ Follow-up for the agent (Terraform risk, verify before T-D25). **Status 2026-11-
 - [ ] Keep every operator credential in the password manager: Scaleway operator key, read-only restore key, GHCR PAT, both SSH keypairs, admin password, Litestream age identity (T-D56).
 - [ ] Approve prod deploys. Read the monthly `restore-drill` results and handle any failure issues.
 - [ ] Rotate on schedule: GHCR PAT before expiry; CI keys via `runbooks/key-rotation.md`; Scaleway app keys and the cookie secret via break-glass `terraform apply -replace=...` (see `terraform/README.md` and `runbooks/break-glass.md`).
-- [ ] Calendar reminder: rotate the prod Litestream API key 30 days before `terraform output scw_app_key_expires_at` (Scaleway expires it after 1 year; `deploy.md` "Rotate the Litestream API key"). T-D74.
+- [ ] Calendar reminder: rotate the prod Litestream API key 30 days before `bootstrap/ci` output `app_key_expires_at` (Scaleway expires it after 1 year; `deploy.md` "Rotate the Litestream API key"). T-D74.

@@ -34,7 +34,7 @@ resource "scaleway_iam_application" "ci_prod" {
 
 resource "scaleway_iam_policy" "ci_prod" {
   name           = "budget-planner-ci-prod"
-  description    = "Prod project resources + DNS zone + IAM management for the prod stack (ADR-0100)."
+  description    = "Prod project resources + DNS zone; no IAM management (ADR-0100, ADR-0104)."
   application_id = scaleway_iam_application.ci_prod.id
 
   # Prod project: compute, object storage, DNS (the zone lives here).
@@ -43,11 +43,15 @@ resource "scaleway_iam_policy" "ci_prod" {
     permission_set_names = ["InstancesFullAccess", "ObjectStorageFullAccess", "DomainsDNSFullAccess"]
   }
 
-  # The env stack creates IAM applications, API keys and policies. Scaleway
-  # only offers this at organization scope. Residual risk: see ADR-0100.
-  rule {
-    organization_id      = var.scaleway_organization_id
-    permission_set_names = ["IAMManager"]
+  # ADR-0104: IAM moved to this stack, so ci-prod needs no IAMManager. Until the
+  # release that drops module.iam / module.restore_reader from prod state, plans
+  # still refresh those resources, which needs IAM read access.
+  dynamic "rule" {
+    for_each = var.ci_prod_iam_transition ? [1] : []
+    content {
+      organization_id      = var.scaleway_organization_id
+      permission_set_names = ["IAMReadOnly"]
+    }
   }
 }
 
@@ -71,7 +75,7 @@ resource "scaleway_iam_application" "ci_drill" {
 
 resource "scaleway_iam_policy" "ci_drill" {
   name           = "budget-planner-ci-drill"
-  description    = "Drill project resources + IAM management; no DNS (ADR-0100, ADR-0101)."
+  description    = "Drill project resources; no DNS, no IAM (ADR-0100, ADR-0101, ADR-0104)."
   application_id = scaleway_iam_application.ci_drill.id
 
   rule {
@@ -81,11 +85,7 @@ resource "scaleway_iam_policy" "ci_drill" {
 
   # ADR-0101: the drill is tailnet-only and creates no DNS records, so ci-drill
   # holds no permission on the prod project (it used to have DomainsDNSFullAccess).
-
-  rule {
-    organization_id      = var.scaleway_organization_id
-    permission_set_names = ["IAMManager"]
-  }
+  # ADR-0104: no IAMManager either; the drill app identity lives in app_iam.tf.
 }
 
 resource "scaleway_iam_api_key" "ci_drill" {
@@ -109,7 +109,7 @@ resource "scaleway_iam_application" "ci_plan" {
 
 resource "scaleway_iam_policy" "ci_plan" {
   name           = "budget-planner-ci-plan"
-  description    = "Read-only on the prod project and IAM, for terraform plan (ADR-0100)."
+  description    = "Read-only on the prod project and IAM, for terraform plan and key-expiry.yml (ADR-0100, ADR-0104)."
   application_id = scaleway_iam_application.ci_plan.id
 
   rule {

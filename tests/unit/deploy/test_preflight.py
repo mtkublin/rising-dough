@@ -27,6 +27,8 @@ SECRETS = {
     "TF_VAR_litestream_age_identity": "# created\nAGE-SECRET-KEY-1FAKEFAKEFAKE",
     "TF_VAR_litestream_age_recipient": "age1fakerecipient",
     "TF_VAR_ghcr_pull_pat": "ghp_FAKEPATVALUE",
+    "TF_VAR_app_scw_access_key": "SCWFAKEAPP",
+    "TF_VAR_app_scw_secret_key": "fake-app-secret-value-bbbb",  # pragma: allowlist secret
 }
 PROJECT = "11111111-1111-1111-1111-111111111111"
 ENVIRON = {**SECRETS, "SCW_DEFAULT_PROJECT_ID": PROJECT}
@@ -70,7 +72,7 @@ def ts_routes(create: Any, delete: Any | None = None) -> dict[tuple[str, str], A
 def test_inputs_all_good() -> None:
     results = pf.check_inputs(ENVIRON)
     assert {r.status for r in results} == {"PASS"}
-    assert len(results) == 7
+    assert len(results) == 9
 
 
 @pytest.mark.parametrize(

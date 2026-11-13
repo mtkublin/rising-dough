@@ -41,40 +41,7 @@ output "fqdn" {
   value       = local.fqdn
 }
 
-output "scw_access_key" {
-  description = "IAM access key scoped to the durability bucket. Used by Litestream only."
-  value       = module.iam.access_key
-  sensitive   = true
-}
-
-# T-D69 / ADR-0092: prod only (null on drill). Store as GitHub `drill`-environment
-# secrets PROD_REPLICA_RO_ACCESS_KEY / PROD_REPLICA_RO_SECRET_KEY.
-output "restore_reader_access_key" {
-  description = "Read-only access key for the prod replica bucket (restore drill). Prod only."
-  value       = one(module.restore_reader[*].access_key)
-  sensitive   = true
-}
-
-output "restore_reader_secret_key" {
-  description = "Secret key paired with restore_reader_access_key. Prod only."
-  value       = one(module.restore_reader[*].secret_key)
-  sensitive   = true
-}
-
-output "scw_secret_key" {
-  description = "IAM secret key scoped to the durability bucket."
-  value       = module.iam.secret_key
-  sensitive   = true
-}
-
 output "tailscale_hostname" {
   description = "MagicDNS name of the VM on the tailnet (SSH target for CI and the operator; T-D67)."
   value       = local.tailscale_hostname
-}
-
-# T-D74 / ADR-0092: Scaleway applies a 1-year default expiry to the Litestream key.
-# Rotate before this date (runbooks/deploy.md, operator-checklist F).
-output "scw_app_key_expires_at" {
-  description = "Expiry of the Litestream IAM API key. Rotate 30 days before."
-  value       = module.iam.expires_at
 }

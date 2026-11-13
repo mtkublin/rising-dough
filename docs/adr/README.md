@@ -106,3 +106,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0101 | [Drill Environment Is Tailnet-Only; Drill Apply Is Human-Gated](0101-drill-environment-is-tailnet-only.md) (amends ADR-0092, ADR-0099, ADR-0100; relates to ADR-0036, ADR-0094) |
 | 0102 | [Debian 13 (trixie) Base Image](0102-debian-13-trixie-base-image.md) (amends ADR-0032; relates to ADR-0099) |
 | 0103 | [Image Scan Ignores Unfixed OS CVEs; Runtime Stage Applies Debian Upgrades](0103-image-scan-ignores-unfixed-os-cves.md) (amends ADR-0102; relates to ADR-0032, ADR-0099) |
+| 0104 | [Env-Stack IAM Moves to the Local Bootstrap; CI Loses IAMManager](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md) (amends ADR-0100; relates to ADR-0091, ADR-0092, ADR-0098, ADR-0099) |

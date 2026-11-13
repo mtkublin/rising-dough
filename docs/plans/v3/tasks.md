@@ -638,10 +638,11 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Merge ci, security, terraform plan and lock-check into a single `pr.yml` graph with one summary required check. `release.yml`, `drill.yml` and the cron/manual workflows stay separate.
 - Awaiting user decision. Would need an ADR if adopted (amends the ADR-0099 required-check set). Depends on: T-D99, T-D101.
 
-### T-D103 [L] (proposed) Move all IAM resources into the local bootstrap
-- Move every IAM resource out of the env stacks into `terraform/bootstrap`: app/litestream key + policy (`module.iam`) for prod and drill, plus prod `restore_reader`. Env stacks take the keys as inputs (GitHub environment secrets). Removes org-level IAMManager from `ci-prod`/`ci-drill` and IAMReadOnly from `ci-plan`.
-- Migration: bootstrap `import` blocks + env-stack `removed { lifecycle { destroy = false } }`, applied by the first CI release; zero downtime.
-- Needs an ADR amending ADR-0100 (NOT written yet). Awaiting user decision; decide before operator checklist step 4 (bootstrap 3b), since it changes the CI policies.
+### ✅ T-D103 [L] Move all IAM resources into the local bootstrap → ADR-0104
+- Decided 2026-11-13 (user): do it before operator checklist step 4 (bootstrap 3b).
+- Code: `modules/iam` → `bootstrap/ci/modules/app_iam` (`module.app_prod`, `module.app_drill`); `modules/restore_reader` → `bootstrap/ci/modules/restore_reader`. Env stack: `removed { destroy = false }` for both modules; new root inputs `app_application_id`, `app_scw_access_key`, `app_scw_secret_key`, `restore_reader_application_id`; outputs move to `bootstrap/ci`. Workflows pass `APP_*` / `RESTORE_READER_APPLICATION_ID` secrets.
+- CI policies: `ci-prod` and `ci-drill` lose `IAMManager`; `ci-prod` holds `IAMReadOnly` only while `ci_prod_iam_transition = true` (one release); `ci-plan` keeps `IAMReadOnly` for `key-expiry.yml`.
+- Operator: import the existing prod IAM into `bootstrap/ci` (no new prod keys), read the current secrets from prod state once, set GitHub secrets; after the first release set `ci_prod_iam_transition = false` and re-apply. Runbook: `runbooks/key-rotation.md` part 2.
 
 ### T-D104 [S] (proposed) `release.yml` `replace` dispatch input for prod `-replace`
 - `workflow_dispatch` input `replace`, main-only and approval-gated, for prod `-replace` operations (cloud-init changes need a server replace). Depends on: ADR-0099 (amendment).

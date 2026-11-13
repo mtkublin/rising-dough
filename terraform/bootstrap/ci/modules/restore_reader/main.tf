@@ -1,6 +1,7 @@
 # Stable read-only identity for the monthly restore drill (T-D69, ADR-0092).
-# Lives in the PROD state and project. The drill env consumes its key via
-# GitHub `drill`-environment secrets; it is also listed in prod's bucket policy.
+# Lives in the bootstrap/ci state, scoped to the PROD project (ADR-0104). The
+# drill env consumes its key via GitHub `drill`-environment secrets; it is also
+# listed in prod's bucket policy.
 resource "scaleway_iam_application" "restore_reader" {
   name        = "${var.name_prefix}-restore-reader"
   description = "Read-only identity used by the restore drill to read the prod replica (ADR-0092)."

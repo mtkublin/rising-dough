@@ -317,3 +317,45 @@ variable "tailscale_oauth_client_secret" {
   type        = string
   sensitive   = true
 }
+
+# ----------------------------------------------------------------------------
+# T-D103 / ADR-0104: IAM identities created by terraform/bootstrap/ci, passed in
+# as GitHub environment secrets (APP_*, RESTORE_READER_APPLICATION_ID).
+# ----------------------------------------------------------------------------
+
+variable "app_application_id" {
+  description = "IAM application id of this env's Litestream identity (bootstrap/ci output app_application_ids)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.app_application_id))
+    error_message = "app_application_id must be a UUID."
+  }
+}
+
+variable "app_scw_access_key" {
+  description = "Access key of the Litestream identity (object storage on this env's project only)."
+  type        = string
+  sensitive   = true
+}
+
+variable "app_scw_secret_key" {
+  description = "Secret key paired with app_scw_access_key."
+  type        = string
+  sensitive   = true
+}
+
+variable "restore_reader_application_id" {
+  description = "Restore-reader application id, added read-only to the prod bucket policy. Prod only; empty on drill."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.env == "prod"
+      ? can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.restore_reader_application_id))
+      : var.restore_reader_application_id == ""
+    )
+    error_message = "restore_reader_application_id must be a UUID on prod and empty on drill."
+  }
+}

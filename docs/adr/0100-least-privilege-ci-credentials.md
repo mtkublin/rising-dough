@@ -66,7 +66,7 @@ GitHub settings (environments, required reviewers, deployment branch rules, bran
 - **Keep one org-admin key, rotate it (rejected).** Does not satisfy ADR-0099 and keeps drill/prod and PR/prod coupled.
 - **Per-env keys but a single state bucket (rejected).** A drill credential would still read prod state, which contains secrets.
 - **Put the CI applications in the committed bootstrap state (rejected).** API secret keys would be committed.
-- **Pre-created IAM and no IAMManager for CI (deferred).** Cleaner boundary but requires restructuring the env stacks (`terraform/modules/iam`), which is outside this item.
+- **Pre-created IAM and no IAMManager for CI (deferred).** Cleaner boundary but requires restructuring the env stacks (`terraform/modules/iam`), which is outside this item. Adopted by ADR-0104 (2026-11-13).
 
 ## Consequences
 

@@ -4,6 +4,7 @@ terraform module locally; no cloud calls."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -102,17 +103,47 @@ def test_invalid_principal_is_rejected(tmp_path: Path) -> None:
 # --- T-D69 / ADR-0092: stable restore-reader wiring (static; no cloud) ---
 
 ROOT_TF = MODULE.parents[1] / "main.tf"
-READER_MODULE = MODULE.parent / "restore_reader" / "main.tf"
+ROOT_VARS = MODULE.parents[1] / "variables.tf"
+BOOTSTRAP_CI = MODULE.parents[1] / "bootstrap" / "ci"
+READER_MODULE = BOOTSTRAP_CI / "modules" / "restore_reader" / "main.tf"
 
 
-def test_restore_reader_is_prod_only_and_merged_into_readonly_principals() -> None:
+def test_restore_reader_input_merged_into_readonly_principals() -> None:
     main_tf = ROOT_TF.read_text()
 
-    assert 'count  = var.env == "prod" ? 1 : 0' in main_tf
-    assert 'module "restore_reader"' in main_tf
-    assert "application_id:${m.application_id}" in main_tf
+    assert "application_id:${var.restore_reader_application_id}" in main_tf
     assert "var.bucket_readonly_principals," in main_tf
     assert "readonly_principals = local.bucket_readonly_principals" in main_tf
+
+
+def test_env_stack_holds_no_iam_resources() -> None:
+    """T-D103 / ADR-0104: IAM lives in bootstrap/ci; the env stack only forgets it."""
+    skip = {"bootstrap", ".terraform"}
+    tf_files = [p for p in MODULE.parents[1].glob("**/*.tf") if not skip & set(p.parts)]
+    for path in tf_files:
+        assert 'resource "scaleway_iam_' not in path.read_text(), path
+    main_tf = ROOT_TF.read_text()
+    for module in ("module.iam", "module.restore_reader"):
+        assert f"from = {module}" in main_tf
+    assert main_tf.count("destroy = false") >= 2
+
+
+def test_bootstrap_ci_owns_app_and_restore_reader_identities() -> None:
+    app_iam = (BOOTSTRAP_CI / "app_iam.tf").read_text()
+
+    for module in ('module "app_prod"', 'module "app_drill"', 'module "restore_reader"'):
+        assert module in app_iam
+    assert "var.drill_project_id" in app_iam
+
+
+def test_ci_policies_have_no_iam_manager() -> None:
+    ci_main = (BOOTSTRAP_CI / "main.tf").read_text()
+    assert not re.search(r'permission_set_names\s*=\s*\[[^\]]*"IAMManager"', ci_main)
+    assert "var.ci_prod_iam_transition" in ci_main
+
+
+def test_restore_reader_input_is_prod_only() -> None:
+    assert 'variable "restore_reader_application_id"' in ROOT_VARS.read_text()
 
 
 def test_restore_reader_is_read_only_and_project_scoped() -> None:

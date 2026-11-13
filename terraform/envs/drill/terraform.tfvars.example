@@ -39,3 +39,11 @@ bucket_admin_principals = ["user_id:00000000-0000-0000-0000-000000000000"]
 # budget-planner-drill.<tailnet_dns_name>; MagicDNS and HTTPS certificates must be enabled
 # in the Tailscale admin console. Not a secret.
 tailnet_dns_name = "tail0000.ts.net"
+
+# Litestream identity (T-D103, ADR-0104), created by terraform/bootstrap/ci.
+# Id from output app_application_ids["drill"]:
+app_application_id = "00000000-0000-0000-0000-000000000000"
+
+# The key pair is sensitive; supply via the environment, never here:
+#   export TF_VAR_app_scw_access_key=...
+#   export TF_VAR_app_scw_secret_key=...

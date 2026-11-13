@@ -38,11 +38,12 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 
 ### 4. Bootstrap 3b (`terraform/bootstrap/ci`)
 - [ ] **Where:** laptop.
-- Decide T-D103 first: it changes the CI policies.
-- Plan, review, apply locally.
-- Store the local state file (holds CI key secrets, gitignored) in the password manager.
+- T-D103 decided (ADR-0104): this stack now also owns the prod app identity, the drill app identity and the restore-reader. `ci-prod`/`ci-drill` have no IAMManager.
+- `terraform init`, then **import the prod IAM before the first apply** (runbook section "Import the env-stack IAM into bootstrap/ci", steps 1-3). The plan must show creates only and no change under `module.app_prod` / `module.restore_reader`.
+- Apply locally.
+- Store the local state file (holds key secrets, gitignored) in the password manager.
 - Verify the drill state bucket policy principals.
-- **Done when:** `ci-prod`, `ci-drill`, `ci-plan` keys exist, the state file is in the password manager, and bucket policy principals are as intended.
+- **Done when:** `ci-prod`, `ci-drill`, `ci-plan` keys and `module.app_drill` exist, the prod IAM is imported unchanged, the state file is in the password manager, and bucket policy principals are as intended.
 - Runbook: [`key-rotation.md`](key-rotation.md).
 
 ### 5. GitHub environments
@@ -52,6 +53,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Add vars `TAILNET_DNS_NAME`, `MANAGED_DNS_ZONE=true`, `BUCKET_ADMIN_PRINCIPALS`, `APP_DOMAIN=rising-dough.eu`.
 - The age identity, GHCR PAT and Tailscale values must be EXACTLY the values in the local `terraform/.env`, or prod will diverge.
 - Settle the deploy-key question (T-D109) here.
+- Add the ADR-0104 secrets: `APP_APPLICATION_ID`, `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` (all five environments, per-env values) and `RESTORE_READER_APPLICATION_ID` (`prod`, `prod-plan`). The prod app key and the restore-reader key are read once from the prod state (`key-rotation.md` part 2, steps 5-6); do it before step 11. <!-- pragma: allowlist secret -->
 - **Done when:** every environment matches the table in the runbook.
 - Runbook: [`github-settings.md`](github-settings.md).
 
@@ -93,6 +95,12 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Merge v3 into `main`. This is the first GitHub release: ci -> build -> tf-apply-prod (approval) -> deploy-prod. It also ships the cryptography fix.
 - **Done when:** the release run is green and prod serves a newer image than `sha-075f986`.
 - Runbooks: [`deploy.md`](deploy.md), [`rollback.md`](rollback.md) if it goes wrong.
+
+### 11b. Drop ci-prod's transitional IAM read access (ADR-0104)
+- [ ] **Where:** laptop.
+- After the release in step 11 has applied (its plan showed `module.iam` and `module.restore_reader` as no longer managed, nothing destroyed): `terraform apply -var ci_prod_iam_transition=false` in `terraform/bootstrap/ci`.
+- **Done when:** `ci-prod`'s policy has no organization rule and a prod PR plan still succeeds.
+- Runbook: [`key-rotation.md`](key-rotation.md) part 2, step 7.
 
 ### 12. Open question for the user
 - [ ] The message "Also, once drill is deployed by" was cut off and never completed. Finish the thought so it can be recorded as a task.

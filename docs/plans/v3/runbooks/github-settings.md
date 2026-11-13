@@ -29,6 +29,9 @@ Same names in every environment, different values (ADR-0093). The three drill en
 | `MANAGED_DNS_ZONE` (optional) | x | x | x | |
 | `BUCKET_ADMIN_PRINCIPALS`, `BUCKET_READONLY_PRINCIPALS` (optional) | x | x | x | |
 | `PROD_REPLICA_RO_ACCESS_KEY`, `PROD_REPLICA_RO_SECRET_KEY` | | | x | restore-reader of prod replica; drill only |
+| `APP_APPLICATION_ID` | prod app | prod app | drill app | `bootstrap/ci` output `app_application_ids` (ADR-0104) |
+| `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` | prod app key | prod app key | drill app key | Litestream identity; prod values read once from prod state, then from `bootstrap/ci` after a rotation (`key-rotation.md`) |
+| `RESTORE_READER_APPLICATION_ID` | x | x | | `bootstrap/ci` output `restore_reader_application_id`; prod only |
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
 | `DEPLOY_SSH_PRIVATE_KEY` | x | | x | different key per env |
 | `DEPLOY_SSH_KNOWN_HOSTS` | x | | x | |
