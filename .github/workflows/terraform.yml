@@ -180,7 +180,7 @@ jobs:
           # IAM keys) are only caught by scripts/mask_plan.py patterns.
           for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret SCW_SECRET_KEY; do
             while IFS= read -r line; do
-              [ -n "$line" ] && echo "::add-mask::$line"
+              if [ -n "$line" ]; then echo "::add-mask::$line"; fi
             done <<< "${!v:-}"
           done
 
@@ -340,7 +340,7 @@ jobs:
           # IAM keys) are only caught by scripts/mask_plan.py patterns.
           for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret SCW_SECRET_KEY; do
             while IFS= read -r line; do
-              [ -n "$line" ] && echo "::add-mask::$line"
+              if [ -n "$line" ]; then echo "::add-mask::$line"; fi
             done <<< "${!v:-}"
           done
 

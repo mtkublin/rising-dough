@@ -121,6 +121,8 @@ jobs:
           trivyignores: .trivyignore
           format: sarif
           output: trivy-fs.sarif
+          # T-D101: without this, SARIF output ignores `severity` and LOW/MEDIUM fail the job.
+          limit-severities-for-sarif: true
 
       # T-D101: SARIF goes to a file, so a failing scan prints no findings.
       # Re-run with table output to put them in the job log.
@@ -202,6 +204,8 @@ jobs:
           trivyignores: .trivyignore
           format: sarif
           output: trivy-image.sarif
+          # T-D101: same SARIF severity filter as trivy fs.
+          limit-severities-for-sarif: true
 
       - name: Upload SARIF (image)
         if: ${{ always() && env.CODEQL_TOKEN != '' }}

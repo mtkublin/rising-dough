@@ -941,3 +941,6 @@
 - **Fix(T-D110): `scripts/prod_db_seed.sh` is shellcheck-clean** (heredoc delimiter `PLAN` → `EOF_PLAN`, SC1122; intended client-side expansion on two `ssh` calls marked with SC2029 directives).
 - **Fix(T-D111): removed unused `log_bucket_suffix` from `terraform/modules/storage`** (tflint `terraform_unused_declarations`). No plan change.
 - **CI(T-D101): `security.yml` re-runs the trivy fs scan with table output on failure** so findings appear in the job log; the SARIF-only output hid them. The underlying finding is still open.
+- **Fix(T-D101): trivy fs uses `limit-severities-for-sarif: true`**. SARIF output had dropped the HIGH/CRITICAL filter, so LOW/MEDIUM findings failed the job.
+- **Fix(T-D112): soupsieve 3.0.4 → 4.1** (CVE-2026-126190, dev-only).
+- **Fix(T-D113): `terraform.yml` mask step no longer exits 1 on empty secrets**, so missing environment inputs are reported by `check_tf_vars.py`.

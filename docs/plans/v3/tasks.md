@@ -628,9 +628,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D100 [S] Record open v3 items and operator go-live checklist → ADR-0099, ADR-0100
 - Docs only. New `runbooks/operator-checklist.md` (ordered, human-only steps) and task entries T-D101..T-D109 below. T-D99 (trivy-action pin bump in `terraform.yml`) is tracked separately.
 
-### T-D101 [S] Security workflow `trivy fs (repo)` step exits 1 on the v3→main PR
+### ✅ T-D101 [S] Security workflow `trivy fs (repo)` step exits 1 on the v3→main PR
 - Local trivy 0.69.3 scan of the committed tree is clean; CI uses trivy v0.70.0 via trivy-action v0.36.0. Next: read the job log (needs `gh auth login`), then fix or allowlist (`.security-allowlist.yml`).
 - 2026-11-13: job log has no findings because the step writes SARIF only (`format: sarif`) and the SARIF upload is skipped without `CODEQL_TOKEN`. Local 0.69.3 scan of `git archive fa8f233` with a fresh DB is still clean. Step 1: add an `if: failure()` re-run of the scan with `format: table` so findings print to the job log. Step 2: fix or allowlist what it shows.
+- Root cause (2026-11-13 run): the table re-run is clean. trivy-action logs "Building SARIF report with all severities": with `format: sarif` it drops the `severity` filter unless `limit-severities-for-sarif: true`, so `exit-code: 1` fired on LOW/MEDIUM findings. Fix: set `limit-severities-for-sarif: true` on both the fs and image scans. The table step stays as a diagnostic.
 - Depends on: operator checklist step 1. Blocks: merge of PR v3→main.
 
 ### T-D102 [M] (proposed) Consolidate PR checks into one `pr.yml` graph
@@ -666,3 +667,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### ✅ T-D111 [S] Drop unused `log_bucket_suffix` variable from `modules/storage` → (no ADR; CI fix)
 - `Terraform` workflow `fmt + validate + lint` fails on tflint `terraform_unused_declarations`: `log_bucket_suffix` is declared but never read (its description already says "informational only"). Remove the variable and its pass-through in `terraform/main.tf`. Variables do not live in state, so plans stay no-op.
+
+### ✅ T-D112 [S] Bump soupsieve 3.0.4 → 4.1 for CVE-2026-126190 → (no ADR; dependency fix)
+- `pip-audit` fails on CVE-2026-126190 (fixed in soupsieve 4.0.0), published after the 2026-11-07 run. Dev-only (`beautifulsoup4`, dev group). `uv lock --upgrade-package soupsieve` → 4.1; no other lock changes.
+
+### ✅ T-D113 [S] `terraform.yml` mask step fails on empty secrets → (no ADR; CI fix)
+- "Mask secret inputs (T-D83)" ends its loop with `[ -n "$line" ] && echo …`. With an unset secret, the last status is 1 and `bash -e` fails the step before "Check required Terraform inputs" can name the missing inputs. Use `if …; then …; fi`. `plan (prod|drill)` still fails until the GitHub environments exist (operator checklist step 5), but now with the `check_tf_vars.py` message.
