@@ -674,6 +674,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D113 [S] `terraform.yml` mask step fails on empty secrets → (no ADR; CI fix)
 - "Mask secret inputs (T-D83)" ends its loop with `[ -n "$line" ] && echo …`. With an unset secret, the last status is 1 and `bash -e` fails the step before "Check required Terraform inputs" can name the missing inputs. Use `if …; then …; fi`. `plan (prod|drill)` still fails until the GitHub environments exist (operator checklist step 5), but now with the `check_tf_vars.py` message.
 
-### T-D114 [S] `trivy image` fails on the v3→main PR
+### ✅ T-D114 [S] `trivy image` fails on the v3→main PR
 - Exposed once T-D101 let `trivy fs` pass: the image scan (now correctly HIGH/CRITICAL-filtered) exits 1, with findings hidden in SARIF. Step 1: `if: failure()` table re-run, same as fs. Step 2: fix (base image / dependency bump) or allowlist (`.security-allowlist.yml` `trivy_image`).
 - 2026-11-13 findings: 109 HIGH/CRITICAL, all Debian 12.15 OS packages, none with a fixed version; Python packages clean. Decision (user): move the base to `python:3.12-slim-trixie` (ADR-0102). If trivy still fails on trixie, the rest needs a separate decision (see ADR-0102 Consequences).
+- trixie result: 109 HIGH, 0 CRITICAL; only zlib1g CVE-2026-76844 has a fix. Decision (user): runtime `apt-get upgrade -y` + `ignore-unfixed: true` on the image scan only (ADR-0103).

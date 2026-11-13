@@ -105,3 +105,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |
 | 0101 | [Drill Environment Is Tailnet-Only; Drill Apply Is Human-Gated](0101-drill-environment-is-tailnet-only.md) (amends ADR-0092, ADR-0099, ADR-0100; relates to ADR-0036, ADR-0094) |
 | 0102 | [Debian 13 (trixie) Base Image](0102-debian-13-trixie-base-image.md) (amends ADR-0032; relates to ADR-0099) |
+| 0103 | [Image Scan Ignores Unfixed OS CVEs; Runtime Stage Applies Debian Upgrades](0103-image-scan-ignores-unfixed-os-cves.md) (amends ADR-0102; relates to ADR-0032, ADR-0099) |

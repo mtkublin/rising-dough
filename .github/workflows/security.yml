@@ -199,7 +199,7 @@ jobs:
           image-ref: rising-dough:scan
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true  # ADR-0103: fail only on fixable OS/library CVEs
           vuln-type: os,library
           trivyignores: .trivyignore
           format: sarif
@@ -216,7 +216,7 @@ jobs:
           image-ref: rising-dough:scan
           severity: HIGH,CRITICAL
           exit-code: '0'
-          ignore-unfixed: false
+          ignore-unfixed: true  # ADR-0103: fail only on fixable OS/library CVEs
           vuln-type: os,library
           trivyignores: .trivyignore
           format: table

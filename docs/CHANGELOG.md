@@ -945,3 +945,4 @@
 - **Fix(T-D112): soupsieve 3.0.4 → 4.1** (CVE-2026-126190, dev-only).
 - **Fix(T-D113): `terraform.yml` mask step no longer exits 1 on empty secrets**, so missing environment inputs are reported by `check_tf_vars.py`.
 - **Build(T-D114): image base `python:3.12-slim-bookworm` → `python:3.12-slim-trixie`** (ADR-0102). 109 unfixable HIGH/CRITICAL Debian 12 OS CVEs failed `trivy image`; `security.yml` also prints image findings as a table on failure.
+- **CI(T-D114): `trivy image` uses `ignore-unfixed: true`; runtime stage runs `apt-get upgrade -y`** (ADR-0103). trixie still had 109 unfixed HIGH OS findings (0 CRITICAL). `trivy fs` and `pip-audit` stay strict.

@@ -18,7 +18,7 @@ The `trivy image` job in `security.yml` had never run to completion on v3: `triv
 ## Consequences
 
 - Newer OS packages, so fewer known CVEs, and the base stays on Debian's main security support line.
-- trixie may still carry unfixed HIGH/CRITICAL CVEs. If `trivy image` still fails after the switch, the remaining findings need a separate decision (allowlist entries, or `ignore-unfixed: true` on the image scan via a new ADR). This ADR does not make that call.
+- trixie may still carry unfixed HIGH/CRITICAL CVEs. If `trivy image` still fails after the switch, the remaining findings need a separate decision (allowlist entries, or `ignore-unfixed: true` on the image scan via a new ADR). This ADR does not make that call. (Decided in ADR-0103.)
 - glibc and OpenSSL major versions change under the venv. The venv is built in the same base, so wheels and compiled extensions match; the drill gate restore and smoke test cover runtime behaviour.
 
 ## Alternatives considered

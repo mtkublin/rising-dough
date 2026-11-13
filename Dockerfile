@@ -44,7 +44,9 @@ FROM python:3.12-slim-trixie AS runtime
 
 # `curl` for the container healthcheck (hits /health, see T-D01).
 # `ca-certificates` so outbound HTTPS (frankfurter FX etc.) works.
+# `apt-get upgrade` picks up Debian security fixes newer than the base image (ADR-0103).
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
