@@ -28,6 +28,7 @@ from budget_planner.domain.errors import (
     ValidationError,
 )
 from budget_planner.web.app import create_app
+from tests.auth_support import login_cookie
 
 
 @pytest.fixture
@@ -64,7 +65,9 @@ def error_client(tmp_path: Path) -> Iterator[TestClient]:
         raise RuntimeError("kaboom")
 
     app.include_router(router)
+    cookie = login_cookie(cfg)
     with TestClient(app, raise_server_exceptions=False) as c:
+        c.cookies.set(*cookie)
         yield c
 
 
@@ -157,8 +160,8 @@ def test_request_id_middleware_honours_incoming_header(error_client: TestClient)
 
 
 def test_request_id_middleware_generates_fresh_id(client: TestClient) -> None:
-    """Default client has no custom routes; healthz round-trip still has an id."""
-    r = client.get("/healthz")
+    """Default client has no custom routes; /health round-trip still has an id."""
+    r = client.get("/health")
     rid = r.headers.get("X-Request-Id")
     assert rid and len(rid) == 12  # uuid4().hex[:12]
 

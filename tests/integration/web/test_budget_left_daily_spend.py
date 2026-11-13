@@ -23,19 +23,25 @@ from budget_planner.repositories import (
     preferences as preferences_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def world(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        checking = accounts_repo.create(conn, NewAccount(name="Checking", currency="PLN")).id
+        checking = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Checking", currency="PLN")
+        ).id
         groceries = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         ).id
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         ).id
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=groceries, amount=100_000))
+        budgets_repo.set_default(
+            conn, USER_ID, NewBudgetDefault(category_id=groceries, amount=100_000)
+        )
         return {
             "checking": checking,
             "groceries": groceries,
@@ -53,6 +59,7 @@ def _seed_anchor_and_income(
         preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(salary))
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=income_date,
                 category_id=salary,
@@ -81,7 +88,7 @@ def test_left_daily_spend_card_renders_dash_when_zero_budget(
 ) -> None:
     conn = get_connection(_migrated)
     try:
-        categories_repo.create(conn, NewCategory(name="Any", direction=Direction.EXPENSE))
+        categories_repo.create(conn, USER_ID, NewCategory(name="Any", direction=Direction.EXPENSE))
     finally:
         conn.close()
     r = client.get("/budget")
@@ -185,7 +192,7 @@ def test_stale_anchor_renders_fallback_without_500(
     conn = get_connection(_migrated)
     try:
         preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(world["salary"]))
-        categories_repo.soft_delete(conn, world["salary"])
+        categories_repo.soft_delete(conn, USER_ID, world["salary"])
     finally:
         conn.close()
     r = client.get("/budget")

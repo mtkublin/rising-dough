@@ -14,7 +14,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.errors import (
     ConflictError,
@@ -22,6 +22,7 @@ from budget_planner.domain.errors import (
     ServiceError,
     ValidationError,
 )
+from budget_planner.web.deps import ReauthRequired
 
 logger = logging.getLogger("budget_planner.web")
 
@@ -43,6 +44,7 @@ def _render(request: Request, template: str, status: int, **context: Any) -> HTM
         "settings": settings,
         "url_for": request.url_for,
         "request_id": rid,
+        "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     ctx.update(context)
     html: str = env.get_template(template).render(**ctx)
@@ -133,6 +135,12 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+def handle_reauth_required(_request: Request, exc: Exception) -> Response:
+    """Return the stale-session response built by ``require_recent_auth``."""
+    assert isinstance(exc, ReauthRequired)  # narrowing for the type checker
+    return exc.response
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Bind handlers for the four domain errors + a catch-all Exception.
 
@@ -140,6 +148,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     unhandled errors inside sync endpoints, so we don't need a try/except in
     every router.
     """
+    app.add_exception_handler(ReauthRequired, handle_reauth_required)
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)
     app.add_exception_handler(ValidationError, handle_validation)

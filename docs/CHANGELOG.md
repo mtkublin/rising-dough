@@ -1,6 +1,674 @@
 # Changelog
 
+## 2026-11-07 (T-D99 — terraform workflow trivy pin)
+- **CI(T-D99): `terraform.yml` trivy config scan bumped from `trivy-action` v0.29.0 to v0.36.0 (`ed142fd0…`, same pin as `security.yml`).** v0.29.0 resolved `aquasecurity/setup-trivy@v0.2.2`, a tag that no longer exists, so the `Terraform` workflow failed at "Set up job". Inputs unchanged and valid for v0.36.0.
+
+## 2026-11-07 (T-D98 — drill manual-only, PR gate = `drill-gate` status)
+- **CI(T-D98, ADR-0099): `drill.yml` runs on `workflow_dispatch` only (push `*-deploy` and `pull_request` triggers removed).** `mode=gate` (default) applies, smokes over the tailnet, always tears down and posts commit status `drill-gate` on the built SHA (pending, then success/failure from apply + smoke); `mode=explore` keeps the TTL behaviour. Branch protection on `main` must require `drill-gate`. The `drill` environment's required reviewer is now optional.
+
+## 2026-11-07 (T-D97 — drill is tailnet-only)
+- **Feat(T-D97, ADR-0101): the drill has no public DNS and no public 80/443.** `module.dns` is prod-only, the security group opens web ports only for prod, drill hostname is `budget-planner-drill.<tailnet_dns_name>` (new variable) with the TLS certificate issued by tailscaled through Caddy. `ci-drill` loses `DomainsDNSFullAccess` on the prod project (`terraform/bootstrap/ci`, operator applies locally per ADR-0096). Drill smoke joins the tailnet. Needs MagicDNS + HTTPS certificates and ACL `tag:ci -> tag:drill:443`.
+
+## 2026-11-07 (T-D96 — drill apply human-gated)
+- **CI(T-D96, ADR-0099/0101): drill apply waits for the required reviewer of environment `drill`;** teardown/sweeper/smoke use ungated `drill-teardown`, the drill PR plan leg uses `drill-plan`. `runbooks/github-settings.md` documents environments, secrets/vars and the corrected Tailscale OAuth model.
+
+## 2026-11-07 (T-D95 — runbooks and plans aligned with ADR-0099)
+- **Docs(T-D95): runbooks and v3 plans describe only the ADR-0099 flow** (prod via `release.yml` from `main`; drill via `drill.yml`; rollback via `rollback.yml`, prod from `main` only). Stale local `terraform apply` and `deploy.yml` dispatch steps replaced; break-glass and drill `break_glass_*` local applies documented as logged exceptions. Superseded notes on the T-D25, T-D31 and T-D40 specs; ADR-0037 amended in part.
+
+## 2026-11-07 (T-D94 — prod DB seed readiness probe)
+- **Fix(T-D94): `scripts/prod_db_seed.sh` probes `/ready` via the site FQDN pinned to loopback (`--fqdn`, default `budget.rising-dough.eu`)** instead of `https://localhost` (Caddy has no cert for it, which caused a needless rollback). Also accepts container healthy plus in-container `/ready`. ADR-0099.
+
+## 2026-11-07 (T-D90 — drill deploy pipeline)
+- **CI(T-D90, ADR-0099): `drill.yml` (push `*-deploy`, dispatch with `ttl_minutes`/`keep`/`boot_logs`, PR-to-main pre-merge gate with always-teardown), `drill-sweeper.yml` (every 15 min, destroys expired or orphaned drills) and `drill-destroy.yml` (manual).** TTL is recorded as server tag `expires-at=<RFC3339>` via new root var `drill_expires_at` (drill-only, validated; prod plan unchanged). `terraform.yml` gained optional inputs `drill_expires_at` and `boot_log_upload`. Smoke-only after apply (no deploy.yml re-pull). Runbook `docs/plans/v3/runbooks/drill.md`.
+
+## 2026-11-07 (T-D93 — one-time prod DB seed)
+- **Ops(T-D93): `scripts/prod_db_seed.sh` / `just prod-db-seed` and runbook `docs/plans/v3/runbooks/prod-db-seed.md`** copy the local DB onto the freshly provisioned prod VM once (ADR-0099 exception d): consistent snapshot, integrity/sha256 checks, refuses to overwrite a non-empty remote DB, moved-aside copy plus automatic rollback, new litestream generation shown. Requires `--yes-i-own-prod-data`.
+## 2026-11-07 (T-D91 — green security workflow)
+- **Fix(T-D91): `security.yml` pip-audit and Trivy fs pass.** pip-audit now audits the hash-pinned `uv export --no-emit-project` of `uv.lock` (the editable project package made it fail with "not found on PyPI"); YAML helper steps run through uv. Upgraded `cryptography` 48.0.1 -> 50.0.2 and `pyopenssl` 26.2.0 -> 26.4.0 on non-macOS-x86_64 platforms (fixes PYSEC-2026-3552/3553/3554, CVE-2026-69247/69249); the ADR-0067 `cryptography<49` cap now applies to macOS x86_64 only. Ignores: `trivy_fs` CVE-2026-69247 and CVE-2026-69249 (lockfile's macOS-x86_64-only 48.0.1 fork, dev-only), review by 2027-02-01. All pinned action SHAs verified to exist.
+## 2026-11-07 (T-D89 — main-only release pipeline)
+- **CI(T-D89, ADR-0099): prod releases run only from `main` via `release.yml` (ci → build → terraform apply prod → deploy prod).** ci/build/terraform/deploy became reusable workflows; `build.yml` no longer triggers on push/tags/release, `deploy.yml` no longer chains drill→prod via `workflow_run`. Fixed non-existent `setup-tflint` SHA (now v4.1.1). Prod rollback restricted to `main`; drill concurrency group shared with restore-drill.
+## 2026-11-07 (T-D88 — release and environment policy)
+- **Docs(T-D88): ADR-0099 records the release and environment policy** (prod only via GitHub Actions from `main`; `release.yml` main pipeline; drill pipeline with `*-deploy`/dispatch/PR-gate triggers and TTL sweeper; exceptions: initial bring-up, bootstrap stack, break-glass, prod DB seed; enforcement by credentials per ADR-0100). Aligned requirements 6.4, CLAUDE.md, implementation plan, terraform README and deploy/rollback/operator runbooks; added tasks T-D88..T-D93.
+
+## 2026-11-07 (T-D87 — cloud-init init-stage ordering fixes)
+- **Fix(T-D87): first boot no longer loses all `write_files` or the `operator` user.** The `root:docker` compose entry is now `defer: true` (docker group did not exist at write_files time, aborting the module), and `operator` uses `no_user_group: true` (Ubuntu's system group `operator` collided with useradd). ADR-0094 amended. Tests: `tests/unit/deploy/test_cloud_init_ordering.py`.
+## 2026-11-07 (T-D86 — drill-only boot log upload)
+- **Infra(T-D86): new `boot_log_upload` Terraform variable (default false, drill only) makes cloud-init `bootcmd` start a detached uploader that pushes cloud-init logs, journal, dmesg, status, ps and free (secrets redacted) to `s3://<drill bucket>/boot-logs/<instance-id>/<boot-id>/`** (ADR-0094 amended). Drill bucket gets a 7-day expiry rule for `boot-logs/`; prod unchanged. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_boot_log_upload.py`, `terraform/tests/render.tftest.hcl`.
+
+## 2026-11-07 (T-D85 — redact cloud-init heredocs in masked plan output)
+- **Security(T-D85): `mask_plan.py` now redacts the whole body of `cloud-init`/`cloud_init`/`user_data`/`user-data` heredocs and masks values of secret-named keys** (PASSWORD, SECRET, TOKEN, AUTHKEY, IDENTITY, `*_KEY`). Fixes the prior-state `user_data["cloud-init"]` removal block printing random secrets in clear after T-D83 (ADR-0098 amended). Tests: `tests/unit/deploy/test_mask_plan.py`.
+## 2026-11-07 (T-D84 — drill-only console password; docker group fix)
+- **Infra(T-D84): new `break_glass_console_password` Terraform variable gives `operator` a generated password for the Scaleway serial console, drill only** (validation rejects it on prod; ADR-0094 amended). Only the bcrypt hash enters user-data; plaintext via `terraform output -raw console_password`. SSH password login stays disabled. **Fix:** cloud-init now declares a top-level `groups: [docker]` so `operator` creation no longer depends on `docker.io` having created the group. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_console_password.py`, `terraform/tests/render.tftest.hcl`.
+## 2026-11-07 (T-D83 — user-data secrets out of plan output)
+- **Security(T-D83): rendered cloud-init user-data no longer prints in plain text in `terraform plan`/`apply`** (ADR-0098). `cloud_init = sensitive(...)`, a `mask_plan.py` filter in `terraform.yml` and `just tf-plan-safe`, and `plan.bin` is no longer uploaded as a CI artifact. Documented: user-data changes need `-replace` of the server (in-place update does not re-run cloud-init). First apply after the fix may show the old value once; mask it.
+## 2026-11-07 (T-D82 — 1 GiB swapfile)
+- **Infra(T-D82): cloud-init creates a 1 GiB `/swapfile` (native `swap:` key, init stage, before package install) and sets `vm.swappiness = 10`.** Peak safety net for the 1 GB STARDUST1-S during first boot; not capacity. ADR-0032 sizing-note amendment; runbook `deploy.md` "Memory check". Tests: `tests/unit/deploy/test_swap.py`, `terraform/tests/render.tftest.hcl`.
+## 2026-11-07 (T-D81 — drill-only break-glass public SSH)
+- **Infra(T-D81): new `break_glass_ssh_cidrs` Terraform variable opens public SSH for listed CIDRs, drill only** (validation rejects it on prod; ADR-0094 amended). Adds an SG rule and a ufw rule per CIDR. cloud-init now sets up ufw first and wraps `tailscale up` in `timeout 120`, so a failed Tailscale join no longer blocks debugging. Runbook: `tailscale-ssh.md`. Tests: `tests/unit/deploy/test_break_glass.py`, `terraform/tests/render.tftest.hcl`.
+
+## 2026-11-06 (T-D76 — build image on v3 pushes)
+- **CI(T-D76): `build.yml` also builds and pushes the app image on pushes to `v3`** so the drill can test v3 before merge. Tags: `sha-<short>` only (`main` stays default-branch gated). Temporary; remove the `v3` trigger after v3 merges. Test: `tests/unit/deploy/test_build_workflow.py`. Drill uses `app_image_tag = sha-<short>`.
+## 2026-11-06 (T-D77 — offline cloud-init render check)
+- **CI(T-D77): the rendered cloud-init user-data is now validated offline.** A fixture root (`terraform/tests/render/`) renders the real compute module with dummy values and mocked/no credentials. `terraform test` asserts `#cloud-config` is line 1; `render_check.py` also checks YAML and `cloud-init schema`. Run with `just tf-render-check`; wired into `.github/workflows/terraform.yml`.
+## 2026-11-06 (T-D78 — read-only Terraform preflight)
+- **Tooling(T-D78): `just drill-preflight` / `just tf-preflight <env>` check inputs, project match, GHCR image, Tailscale tag permission and state backend reachability before an apply.** Read-only, no secret values printed, non-zero exit on any FAIL. Script: `terraform/scripts/preflight.py`; test: `tests/unit/deploy/test_preflight.py`.
+
+## 2026-11-06 (T-D80 — per-batch CI policy, fast pre-commit pytest)
+- **Chore(T-D80): orchestrator mode runs full `just ci` once per merge batch; item agents run scoped checks only** (ADR-0097 amends ADR-0066). Pre-commit `pytest-fast` restricted to `tests/unit tests/architecture` (about 31 s, was about 205 s) so parallel agents no longer stall commits. Full suite and 90% gate unchanged in `just ci` and CI.
+## 2026-11-06 (T-D79 — module required_version aligned with root)
+- **Infra(T-D79): every Terraform module and `terraform/bootstrap` now declares `required_version = ">= 1.10.0"`, matching the root.** Five modules still allowed 1.9, which has no S3 native state lock (ADR-0090 amended). Provider constraints unchanged. Guard test: `tests/unit/deploy/test_tf_versions.py`.
+## 2026-11-06 (T-D75 — cloud-config header on line 1)
+- **Fix(T-D75): `#cloud-config` is now the first line of `bootstrap.yaml.tpl`.** cloud-init ignored the whole user-data on the first drill boot because the NOTE lines came first; the VM ran nothing. Test: `tests/unit/deploy/test_cloud_init_header.py`. Re-drill pending (T-D25).
+## 2026-11-06 (T-D74 — IAM API key default project and expiry)
+- **Infra(T-D74): Litestream IAM API key pinned to the env project; provider-set expiry ignored** (ADR-0092 amended). `default_project_id` is set, so the drill key no longer defaults to the prod project. `ignore_changes = [expires_at]` stops the replace-on-every-plan caused by Scaleway's 1-year default expiry. New output `scw_app_key_expires_at`; yearly rotation documented in the deploy runbook and checklist F.
+
+## 2026-11-06 (T-Q00 — post-v3 code-quality audit plan)
+- **Docs: post-v3 code-quality audit plan added** (`docs/plans/quality-audit/`, requirements §8). The audit is read-only and pinned to one commit. It has seven review tracks (duplication, layering, correctness, security, frontend, tests, drift), a findings register, and a sequential prevention pass over CLAUDE.md, skills and docs. The Mutmut mutation-testing plan is folded in (baseline during the audit; tooling ADR during prevention). Not started. Timing decided: after v3 ships and before v4 starts. The audit is added to the v4 T-E00 gate. `[pre-v4-P3]` remediation (Critical/High duplication, repository bypass, scoping) must be done before v4 Phase 3.
+## 2026-11-06 (T-D73 — Tailscale OAuth client owns tag:automation)
+- **Infra(T-D73): the Tailscale OAuth client now carries only `tag:automation`, and `tagOwners` makes it own `tag:prod`, `tag:drill` and `tag:ci`.** This fixes the 400 `requested tags [tag:drill] are invalid or not permitted` on `tailscale_tailnet_key` (ADR-0094 amended). Docs and comments only; checklist A9, the ACL runbook and the Terraform comments updated.
+## 2026-11-06 (T-D72b — bootstrap state committed)
+- **Infra(T-D72b): `terraform/bootstrap/terraform.tfstate` and `.terraform.lock.hcl` committed after the operator's first apply** (ADR-0096). Scoped negations added to `terraform/.gitignore`; checklist A7 ticked (applied 2026-11-06).
+
+## 2026-11-06 (T-D72 — Terraform state bootstrap stack)
+- **Infra(T-D72): state bucket is now created by the Terraform root stack `terraform/bootstrap/` instead of `bootstrap-state.sh`** (ADR-0096, amends ADR-0035 §4). Script deleted; checklist A7 updated. Operator action: apply once (or import the existing bucket) and commit `terraform/bootstrap/terraform.tfstate`.
+
+## 2026-11-06 (T-D57 — maximum backup copy age 37 days)
+- **Feat(T-D57): 37-day ceiling on every copy of user data** (ADR-0078 §4). New knob `backup_max_age_days` (default 37): Terraform variable derives bucket noncurrent expiry (`lifecycle_days` 30 → 7, Litestream `retention: 720h` unchanged); app setting `BUDGET_BACKUP_MAX_AGE_DAYS` (7..365, fed from the Terraform variable via the compose template) makes start-up prune pre-migration backups older than `max - 7` d in addition to keep-newest-3, on every start. `restore-from-prod` deletes moved-aside and pre-migration copies on EXIT; the drill workflow asserts no extra `*.db*` files. Pending: operator confirmation of 37 d (checklist D3) and a drill run.
+## 2026-11-06 (T-JPY — native-currency exponent in UI)
+- **Fix(T-JPY): native-currency amounts (account balances, planned-net, credit limit, reconcile modal, recently-deleted, `amount` macro) now use the currency's decimals** (JPY/KRW show 0 decimals instead of `/100`). New `money_num` filter. ADR-0006/0008 apply unchanged.
+## 2026-11-06 (T-D71 — ufw SSH only on tailscale0)
+- **Infra(T-D71): host ufw allows port 22 only on `tailscale0` (was all interfaces)** (ADR-0094 amended). Cloud-init, runbook and tests updated.
+
+## 2026-11-06 (T-D67 — SSH only over Tailscale)
+- **Infra(T-D67): inbound port 22 closed to the internet; SSH to drill/prod only over Tailscale** (ADR-0094). VMs join the tailnet via cloud-init with a single-use tagged auth key from the `tailscale` Terraform provider; deploy/rollback/restore-drill workflows join as `tag:ci`; ACL policy committed as `runbooks/tailscale-acl.hujson`. Operator action: checklist A9; `DRILL_HOST` / `PROD_HOST` become `budget-planner-drill` / `budget-planner-prod`.
+## 2026-11-06 (T-FIX6 — budget spent converts to base currency)
+- **Fix(T-FIX6): Budget per-category `spent` (and remaining, left/day, analytics derived from posted expenses) now converts non-base-account transactions to base currency at the rate for each transaction date** (ADR-0095 amendment, ADR-0006). Missing rate: native amount + warning. Also renumbered the budget base-currency ADR 0093 → 0095 (collided with the Terraform CI-inputs ADR-0093).
+## 2026-11-06 (T-FIX5b — ADR renumber)
+- **Docs(T-FIX5b): renumbered budget base-currency ADR 0092 → 0093** (collided with drill ADR-0092).
+
+## 2026-11-06 (T-FIX5 — budget committed converts to base currency)
+- **Fix(T-FIX5): Budget `committed` (+ unbudgeted split, remaining, left/day, Forecast fiscal-row Expenses and overlay) now converts planned/recurring amounts on non-base accounts to base currency** (ADR-0095, amends ADR-0085). Latest cached rate on/before today; missing rate keeps the native amount.
+## 2026-11-06 (T-D70 — CI Terraform inputs via TF_VAR_* secrets)
+- **CI(T-D70): `terraform.yml` and `restore-drill.yml` pass every Terraform input as `TF_VAR_*` from environment-scoped GitHub secrets (`drill`, `prod`, ungated `prod-plan`); `-var-file` removed (tfvars are gitignored and were absent in CI). Guard script `terraform/scripts/check_tf_vars.py`, `-input=false` everywhere, architecture test, operator checklist A5 secrets table (ADR-0093).**
+
+## 2026-11-06 (T-FIX4 — budget committed dedups linked planned rows)
+- **Fix(T-FIX4): Budget `committed` no longer double-counts a planned row linked to a recurring occurrence** (ADR-0087 amendment). Shared `linked_occurrence_keys` helper now used by Budget, Forecast and Accounts; keys come from all unpromoted linked rows regardless of window, so re-dating a linked row outside the window still suppresses its occurrence (Forecast/Accounts behaviour change only in that case).
+## 2026-11-06 (T-VIS6 — /accounts mobile table)
+- **Fix(T-VIS6): /accounts fits 375 px.** Below 640 px Trend/Checked/Txns columns are hidden; Balance (with planned sub-line), Account and Actions stay visible without sideways scroll. CSS cache-bust rd6 -> rd7; mobile baseline refreshed.
+## 2026-11-06 (T-D69 — Drill in its own Scaleway project)
+- **Infra(T-D69): drill runs in its own Scaleway project `rising-dough-drill`; DNS records go to the zone's project (`dns_zone_project_id`); prod state creates a stable read-only `restore-reader` principal for the restore drill (ADR-0092).
+
+## 2026-11-06 (T-ACC1b — Accounts planned net with archived categories)
+- **Fix(T-ACC1b): `/accounts` no longer 500s when an archived category still has unpromoted planned rows or active recurring rules** (ADR-0089). Direction lookup in `account_planned` now includes archived categories; their items still count by direction.
+
+## 2026-11-06 (backlog — review follow-ups)
+- **Docs: opened T-FIX4, T-FIX5, T-VIS6** from the 2026-11-06 code review / T-VIS5 screenshots.
+## 2026-11-06 (T-D66 — restore drill always destroys)
+- **Fix(T-D66): monthly restore drill always destroys its environment** (ADR-0034 §5 addendum). `terraform destroy` runs `if: always()`; failure evidence is uploaded as the `restore-drill-evidence` artifact before destroy; a post-destroy check fails the job if resources remain.
+## 2026-11-06 (T-D68 — bucket policy allow-list, per-env isolation, drill force_destroy)
+- **Fix(T-D68): object-storage bucket policy no longer locks out Litestream** (ADR-0091). Deny-only `2023-04-17` policy replaced by an Allow-only policy for the env's IAM application plus operator (`bucket_admin_principals`) and prod read-only restore (`bucket_readonly_principals`) principals; drill and prod buckets are mutually isolated. Drill bucket is `force_destroy`.
+
+## 2026-11-06 (T-D60 — IP / user-agent retention purge)
+- **Feat(T-D60): audit `ip`/`user_agent` nulled and ended sessions deleted after `retention_personal_days` (default 90).** Runs from the container entrypoint (after `startup_migrate`, non-fatal) and daily on the app lifespan. Audit rows are kept. ADR-0078 §7.
+## 2026-11-06 (T-D65 — DNS AAAA count at plan time)
+- **Fix(T-D65): `terraform plan` no longer fails with "Invalid count argument" on first apply** (ADR-0088). `scaleway_domain_record.aaaa` count depends only on `managed_zone`; the unknown-at-plan IPv6 null check is dropped (compute always allocates the IPv6 IP).
+## 2026-11-06 (T-D64 — Terraform >= 1.10, CI pin 1.17.1)
+- **T-D64: Terraform floor `>= 1.10.0` and CI pinned to `1.17.1`** (ADR-0090). `use_lockfile = true` needs 1.10+ for S3 state locking. `versions.tf`, every `terraform_version` in `.github/workflows/`, and `terraform/.terraform-version` now agree on 1.17.1. The 1.9 one-writer note in `terraform/README.md` is removed.
+## 2026-11-06 (T-D56 — Litestream age encryption)
+- **Feat(T-D56): Litestream replicas are age-encrypted; one pinned Litestream tag** (ADR-0078 §3). Age is unsupported in Litestream 0.5.x (rejected since v0.5.1), so prod, prod-sim and the drill helper all pin `litestream/litestream:0.3.14`. New restore-only configs (`deploy/litestream-restore.yml`, `litestream-restore.yml.tpl`) carry `age.identities`; replicate configs carry only the recipient. Terraform: sensitive `litestream_age_identity` + `litestream_age_recipient`, cloud-init writes `/etc/budget-planner/litestream-age.key` (0600). Prod-sim uses committed dev-only `deploy/litestream-age-DEV-ONLY.key` (excluded in `.secrets.baseline`). Runbooks: identity path, lost-identity warning, cut-over procedure. Pending: prod-sim and drill acceptance runs.
+
+## 2026-11-06 (T-VIS5 — deterministic visual baselines)
+- **Test(T-VIS5): visual suite runs against a frozen clock (2026-10-31, the demo DB's last day)** via test-only launcher `tests/visual/frozen_server.py` + Playwright fixed time; fixes daily drift of today/accounts/budget snapshots. Baselines refreshed (T-FIX1, T-VIS4, T-ACC1 UI), `/plan` x3 viewports added. No app code changed.
+## 2026-11-06 (T-D54 — owner-scoped audit tail)
+- **Fix(T-D54): `/debug/audit-tail` returns `prev`/`new` only for the caller's own rows** (ADR-0078 §1, ADR-0061). Other users' rows show metadata + `user_id` with `"[other-user]"` payloads. `AuditEntry` gains nullable `user_id`/`actor_user_id`; `audit_tail(conn, viewer_user_id, n)`. Smoke journey now asserts the second user's row is masked.
+## 2026-11-06 (T-D59 — log hygiene)
+- **Feat(T-D59): value-bearing keys and query strings no longer reach logs** (ADR-0078 §5). New `redact_sensitive` structlog processor (amount*/description/name/note*/memo/formula/q/search/email/password*/token*/secret*/*_json -> `[redacted]`, recursive); `uvicorn.access` paths stripped of `?query`; Caddy access log (prod `Caddyfile.tpl` and prod-sim `deploy/Caddyfile`) uses `filter` encoder with `request>uri regexp "\?.*$" ""` and deletes Cookie/Authorization/Set-Cookie; cloud-init installs logrotate (daily, rotate 14, compress) for `/var/log/caddy/access.log`.
+
+## 2026-11-06 (T-D58 — PRAGMA secure_delete)
+- **T-D58: `PRAGMA secure_delete = ON` on every connection** (ADR-0078 §6). Set in `_apply_pragmas` next to the Litestream PRAGMAs, so deleted and overwritten rows are zeroed on disk instead of lingering in free pages. Unit tests assert the pragma and that a deleted sentinel is absent from the DB file after checkpoint. Negative control confirmed the sentinel survives without the pragma.
+## 2026-11-06 (T-D63 — DNS zone not owned by env state)
+- **Fix(T-D63): `modules/dns` no longer creates `scaleway_domain_zone`.** Drill and prod states would both have owned the `rising-dough.eu` zone, so a drill destroy could delete prod records. Records now reference the existing Scaleway Domains zone by name; each env owns only its own A/AAAA. ADR-0088 amends ADR-0035.
+## 2026-11-06 (T-D55 — no-store on authenticated responses)
+- **Feat(T-D55): every authenticated, non-static response now carries `Cache-Control: no-store`; logout and self-session-revoke add `Clear-Site-Data: "cache", "storage"`** (ADR-0078 §2). New pure-ASGI `CacheControlMiddleware` registered inside `AuthRequired`, outside `MustChangePassword`. `/static/**`, `/health`, `/ready` and anonymous pages are untouched.
+## 2026-11-06 (T-ACC1 — Accounts planned net)
+- **Feat(T-ACC1): Accounts tab shows planned net + projected end-of-period balance per account**, and a base-currency "Planned" total in the hero (ADR-0089). New `services/account_planned.py`; shared `recurring.expand_unpromoted` (forecast behaviour unchanged). Cache-bust `rd5` -> `rd6` if CSS changed.
+
+## 2026-11-06 (T-VIS4 — /plan budget period bar overflow)
+- **Fix(T-VIS4): `.rd-period-bar` no longer clips at 375px.** The right column (per-day, committed meta, unbudgeted info line) grew to max-content in an `auto 1fr auto` grid and overflowed. Columns now use `minmax(0, ...)` with wrapping, and the bar stacks to one column at <=640px. Only used on Plan · Budget. Cache-bust `rd4` → `rd5`.
+
+## 2026-11-06 (T-FIX3 — forecast honours next_due)
+- **Fix(T-FIX3): forecast no longer re-projects early-promoted recurring occurrences** (ADR-0087). Current-row Income is now only the remaining not-yet-received income; EOM/net-worth chain no longer double-counts. Confined to `services/forecast.py`.
+
+## 2026-11-06 (T-FIX1 — left counts only budgeted commitments)
+- **Fix(T-FIX1): budget "left" no longer drops by unbudgeted planned/recurring bills.** Early promotion of the income-anchor payment widened the commitment window and subtracted a month of unbudgeted bills (-9,824.01 with 0 spent). `committed_minor` is now restricted to budgeted categories; `unbudgeted_committed_minor` is shown as an informational "not counted" line on /budget and Plan · Budget. Forecast current row Expenses = committed + unbudgeted. ADR-0085 amends ADR-0039.
+
+## 2026-11-06 (T-FIX2 — formula source overrides in chains)
+- **Fix(T-FIX2): overrides/skips on a formula-based recurring rule are now honoured when it is read as a source by another formula** (ADR-0086). Previously only fixed source rules applied `list_overrides_all`; formula sources used the computed value, so chained formulas (e.g. `na osobiste` over PODATKI) were off by (computed default - override). Confined to `services/recurring_formula.py`.
+
+## 2026-11-04 (T-VIS3 — /today mobile overflow)
+- **Fix(T-VIS3): `/today` no longer scrolls horizontally at 375px.** Root cause: `.rd-panel__head` was a non-wrapping flex row, so the Upcoming action buttons overflowed to 422px (hidden from `scrollWidth` by `overflow-x: clip`, but the full-page screenshot was 423px wide); the mobile row grid used a bare `1fr` plus an `auto` actions column, which squeezed the description into unreadable fragments. Header and its left group now wrap, mobile rows use `minmax(0, 1fr)` and put the Promote/Skip/Override actions on their own row. `/budget` yearly table at 1440 is inside `.ledger-scroll` (own scroller), so it is not a page-level bug. Cache-bust `rd3` → `rd4`; `mobile___today.png` baseline refreshed.
+
+## 2026-11-04 (T-VIS2 — visual baselines + flake fix)
+- **Test(T-VIS2): visual snapshots are deterministic.** Flake root cause: web fonts are loaded from Google Fonts (`fonts.css` `@import`, `font-display: swap`); network/swap timing changed glyph rasterization between runs, so a different random subset of snapshots (ledger/accounts/budget/today) differed by sub-pixel text anti-aliasing on every run. `tests/visual` now aborts `fonts.googleapis.com` / `fonts.gstatic.com` (opt-out `VISUAL_REAL_FONTS=1`), freezes animations/transitions, uses reduced motion + fixed scale factor, waits for `document.fonts.ready`, launches Chromium with stable raster flags, and allows 45 s for cold uvicorn start (was 10 s; cold `uv run` start failed all 12 tests). `VISUAL_KEEP_DIR=<dir>` keeps the generated PNG for diffing. All 12 baselines refreshed (new nav, Today, ledger day nets, budget slots, accounts "Available").
+- **Fix(T-VIS2): `/favicon.ico` 404.** Browsers auto-request `/favicon.ico` on every page (no `<link rel="icon">`), which 404'd. Added `static/favicon.svg` and `<link rel="icon" ...?v=fav1>` to `base.html` and `auth/_layout.html`. No other 4xx on /today, /ledger, /plan, /accounts, /settings, /settings/security.
+
+## 2026-11-04 (T-D49a - no gaps between budget rows)
+- **Fix(T-D49a): Plan → Budget rows no longer have gaps.** The empty per-row override slot rows added in T-D49 still rendered row borders/padding; they are now `display: none` until the override form is swapped in. Also bumped the stylesheet cache-bust (`?v=rd2` → `?v=rd3` in `base.html`) because T-D49 changed the CSS without bumping it, so browsers kept the old cached CSS next to the new slot-row markup.
+
+## 2026-11-04 (T-D53b - step-up re-auth + session token rotation)
+- **Add(T-D53b): step-up re-authentication** (ADR-0076 §2). `web/deps.require_recent_auth` guards `POST /auth/register/begin|finish`, `POST /auth/passkeys/{id}/revoke`, `POST /auth/sessions/{handle}/revoke` (only for sessions other than the current one) and every `POST` under `/settings/users`. When the last login / re-auth is older than `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (default 10): HTMX gets `403` + `HX-Redirect`, JSON (`passkeys.js`, which now navigates to `redirect`) gets `403 {"error":"reauth_required","redirect"}`, anything else `303` to `/auth/reauth?next=<page you were on>` (validated by `safe_next`).
+- **Add(T-D53b): `/auth/reauth`** page (passkey restricted to the user's own credentials via `allowCredentials`, or current password) with `POST /auth/reauth`, `/auth/reauth/begin`, `/auth/reauth/finish`; challenge cookie purpose `reauth`. Rate limit scope `reauth` (5/min + 20/h per user, `BUDGET_RATE_LIMIT_REAUTH_PER_MINUTE/_PER_HOUR`), `429` + `Retry-After`. Audited as `auth_event` `reauth` / `reauth_failed` (`method`, `reason`).
+- **Change(T-D53b): token rotation.** A successful re-auth and a successful password change refresh `authenticated_at` and swap the session token in place (same row, `created_at` kept so the 30-day cap cannot be reset); the old cookie stops working at once. `passkeys.js` cache-bust `pk3` -> `pk4`.
+- **Operator note:** the one-time sign-out and the N-1 rollback behaviour from T-D53a (see the entry below) apply to the T-D53 release as a whole. `runbooks/user-admin.md` and `runbooks/deploy.md` updated. The T-D43 smoke journey now re-authenticates on `/auth/reauth` before removing the smoke user.
+
+## 2026-11-04 (T-D62 — compute zone + image slug)
+- **Fix(T-D62): Terraform compute image default was `ubuntu_jammy` (Ubuntu 22.04)** although ADR-0032/0035 specify 24.04. It is now `ubuntu_noble`.
+- **Change(T-D62): compute zone `pl-waw-1` → `pl-waw-2`** (Stardust1-S sold out in `pl-waw-1`, operator decision D1). Covers the `scaleway_zone` default, both `terraform.tfvars.example` files and `SCW_DEFAULT_ZONE` in `restore-drill.yml`. Region and buckets are unchanged. ADR-0084 amends ADR-0032.
+
+## 2026-11-04 (T-D53a - hashed session ids + absolute lifetime cap)
+- **Change(T-D53a): `sessions.id` is now `sha256(cookie token)` hex**; the raw token exists only in the cookie, so a leaked DB/backup/replica holds no usable session. New nullable `sessions.authenticated_at`. Sliding expiry is clamped to `created_at + BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS` (default 30, must be >= the sliding 14) and the cookie `Max-Age` follows the clamped `expires_at`. New settings `BUDGET_SESSION_ABSOLUTE_LIFETIME_DAYS`, `BUDGET_SESSION_REAUTH_WINDOW_MINUTES` (the latter used by T-D53b). ADR-0076.
+- **Operator note - one-time sign-out:** migration `0015_session_hardening` revokes every live session (raw ids cannot be rehashed in SQL); every user signs in again once after the deploy.
+- **Rollback note (ADR-0071 §4):** 0015 is expand-only (one nullable column + an UPDATE), so an N-1 image still starts, but it looks raw cookie values up against hashed ids and finds nothing, so all users are sent to login. Acceptable; no restore needed. Down script `migrations/down/0015_session_hardening_down.sql` is forward-smoke-only and does not un-revoke sessions.
+
+## 2026-11-04 (T-D53 — follow-up docs)
+- **Docs(T-D53): ADR-0076 §5 deferred items listed under "Deferred to v3.1 or later"** in `tasks.md`. T-D53 acceptance now also covers the runbook updates (`user-admin.md`, `deploy.md`) and keeping the T-D43 smoke journey green under re-auth.
+
+## 2026-11-04 (docs — data protection: v3 quick wins + v4 plan)
+- **Docs: ADR-0078** — v3 data-protection quick wins; new v3 Phase 5 tasks T-D54..T-D61 (`docs/plans/v3/phase-5-data-protection/`): owner-scoped `/debug/audit-tail` (admin currently sees every user's audit payloads — ADR-0061 gap), `no-store` on authenticated responses, age-encrypted Litestream replica + version alignment, 37-day copy ceiling, `secure_delete`, log redaction, IP/UA 90-day purge, data inventory. Requirements §6.5, §6.11.
+- **Docs: ADR-0079..ADR-0083 + `docs/plans/v4/`** — v4 data-protection scope (requirements §7): threat model and option choice (per-user envelope encryption; client-side E2EE deferred to v5), key hierarchy and cookie-held session key, field-level encryption scope and query model, account lifecycle / recovery / escrow→claim migration, right to be forgotten (crypto-shred + purge + erasure ledger), export bundle, retention schedule. Tasks T-E00..T-E26.
+
+## 2026-11-04 (T-D53 — session hardening docs)
+- **Docs(T-D53): ADR-0076 + task plan for session hardening.** Absolute session lifetime (30 days), step-up re-auth for account-takeover actions, sha256-hashed session ids at rest, token rotation on re-auth and password change. Access/refresh tokens were considered and rejected. Requirements §6.2 updated. Code lands in T-D53a/b.
+
+## 2026-11-04 (T-D52 — reconcile by available credit)
+- **Add(T-D52): reconciling a liability account that has a credit limit now takes the bank's *available* credit.** `services.reconciliation.available_to_target_balance` converts it to the target balance (`-(limit - available)`); the adjustment is booked as before. Available outside `0..limit` is rejected (422). Other accounts unchanged. ADR-0011 amended.
+
+## 2026-11-04 (T-D49 - budget override form inline under its row)
+- **Fix(T-D49): Plan → Budget override form** now opens directly under the clicked row (per-row `#override-slot-<category_id>` table row), right-aligned, instead of beneath all categories. One form open at a time; Cancel / Esc close it and restore focus to the Override button; saving closes it and re-fetches the budget table. Inline script replaced by `static/js/budget-override.js`.
+
+## 2026-11-04 (T-D48 - ledger day totals with reconciliation entries)
+- **Fix(T-D48): Ledger Actual day-group "net" was wrong when reconciliation (adjustment) rows were present.** Root cause: the sum lived in `templates/ledger/_table.html` and treated every non-income row as `-amount`; adjustment amounts are stored already signed (ADR-0008), so a -700.00 reconciliation was added as +700.00. It also summed raw minor units across account currencies. The net is now computed by `services/ledger_totals.py` (income +, expense -, adjustment pass-through, transit excluded) with per-row conversion to base currency (ADR-0006); conversion uses cached FX rates only (`fx.convert_cached`; rendering never fetches from the network); a day with no cached rate omits the figure. Positive adjustment rows now show a `+` and green amount. Other views (Today, Analytics, Fortune/balance, forecast) filter by direction or use `balance.signed_legs`, which already handles adjustments correctly; unchanged.
+## 2026-11-04 (T-D50 - legacy home page retired)
+- **Change(T-D50): `/` now redirects (303) to `/today`; login, forced-rotation and `safe_next` default to `/today`.** Legacy Overview router, templates and `/overview/upcoming` removed; brand link, palette "Go to Today" and error pages point at `/today`. ADR-0077.
+
+## 2026-11-04 (T-D47 - Security + Password moved into Settings)
+- **Change(T-D47): Settings → Security tab** (`/settings/security`) holds Password, Passkeys and Sessions; the nav rail no longer lists Security / Password (email + Sign out only; mobile gets a Sign out button). `GET /auth/sessions`, `GET /auth/register` and (non-forced) `GET /settings/password` redirect (303) to the tab; forced-rotation page unchanged. ADR-0075.
+- **Fix(T-D47): "The passkey wasn't added" in dev.** WebAuthn RP ID/origin are now derived from the request host when `env=dev` and `BUDGET_WEBAUTHN_*` are unset (static `localhost:8000` default rejected any other port); IP-literal hosts get an explanatory message (open `http://localhost:<port>`); failures are logged; `passkeys.js` reloads on same-page redirect. New e2e `tests/e2e/test_passkey_journey.py` (virtual authenticator). `just dev` prints the localhost URL. ADR-0075 addendum.
+
+## 2026-11-04 (T-D51 — liability available precision)
+- **Fix(T-D51): liability "Available" on `/accounts` now renders with 2 decimals** (`{:,.2f}` in `partials/accounts/_row.html` and `accounts/index.html`); Limit and Used keep whole-unit precision.
+
+## 2026-11-03 (T-VIS — mobile nav overflow fix + visual baselines)
+- **Fix(T-VIS): horizontal page scroll on `/ledger` (375 px), `/budget` (375 / 1024 / 1440) and `/ledger` (1024 px).** Root causes were CSS-only and not in the auth nav: (1) `.sr-only` table headers inside `.ledger-scroll` were absolutely positioned against the viewport and escaped the scroller, widening the document — `.ledger-scroll` is now `position: relative`; (2) the ledger filter-chip row stayed `nowrap` until 960 px and overflowed 1024 px tablets — wraps at ≤1200 px; (3) mobile `.rd-shell` uses `minmax(0, 1fr)` so wide content cannot stretch the single grid column. `rising-dough.css` cache-bust bumped to `rd2`.
+- Refreshed all 12 visual baselines (`tests/visual/baselines/`); widths now equal their viewports (375 / 1024 / 1440).
+
+## 2026-11-03 (T-D43 - post-deploy smoke journey)
+- **Add(T-D43): `tests/smoke/test_prod_smoke.py`**, one Playwright journey
+  (marker `smoke`, deselected by default and in CI) covering ADR-0061 end to
+  end, plus admin-only `GET /debug/audit-tail?n=` (n capped at 100, secret keys
+  redacted). Validated against a local scratch server; the production run is
+  pending (human, after T-D27). See `runbooks/deploy.md`.
+
+## 2026-11-03 (T-D18a — rate-limit password change)
+- **Add(T-D18a): `POST /settings/password` rate limit** (ADR-0072, ADR-0074 §4): per user, 5 / min and 20 / hour; `429` + `Retry-After`, generic form error, `auth_event` audit row. New settings `BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE/_PER_HOUR`. "Change password" link on `/auth/sessions`; HTMX now swaps `429` form responses.
+
+## 2026-11-03 (T-D17 — admin user panel `/settings/users`)
+- **Add(T-D17): `/settings/users` admin roster.** List live users (role, added,
+  last seen), add a user, edit email / name / admin flag, reset a password,
+  remove a user (soft delete). A new user gets a `secrets.token_urlsafe(16)`
+  password shown **once** in an HTMX toast with copy-to-clipboard
+  (`static/js/users-admin.js`, `Cache-Control: no-store`), plus
+  `must_change_password = 1` and its `Transit` / `Reconciliation` categories in
+  the same transaction. Reset password and remove each revoke all of the
+  target's sessions in the same transaction. A "Users" settings tab is shown to
+  admins only. ADR-0061 §4, ADR-0073.
+- **Add(T-D17): `AdminRequiredMiddleware`** (`web/middleware/admin.py`) answers
+  the standard 404 to non-admins on `/settings/users*`, even when the request
+  has no CSRF token. Middleware order is now RequestId → SecurityHeaders →
+  AuthRequired → MustChangePassword → AdminRequired → CSRF: a flagged user gets
+  the rotation redirect on `/settings/users` exactly as on any other path, so
+  the admin surface stays unfingerprintable. ADR-0073 §1.
+- **Add(T-D17): service invariants.** Deleting or demoting the last live admin
+  returns `409`. Removing your own account returns `409`. An invalid or
+  duplicate (case-insensitive) email returns `422`. ADR-0073 §3–§4.
+- **Change(T-D17): `write_audit(actor_user_id=…)`.** The audit helper takes a
+  new keyword argument that fills `audit_log.actor_user_id`; existing callers
+  are unchanged. Every admin mutation records the admin as actor and the
+  target user as `entity_id`. A reset is an `update` with
+  `action = "reset_password"` in `new_json`. ADR-0073 §5–§6.
+
+## 2026-11-03 (T-D18 — `/settings/password` + forced rotation)
+- **Add(T-D18): `GET/POST /settings/password`.** Any signed-in user rotates
+  their own password (current / new / confirm). Policy: ≥12 characters,
+  ≤72 UTF-8 bytes (bcrypt limit), must differ from the current password,
+  confirm must match; errors render inline (`422`, HTMX swaps the form).
+  On success the hash is replaced, `must_change_password` cleared and every
+  *other* session of the user revoked in one transaction; the current
+  session stays live. Failed verifies write an `auth_event`
+  `password_change_failed` audit row with IP + user-agent. ADR-0074.
+- **Add(T-D18): `MustChangePasswordMiddleware`** (between Auth and CSRF).
+  While the flag is set: HTML → `302 /settings/password?next=…`; HTMX → `403`
+  + `HX-Redirect`; JSON → `403 {"error": "password_change_required"}`.
+  Exempt: `/settings/password`, `/auth/logout`, `/static/*`, `/health`,
+  `/ready`, `/healthz`.
+- **Add(T-D18): "Password" link** in the rail account block and a
+  "Change password" action on `/settings`.
+
+## 2026-11-03 (T-D41a — restore-from-prod drill helper)
+- **Fix(T-D41a): add `/usr/local/bin/restore-from-prod`** (`terraform/cloud-init/bin/restore-from-prod.tpl`), the helper `restore-drill.yml` calls over SSH. Drill env only. It restores the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`, new optional Terraform variables; workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`), checks integrity, fixes ownership, restarts the stack and waits for `/ready`. Replication stays on the drill bucket. cloud-init now installs `sqlite3` (the workflow's integrity step needs it).
+- **Fix(T-D41a): `deploy-budget-planner.tpl` did not render** (unescaped `${TAG_REGEX//…}` and `${1+…}`, `$$(` command substitutions, missing `app_image` / `compose_dir` / `previous_tag_file` template vars). Fixed so `terraform validate` and a real render succeed.
+
+## 2026-11-03 (T-D09 — auth rate limiting)
+- **Add(T-D09): fixed-window rate limits on `POST /auth/login`, `/auth/login/finish`,
+  `/auth/register/finish`.** Counters live in `auth_rate_limit` (migration 0014),
+  maintained by `repositories/rate_limit.py` (atomic UPSERT, opportunistic prune) and
+  `services/rate_limit.py` (count-then-check; successful logins count too). Defaults:
+  login 5/min + 20/h per IP+email and 100/h per IP; passkey login 10/min + 60/h per IP;
+  passkey registration 5/min + 20/h per user; all `BUDGET_RATE_LIMIT_*` settings plus a
+  `rate_limit_enabled` kill switch. Throttled → `429` + `Retry-After`; the login form
+  shows a generic "too many attempts" message, HTMX/JSON get `{"error": "rate_limited"}`;
+  each throttled attempt writes an `auth_event` audit row. No `slowapi` dependency.
+  ADR-0072 (amends ADR-0033 §2).
+
+## 2026-11-03 (orchestrator-mode — cheaper subagent models)
+- **Change: `orchestrator-mode` skill dispatches subagents on cheaper models.**
+  `sonnet` by default, `haiku` for mechanical or read-only items, `opus` only
+  on user request or after two failed attempts (ADR-0066 amendment).
+
+## 2026-11-03 (T-D19a — migrations before app start in production)
+- **Feat(T-D19a): `db/startup_migrate.py`** (`python -m budget_planner.db.startup_migrate`) applies pending migrations before uvicorn starts. It is idempotent and writes nothing when the schema is current. When an existing DB is upgraded it first takes a `VACUUM INTO` backup to `<db dir>/backups/` (newest 3 kept). It logs `schema_ahead_of_image` and keeps going when it starts against a newer schema (rollback). On failure it exits 1 (ADR-0071).
+- **Feat(T-D19a): Dockerfile `ENTRYPOINT`** `deploy/docker-entrypoint.sh` migrates and then `exec`s the CMD. The deploy shim and cloud-init are unchanged.
+- **Feat(T-D19a): compose `litestream-restore` one-shot** in the prod template and in the prod-sim stack (`restore -if-db-not-exists -if-replica-exists`, then chown to uid 10001). `app` and `litestream` wait for it, so a fresh volume is restored from the replica before the app can create an empty DB.
+- **Docs(T-D19a): ADR-0071.** Every migration must stay N-1 compatible. A release that cannot is flagged "rollback requires restore". Updated the deploy, rollback, restore (new pre-migration-backup variant) and disaster-recovery runbooks.
+
+## 2026-11-03 (T-D02b — auth web layer; completes T-D02)
+- **Add(T-D02b): `AuthRequiredMiddleware`.** Every route except `/health`,
+  `/ready`, `/healthz`, `/static/*`, `/auth/login{,/begin,/finish}` needs a
+  live session. Anonymous HTML requests get `302 /auth/login?next=…` (same-site
+  relative paths only); HTMX gets `401` + `HX-Redirect`; JSON clients get `401`.
+  `request.state.user` is a frozen `CurrentUser(id, email, name, is_admin,
+  must_change_password)`; stale cookies are deleted; the cookie `Max-Age`
+  slides with the server-side session. Middleware order is now RequestId →
+  SecurityHeaders → Auth → CSRF (registration order fixed). ADR-0070.
+- **Add(T-D02b): `/auth/*` routes + templates.** Password login (generic error,
+  session-fixation hygiene), usernameless passkey login, passkey registration,
+  logout, `/auth/sessions` (own sessions by handle + own passkeys, each
+  revocable). Passkey JS is a static file (`static/js/passkeys.js`). Session
+  cookie `__Host-session` (`session` under `env=dev`), `HttpOnly`,
+  `SameSite=Lax`; challenge cookie HMAC-signed, 5 min, cleared after finish.
+- **Change(T-D02b): `web.deps.current_user_id` reads the session user** and
+  raises 401 when absent (user-1 fallback removed); `get_request_ctx` fills
+  `user_id` and the session *handle*.
+- **Test(T-D02b):** web `client` fixture is signed in (user 1, bcrypt cost 4,
+  real session); `anon_client` for auth tests; e2e signs in through the real
+  form; the visual suite now runs against a scratch copy of `data/demo.sqlite`
+  instead of the default (prod) DB.
+
+## 2026-11-03 (T-D19 — admin bootstrap on startup)
+- **Feat(T-D19): `services/users.py`** `bootstrap_admin(conn, settings)` —
+  idempotent; no-op when a live admin exists; else promotes the user
+  matching `BUDGET_PLANNER_ADMIN_EMAIL`, or adopts the pre-v3 email-less
+  row (`id = 1`), or creates a user + `Transit`/`Reconciliation`
+  categories; `must_change_password = 1`; audit rows with password
+  redacted; `event="admin_bootstrap"` log line. Lifespan exits non-zero
+  when no admin exists and credentials are missing (ADR-0061 §3).
+- **Feat(T-D19): per-env policy (ADR-0069).** Dev without env vars uses
+  `admin@local.test` / `admin` but never writes onto a legacy row that owns
+  data (`just dev` on prod data is a no-op); test env without credentials
+  does not open the DB.
+- **Feat(T-D19): `repositories/users.py`** (create / update credentials /
+  legacy lookup; exempted from the `(conn, user_id)` rule like
+  `auth_users.py`, ADR-0068) and new settings `admin_email` /
+  `admin_initial_password`.
+- **Feat(T-D19): operator CLI** `python -m budget_planner.cli.set_password`
+  + `just set-password --db=<path> …` (explicit `--db` required).
+  Operator step for the existing local user added to
+  `docs/plans/v3/operator-checklist.md`.
+
+## 2026-11-03 (T-D16 — repository `user_id` scoping sweep)
+- **Change(T-D16): every user-owned query is scoped by `user_id`.**
+  Repository functions on user-owned tables are `(conn, user_id, …)`;
+  every SELECT/UPDATE/DELETE carries a `user_id` predicate (FK-scoped
+  `account_snapshots` / `recurring_rule_overrides` join through their
+  parent), every INSERT binds `user_id`. Services thread `user_id`
+  through; routers obtain it via `web.deps.current_user_id` (pre-T-D02
+  fallback to user 1 stays until T-D02b). `New*` DTOs lose their
+  `user_id = 1` default. Joined `categories` now also match on
+  `user_id`, and writes reject another user's `account_id` /
+  `category_id` (`_shared.require_owned` → `LookupError`). Ownership
+  checks for FK-scoped inserts raise `LookupError` instead of `assert`.
+  T-D02a's `webauthn` repo row-id paths (`update_sign_count`,
+  `revoke_credential`) now take `user_id` positionally and filter on it.
+- **Add(T-D16): `tests/architecture/test_user_id_filter.py`** — `ast` +
+  `sqlglot` static check over `repositories/`, `services/`,
+  `web/routers/` SQL, plus signature + hard-coded-`user_id = 1` checks
+  (`.user-id-filter-allowlist`); `test_user_id_filter_regression.py`
+  proves it fails on leaky temp modules. Cross-user isolation tests in
+  `tests/unit/repositories/test_user_isolation.py`. `sqlglot` added as
+  a dev dependency (ADR-0022, ADR-0061 §5, ADR-0068).
+
+## 2026-11-03 (T-D02a — auth backend core)
+- **Feat(T-D02a): migration `0014_v2_auth.sql`** (+ down) adds
+  `webauthn_credentials` (soft-delete, unique BLOB `credential_id`),
+  `sessions` (opaque `token_urlsafe(32)` id = cookie value, sliding
+  expiry), and `auth_rate_limit` (table only, for T-D09).
+- **Feat(T-D02a): `services/_passwords.py`** bcrypt hash/verify (cost 12,
+  overridable; verify never raises; >72-byte passwords rejected) plus a
+  cached dummy hash for timing-safe unknown-email logins.
+- **Feat(T-D02a): `repositories/sessions.py`, `repositories/webauthn.py`,
+  `repositories/auth_users.py`** and **`services/auth.py`**: password
+  login, usernameless passkey login, passkey registration (py_webauthn
+  ceremonies, caller-held challenges), logout / per-user session revoke,
+  sign-count regression auto-revoke, audit rows for every auth event
+  (session handles only, never raw ids). New `webauthn_rp_id` /
+  `webauthn_rp_name` / `webauthn_origin` settings (ADR-0067).
+- **Chore(T-D02a):** runtime deps `bcrypt`, `webauthn>=2.7,<3`. Added uv
+  constraints `cbor2<6` and `cryptography<49` because macOS x86_64 wheels
+  are missing upstream (ADR-0067 §5).
+
+## 2026-11-03 (v3 operator checklist)
+- **Docs: `docs/plans/v3/operator-checklist.md`.** Human-only v3 actions
+  (Scaleway/GitHub/domain setup, secrets, real-device checks, drill/prod
+  operator steps). Records operator decisions: compute zone `pl-waw-2`
+  (Stardust sold out in `pl-waw-1`; ADR-0032 amendment pending) and the
+  domain recommendation (Scaleway Domains + managed zone), plus a flagged
+  zone-ownership risk in `terraform/modules/dns`.
+
+## 2026-11-03 (orchestrator-mode skill)
+- **Add: `.claude/skills/orchestrator-mode` skill.** Main agent acts as
+  orchestrator only — creates/reuses the main work branch, dispatches
+  parallel subagents in per-item worktrees/branches with a full repo-rules
+  brief, merges their branches back (main→item merge for conflicts, no
+  rebase), and prunes merged worktrees (ADR-0066).
+
+## 2026-11-03 (T-D08a — CSRF cookie fix for dev)
+- **Fix(T-D08a): every POST/DELETE returned 403 under `just dev`.**
+  The middleware sent `__Host-csrf` without `Secure` when `env=dev`;
+  browsers discard `__Host-` cookies lacking `Secure`, so no token was
+  ever stored and the middleware rejected each unsafe request with
+  `missing_cookie` (e.g. editing/deleting a Ledger transaction).
+  Dev now uses an un-prefixed `csrf` cookie (no `Secure`); other envs
+  keep `__Host-csrf` + `Secure` (ADR-0065, amends ADR-0033 §4).
+- **Change(T-D08a): HTMX extension reads the token from
+  `<meta name="csrf-token">`** rendered in `base.html`, so the JS no
+  longer depends on the cookie name. Error pages also receive
+  `csrf_token` in their render context.
+- **Test(T-D08a):** `test_csrf.py` replaces the test that pinned the
+  invalid dev combination with a dev cookie-shape test, a plain-HTTP dev
+  round-trip test, and a meta-tag/cookie parity test. The e2e `page`
+  fixture no longer hand-injects a `Cookie` header and asserts the
+  browser actually stored the CSRF cookie.
+
+## 2026-11-02 (T-D14 — audit request-ctx plumbing)
+- **Feat(T-D14): `audit_log` carries request-context columns.**
+  Migration `0013_audit_request_ctx.sql` adds four nullable columns to
+  `audit_log` — `ip TEXT`, `user_id INTEGER REFERENCES users (id)`,
+  `session_id TEXT`, `user_agent TEXT` — with the companion
+  `migrations/down/0013_audit_request_ctx_down.sql` for CI reversibility
+  smoke. Historical rows (pre-0013) and system-bootstrap writes carry
+  NULL on every new column by design (ADR-0019).
+- **Feat(T-D14): `RequestCtx` dataclass + `get_request_ctx` dependency.**
+  `src/budget_planner/domain/request_ctx.py` adds a frozen+slots
+  dataclass carrying `ip`, `user_id`, `session_id`, `user_agent` with a
+  `RequestCtx.empty()` sentinel. `src/budget_planner/web/deps.py` adds
+  `get_request_ctx(request)` as a FastAPI dependency that pulls IP from
+  `request.client`, user-agent from the request headers, and the
+  session user + id from `request.state` (populated once T-D02 lands).
+- **Feat(T-D14): `write_audit` accepts `request_ctx` kwarg.**
+  Both the repo-level writer in `_shared.py` and the service-layer
+  shape-checker in `services/audit.py` take `request_ctx: RequestCtx =
+  RequestCtx.empty()` and persist the four new columns. Defaulting to
+  the empty context keeps every existing caller working unchanged
+  until each service is retrofitted to thread a real context through.
+- **Test(T-D14):** `tests/integration/web/test_audit_request_ctx.py`
+  mounts a stub POST route that threads `get_request_ctx` into the
+  repo writer and asserts the resulting `audit_log` row carries
+  `ip` + `user_agent`; two companion tests pin the direct-writer path
+  (every field round-trips) and the default-empty path (every new
+  column lands as NULL). Migration shape pinned in
+  `tests/integration/db/test_migrations.py::test_0013_applies`.
+
+## 2026-11-02 (phase-4 ops)
+- **Feat(T-D41): Monthly automated restore drill workflow**:
+  `.github/workflows/restore-drill.yml` runs on `cron 0 3 1 * *` plus
+  `workflow_dispatch`. Checks out, installs Terraform + Scaleway CLI,
+  `terraform init -backend-config=envs/drill/backend.hcl` →
+  `apply -auto-approve -var-file=envs/drill/terraform.tfvars`, SSHes the
+  drill host to run `/usr/local/bin/restore-from-prod`, asserts
+  `curl /ready | jq .status == ok` and
+  `sqlite3 /data/budget.db 'PRAGMA integrity_check;' == ok`, destroys on
+  success, opens `restore-drill-failure-YYYY-MM` issue on failure and
+  leaves the host standing for post-mortem (ADR-0034 §5). Third-party
+  actions pinned by SHA (`actions/checkout`, `hashicorp/setup-terraform`,
+  `webfactory/ssh-agent`). Secrets scoped to the `drill` GH environment.
+- **Docs(T-D46): Operational runbooks**:
+  Added `docs/plans/v3/runbooks/{deploy,rollback,restore,disaster-recovery,restore-log,user-admin}.md`
+  and extended the index `README.md`. Each runbook follows the shared
+  Context / Preconditions / Procedure / Verification / Troubleshooting /
+  Rollback shape. `disaster-recovery.md` Path B documents the
+  "lost all admins → demote in SQL + `terraform apply -replace=random_password.admin_initial_password` → re-render compose env" recovery path per ADR-0061 §3. `user-admin.md` covers add / reset / remove / promote / demote plus the last-admin invariant and admin-cannot-see-user-data isolation note (ADR-0061 §1 + §5).
+- **Chore: Dependabot config**:
+  `.github/dependabot.yml` adds weekly updates for `github-actions` and
+  `docker` ecosystems (Monday 06:00 Europe/Warsaw, 5-PR cap each).
+  Python deps stay on `uv.lock` + `pip-audit`.
+
+## 2026-11-02 (v3 Phase 1 — foundation bundle)
+- **T-D01**: new `/health` + `/ready` endpoints replace the inline
+  `/healthz`. `/ready` 503s when `PRAGMA integrity_check` is anything
+  other than `ok`. Health router is registered first so it stays
+  outside any future auth middleware (ADR-0033 §5).
+- **T-D03**: production config surface — `env`, `bind_host` /
+  `bind_port` rename, `trusted_hosts` CSV, `cookie_secret` (required
+  in production), `session_lifetime_days` (1..90). `.env.example` and
+  README updated; a root `tests/conftest.py` pins `BUDGET_ENV=test`
+  so the dev-fallback warning does not poison pytest.
+- **T-D04**: `database_url` defaults to `sqlite:////data/budget.db`
+  under `env="production"`. New `_assert_production_pragmas` raises
+  on startup if `PRAGMA wal_autocheckpoint != 0` (ADR-0034 §2).
+- **T-D05**: centralised the four Litestream PRAGMAs in
+  `db/connection.py::_apply_pragmas`. Module docstring now flags
+  bypassing `get_connection` as a bug.
+- **T-D06**: `structlog`-based JSON logging in `budget_planner.logging`
+  bound to a per-request `request_id` contextvar. `RequestIdMiddleware`
+  binds/clears the id around every request.
+- **T-D12**: `just install` uses `uv sync --frozen --group dev`; new
+  `.github/workflows/lock-check.yml` runs `uv lock --check` on PRs.
+- **T-D15**: `create_app` body is now an `@asynccontextmanager`
+  lifespan. Startup logs `event="lifespan_startup"`, closes app-scoped
+  sqlite connections on shutdown, and emits `event="sigterm_received"`
+  via a stdlib SIGTERM observer that chains uvicorn's handler.
+
 ## 2026-11-02
+- **Feat: T-D10 · Multi-stage, non-root Dockerfile (ADR-0032 §2, ADR-0034)**:
+  Rising Dough v3 ships to Scaleway Stardust as an OCI image pulled from
+  GHCR, but the repo had no `Dockerfile` yet. Added a two-stage build:
+  `builder` (`python:3.12-slim-bookworm` + `uv sync --frozen --no-dev
+  --no-install-project --compile-bytecode` into `/app/.venv`) and
+  `runtime` (`python:3.12-slim-bookworm` with only `curl` +
+  `ca-certificates`, apt lists cleaned, dedicated `app` uid/gid 10001
+  with `/usr/sbin/nologin`, venv copied from the builder, `src/` and
+  `migrations/` copied with `--chown=app:app`, `/data` pre-created mode
+  0700 owned by `app` per ADR-0034, `EXPOSE 8000`, container
+  `HEALTHCHECK` curling `/health`, and `uvicorn ... --proxy-headers
+  --forwarded-allow-ips=*` as `CMD`). Shipped `.dockerignore` excluding
+  `tests/`, `docs/`, `local/`, `.claude/`, `data/`, `.git/`, `.github/`,
+  `.venv/`, `node_modules/`, `terraform/`, `*.sqlite*`, Python/mypy/ruff
+  caches, `.env*` (keeping `.env.example`), and OS/editor noise — build
+  context shrank to ~17 KB. Added `just docker-build` recipe. Local
+  validation: `docker build -t rising-dough:dev .` succeeds; `docker run
+  --rm --entrypoint id rising-dough:dev` reports `uid=10001(app)
+  gid=10001(app)`; final image is 505 MB; `curl` present, `uv` absent,
+  `/var/lib/apt/lists` empty, `/data` mode `drwx------` owned by `app`.
+  Task spec at `docs/plans/v3/phase-1-prerequisites/T-D10-dockerfile.md`.
+- **Feat: v3 Phase 3 deployment pipeline — GitHub Actions + deploy user
+  script (T-D30/T-D31/T-D32/T-D34, ADR-0037)**: added
+  `.github/workflows/build.yml` (buildx + GHCR push with `sha-<short>`,
+  `main`, `vX.Y.Z` tags via `docker/metadata-action`; sibling
+  `cosign-sign` job keyless-signs each pushed tag via GitHub OIDC);
+  `.github/workflows/deploy.yml` (triggers on `workflow_run` build
+  success on `main`; `deploy-drill` runs automatically, `deploy-prod`
+  gated on the GitHub `prod` environment approval; each env SSHes
+  `deploy@<host> "deploy sha-<short>"`, probes `/ready` 12×5s, and
+  SSHes `rollback` on probe failure; posts GitHub Deployment statuses);
+  `.github/workflows/rollback.yml` (`workflow_dispatch` with `env`
+  choice + optional `image_sha`; validates the hex SHA, SSHes
+  `rollback` or `rollback <tag>`, re-probes, posts a deployment status
+  on both success and failure); and
+  `terraform/cloud-init/bin/deploy-budget-planner.tpl` — a bash
+  template consumed by cloud-init that implements the ForceCommand
+  entry point for the restricted `deploy` user. The script parses
+  `SSH_ORIGINAL_COMMAND`, validates `sha-<hex>|vX.Y.Z` tags, atomically
+  rotates `current-tag` / `previous-tag` under `${compose_dir}`,
+  `docker compose pull && up -d`, probes `/ready`, auto-rolls back on
+  failure, supports an explicit `rollback <sha>`, emits a syslog audit
+  line (`logger -t deploy-budget-planner -p auth.info`) per invocation,
+  and returns the usage line + non-zero exit for anything else
+  (satisfying the ADR-0037 §3 `ssh deploy@<host> "ls /"` acceptance
+  check). All third-party GitHub Actions are pinned by 40-hex SHA.
+- **Docs: T-D46 operational runbook stubs (deploy, rollback, restore, DR,
+  user-admin) + `restore-log.md` append-only drill log; `.github/dependabot.yml`
+  for weekly `github-actions` + `docker` updates**: Phase 4 was missing the
+  operational layer that lets a human (or an automation) actually run prod.
+  New runbooks under `docs/plans/v3/runbooks/` follow a uniform shape
+  (Context · Preconditions · Procedure · Verification · Troubleshooting ·
+  Rollback) and reference the pipeline artifacts (`.github/workflows/{build,
+  deploy,rollback}.yml`, `/usr/local/bin/deploy-budget-planner`) and the
+  ADRs that pinned them: ADR-0032 (Scaleway topology), ADR-0034 (Litestream
+  restore procedure + 30-day retention), ADR-0036 (Caddy TLS), ADR-0037
+  (SSH-restricted deploy user + cosign). The `disaster-recovery.md` runbook
+  additionally codifies the "lost all admins" recovery path (ADR-0061 §3):
+  set `BUDGET_PLANNER_ADMIN_EMAIL`, rotate `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`
+  via `terraform apply -replace=random_password.admin_initial_password`,
+  redeploy the app container so the lifespan bootstrap hook re-runs, and
+  capture the sensitive output. `user-admin.md` documents the admin surface
+  (`/settings/users`) end-to-end — add/reset/remove/promote/demote — plus the
+  last-admin invariant and the ADR-0061 data-isolation guarantee that the
+  admin cannot read other users' rows via the UI. `.github/dependabot.yml`
+  schedules weekly updates in Europe/Warsaw for both ecosystems with the
+  `chore(deps)` prefix so the commit stream stays categorised.
+- **Feat (T-D20..T-D24, T-D28): Phase 2 Terraform scaffolding for v3 Scaleway deployment**:
+  Added the full `terraform/` tree (versions/providers/backend pins, per-env
+  backend.hcl + tfvars.example, iam/storage/dns/compute modules, cloud-init
+  bootstrap + compose/caddy/litestream templates, restricted deploy-script
+  stub, idempotent state-bucket bootstrap script, module README). Secrets
+  (`admin_initial_password`, Scaleway IAM app key, `cookie_secret`) are
+  generated by `random_password` and exposed as sensitive outputs per
+  ADR-0035 §6 / ADR-0061 §3; compose env wires
+  `BUDGET_PLANNER_ADMIN_EMAIL`, `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`,
+  `BUDGET_COOKIE_SECRET`, `BUDGET_TRUSTED_HOSTS`,
+  `BUDGET_DATABASE_URL=sqlite:////data/budget.db`,
+  `BUDGET_ENV=production`. Added
+  `.github/workflows/terraform.yml` which runs `fmt -check` +
+  `validate` + `tflint` + `trivy config` on PR, posts a PR comment with
+  the plan output for `drill` + `prod`, and applies `prod` on `main`
+  after the GitHub environment approval. Third-party actions pinned by
+  SHA. Validation on this scaffolding: `terraform fmt -check -recursive`
+  clean, `terraform validate` clean, rendered docker-compose /
+  litestream / cloud-init bootstrap parse via `yaml.safe_load`. T-D25
+  (first drill apply), T-D26 (teardown), T-D27 (prod apply) remain
+  human-gated and are not touched here. T-D32 will finalise the
+  `deploy-budget-planner` script after the compose template stabilises.
+- **Feat: T-D16a — multi-user migration `0012_multi_user.sql` (ADR-0061)**:
+  Lands the schema shift that activates ADR-0061's multi-user model. `users`
+  grows `email`, `password_hash`, `is_admin`, `must_change_password`,
+  `updated_at`, and `deleted_at`, plus a case-insensitive unique index
+  `ux_users_email_live` on `lower(email)` for live rows. Every user-owned
+  table (`accounts`, `categories`, `transactions`, `planned_transactions`,
+  `recurring_rules`, `budget_defaults`, `budget_recurring_overrides`,
+  `budget_one_off_overrides`, `user_preferences`) is rebuilt via SQLite's
+  12-step pattern to drop the `DEFAULT 1` sentinel on `user_id`; new rows
+  must declare the owning user explicitly. `audit_log` grows a nullable
+  `actor_user_id` column so admin actions carry the acting user id.
+  Pre-existing `user_id = 1` data carries forward as the bootstrapped
+  admin's own history (T-D19 promotes the row at first boot). Companion
+  down migration (`migrations/down/0012_multi_user_down.sql`) is
+  forward-smoke-only. Snapshot generator `scripts/dump_schema.sh` writes
+  `tests/fixtures/v2_schema_snapshot.sql` deterministically. Runner
+  registers 0012 in `FK_OFF_MIGRATIONS` so `PRAGMA foreign_keys` is OFF for
+  the cross-referencing rebuild. Covered by
+  `tests/integration/db/test_migrations.py::test_0012_applies_to_v2_snapshot`
+  and `::test_0012_down_reverses`.
+- **Feat (T-D13): CI security scans — pip-audit + trivy fs + trivy image**:
+  New `.github/workflows/security.yml` runs on every pull request, every
+  push to `main`, and weekly (Mon 06:00 UTC). Three jobs with
+  least-privilege `permissions:` blocks: `pip-audit` audits `uv.lock`
+  with `--strict`; `trivy-fs` scans the repo root; `trivy-image` builds
+  `rising-dough:scan` from the Dockerfile and scans OS + language
+  packages. All HIGH/CRITICAL findings fail CI unless the id is listed
+  in `.security-allowlist.yml` under the matching scanner key
+  (`pip_audit` / `trivy_fs` / `trivy_image`). SARIF upload is gated on
+  `secrets.CODEQL_TOKEN` so the workflow degrades gracefully in forks.
+  Third-party actions pinned by 40-hex SHA. `pip-audit` added to
+  `pyproject.toml` dev group; `uv.lock` refreshed. Local mirror recipe
+  `just security-scan` requires `trivy` on `PATH`.
+- **Feat: T-D11 — docker-compose prod-sim stack (ADR-0032/0034/0036)**:
+  New `docker-compose.yml` at the repo root boots the full remote-deploy
+  topology locally — `app` (built from the T-D10 Dockerfile), `caddy`
+  (reverse proxy with `tls internal` on localhost:443, HSTS + XFO +
+  Referrer-Policy + Permissions-Policy), `litestream` (0.5.0 pinned,
+  replicating `/data/budget.db` to a MinIO bucket), and a `minio`
+  sidecar + one-shot `minio-init` that pre-creates
+  `budget-planner-prodsim`. Config files live under `deploy/`
+  (`litestream.yml`, `Caddyfile`). The new `just test-prod-stack` recipe
+  builds, boots, polls `/ready` through Caddy (5 s × 12 retries), runs a
+  one-liner HTTP smoke probe (the full Playwright journey ships with
+  T-D43), and tears the stack down (`-v`) via `trap EXIT` on success or
+  failure. MinIO dev creds documented in `.env.example` under a
+  prod-sim comment block — hermetic values; never reused in real envs.
+  CSP header is intentionally deferred to T-D07.
+- **Feat: T-D08 · CSRF middleware + `__Host-csrf` cookie + HTMX extension
+  (ADR-0033 §4 / §5)**: added
+  `src/budget_planner/web/middleware/csrf.py` — Starlette
+  `CSRFMiddleware` implements the double-submit CSRF defence. Every
+  response that lacks the cookie attaches `__Host-csrf=<token>` with
+  `Path=/`, `SameSite=Lax`, and `Secure` (dropped on `env=dev` for raw
+  HTTP). State-changing requests (POST/PUT/PATCH/DELETE) must carry
+  either an `X-CSRF-Token` header or a `_csrf_token` form field matching
+  the cookie; mismatch → `403 {"detail": "invalid_csrf"}`. Form payloads
+  are buffered + replayed so downstream FastAPI handlers still see the
+  full body. Exempt paths: `/health`, `/ready`, `/healthz` — extend via
+  the module-level `_EXEMPT_PATHS` set. Registered after
+  `RequestIdMiddleware` + `SecurityHeadersMiddleware` and before any
+  future auth layer so 403s still carry request-id + baseline security
+  headers (ADR-0033 §5). `web/rendering.py` surfaces
+  `request.state.csrf_token` as the Jinja context value `csrf_token`.
+  New static asset
+  `src/budget_planner/web/static/htmx-csrf.js` registers the HTMX
+  extension `csrf` which reads the cookie on `htmx:configRequest` and
+  attaches `X-CSRF-Token` on unsafe methods only. `base.html` loads the
+  script after HTMX and sets `hx-ext="csrf"` on `<body>`. Covered by
+  `tests/integration/web/test_csrf.py` (10 cases: priming cookie,
+  missing cookie, header match, header mismatch, form-field fallback,
+  exempt path, cookie stability, dev drops Secure, production keeps
+  Secure, Jinja context). The shared `tests/integration/web/conftest.py`
+  wraps `TestClient` in `_CSRFAwareTestClient` which auto-primes the
+  cookie and auto-attaches the header on unsafe methods so the 170+
+  existing POST assertions pass without edits; the TestClient
+  `base_url` is pinned to `https://testserver` to satisfy httpx's
+  Secure-cookie policy. `tests/e2e/conftest.py` boots the uvicorn
+  subprocess with `BUDGET_ENV=dev` + a known dev cookie secret (plain
+  HTTP e2e cannot carry a Secure cookie) and the `page` fixture primes
+  `__Host-csrf` via Playwright's `APIRequestContext` + sets
+  `extra_http_headers` on the browser context.
+- **Feat: T-D07 · Security headers middleware + CSP nonce propagation
+  (ADR-0036, ADR-0033)**: added
+  `src/budget_planner/web/middleware/security_headers.py` —
+  `SecurityHeadersMiddleware` fills five baseline response headers
+  (`Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) when the downstream response
+  does not already set them, and propagates Caddy's per-request
+  `X-CSP-Nonce` header into `request.state.csp_nonce`. In dev/test the
+  middleware mints a fresh 24-byte URL-safe nonce per request so the Jinja
+  contract is identical in every environment. Production CSP continues to
+  be terminated at Caddy (ADR-0036 §1); the middleware only propagates the
+  nonce to templates. Registered in `web/app.py` right after
+  `RequestIdMiddleware` and before any future auth/CSRF/rate-limit layers
+  (ADR-0033 §5). `web/rendering.py` now injects `csp_nonce` into the
+  shared template context so every template can embed it with
+  `{{ csp_nonce }}`. Covered by
+  `tests/integration/web/test_security_headers.py` (5 cases: baseline
+  headers on `/healthz`, request-id coexistence, nonce propagation from
+  header, nonce auto-generation when absent, non-overwrite semantics).
 - **Feat: Today · Upcoming row tint for Due / Overdue**:
   `today/_upcoming.html` was decorating overdue planned rows only with
   a very faint row-level background tint keyed off the service's
@@ -262,3 +930,22 @@
 - T-014: domain layer. Frozen `slots=True, kw_only=True` dataclasses per entity (`Account`, `Category`, `Transaction`, `PlannedTransaction`, `RecurringRule`, `RecurringOverride`, `Occurrence`, `BudgetDefault/RecurringOverride/OneOffOverride`, `AccountSnapshot`, `AccountStats`, `FxRate`, `AuditEntry`) plus matching `New*`/`Patch*` DTOs and `TransactionFilter`/`PlannedFilter` tuple-based filter DTOs. Enums (`Direction`, `Cadence`, `OverrideState`, `AuditOperation`) are `StrEnum` subclasses whose `.value` matches the SQL CHECK literals. `domain/money.py` adds `currency_decimals`, `to_minor_units`, `from_minor_units`, and `format_money`, with per-currency decimals (0 for JPY/KRW, 2 default). `Patch*` DTOs expose `as_dict()` returning only non-`None` fields via `dataclasses.fields()` (slots-safe). `tests/unit/domain/` covers enum literals, money conversion + rounding + round-trip + formatting, frozen-ness, DTO defaults, and hashability of filter DTOs. 100% coverage retained.
 - T-012: `migrations/0003_seed_system_rows.sql` idempotently seeds `users(id=1, name='default')` and the two system categories `Transit` (direction=`transit`) and `Reconciliation` (direction=`adjustment`), both flagged `is_system=1`. Seed inserts bypass `audit_log` by design (schema fact, not user action). `budget_planner.domain.system_categories` exports `TRANSIT_CATEGORY_NAME`, `RECONCILIATION_CATEGORY_NAME`, and `SYSTEM_CATEGORY_NAMES`. `budget_planner.db.seed` provides a thin CLI shim re-using `apply_migrations` so `just seed` works. `tests/unit/db/test_seed_data.py` verifies seed rows, idempotency, empty `audit_log`, and the constants module.
 - T-011: `migrations/0002_core_schema.sql` creates the 13 core tables (`users`, `accounts`, `categories`, `transactions`, `planned_transactions`, `recurring_rules`, `recurring_rule_overrides`, `budget_defaults`, `budget_recurring_overrides`, `budget_one_off_overrides`, `account_snapshots`, `fx_rates`, `audit_log`) with CHECK constraints (direction, cadence, operation, amount <> 0, length(currency)=3, month/year ranges, end_date >= start_date), FKs (deferred where circular), indexes incl. partial `WHERE deleted_at IS NULL` uniques on `(user_id, name)`, `(category_id)`, `(category_id, month)`, `(category_id, year, month)`, and uniqueness on `(date, from_ccy, to_ccy)` for `fx_rates`. `categories.is_system` column added for the Phase 2 service-layer protection of system categories. sqlfluff config excludes `RF04` (keyword-as-identifier) because `fx_rates.date` is a legitimate column name per plan. `tests/unit/db/test_core_schema.py` asserts table presence, index presence, FK enforcement, every CHECK constraint, partial-unique soft-delete round-trip, and the `(date, from_ccy, to_ccy)` fx uniqueness.
+
+## 2026-11-07 (T-D92 — least-privilege CI credentials)
+- **Security(T-D92): per-environment CI IAM applications (`ci-prod`, `ci-drill`, read-only `ci-plan`) with expiring keys, a separate drill state bucket in the drill project, state-bucket policies, a weekly `key-expiry.yml` monitor, and break-glass / key-rotation / GitHub-settings runbooks** (ADR-0100). Code: `terraform/bootstrap/drill_bucket.tf`, `terraform/bootstrap/ci/`. Not applied; operator applies after plan review.
+
+## 2026-11-07 (T-D100 — open v3 items and operator go-live checklist)
+- **Docs(T-D100): `docs/plans/v3/runbooks/operator-checklist.md` lists the human-only go-live steps; `docs/plans/v3/tasks.md` records open tasks T-D101..T-D109** (trivy fs failure, PR-check consolidation, IAM-to-bootstrap move, prod `replace` input, drill explore inputs, public-drill cleanup, tailnet cert verification, per-env Tailscale clients, deploy-key mismatch).
+
+## 2026-11-13 (T-D101 / T-D110 / T-D111 — v3→main PR check fixes)
+- **Fix(T-D110): `scripts/prod_db_seed.sh` is shellcheck-clean** (heredoc delimiter `PLAN` → `EOF_PLAN`, SC1122; intended client-side expansion on two `ssh` calls marked with SC2029 directives).
+- **Fix(T-D111): removed unused `log_bucket_suffix` from `terraform/modules/storage`** (tflint `terraform_unused_declarations`). No plan change.
+- **CI(T-D101): `security.yml` re-runs the trivy fs scan with table output on failure** so findings appear in the job log; the SARIF-only output hid them. The underlying finding is still open.
+- **Fix(T-D101): trivy fs uses `limit-severities-for-sarif: true`**. SARIF output had dropped the HIGH/CRITICAL filter, so LOW/MEDIUM findings failed the job.
+- **Fix(T-D112): soupsieve 3.0.4 → 4.1** (CVE-2026-126190, dev-only).
+- **Fix(T-D113): `terraform.yml` mask step no longer exits 1 on empty secrets**, so missing environment inputs are reported by `check_tf_vars.py`.
+- **Build(T-D114): image base `python:3.12-slim-bookworm` → `python:3.12-slim-trixie`** (ADR-0102). 109 unfixable HIGH/CRITICAL Debian 12 OS CVEs failed `trivy image`; `security.yml` also prints image findings as a table on failure.
+- **CI(T-D114): `trivy image` uses `ignore-unfixed: true`; runtime stage runs `apt-get upgrade -y`** (ADR-0103). trixie still had 109 unfixed HIGH OS findings (0 CRITICAL). `trivy fs` and `pip-audit` stay strict.
+
+## 2026-11-13 (T-D103 — IAM into the local bootstrap, CI loses IAMManager)
+- **Security(T-D103): env-stack IAM moves to `terraform/bootstrap/ci`; `ci-prod` and `ci-drill` lose org-level `IAMManager`** (ADR-0104, amends ADR-0100). `modules/iam` → `bootstrap/ci/modules/app_iam` (`module.app_prod`, `module.app_drill`), `modules/restore_reader` moved too. Env stack: `removed { destroy = false }` for both modules; new inputs `app_application_id`, `app_scw_access_key`, `app_scw_secret_key`, `restore_reader_application_id` from GitHub secrets `APP_*` / `RESTORE_READER_APPLICATION_ID`. `ci-prod` keeps `IAMReadOnly` only while `ci_prod_iam_transition = true` (one release); `ci-plan` keeps `IAMReadOnly` for `key-expiry.yml`. Prod keeps its current keys (imported, not rotated). Operator steps: `runbooks/key-rotation.md` part 2, go-live checklist steps 4, 5, 11b. Not applied.

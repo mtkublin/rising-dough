@@ -4,6 +4,7 @@
 - **Date**: 2026-10-28
 - **Supersedes**: [ADR-0045](0045-recurring-formula-amount.md) §Decision (shape of `amount_formula`). ADR-0045's §Context, §Rounding, and the ADR-0046 soft-consume contract remain in force.
 - **Composes with**: [ADR-0046](0046-recurring-override-soft-consume.md).
+- **Clarified by**: [ADR-0086](0086-formula-source-overrides-honoured-in-chains.md) (formula sources honour per-occurrence overrides).
 
 ## Context
 

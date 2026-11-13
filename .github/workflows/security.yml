@@ -1,0 +1,232 @@
+name: Security
+
+# T-D13 — CI security scans:
+#   1. pip-audit over uv.lock         (Python deps)
+#   2. trivy-fs over the repo root    (lockfiles, embedded binaries, misconfig)
+#   3. trivy-image over the built app (OS + lang vulns in the Dockerfile artefact)
+#
+# All three fail CI on HIGH/CRITICAL findings unless the id is present in
+# .security-allowlist.yml under the matching scanner list.
+#
+# Third-party actions are pinned by 40-hex SHA; bump quarterly alongside
+# the pre-commit stack.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 06:00 UTC — catches newly disclosed CVEs against
+    # dependencies that were quiet when the PR landed.
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. pip-audit — Python dependencies via uv.lock
+  # ---------------------------------------------------------------------------
+  pip-audit:
+    name: pip-audit (uv.lock)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dev dependencies (frozen)
+        run: uv sync --frozen --group dev
+
+      - name: Build pip-audit ignore args from .security-allowlist.yml
+        id: allowlist
+        run: |
+          uv run python - <<'PY' >> "$GITHUB_OUTPUT"
+          import pathlib
+          import yaml
+          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
+          entries = data.get("pip_audit") or []
+          args = " ".join(f"--ignore-vuln {e['cve']}" for e in entries if e.get("cve"))
+          print(f"ignore_args={args}")
+          PY
+
+      - name: Export locked requirements
+        # The project itself is an editable local package that pip-audit cannot
+        # resolve on PyPI ("Dependency not found on PyPI"), so audit the
+        # hash-pinned export of uv.lock instead of the live environment.
+        run: uv export --frozen --no-emit-project --group dev -o requirements-audit.txt
+
+      - name: Run pip-audit
+        run: |
+          # --strict exits non-zero on any finding; allowlist entries become
+          # --ignore-vuln args so matching CVEs are skipped with justification.
+          uv run pip-audit --strict --disable-pip -r requirements-audit.txt ${{ steps.allowlist.outputs.ignore_args }}
+
+  # ---------------------------------------------------------------------------
+  # 2. trivy-fs — filesystem scan of the repo
+  # ---------------------------------------------------------------------------
+  trivy-fs:
+    name: trivy fs (repo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
+
+      - name: Materialize .trivyignore from .security-allowlist.yml
+        run: |
+          uv run --no-project --with pyyaml python - <<'PY'
+          import pathlib, yaml
+          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
+          entries = data.get("trivy_fs") or []
+          lines = []
+          for e in entries:
+              cve = e.get("cve")
+              reason = e.get("reason", "")
+              expires = e.get("expires", "")
+              if not cve:
+                  continue
+              lines.append(f"# {reason} (expires {expires})")
+              lines.append(cve)
+          pathlib.Path(".trivyignore").write_text("\n".join(lines) + ("\n" if lines else ""))
+          print(f".trivyignore entries: {len(entries)}")
+          PY
+
+      - name: Trivy fs scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: false
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-fs.sarif
+          # T-D101: without this, SARIF output ignores `severity` and LOW/MEDIUM fail the job.
+          limit-severities-for-sarif: true
+
+      # T-D101: SARIF goes to a file, so a failing scan prints no findings.
+      # Re-run with table output to put them in the job log.
+      - name: Trivy fs findings (table)
+        if: failure()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: false
+          trivyignores: .trivyignore
+          format: table
+          skip-setup-trivy: true
+
+      - name: Upload SARIF (fs)
+        if: ${{ always() && env.CODEQL_TOKEN != '' }}
+        env:
+          CODEQL_TOKEN: ${{ secrets.CODEQL_TOKEN }}
+        uses: github/codeql-action/upload-sarif@9887d98ae49f1f598651b556d8c8f02f3ea065cb  # v3.27.0
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  # ---------------------------------------------------------------------------
+  # 3. trivy-image — scan the built Dockerfile artefact (OS + lang vulns)
+  # ---------------------------------------------------------------------------
+  trivy-image:
+    name: trivy image (rising-dough:scan)
+    runs-on: ubuntu-latest
+    needs: trivy-fs
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349  # v3.7.1
+
+      - name: Build image (local tag only, no push)
+        run: |
+          docker build --load -t rising-dough:scan -f Dockerfile .
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
+
+      - name: Materialize .trivyignore from .security-allowlist.yml
+        run: |
+          uv run --no-project --with pyyaml python - <<'PY'
+          import pathlib, yaml
+          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
+          entries = data.get("trivy_image") or []
+          lines = []
+          for e in entries:
+              cve = e.get("cve")
+              reason = e.get("reason", "")
+              expires = e.get("expires", "")
+              if not cve:
+                  continue
+              lines.append(f"# {reason} (expires {expires})")
+              lines.append(cve)
+          pathlib.Path(".trivyignore").write_text("\n".join(lines) + ("\n" if lines else ""))
+          print(f".trivyignore entries: {len(entries)}")
+          PY
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: image
+          image-ref: rising-dough:scan
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true  # ADR-0103: fail only on fixable OS/library CVEs
+          vuln-type: os,library
+          trivyignores: .trivyignore
+          format: sarif
+          output: trivy-image.sarif
+          # T-D101: same SARIF severity filter as trivy fs.
+          limit-severities-for-sarif: true
+
+      # T-D114: print image findings to the job log (SARIF goes to a file).
+      - name: Trivy image findings (table)
+        if: failure()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: image
+          image-ref: rising-dough:scan
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: true  # ADR-0103: fail only on fixable OS/library CVEs
+          vuln-type: os,library
+          trivyignores: .trivyignore
+          format: table
+          skip-setup-trivy: true
+
+      - name: Upload SARIF (image)
+        if: ${{ always() && env.CODEQL_TOKEN != '' }}
+        env:
+          CODEQL_TOKEN: ${{ secrets.CODEQL_TOKEN }}
+        uses: github/codeql-action/upload-sarif@9887d98ae49f1f598651b556d8c8f02f3ea065cb  # v3.27.0
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image

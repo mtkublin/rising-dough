@@ -24,7 +24,7 @@
                         HTTPS (443) only
                                │
 ┌──────────────────────────────▼──────────────────────────────┐
-│  Scaleway Stardust1-S  (Ubuntu 24.04, pl-waw-1, Warsaw)      │
+│  Scaleway Stardust1-S  (Ubuntu 24.04, pl-waw-2, Warsaw)      │
 │                                                              │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  docker compose stack                                    │ │
@@ -85,11 +85,11 @@ Entry: Phase 1 exit criteria met. Operator has a Scaleway account with a project
 Order within phase:
 1. Bootstrap state bucket (one-shot `scw object bucket create`).
 2. `terraform/providers.tf` + `versions.tf` + `backend.tf`.
-3. `modules/iam` + `modules/storage` (bucket + IAM app + policy + key).
+3. `modules/iam` + `modules/storage` (bucket + IAM app + policy + key). (`modules/iam` moved to `bootstrap/ci` in T-D103, ADR-0104.)
 4. `modules/dns` (zone + records).
 5. `modules/compute` (instance + flex IP + security group + cloud-init render).
 6. Cloud-init templates (`bootstrap.yaml.tpl`, `docker-compose.yml.tpl`, `Caddyfile.tpl`, `litestream.yml.tpl`) — compose env now carries `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` (ADR-0061 §3).
-7. `envs/drill/` wiring + first `terraform apply -var-file=envs/drill/terraform.tfvars` — operator supplies `admin_email` input variable; Terraform generates `admin_initial_password` via `random_password` and surfaces it as a sensitive output.
+7. `envs/drill/` wiring + first drill apply (originally a local `terraform apply`; now via `drill.yml`, ADR-0099) — operator supplies `admin_email` input variable; Terraform generates `admin_initial_password` via `random_password` and surfaces it as a sensitive output.
 
 Exit criteria:
 - `terraform plan` emits zero changes after a clean apply.
@@ -134,6 +134,20 @@ Exit criteria (per task; a dated runbook entry for each):
   - `docs/plans/v3/runbooks/user-admin.md` (add user / reset password / remove user / promote-admin / last-admin invariant — ADR-0061)
 - **Production go-live** — swap DNS from the drill hostname to the prod hostname; monitor for 48 h; declare live by appending a `## 20YY-MM-DD` entry to `docs/CHANGELOG.md`.
 
+### Phase 5 — Data-protection quick wins (T-D54..T-D61, added 2026-11-04)
+
+Goal: close the cross-user leaks and unbounded copies found in the 2026-11-04 data-protection review, without key management (ADR-0078). Down-payment on v4 (`docs/plans/v4/`).
+
+Entry: Phase 1 complete (app tasks); T-D56/T-D57 need Phase 2 modules (T-D21, T-D23) and the drill restore helper (T-D41a).
+
+Exit criteria:
+- Admin's `/debug/audit-tail` shows no other user's payloads (T-D54).
+- Authenticated responses `no-store`; back-after-logout shows no data (T-D55).
+- Litestream replica age-encrypted; one restore drill against it logged (T-D56).
+- Every copy of user data ≤ 37 days old (T-D57); `secure_delete` on (T-D58).
+- Sentinel test proves no user values in app or Caddy logs (T-D59); IP/UA purged after 90 d (T-D60).
+- `runbooks/data-inventory.md` committed and reviewed by the operator (T-D61).
+
 ---
 
 ## Rollout order and dependencies (compressed)
@@ -160,6 +174,7 @@ Phase 1  (parallel-safe within unless marked [S]):
    T-D17  [S] user admin panel (/settings/users)   — depends on T-D02 + T-D16
    T-D18  [P] password change (/settings/password) — depends on T-D02
    T-D19  [S] admin bootstrap on startup           — depends on T-D02 + T-D16a
+   T-D53  [S] session hardening (ADR-0076)         — depends on T-D02, T-D09, T-D18; before T-D27
             │
             ▼
 Phase 2  (sequential within):
@@ -169,12 +184,19 @@ Phase 2  (sequential within):
             │
             ▼
 Phase 3:
-   build.yml → deploy.yml (drill) → rollback.yml → promote prod env approval
+   drill.yml (pre-merge gate) → release.yml (prod, from main) → rollback.yml → prod env approval
             │
             ▼
 Phase 4:
    restore drill → security scan → smoke (now exercises admin + second user) →
    monitoring → runbooks (now include user-admin.md) → go-live
+            │
+            ▼
+Phase 5  (app items parallel; infra items after Phase 2):
+   T-D54 audit-tail scoping · T-D55 no-store · T-D58 secure_delete ·
+   T-D59 log hygiene · T-D60 IP/UA purge  [P]
+   T-D56 age-encrypted replica → T-D57 37-day ceiling  [S]
+   T-D61 data inventory (last)
 ```
 
 ---
@@ -193,10 +215,16 @@ The flat index in `tasks.md` is the quick-reference view; detail lives in the ta
 
 ---
 
+## Release policy
+
+Governed by [ADR-0099](../../adr/0099-release-and-environment-policy.md): prod is released only by GitHub Actions from `main` (`release.yml`: ci -> build -> terraform apply prod -> deploy prod -> smoke); drill deploys run through one reusable drill pipeline (`*-deploy` push, dispatch with TTL, pre-merge PR gate); the only exceptions are the 2026-11-07 initial bring-up, the bootstrap stack, a logged break-glass runbook and the one-time prod DB seed. Pipelines landed with T-D89 / T-D90; the `deploy.yml` `workflow_run` flow described in earlier phases is superseded (see the superseded notes on the phase-2, phase-3 and phase-4 task specs).
+
+---
+
 ## Guardrails
 
 - **Do not** touch `src/budget_planner/` business logic in Phase 1 beyond what the task files prescribe. If a task would require it, stop and add an ADR.
-- **Do not** run `terraform apply` outside of CI except for the explicit bootstrap step in `terraform/README.md`.
+- **Do not** run `terraform apply` outside of CI except for the exceptions listed in ADR-0099 (initial bring-up, bootstrap stack, break-glass, prod DB seed).
 - **Do not** share secrets through chat, PR descriptions, or commit messages. Secrets flow Terraform → cloud-init → disk only.
 - **Do** write a dated line in `docs/CHANGELOG.md` after each merged task, prefixed with the task id.
 - **Do** mark the task line in `docs/plans/v3/tasks.md` with `✅` on completion.

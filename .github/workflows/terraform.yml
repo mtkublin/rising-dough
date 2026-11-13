@@ -1,0 +1,376 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [main, v3]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  # ADR-0099: apply is reachable only via workflow_call (release.yml for prod;
+  # the pre-merge drill validation workflow for drill). No push trigger.
+  workflow_call:
+    inputs:
+      env:
+        description: Target environment (drill | prod). prod requires ref main.
+        type: string
+        required: true
+      image_tag:
+        description: Image tag passed as -var app_image_tag (sha-<short>)
+        type: string
+        required: true
+      replace:
+        description: Space-separated resource addresses for -replace (optional)
+        type: string
+        required: false
+        default: ""
+      destroy:
+        description: Run a destroy plan/apply (-destroy)
+        type: boolean
+        required: false
+        default: false
+      drill_expires_at:
+        description: Drill only (T-D90) - RFC3339 UTC expiry recorded as the server tag expires-at=<value> (read by the sweeper). Ignored for prod.
+        type: string
+        required: false
+        default: ""
+      boot_log_upload:
+        description: Drill only (T-D90, ADR-0094) - upload boot diagnostics to the drill bucket. Ignored for prod.
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  fmt-validate:
+    name: fmt + validate + lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform init + validate (bootstrap stack, no backend)
+        working-directory: terraform/bootstrap
+        run: terraform init -backend=false && terraform validate
+
+      # T-D77: offline render of the real user-data path (mock providers,
+      # dummy values, no credentials) + cloud-init schema validation.
+      - name: terraform test (mocked providers)
+        run: terraform test
+
+      - name: Install cloud-init
+        run: |
+          if ! command -v cloud-init >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y cloud-init
+          fi
+          cloud-init --version
+
+      - name: Render user-data + cloud-init schema
+        run: python3 tests/render/render_check.py --require-schema
+
+      - name: Set up tflint
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        with:
+          tflint_version: v0.53.0
+
+      - name: tflint --recursive
+        run: tflint --recursive --init && tflint --recursive
+
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: terraform
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+  plan:
+    name: plan (${{ matrix.env }})
+    needs: fmt-validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [drill, prod]
+    # ADR-0093 / ADR-0101: `prod` and `drill` have required reviewers, which
+    # would gate every PR plan. Both legs read ungated plan environments
+    # (`prod-plan`, `drill-plan`: same secret names, per-env values) instead.
+    environment: ${{ matrix.env == 'prod' && 'prod-plan' || 'drill-plan' }}
+    defaults:
+      run:
+        working-directory: terraform
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D70 / ADR-0093: every Terraform input is TF_VAR_* from secrets
+      # (environment-scoped, same names per env); no tfvars file in CI.
+      TF_VAR_env: ${{ matrix.env }}
+      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
+      TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
+      TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
+      TF_VAR_github_owner: ${{ github.repository_owner }}
+      TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
+      TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
+      # Optional inputs; fall back to the variables.tf defaults when unset.
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
+      TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
+      # T-D97 / ADR-0101: tailnet MagicDNS suffix (environment variable, not a secret); drill only.
+      TF_VAR_tailnet_dns_name: ${{ matrix.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}
+      TF_VAR_scw_access_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
+      TF_VAR_scw_secret_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
+      # T-D103 / ADR-0104: IAM identities from terraform/bootstrap/ci (per-env values).
+      TF_VAR_app_application_id: ${{ secrets.APP_APPLICATION_ID }}
+      TF_VAR_app_scw_access_key: ${{ secrets.APP_SCW_ACCESS_KEY }}
+      TF_VAR_app_scw_secret_key: ${{ secrets.APP_SCW_SECRET_KEY }}
+      TF_VAR_restore_reader_application_id: ${{ matrix.env == 'prod' && secrets.RESTORE_READER_APPLICATION_ID || '' }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: Mask secret inputs (T-D83)
+        run: |
+          # GitHub secrets are masked already; this also covers each line of
+          # multi-line values. Secrets minted inside Terraform (Tailscale key,
+          # IAM keys) are only caught by scripts/mask_plan.py patterns.
+          for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret TF_VAR_app_scw_secret_key SCW_SECRET_KEY; do
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then echo "::add-mask::$line"; fi
+            done <<< "${!v:-}"
+          done
+
+      - name: Check required Terraform inputs
+        run: python3 scripts/check_tf_vars.py
+
+      - name: terraform init (${{ matrix.env }})
+        run: terraform init -input=false -backend-config=envs/${{ matrix.env }}/backend.hcl -reconfigure
+
+      - name: terraform plan (${{ matrix.env }})
+        id: plan
+        run: |
+          # T-D83 / ADR-0098: never print raw plan output (cloud_init embeds
+          # secrets and Terraform may show the prior state value unmasked).
+          set -o pipefail
+          terraform plan -no-color -input=false -lock=false -out=plan.bin | python3 scripts/mask_plan.py | tee plan.out
+          terraform show -no-color plan.bin | python3 scripts/mask_plan.py > plan.txt
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: tfplan-${{ matrix.env }}
+          # plan.bin is not uploaded: the binary plan embeds raw config and
+          # state values, including the rendered user-data (T-D83).
+          path: terraform/plan.txt
+          retention-days: 7
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          ENV_NAME: ${{ matrix.env }}
+        with:
+          script: |
+            const fs = require('fs');
+            const envName = process.env.ENV_NAME;
+            const planText = fs.readFileSync('terraform/plan.txt', 'utf8');
+            const truncated = planText.length > 60000 ? planText.slice(0, 60000) + '\n... (truncated) ...' : planText;
+            const body = [
+              `### Terraform plan — \`${envName}\``,
+              '',
+              '```hcl',
+              truncated,
+              '```',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const marker = `### Terraform plan — \`${envName}\``;
+            const existing = comments.find(c => c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  apply:
+    name: apply (${{ inputs.env }})
+    needs: fmt-validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # ADR-0099 / ADR-0101: `prod` and `drill` have required reviewers (approval
+    # gate before apply). A drill destroy must never wait for approval (sweeper
+    # cron, drill-destroy, end-of-pipeline teardown), so it runs in the ungated
+    # `drill-teardown` environment, which holds the same drill secrets/vars.
+    # Prod destroy keeps the gated `prod` environment.
+    environment:
+      name: ${{ (inputs.destroy && inputs.env == 'drill') && 'drill-teardown' || inputs.env }}
+    defaults:
+      run:
+        working-directory: terraform
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      # T-D70 / ADR-0093: every Terraform input is TF_VAR_* from secrets
+      # (environment-scoped, same names per env); no tfvars file in CI.
+      TF_VAR_env: ${{ inputs.env }}
+      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
+      TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
+      TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
+      TF_VAR_github_owner: ${{ github.repository_owner }}
+      TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      TF_VAR_github_deploy_pubkey: ${{ secrets.GITHUB_DEPLOY_PUBKEY }}
+      TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
+      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
+      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
+      # Optional inputs; fall back to the variables.tf defaults when unset.
+      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
+      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
+      TF_VAR_bucket_readonly_principals: ${{ secrets.BUCKET_READONLY_PRINCIPALS || '[]' }}
+      # T-D97 / ADR-0101: tailnet MagicDNS suffix (environment variable, not a secret); drill only.
+      TF_VAR_tailnet_dns_name: ${{ inputs.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}
+      TF_VAR_scw_access_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
+      TF_VAR_scw_secret_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
+      # T-D103 / ADR-0104: IAM identities from terraform/bootstrap/ci (per-env values).
+      TF_VAR_app_application_id: ${{ secrets.APP_APPLICATION_ID }}
+      TF_VAR_app_scw_access_key: ${{ secrets.APP_SCW_ACCESS_KEY }}
+      TF_VAR_app_scw_secret_key: ${{ secrets.APP_SCW_SECRET_KEY }}
+      TF_VAR_restore_reader_application_id: ${{ inputs.env == 'prod' && secrets.RESTORE_READER_APPLICATION_ID || '' }}
+      # T-D67 / ADR-0094: Tailscale provider (auth key minting).
+      TARGET_ENV: ${{ inputs.env }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      TF_REPLACE: ${{ inputs.replace }}
+      TF_DESTROY: ${{ inputs.destroy }}
+      # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
+      TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
+      TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
+      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: Guard env / ref / image tag (ADR-0099)
+        run: |
+          set -euo pipefail
+          case "${TARGET_ENV}" in
+            drill) ;;
+            prod)
+              if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+                echo "::error::prod apply runs only from main (got ${GITHUB_REF})" >&2
+                exit 1
+              fi ;;
+            *) echo "::error::env must be drill or prod" >&2; exit 1 ;;
+          esac
+          if ! [[ "${IMAGE_TAG}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::invalid image_tag '${IMAGE_TAG}'" >&2
+            exit 1
+          fi
+
+      - name: Mask secret inputs (T-D83)
+        run: |
+          # GitHub secrets are masked already; this also covers each line of
+          # multi-line values. Secrets minted inside Terraform (Tailscale key,
+          # IAM keys) are only caught by scripts/mask_plan.py patterns.
+          for v in TF_VAR_ghcr_pull_pat TF_VAR_litestream_age_identity TF_VAR_tailscale_oauth_client_secret TF_VAR_app_scw_secret_key SCW_SECRET_KEY; do
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then echo "::add-mask::$line"; fi
+            done <<< "${!v:-}"
+          done
+
+      - name: Check required Terraform inputs
+        run: python3 scripts/check_tf_vars.py
+
+      - name: terraform init (${{ inputs.env }})
+        run: terraform init -input=false -backend-config=envs/${{ inputs.env }}/backend.hcl -reconfigure
+
+      # T-D83 / ADR-0098: plan output is always piped through mask_plan.py and
+      # plan.bin is never uploaded (it embeds raw config/state values).
+      - name: terraform plan (${{ inputs.env }})
+        run: |
+          set -euo pipefail
+          args=(-no-color -out=plan.bin -var "app_image_tag=${IMAGE_TAG}")
+          if [ "${TF_DESTROY}" = "true" ]; then args+=(-destroy); fi
+          for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
+          terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
+
+      - name: terraform apply (${{ inputs.env }})
+        run: |
+          set -o pipefail
+          terraform apply -no-color -input=false plan.bin | python3 scripts/mask_plan.py

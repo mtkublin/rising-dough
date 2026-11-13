@@ -33,17 +33,18 @@ class CategoryHasLiveRulesError(RuntimeError):
     """Raised in block-mode when live recurring rules reference the category."""
 
 
-def _live_rule_refs(conn: sqlite3.Connection, category_id: int) -> int:
+def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
     """Count active recurring rules whose category is ``category_id``."""
     return sum(
         1
-        for rule in recurring_repo.list_rules(conn, active_only=True)
+        for rule in recurring_repo.list_rules(conn, user_id, active_only=True)
         if rule.category_id == category_id
     )
 
 
 def archive(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     *,
     block_on_live_rules: bool = False,
@@ -56,12 +57,12 @@ def archive(
     stays queryable via ``include_deleted=True`` so overrides and
     historical transactions keep rendering.
     """
-    cat = categories_repo.find_by_id(conn, category_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         raise CategoryNotFoundError(category_id)
     if cat.is_system:
         raise SystemCategoryError(category_id)
-    refs = _live_rule_refs(conn, category_id)
+    refs = _live_rule_refs(conn, user_id, category_id)
     if refs > 0:
         if block_on_live_rules:
             raise CategoryHasLiveRulesError(
@@ -72,25 +73,20 @@ def archive(
             category_id,
             refs,
         )
-    categories_repo.soft_delete(conn, category_id)
-    archived = categories_repo.find_by_id(conn, category_id, include_deleted=True)
+    categories_repo.soft_delete(conn, user_id, category_id)
+    archived = categories_repo.find_by_id(conn, user_id, category_id, include_deleted=True)
     assert archived is not None
     return archived
 
 
-def restore(conn: sqlite3.Connection, category_id: int) -> Category:
-    """Clear ``deleted_at`` on a soft-deleted category.
-
-    Raises :class:`CategoryNotFoundError` on a missing id OR on a category
-    that is not currently archived — the latter signals a stale UI
-    (double-POST of restore). Returns the hydrated :class:`Category`.
-    """
-    cat = categories_repo.find_by_id(conn, category_id, include_deleted=True)
+def restore(conn: sqlite3.Connection, user_id: int, category_id: int) -> Category:
+    """Clear ``deleted_at`` on a soft-deleted category."""
+    cat = categories_repo.find_by_id(conn, user_id, category_id, include_deleted=True)
     if cat is None:
         raise CategoryNotFoundError(category_id)
     if cat.deleted_at is None:
         raise CategoryNotFoundError(category_id)
-    return categories_repo.undelete(conn, category_id)
+    return categories_repo.undelete(conn, user_id, category_id)
 
 
 __all__ = [

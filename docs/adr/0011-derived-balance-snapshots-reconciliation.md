@@ -44,3 +44,7 @@ The adjustment is excluded from income/expense statistics (same mechanism as tra
 - **Stored balance updated per txn**: fast reads but reconciliation nightmare on edits/deletes.
 - **Stored month-end snapshots**: premature optimisation; add if slow.
 - **Silent reconciliation (no adjustment txn)**: hides the correction; the sum of inflows + outflows would no longer match the balance.
+
+## Amendment (T-D52)
+
+For liability accounts that have a `credit_limit_minor`, the reconcile dialog takes the user-observed **available** credit (what the bank app shows). The service converts it to the target derived balance: `used = credit_limit - available`, `target = -used` (liabilities store owed amounts as negative balances). The existing flow then applies unchanged: `delta = target - derived`, a signed `adjustment` transaction (ADR-0008 exception). `available` must satisfy `0 <= available <= credit_limit`; values outside are rejected (422) because a positive (overpaid) balance would be displayed with available clamped to the limit. Liabilities without a limit and asset accounts continue to enter the balance directly. Conversion is a pure function `available_to_target_balance` in `services/reconciliation.py`.

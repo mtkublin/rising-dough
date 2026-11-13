@@ -12,10 +12,12 @@
 
 - [`implementation_plan.md`](implementation_plan.md) — phased delivery with acceptance gates.
 - [`tasks.md`](tasks.md) — flat task index (T-D01…T-D46), referenced from the phase docs.
+- [`operator-checklist.md`](operator-checklist.md) — human-only actions (accounts, credentials, real-device checks, operator decisions) that run in parallel with agent work.
 - [`phase-1-prerequisites/`](phase-1-prerequisites/) — individual task files for app-side prerequisites.
 - [`phase-2-infrastructure/`](phase-2-infrastructure/) — Terraform + cloud-init bootstrap tasks.
 - [`phase-3-deployment/`](phase-3-deployment/) — GitHub Actions pipeline tasks.
 - [`phase-4-validation/`](phase-4-validation/) — smoke, backup drill, security scan, runbooks.
+- [`phase-5-data-protection/`](phase-5-data-protection/) — data-protection quick wins (ADR-0078); full design in [`../v4/`](../v4/README.md).
 - [`runbooks/`](runbooks/) — operational procedures created in Phase 4.
 
 ---
@@ -25,9 +27,10 @@
 | Phase | What | Gate |
 |---|---|---|
 | 1 — Prerequisites | App-side changes (auth, config, SQLite PRAGMAs, Docker, security headers) | Local docker-compose smoke green; new tests at ≥ 90% coverage |
-| 2 — Infrastructure | Terraform modules + cloud-init bootstrap; apply to `drill` env | `terraform apply` succeeds; `/health` reachable via public DNS on drill |
-| 3 — Deployment | Build + deploy workflows; cosign; rollback script | Push to `main` lands a signed image on `drill`; manual rollback restores previous SHA |
+| 2 — Infrastructure | Terraform modules + cloud-init bootstrap; apply to `drill` env | drill pipeline apply succeeds (`drill.yml`); `/health` reachable via public DNS on drill |
+| 3 — Deployment | Build + deploy workflows; cosign; rollback script | Pre-merge drill gate green; push to `main` runs `release.yml` (signed image, prod apply and deploy after approval); manual rollback (`rollback.yml`) restores previous SHA |
 | 4 — Validation | Backup drill; security scan; smoke; monitoring; runbooks | Monthly drill automated; Mozilla Observatory A+; UptimeRobot wired; production acceptance |
+| 5 — Data protection | Audit-tail scoping, no-store, age-encrypted replica, 37-day copy ceiling, secure_delete, log hygiene, IP/UA retention, data inventory | ADR-0078 exit criteria; restore drill against encrypted replica |
 
 ---
 

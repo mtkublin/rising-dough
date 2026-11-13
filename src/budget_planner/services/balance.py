@@ -63,24 +63,28 @@ def signed_legs(txn: Transaction, direction: Direction) -> tuple[SignedLeg, ...]
     return (SignedLeg(account_id=txn.account_id, amount_minor=txn.amount),)
 
 
-def _directions_by_id(conn: sqlite3.Connection) -> dict[int, Direction]:
+def _directions_by_id(conn: sqlite3.Connection, user_id: int) -> dict[int, Direction]:
     """One-shot lookup of category id → direction for all live categories."""
-    return {c.id: c.direction for c in categories_repo.list_all(conn, include_deleted=True)}
+    return {
+        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
+    }
 
 
 def _txns_affecting(
     conn: sqlite3.Connection,
+    user_id: int,
     account_id: int,
     *,
     as_of: dt.date | None = None,
 ) -> list[Transaction]:
     """Non-deleted transactions where source OR dest matches ``account_id``."""
     filt = TransactionFilter(account_or_dest=account_id, up_to_date=as_of)
-    return transactions_repo.list_filtered(conn, filt)
+    return transactions_repo.list_filtered(conn, user_id, filt)
 
 
 def derive_balance(
     conn: sqlite3.Connection,
+    user_id: int,
     account_id: int,
     as_of_date: dt.date | None = None,
 ) -> int:
@@ -91,11 +95,11 @@ def derive_balance(
     - Transit source and destination legs both apply.
     - Adjustment amounts pass through verbatim (signed).
     """
-    account = accounts_repo.find_by_id(conn, account_id, include_deleted=True)
+    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
     if account is None:
         raise AccountNotFoundError(account_id)
-    directions = _directions_by_id(conn)
-    txns = _txns_affecting(conn, account_id, as_of=as_of_date)
+    directions = _directions_by_id(conn, user_id)
+    txns = _txns_affecting(conn, user_id, account_id, as_of=as_of_date)
     delta = 0
     for txn in txns:
         direction = directions[txn.category_id]
@@ -115,18 +119,18 @@ def _mean(values: list[int]) -> int:
     return int(quantised)
 
 
-def account_stats(conn: sqlite3.Connection, account_id: int) -> AccountStats:
+def account_stats(conn: sqlite3.Connection, user_id: int, account_id: int) -> AccountStats:
     """Current balance + descriptive stats. Pure; no caching.
 
     Averages consider only ``income`` / ``expense`` legs. Transit and
     adjustment legs contribute to ``txn_count`` and ``last_txn_date`` but
     not to the averages.
     """
-    account = accounts_repo.find_by_id(conn, account_id, include_deleted=True)
+    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
     if account is None:
         raise AccountNotFoundError(account_id)
-    directions = _directions_by_id(conn)
-    txns = _txns_affecting(conn, account_id)
+    directions = _directions_by_id(conn, user_id)
+    txns = _txns_affecting(conn, user_id, account_id)
 
     inflows: list[int] = []
     outflows: list[int] = []
@@ -186,6 +190,7 @@ def sparkline_points(
 
 def balance_series(
     conn: sqlite3.Connection,
+    user_id: int,
     account_id: int,
     *,
     days: int = _DEFAULT_SERIES_DAYS,
@@ -207,7 +212,7 @@ def balance_series(
     out: list[tuple[dt.date, int]] = []
     current = start
     while current <= end:
-        out.append((current, derive_balance(conn, account_id, as_of_date=current)))
+        out.append((current, derive_balance(conn, user_id, account_id, as_of_date=current)))
         current = current + dt.timedelta(days=1)
     return out
 

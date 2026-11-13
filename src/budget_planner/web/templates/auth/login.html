@@ -1,0 +1,57 @@
+{% extends "auth/_layout.html" %}
+{% block main %}
+  <section class="rd-auth__brand" aria-label="Rising Dough">
+    <p class="rd-auth__wordmark">Rising Dough</p>
+    <p class="rd-auth__lede">
+      Your money, <em>proofed</em> and rising.
+    </p>
+    <p class="rd-auth__foot">Private budget planner · invited users only</p>
+  </section>
+  <section class="rd-auth__panel" aria-labelledby="login-heading">
+    <div class="rd-auth__card">
+      <header>
+        <div class="rd-eyebrow">Welcome back</div>
+        <h1 id="login-heading">Sign in</h1>
+      </header>
+      {% if error %}
+        {# T-D09: a throttled attempt reuses this slot with a generic message (ADR-0072). #}
+        <p class="rd-auth__error"
+           role="alert"
+           id="login-error"
+           {% if throttled %} data-throttled{% endif %}>{{ error }}</p>
+      {% endif %}
+      <form class="rd-form" method="post" action="/auth/login" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <label class="rd-field">
+          <span class="rd-field__label">Email</span>
+          <input type="email"
+                 name="email"
+                 value="{{ email }}"
+                 autocomplete="username webauthn"
+                 required
+                 autofocus
+                 {% if error and not throttled %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
+        </label>
+        <label class="rd-field">
+          <span class="rd-field__label">Password</span>
+          <input type="password"
+                 name="password"
+                 autocomplete="current-password"
+                 required
+                 {% if error and not throttled %}aria-describedby="login-error" aria-invalid="true"{% endif %}>
+        </label>
+        <button type="submit" class="rd-btn rd-btn--primary rd-auth__submit">Sign in</button>
+      </form>
+      <div class="rd-auth__divider">or</div>
+      <button type="button"
+              class="rd-btn rd-auth__submit"
+              data-passkey-login
+              data-next="{{ next_path }}">Sign in with a passkey</button>
+      <p class="rd-auth__status"
+         data-passkey-status
+         role="status"
+         aria-live="polite"></p>
+    </div>
+  </section>
+{% endblock %}

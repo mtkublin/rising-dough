@@ -20,12 +20,16 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import planned as planned_svc, recurring as recurring_svc
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded(conn: sqlite3.Connection) -> dict[str, int]:
-    acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0)).id
+    acc = accounts_repo.create(
+        conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+    ).id
     groc = categories_repo.create(
-        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
     ).id
     return {"account_id": acc, "category_id": groc}
 
@@ -34,7 +38,7 @@ class TestRecurringBatch:
     def test_batch_zero_items_is_noop(
         self, conn: sqlite3.Connection, seeded: dict[str, int]
     ) -> None:
-        result = recurring_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
         assert result.advanced_rule_ids == ()
 
@@ -43,6 +47,7 @@ class TestRecurringBatch:
     ) -> None:
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 10, 1),
@@ -54,9 +59,9 @@ class TestRecurringBatch:
         )
         # Force next_due back to a past date so batch_promote picks it up.
         recurring_repo.set_next_due(
-            conn, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
+            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
         )
-        result = recurring_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert rule.id in result.advanced_rule_ids
         assert len(result.promoted_txn_ids) == 1
 
@@ -65,6 +70,7 @@ class TestRecurringBatch:
     ) -> None:
         recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2027, 6, 1),
@@ -74,7 +80,7 @@ class TestRecurringBatch:
                 default_description="",
             ),
         )
-        result = recurring_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
 
     def test_batch_handles_skipped_override(
@@ -82,6 +88,7 @@ class TestRecurringBatch:
     ) -> None:
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 10, 1),
@@ -92,16 +99,17 @@ class TestRecurringBatch:
             ),
         )
         due = date(2026, 10, 20)
-        recurring_repo.set_next_due(conn, rule.id, next_due=due, last_promoted_date=None)
+        recurring_repo.set_next_due(conn, USER_ID, rule.id, next_due=due, last_promoted_date=None)
         recurring_repo.upsert_override(
             conn,
+            USER_ID,
             NewRecurringOverride(
                 rule_id=rule.id,
                 occurrence_date=due,
                 state=OverrideState.SKIPPED,
             ),
         )
-        result = recurring_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert rule.id in result.skipped_rule_ids
         assert result.promoted_txn_ids == ()
 
@@ -110,7 +118,7 @@ class TestPlannedBatch:
     def test_batch_zero_items_is_noop(
         self, conn: sqlite3.Connection, seeded: dict[str, int]
     ) -> None:
-        result = planned_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
         assert result.promoted_planned_ids == ()
 
@@ -119,6 +127,7 @@ class TestPlannedBatch:
     ) -> None:
         pl_id = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 25),
                 category_id=seeded["category_id"],
@@ -127,7 +136,7 @@ class TestPlannedBatch:
                 description="",
             ),
         ).id
-        result = planned_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert pl_id in result.promoted_planned_ids
         assert len(result.promoted_txn_ids) == 1
 
@@ -136,6 +145,7 @@ class TestPlannedBatch:
     ) -> None:
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2027, 1, 10),
                 category_id=seeded["category_id"],
@@ -144,7 +154,7 @@ class TestPlannedBatch:
                 description="",
             ),
         )
-        result = planned_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
 
     def test_batch_skips_already_promoted(
@@ -152,6 +162,7 @@ class TestPlannedBatch:
     ) -> None:
         pl_id = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 25),
                 category_id=seeded["category_id"],
@@ -160,7 +171,7 @@ class TestPlannedBatch:
                 description="",
             ),
         ).id
-        planned_svc.promote_to_actual(conn, pl_id, planned_svc.PromotionEdits())
+        planned_svc.promote_to_actual(conn, USER_ID, pl_id, planned_svc.PromotionEdits())
         # Second batch pass sees nothing to promote.
-        result = planned_svc.batch_promote_due(conn, date(2026, 10, 29))
+        result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()

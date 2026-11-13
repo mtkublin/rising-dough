@@ -162,3 +162,7 @@ Failure of any gate blocks the deploy and leaves the previous version running.
 - **Scaleway Container Registry + Scaleway Serverless Containers** — bypasses the VM entirely, but reintroduces the Cloud Run-style ephemeral FS problem (ADR-0032 §Alternatives).
 - **ArgoCD / Flux** — massive overkill for one app on one host.
 - **Direct `scp` of a tarball + systemd restart** — rejected; image-based deploys are more reproducible and let the local docker-compose smoke test map 1:1 to prod.
+
+## Amendment 2026-11-07 (T-D95)
+
+Superseded in part by ADR-0099 (2026-11-07): the drill→prod workflow_run chain is replaced by release.yml; drill is validated pre-merge.

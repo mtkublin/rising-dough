@@ -1,0 +1,137 @@
+# Runbook: SSH over Tailscale (T-D67, ADR-0094)
+
+## Context
+
+Port 22 is closed on the Scaleway security group of both `drill` and `prod`. Operator and CI reach sshd only through the tailnet, using MagicDNS names `budget-planner-prod` and `budget-planner-drill`. The app stays public on 80/443; app users never need Tailscale.
+
+## Preconditions
+
+- Tailscale account (Personal plan), Tailscale app installed and logged in on your machine.
+- Operator checklist A9 done (ACL pasted, OAuth client created, GitHub secrets set).
+
+## Procedure
+
+### 1. Paste the ACL
+
+1. Open the admin console, Access controls.
+2. Replace the contents with `tailscale-acl.hujson` (same folder), setting `you@example.com` to your login email.
+3. Save. The editor validates the policy and its tests. Only your devices and `tag:ci` may reach `tag:prod` / `tag:drill` on port 22.
+
+The ACL is deliberately not in Terraform (tailnet-global; two env states would both own it, same trap as ADR-0088).
+
+### 2. Day-to-day SSH
+
+```sh
+ssh operator@budget-planner-prod
+ssh deploy@budget-planner-prod "rollback"   # restricted deploy user, see rollback.md
+```
+
+### 3. Host keys over the tailnet
+
+From a device on the tailnet:
+
+```sh
+ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod
+```
+
+Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete.
+
+### 4. Rotating the OAuth client
+
+Create a new client (scope Auth Keys: write, tag `tag:automation` only), update `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in GitHub (and the local `TF_VAR_tailscale_oauth_*` copy, used only for bootstrap and break-glass runs), then delete the old client. Running nodes are unaffected; the client is only used to mint keys.
+
+## Verification
+
+- `tailscale status` lists `budget-planner-prod` (tag:prod).
+- `ssh operator@budget-planner-prod true` succeeds; from a public network without Tailscale, `nc -zv <vm-public-ip> 22` times out.
+
+## Troubleshooting
+
+- **Name does not resolve**: MagicDNS off or Tailscale not running; use `tailscale ip -4 budget-planner-prod`.
+- **Drill node named `budget-planner-drill-1`**: a destroyed ephemeral node was not yet garbage-collected. Delete the stale machine in the admin console (or wait) and re-run.
+- **Node never joined** (first boot): the auth key lives 1 h and is single-use. Check `sudo tail /var/log/cloud-init-output.log` through break-glass below, then: drill, re-dispatch `drill.yml` on the branch (every drill apply replaces the server and tailnet key). Prod is not a pipeline action: break-glass with explicit user go, `terraform apply -replace=tailscale_tailnet_key.vm -replace=module.compute.scaleway_instance_server.app` (replaces the VM; data restores from Litestream).
+
+## Break-glass (Tailscale unreachable)
+
+Open port 22 for your current IP only, fix, close again. Prod use is a change outside the pipeline (ADR-0099): explicit user go, and log it in `docs/CHANGELOG.md`. Find the group and your IP:
+
+```sh
+SG_ID=$(scw instance security-group list zone=pl-waw-2 name=budget-planner-prod-sg -o json | jq -r '.[0].id')
+MY_IP=$(curl -fsS https://api.ipify.org)
+scw instance security-group create-rule security-group-id="$SG_ID" zone=pl-waw-2 \
+  protocol=TCP direction=inbound action=accept dest-port-from=22 ip-range="${MY_IP}/32"
+ssh operator@<vm-public-ip>
+```
+
+When done, remove the rule:
+
+```sh
+scw instance security-group list-rules security-group-id="$SG_ID" zone=pl-waw-2
+scw instance security-group delete-rule security-group-id="$SG_ID" security-group-rule-id=<rule-id> zone=pl-waw-2
+```
+
+Note (T-D71): host `ufw` also allows 22 only on `tailscale0`, so this SG rule alone does not restore public SSH; the host rule must be widened from an existing session. Use `budget-planner-drill-sg` for the drill env. The Scaleway web serial console shows boot and cloud-init output for diagnosis but is not a login path (account passwords are locked). Do not leave the rule in place; a later `terraform apply` also removes it (drift).
+
+## Break-glass for the drill: `break_glass_ssh_cidrs` (T-D81)
+
+> Scope (applies to the `break_glass_*` sections below): `drill.yml` has no input for these variables, and the pipeline never sets them. Setting one is a local drill apply outside the pipeline (ADR-0099): explicit user go only, logged in `docs/CHANGELOG.md`. The one drill diagnostic the pipeline exposes is the `boot_logs` dispatch input (see Boot logs below).
+
+Drill only (the variable is rejected when `env = "prod"`). Use it when the VM booted but never joined the tailnet. It opens public TCP 22 for the listed CIDRs in the security group and host ufw. The firewall is configured first in cloud-init, so it works even if Tailscale failed or hung.
+
+1. Apply with your current IP (new VM, or `-replace=module.compute.scaleway_instance_server.app` for an existing one, because cloud-init runs once):
+
+   ```sh
+   TF_VAR_break_glass_ssh_cidrs='["<ip>/32"]' just drill-apply   # or terraform apply with the same env var
+   ```
+
+2. SSH in with the operator key: `ssh -i <operator key> operator@<vm_ipv4>`.
+3. Read: `sudo cloud-init status --long`, `sudo less /var/log/cloud-init-output.log`, `sudo journalctl -u tailscaled --no-pager`, `sudo ufw status verbose`.
+4. Remove: apply again without the variable (security group rule goes away). The host ufw rule remains until the VM is replaced; the drill VM is disposable.
+
+## Break-glass for the drill: serial-console password `break_glass_console_password` (T-D84)
+
+Drill only (rejected when `env = "prod"`). Use it when SSH is unusable (for example `Permission denied (publickey)` or sshd not listening) and the Scaleway serial console only shows `login:`. It sets a generated password for `operator`; SSH password login stays disabled (`ssh_pwauth: false`), so the password works on the console only. Only the bcrypt hash is placed in user-data.
+
+1. Enable (new VM, or `-replace=module.compute.scaleway_instance_server.app` because cloud-init runs once):
+
+   ```sh
+   TF_VAR_break_glass_console_password=true just drill-apply   # or terraform apply with the same env var
+   ```
+
+2. Read the password: `terraform output -raw console_password`. <!-- pragma: allowlist secret -->
+3. Open the Scaleway console, the instance, "Console" (serial), and log in as `operator` with that password.
+4. Run:
+
+   ```sh
+   sudo cloud-init status --long
+   sudo tail -n 100 /var/log/cloud-init-output.log
+   sudo journalctl -b -u cloud-final -u ssh -u tailscaled --no-pager | tail -100
+   free -m
+   dmesg | grep -i -E 'oom|killed'
+   ```
+
+5. Disable: apply without the variable, then `-replace=module.compute.scaleway_instance_server.app` (ADR-0098: an in-place update does not re-run cloud-init, so the hash stays on the old VM until it is replaced). The drill VM is disposable.
+
+## Boot logs (drill): `boot_log_upload` (T-D86)
+
+Drill only (rejected when `env = "prod"`). Use it when a boot stalls and neither SSH nor the console works. `bootcmd` starts a detached uploader that pushes boot diagnostics to the private drill bucket: every 30 s for 60 min, then every 5 min for 2 h. Files: `cloud-init.log`, `cloud-init-output.log`, `journal.txt`, `dmesg.txt`, `cloud-init-status.txt`, `ps.txt`, `free.txt` (tskey/age keys/PASSWORD-SECRET-TOKEN-_KEY values redacted). Objects expire after 7 days.
+
+1. Enable (the pipeline replaces the drill server on every dispatch):
+
+   ```sh
+   gh workflow run drill.yml --ref <branch> -f boot_logs=true
+   ```
+
+2. Read from a laptop (needs an operator credential for the bucket):
+
+   ```sh
+   aws s3 ls --endpoint-url https://s3.pl-waw.scw.cloud s3://budget-planner-drill-pl-waw/boot-logs/ --recursive
+   aws s3 cp --endpoint-url https://s3.pl-waw.scw.cloud s3://budget-planner-drill-pl-waw/boot-logs/ ./boot-logs --recursive
+   ```
+
+   Layout: `boot-logs/<instance-id>/<boot-id>/<file>`; files are overwritten on each snapshot.
+3. Disable: dispatch `drill.yml` without `boot_logs` (the next drill apply replaces the server, ADR-0098).
+
+## Rollback
+
+Reverting ADR-0094 means re-adding the `22/tcp` inbound rule in `modules/compute/main.tf` and applying.

@@ -1,0 +1,57 @@
+# Allowlist for CI security scanners (T-D13).
+#
+# Each entry MUST include:
+#   - cve: CVE-YYYY-NNNNN (or scanner-specific id, e.g. GHSA-xxxx, DLA-xxxx).
+#   - scanner: pip_audit | trivy_fs | trivy_image
+#   - reason:  short justification (e.g. "upstream patch pending",
+#              "false positive — not reachable from our code paths").
+#   - expires: YYYY-MM-DD soft deadline. The CI jobs do NOT auto-reject on
+#              expiry; the date exists so humans re-audit the entry.
+#
+# Scanners read the matching list and skip ONLY findings whose id appears
+# below. Everything else is treated as a blocking HIGH/CRITICAL finding.
+#
+# The three lists are kept separate on purpose: a pip_audit entry is a
+# Python dependency CVE, a trivy_fs entry is a filesystem-level finding
+# (lockfile, config, embedded binary), and a trivy_image entry is an
+# OS-package or image-layer CVE. The same CVE id may legitimately appear
+# in more than one list; copy the entry rather than cross-linking.
+#
+# Keep this file sorted by cve within each list for easy diffing.
+
+pip_audit: []
+# Example (do not uncomment unless there is a real finding):
+#   - cve: CVE-2026-00000
+#     scanner: pip_audit
+#     reason: "upstream fix pending in dep X; not reachable from our call sites"
+#     expires: 2026-12-31
+
+trivy_fs:
+  # T-D91: uv.lock carries a platform-forked cryptography 48.0.1 entry that is
+  # selected ONLY on macOS x86_64 (pyproject [tool.uv] constraint-dependencies;
+  # ADR-0067 — cryptography>=49 ships no wheels for that platform). Linux
+  # (CI, Docker image, prod) resolves cryptography 50.0.2, which contains both
+  # fixes. Trivy fs scans every fork in the lockfile, so it flags the dev-only
+  # one. Not shipped to prod; Review by 2027-02-01 — drop the entries and the
+  # darwin-x86_64 cap once macOS x86_64 wheels exist or dev machines move off
+  # x86_64 interpreters.
+  - cve: CVE-2026-69247
+    scanner: trivy_fs
+    reason: "cryptography 48.0.1 lock fork is macOS-x86_64 dev only (ADR-0067); Linux/prod resolves 50.0.2 (fixed)"
+    expires: 2027-02-01
+  - cve: CVE-2026-69249
+    scanner: trivy_fs
+    reason: "cryptography 48.0.1 lock fork is macOS-x86_64 dev only (ADR-0067); Linux/prod resolves 50.0.2 (fixed)"
+    expires: 2027-02-01
+# Example:
+#   - cve: CVE-2026-00000
+#     scanner: trivy_fs
+#     reason: "false positive — matches vendored test fixture only"
+#     expires: 2026-12-31
+
+trivy_image: []
+# Example:
+#   - cve: CVE-2026-00000
+#     scanner: trivy_image
+#     reason: "base-image CVE; patched upstream in next Debian point release"
+#     expires: 2026-12-31

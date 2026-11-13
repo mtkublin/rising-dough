@@ -4,6 +4,7 @@
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28; v2 slot reassigned to the Rising Dough redesign)
 - **Related**: ADR-0003 (SQLite only in v1), ADR-0005 (single user, no auth, 127.0.0.1), ADR-0027 (frontend toolchain)
 - **Supersedes**: nothing. **Amends**: ADR-0005 (v1 bound to `127.0.0.1`; v3 binds to a container inside a hardened VM behind TLS reverse proxy).
+- **Amended by**: [ADR-0084](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md) — compute zone is `pl-waw-2` (Stardust sold out in `pl-waw-1`); image slug `ubuntu_noble`.
 - **Depends on**: ADR-0033 (auth), ADR-0034 (Litestream replication), ADR-0035 (Terraform IaC), ADR-0036 (Caddy TLS), ADR-0037 (GHA deploy pipeline).
 
 ## Context
@@ -26,7 +27,7 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 ### 1. Compute
 
 - **Provider / plan**: Scaleway Stardust `STARDUST1-S` (1 shared vCPU, 1 GB RAM, 10 GB local SSD).
-- **Region / zone**: `pl-waw` / `pl-waw-1` (Warsaw).
+- **Region / zone**: `pl-waw` / `pl-waw-1` (Warsaw). *Amended by [ADR-0084](0084-v3-compute-zone-pl-waw-2-and-ubuntu-noble-image.md): zone `pl-waw-2`.*
 - **OS**: Ubuntu 24.04 LTS minimal.
 - **Addressing**: IPv6 primary; Flex IPv4 attached (ADR-0035 computes the recurring €2.92/mo delta into the cost model).
 - **Non-root user**: `app` user owns the app directory; SSH restricted to key auth only; root login disabled.
@@ -35,7 +36,7 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 
 ### 2. Application packaging
 
-- **Container image**: multi-stage Dockerfile, non-root `app` user, `python:3.12-slim-bookworm` base. No shell, no package manager in the final layer.
+- **Container image**: multi-stage Dockerfile, non-root `app` user, `python:3.12-slim-bookworm` base (amended by ADR-0102: `python:3.12-slim-trixie`). No shell, no package manager in the final layer.
 - **Registry**: GHCR private repository (`ghcr.io/<owner>/budget-planner`). Tagged by git SHA + `vMAJOR.MINOR.PATCH` for releases.
 - **Runtime orchestration**: `docker compose` on the host with three services:
   1. `app` — FastAPI/uvicorn container.
@@ -133,3 +134,10 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 
 1. Hostname strategy — subdomain of an existing user-owned domain vs a brand-new domain registered through Scaleway Domains. Deferred to the runbook step in Phase 2.
 2. Backup bucket geographic redundancy — Scaleway Object Storage in `pl-waw` is already multi-AZ within region. Cross-region replication to `fr-par` adds €0.01/GB storage; defer until data > 10 GB.
+
+## Amendment 2026-11-07 — Sizing note (T-D82)
+
+- **RAM budget.** STARDUST1-S has 1 shared vCPU, 1 GB RAM, 10 GB SSD and no swap. Estimated steady state of the full stack (Ubuntu, Docker, tailscaled, fail2ban, the app with 1 uvicorn worker, Litestream, Caddy) is about 500-800 MB. First boot adds peaks: `package_upgrade: true`, the Docker install, then `docker pull`. On 2026-11-07 the drill VM set its hostname (so cloud-init ran) but stalled for over 18 minutes; OOM is a suspect.
+- **Decision.** Add a 1 GiB swapfile (`/swapfile`) created by cloud-init's native `swap:` key (`cc_mounts`, init stage, before package install and `runcmd`), with `vm.swappiness = 10`. It is a peak safety net, not capacity. It costs 1 GB of the 10 GB disk.
+- **Measure on drill** with `free -m`, `docker stats --no-stream` and `dmesg | grep -i oom`. Resize to a larger instance type only if steady state exceeds about 700 MB or swap is used continuously.
+- **Resizing is manual and incurs downtime** (stop, change type, start; Litestream keeps data safe).

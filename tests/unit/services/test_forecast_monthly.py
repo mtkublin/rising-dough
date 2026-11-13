@@ -31,6 +31,8 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as budget_svc, forecast as forecast_svc
 
+USER_ID = 1
+
 _API = "https://api.frankfurter.app"
 
 
@@ -51,18 +53,22 @@ TODAY = date(2026, 10, 23)
 @pytest.fixture
 def world(conn: sqlite3.Connection) -> dict[str, int]:
     a1 = accounts.create(
-        conn, NewAccount(name="Checking", currency="PLN", opening_balance=100_000)
+        conn, USER_ID, NewAccount(name="Checking", currency="PLN", opening_balance=100_000)
     ).id
-    a2 = accounts.create(conn, NewAccount(name="Savings", currency="PLN")).id
+    a2 = accounts.create(conn, USER_ID, NewAccount(name="Savings", currency="PLN")).id
     a3 = accounts.create(
-        conn, NewAccount(name="EUR Cash", currency="EUR", opening_balance=50_000)
+        conn, USER_ID, NewAccount(name="EUR Cash", currency="EUR", opening_balance=50_000)
     ).id
-    salary = categories.create(conn, NewCategory(name="Salary", direction=Direction.INCOME)).id
+    salary = categories.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    ).id
     groceries = categories.create(
-        conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+        conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
     ).id
-    rent = categories.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
-    transit = categories.find_by_name(conn, "Transit")
+    rent = categories.create(
+        conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    transit = categories.find_by_name(conn, USER_ID, "Transit")
     assert transit is not None
 
     fx_repo.upsert_rate(
@@ -95,7 +101,7 @@ def test_horizon_days_for_months_spans_full_month() -> None:
 def test_shape_single_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
     assert monthly.base_currency == "PLN"
     assert len(monthly.months) == 1
     assert monthly.months[0].month == date(2026, 10, 1)
@@ -105,7 +111,7 @@ def test_shape_single_month(conn: sqlite3.Connection, world: dict[str, int]) -> 
 def test_shape_multi_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 4, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 4, "PLN")
     expected = [date(2026, 10, 1), date(2026, 11, 1), date(2026, 12, 1), date(2027, 1, 1)]
     assert [r.month for r in monthly.months] == expected
     assert monthly.start_month == date(2026, 10, 1)
@@ -115,6 +121,7 @@ def test_shape_multi_month(conn: sqlite3.Connection, world: dict[str, int]) -> N
 def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 15),
             category_id=world["salary"],
@@ -124,7 +131,7 @@ def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) ->
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 800_000
     assert nov.expense_base_minor == 0
@@ -134,8 +141,9 @@ def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) ->
 def test_expense_sum_in_month_includes_recurring(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    recurring.create_rule(
+    rule = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 10, 1),
@@ -145,8 +153,12 @@ def test_expense_sum_in_month_includes_recurring(
             default_description="rent",
         ),
     )
+    recurring.set_next_due(
+        conn, USER_ID, rule.id, next_due=date(2026, 11, 1), last_promoted_date=None
+    )
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 20),
             category_id=world["groceries"],
@@ -156,7 +168,7 @@ def test_expense_sum_in_month_includes_recurring(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     # Rent 300_000 (recurring) + groceries 10_000 (planned)
     assert nov.expense_base_minor == 310_000
@@ -169,6 +181,7 @@ def test_transit_excluded_from_income_expense(
 ) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 5),
             category_id=world["transit"],
@@ -179,7 +192,7 @@ def test_transit_excluded_from_income_expense(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 0
     assert nov.expense_base_minor == 0
@@ -189,6 +202,7 @@ def test_transit_excluded_from_income_expense(
 def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 10),
             category_id=world["salary"],
@@ -198,10 +212,11 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     with _dead_client() as http:
         daily = forecast_svc.forecast(
             conn,
+            USER_ID,
             http,
             TODAY,
             forecast_svc.horizon_days_for_months(TODAY, 2),
@@ -214,7 +229,7 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
 
 def test_empty_accounts_returns_zero_rows(conn: sqlite3.Connection) -> None:
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
     assert len(monthly.months) == 3
     assert all(r.income_base_minor == 0 for r in monthly.months)
     assert all(r.expense_base_minor == 0 for r in monthly.months)
@@ -224,6 +239,7 @@ def test_empty_accounts_returns_zero_rows(conn: sqlite3.Connection) -> None:
 def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 10),
             category_id=world["salary"],
@@ -239,7 +255,7 @@ def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[
         return httpx.Response(500)
 
     with _mock_client(_h) as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     # 1_000 EUR minor * 4.30 = 4_300 PLN minor.
     assert nov.income_base_minor == 4_300
@@ -248,16 +264,20 @@ def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[
 
 def test_negative_horizon_months_raises(conn: sqlite3.Connection) -> None:
     with _dead_client() as http, pytest.raises(ValueError, match="horizon_months"):
-        forecast_svc.forecast_monthly(conn, http, TODAY, 0, "PLN")
+        forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 0, "PLN")
 
 
 def test_planned_budget_sums_default_budget_across_expense_cats(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["rent"], amount=300_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=50_000)
+    )
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["rent"], amount=300_000)
+    )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     for row in monthly.months:
         assert row.planned_budget_base_minor == 350_000
 
@@ -265,15 +285,18 @@ def test_planned_budget_sums_default_budget_across_expense_cats(
 def test_planned_budget_one_off_override_wins_for_that_month(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=50_000)
+    )
     budgets_repo.set_one_off(
         conn,
+        USER_ID,
         NewBudgetOneOffOverride(
             category_id=world["groceries"], year=2026, month=11, amount=120_000
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
     oct_row = _row_for(monthly, date(2026, 10, 1))
     nov_row = _row_for(monthly, date(2026, 11, 1))
     dec_row = _row_for(monthly, date(2026, 12, 1))
@@ -285,6 +308,7 @@ def test_planned_budget_one_off_override_wins_for_that_month(
 def test_net_subtracts_planned_budget(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 15),
             category_id=world["salary"],
@@ -293,9 +317,11 @@ def test_net_subtracts_planned_budget(conn: sqlite3.Connection, world: dict[str,
             description="payday",
         ),
     )
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=50_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=50_000)
+    )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 800_000
     assert nov.expense_base_minor == 0
@@ -308,7 +334,7 @@ def test_planned_budget_zero_when_no_budgets_set(
 ) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     for row in monthly.months:
         assert row.planned_budget_base_minor == 0
 
@@ -316,9 +342,11 @@ def test_planned_budget_zero_when_no_budgets_set(
 def test_planned_budget_ignores_income_categories(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["salary"], amount=999_999))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["salary"], amount=999_999)
+    )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     for row in monthly.months:
         assert row.planned_budget_base_minor == 0
 
@@ -327,9 +355,12 @@ def test_planned_budget_clamped_when_committed_exceeds_resolved(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     # Budget 10_000 but a 50_000 grocery expense committed this month -> clamp to 0.
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=10_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=10_000)
+    )
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 10, 30),
             category_id=world["groceries"],
@@ -339,7 +370,7 @@ def test_planned_budget_clamped_when_committed_exceeds_resolved(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
     row = _row_for(monthly, date(2026, 10, 1))
     assert row.planned_budget_base_minor == 0
 
@@ -349,11 +380,16 @@ def test_current_month_row_mirrors_budget_month_summary(
 ) -> None:
     """Current-row Expenses + Planned budget must equal month_summary totals."""
     # Budget 500_000 for groceries, 300_000 recurring rent -> both expense cats.
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=500_000))
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["rent"], amount=300_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=500_000)
+    )
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["rent"], amount=300_000)
+    )
     # Planned grocery expense inside anchor window (Oct 29).
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 10, 29),
             category_id=world["groceries"],
@@ -365,6 +401,7 @@ def test_current_month_row_mirrors_budget_month_summary(
     # Recurring rent monthly, next_due inside Oct.
     recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 10, 25),
@@ -374,11 +411,14 @@ def test_current_month_row_mirrors_budget_month_summary(
             default_description="rent",
         ),
     )
-    summary = budget_svc.month_summary(conn, TODAY.year, TODAY.month, today=TODAY)
+    summary = budget_svc.month_summary(conn, USER_ID, TODAY.year, TODAY.month, today=TODAY)
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     oct_row = _row_for(monthly, date(2026, 10, 1))
-    assert oct_row.expense_base_minor == summary.totals.committed_minor
+    assert (
+        oct_row.expense_base_minor
+        == summary.totals.committed_minor + summary.totals.unbudgeted_committed_minor
+    )
     assert oct_row.planned_budget_base_minor == max(summary.totals.remaining_minor, 0)
 
 
@@ -386,9 +426,12 @@ def test_future_month_row_keeps_calendar_logic(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     """Future rows use calendar-month flows + residual-budget math."""
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=100_000)
+    )
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 10),
             category_id=world["groceries"],
@@ -398,7 +441,7 @@ def test_future_month_row_keeps_calendar_logic(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.expense_base_minor == 30_000  # calendar-month event sum
     # Resolved 100_000 - already-committed 30_000 = residual 70_000.
@@ -412,12 +455,15 @@ def test_current_month_eom_absorbs_remaining_budget_overlay(
     # Budget 100_000 PLN for groceries this month, no planned/actual spending yet.
     # Overlay should distribute the 100_000 across remaining days, dropping EOM
     # by exactly that amount vs. the pre-overlay projection.
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=100_000)
+    )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
     with _dead_client() as http:
         pre_overlay = forecast_svc.forecast(
             conn,
+            USER_ID,
             http,
             TODAY,
             forecast_svc.horizon_days_for_months(TODAY, 1),
@@ -450,6 +496,7 @@ def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
     preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(world["salary"]))
     transactions_repo.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 10, 25),
             category_id=world["salary"],
@@ -457,12 +504,14 @@ def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
             amount=500_000,
         ),
     )
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=100_000)
+    )
     today = date(2026, 11, 1)
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, today, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, today, 1, "PLN")
     with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, http, today, 0, "PLN")
+        daily = forecast_svc.forecast(conn, USER_ID, http, today, 0, "PLN")
     current_net_worth = daily.days[0].totals_base_minor
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert oct_row.end_balance_base_minor == current_net_worth + oct_row.net_base_minor
@@ -480,9 +529,12 @@ def test_eom_chain_each_row_equals_prev_eom_plus_net(
     to a daily projection, so the user-visible gap re-appeared on the
     row after the fiscal row.
     """
-    budgets_repo.set_default(conn, NewBudgetDefault(category_id=world["groceries"], amount=100_000))
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=100_000)
+    )
     planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 11, 10),
             category_id=world["groceries"],
@@ -492,9 +544,9 @@ def test_eom_chain_each_row_equals_prev_eom_plus_net(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
     with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, http, TODAY, 0, "PLN")
+        daily = forecast_svc.forecast(conn, USER_ID, http, TODAY, 0, "PLN")
     prev = daily.days[0].totals_base_minor
     for row in monthly.months:
         assert row.end_balance_base_minor == prev + row.net_base_minor, (

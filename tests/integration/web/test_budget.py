@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
@@ -14,13 +15,17 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
+    planned as planned_repo,
     transactions as transactions_repo,
 )
+
+USER_ID = 1
 
 
 @pytest.fixture
@@ -28,7 +33,7 @@ def cat_id(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         return cat.id
     finally:
@@ -145,10 +150,10 @@ def test_budget_month_selector_swaps(client: TestClient, _migrated: Settings) ->
     conn = get_connection(_migrated)
     try:
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         # Set a default so the planned column shows a concrete number.
-        budgets_repo.set_default(conn, NewBudgetDefault(category_id=cat.id, amount=12345))
+        budgets_repo.set_default(conn, USER_ID, NewBudgetDefault(category_id=cat.id, amount=12345))
     finally:
         conn.close()
 
@@ -222,6 +227,50 @@ def test_yearly_cell_renders_major_decimal(client: TestClient, cat_id: int) -> N
     inp = soup.find("input", {"id": f"y-{cat_id}-7"})
     assert isinstance(inp, Tag)
     assert inp.get("value") == "22.33"
+
+
+def test_plan_budget_override_button_targets_per_row_slot(client: TestClient, cat_id: int) -> None:
+    """T-D49: each Override button targets its own slot row; ids are unique."""
+    r = client.get("/plan?tab=budget")
+    assert r.status_code == 200
+    soup = BeautifulSoup(r.text, "html.parser")
+    btn = soup.find("button", {"data-override-open": str(cat_id)})
+    assert isinstance(btn, Tag)
+    assert btn.get("hx-target") == f"#override-slot-{cat_id}"
+    slot = soup.find("td", {"id": f"override-slot-{cat_id}"})
+    assert isinstance(slot, Tag)
+    assert slot.get("colspan") == "6"
+    row = slot.find_parent("tr")
+    assert isinstance(row, Tag)
+    btn_row = btn.find_parent("tr")
+    assert isinstance(btn_row, Tag)
+    assert btn_row.find_next_sibling("tr") is row
+    # T-D49a: closed slot is empty and its row is hidden by CSS (no row gaps).
+    assert slot.get_text(strip=True) == "" and not slot.find(True)
+    assert "rd-override-slot-row" in (row.get("class") or [])
+    static = Path(__file__).resolve().parents[3] / "src/budget_planner/web/static"
+    css = (static / "rising-dough.css").read_text()
+    assert ".rd-override-slot-row:not(:has(.rd-override)) { display: none; }" in css
+    ids = [t["id"] for t in soup.find_all(id=True)]
+    assert len(ids) == len(set(ids))
+    assert soup.find(id="budget-override-slot") is None
+
+
+def test_inline_override_form_is_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1")
+    assert r.status_code == 200
+    assert "<html" not in r.text
+    soup = BeautifulSoup(r.text, "html.parser")
+    form = soup.select_one("form[data-override-form]")
+    assert isinstance(form, Tag)
+    assert form.has_attr("data-override-inline")
+    assert soup.select_one("[data-override-cancel]") is not None
+    assert "<script" not in r.text.split("</form>")[0]
+
+
+def test_slideover_override_form_has_no_cancel(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new")
+    assert "data-override-cancel" not in r.text
 
 
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
@@ -352,7 +401,7 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
     """
     conn = get_connection(settings)
     try:
-        acct = accounts_repo.create(conn, NewAccount(name="Checking", currency="PLN")).id
+        acct = accounts_repo.create(conn, USER_ID, NewAccount(name="Checking", currency="PLN")).id
         pairs = [
             ("Food", 30000, 50000),
             ("Rent", 40000, 40000),
@@ -360,10 +409,11 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
         ]
         for name, prev_amt, this_amt in pairs:
             cat_id = categories_repo.create(
-                conn, NewCategory(name=name, direction=Direction.EXPENSE)
+                conn, USER_ID, NewCategory(name=name, direction=Direction.EXPENSE)
             ).id
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 9, 15),
                     category_id=cat_id,
@@ -373,6 +423,7 @@ def _seed_three_cats_with_history(settings: Settings) -> None:
             )
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 10, 15),
                     category_id=cat_id,
@@ -490,3 +541,41 @@ def test_monthly_summary_totals_row_leaves_analytics_blank(
     assert cells[3].get_text(strip=True) == ""
     assert cells[4].get_text(strip=True) == ""
     assert cells[5].get_text(strip=True) == ""
+
+
+# ---------------------------------------------------------------------------
+# T-FIX1 / ADR-0085 - unbudgeted commitments are informational only.
+# ---------------------------------------------------------------------------
+def test_budget_hero_unbudgeted_info_line_not_counted(
+    client: TestClient, _migrated: Settings, cat_id: int
+) -> None:
+    client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Chk", currency="PLN")).id
+        rent = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        ).id
+        planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=datetime.now(UTC).date() + timedelta(days=1),
+                category_id=rent,
+                account_id=acc,
+                amount=35_000,
+            ),
+        )
+    finally:
+        conn.close()
+    r = client.get("/budget")
+    soup = BeautifulSoup(r.text, "html.parser")
+    hero = soup.find(id="left-daily-spend")
+    assert isinstance(hero, Tag)
+    info = hero.select_one(".budget-lds__unbudgeted")
+    assert isinstance(info, Tag)
+    assert info.get("data-unbudgeted-committed") == "35000"
+    assert "not counted" in info.get_text(" ", strip=True)
+    committed = hero.select_one(".budget-lds__committed")
+    assert isinstance(committed, Tag)
+    assert committed.get("data-committed") == "0"
