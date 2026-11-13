@@ -31,5 +31,12 @@
 			"src":    ["tag:ci"],
 			"dst":    ["tag:prod:22", "tag:drill:22"],
 		},
+		// ADR-0101: the drill web UI is tailnet-only. CI probes /ready (smoke,
+		// restore-drill.yml); the operator browses the drill UI.
+		{
+			"action": "accept",
+			"src":    ["tag:ci", "you@example.com"],
+			"dst":    ["tag:drill:443"],
+		},
 	],
 }
