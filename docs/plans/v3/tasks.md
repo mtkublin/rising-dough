@@ -676,3 +676,4 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D114 [S] `trivy image` fails on the v3→main PR
 - Exposed once T-D101 let `trivy fs` pass: the image scan (now correctly HIGH/CRITICAL-filtered) exits 1, with findings hidden in SARIF. Step 1: `if: failure()` table re-run, same as fs. Step 2: fix (base image / dependency bump) or allowlist (`.security-allowlist.yml` `trivy_image`).
+- 2026-11-13 findings: 109 HIGH/CRITICAL, all Debian 12.15 OS packages, none with a fixed version; Python packages clean. Decision (user): move the base to `python:3.12-slim-trixie` (ADR-0102). If trivy still fails on trixie, the rest needs a separate decision (see ADR-0102 Consequences).

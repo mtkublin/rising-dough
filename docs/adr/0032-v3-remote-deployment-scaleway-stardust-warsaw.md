@@ -36,7 +36,7 @@ v3 deploys Rising Dough to **one Scaleway Stardust `STARDUST1-S` instance in reg
 
 ### 2. Application packaging
 
-- **Container image**: multi-stage Dockerfile, non-root `app` user, `python:3.12-slim-bookworm` base. No shell, no package manager in the final layer.
+- **Container image**: multi-stage Dockerfile, non-root `app` user, `python:3.12-slim-bookworm` base (amended by ADR-0102: `python:3.12-slim-trixie`). No shell, no package manager in the final layer.
 - **Registry**: GHCR private repository (`ghcr.io/<owner>/budget-planner`). Tagged by git SHA + `vMAJOR.MINOR.PATCH` for releases.
 - **Runtime orchestration**: `docker compose` on the host with three services:
   1. `app` — FastAPI/uvicorn container.

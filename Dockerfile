@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.7
 # Rising Dough v3 — multi-stage, non-root runtime image.
-# See docs/adr/0032-v3-remote-deployment-scaleway-stardust-warsaw.md §2
+# See docs/adr/0032-v3-remote-deployment-scaleway-stardust-warsaw.md §2 (base: ADR-0102)
 # and docs/adr/0034-v3-sqlite-replication-litestream.md.
 
 # ---------------------------------------------------------------------------
 # Stage 1 — builder: resolves and compiles the venv with `uv`.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.12-slim-trixie AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -40,7 +40,7 @@ RUN uv sync \
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime: minimal non-root image.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-trixie AS runtime
 
 # `curl` for the container healthcheck (hits /health, see T-D01).
 # `ca-certificates` so outbound HTTPS (frankfurter FX etc.) works.
