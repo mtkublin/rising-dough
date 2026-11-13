@@ -38,10 +38,9 @@ module "iam" {
 module "storage" {
   source = "./modules/storage"
 
-  bucket_name       = local.bucket_name
-  scaleway_region   = var.scaleway_region
-  lifecycle_days    = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
-  log_bucket_suffix = "logs"
+  bucket_name     = local.bucket_name
+  scaleway_region = var.scaleway_region
+  lifecycle_days  = local.lifecycle_days # T-D57: backup_max_age_days - 30 d Litestream retention
 
   # T-D86: expire boot-logs/ after 7 d on drill only (prod bucket unchanged).
   expire_boot_logs = var.env == "drill"

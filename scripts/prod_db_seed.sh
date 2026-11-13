@@ -61,7 +61,7 @@ while (($#)); do
 done
 
 print_plan() {
-  cat <<PLAN
+  cat <<EOF_PLAN
 PLAN (one-time prod DB seed, ADR-0099 exception d)
   1. snapshot  ${SOURCE} -> private temp dir (sqlite3 .backup), integrity_check, row counts
   2. refuse if operator@${HOST}:${REMOTE_DB} already holds user data (unless --force-overwrite)
@@ -69,7 +69,7 @@ PLAN (one-time prod DB seed, ADR-0099 exception d)
   4. on the VM: stop app+litestream, move ${REMOTE_DB}* aside to /data/pre-seed-<ts>/,
      install seed (uid 10001), start litestream+app, wait for /ready, show litestream generations
   5. any failure after the stop: restore the moved-aside DB and restart services
-PLAN
+EOF_PLAN
 }
 
 if ((CONFIRMED == 0 && DRY_RUN == 0)); then
@@ -119,6 +119,7 @@ fi
 REMOTE="operator@${HOST}"
 
 log "checking remote DB for existing user data"
+# shellcheck disable=SC2029  # REMOTE_DB is meant to expand locally
 remote_count="$(ssh "${SSH_OPTS[@]}" "${REMOTE}" \
   "if sudo test -f ${REMOTE_DB}; then sudo sqlite3 -readonly ${REMOTE_DB} 'SELECT (SELECT count(*) FROM accounts)+(SELECT count(*) FROM transactions);'; else echo 0; fi")"
 remote_count="${remote_count//[[:space:]]/}"
@@ -205,5 +206,6 @@ echo "Delete after verification: ssh operator@<host> sudo rm -rf $ASIDE"
 REMOTE
 
 log "swapping DB on ${HOST}"
+# shellcheck disable=SC2029  # SHA and FQDN are meant to expand locally
 printf '%s\n' "${REMOTE_SCRIPT}" | ssh "${SSH_OPTS[@]}" "${REMOTE}" "sudo bash -s -- ${SHA} ${FQDN}"
 log "seed complete. Verify in the app, then delete the moved-aside copy (see output above)."

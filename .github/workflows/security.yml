@@ -122,6 +122,21 @@ jobs:
           format: sarif
           output: trivy-fs.sarif
 
+      # T-D101: SARIF goes to a file, so a failing scan prints no findings.
+      # Re-run with table output to put them in the job log.
+      - name: Trivy fs findings (table)
+        if: failure()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: false
+          trivyignores: .trivyignore
+          format: table
+          skip-setup-trivy: true
+
       - name: Upload SARIF (fs)
         if: ${{ always() && env.CODEQL_TOKEN != '' }}
         env:

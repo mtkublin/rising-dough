@@ -630,6 +630,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D101 [S] Security workflow `trivy fs (repo)` step exits 1 on the v3→main PR
 - Local trivy 0.69.3 scan of the committed tree is clean; CI uses trivy v0.70.0 via trivy-action v0.36.0. Next: read the job log (needs `gh auth login`), then fix or allowlist (`.security-allowlist.yml`).
+- 2026-11-13: job log has no findings because the step writes SARIF only (`format: sarif`) and the SARIF upload is skipped without `CODEQL_TOKEN`. Local 0.69.3 scan of `git archive fa8f233` with a fresh DB is still clean. Step 1: add an `if: failure()` re-run of the scan with `format: table` so findings print to the job log. Step 2: fix or allowlist what it shows.
 - Depends on: operator checklist step 1. Blocks: merge of PR v3→main.
 
 ### T-D102 [M] (proposed) Consolidate PR checks into one `pr.yml` graph
@@ -659,3 +660,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D109 [S] Resolve the prod deploy-key mismatch
 - The deploy public key in prod's config has fingerprint `SHA256:PXLm…`; no local private key matches it. `~/.ssh/rising_dough_deploy` is `SHA256:p4pE…`. Decide which key the GitHub `prod` environment's deploy-key secret holds, then rotate the prod deploy pubkey through the pipeline if needed (`runbooks/key-rotation.md`). Depends on: operator checklist step 5.
+
+### ✅ T-D110 [S] Fix shellcheck SC1122 in `scripts/prod_db_seed.sh` → (no ADR; CI fix)
+- `just ci` fails on `test_shellcheck_clean`: the `print_plan` heredoc delimiter `PLAN` matches the first word of its first content line (`PLAN (one-time prod DB seed, …)`), so shellcheck reads that line as a malformed end token (SC1122). Rename the delimiter to `EOF_PLAN`. Output unchanged. The same run also reports SC2029 (info, still exit 1) on two `ssh` calls whose client-side expansion is intended; suppress each with a commented `# shellcheck disable=SC2029`.
+
+### ✅ T-D111 [S] Drop unused `log_bucket_suffix` variable from `modules/storage` → (no ADR; CI fix)
+- `Terraform` workflow `fmt + validate + lint` fails on tflint `terraform_unused_declarations`: `log_bucket_suffix` is declared but never read (its description already says "informational only"). Remove the variable and its pass-through in `terraform/main.tf`. Variables do not live in state, so plans stay no-op.

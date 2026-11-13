@@ -14,12 +14,6 @@ variable "lifecycle_days" {
   default     = 7
 }
 
-variable "log_bucket_suffix" {
-  description = "Suffix for the companion access-log bucket. Currently informational only; v3 does not wire bucket logs."
-  type        = string
-  default     = "logs"
-}
-
 variable "env_application_id" {
   description = "IAM application id of this env; the only principal granted read/write by default (ADR-0091)."
   type        = string

@@ -936,3 +936,8 @@
 
 ## 2026-11-07 (T-D100 — open v3 items and operator go-live checklist)
 - **Docs(T-D100): `docs/plans/v3/runbooks/operator-checklist.md` lists the human-only go-live steps; `docs/plans/v3/tasks.md` records open tasks T-D101..T-D109** (trivy fs failure, PR-check consolidation, IAM-to-bootstrap move, prod `replace` input, drill explore inputs, public-drill cleanup, tailnet cert verification, per-env Tailscale clients, deploy-key mismatch).
+
+## 2026-11-13 (T-D101 / T-D110 / T-D111 — v3→main PR check fixes)
+- **Fix(T-D110): `scripts/prod_db_seed.sh` is shellcheck-clean** (heredoc delimiter `PLAN` → `EOF_PLAN`, SC1122; intended client-side expansion on two `ssh` calls marked with SC2029 directives).
+- **Fix(T-D111): removed unused `log_bucket_suffix` from `terraform/modules/storage`** (tflint `terraform_unused_declarations`). No plan change.
+- **CI(T-D101): `security.yml` re-runs the trivy fs scan with table output on failure** so findings appear in the job log; the SARIF-only output hid them. The underlying finding is still open.
