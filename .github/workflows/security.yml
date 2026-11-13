@@ -207,6 +207,21 @@ jobs:
           # T-D101: same SARIF severity filter as trivy fs.
           limit-severities-for-sarif: true
 
+      # T-D114: print image findings to the job log (SARIF goes to a file).
+      - name: Trivy image findings (table)
+        if: failure()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: image
+          image-ref: rising-dough:scan
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: false
+          vuln-type: os,library
+          trivyignores: .trivyignore
+          format: table
+          skip-setup-trivy: true
+
       - name: Upload SARIF (image)
         if: ${{ always() && env.CODEQL_TOKEN != '' }}
         env:
