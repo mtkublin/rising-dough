@@ -5,7 +5,7 @@
 ## 1. Environments (Settings > Environments)
 
 - [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **`main` and tag pattern `v*`** (the release runs from a `v*` tag, ADR-0109). Used by `tf-apply-prod` (the single approval per release, ADR-0110; the release is this apply, ADR-0111) and by the apply of `rollback.yml` (env prod). Holds all Scaleway write credentials (ADR-0100).
-- [ ] **Delete `prod-deploy`** (ADR-0111, T-D129): the SSH deploy job is gone; a release is the approved `prod` apply. Delete the environment and its secrets (`DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `TS_OAUTH_*`, `PROD_URL` copies).
+- [ ] **No `prod-deploy`** (ADR-0111, T-D129): the SSH deploy job is gone; a release is the approved `prod` apply. The environment was never created (checked 2026-11-16); if it exists, delete it. Once T-D129 is on `main`, delete the deploy secrets from `prod` (`DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, variable `PROD_URL`).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
 - [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
 - [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
@@ -38,7 +38,6 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `RESTORE_READER_APPLICATION_ID` | x | x | | `bootstrap/ci` output `restore_reader_application_id`; prod only |
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
 | `DEPLOY_SSH_PRIVATE_KEY` | | | x | `restore-drill.yml` only (operator SSH over the tailnet); delete from `prod` (ADR-0111) |
-| `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
 | Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
@@ -48,7 +47,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 
 Repo-level variable (T-D126): `IMAGE_RETENTION_ENABLED` (`true` lets the scheduled `image-retention.yml` delete; unset = dry run). The `budget-planner` package must be linked to the repo with Actions access role Write ([`image-retention.md`](image-retention.md)). Otherwise none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
-Unused since ADR-0111 (delete): `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, variables `PROD_URL` and `DRILL_URL`. `rollback.yml` is an apply through `terraform.yml` and reads the same secrets as a release.
+Unused since ADR-0111 (delete once T-D129 is on `main`): `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `DEPLOY_SSH_PRIVATE_KEY` in `prod`, `DRILL_HOST` (all drill envs), variables `PROD_URL` and `DRILL_URL`. `rollback.yml` is an apply through `terraform.yml` and reads the same secrets as a release.
 
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 

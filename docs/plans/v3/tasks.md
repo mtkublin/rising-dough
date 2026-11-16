@@ -325,24 +325,27 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - Docs only: `runbooks/tailscale-acl.hujson`, checklist A9, `runbooks/tailscale-ssh.md`, and the Tailscale comments in `terraform/providers.tf` and `terraform/variables.tf`. The Terraform code and the workflows are unchanged.
 - Reference: ADR-0094 (amendment 2026-11-06).
 
-### ◻ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
+### ✅ T-D25 [S] First apply on `drill` → T-D21, T-D22, T-D24, T-D63, T-D69
 - `terraform apply -var-file=envs/drill/terraform.tfvars` with the operator-supplied `admin_email` input variable.
 - Capture the one-time admin password from `terraform output -raw admin_initial_password` into a password manager.
 - Verify admin login via `/auth/login` with that password; verify forced redirect to `/settings/password`; rotate password.
 - Verify `/health` 200 via public DNS, Observatory grade ≥ A.
 - File: `phase-2-infrastructure/T-D25-first-apply-drill.md`. Reference: ADR-0061 §3.
+- Done 2026-11-07 (laptop bring-up, verified end to end); drills now run through `drill.yml` (ADR-0101).
 
-### ◻ T-D26 [S] Teardown drill
+### ✅ T-D26 [S] Teardown drill
 - `terraform destroy -var-file=envs/drill/terraform.tfvars` completes without manual cleanup.
 - Bucket `budget-planner-drill-pl-waw` emptied as part of destroy (lifecycle policy).
 - File: `phase-2-infrastructure/T-D26-teardown-drill.md`.
+- Done 2026-11-07 (16 resources destroyed, state empty); since then every gate drill tears down through `drill.yml`.
 
-### ◻ T-D27 [S] First apply on `prod` → T-D25
+### ✅ T-D27 [S] First apply on `prod` → T-D25
 - Prod apply with env approval. DNS points at the prod subdomain.
 - Operator captures `terraform output -raw admin_initial_password` into their password manager.
 - Admin logs in with that password → forced password rotation → optional passkey registration via `/auth/register`.
 - Admin creates at least one non-admin user via `/settings/users` to validate the admin panel end-to-end against prod before the smoke journey (T-D43).
 - File: `phase-2-infrastructure/T-D27-first-apply-prod.md`. Reference: ADR-0061.
+- Done 2026-11-07 (laptop exception, ADR-0099 (a)); prod live at `budget.rising-dough.eu`.
 
 ### ✅ T-D28 [P] Terraform CI (plan on PR, apply on main w/ approval)
 - `.github/workflows/terraform.yml` runs `fmt -check` + `validate` + `tflint` + `tfsec` + `plan` on PRs; `apply` on `main` after `prod` env approval.
@@ -376,6 +379,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ◻ T-D33 [S] Deliberate-break rollback test → T-D31, T-D32
 - Push a feature-flagged "always 500 on /ready" image, confirm the deploy pipeline rolls back automatically.
 - Append the result to `docs/plans/v3/runbooks/rollback.md`.
+- Re-scoped 2026-11-16 (ADR-0111): there is no deploy pipeline any more. On a kept explore drill, apply an image from a throwaway branch whose `/ready` returns 503; the host agent must report `failed` (`ready_timeout`), and `rollback.yml env=drill` must converge back. The automatic rollback step in `terraform.yml` is prod-only (the apply runner is not on the tailnet), so the drill proves detection and the rollback workflow, not that step.
 - File: `phase-3-deployment/T-D33-rollback-test.md`.
 
 ### ✅ T-D34 [S] Manual rollback workflow (`rollback.yml`) → T-D31
@@ -415,9 +419,8 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 
-### ◻ T-D44 [S] Uptime monitoring → T-D27
-- UptimeRobot (or Betterstack free) checks `https://<prod-host>/health` every 5 min; alert to operator email.
-- Monitor id recorded in `docs/plans/v3/runbooks/disaster-recovery.md`.
+### ✅ T-D44 [S] Uptime monitoring → T-D27
+- ~~UptimeRobot (or Betterstack free)~~ Decision 2026-11-16 (user): a scheduled GitHub Actions workflow `uptime.yml` checks `/health` and the host agent status every 5 min; a failed run emails the operator and opens one issue, the next green run closes it. Test `tests/unit/deploy/test_uptime_workflow.py`. Described in `docs/plans/v3/runbooks/disaster-recovery.md`.
 - File: `phase-4-validation/T-D44-uptime-monitor.md`.
 
 ### ◻ T-D45 [S] Cost alert
@@ -475,9 +478,10 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - Null `audit_log.ip`/`user_agent` and delete ended `sessions` older than `retention_personal_days` (default 90, 7..3650); runs at container start (entrypoint, non-fatal, `python -m budget_planner.db.retention`) + every 24 h on the app lifespan task. Audit rows are never deleted. Logs `event="retention_purge"` counts only. No migration.
 - File: `phase-5-data-protection/T-D60-ip-user-agent-retention-purge.md`. Reference: ADR-0078 §7. Tests: `tests/unit/services/test_retention.py`, `tests/integration/startup/test_startup_migrate.py`.
 
-### ◻ T-D61 [S] Data inventory + "what the operator can see in v3" → T-D54..T-D60
+### ✅ T-D61 [S] Data inventory + "what the operator can see in v3" → T-D54..T-D60
 - `runbooks/data-inventory.md`: every location of user data/secrets with protection + retention; honest operator-visibility statement.
 - File: `phase-5-data-protection/T-D61-data-inventory-runbook.md`. Reference: ADR-0078 §8.
+- Done 2026-11-16: `runbooks/data-inventory.md` (15 user-data and 17 secret locations, operator-visibility statement, quarterly check). Includes ADR-0111: every host secret is also in instance metadata. Its open-items list tracks what the repo cannot verify (provider disk encryption, journald retention, encrypted Litestream generation).
 
 ---
 
@@ -648,15 +652,17 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D104 [S] (deferred) `release.yml` `replace` dispatch input for prod `-replace`
 - `workflow_dispatch` input `replace`, main-only and approval-gated, for prod `-replace` operations (cloud-init changes need a server replace). Depends on: ADR-0099 (amendment).
+- 2026-11-16 (ADR-0111): image, compose, Caddy and Litestream config now change through metadata without a new VM; only the fixed bootstrap in `cloud-init` still needs `-replace`, so this is needed rarely.
 - Decision 2026-11-16 (user): keep for the next cloud-init change. Without it, a prod cloud-init change (e.g. T-D115's docker group) needs a manual host fix or break-glass `-replace`. A replace means a new VM, a Litestream restore and downtime.
 
 ### T-D105 [S] (won't do for now) `drill.yml` explore-mode inputs for drill break-glass variables
 - Explore-mode dispatch inputs for the drill-only break-glass variables `break_glass_console_password` and `break_glass_ssh_cidrs`. Depends on: T-D98.
 - Decision 2026-11-16 (user): not needed. `boot_logs=true` covers boot debugging and tailnet SSH works whenever the VM is up.
 
-### T-D106 [S] Clean up leftover public-drill references after ADR-0101
+### ✅ T-D106 [S] Clean up leftover public-drill references after ADR-0101
 - `terraform/scripts/preflight.py` and the `docs/plans/v3` docs still mention `drill.budget.rising-dough.eu`. `deploy.yml` and `rollback.yml` still read `vars.DRILL_URL`; switch them to the ts.net host derived from `vars.TAILNET_DNS_NAME`. Depends on: ADR-0101, T-D97.
 - Decision 2026-11-16 (user): do next, after the first release (step 11). `deploy.yml`/`rollback.yml` work today only because `vars.DRILL_URL` already holds the ts.net URL.
+- Done 2026-11-16: T-D129 removed `deploy.yml` and every `DRILL_URL` read; `preflight.py` no longer names the public host. Only historical notes in this file and the operator checklist mention it.
 
 ### ✅ T-D107 [S] Verify tailnet certificate on the first `mode=gate` drill run
 - Verified 2026-11-16, gate run 43907146399 on `ec01640`: smoke `curl -fsS` (no `-k`) passed from CI as `tag:ci`, and the operator laptop got HTTP 200 with a valid certificate (`ssl_verify_result=0`). Caddy obtains the `*.ts.net` certificate from tailscaled; the first ~1 min after boot shows connect errors and 5 s timeouts while it does.
@@ -667,8 +673,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Separate OAuth clients per environment instead of the single `tag:automation` client. Depends on: operator checklist step 2.
 - Decision 2026-11-16 (user): low value for a single maintainer whose OAuth secret lives only in GitHub environments. Revisit if more people or environments get the secret.
 
-### T-D109 [S] Resolve the prod deploy-key mismatch
+### ✅ T-D109 [S] Resolve the prod deploy-key mismatch
 - The deploy public key in prod's config has fingerprint `SHA256:PXLm…`; no local private key matches it. `~/.ssh/rising_dough_deploy` is `SHA256:p4pE…`. Decide which key the GitHub `prod` environment's deploy-key secret holds, then rotate the prod deploy pubkey through the pipeline if needed (`runbooks/key-rotation.md`). Depends on: operator checklist step 5.
+- Superseded 2026-11-16 by ADR-0111 (T-D129): there is no deploy key; the migration removes the `deploy` user and its key.
 
 ### ✅ T-D110 [S] Fix shellcheck SC1122 in `scripts/prod_db_seed.sh` → (no ADR; CI fix)
 - `just ci` fails on `test_shellcheck_clean`: the `print_plan` heredoc delimiter `PLAN` matches the first word of its first content line (`PLAN (one-time prod DB seed, …)`), so shellcheck reads that line as a malformed end token (SC1122). Rename the delimiter to `EOF_PLAN`. Output unchanged. The same run also reports SC2029 (info, still exit 1) on two `ssh` calls whose client-side expansion is intended; suppress each with a commented `# shellcheck disable=SC2029`.
@@ -692,7 +699,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: committed window has no lower bound (`committed_in_window(start=None)`); recurring expands from `next_due`. Also lowers Budget/Today "left" by budgeted overdue.
 - Tests: `tests/unit/services/test_budget.py` + `tests/unit/services/test_forecast_monthly.py` overdue cases (planned + recurring, budgeted + unbudgeted, older than the current period, due today).
 
-### ✅ T-D115 [S] `deploy` user cannot run `docker compose` → ADR-0037
+### ✅ T-D115 [S] `deploy` user cannot run `docker compose` (superseded by ADR-0111) → ADR-0037
 - Found 2026-11-16 while verifying the T-D109 key: `deploy-budget-planner status` on prod printed `open /etc/budget-planner/docker-compose.yml: permission denied`. The script calls `docker compose` as `deploy`, but cloud-init gave `deploy` no `docker` group (the compose file is `root:docker 0640`). Every pipeline deploy and rollback would fail.
 - Fix: `groups: [docker]` on the `deploy` user in `cloud-init/bootstrap.yaml.tpl`. The SSH forced command still restricts `deploy` to `deploy-budget-planner` (ADR-0037 section 3). Note: `docker` group membership is root-equivalent on the host, so the forced command is the security boundary.
 - Running prod VM: cloud-init does not re-run (ADR-0098). Operator adds the group by hand once (`sudo usermod -aG docker deploy`), logged in `docs/CHANGELOG.md`. New VMs (drill, any prod replace) get it from cloud-init.
@@ -718,7 +725,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `DEPLOY_SSH_KNOWN_HOSTS_DRILL` was never set and could not match a fresh drill VM; the host key comes from `ssh-keyscan` over the tailnet (ADR-0094). The pin step now only creates `~/.ssh/known_hosts`.
 - `CODEQL_TOKEN` was only an on/off switch for the Trivy SARIF uploads (auth is `GITHUB_TOKEN`). Repo is public, Code Scanning is free: uploads are now unconditional, findings land in the Security tab.
 
-### T-D121 [S] Register drill workflows on `main` before the first gate → ADR-0099
+### ✅ T-D121 [S] Register drill workflows on `main` before the first gate → ADR-0099
 - 2026-11-16: `gh workflow run drill.yml --ref v3 -f mode=gate` → `HTTP 404: workflow drill.yml not found on the default branch`. GitHub dispatches only workflows that exist on the default branch; `main` had only `ci.yml`.
 - Fix: PR #3 copies `drill.yml` and `drill-destroy.yml` byte-for-byte from v3 onto `main` (workflow_dispatch only, never run from `main`; identical files, so PR #2 has no conflict).
 - Second failure: the dispatched run ended in `startup_failure` (no job log). `drill.yml` grants only `contents: read`, but its reusable callees request more: `build.yml` `packages: write` + `id-token: write`, `terraform.yml` `pull-requests: write`. GitHub refuses runs where a callee requests more than the calling job grants; actionlint does not check it. Same bug in `drill-destroy.yml` and `drill-sweeper.yml` (the TTL backstop could never have destroyed anything).
@@ -774,5 +781,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - ✅ b. Agent `terraform/host/agent/bp_agent.py` (stdlib only): fetch config, generation check, pinned cosign install + verify, atomic file writes, compose pull/up, service restarts, local `/ready` probe, `status.json`, back-off. Unit tests for the pure parts (`tests/unit/deploy/test_bp_agent.py`).
 - ✅ c. Terraform: compute module renders `bp-config` (all managed files, image ref + previous ref, cosign policy, generation) and `bp-agent` into `user_data` (sensitive); vars `app_image_ref`, `app_image_previous_ref`; outputs `app_image_ref`, `app_image_previous_ref`, `host_config_generation`, `host_image_ref`; cloud-init reduced to fixed bootstrap + loader + systemd timer + `DOCKER-USER` metadata block; Caddy serves `/.well-known/bp-deploy-status.json`. tftest.
 - ✅ d. CI (`scripts/ci/host_release.py`): `terraform.yml` passes the refs (previous from state), monitors the status after apply, re-applies swapped refs on failure in the same job; `release.yml` without `deploy-prod`; `rollback.yml` as an apply; `deploy.yml` and `deploy-budget-planner` removed; drill gate checks the status; `restore-drill.yml` resolves the newest release to a digest. Workflow tests.
-- e. Drill (needs user go): gate run proves first-boot convergence, cosign verify and the metadata size limit; an explore drill (`keep=true`) plus `rollback.yml env=drill` proves a live metadata update converging without reboot. Caddyfile is first validated by that boot (no local `caddy validate`).
+- e. Drill (user go 2026-11-16): gate run proves first-boot convergence, cosign verify and the metadata size limit; an explore drill (`keep=true`) plus `rollback.yml env=drill` proves a live metadata update converging without reboot. Caddyfile is first validated by that boot (no local `caddy validate`).
 - f. Prod migration (needs user go): runbook `runbooks/host-state-migration.md` + `terraform/host/migrate/adr-0111-install-agent.sh` (✅ written; one logged break-glass: install loader + timer + firewall rule, remove `deploy` user and key), then the first release through the new path. GitHub: delete `prod-deploy` environment and deploy secrets.
+
+### T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
+- Decision 2026-11-16 (user): the weekly Dependabot PRs and branches (GitHub Actions, Docker base image) are noise for a single maintainer. Removed `.github/dependabot.yml` (its mention in `HANDOFF.md` is historical); open Dependabot PRs closed and their branches deleted. Dependabot security updates were already off.
+- What still catches vulnerable dependencies: `security.yml` (pip-audit, trivy fs + image) on every PR, and GitHub vulnerability alerts (no PRs). Action and base-image bumps are manual from now on.
