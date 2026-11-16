@@ -168,6 +168,7 @@ ADRs: 0027, 0030, 0031.
 - **Over-mocking:** tests that patch the unit under test, or mock a collaborator so thoroughly that the assertion is meaningless.
 - **Missing cross-implementation tests:** the Track A differential candidates that have no test.
 - **Weak assertions:** `assert result` / `is not None` on money values, status-code-only HTTP tests, snapshot tests nobody reviews.
+- **Redundant tests (slimmer suite, ADR-0108 §2):** candidates from per-test coverage contexts (`--cov-context=test`) and the Mutmut baseline: tests that cover nothing other tests don't and catch no mutant other tests don't. Each candidate is checked by hand before it becomes a finding (it may pin a regression or document behaviour).
 - **Fixture duplication** across `conftest.py` files. Test helpers that re-implement production logic, which would also hide divergence.
 - **Flakiness:** sleeps, time-dependent tests without a frozen clock, order dependence (one run with `pytest -p randomly`).
 - **Gaps:** modules under 85% coverage from Phase 1, untested error branches in money paths, and E2E coverage of the critical flows (add transaction, reconcile, promote recurring, set budget, login/passkey).

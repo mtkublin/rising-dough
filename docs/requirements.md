@@ -471,7 +471,7 @@ This is a read-only audit of the whole repository at a pinned commit, run **afte
 - No production code changes during the audit. No dependency changes committed. No access to `data/budget.sqlite`.
 - A red-team track (Track H, T-Q18) runs after the security review: white-box exploit attempts on CI/CD and supply chain, isolation between users, authentication, and infrastructure. Only locally on synthetic scratch data, or on a fresh drill with no restored prod data and an explicit operator go per run. Never prod, no outward actions on the real repo or cloud accounts, no DoS. Every finding needs a reproduction.
 - Mutation testing (Mutmut, `domain` and `services`) runs as a baseline during the audit. Adopting it as tooling needs its own ADR (next free number) during the prevention pass. It is tracked as a score and is not a CI gate.
-- Timing: after v3 ships and **before v4 starts**. The audit is a v4 Phase 0 precondition.
+- Timing: after v3 ships and after the faster-CI effort (§11), and **before v4 starts**. The audit is a v4 Phase 0 precondition.
 - Critical/High remediation of duplicated logic, repository bypass and user-scoping gaps must land before v4 Phase 3 (field encryption).
 
 ---
@@ -526,3 +526,24 @@ The whole presentation layer is replaced by the designer's handoff "Rising Dough
 ### 10.4 Non-goals
 
 - New features, IA changes beyond the handoff (ADR-0051 is kept), server-side theme persistence, a JS bundler.
+
+---
+
+## 11. Faster CI (added 2026-11-16)
+
+Shorter CI and local check times without weakening the gates. Plan: `docs/plans/ci-speed/` (T-CS01..T-CS06). Decision: ADR-0108.
+
+### 11.1 Scope
+
+- Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents), after a random-order run fixes order dependence.
+- Slow-test causes fixed at the source (hashing cost, per-test migrations, sleeps, browser start-up). Redundant-test candidates come from the quality audit (Track F).
+- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when templates, static files, migrations, SQL, dependencies, `conftest.py`, fixtures or CI config change), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
+- CI caches for mypy (uv cache already on).
+
+### 11.2 Constraints
+
+- Every gate runs the full suite with the 90% coverage gate: single-agent handoff, orchestrator batch CI, PRs to `main`, release.
+- `mypy --strict` stays whole-repo.
+- Prefer existing tools and plugins to custom selection logic.
+- Targets: GitHub `ci` job under 2 min; local `just ci` at least 3× faster; pre-commit on a small diff under 15 s.
+- Timing: after v3 ships, before the quality audit pins its commit.

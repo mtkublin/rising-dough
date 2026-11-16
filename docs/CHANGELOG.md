@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-16 (T-CS00 — faster CI plan)
+- **Docs: faster-CI effort planned, not started** (`docs/plans/ci-speed/`, requirements §11, ADR-0108). Parallel tests with the already-installed `pytest-xdist`, slow-test fixes, and change-based inner-loop checks with the tools' own mechanisms (`pre-commit --from-ref`, `pytest-testmon` with a full-suite fallback list, mypy cache). Every gate keeps the full suite and the 90% coverage gate. Runs after v3 ships, before the quality audit pins its commit; the audit's Track F gains redundant-test candidates (coverage contexts + Mutmut) for a slimmer suite.
+
 ## 2026-11-16 (T-Q18 — red-team track added to the quality audit)
 - **Docs(T-Q18): quality audit gains Track H, an agent red-team pass after Track D** (`docs/plans/quality-audit/implementation_plan.md` §3 Track H and §3.1 rules of engagement, requirements §8.2). Four white-box agents: CI/CD and supply chain (static, no runs against the real repo), isolation between users and privilege, authentication and sessions (both local on synthetic data), infrastructure (fresh drill without restored prod data, operator go per run). Every finding needs a repro; Critical stops the run. New root-cause classes `ci-trust-boundary`, `infra-exposure`. Not started.
 

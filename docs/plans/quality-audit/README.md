@@ -1,6 +1,6 @@
 # Post-v3 Code-Quality Audit
 
-> **When**: after v3 ships (v3 Phase 4 validation complete and prod cut over), **before v4 starts**. The audit is a v4 Phase 0 (T-E00) precondition; decided 2026-11-06.
+> **When**: after v3 ships (v3 Phase 4 validation complete and prod cut over) and after the faster-CI effort (`docs/plans/ci-speed/`, ADR-0108), **before v4 starts**. The audit is a v4 Phase 0 (T-E00) precondition; decided 2026-11-06.
 > **Scope**: the whole repository at one pinned commit: `src/`, `tests/`, templates, static assets, migrations, `terraform/`, CI workflows, `CLAUDE.md`, `.claude/skills/`, `docs/`.
 > **Mode**: read-only audit. No production code changes during the audit. Fixes are a separate remediation effort that the audit's output feeds.
 > Requirements: [`docs/requirements.md` §8](../../requirements.md#8-post-v3-code-quality-audit-added-2026-11-06).
