@@ -89,7 +89,7 @@ The prod app identity (Litestream) and the restore-reader move from the prod sta
 
 7. After the first prod release from `main` has applied (its plan shows `module.iam` and `module.restore_reader` as "will no longer be managed", nothing destroyed), drop ci-prod's transitional IAM read access: `terraform apply -var ci_prod_iam_transition=false` in `bootstrap/ci`, then re-run a prod plan (`terraform.yml` on a PR) to confirm it still succeeds.
 
-The `ci` state contains the keys' secrets. Keep `terraform/bootstrap/ci/terraform.tfstate` out of git (already ignored) and on an encrypted disk (FileVault). An off-laptop encrypted backup is optional: losing the file breaks nothing (keys live in Scaleway, secrets in GitHub); recovery is re-importing the resources with ids from the Scaleway console, as in the import section below.
+The `ci` state contains the keys' secrets. Keep `terraform/bootstrap/ci/terraform.tfstate` out of git (already ignored) and on an encrypted disk (FileVault). An off-laptop encrypted backup is optional: losing the file breaks nothing (keys live in Scaleway, secrets in GitHub); recovery is re-importing the resources with ids from the Scaleway console, as in the import section above.
 
 Put the keys in GitHub (Settings > Environments > <env> > Environment secrets). Pipe outputs straight to the clipboard or `gh`, never echo to a shared terminal log:
 
