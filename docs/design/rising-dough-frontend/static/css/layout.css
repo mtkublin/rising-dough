@@ -1,0 +1,51 @@
+/* App shell: top bar (≥ md), phone header + bottom tab bar (< md), page frame */
+
+.rd-app {
+  padding: var(--space-4) var(--space-4) calc(var(--size-tabbar) + var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+.rd-app--bare {
+  padding-bottom: var(--space-6);
+}
+
+.rd-frame {
+  max-width: var(--layout-max);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rd-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rd-main--gap {
+  gap: var(--space-4);
+}
+
+/* ── skip link ── */
+.rd-skip {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  inset-block-start: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2-5) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-ground);
+  font-size: var(--font-size-heading);
+  transform: translateY(-200%);
+}
+
+.rd-skip:focus-visible {
+  transform: none;
+}
+
+@media (width >= 48rem) {
+  .rd-app {
+    padding: var(--space-4) var(--space-6) var(--space-14);
+  }
+}

@@ -1,0 +1,216 @@
+/* App chrome: top bar (≥ md), phone header + bottom tab bar (< md), overlay roots */
+
+/* ── top bar ── */
+.rd-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+}
+
+.rd-topbar__start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
+  min-width: 0;
+}
+
+.rd-brand {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-brand-sm);
+  letter-spacing: var(--letter-spacing-title);
+  line-height: var(--line-height-heading);
+}
+
+.rd-mainnav {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rd-mainnav__link {
+  padding: var(--space-2-5) var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-mainnav__link:hover {
+  background: var(--color-rule);
+}
+
+.rd-mainnav__link[aria-current="page"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-ground);
+}
+
+.rd-topbar__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.rd-topbar__new,
+.rd-topbar__help {
+  display: none;
+}
+
+.rd-topbar__link {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
+  height: var(--size-control);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-pill);
+  background: none;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.rd-topbar__link:hover {
+  background: var(--color-rule);
+}
+
+.rd-topbar__link--muted {
+  color: var(--color-ink-muted);
+}
+
+.rd-topbar__link[aria-current="page"] {
+  background: var(--color-ink);
+  color: var(--color-ground);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-topbar__form {
+  display: contents;
+}
+
+/* ── phone tab bar (its own element, allowed by the spec) ── */
+.rd-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--z-tabbar);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  height: calc(var(--size-tabbar) + env(safe-area-inset-bottom, 0px));
+  padding: 0 var(--space-2) env(safe-area-inset-bottom, 0);
+  border-top: var(--border-width) solid var(--color-rule);
+  background: var(--color-ground);
+}
+
+.rd-tabbar__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--size-control);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-tabbar__link[aria-current="page"] {
+  color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-tabbar__new {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-tab-fab);
+  height: var(--size-tab-fab);
+  border-radius: var(--radius-pill);
+  background: var(--color-now-fill);
+  box-shadow: var(--ring-now);
+  color: var(--color-ink-deep);
+  font-size: var(--font-size-glyph);
+  line-height: var(--line-height-tight);
+}
+
+.rd-tabbar__new:focus-visible {
+  outline-color: var(--color-ink);
+}
+
+/* ── page-level overlay containers ── */
+.rd-toast-root {
+  position: fixed;
+  inset-inline: var(--space-4);
+  inset-block-end: calc(var(--size-tabbar) + var(--space-4) + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.rd-flash-region:empty,
+.rd-toast-root:empty {
+  display: none;
+}
+
+.rd-toast-root > * {
+  pointer-events: auto;
+}
+
+/* ≥ md: desktop chrome */
+@media (width >= 48rem) {
+  .rd-topbar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .rd-brand {
+    font-size: var(--font-size-title-sm);
+  }
+
+  .rd-mainnav {
+    display: flex;
+  }
+
+  .rd-topbar__actions {
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+  }
+
+  .rd-topbar__new {
+    display: inline-flex;
+    font-size: var(--font-size-heading);
+  }
+
+  .rd-topbar__help {
+    display: inline-flex;
+    border-color: var(--color-rule);
+    font-size: var(--font-size-heading);
+  }
+
+  .rd-topbar__link {
+    padding: 0 var(--space-4);
+    font-size: var(--font-size-heading);
+  }
+
+  .rd-topbar__link--outline {
+    border-color: var(--color-rule);
+  }
+
+  .rd-tabbar {
+    display: none;
+  }
+
+  .rd-toast-root {
+    inset-inline: var(--space-6) auto;
+    inset-block-end: var(--space-6);
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Sign in · wrong credentials · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app rd-app--bare rd-app--auth">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main rd-main--auth">
+<div class="rd-auth">
+<header class="rd-auth__bake"><pre class="rd-auth__loaf" aria-hidden="true">          .:+*###%%%%###*+:.
+       .:*#%@@@@@@@@@@@@@@@%#*:.
+     .+#%@@@@@@@@@@@@@@@@@@@@@%#+.
+   .:*%@@@@@@@@@@@@@@@@@@@@@@@@@%*:.
+  :*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*:
+ :#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#:
+  :+*##%%%%%%%%%%%%%%%%%%%%%%%%##*+:  </pre><a class="rd-auth__brand" href="../../pages/auth/login.html">Rising Dough</a><p class="rd-auth__headline">Hello <i>again</i>.</p><span></span></header>
+<div class="rd-auth__side"><div class="rd-auth__form"><h1 class="u-visually-hidden">Sign in</h1>
+<div class="rd-alert" role="alert" id="form-alert">▲ Email or password is incorrect.</div>
+<form class="rd-form" method="post" action="#" data-demo-next="../../pages/today.html">
+<div class="rd-field"><label class="rd-field__label" for="email">email</label><span class="rd-input"><input class="rd-input__control" id="email" name="email" type="email" value="owner@example.test" autocomplete="username" required aria-describedby="form-alert"></span></div>
+<div class="rd-field"><label class="rd-field__label" for="password">password</label><span class="rd-input"><input class="rd-input__control" id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="form-alert"></span></div>
+<button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ sign in ]</button>
+</form>
+<p class="rd-or" aria-hidden="true"><span></span>OR<span></span></p>
+<form method="post" action="#" data-demo-next="../../pages/today.html"><button type="submit" class="rd-btn rd-btn--block" name="passkey" value="1" data-js="passkey">sign in with a passkey</button></form>
+<a class="rd-auth__link" href="#forgot">forgot password</a></div></div>
+</div>
+</main>
+</div>
+
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+
+</body>
+</html>

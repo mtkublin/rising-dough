@@ -8,7 +8,7 @@
 
 ## Phase 0 — Foundations
 
-### ◻ T-UT01 [S] Vendor the designer handoff
+### ✅ T-UT01 [S] Vendor the designer handoff
 - **Deliverables**:
   - `docs/design/rising-dough-frontend/` = the handoff exactly as delivered (copied from the untracked `data/rising-dough-frontend/`), plus `docs/design/README.md` recording the delivery date and the source canvas names.
   - Lint exclusions for the folder (`djlint`, `ruff`, `stylelint` of the app, `detect-secrets` baseline if needed). The handoff keeps its own `.stylelintrc.json`.

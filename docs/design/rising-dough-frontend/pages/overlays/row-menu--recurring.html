@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Row menu · recurring · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l" aria-current="page">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero" aria-labelledby="hero-label">
+<div class="rd-hero__body">
+<h1 class="rd-hero__label" id="hero-label">recurring · per month</h1>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure rd-hero__figure--wide" data-digits="7" data-marks="2" data-signs="1">−13,755.41</span><span class="rd-hero__unit">PLN out</span></p>
+<p class="rd-hero__note">in +23,253.18 · 27 rules · next due 01 nov</p>
+</div>
+</section>
+<section class="rd-panel" aria-label="Recurring rules">
+<nav class="rd-tabs" aria-label="Ledger view"><a class="rd-tabs__tab" href="../../pages/ledger/actual.html">actual 616</a><a class="rd-tabs__tab" href="../../pages/ledger/planned.html">planned 3</a><a class="rd-tabs__tab" href="../../pages/ledger/recurring.html" aria-current="page">recurring 27</a></nav>
+<!-- fragment: ledger/filter-bar -->
+<form class="rd-filters" id="r-filters" method="post" action="#" role="search" aria-label="Filter transactions" data-js="filters" data-state="collapsed">
+<div class="rd-filters__extra" id="r-extra">
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="r-from">from</label><input class="rd-text" type="date" id="r-from" name="from" value="2026-10-07"></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="r-to">to</label><input class="rd-text" type="date" id="r-to" name="to" value="2026-10-31"></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="r-cat">category</label><span class="rd-select-wrap"><select class="rd-select" id="r-cat" name="category"><option selected>all categories</option><option>Takeaway</option><option>Groceries</option><option>Nights Out</option><option>Fixed costs</option><option>Subscriptions</option><option>Wyjścia na miasto</option></select></span></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="r-acc">account</label><span class="rd-select-wrap"><select class="rd-select" id="r-acc" name="account"><option selected>all accounts</option><option>Checking</option><option>Checking EUR</option><option>Credit Card</option><option>Cash Wallet</option><option>Savings</option><option>Konto oszczędnościowe EUR</option></select></span></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="r-dir">direction</label><span class="rd-select-wrap"><select class="rd-select" id="r-dir" name="direction"><option selected>any direction</option><option>expense</option><option>income</option><option>transfer</option></select></span></div>
+</div>
+<div class="rd-field rd-filters__search"><label class="rd-field__label rd-field__label--plain" for="r-q"><span class="u-hide-below-md">search</span><span class="u-hide-from-md u-visually-hidden">Search description</span></label><input class="rd-text" type="search" id="r-q" name="q" placeholder="search description"></div>
+<button type="button" class="rd-btn rd-btn--secondary-rule rd-filters__toggle" aria-expanded="false" aria-controls="r-extra" data-js="filters-toggle">filters</button>
+</form>
+<!-- /fragment -->
+<div class="rd-table-scroll" tabindex="0" role="region" aria-label="Recurring rules (scrolls sideways)">
+<table class="rd-ledger rd-ledger--sched">
+<caption class="u-visually-hidden">Recurring rules</caption>
+<thead><tr class="rd-row rd-row--head rd-row--sched"><th scope="col" class="rd-sched__due">NEXT DUE</th><th scope="col">DESCRIPTION · ACCOUNT</th><th scope="col">CATEGORY</th><th scope="col" class="rd-row__amount">AMOUNT</th><th scope="col" class="rd-sched__status">OVERRIDES</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody><tr class="rd-row rd-row--day rd-row--cadence"><th scope="rowgroup" colspan="6" class="rd-row__day">MONTHLY</th></tr></tbody>
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">01 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Fixed Costs</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−277.94 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-431" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-431" popover role="menu" data-open aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Fixed Costs · −277.94 PLN</p><p class="rd-menu__sub">next 01 NOV · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Fixed Costs · 01 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Fixed Costs · −277.94 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-431" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">01 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Subscriptions</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="gold">Subscriptions</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−11.31 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-433" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-433" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Subscriptions · −11.31 PLN</p><p class="rd-menu__sub">next 01 NOV · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Subscriptions · 01 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Subscriptions · −11.31 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-433" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">05 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Subscriptions</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="gold">Subscriptions</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−23.29 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-435" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-435" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Subscriptions · −23.29 PLN</p><p class="rd-menu__sub">next 05 NOV · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Subscriptions · 05 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Subscriptions · −23.29 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-435" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">07 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">VAT Refund <abbr class="rd-formula-mark" title="formula amount">ƒ</abbr></span><span class="rd-row__sub">Checking EUR</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="mint">VAT Refund</span></td>
+<td class="rd-row__amount"><span class="rd-amount">+3,729.21 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="false" aria-controls="rec-436" aria-label="Show formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-437" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-437" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">VAT Refund · +3,729.21 PLN</p><p class="rd-menu__sub">next 07 NOV · Checking EUR</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="VAT Refund · 07 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--formula.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="VAT Refund · +3,729.21 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-437" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-436" hidden><td colspan="6"><div class="rd-detail__grid"><div class="rd-detail__panel">
+<p class="rd-caption">FORMULA</p>
+<p class="rd-formula__line"><span class="rd-formula__sign">+</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="chartreuse">Salary</span><span class="rd-chip" data-color="emerald">Side Income</span></p>
+<p class="rd-formula__line"><span class="rd-formula__sign">−</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="sky">Bank fees</span></p>
+<p class="rd-formula__next">→ next amount 1,836.93 PLN</p>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">07 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Salary</span><span class="rd-row__sub">Checking EUR</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="chartreuse">Salary</span></td>
+<td class="rd-row__amount"><span class="rd-amount">+16,213.97 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"><span class="rd-ovr-badge">↻ 4 overrides</span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="true" aria-controls="rec-438" aria-label="Hide formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-439" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-439" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Salary · +16,213.97 PLN</p><p class="rd-menu__sub">next 07 NOV · Checking EUR</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Salary · 07 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Salary · +16,213.97 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-439" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-438"><td colspan="6"><div class="rd-detail__grid"><div class="rd-detail__panel">
+<div class="rd-ovr__head"><p class="rd-caption">OVERRIDES · 4</p><a class="rd-btn rd-btn--quiet" href="../../pages/overlays/override--occurrence.html">+ override</a></div>
+<ul class="rd-ovr__list"><li class="rd-ovr__item"><span>Oct 2026</span><span class="rd-ovr__amount rd-num">15,800.00 PLN</span><span class="rd-ovr__delta rd-num">−413.97</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Oct 2026"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li><li class="rd-ovr__item"><span>Sep 2026</span><span class="rd-ovr__amount rd-num">16,100.00 PLN</span><span class="rd-ovr__delta rd-num">−113.97</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Sep 2026"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li><li class="rd-ovr__item"><span>Aug 2026</span><span class="rd-ovr__amount rd-num">16,500.00 PLN</span><span class="rd-ovr__delta rd-num">+286.03</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Aug 2026"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li><li class="rd-ovr__item"><span>Jul 2026</span><span class="rd-ovr__amount rd-num">15,950.00 PLN</span><span class="rd-ovr__delta rd-num">−263.97</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Jul 2026"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li></ul>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">12 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Taxes <abbr class="rd-formula-mark" title="formula amount">ƒ</abbr></span><span class="rd-row__sub">Checking EUR</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="periwinkle">Taxes</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−1,836.93 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"><span class="rd-ovr-badge">↻ 1 override</span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="true" aria-controls="rec-440" aria-label="Hide formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-441" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-441" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Taxes · −1,836.93 PLN</p><p class="rd-menu__sub">next 12 NOV · Checking EUR</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Taxes · 12 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--formula.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Taxes · −1,836.93 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-441" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-440"><td colspan="6"><div class="rd-detail__grid rd-detail__grid--two"><div class="rd-detail__panel">
+<p class="rd-caption">FORMULA</p>
+<p class="rd-formula__line"><span class="rd-formula__sign">+</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="chartreuse">Salary</span><span class="rd-chip" data-color="emerald">Side Income</span></p>
+<p class="rd-formula__line"><span class="rd-formula__sign">−</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="sky">Bank fees</span></p>
+<p class="rd-formula__next">→ next amount 1,836.93 PLN</p>
+</div><div class="rd-detail__panel">
+<div class="rd-ovr__head"><p class="rd-caption">OVERRIDES · 1</p><a class="rd-btn rd-btn--quiet" href="../../pages/overlays/override--occurrence.html">+ override</a></div>
+<ul class="rd-ovr__list"><li class="rd-ovr__item"><span>Oct 2026</span><span class="rd-ovr__amount rd-num">1,640.00 PLN</span><span class="rd-ovr__delta rd-num">−196.93</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Oct 2026"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li></ul>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">12 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Transit <abbr class="rd-formula-mark" title="formula amount">ƒ</abbr></span><span class="rd-row__sub">Checking EUR → Investments C</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="teal">Transit</span></td>
+<td class="rd-row__amount"><span class="rd-amount">⇄ 12,415.80 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="false" aria-controls="rec-442" aria-label="Show formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-443" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-443" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Transit · ⇄ 12,415.80 PLN</p><p class="rd-menu__sub">next 12 NOV · Checking EUR → Investments C</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Transit · 12 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--formula.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Transit · ⇄ 12,415.80 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-443" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-442" hidden><td colspan="6"><div class="rd-detail__grid"><div class="rd-detail__panel">
+<p class="rd-caption">FORMULA</p>
+<p class="rd-formula__line"><span class="rd-formula__sign">+</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="chartreuse">Salary</span><span class="rd-chip" data-color="emerald">Side Income</span></p>
+<p class="rd-formula__line"><span class="rd-formula__sign">−</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="sky">Bank fees</span></p>
+<p class="rd-formula__next">→ next amount 1,836.93 PLN</p>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">15 NOV<span class="rd-row__sub">ends 15 MAY 2028</span></td>
+<td class="rd-row__desc"><span class="rd-row__title">Fixed Costs</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−2,126.39 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-445" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-445" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Fixed Costs · −2,126.39 PLN</p><p class="rd-menu__sub">next 15 NOV · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Fixed Costs · 15 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Fixed Costs · −2,126.39 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-445" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">18 NOV</td>
+<td class="rd-row__desc"><span class="rd-row__title">Rent</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−1,900.00 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"><span class="rd-ovr-badge">↻ 2 overrides</span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="true" aria-controls="rec-446" aria-label="Hide formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-447" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-447" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Rent · −1,900.00 PLN</p><p class="rd-menu__sub">next 18 NOV · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Rent · 18 NOV">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Rent · −1,900.00 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-447" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-446"><td colspan="6"><div class="rd-detail__grid"><div class="rd-detail__panel">
+<div class="rd-ovr__head"><p class="rd-caption">OVERRIDES · 2</p><a class="rd-btn rd-btn--quiet" href="../../pages/overlays/override--occurrence.html">+ override</a></div>
+<ul class="rd-ovr__list"><li class="rd-ovr__item"><span>Feb 2027</span><span class="rd-ovr__amount rd-num">1,950.00 PLN</span><span class="rd-ovr__delta rd-num">+50.00</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Feb 2027"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li><li class="rd-ovr__item"><span>Mar 2027</span><span class="rd-ovr__amount rd-num">1,950.00 PLN</span><span class="rd-ovr__delta rd-num">+50.00</span><a class="rd-btn rd-btn--icon" href="../../pages/overlays/override--remove.html" aria-label="Remove override Mar 2027"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></a></li></ul>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<tbody><tr class="rd-row rd-row--day rd-row--cadence"><th scope="rowgroup" colspan="6" class="rd-row__day">QUARTERLY</th></tr></tbody>
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">15 JAN 2027</td>
+<td class="rd-row__desc"><span class="rd-row__title">Car insurance</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="seafoam">Car</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−412.00 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-449" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-449" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Car insurance · −412.00 PLN</p><p class="rd-menu__sub">next 15 JAN 2027 · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Car insurance · 15 JAN 2027">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Car insurance · −412.00 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-449" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+<tbody><tr class="rd-row rd-row--day rd-row--cadence"><th scope="rowgroup" colspan="6" class="rd-row__day">YEARLY</th></tr></tbody>
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">07 MAR 2027</td>
+<td class="rd-row__desc"><span class="rd-row__title">Salary <abbr class="rd-formula-mark" title="formula amount">ƒ</abbr></span><span class="rd-row__sub">Checking EUR</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="chartreuse">Salary</span></td>
+<td class="rd-row__amount"><span class="rd-amount">+30,536.19 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon rd-expand" aria-expanded="false" aria-controls="rec-450" aria-label="Show formula and overrides" data-js="expand"></button><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-451" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-451" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Salary · +30,536.19 PLN</p><p class="rd-menu__sub">next 07 MAR 2027 · Checking EUR</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Salary · 07 MAR 2027">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--formula.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Salary · +30,536.19 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-451" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<tr class="rd-detail" id="rec-450" hidden><td colspan="6"><div class="rd-detail__grid"><div class="rd-detail__panel">
+<p class="rd-caption">FORMULA</p>
+<p class="rd-formula__line"><span class="rd-formula__sign">+</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="chartreuse">Salary</span><span class="rd-chip" data-color="emerald">Side Income</span></p>
+<p class="rd-formula__line"><span class="rd-formula__sign">−</span><span class="rd-num">19 %</span><span class="rd-muted rd-formula__of">of</span><span class="rd-chip" data-color="sky">Bank fees</span></p>
+<p class="rd-formula__next">→ next amount 1,836.93 PLN</p>
+</div></div></td></tr></tbody>
+<!-- /fragment -->
+<!-- fragment: rows/recurring-row -->
+<tbody class="rd-rec"><tr class="rd-row rd-row--sched">
+<td class="rd-sched__due">10 MAR 2027</td>
+<td class="rd-row__desc"><span class="rd-row__title">Car</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="seafoam">Car</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−4,056.82 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-sched__status"></td>
+<td class="rd-row__actions"><span class="rd-expand-spacer" aria-hidden="true"></span><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-453" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-453" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Car · −4,056.82 PLN</p><p class="rd-menu__sub">next 10 MAR 2027 · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/promote--recurring.html">promote</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Car · 10 MAR 2027">skip next</button><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-recurring--fixed.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Car · −4,056.82 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-453" popovertargetaction="hide">cancel</button></div></td>
+</tr></tbody>
+<!-- /fragment -->
+</table>
+</div>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html" aria-current="page">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

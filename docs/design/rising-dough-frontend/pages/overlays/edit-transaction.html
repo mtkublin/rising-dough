@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Edit transaction · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l" aria-current="page">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero" aria-labelledby="hero-label">
+<div class="rd-hero__body">
+<h1 class="rd-hero__label" id="hero-label">spent this period</h1>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure" data-digits="6" data-marks="2" data-signs="0">5,014.55</span><span class="rd-hero__unit">PLN</span></p>
+</div>
+</section>
+<section class="rd-panel rd-ledger-panel" aria-label="Transactions">
+<nav class="rd-tabs" aria-label="Ledger view"><a class="rd-tabs__tab" href="../../pages/ledger/actual.html" aria-current="page">actual 616</a><a class="rd-tabs__tab" href="../../pages/ledger/planned.html">planned 3</a><a class="rd-tabs__tab" href="../../pages/ledger/recurring.html">recurring 27</a></nav>
+<!-- fragment: ledger/filter-bar -->
+<form class="rd-filters" id="f-filters" method="post" action="#" role="search" aria-label="Filter transactions" data-js="filters" data-state="collapsed">
+<div class="rd-filters__extra" id="f-extra">
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="f-from">from</label><input class="rd-text" type="date" id="f-from" name="from" value="2026-10-07"></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="f-to">to</label><input class="rd-text" type="date" id="f-to" name="to" value="2026-10-31"></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="f-cat">category</label><span class="rd-select-wrap"><select class="rd-select" id="f-cat" name="category"><option selected>all categories</option><option>Takeaway</option><option>Groceries</option><option>Nights Out</option><option>Fixed costs</option><option>Subscriptions</option><option>Wyjścia na miasto</option></select></span></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="f-acc">account</label><span class="rd-select-wrap"><select class="rd-select" id="f-acc" name="account"><option selected>all accounts</option><option>Checking</option><option>Checking EUR</option><option>Credit Card</option><option>Cash Wallet</option><option>Savings</option><option>Konto oszczędnościowe EUR</option></select></span></div>
+<div class="rd-field"><label class="rd-field__label rd-field__label--plain" for="f-dir">direction</label><span class="rd-select-wrap"><select class="rd-select" id="f-dir" name="direction"><option selected>any direction</option><option>expense</option><option>income</option><option>transfer</option></select></span></div>
+</div>
+<div class="rd-field rd-filters__search"><label class="rd-field__label rd-field__label--plain" for="f-q"><span class="u-hide-below-md">search</span><span class="u-hide-from-md u-visually-hidden">Search description</span></label><input class="rd-text" type="search" id="f-q" name="q" placeholder="search description"></div>
+<button type="button" class="rd-btn rd-btn--secondary-rule rd-filters__toggle" aria-expanded="false" aria-controls="f-extra" data-js="filters-toggle">filters</button>
+</form>
+<!-- /fragment -->
+<form id="tx-bulk" method="post" action="#" class="rd-ledger-form">
+<!-- fragment: ledger/bulk-bar -->
+<div class="rd-bulk" data-js="bulk-bar" hidden>
+<span class="rd-bulk__count" data-js="bulk-count">0 selected</span>
+<button type="submit" form="tx-bulk" class="rd-btn rd-btn--secondary-rule" name="action" value="recategorise" data-js="demo-action" data-demo="toast" data-demo-label="Category changed for the selected entries">change category</button>
+<button type="submit" form="tx-bulk" class="rd-btn rd-btn--danger" name="action" value="delete" data-js="demo-action" data-demo="remove-selected" data-demo-label="Selected entries">delete</button>
+<button type="button" class="rd-btn rd-btn--quiet" data-js="bulk-clear">clear</button>
+</div>
+<!-- /fragment -->
+<div class="rd-table-scroll" tabindex="0" role="region" aria-label="Transactions, 7 to 31 October 2026 (scrolls sideways)">
+<table class="rd-ledger rd-ledger--actual" data-js="bulk">
+<caption class="u-visually-hidden">Transactions, 7 to 31 October 2026</caption>
+<thead><tr class="rd-row rd-row--head"><th scope="col" class="rd-row__select"><input type="checkbox" class="rd-check" data-js="bulk-all" aria-label="Select all on this page"></th><th scope="col">DESCRIPTION · ACCOUNT</th><th scope="col">CATEGORY</th><th scope="col" class="rd-row__amount">AMOUNT</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody class="rd-ledger__day"><!-- fragment: rows/transaction-day -->
+<tr class="rd-row rd-row--day"><th scope="rowgroup" colspan="4" class="rd-row__day">SAT 31 OCT</th><td class="rd-row__net">NET −35.50</td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-259" name="ids" value="sel-259" data-js="bulk-item" aria-label="Select Takeaway, −35.50 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Takeaway</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="orange">Takeaway</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−35.50 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-260" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-260" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Takeaway · −35.50 PLN</p><p class="rd-menu__sub">31 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Takeaway · −35.50 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-260" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment --></tbody><tbody class="rd-ledger__day"><!-- fragment: rows/transaction-day -->
+<tr class="rd-row rd-row--day"><th scope="rowgroup" colspan="4" class="rd-row__day">FRI 30 OCT</th><td class="rd-row__net">NET −248.27</td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-261" name="ids" value="sel-261" data-js="bulk-item" aria-label="Select Nights Out, −63.12 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Nights Out</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="aqua">Nights Out</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−63.12 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-262" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-262" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Nights Out · −63.12 PLN</p><p class="rd-menu__sub">30 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Nights Out · −63.12 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-262" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-263" name="ids" value="sel-263" data-js="bulk-item" aria-label="Select Big Purchases, −48.96 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Big Purchases</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="cyan">Big Purchases</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−48.96 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-264" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-264" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Big Purchases · −48.96 PLN</p><p class="rd-menu__sub">30 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Big Purchases · −48.96 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-264" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-265" name="ids" value="sel-265" data-js="bulk-item" aria-label="Select Takeaway, −105.09 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Takeaway</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="orange">Takeaway</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−105.09 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-266" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-266" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Takeaway · −105.09 PLN</p><p class="rd-menu__sub">30 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Takeaway · −105.09 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-266" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-267" name="ids" value="sel-267" data-js="bulk-item" aria-label="Select Zakupy spożywcze · Żabka, −7.41 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Zakupy spożywcze · Żabka</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="lime">Groceries</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−7.41 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-268" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-268" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Zakupy spożywcze · Żabka · −7.41 PLN</p><p class="rd-menu__sub">30 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Zakupy spożywcze · Żabka · −7.41 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-268" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-269" name="ids" value="sel-269" data-js="bulk-item" aria-label="Select Entertainment, −23.69 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Entertainment</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="silver">Entertainment</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−23.69 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-270" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-270" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Entertainment · −23.69 PLN</p><p class="rd-menu__sub">30 OCT · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Entertainment · −23.69 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-270" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment --></tbody><tbody class="rd-ledger__day"><!-- fragment: rows/transaction-day -->
+<tr class="rd-row rd-row--day"><th scope="rowgroup" colspan="4" class="rd-row__day">THU 29 OCT</th><td class="rd-row__net">NET −140.11</td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-271" name="ids" value="sel-271" data-js="bulk-item" aria-label="Select Reconciliation, −14.72 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Reconciliation</span><span class="rd-row__sub">Cash Wallet</span></td>
+<td class="rd-row__cat"><span class="rd-chip">Reconciliation</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−14.72 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-272" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-272" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Reconciliation · −14.72 PLN</p><p class="rd-menu__sub">29 OCT · Cash Wallet</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Reconciliation · −14.72 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-272" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-273" name="ids" value="sel-273" data-js="bulk-item" aria-label="Select Reconciliation, +9.57 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Reconciliation</span><span class="rd-row__sub">Investments C</span></td>
+<td class="rd-row__cat"><span class="rd-chip">Reconciliation</span></td>
+<td class="rd-row__amount"><span class="rd-amount">+9.57 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-274" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-274" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Reconciliation · +9.57 PLN</p><p class="rd-menu__sub">29 OCT · Investments C</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Reconciliation · +9.57 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-274" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-275" name="ids" value="sel-275" data-js="bulk-item" aria-label="Select Health &amp; Beauty, −134.96 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Health &amp; Beauty</span><span class="rd-row__sub">Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="pink">Health &amp; Beauty</span></td>
+<td class="rd-row__amount"><span class="rd-amount">−134.96 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-276" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-276" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Health &amp; Beauty · −134.96 PLN</p><p class="rd-menu__sub">29 OCT · Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Health &amp; Beauty · −134.96 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-276" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment --></tbody><tbody class="rd-ledger__day"><!-- fragment: rows/transaction-day -->
+<tr class="rd-row rd-row--day"><th scope="rowgroup" colspan="4" class="rd-row__day">MON 26 OCT</th><td class="rd-row__net">NET +20.96</td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-277" name="ids" value="sel-277" data-js="bulk-item" aria-label="Select Side Income, +20.96 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Side Income</span><span class="rd-row__sub">Checking</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="emerald">Side Income</span></td>
+<td class="rd-row__amount"><span class="rd-amount">+20.96 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-278" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-278" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Side Income · +20.96 PLN</p><p class="rd-menu__sub">26 OCT · Checking</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Side Income · +20.96 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-278" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/transaction-row -->
+<tr class="rd-row rd-row--tx">
+<td class="rd-row__select"><input type="checkbox" class="rd-check" id="sel-279" name="ids" value="sel-279" data-js="bulk-item" aria-label="Select Transit, ⇄ 21.93 PLN"></td><td class="rd-row__desc"><span class="rd-row__title">Transit</span><span class="rd-row__sub">Checking → Credit Card</span></td>
+<td class="rd-row__cat"><span class="rd-chip" data-color="teal">Transit</span></td>
+<td class="rd-row__amount"><span class="rd-amount">⇄ 21.93 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-280" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-280" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Transit · ⇄ 21.93 PLN</p><p class="rd-menu__sub">26 OCT · Checking → Credit Card</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-transaction--transit.html">edit</a><button type="button" class="rd-menu__item rd-menu__item--danger" role="menuitem" data-js="demo-action" data-demo="remove" data-demo-label="Transit · ⇄ 21.93 PLN">delete</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-280" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment --></tbody>
+</table>
+</div>
+</form>
+<!-- fragment: ledger/pagination -->
+<nav class="rd-pagination" aria-label="Pages">
+<span class="rd-pagination__pages">page 1 <a class="rd-btn rd-btn--secondary-rule" href="../../pages/ledger/actual.html?page=2" rel="next">older →</a></span>
+<a class="rd-link rd-pagination__aside" href="../../pages/ledger/recently-deleted.html">recently deleted →</a>
+</nav>
+<!-- /fragment -->
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html" aria-current="page">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"><!-- fragment: overlays/edit-transaction -->
+<dialog class="rd-dialog" id="dlg-326" aria-labelledby="dlg-326-title" data-js="modal"><form class="rd-dialog__form" method="post" action="#"><header class="rd-dialog__band"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="dlg-326-title">edit transaction · Takeaway</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div><div class="rd-dialog__hero"><div class="rd-dialog__hero-row"><span class="rd-dialog__sign" aria-hidden="true">−</span><label class="u-visually-hidden" for="hero-amount">Amount</label><input class="rd-dialog__amount" id="hero-amount" name="amount" inputmode="decimal" autocomplete="off" value="35.50" placeholder="0.00" data-js="amount-input" required><span class="rd-dialog__cur">PLN</span></div></div></header><div class="rd-dialog__body"><!-- fragment: fields/category-picker -->
+<fieldset class="rd-catfield" data-js="combobox">
+<legend class="rd-catfield__label">category</legend>
+<div class="rd-catfield__recent"><span class="rd-catfield__hint">recent</span><label class="rd-chip-option" data-color="orange"><input type="radio" name="category" value="Takeaway" checked>Takeaway</label><label class="rd-chip-option" data-color="lime"><input type="radio" name="category" value="Groceries">Groceries</label><label class="rd-chip-option" data-color="blue"><input type="radio" name="category" value="Transport">Transport</label><label class="rd-chip-option" data-color="aqua"><input type="radio" name="category" value="Nights Out">Nights Out</label></div>
+<button type="button" class="rd-catfield__search" aria-haspopup="listbox" aria-expanded="false" aria-controls="catpick-325" data-js="combobox-open"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg>search all 21 categories</button>
+<div class="rd-catpick" id="catpick-325" role="group" aria-label="Pick a category" hidden>
+<div class="rd-catpick__search"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-search"></use></svg><input class="rd-catpick__input" role="combobox" aria-expanded="true" aria-controls="catpick-325-list" aria-autocomplete="list" aria-label="Search categories" placeholder="search all 21 categories" autocomplete="off" data-js="combobox-input"><kbd class="rd-kbd">esc</kbd></div>
+<ul class="rd-catpick__list" role="listbox" id="catpick-325-list" aria-label="Categories"><li class="rd-catpick__option" role="option" id="catpick-325-o0" aria-selected="false" data-value="Big Purchases"><span class="rd-chip" data-color="cyan">Big Purchases</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o1" aria-selected="false" data-value="Car"><span class="rd-chip" data-color="seafoam">Car</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o2" aria-selected="false" data-value="Entertainment"><span class="rd-chip" data-color="silver">Entertainment</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o3" aria-selected="false" data-value="Fixed costs"><span class="rd-chip" data-color="violet">Fixed costs</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o4" aria-selected="false" data-value="Gifts"><span class="rd-chip" data-color="orchid">Gifts</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o5" aria-selected="false" data-value="Groceries"><span class="rd-chip" data-color="lime">Groceries</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o6" aria-selected="false" data-value="Health &amp; Beauty"><span class="rd-chip" data-color="pink">Health &amp; Beauty</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o7" aria-selected="false" data-value="Nights Out"><span class="rd-chip" data-color="aqua">Nights Out</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o8" aria-selected="false" data-value="Other"><span class="rd-chip" data-color="coral">Other</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o9" aria-selected="false" data-value="Sport &amp; Hobby"><span class="rd-chip" data-color="rose">Sport &amp; Hobby</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o10" aria-selected="false" data-value="Subscriptions"><span class="rd-chip" data-color="gold">Subscriptions</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o11" aria-selected="false" data-value="Takeaway"><span class="rd-chip" data-color="orange">Takeaway</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o12" aria-selected="false" data-value="Taxes"><span class="rd-chip" data-color="periwinkle">Taxes</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o13" aria-selected="false" data-value="Transport"><span class="rd-chip" data-color="blue">Transport</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o14" aria-selected="false" data-value="Travel"><span class="rd-chip" data-color="peach">Travel</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o15" aria-selected="false" data-value="Wyjścia na miasto"><span class="rd-chip">Wyjścia na miasto</span><span class="rd-catpick__dir">↓ expense</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o16" aria-selected="false" data-value="Salary"><span class="rd-chip" data-color="chartreuse">Salary</span><span class="rd-catpick__dir">↑ income</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o17" aria-selected="false" data-value="Side Income"><span class="rd-chip" data-color="emerald">Side Income</span><span class="rd-catpick__dir">↑ income</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o18" aria-selected="false" data-value="VAT Refund"><span class="rd-chip" data-color="mint">VAT Refund</span><span class="rd-catpick__dir">↑ income</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o19" aria-selected="false" data-value="Transit"><span class="rd-chip" data-color="teal">Transit</span><span class="rd-catpick__dir">⇄ transit</span></li><li class="rd-catpick__option" role="option" id="catpick-325-o20" aria-selected="false" data-value="Reconciliation"><span class="rd-chip">Reconciliation</span><span class="rd-catpick__dir">± adjustment</span></li></ul>
+<div class="rd-catpick__empty" data-js="combobox-empty" hidden><p>No category matches “<span data-js="combobox-query"></span>”.</p><a class="rd-btn" href="../../pages/overlays/new-category.html">+ new category “<span data-js="combobox-query"></span>”</a></div>
+</div>
+
+</fieldset>
+<!-- /fragment -->
+<div class="rd-fields-row"><div class="rd-field"><label class="rd-field__label" for="et-account">account</label><span class="rd-select-wrap"><select class="rd-select rd-select--field" id="et-account" name="account"><option selected>Credit Card</option><option>Checking</option><option>Checking EUR</option><option>Cash Wallet</option><option>Savings</option><option>Everyday Spending</option><option>Konto oszczędnościowe EUR</option></select></span></div><div data-show-when="category=Transit" hidden class="rd-field"><label class="rd-field__label" for="et-destination">destination</label><span class="rd-select-wrap"><select class="rd-select rd-select--field" id="et-destination" name="destination"><option selected>Credit Card</option><option>Credit Card</option><option>Checking</option><option>Checking EUR</option><option>Cash Wallet</option><option>Savings</option><option>Everyday Spending</option><option>Konto oszczędnościowe EUR</option></select></span></div></div>
+<div class="rd-fields-row"><div class="rd-field"><label class="rd-field__label" for="et-date">date</label><span class="rd-input"><input class="rd-input__control" id="et-date" name="date" type="date" value="2026-10-31"></span></div><div class="rd-field"><label class="rd-field__label" for="et-note">note</label><span class="rd-input"><input class="rd-input__control" id="et-note" name="note" type="text" value="Takeaway"></span></div></div><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--quiet" data-js="dialog-close">cancel</button><button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">[ save ]</button></div></div></form></dialog>
+<!-- /fragment --></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

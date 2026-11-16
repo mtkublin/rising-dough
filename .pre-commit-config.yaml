@@ -7,9 +7,9 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
       - id: end-of-file-fixer
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -17,7 +17,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^src/budget_planner/web/static/tailwind\.css$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
@@ -71,6 +71,8 @@ repos:
     hooks:
       - id: djlint-jinja
         files: \.html$
+        # Designer handoff is vendored byte-identical (ADR-0106, T-UT01).
+        exclude: ^docs/design/
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10

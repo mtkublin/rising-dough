@@ -1,0 +1,59 @@
+/* Amounts: income ink with +, expense ink with −, transfer ⇄, adjustment ±. Two decimals + ISO code. */
+.rd-amount {
+  font-size: var(--font-size-heading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rd-amount__cur {
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-amount--negative,
+.rd-amount--over {
+  color: var(--color-over);
+}
+
+.rd-amount--now {
+  color: var(--color-now);
+}
+
+.rd-amount--sm {
+  font-size: var(--font-size-body);
+}
+
+.rd-amount--data {
+  font-size: var(--font-size-data);
+}
+
+.rd-amount__note {
+  display: block;
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+  white-space: normal;
+}
+
+.rd-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.rd-figure {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  letter-spacing: var(--letter-spacing-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.rd-figure--sm {
+  font-size: var(--font-size-display-sm);
+}
+
+.rd-figure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}

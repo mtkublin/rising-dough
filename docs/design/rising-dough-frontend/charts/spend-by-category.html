@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Chart · Spend by category bars · Rising Dough</title>
+<link rel="icon" href="../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../static/css/main.css">
+<script src="../static/js/theme.js"></script>
+<script defer src="../static/js/reveal.js"></script>
+<script defer src="../static/js/expand.js"></script>
+<script defer src="../static/js/filters.js"></script>
+<script defer src="../static/js/formula.js"></script>
+<script defer src="../static/js/dialog.js"></script>
+<script defer src="../static/js/row-menu.js"></script>
+<script defer src="../static/js/palette.js"></script>
+<script defer src="../static/js/shortcuts.js"></script>
+<script defer src="../static/js/combobox.js"></script>
+<script defer src="../static/js/amount-input.js"></script>
+<script defer src="../static/js/bulk-select.js"></script>
+<script defer src="../static/js/segmented.js"></script>
+<script defer src="../static/js/toast.js"></script>
+<script defer src="../static/js/theme-switch.js"></script>
+<script defer src="../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app rd-app--bare">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main rd-main--gap">
+<h1 class="rd-comp-title">Spend by category bars</h1>
+<p class="rd-body rd-muted"><a class="rd-link" href="index.html">← all charts</a></p>
+<!-- chart notes: Spend by category: block-cell share bars (text, not SVG). 20 cells = 100% of period spend; █ part, ░ rest in .rd-bar__rest. Any non-zero share shows at least 1 cell. ▲ = above the 12-month average, ▼ = below (no colour meaning; ▼ rows use ink-muted). -->
+<section class="rd-card" aria-label="Spend by category bars"><p class="rd-body rd-muted">Spend by category: block-cell share bars (text, not SVG). 20 cells = 100% of period spend; █ part, ░ rest in .rd-bar__rest. Any non-zero share shows at least 1 cell. ▲ = above the 12-month average, ▼ = below (no colour meaning; ▼ rows use ink-muted).</p><table class="rd-ledger rd-ledger--spend"><thead><tr class="rd-row rd-row--head"><th scope="col">CATEGORY</th><th scope="col">SHARE</th><th scope="col" class="rd-spend__period">PERIOD</th><th scope="col" class="rd-spend__delta">VS 12-MO AVG</th></tr></thead><tbody><!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Taxes: 8,611.82 PLN, open in ledger"><span class="rd-chip" data-color="periwinkle">Taxes</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="44 percent of spend">█████████<span class="rd-bar__rest">░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">8,611.82</td>
+<td class="rd-spend__delta rd-num">▲ +1,288.90</td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Fixed costs: 5,790.81 PLN, open in ledger"><span class="rd-chip" data-color="violet">Fixed costs</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="30 percent of spend">██████<span class="rd-bar__rest">░░░░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">5,790.81</td>
+<td class="rd-spend__delta rd-num">▲ +295.71</td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Nights Out: 1,600.37 PLN, open in ledger"><span class="rd-chip" data-color="aqua">Nights Out</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="8 percent of spend">██<span class="rd-bar__rest">░░░░░░░░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">1,600.37</td>
+<td class="rd-spend__delta rd-num">▲ +320.12</td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Takeaway: 667.04 PLN, open in ledger"><span class="rd-chip" data-color="orange">Takeaway</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="3 percent of spend">█<span class="rd-bar__rest">░░░░░░░░░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">667.04</td>
+<td class="rd-spend__delta rd-num">▲ +166.64</td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Subscriptions: 533.01 PLN, open in ledger"><span class="rd-chip" data-color="gold">Subscriptions</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="3 percent of spend">█<span class="rd-bar__rest">░░░░░░░░░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">533.01</td>
+<td class="rd-spend__delta rd-num">▲ +191.50</td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/analytics-category -->
+<tr class="rd-row rd-row--spend">
+<td class="rd-spend__cat"><a class="rd-stretch" href="../pages/ledger/actual.html" aria-label="Groceries: 427.17 PLN, open in ledger"><span class="rd-chip" data-color="lime">Groceries</span></a></td>
+<td class="rd-spend__bar"><span class="rd-bar rd-bar--share" role="img" aria-label="2 percent of spend">█<span class="rd-bar__rest">░░░░░░░░░░░░░░░░░░░</span></span></td>
+<td class="rd-spend__period rd-num">427.17</td>
+<td class="rd-spend__delta rd-num rd-spend__delta--down">▼ −277.96</td>
+</tr>
+<!-- /fragment --></tbody></table></section>
+</main>
+</div>
+
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+
+</body>
+</html>

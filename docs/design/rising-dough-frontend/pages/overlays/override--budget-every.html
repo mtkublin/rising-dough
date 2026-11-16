@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Override · budget, every October · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p" aria-current="page">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero" aria-labelledby="hero-label">
+<div class="rd-hero__body">
+<h1 class="rd-hero__label" id="hero-label">budget left</h1>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure rd-hero__figure--plan" data-digits="6" data-marks="2" data-signs="0">1,399.93</span><span class="rd-hero__unit">PLN</span></p>
+<p class="rd-hero__note"><span class="u-hide-below-md">6,449.08 budgeted · 5,014.55 spent · 34.60 committed · 6 categories over · 277.94 planned in unbudgeted categories</span><span class="u-hide-from-md">34.60 committed · 6 over</span></p>
+</div>
+</section>
+<section class="rd-panel" aria-label="Budget">
+<div class="rd-plan-head"><nav class="rd-tabs rd-tabs--compact" aria-label="Plan view"><a class="rd-tabs__tab" href="../../pages/plan/budget.html" aria-current="page">budget</a><a class="rd-tabs__tab" href="../../pages/plan/year.html">year</a><a class="rd-tabs__tab" href="../../pages/plan/forecast.html">forecast</a><a class="rd-tabs__tab" href="../../pages/plan/analytics.html">analytics</a></nav><!-- fragment: plan/period-nav -->
+<div class="rd-period" role="group" aria-label="Period">
+<a class="rd-btn rd-btn--icon rd-btn--icon-outline" href="../../pages/plan/budget.html?period=2026-09" aria-label="Previous period" aria-keyshortcuts="ArrowLeft">←</a>
+<button type="button" class="rd-btn rd-btn--secondary-rule rd-period__label" popovertarget="period-308" aria-haspopup="dialog" data-js="period-trigger">October 2026 <span aria-hidden="true">▾</span></button>
+<a class="rd-btn rd-btn--icon rd-btn--icon-outline" href="../../pages/plan/budget.html?period=2026-11" aria-label="Next period" aria-keyshortcuts="ArrowRight">→</a>
+<!-- fragment: popovers/period-picker -->
+<div class="rd-period-pick" id="period-308" popover role="dialog" aria-label="Pick period"><div class="rd-period-pick__head"><a class="rd-btn rd-btn--icon" href="../../pages/plan/budget.html?period=2025-10" aria-label="Previous year">←</a><span class="rd-period-pick__year">2026</span><a class="rd-btn rd-btn--icon" href="../../pages/plan/budget.html?period=2027-10" aria-label="Next year">→</a></div>
+<div class="rd-period-pick__grid"><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-01">Jan</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-02">Feb</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-03">Mar</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-04">Apr</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-05">May</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-06">Jun</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-07">Jul</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-08">Aug</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-09">Sep</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-10" aria-current="true">Oct</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-11">Nov</a><a class="rd-period-pick__cell" href="../../pages/plan/budget.html?period=2026-12">Dec</a></div><p class="rd-period-pick__note">oct = 7 oct → 7 nov</p></div>
+<!-- /fragment -->
+</div>
+<!-- /fragment --></div>
+<div class="rd-table-scroll" tabindex="0" role="region" aria-label="Budget by category, October 2026 (scrolls sideways)">
+<table class="rd-ledger rd-ledger--budget">
+<caption class="u-visually-hidden">Budget by category, October 2026</caption>
+<thead><tr class="rd-row rd-row--head"><th scope="col">CATEGORY</th><th scope="col">USED</th><th scope="col" class="rd-budget__spent">SPENT / BUDGET</th><th scope="col" class="rd-budget__status">STATUS</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody>
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="cyan">Big Purchases</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="39 percent spent, 60 percent left">████<span class="rd-bar__left">░░░░░░</span></span></td>
+<td class="rd-budget__spent rd-num">234.82 <span class="rd-muted">/ 604.35</span></td>
+<td class="rd-budget__status rd-num">left 369.53</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-309" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-309" popover role="menu" aria-label="Big Purchases actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-309" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="seafoam">Car</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">359.35 <span class="rd-muted">/ 354.16</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 5.19</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-310" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-310" popover role="menu" aria-label="Car actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-310" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="silver">Entertainment</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">265.33 <span class="rd-muted">/ 190.86</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 74.47</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-311" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-311" popover role="menu" aria-label="Entertainment actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-311" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="orchid">Gifts</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="0 percent spent, 100 percent left"><span class="rd-bar__left">░░░░░░░░░░</span></span></td>
+<td class="rd-budget__spent rd-num">0.00 <span class="rd-muted">/ 346.34</span></td>
+<td class="rd-budget__status rd-num">left 346.34</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-312" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-312" popover role="menu" aria-label="Gifts actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-312" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="lime">Groceries</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="45 percent spent, 60 percent left">████<span class="rd-bar__left">░░░░░░</span></span></td>
+<td class="rd-budget__spent rd-num">427.17 <span class="rd-muted">/ 956.74</span></td>
+<td class="rd-budget__status rd-num">left 529.57</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-313" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-313" popover role="menu" aria-label="Groceries actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-313" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="pink">Health &amp; Beauty</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">414.11 <span class="rd-muted">/ 379.37</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 34.74</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-314" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-314" popover role="menu" aria-label="Health &amp; Beauty actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-314" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="aqua">Nights Out</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">1,600.37 <span class="rd-muted">/ 783.11</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 817.26</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-315" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-315" popover role="menu" aria-label="Nights Out actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-315" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="coral">Other</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="71 percent spent, 30 percent left">███████<span class="rd-bar__left">░░░</span></span></td>
+<td class="rd-budget__spent rd-num">245.04 <span class="rd-muted">/ 344.61</span></td>
+<td class="rd-budget__status rd-num">left 99.57</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-316" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-316" popover role="menu" aria-label="Other actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-316" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="rose">Sport &amp; Hobby</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="5 percent spent, 90 percent left">█<span class="rd-bar__left">░░░░░░░░░</span></span></td>
+<td class="rd-budget__spent rd-num">17.44 <span class="rd-muted">/ 319.18</span></td>
+<td class="rd-budget__status rd-num">left 301.74</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-317" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-317" popover role="menu" aria-label="Sport &amp; Hobby actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-317" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="gold">Subscriptions</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="90 percent spent, 10 percent left">█████████<span class="rd-bar__left">░</span></span></td>
+<td class="rd-budget__spent rd-num">533.01 <span class="rd-muted">/ 592.57</span></td>
+<td class="rd-budget__status rd-num">left 59.56</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-318" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-318" popover role="menu" aria-label="Subscriptions actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-318" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="orange">Takeaway</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">667.04 <span class="rd-muted">/ 394.27</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 272.77</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-319" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-319" popover role="menu" aria-label="Takeaway actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-319" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="blue">Transport</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--over" role="img" aria-label="over budget">██████████</span></td>
+<td class="rd-budget__spent rd-num">220.90 <span class="rd-muted">/ 155.47</span></td>
+<td class="rd-budget__status rd-budget__status--over rd-num">▲ over 65.43</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-320" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-320" popover role="menu" aria-label="Transport actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-320" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="peach">Travel</span></td>
+<td class="rd-budget__bar"><span class="rd-bar" role="img" aria-label="3 percent spent, 100 percent left"><span class="rd-bar__left">░░░░░░░░░░</span></span></td>
+<td class="rd-budget__spent rd-num">29.97 <span class="rd-muted">/ 1,028.05</span></td>
+<td class="rd-budget__status rd-num">left 998.08</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-321" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-321" popover role="menu" aria-label="Travel actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-321" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="sky">Bank Fees #18</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--none" role="img" aria-label="no budget">░░░░░░░░░░</span></td>
+<td class="rd-budget__spent rd-num">0.00 <span class="rd-muted">/ —</span></td>
+<td class="rd-budget__status rd-budget__status--none rd-num">no budget</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-322" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-322" popover role="menu" aria-label="Bank Fees #18 actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-322" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--none" role="img" aria-label="no budget">░░░░░░░░░░</span></td>
+<td class="rd-budget__spent rd-num">5,790.81 <span class="rd-muted">/ —</span></td>
+<td class="rd-budget__status rd-budget__status--none rd-num">no budget</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-323" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-323" popover role="menu" aria-label="Fixed costs actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-323" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/budget-line -->
+<tr class="rd-row rd-row--budget">
+<td class="rd-budget__cat"><span class="rd-chip" data-color="periwinkle">Taxes</span></td>
+<td class="rd-budget__bar"><span class="rd-bar rd-bar--none" role="img" aria-label="no budget">░░░░░░░░░░</span></td>
+<td class="rd-budget__spent rd-num">8,611.82 <span class="rd-muted">/ —</span></td>
+<td class="rd-budget__status rd-budget__status--none rd-num">no budget</td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-324" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-324" popover role="menu" aria-label="Taxes actions"><span class="rd-menu__grabber" aria-hidden="true"></span><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/override--budget-month.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-324" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+</tbody>
+<tfoot><tr class="rd-row rd-row--total"><th scope="row" class="rd-budget__cat">Total</th><td class="rd-budget__bar"></td><td class="rd-budget__spent rd-num">5,014.55 <span class="rd-muted">/ 6,449.08</span></td><td class="rd-budget__status">left 1,399.93</td><td></td></tr></tfoot>
+</table>
+</div>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html" aria-current="page">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"><!-- fragment: overlays/override-budget -->
+<dialog class="rd-dialog" id="dlg-339" aria-labelledby="dlg-339-title" data-js="modal"><form class="rd-dialog__form" method="post" action="#"><header class="rd-dialog__band"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="dlg-339-title">override budget · Big Purchases · Oct 2026</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div><div class="rd-dialog__hero"><div class="rd-dialog__hero-row"><label class="u-visually-hidden" for="hero-amount">Amount</label><input class="rd-dialog__amount" id="hero-amount" name="amount" inputmode="decimal" autocomplete="off" value="700.00" placeholder="0.00" data-js="amount-input" required><span class="rd-dialog__cur">PLN</span></div><p class="rd-dialog__hero-note">default 604.35</p></div></header><div class="rd-dialog__body"><div class="rd-field rd-field--seg" role="radiogroup" aria-labelledby="seg-338"><span class="rd-field__label" id="seg-338">scope</span><div class="rd-segmented"><label class="rd-segmented__option"><input type="radio" name="scope" value="this month only">this month only</label><label class="rd-segmented__option"><input type="radio" name="scope" value="every october" checked>every october</label><label class="rd-segmented__option"><input type="radio" name="scope" value="new default">new default</label></div></div><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--quiet" data-js="dialog-close">cancel</button><button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">[ save ]</button></div></div></form></dialog>
+<!-- /fragment --></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

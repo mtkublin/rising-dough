@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-16 (T-UT01 — designer handoff vendored)
+- **Docs(T-UT01, ADR-0106): the "Rising Dough · Sourdough redesign" handoff is committed byte-identical under `docs/design/rising-dough-frontend/`** (157 files, 99 HTML, delivered 2026-11-14), with a SHA-256 manifest and `docs/design/README.md`. Pre-commit fixers and djlint exclude `docs/design/`; detect-secrets still scans it. All 99 pages open from `file://` in Chromium with 0 console errors and 0 requests outside the folder. The untracked `data/rising-dough-frontend/` copy can now be deleted.
+
 ## 2026-11-16 (T-D119 — opentelemetry-api ReDoS)
 - **Security(T-D119): `opentelemetry-api` 1.45.1 -> 1.45.2 (CVE-2026-126360, GHSA-mf5v-w3w3-f6cg).** A crafted `traceparent` header caused quadratic regex backtracking in `TraceContextTextMapPropagator.extract()`; FastAPI's default-on telemetry runs it on every request on the event loop. Transitive via `fastapi`; lockfile-only bump. The remaining pip-audit hit on macOS x86_64 (`cryptography` 48.0.1) is the known dev-only ADR-0067 fork (T-D91), not shipped to prod.
 ## 2026-11-16 (T-UT00 / T-UR00 — UI test harness and Sourdough redesign plans)

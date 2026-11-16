@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Ledger · recently deleted · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l" aria-current="page">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+<div class="rd-hero__body"><h1 class="rd-hero__title" id="page-title">Recently deleted</h1><p class="rd-hero__note rd-hero__note--band">last 90 days</p></div>
+</section>
+<section class="rd-panel rd-deleted" aria-label="Recently deleted items">
+<section class="rd-deleted__group" aria-labelledby="del-tx"><h2 class="rd-deleted__title" id="del-tx">Transactions <span class="rd-deleted__count">· 0</span></h2>
+<!-- fragment: states/empty-inline -->
+<p class="rd-empty-inline">Nothing deleted.</p>
+<!-- /fragment --></section>
+<section class="rd-deleted__group" aria-labelledby="del-pl"><h2 class="rd-deleted__title" id="del-pl">Planned <span class="rd-deleted__count">· 1</span></h2>
+<div class="rd-table-scroll rd-table-scroll--flush" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="rd-ledger rd-ledger--deleted-planned">
+<thead><tr class="rd-row rd-row--head rd-row--del-planned"><th scope="col">DELETED</th><th scope="col">DUE</th><th scope="col">DESCRIPTION</th><th scope="col">CATEGORY</th><th scope="col" class="rd-row__amount">AMOUNT</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody><!-- fragment: rows/deleted-planned -->
+<tr class="rd-row rd-row--del-planned"><td class="rd-del__when rd-muted"><span class="u-hide-from-md">deleted </span>29 OCT 20:30</td><td class="rd-del__due"><span class="u-hide-from-md">due </span>15 DEC</td><td class="rd-del__desc">Car</td><td class="rd-del__cat"><span class="rd-chip" data-color="seafoam">Car</span></td><td class="rd-row__amount rd-num">−2,306.35 PLN</td><td class="rd-row__actions"><form method="post" action="#"><button type="submit" class="rd-btn" name="restore" value="planned-1" data-js="demo-action" data-demo="restore" data-demo-label="Car · −2,306.35 PLN">restore</button></form></td></tr>
+<!-- /fragment --></tbody>
+</table></div></section>
+<section class="rd-deleted__group" aria-labelledby="del-cat"><h2 class="rd-deleted__title" id="del-cat">Categories <span class="rd-deleted__count">· 3</span></h2>
+<div class="rd-table-scroll rd-table-scroll--flush" tabindex="0" role="region" aria-label="Table (scrolls sideways)"><table class="rd-ledger rd-ledger--deleted-cats">
+<thead><tr class="rd-row rd-row--head rd-row--del-cat"><th scope="col">DELETED</th><th scope="col">NAME</th><th scope="col">DIRECTION</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody><!-- fragment: rows/deleted-category -->
+<tr class="rd-row rd-row--del-cat"><td class="rd-del__when rd-muted"><span class="u-hide-from-md">deleted </span>29 OCT 20:06</td><td class="rd-del__cat"><span class="rd-chip" data-color="mint">VAT Refund #6</span></td><td class="rd-del__dir">↑ income</td><td class="rd-row__actions"><form method="post" action="#"><button type="submit" class="rd-btn" name="restore" value="cat-0" data-js="demo-action" data-demo="restore" data-demo-label="VAT Refund #6">restore</button></form></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/deleted-category -->
+<tr class="rd-row rd-row--del-cat"><td class="rd-del__when rd-muted"><span class="u-hide-from-md">deleted </span>28 OCT 11:03</td><td class="rd-del__cat"><span class="rd-chip" data-color="sky">Bank Fees</span></td><td class="rd-del__dir">↓ expense</td><td class="rd-row__actions"><form method="post" action="#"><button type="submit" class="rd-btn" name="restore" value="cat-1" data-js="demo-action" data-demo="restore" data-demo-label="Bank Fees">restore</button></form></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/deleted-category -->
+<tr class="rd-row rd-row--del-cat"><td class="rd-del__when rd-muted"><span class="u-hide-from-md">deleted </span>28 OCT 10:58</td><td class="rd-del__cat"><span class="rd-chip">Opłaty bankowe i prowizje</span></td><td class="rd-del__dir">↓ expense</td><td class="rd-row__actions"><form method="post" action="#"><button type="submit" class="rd-btn" name="restore" value="cat-2" data-js="demo-action" data-demo="restore" data-demo-label="Opłaty bankowe i prowizje">restore</button></form></td></tr>
+<!-- /fragment --></tbody>
+</table></div></section>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html" aria-current="page">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>
