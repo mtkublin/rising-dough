@@ -104,7 +104,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Runbook: [`key-rotation.md`](key-rotation.md) part 2, step 7.
 
 ### 12. Open question for the user
-- [ ] The message "Also, once drill is deployed by" was cut off and never completed. Finish the thought so it can be recorded as a task.
+- [x] Skipped 2026-11-16: the user does not remember the cut-off message "Also, once drill is deployed by"; nothing recorded.
 
 ## Related tasks
 

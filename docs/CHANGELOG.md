@@ -979,3 +979,4 @@
 - **Chore(T-D120): drop dead CI secrets** — restore-drill no longer pins the never-set `DEPLOY_SSH_KNOWN_HOSTS_DRILL`; Trivy SARIF uploads to Code Scanning are unconditional (the `CODEQL_TOKEN` switch is gone).
 - **Chore(T-D121): drill workflows registered on `main`** (PR #3). GitHub dispatches only workflows present on the default branch; the first gate dispatch returned 404.
 - **Fix(T-D121): drill/drill-destroy/drill-sweeper grant their reusable workflows' permissions.** First gate run was a `startup_failure` (caller granted `contents: read`; `build.yml`/`terraform.yml` request more). New test checks every caller against its callee.
+- **Fix(T-D122): `build.yml` builds when called from a branch drill gate.** Its main-only dispatch guard read the caller's event/ref, so every branch gate skipped build, apply and smoke.
