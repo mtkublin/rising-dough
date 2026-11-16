@@ -21,12 +21,12 @@ Limits: GitHub can start scheduled runs several minutes late, and a GitHub outag
 - Local workstation has `terraform`, `ssh`, `scw` CLI, and `gh` installed.
 - You have the Scaleway API credential pair with permissions to recreate the project resources (admin or project-admin IAM key, kept in the operator's password manager — distinct from the Litestream key).
 - Prod DR restores with the prod app's own key. Only the monthly drill uses the separate prod-state `restore-reader` read-only key (ADR-0092); keep its outputs recoverable (`terraform output` on prod) or re-create via apply.
-- You have the **Litestream age identity** (`AGE-SECRET-KEY-1...`, from the password manager) and its `age1...` recipient. They are Terraform inputs (`litestream_age_identity`, `litestream_age_recipient`); cloud-init writes the identity to `/etc/budget-planner/litestream-age.key` (0600) and the `litestream-restore` service uses it to decrypt the replica (T-D56, ADR-0078 §3). **If the identity is lost, the replica is unrecoverable: there is no other copy of the key and no way around the encryption.**
+- You have the **Litestream age identity** (`AGE-SECRET-KEY-1...`, from the password manager) and its `age1...` recipient. They are Terraform inputs (`litestream_age_identity`, `litestream_age_recipient`); the host agent writes the identity to `/etc/budget-planner/litestream-age.key` (0600) from `bp-config` and the `litestream-restore` service uses it to decrypt the replica (T-D56, ADR-0078 §3). **If the identity is lost, the replica is unrecoverable: there is no other copy of the key and no way around the encryption.**
 - The Terraform state is reachable:
   - Primary: `s3://budget-planner-tfstate-pl-waw` (encrypted, versioned).
   - If the state bucket is also gone: use the latest state file snapshot the operator keeps offline. If none exists, see Troubleshooting ("state bucket also lost").
 - The `main` branch of the repo is intact and the latest green image tag is present in GHCR (`ghcr.io/<owner>/budget-planner:sha-<short>`).
-- You have the GHCR PAT (`GHCR_PAT`) and the deploy SSH key (`DEPLOY_SSH_PRIVATE_KEY`) stored in the operator's password manager — the GitHub Actions encrypted copies are useful too but assume we may be rebuilding without GHA access first.
+- You have the GHCR PAT (`GHCR_PAT`) stored in the operator's password manager — the GitHub Actions encrypted copies are useful too but assume we may be rebuilding without GHA access first.
 - DNS zone for `budget-planner-prod` is still reachable (zone itself is managed by Terraform; records will be rewritten).
 
 ## Procedure
@@ -52,15 +52,15 @@ terraform apply tfplan
 Terraform recreates:
 
 - Scaleway project resources (IAM app for Litestream, security group, Flex IPv4).
-- Stardust1-S instance in `pl-waw-2` (or the zone set in tfvars, ADR-0084) with cloud-init user-data.
+- Stardust1-S instance in `pl-waw-2` (or the zone set in tfvars, ADR-0084) with the fixed cloud-init bootstrap plus the `bp-agent` and `bp-config` metadata keys.
 - DNS A/AAAA records pointing `budget-planner-prod` at the new IP.
 - `/etc/budget-planner/docker-compose.yml`, Litestream config, Caddyfile and registry auth: written by the host agent from `bp-config` on first boot (ADR-0111); no deploy user.
 
-Cloud-init boot sequence will:
+The boot sequence is:
 
-1. Install docker + fail2ban + ufw.
-2. Pull the pinned image tag.
-3. `docker compose up -d` runs the one-shot `litestream-restore` service first (ADR-0071 §3): `litestream restore -if-db-not-exists -if-replica-exists` restores the latest replica into the empty `/data/budget.db` and chowns it to uid 10001. For a point-in-time recovery, do **not** rely on this: stop the stack after first boot and follow [`restore.md`](restore.md) with `-timestamp`.
+1. cloud-init (fixed bootstrap): install docker + fail2ban + ufw, join Tailscale, install the agent loader and the 30 s `bp-converge.timer`.
+2. The host agent fetches `bp-config`, writes the managed files, cosign-verifies and pulls the pinned image ref.
+3. The agent runs `docker compose up -d`, which runs the one-shot `litestream-restore` service first (ADR-0071 §3): `litestream restore -if-db-not-exists -if-replica-exists` restores the latest replica into the empty `/data/budget.db` and chowns it to uid 10001. For a point-in-time recovery, do **not** rely on this: stop the stack after first boot and follow [`restore.md`](restore.md) with `-timestamp`.
 4. Start `litestream` (replicator), then `app`, then `caddy`. The `app` and `litestream` services wait until `litestream-restore` has completed successfully.
 5. The app container entrypoint applies any migrations the restored DB is missing. If the DB already has migrations applied, it first writes a pre-migration backup to `/data/backups/` (ADR-0071 §2).
 6. The lifespan admin-bootstrap routine (ADR-0061 §3) runs with `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD` from env. If the restored DB already has a live admin, this step does nothing.
@@ -115,8 +115,8 @@ Trigger only if the DB has zero live admins (ADR-0061 §3). The admin-bootstrap 
    # No static password: random_password.admin_initial_password rerolls on apply.
    ```
 2. Plan and apply as in §2 (break-glass).
-3. Cloud-init re-renders `/etc/budget-planner/app.env` (only on a NEW VM: cloud-init runs once, so an in-place `cloud_init` update changes nothing on the host; add `-replace=module.compute.scaleway_instance_server.app` to the step 2 plan, ADR-0098; mask plan output with `just tf-plan-safe prod`) with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
-4. No separate deploy: the fresh VM starts the current image from cloud-init, and the lifespan startup hook runs the bootstrap routine on that start. If the container must be rolled anyway, that is a break-glass SSH deploy (`ssh deploy@budget-planner-prod "deploy sha-<current>"`, explicit user go, logged in `docs/CHANGELOG.md`).
+3. The apply updates `bp-config` in place (no VM replace needed; mask plan output with `just tf-plan-safe prod`). Within ~30 s the host agent rewrites `/etc/budget-planner/docker-compose.yml` with the new `BUDGET_PLANNER_ADMIN_EMAIL` + fresh `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`.
+4. No separate deploy: the agent recreates the `app` container because its environment changed, and the lifespan startup hook runs the bootstrap routine on that start. There is no SSH deploy path (ADR-0111).
 5. Capture `terraform output -raw admin_initial_password` into the password manager.
 6. Log in as the new admin at `https://budget-planner-prod/auth/login`. The first login forces password rotation (`must_change_password = 1`).
 7. Audit: `/debug/audit-tail` shows a `users.create` or `users.update` row with `actor='system-bootstrap'`.
@@ -158,19 +158,18 @@ ssh app@budget-planner-prod \
 
 - **Terraform plan fails with "resource already exists"**: previous `terraform destroy` was partial. Import the stray resource or delete it via `scw` CLI before re-applying.
 - **State bucket also lost**: restore state from the latest offline snapshot (`terraform-state-YYYYMMDD.tar.gz` in the operator's encrypted backup). If no snapshot exists, re-adopt resources by writing `import` blocks against the live Scaleway resources before applying — slow (hours), but recoverable.
-- **Caddy fails ACME challenge during cloud-init**: port 80 blocked by security group or DNS not yet resolving. Check `scw instance server list`, confirm security group allows `80/tcp`, confirm `dig +short budget-planner-prod` returns the new IPv4.
+- **Caddy fails ACME challenge on first boot**: port 80 blocked by security group or DNS not yet resolving. Check `scw instance server list`, confirm security group allows `80/tcp`, confirm `dig +short budget-planner-prod` returns the new IPv4.
 - **App came up with an empty DB instead of the restored data**: `litestream-restore` found no replica (wrong bucket / credential) and exited 0 under `-if-replica-exists`, so the entrypoint migrated a fresh DB. Check `docker compose logs litestream-restore`. Then stop `app` + `litestream`, move `/data/budget.db*` aside, fix the credential and run the restore manually per [`restore.md`](restore.md).
 - **Restore fails with an age / "no identity matched" error**: the identity supplied to Terraform does not match the recipient the replica was encrypted to. Check `age-keygen -y <identity file>` against the `age1...` recipient in `litestream.yml`, fix the variable and re-run the restore manually per [`restore.md`](restore.md).
-- **Litestream restore returns "no snapshots found"**: the IAM key cloud-init rendered cannot read the bucket. SSH as `app`, re-source the credential, and run the restore manually (see [`restore.md`](restore.md) steps 5–7).
+- **Litestream restore returns "no snapshots found"**: the IAM key Terraform rendered into the host config cannot read the bucket. SSH as `app`, re-source the credential, and run the restore manually (see [`restore.md`](restore.md) steps 5–7).
 - **Admin bootstrap did not run**: check `docker compose logs app --tail 100` for the `system-bootstrap` audit entry. If missing, the lifespan hook short-circuited because at least one admin was found. Confirm with `SELECT count(*) FROM users WHERE is_admin=1 AND deleted_at IS NULL;`.
 - **New admin email never arrives at login**: ADR-0061 §3 — the env var is read only at startup. Restart the app container after the apply (`docker compose restart app` over tailnet SSH, explicit user go; ADR-0099).
-- **Deploy pipeline cannot push images after DR**: `GHCR_PAT` or `DEPLOY_SSH_PRIVATE_KEY` was rotated as part of recovery and GitHub Actions secrets still hold the old value. Update the GHA secrets and re-run.
+- **Deploy pipeline cannot push images after DR**: `GHCR_PAT` was rotated as part of recovery and GitHub Actions secrets still hold the old value. Update the GHA secrets and re-run.
 
 ## Secrets rotation checklist (when DR was triggered by suspected compromise)
 
 - [ ] Rotate `SCW_ACCESS_KEY` + `SCW_SECRET_KEY` (Litestream IAM app — bucket-scoped only).
 - [ ] Rotate `GHCR_PAT`.
-- [ ] Rotate `DEPLOY_SSH_PRIVATE_KEY` (and update `authorized_keys` on the new host via Terraform cloud-init).
 - [ ] Rotate the operator SSH key for the `app` user if the previous host was reachable.
 - [ ] Rotate the admin password (break-glass: `terraform apply -replace=random_password.admin_initial_password`, see `break-glass.md`).
 - [ ] Rotate Scaleway project-admin API key the operator uses for Terraform.

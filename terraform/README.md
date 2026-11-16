@@ -27,7 +27,7 @@ terraform/
 │   ├── dns/      # A/AAAA records only; zone is never owned by Terraform (ADR-0088)
 │   └── compute/  # Stardust1-S + Flex IPv4 + security group + user_data
 ├── cloud-init/
-│   ├── bootstrap.yaml.tpl           # first-boot sequence
+│   ├── bootstrap.yaml.tpl           # fixed bootstrap: users, Tailscale, Docker, firewall, agent loader + timer (ADR-0111)
 │   ├── compose/
 │   │   ├── docker-compose.yml.tpl   # app + litestream + caddy
 │   │   ├── Caddyfile.tpl            # auto-TLS, CSP nonce, access log
@@ -93,16 +93,16 @@ It does not run `terraform fmt -check` or `validate`; run those separately (T-D7
 | Secret | Source | Sink |
 |---|---|---|
 | Operator Scaleway API key | Operator shell (`SCW_ACCESS_KEY` / `SCW_SECRET_KEY`) | Terraform CLI only. Never written to state. |
-| IAM app access/secret key | Created by `terraform/bootstrap/ci` (`module.app_<env>.scaleway_iam_api_key.app`, ADR-0104); stored as env secrets `APP_SCW_ACCESS_KEY` / `APP_SCW_SECRET_KEY`, passed as `TF_VAR_app_scw_*` | Rendered into `/etc/budget-planner/litestream.env` + compose env via cloud-init. |
+| IAM app access/secret key | Created by `terraform/bootstrap/ci` (`module.app_<env>.scaleway_iam_api_key.app`, ADR-0104); stored as env secrets `APP_SCW_ACCESS_KEY` / `APP_SCW_SECRET_KEY`, passed as `TF_VAR_app_scw_*` | Rendered into `/etc/budget-planner/litestream.env` + compose env, written by the host agent from `bp-config` (ADR-0111). |
 | Prod replica read-only key (drill only) | Created by `terraform/bootstrap/ci` (`module.restore_reader`, outputs `restore_reader_access_key` / `_secret_key`, ADR-0092, ADR-0104); stored as `drill`-env secrets `PROD_REPLICA_RO_*`, passed as `TF_VAR_scw_access_key_restore` / `TF_VAR_scw_secret_key_restore` | `/etc/budget-planner/restore-source.env` (0600) on the drill VM, used by `restore-from-prod` (T-D41a). |
-| GHCR pull PAT | Operator-supplied `TF_VAR_ghcr_pull_pat` (CI: secret `GHCR_PULL_PAT`) | Rendered into `/root/.docker/config.json` on the VM. |
+| GHCR pull PAT | Operator-supplied `TF_VAR_ghcr_pull_pat` (CI: secret `GHCR_PULL_PAT`) | Rendered into `/root/.docker/config.json` on the VM by the host agent (`bp-config`). |
 | Admin initial password | `random_password.admin_initial_password` | Compose env `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`. Capture once from `terraform output -raw admin_initial_password`. |
 | Session cookie signing secret | `random_password.cookie_secret` | Compose env `BUDGET_COOKIE_SECRET`. |
 
 Rotation (prod changes are break-glass only, ADR-0099; drill: re-dispatch `drill.yml`):
 
 - Admin password: break-glass `terraform apply -replace='random_password.admin_initial_password'`. The env var is **not** reconciled continuously — the on-host app only consumes it on first-boot bootstrap. To rotate an existing admin, use `/settings/password` as that admin, or `/settings/users/<id>/reset-password` as another admin (ADR-0061 §4).
-- Scaleway IAM key: in `terraform/bootstrap/ci`, `terraform apply -replace='module.app_<env>.scaleway_iam_api_key.app'` (break-glass key, ADR-0104), then update the `APP_SCW_*` secrets and the host (`runbooks/deploy.md`).
+- Scaleway IAM key: in `terraform/bootstrap/ci`, `terraform apply -replace='module.app_<env>.scaleway_iam_api_key.app'` (break-glass key, ADR-0104), then update the `APP_SCW_*` secrets and the host (an approved apply updates `bp-config`; the agent applies it within ~30 s, see `runbooks/deploy.md`).
 - Cookie secret: break-glass `terraform apply -replace='random_password.cookie_secret'`.
 
 ## Destroy
