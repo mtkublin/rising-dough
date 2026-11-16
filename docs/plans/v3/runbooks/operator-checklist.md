@@ -103,6 +103,12 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - **Done when:** `ci-prod`'s policy has no organization rule and a prod PR plan still succeeds.
 - Runbook: [`key-rotation.md`](key-rotation.md) part 2, step 7.
 
+### 11c. Enable GHCR image retention (T-D126)
+- [ ] **Where:** GitHub UI (package settings, Actions) and laptop.
+- After the first release: link package `budget-planner` to the repo (Actions role Write), dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
+- **Done when:** a scheduled or `dry_run=false` run shows `mode: APPLY` and the next release still deploys.
+- Runbook: [`image-retention.md`](image-retention.md).
+
 ### 12. Open question for the user
 - [x] Skipped 2026-11-16: the user does not remember the cut-off message "Also, once drill is deployed by"; nothing recorded.
 
