@@ -680,6 +680,15 @@ run "host_config_pins_image_and_policy" {
     error_message = "Caddy must serve the agent status for the CI monitor."
   }
 
+  # T-D132: the CSP is set from a response matcher inside reverse_proxy.
+  assert {
+    condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
+      "handle_response @html {"
+    )
+    error_message = "Caddy must set the CSP via a handle_response response matcher (T-D132)."
+  }
+
   assert {
     condition = alltrue([
       for p in ["/etc/budget-planner/litestream-age.key", "/etc/budget-planner/litestream.env", "/root/.docker/config.json", "/usr/local/bin/restore-from-prod"] :
