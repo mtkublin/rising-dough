@@ -694,12 +694,12 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D116 [S] Rename secret `GITHUB_DEPLOY_PUBKEY` → `DEPLOY_SSH_PUBKEY` → ADR-0093
 - GitHub rejects secret names starting with `GITHUB_` (HTTP 422), so the secret `terraform.yml` and `restore-drill.yml` read could never be created; `TF_VAR_github_deploy_pubkey` was always empty in CI. Found 2026-11-16 during operator checklist step 5. Renamed in workflows and docs; the Terraform variable name is unchanged.
 
-### T-D117 [S] CI identities locked out of the durability buckets → ADR-0105
+### ✅ T-D117 [S] CI identities locked out of the durability buckets → ADR-0105
 - First PR plan with CI keys (2026-11-16): `ci-plan` 403 on `GetBucketCors` (ADR-0091 allow-list lists no CI identity). Same failure waits for `ci-prod` (release) and `ci-drill` (teardown).
 - Code: `bucket_plan_principals` → `AllowTerraformPlanRead` statement (bucket config reads only); workflows pass `BUCKET_PLAN_PRINCIPALS`.
 - Operator: add `application_id:<ci-prod>` to prod/prod-plan `BUCKET_ADMIN_PRINCIPALS`, `application_id:<ci-drill>` to the drill ones, `BUCKET_PLAN_PRINCIPALS = ["application_id:<ci-plan>"]` on prod/prod-plan; one targeted break-glass apply of the prod bucket policy.
 
-### T-D118 [S] CI identities need Block Storage permissions → ADR-0100 (amendment)
+### ✅ T-D118 [S] CI identities need Block Storage permissions → ADR-0100 (amendment)
 - PR plan 2026-11-16: `ci-plan` `insufficient permissions: read volume` refreshing `scaleway_instance_server.app` (root volume is an SBS volume). `ci-prod`/`ci-drill` would fail the same way on apply/destroy.
 - Code: bootstrap/ci policies add `BlockStorageFullAccess` (ci-prod, ci-drill) and `BlockStorageReadOnly` (ci-plan).
 - Operator: apply `terraform/bootstrap/ci` locally (allowed exception, ADR-0099); keys unchanged.
