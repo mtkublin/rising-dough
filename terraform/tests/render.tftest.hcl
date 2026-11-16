@@ -579,3 +579,17 @@ run "restore_reader_rejected_on_drill" {
 
   expect_failures = [var.restore_reader_application_id]
 }
+
+# T-D115: the deploy user must be in the docker group to run `docker compose`.
+run "deploy_user_in_docker_group" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = length(regexall("- name: deploy\n(?:    .*\n)*?    groups: \\[docker\\]\n", nonsensitive(output.user_data))) == 1
+    error_message = "cloud-init must put the deploy user in the docker group (T-D115)."
+  }
+}

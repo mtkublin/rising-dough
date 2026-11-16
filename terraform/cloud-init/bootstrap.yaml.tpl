@@ -93,6 +93,9 @@ users:
     uid: 10002
     shell: /bin/bash
     lock_passwd: true
+    # T-D115: deploy-budget-planner runs `docker compose`; the compose file is root:docker 0640.
+    # The forced command below is the boundary (docker group is root-equivalent).
+    groups: [docker]
     ssh_authorized_keys:
       - 'command="/usr/local/bin/deploy-budget-planner",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ${github_deploy_pubkey}'
   - name: operator
