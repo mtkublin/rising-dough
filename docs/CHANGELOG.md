@@ -980,3 +980,4 @@
 - **Chore(T-D121): drill workflows registered on `main`** (PR #3). GitHub dispatches only workflows present on the default branch; the first gate dispatch returned 404.
 - **Fix(T-D121): drill/drill-destroy/drill-sweeper grant their reusable workflows' permissions.** First gate run was a `startup_failure` (caller granted `contents: read`; `build.yml`/`terraform.yml` request more). New test checks every caller against its callee.
 - **Fix(T-D122): `build.yml` builds when called from a branch drill gate.** Its main-only dispatch guard read the caller's event/ref, so every branch gate skipped build, apply and smoke.
+- **Fix(T-D123): drill VM on `DEV1-S`** (ADR-0032 amendment). Scaleway allows one STARDUST1-S per organisation and prod uses it; the gate apply failed on the quota. Prod stays on STARDUST1-S.
