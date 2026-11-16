@@ -19,6 +19,10 @@ permissions:
 jobs:
   destroy:
     name: terraform destroy (drill)
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill

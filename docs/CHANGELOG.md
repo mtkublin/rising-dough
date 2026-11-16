@@ -975,3 +975,4 @@
 - **Fix(T-D118): CI identities get Block Storage permission sets** (ADR-0100 amendment); `ci-plan` could not read the prod server's root volume.
 - **Chore(T-D120): drop dead CI secrets** — restore-drill no longer pins the never-set `DEPLOY_SSH_KNOWN_HOSTS_DRILL`; Trivy SARIF uploads to Code Scanning are unconditional (the `CODEQL_TOKEN` switch is gone).
 - **Chore(T-D121): drill workflows registered on `main`** (PR #3). GitHub dispatches only workflows present on the default branch; the first gate dispatch returned 404.
+- **Fix(T-D121): drill/drill-destroy/drill-sweeper grant their reusable workflows' permissions.** First gate run was a `startup_failure` (caller granted `contents: read`; `build.yml`/`terraform.yml` request more). New test checks every caller against its callee.

@@ -715,4 +715,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D121 [S] Register drill workflows on `main` before the first gate → ADR-0099
 - 2026-11-16: `gh workflow run drill.yml --ref v3 -f mode=gate` → `HTTP 404: workflow drill.yml not found on the default branch`. GitHub dispatches only workflows that exist on the default branch; `main` had only `ci.yml`.
 - Fix: PR #3 copies `drill.yml` and `drill-destroy.yml` byte-for-byte from v3 onto `main` (workflow_dispatch only, never run from `main`; identical files, so PR #2 has no conflict).
-- Done when PR #3 is merged and the first gate dispatch is accepted.
+- Second failure: the dispatched run ended in `startup_failure` (no job log). `drill.yml` grants only `contents: read`, but its reusable callees request more: `build.yml` `packages: write` + `id-token: write`, `terraform.yml` `pull-requests: write`. GitHub refuses runs where a callee requests more than the calling job grants; actionlint does not check it. Same bug in `drill-destroy.yml` and `drill-sweeper.yml` (the TTL backstop could never have destroyed anything).
+- Fix: job-level `permissions` on every reusable call in those three files; `tests/unit/deploy/test_reusable_permissions.py` asserts, for every workflow, that each caller grants what its local reusable workflow requests.
+- `main`'s registration copies stay stale (never run; dispatch uses `--ref v3`); v3 merged `origin/main` first so PR #2 is a plain modification, no add/add conflict.
+- Done when PR #3 is merged, the gate dispatch starts, and `drill-gate` is `success`.
