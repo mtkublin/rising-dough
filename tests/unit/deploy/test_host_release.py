@@ -89,13 +89,11 @@ def test_refs_must_be_digest_pinned(bad: str) -> None:
         hr.resolve_refs(new=bad, current="", current_previous="")
 
 
-def test_refs_cli_prints_github_env_lines(capsys: pytest.CaptureFixture[str]) -> None:
+def test_refs_cli_prints_github_output_lines(capsys: pytest.CaptureFixture[str]) -> None:
     rc = hr.main(["refs", "--new", B, "--current", A])
 
     assert rc == 0
-    assert (
-        capsys.readouterr().out == f"TF_VAR_app_image_ref={B}\nTF_VAR_app_image_previous_ref={A}\n"
-    )
+    assert capsys.readouterr().out == f"ref={B}\nprevious={A}\n"
 
 
 def test_refs_cli_refuses_with_annotation(capsys: pytest.CaptureFixture[str]) -> None:

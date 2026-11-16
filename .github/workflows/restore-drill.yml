@@ -97,7 +97,8 @@ jobs:
       # identity (written 0600 to the drill host). Never the dev-only key.
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
-      # ADR-0111: set by "Resolve app image" (newest release, digest-pinned).
+      # ADR-0111: placeholder; the Terraform steps set it from the "Resolve app
+      # image" output (newest release, digest-pinned) as step-level env.
       TF_VAR_app_image_ref: ""
     steps:
       - name: Checkout
@@ -142,6 +143,7 @@ jobs:
       # ADR-0111: the host runs a digest-pinned, cosign-verified image. Use the
       # newest GitHub release (prod's line), or `main` before the first one.
       - name: Resolve app image
+        id: image
         env:
           IMAGE: ghcr.io/${{ github.repository_owner }}/budget-planner
         run: |
@@ -150,9 +152,11 @@ jobs:
           TAG="${TAG:-main}"
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
           DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          echo "TF_VAR_app_image_ref=${TAG}@${DIGEST}" | tee -a "$GITHUB_ENV"
+          echo "ref=${TAG}@${DIGEST}" | tee -a "$GITHUB_OUTPUT"
 
       - name: Check required Terraform inputs
+        env:
+          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref }}
         run: python3 terraform/scripts/check_tf_vars.py
 
       - name: Terraform init (drill backend)
@@ -161,6 +165,8 @@ jobs:
 
       - name: Terraform apply (drill)
         working-directory: terraform
+        env:
+          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref }}
         run: |
           terraform apply \
             -input=false \
@@ -270,6 +276,10 @@ jobs:
         if: always()
         timeout-minutes: 20
         working-directory: terraform
+        env:
+          # Destroy never renders user data; any valid ref works when the
+          # resolve step did not run (ADR-0111, host_release.PLACEHOLDER).
+          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref || format('sha-0000000@sha256:{0}', '0000000000000000000000000000000000000000000000000000000000000000') }}
         run: |
           set -euo pipefail
           terraform init -input=false -backend-config=envs/drill/backend.hcl

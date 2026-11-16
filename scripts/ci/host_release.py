@@ -7,9 +7,11 @@ holds the two CI-side rules, used by terraform.yml:
 Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
   refs --new REF --current REF --current-previous REF
        [--rollback] [--destroy] [--plan-only]
-      Print `TF_VAR_app_image_ref=...` and `TF_VAR_app_image_previous_ref=...`
-      lines for $GITHUB_ENV. `--current*` come from `terraform output` (empty
-      before the first apply and after a destroy). Refs are
+      Print `ref=...` and `previous=...` lines for $GITHUB_OUTPUT. Workflows
+      pass them to Terraform steps as step-level `TF_VAR_app_image_ref` /
+      `TF_VAR_app_image_previous_ref` (step env always wins over job env).
+      `--current*` come from `terraform output` (empty before the first
+      apply and after a destroy). Refs are
       `<tag>@sha256:<digest>`. A plan that is never applied (PR plan,
       -destroy) may fall back to a placeholder ref.
   wait --url URL --generation GEN --ref FULL_REF [--timeout S] [--interval S]
@@ -46,8 +48,8 @@ class Refs:
     ref: str
     previous: str
 
-    def env_lines(self) -> str:
-        return f"TF_VAR_app_image_ref={self.ref}\nTF_VAR_app_image_previous_ref={self.previous}\n"
+    def output_lines(self) -> str:
+        return f"ref={self.ref}\nprevious={self.previous}\n"
 
 
 def _check(name: str, value: str) -> str:
@@ -164,7 +166,7 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = fetch_status) -> int:
                 destroy=args.destroy,
                 plan_only=args.plan_only,
             )
-            sys.stdout.write(resolved.env_lines())
+            sys.stdout.write(resolved.output_lines())
         else:
             status = wait_converged(
                 fetch,

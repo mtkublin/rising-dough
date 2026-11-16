@@ -186,7 +186,8 @@ jobs:
       # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
-      # ADR-0111: set by the "Resolve image refs" step (current ref from state).
+      # ADR-0111: placeholder; Terraform steps set it from the "Resolve image
+      # refs" step outputs as step-level env.
       TF_VAR_app_image_ref: ""
 
     steps:
@@ -214,19 +215,27 @@ jobs:
         run: terraform init -input=false -backend-config=envs/${{ matrix.env }}/backend.hcl -reconfigure
 
       # ADR-0111: a PR plan keeps the image ref recorded in state; never applied,
-      # so an empty state (drill after teardown) may use a placeholder.
+      # so an empty state (drill after teardown) may use a placeholder. Steps
+      # that need the refs get them as step-level env (wins over job env).
       - name: Resolve image refs
+        id: refs
         run: |
           set -euo pipefail
           current="$(terraform output -raw app_image_ref 2>/dev/null || true)"
           previous="$(terraform output -raw app_image_previous_ref 2>/dev/null || true)"
-          python3 ../scripts/ci/host_release.py refs --current "${current}" --current-previous "${previous}" --plan-only >> "$GITHUB_ENV"
+          python3 ../scripts/ci/host_release.py refs --current "${current}" --current-previous "${previous}" --plan-only | tee -a "$GITHUB_OUTPUT"
 
       - name: Check required Terraform inputs
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: python3 scripts/check_tf_vars.py
 
       - name: terraform plan (${{ matrix.env }})
         id: plan
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: |
           # T-D83 / ADR-0098: never print raw plan output (cloud_init embeds
           # secrets and Terraform may show the prior state value unmasked).
@@ -340,7 +349,8 @@ jobs:
       TARGET_ENV: ${{ inputs.env }}
       IMAGE_REF: ${{ inputs.image_ref }}
       TF_ROLLBACK: ${{ inputs.rollback }}
-      # ADR-0111: set by the "Resolve image refs" step from IMAGE_REF + state.
+      # ADR-0111: placeholder; Terraform steps set it from the "Resolve image
+      # refs" step outputs as step-level env.
       TF_VAR_app_image_ref: ""
       TF_REPLACE: ${{ inputs.replace }}
       TF_DESTROY: ${{ inputs.destroy }}
@@ -391,6 +401,7 @@ jobs:
       # ADR-0111: the current ref (from state) becomes the previous ref; a
       # rollback swaps them. Refs are <tag>@sha256:<digest> (validated).
       - name: Resolve image refs
+        id: refs
         run: |
           set -euo pipefail
           current="$(terraform output -raw app_image_ref 2>/dev/null || true)"
@@ -398,14 +409,20 @@ jobs:
           flags=()
           if [ "${TF_DESTROY}" = "true" ]; then flags+=(--destroy); fi
           if [ "${TF_ROLLBACK}" = "true" ]; then flags+=(--rollback); fi
-          python3 ../scripts/ci/host_release.py refs --new "${IMAGE_REF}" --current "${current}" --current-previous "${previous}" "${flags[@]}" | tee -a "$GITHUB_ENV"
+          python3 ../scripts/ci/host_release.py refs --new "${IMAGE_REF}" --current "${current}" --current-previous "${previous}" "${flags[@]}" | tee -a "$GITHUB_OUTPUT"
 
       - name: Check required Terraform inputs
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: python3 scripts/check_tf_vars.py
 
       # T-D83 / ADR-0098: plan output is always piped through mask_plan.py and
       # plan.bin is never uploaded (it embeds raw config/state values).
       - name: terraform plan (${{ inputs.env }})
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: |
           set -euo pipefail
           args=(-no-color -out=plan.bin)
@@ -444,15 +461,15 @@ jobs:
       # ADR-0111: automatic rollback inside the already approved job: re-apply
       # with the refs swapped, wait for the host, and keep the job failed.
       - name: Roll back to the previous ref (prod)
-        if: ${{ failure() && steps.converge.outcome == 'failure' && env.TF_VAR_app_image_previous_ref != '' }}
+        if: ${{ failure() && steps.converge.outcome == 'failure' && steps.refs.outputs.previous != '' }}
         env:
           STATUS_URL: ${{ steps.host.outputs.url }}
+          # Swapped: the previous ref runs again, the failed one is recorded as previous.
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.previous }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.ref }}
         run: |
           set -euo pipefail
-          new="${TF_VAR_app_image_ref}"
-          export TF_VAR_app_image_ref="${TF_VAR_app_image_previous_ref}"
-          export TF_VAR_app_image_previous_ref="${new}"
-          echo "::warning::host did not converge on ${new}; rolling back to ${TF_VAR_app_image_ref}"
+          echo "::warning::host did not converge on ${TF_VAR_app_image_previous_ref}; rolling back to ${TF_VAR_app_image_ref}"
           terraform plan -no-color -input=false -out=rollback.bin | python3 scripts/mask_plan.py
           terraform apply -no-color -input=false rollback.bin | python3 scripts/mask_plan.py
           python3 ../scripts/ci/host_release.py wait --url "${STATUS_URL}" \
