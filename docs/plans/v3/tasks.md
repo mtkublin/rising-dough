@@ -759,6 +759,11 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Touches `release.yml`, `build.yml`, `terraform.yml`, `deploy.yml` (main-ref guards become "main or a `v*` tag on main", one shared tested script), `rollback.yml`, runbooks `deploy.md` / `rollback.md`, `github-settings.md` (tag ruleset).
 - Timing (user, 2026-11-16): after the first merge-triggered release (operator checklist step 11). Accepting ADR-0109 flips it to Accepted.
 
+### ✅ T-D127 [S] Deploy forced command did not split `SSH_ORIGINAL_COMMAND` → ADR-0037
+- First pipeline release (run 43913941966, 2026-11-16): `deploy-prod` got the usage text, exit 1. Host syslog: `subcmd=deploy sha-89ac3c2`, i.e. one word. The script's strict-mode `IFS=$'\n\t'` does not split on spaces, so `args=( $SSH_ORIGINAL_COMMAND )` stayed one element; single-word `status` worked, `deploy <tag>` and `rollback <tag>` never could. Prod was untouched (still `sha-075f986`).
+- Fix: `IFS=' ' read -r -a args <<< "$SSH_ORIGINAL_COMMAND"` (also no glob expansion). New `tests/unit/deploy/test_deploy_script.py` drives the rendered script through `SSH_ORIGINAL_COMMAND`.
+- Prod host: cloud-init does not re-run, so the running VM gets the same one-line patch by hand (logged in CHANGELOG); new VMs (drill, future prod replace) get it from cloud-init.
+
 ### ✅ T-D128 [S] One prod approval per release → ADR-0110 (Accepted 2026-11-16)
 - `deploy.yml` runs prod in the reviewer-less environment `prod-deploy` (deploy secrets only; branches `main` + tags `v*`). The terraform apply in `prod` is the single approval; `deploy-prod` still needs the apply. `rollback.yml` stays on `prod`.
 - Touches `deploy.yml`, `release.yml` comment, `tests/unit/deploy/test_release_approval.py`, runbooks `github-settings.md`, `deploy.md`, `operator-checklist.md`.
