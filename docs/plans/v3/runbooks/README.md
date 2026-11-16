@@ -19,6 +19,7 @@ Operational procedures for v3. Each runbook is a check-list the operator (or an 
 | [`prod-db-seed.md`](prod-db-seed.md) | One-time copy of the local DB onto prod (ADR-0099 exception d; done 2026-11-07). |
 | [`image-retention.md`](image-retention.md) | Weekly GHCR cleanup (keep newest 20 `sha-*`, `main`/`v*`); dry-run first, then enable (T-D126). |
 | [`data-inventory.md`](data-inventory.md) | Where every piece of user data and every secret lives, its protection and retention, and what the operator can technically see (T-D61, ADR-0078 §8). |
+| [`security-audit-log.md`](security-audit-log.md) | Append-only log of external security scans of prod (Observatory, testssl, nikto, trivy) with findings to act on (T-D42). |
 | [`operator-checklist.md`](operator-checklist.md) | Ordered human-only go-live steps as of 2026-11-07 (GitHub, Tailscale, Scaleway, bootstrap). |
 
 Each runbook follows the shape: **Context** · **Preconditions** · **Procedure** · **Verification** · **Troubleshooting** · **Rollback**.
