@@ -38,9 +38,10 @@ resource "scaleway_iam_policy" "ci_prod" {
   application_id = scaleway_iam_application.ci_prod.id
 
   # Prod project: compute, object storage, DNS (the zone lives here).
+  # T-D118: instance root volumes are Block Storage (SBS) volumes, a separate permission set.
   rule {
     project_ids          = [var.prod_project_id]
-    permission_set_names = ["InstancesFullAccess", "ObjectStorageFullAccess", "DomainsDNSFullAccess"]
+    permission_set_names = ["InstancesFullAccess", "BlockStorageFullAccess", "ObjectStorageFullAccess", "DomainsDNSFullAccess"]
   }
 
   # ADR-0104: IAM moved to this stack, so ci-prod needs no IAMManager. Until the
@@ -80,7 +81,7 @@ resource "scaleway_iam_policy" "ci_drill" {
 
   rule {
     project_ids          = [var.drill_project_id]
-    permission_set_names = ["InstancesFullAccess", "ObjectStorageFullAccess"]
+    permission_set_names = ["InstancesFullAccess", "BlockStorageFullAccess", "ObjectStorageFullAccess"]
   }
 
   # ADR-0101: the drill is tailnet-only and creates no DNS records, so ci-drill
@@ -114,7 +115,7 @@ resource "scaleway_iam_policy" "ci_plan" {
 
   rule {
     project_ids          = [var.prod_project_id]
-    permission_set_names = ["InstancesReadOnly", "ObjectStorageReadOnly", "DomainsDNSReadOnly"]
+    permission_set_names = ["InstancesReadOnly", "BlockStorageReadOnly", "ObjectStorageReadOnly", "DomainsDNSReadOnly"]
   }
 
   rule {

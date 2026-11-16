@@ -17,9 +17,9 @@
 
 | Application | GitHub environment | Permission sets and scope |
 |---|---|---|
-| `budget-planner-ci-prod` | `prod` | prod project: `InstancesFullAccess`, `ObjectStorageFullAccess`, `DomainsDNSFullAccess`; organization: `IAMManager` |
-| `budget-planner-ci-drill` | `drill` | drill project: `InstancesFullAccess`, `ObjectStorageFullAccess`; prod project: `DomainsDNSFullAccess` (drill DNS records live in the prod project's zone); organization: `IAMManager` |
-| `budget-planner-ci-plan` | `prod-plan` | prod project: `InstancesReadOnly`, `ObjectStorageReadOnly`, `DomainsDNSReadOnly`; organization: `IAMReadOnly` |
+| `budget-planner-ci-prod` | `prod` | prod project: `InstancesFullAccess`, `BlockStorageFullAccess`, `ObjectStorageFullAccess`, `DomainsDNSFullAccess`; organization: `IAMManager` |
+| `budget-planner-ci-drill` | `drill` | drill project: `InstancesFullAccess`, `BlockStorageFullAccess`, `ObjectStorageFullAccess`; prod project: `DomainsDNSFullAccess` (drill DNS records live in the prod project's zone); organization: `IAMManager` |
+| `budget-planner-ci-plan` | `prod-plan` | prod project: `InstancesReadOnly`, `BlockStorageReadOnly`, `ObjectStorageReadOnly`, `DomainsDNSReadOnly`; organization: `IAMReadOnly` |
 
 Why these sets: the env stacks create instances, IPs and security groups (Instances), the durability bucket (Object Storage), DNS records (Domains/DNS), and IAM applications, API keys and policies (IAM). `ProjectManager`, `AllProductsFullAccess`, `OrganizationManager` and billing sets are deliberately not granted.
 
@@ -77,3 +77,5 @@ GitHub settings (environments, required reviewers, deployment branch rules, bran
 ## Amendment 2026-11-07 (T-D97, ADR-0101)
 
 `ci-drill` no longer holds `DomainsDNSFullAccess` on the prod project: the drill creates no DNS records ([ADR-0101](0101-drill-environment-is-tailnet-only.md)). The drill gains the ungated environments `drill-plan` and `drill-teardown` (same drill secrets); `drill` itself is gated by required reviewers.
+
+> **Amendment 2026-11-16 (T-D118):** each CI identity also holds the Block Storage permission set matching its Instances one (`BlockStorageFullAccess` / `BlockStorageReadOnly`). Instance root volumes are Block Storage (SBS) volumes; without it the first `ci-plan` PR plan failed with `insufficient permissions: read volume` on `scaleway_instance_server.app`.
