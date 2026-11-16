@@ -31,11 +31,6 @@ ${hostname} {
     vars nonce {http.request.uuid}
     request_header X-CSP-Nonce {vars.nonce}
 
-    @html {
-        header Content-Type text/html*
-    }
-    header @html Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'nonce-{vars.nonce}'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
-
     # ADR-0111: host agent convergence status for the CI release monitor
     # (generation, image refs, state; no secrets).
     handle /.well-known/bp-deploy-status.json {
@@ -50,6 +45,15 @@ ${hostname} {
             header_up X-Forwarded-Proto {scheme}
             header_up X-Real-IP {remote_host}
             header_up X-CSP-Nonce {vars.nonce}
+
+            # T-D132 / ADR-0036: inside reverse_proxy a named matcher is a RESPONSE
+            # matcher. A site-level `@html` + `header @html` tests the request and never
+            # matches; `match {}` inside `header` is unsupported in Caddy 2.8.
+            @html header Content-Type text/html*
+            handle_response @html {
+                header Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'nonce-{vars.nonce}'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+                copy_response
+            }
         }
     }
 
