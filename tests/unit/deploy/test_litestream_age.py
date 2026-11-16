@@ -68,9 +68,10 @@ def test_restore_from_prod_template_uses_identity_file() -> None:
     assert "lost" in text.lower()
 
 
-def test_cloud_init_writes_identity_at_0600() -> None:
-    text = (CLOUD_INIT / "bootstrap.yaml.tpl").read_text()
-    m = re.search(r"path: /etc/budget-planner/litestream-age\.key\n\s+permissions: '(\d+)'", text)
+def test_host_agent_writes_identity_at_0600() -> None:
+    # ADR-0111: the host agent writes it from bp-config (compute module).
+    text = (CLOUD_INIT.parent / "modules" / "compute" / "user_data.tf").read_text()
+    m = re.search(r'path = "\$\{local\.compose_dir\}/litestream-age\.key", +mode = "(\d+)"', text)
     assert m is not None
     assert m.group(1) == "0600"
 

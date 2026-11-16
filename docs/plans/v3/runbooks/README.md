@@ -4,8 +4,9 @@ Operational procedures for v3. Each runbook is a check-list the operator (or an 
 
 | Runbook | Trigger |
 |---|---|
-| [`deploy.md`](deploy.md) | Standard release of a new SHA to prod (`release.yml` from `main`, ADR-0099). |
-| [`rollback.md`](rollback.md) | Deploy went bad; need the previous SHA. |
+| [`deploy.md`](deploy.md) | Standard release of a new version to prod: one approved `terraform apply` (`release.yml`, ADR-0099, ADR-0111). |
+| [`rollback.md`](rollback.md) | Release went bad after it converged; swap back to the previous image ref (ADR-0111). |
+| [`host-state-migration.md`](host-state-migration.md) | One-time: install the ADR-0111 host agent on the pre-ADR-0111 prod VM and remove the SSH deploy path (T-D129f). |
 | [`restore.md`](restore.md) | DB is corrupt / lost; restore from Litestream. |
 | [`disaster-recovery.md`](disaster-recovery.md) | Compute instance is gone; full re-provision from zero (includes lost-all-admins recovery). |
 | [`restore-log.md`](restore-log.md) | Append-only log of every restore drill (monthly cadence + any ad-hoc). |

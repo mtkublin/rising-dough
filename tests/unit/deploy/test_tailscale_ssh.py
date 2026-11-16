@@ -12,7 +12,8 @@ COMPUTE_MAIN = ROOT / "terraform" / "modules" / "compute" / "main.tf"
 BOOTSTRAP = ROOT / "terraform" / "cloud-init" / "bootstrap.yaml.tpl"
 ROOT_MAIN = ROOT / "terraform" / "main.tf"
 WORKFLOWS = ROOT / ".github" / "workflows"
-SSH_WORKFLOWS = ("deploy.yml", "rollback.yml", "restore-drill.yml")
+# ADR-0111: deploy and rollback no longer SSH into hosts; only the restore drill does.
+SSH_WORKFLOWS = ("restore-drill.yml",)
 TAILSCALE_ACTION = re.compile(r"uses:\s*tailscale/github-action@[0-9a-f]{40}\b")
 SSH_CALL = re.compile(r"^\s*(?:result=\"\$\()?\s*ssh\s|\btimeout \d+ ssh\s", re.MULTILINE)
 

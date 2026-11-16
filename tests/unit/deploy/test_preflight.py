@@ -31,11 +31,13 @@ SECRETS = {
     "TF_VAR_app_scw_secret_key": "fake-app-secret-value-bbbb",  # pragma: allowlist secret
 }
 PROJECT = "11111111-1111-1111-1111-111111111111"
+DIGEST = "sha256:" + "0" * 64
+IMAGE_REF = f"sha-1234567@{DIGEST}"
 ENVIRON = {**SECRETS, "SCW_DEFAULT_PROJECT_ID": PROJECT}
 TFVARS = {
     "scaleway_project_id": PROJECT,
     "github_owner": "acme",
-    "app_image_tag": "main",
+    "app_image_ref": IMAGE_REF,
 }
 
 
@@ -132,7 +134,13 @@ def test_project_expected_missing_fails() -> None:
 
 def image_http(manifest: Any) -> FakeHttp:
     return FakeHttp(
-        {("GET", "ghcr.io/token"): ok({"token": "bearer"}), ("GET", "/manifests/main"): manifest}
+        {
+            ("GET", "ghcr.io/token"): ok({"token": "bearer"}),
+            (
+                "GET",
+                f"/manifests/{DIGEST}",
+            ): manifest,
+        }
     )
 
 
@@ -140,7 +148,7 @@ def test_image_pass() -> None:
     http = image_http(ok("{}"))
     result = pf.check_image(TFVARS, ENVIRON, http)
     assert result.status == "PASS"
-    assert "ghcr.io/acme/budget-planner:main" in result.detail
+    assert "ghcr.io/acme/budget-planner:" + IMAGE_REF in result.detail
 
 
 def test_image_missing_reports_name_unknown() -> None:
@@ -302,12 +310,17 @@ def test_run_checks_and_main_output_never_contains_secrets(
 ) -> None:
     tf_dir = make_tf_dir(tmp_path, HCL)
     (tf_dir / "envs/drill/terraform.tfvars").write_text(
-        f'scaleway_project_id = "{PROJECT}"\ngithub_owner = "acme"\napp_image_tag = "main"\n'
+        f'scaleway_project_id = "{PROJECT}"\ngithub_owner = "acme"\napp_image_ref = "'
+        + IMAGE_REF
+        + '"\n'
     )
     http = FakeHttp(
         {
             ("GET", "ghcr.io/token"): ok({"token": "bearer"}),
-            ("GET", "/manifests/main"): ok("{}"),
+            (
+                "GET",
+                f"/manifests/{DIGEST}",
+            ): ok("{}"),
             **ts_routes(ok({"id": "k123", "key": "tskey-auth-LEAK"})),
             ("HEAD", "state-bucket"): ok(),
         }

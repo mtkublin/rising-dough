@@ -104,7 +104,7 @@ ssh app@budget-planner-prod "ls -lt /data/backups/"
    sudo cp /data/backups/budget.db.pre-migrate-<NNNN>-<ts> /data/budget.db
    ```
 3. Continue with step 7 (ownership). Then:
-   - **Undoing a broken migration**: before step 9, roll the image back (`deploy-budget-planner rollback`). If you start the image that contains the migration, the entrypoint applies it again.
+   - **Undoing a broken migration**: before step 9, roll the image back (`rollback.yml`, see [`rollback.md`](rollback.md)). If you start the image that contains the migration, the entrypoint applies it again.
    - **Rolling back a "rollback requires restore" release**: run `ssh deploy@budget-planner-prod "rollback"` as step 9 instead of `docker compose up -d app`.
 4. Writes made between the backup timestamp and the restore are lost. Litestream treats the copied DB as a new generation.
 

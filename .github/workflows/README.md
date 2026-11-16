@@ -9,8 +9,8 @@ release published (tag vX.Y.Z)
     guard         -> tag is SemVer and an ancestor of origin/main
     ci            -> ci.yml        (workflow_call)
     build         -> build.yml     (needs ci; also tags the image vX.Y.Z; outputs image-tag, image-digest, image-ref)
-    tf-apply-prod -> terraform.yml (needs build; env prod = required reviewers; -var app_image_tag = vX.Y.Z)
-    deploy-prod   -> deploy.yml    (needs build, tf-apply-prod; env prod; deploys vX.Y.Z; smoke GET /ready)
+    tf-apply-prod -> terraform.yml (needs build; env prod = required reviewers; image_ref = vX.Y.Z@sha256:<digest>;
+                                    waits for the host agent status, auto-rollback on failure; ADR-0111)
 ```
 
 | Workflow | Triggers | Notes |
@@ -18,9 +18,8 @@ release published (tag vX.Y.Z)
 | `release.yml` | release published (tag `vX.Y.Z` on `main`), dispatch (tag input, ADR-0109) | the only prod path; `guard` job first |
 | `ci.yml` | pull_request `main`, workflow_call | |
 | `build.yml` | workflow_call, dispatch (main or `v*` tag on main) | cosign-signed; no push/tag/release triggers |
-| `terraform.yml` | pull_request (fmt/validate/tflint/plan, masked), workflow_call | inputs `env`, `image_tag`, `replace`, `destroy`, drill-only `drill_expires_at`, `boot_log_upload`; prod requires `main` or a `v*` tag on main (`scripts/ci/ref_guard.py`); plan masked via `mask_plan.py`, `plan.bin` never uploaded (ADR-0098) |
-| `deploy.yml` | workflow_call | inputs `env` (drill\|prod), `image_tag`; tailnet SSH, `/ready` probe, rollback on failure |
-| `rollback.yml` | dispatch (input `target`: `vX.Y.Z` or `sha-…`) | prod only from `main` or a `v*` tag on main |
+| `terraform.yml` | pull_request (fmt/validate/tflint/plan, masked), workflow_call | inputs `env`, `image_ref` (`<tag>@sha256:<digest>`; empty = keep state), `rollback`, `replace`, `destroy`, drill-only `drill_expires_at`, `boot_log_upload`; prod requires `main` or a `v*` tag on main (`scripts/ci/ref_guard.py`); plan masked via `mask_plan.py`, `plan.bin` never uploaded (ADR-0098) |
+| `rollback.yml` | dispatch (input `target`: `vX.Y.Z` or `sha-…`; empty = previous ref in state) | an apply through `terraform.yml` with `rollback: true` (ADR-0111); prod only from `main` or a `v*` tag on main |
 | `drill.yml` | dispatch only (`mode=gate`\|`explore`) | drill only; gate posts commit status `drill-gate`; env `drill` reviewers optional; smoke + teardown in `drill-teardown` |
 | `drill-sweeper.yml` | cron every 15 min, dispatch | destroys expired/orphan drills |
 | `drill-destroy.yml` | dispatch | manual teardown |
@@ -52,8 +51,7 @@ Runbook: `docs/plans/v3/runbooks/drill.md`.
 Expected configuration: environments `prod` (required reviewers) and `drill`
 (reviewers optional, T-D98), plus ungated `prod-plan`,
 `drill-plan` (PR plan legs) and `drill-teardown` (every drill destroy path and the
-drill smoke job; ADR-0101). The three drill environments hold identical secrets; secrets as listed in `terraform.yml` / `deploy.yml` headers;
-vars `PROD_URL`, `TAILNET_DNS_NAME` (drill environments; the drill is tailnet-only, ADR-0101,
+drill smoke job; ADR-0101). The three drill environments hold identical secrets; secrets as listed in `terraform.yml` / `restore-drill.yml` headers;
+var `TAILNET_DNS_NAME` (drill environments; the drill is tailnet-only, ADR-0101,
 so `drill.yml` smoke joins the tailnet as `tag:ci` and probes
-`https://budget-planner-drill.${TAILNET_DNS_NAME}/ready`; ACL `tag:ci -> tag:drill:443`),
-`DRILL_URL` (only for ad-hoc `deploy.yml`/`rollback.yml` on drill).
+`https://budget-planner-drill.${TAILNET_DNS_NAME}/ready` plus the host agent status; ACL `tag:ci -> tag:drill:443`).

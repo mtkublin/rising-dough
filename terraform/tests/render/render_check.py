@@ -4,7 +4,8 @@
 Plans the fixture in this directory (real compute module, dummy inputs, no
 credentials, no API calls), extracts the rendered user-data from the plan and
 checks: line 1 is exactly `#cloud-config`, the YAML parses, and (when the
-binary exists) `cloud-init schema` passes. Usage:
+binary exists) `cloud-init schema` passes. ADR-0111: it also parses the
+`bp-config` document and the compose file the host agent writes. Usage:
 
     python3 terraform/tests/render/render_check.py [--out DIR] [--require-schema]
 """
@@ -34,7 +35,7 @@ def run(cmd: list[str], cwd: Path) -> str:
     return result.stdout
 
 
-def render(plan_dir: Path, enable_restore_helper: bool) -> str:
+def render(plan_dir: Path, enable_restore_helper: bool) -> tuple[str, str]:
     plan = plan_dir / "plan.bin"
     flag = f"enable_restore_helper={str(enable_restore_helper).lower()}"
     run(
@@ -42,7 +43,16 @@ def render(plan_dir: Path, enable_restore_helper: bool) -> str:
         HERE,
     )
     payload = json.loads(run(["terraform", "show", "-json", str(plan)], HERE))
-    return str(payload["output_changes"]["user_data"]["after"])
+    outputs = payload["output_changes"]
+    return str(outputs["user_data"]["after"]), str(outputs["host_config"]["after"])
+
+
+def check_host_config(name: str, raw: str) -> None:
+    doc = json.loads(raw)
+    compose = next(f for f in doc["files"] if f["path"].endswith("/docker-compose.yml"))
+    if not isinstance(yaml.safe_load(compose["content"]), dict):
+        raise SystemExit(f"[{name}] bp-config compose file is not a YAML mapping")
+    print(f"[{name}] bp-config JSON + compose YAML OK ({len(doc['files'])} managed files)")
 
 
 def check_text(name: str, text: str) -> None:
@@ -90,11 +100,12 @@ def main() -> None:
         out = args.out or Path(tmp)
         out.mkdir(parents=True, exist_ok=True)
         for name, enable in VARIANTS.items():
-            text = render(Path(tmp), enable)
+            text, host_config = render(Path(tmp), enable)
             path = out / f"user-data.{name}.yaml"
             path.write_text(text)
             check_text(name, text)
             check_schema(name, path, args.require_schema)
+            check_host_config(name, host_config)
     print("render check OK")
 
 

@@ -1,4 +1,4 @@
-# NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
+# NOTE: rendered by Terraform into bp-config; the host agent writes it (ADR-0111). Edit the .tpl.
 # ADR-0032 §2: three services — app, litestream, caddy.
 # ADR-0034 §1: litestream sidecar is the only writer to object storage.
 # ADR-0036 §2: caddy image is a custom build pinned by digest.
@@ -7,7 +7,8 @@ name: budget-planner
 
 services:
   app:
-    image: ghcr.io/${github_owner}/budget-planner:${app_image_tag}
+    # ADR-0111: repo:tag@sha256:digest; the agent cosign-verifies it before pulling.
+    image: ${app_image}
     container_name: budget-planner-app
     restart: unless-stopped
     user: "10001:10001"
@@ -109,6 +110,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
       - /var/log/caddy:/var/log/caddy
+      # ADR-0111: host agent status.json, served at /.well-known/bp-deploy-status.json.
+      - /var/lib/budget-planner/status:/srv/bp-status:ro
 %{~ if tailnet_only }
       # ADR-0101: certificate for the *.ts.net name comes from the host tailscaled.
       # The directory (not the socket file) is mounted so a tailscaled restart

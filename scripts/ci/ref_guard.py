@@ -2,7 +2,7 @@
 
 Prod runs only from `main`, or from a SemVer `v*` tag whose commit is an
 ancestor of `origin/main`. One script serves release.yml, build.yml,
-terraform.yml, deploy.yml and rollback.yml so the rule lives in one place.
+terraform.yml and rollback.yml so the rule lives in one place.
 
 Subcommands (exit 0 = ok, 1 = refused, message on stderr):
   ref --ref REF [--sha SHA]    REF is refs/heads/main, or refs/tags/vX.Y.Z on main.

@@ -88,9 +88,6 @@ jobs:
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill
-      # Placeholder: app_image_tag is only rendered into user-data, which a
-      # -destroy plan never creates (terraform.yml accepts any valid tag).
-      image_tag: sha-0000000
       destroy: true
     secrets: inherit  # pragma: allowlist secret
 

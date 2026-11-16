@@ -1,4 +1,4 @@
-# NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
+# NOTE: rendered by Terraform into bp-config; the host agent writes it (ADR-0111). Edit the .tpl.
 # ADR-0036 §1: Caddyfile shape (auto-TLS, security headers, CSP nonce, rate limit, access logs).
 
 # ADR-0101: on the tailnet-only drill (`tailnet_only`) the hostname is a *.ts.net
@@ -36,10 +36,21 @@ ${hostname} {
     }
     header @html Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'nonce-{vars.nonce}'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
 
-    reverse_proxy app:8000 {
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Real-IP {remote_host}
-        header_up X-CSP-Nonce {vars.nonce}
+    # ADR-0111: host agent convergence status for the CI release monitor
+    # (generation, image refs, state; no secrets).
+    handle /.well-known/bp-deploy-status.json {
+        header Cache-Control "no-store"
+        root * /srv/bp-status
+        rewrite * /status.json
+        file_server
+    }
+
+    handle {
+        reverse_proxy app:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+            header_up X-CSP-Nonce {vars.nonce}
+        }
     }
 
     log {

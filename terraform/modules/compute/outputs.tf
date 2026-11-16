@@ -20,18 +20,34 @@ output "security_group_id" {
 
 output "user_data_sha256" {
   description = "sha256 of the rendered cloud-init payload. Useful for drift tracking."
-  value       = sha256(local.user_data)
+  value       = sha256(local.cloud_init_rendered)
 }
 
-output "cloud_init_is_sensitive" {
-  description = "True when the server's cloud_init attribute carries the sensitive mark (T-D83 test hook; not a secret)."
-  value       = issensitive(scaleway_instance_server.app.cloud_init)
+output "user_data_is_sensitive" {
+  description = "True when the server's user_data attribute carries the sensitive mark (T-D83 test hook; not a secret)."
+  value       = issensitive(scaleway_instance_server.app.user_data)
 }
 
 output "user_data" {
   description = "Rendered cloud-init payload (contains secrets). Consumed only by the offline render check (T-D77)."
-  value       = local.user_data
+  value       = local.cloud_init_rendered
   sensitive   = true
+}
+
+output "host_config" {
+  description = "Rendered bp-config document (contains secrets). Test hook for the render check (ADR-0111)."
+  value       = local.host_config_json
+  sensitive   = true
+}
+
+output "host_config_generation" {
+  description = "Generation the host agent reports in status.json once converged (ADR-0111)."
+  value       = local.host_config_generation
+}
+
+output "app_image_ref" {
+  description = "Full app image ref (repo:tag@digest) the host is told to run."
+  value       = local.host_config_body.image.ref
 }
 
 output "server_tags" {

@@ -38,14 +38,15 @@ def test_main_tag_stays_gated_by_default_branch() -> None:
     assert workflow.count("value=main") == 1
 
 
-def test_release_chain_is_guard_ci_build_tf_apply_deploy() -> None:
+def test_release_chain_is_guard_ci_build_tf_apply() -> None:
     jobs = _load("release.yml")["jobs"]
 
     assert jobs["guard"].get("needs") is None
     assert jobs["ci"]["needs"] == "guard"
     assert set(jobs["build"]["needs"]) == {"guard", "ci"}
     assert set(jobs["tf-apply-prod"]["needs"]) == {"guard", "build"}
-    assert set(jobs["deploy-prod"]["needs"]) == {"guard", "build", "tf-apply-prod"}
+    # ADR-0111: the apply is the release; no SSH deploy job.
+    assert set(jobs) == {"guard", "ci", "build", "tf-apply-prod"}
 
 
 def test_release_triggers_on_published_release_not_push() -> None:
@@ -68,12 +69,11 @@ def test_release_guard_runs_the_shared_script_with_full_history() -> None:
     assert 'scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}"' in runs
 
 
-def test_prod_gets_the_version_tag_through_inputs_only() -> None:
+def test_prod_gets_the_digest_pinned_version_through_inputs_only() -> None:
     jobs = _load("release.yml")["jobs"]
-    version = "${{ needs.guard.outputs.tag }}"
+    ref = "${{ needs.guard.outputs.tag }}@${{ needs.build.outputs.image-digest }}"
 
-    assert jobs["tf-apply-prod"]["with"]["image_tag"] == version
-    assert jobs["deploy-prod"]["with"]["image_tag"] == version
+    assert jobs["tf-apply-prod"]["with"]["image_ref"] == ref
 
 
 def test_build_also_tags_the_version_on_release_refs() -> None:
@@ -87,16 +87,16 @@ def test_build_also_tags_the_version_on_release_refs() -> None:
 
 
 def test_no_workflow_hardcodes_a_main_only_ref_check_for_prod() -> None:
-    for name in ("terraform.yml", "deploy.yml", "rollback.yml"):
+    for name in ("terraform.yml", "rollback.yml"):
         text = (WORKFLOWS / name).read_text()
         assert '!= "refs/heads/main"' not in text, name
         assert "scripts/ci/ref_guard.py ref" in text, name
 
 
-def test_deploy_accepts_version_and_sha_tags() -> None:
-    text = (WORKFLOWS / "deploy.yml").read_text()
-
-    assert "^(sha-[0-9a-f]{7,40}|v[0-9]+\\.[0-9]+\\.[0-9]+)$" in text
+def test_ssh_deploy_workflow_is_gone() -> None:
+    # ADR-0111: Terraform declares the host state; no workflow pushes into the host.
+    assert not (WORKFLOWS / "deploy.yml").exists()
+    assert not any("deploy.yml" in p.read_text() for p in WORKFLOWS.glob("*.yml"))
 
 
 def test_rollback_validates_target_through_the_script() -> None:
@@ -106,8 +106,13 @@ def test_rollback_validates_target_through_the_script() -> None:
 
     assert "image_sha" not in inputs
     assert inputs["target"]["required"] is False
-    assert 'ref_guard.py rollback-target "${RAW}"' in text
+    assert 'ref_guard.py rollback-target "${RAW_TARGET}"' in text
     assert wf["permissions"]["contents"] == "read"
+    # ADR-0111: a rollback is an approved apply through terraform.yml.
+    apply = wf["jobs"]["apply"]
+    assert apply["uses"] == "./.github/workflows/terraform.yml"
+    assert apply["with"]["rollback"] is True
+    assert apply["with"]["image_ref"] == "${{ needs.target.outputs.ref }}"
 
 
 def test_release_serialises_prod_releases() -> None:
@@ -116,8 +121,8 @@ def test_release_serialises_prod_releases() -> None:
     assert concurrency == {"group": "release-prod", "cancel-in-progress": False}
 
 
-def test_apply_and_deploy_have_no_independent_triggers() -> None:
-    for name in ("terraform.yml", "deploy.yml"):
+def test_apply_has_no_independent_triggers() -> None:
+    for name in ("terraform.yml",):
         triggers = _triggers(name)
         assert "push" not in triggers, name
         assert "workflow_run" not in triggers, name

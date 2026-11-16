@@ -114,23 +114,25 @@ module "compute" {
   # T-D123: STARDUST1-S quota is 1 per organisation (prod). Drill uses another type.
   instance_type = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
 
-  name_prefix       = local.name_prefix
-  scaleway_zone     = var.scaleway_zone
-  app_image_tag     = var.app_image_tag
-  hostname          = local.fqdn
-  bucket_name       = module.storage.bucket_name
-  bucket_endpoint   = module.storage.endpoint_url
-  bucket_region     = var.scaleway_region
-  scw_access_key    = var.app_scw_access_key
-  scw_secret_key    = var.app_scw_secret_key
-  operator_ssh_pub  = var.operator_ssh_pubkey
-  deploy_ssh_pub    = var.github_deploy_pubkey
-  ghcr_pull_pat     = var.ghcr_pull_pat
-  github_owner      = var.github_owner
-  admin_email       = var.admin_email
-  admin_password    = random_password.admin_initial_password.result
-  cookie_secret     = random_password.cookie_secret.result
-  trusted_hosts_csv = local.fqdn
+  name_prefix   = local.name_prefix
+  scaleway_zone = var.scaleway_zone
+  # ADR-0111: tag@digest; CI passes the previous ref read from state.
+  app_image_ref          = var.app_image_ref
+  app_image_previous_ref = var.app_image_previous_ref
+  hostname               = local.fqdn
+  bucket_name            = module.storage.bucket_name
+  bucket_endpoint        = module.storage.endpoint_url
+  bucket_region          = var.scaleway_region
+  scw_access_key         = var.app_scw_access_key
+  scw_secret_key         = var.app_scw_secret_key
+  operator_ssh_pub       = var.operator_ssh_pubkey
+  ghcr_pull_pat          = var.ghcr_pull_pat
+  github_owner           = var.github_owner
+  github_repo            = var.github_repo
+  admin_email            = var.admin_email
+  admin_password         = random_password.admin_initial_password.result
+  cookie_secret          = random_password.cookie_secret.result
+  trusted_hosts_csv      = local.fqdn
 
   # T-D97 / ADR-0101: drill = tailnet only (no public 80/443, Caddy cert from tailscaled).
   tailnet_only = local.tailnet_only

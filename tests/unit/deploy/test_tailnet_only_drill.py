@@ -77,11 +77,11 @@ def test_ci_drill_has_no_dns_permission_on_prod() -> None:
 def test_drill_smoke_joins_tailnet_and_probes_magicdns_name() -> None:
     wf = _text(WORKFLOWS / "drill.yml")
     pin = TAILSCALE_ACTION.search(wf)
-    deploy_pin = TAILSCALE_ACTION.search(_text(WORKFLOWS / "deploy.yml"))
+    other_pin = TAILSCALE_ACTION.search(_text(WORKFLOWS / "restore-drill.yml"))
 
     assert pin is not None
-    assert deploy_pin is not None
-    assert pin.group(1) == deploy_pin.group(1)
+    assert other_pin is not None
+    assert pin.group(1) == other_pin.group(1)
     assert "tags: tag:ci" in wf
     assert "budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}" in wf
     assert "vars.DRILL_URL" not in _code(WORKFLOWS / "drill.yml")

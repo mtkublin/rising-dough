@@ -93,15 +93,15 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 
 ### 11. Merge the PR: first GitHub release
 - [ ] **Where:** GitHub UI.
-- Merge v3 into `main`. This is the first GitHub release: ci -> build -> tf-apply-prod (one approval) -> deploy-prod. It also ships the cryptography fix.
+- Merge v3 into `main`. This is the first GitHub release: ci -> build -> tf-apply-prod (one approval). It also ships the cryptography fix.
 - **Done when:** the release run is green and prod serves a newer image than `sha-075f986`.
 - Runbooks: [`deploy.md`](deploy.md), [`rollback.md`](rollback.md) if it goes wrong.
 
-### 10a. Create the `prod-deploy` environment (ADR-0110, T-D128)
-- [ ] **Where:** GitHub UI (Settings > Environments).
-- New environment `prod-deploy`: no required reviewers; deployment branches and tags `main` + `v*`. Copy from `prod`: `DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, variable `PROD_URL`. Also add tag pattern `v*` to the `prod` deployment policy.
-- **Done when:** a release asks for approval once (at apply) and deploy-prod runs by itself. Do this before the next release.
-- Runbook: [`github-settings.md`](github-settings.md).
+### 10a. Migrate prod to the host agent (ADR-0111, T-D129f)
+- [ ] **Where:** your workstation (tailnet) + GitHub UI, after T-D129 is on `main` and before the next release.
+- ~~Create the `prod-deploy` environment (ADR-0110)~~: superseded; the release is the approved apply, there is no deploy job.
+- Follow [`host-state-migration.md`](host-state-migration.md): install the agent bootstrap on the prod VM (one script, logged), cut the release, then delete `prod-deploy` and the deploy secrets.
+- **Done when:** the release run is green with `converged: …` and `/.well-known/bp-deploy-status.json` reports state `ok`.
 
 ### 11a. Tag ruleset on `v*` (ADR-0109, T-D125)
 - [ ] **Where:** GitHub UI, before cutting the first release after the T-D125 merge.

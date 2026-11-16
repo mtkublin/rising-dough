@@ -1,17 +1,16 @@
 # Prod release pipeline (ADR-0099) — the ONLY path to production.
 #
-#   ci -> build -> tf-apply-prod -> deploy-prod (smoke /ready inside deploy)
+#   ci -> build -> tf-apply-prod (approval; apply, then wait for the host)
 #
 # ADR-0109 (T-D125): runs when a GitHub release is published (tag vX.Y.Z),
 # not on push to main. Cut one with `gh release create vX.Y.Z --target main`.
 # The first job refuses any tag whose commit is not an ancestor of origin/main.
 # The merge that introduced this trigger was the last merge-triggered release.
-# ADR-0110: ONE approval per release. Terraform apply runs in the GitHub
-# environment `prod` (required reviewers, the only prod-write credential);
-# deploy runs in `prod-deploy` (no reviewers, deploy secrets only) and only
-# after the approved apply succeeds. The version tag is passed to terraform (-var app_image_tag) and
-# to deploy, so prod `current`/`previous` record it. No drill stage here: drill
-# is validated pre-merge (T-D90).
+# ADR-0111: a release is ONE approved `terraform apply` (environment `prod`).
+# It sets the image ref `vX.Y.Z@sha256:<digest>` in the host's instance
+# metadata; the host agent cosign-verifies and converges, and the same job
+# waits for the host's status and rolls back to the previous ref on failure.
+# No SSH deploy job. No drill stage here: drill is validated pre-merge (T-D90).
 
 name: release
 
@@ -31,7 +30,6 @@ permissions:
   contents: read
   packages: write
   id-token: write
-  deployments: write
   pull-requests: write
 
 concurrency:
@@ -90,13 +88,5 @@ jobs:
     uses: ./.github/workflows/terraform.yml
     with:
       env: prod
-      image_tag: ${{ needs.guard.outputs.tag }}
-    secrets: inherit  # pragma: allowlist secret
-
-  deploy-prod:
-    needs: [guard, build, tf-apply-prod]
-    uses: ./.github/workflows/deploy.yml
-    with:
-      env: prod
-      image_tag: ${{ needs.guard.outputs.tag }}
+      image_ref: ${{ needs.guard.outputs.tag }}@${{ needs.build.outputs.image-digest }}
     secrets: inherit  # pragma: allowlist secret
