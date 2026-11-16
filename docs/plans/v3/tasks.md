@@ -478,9 +478,10 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - Null `audit_log.ip`/`user_agent` and delete ended `sessions` older than `retention_personal_days` (default 90, 7..3650); runs at container start (entrypoint, non-fatal, `python -m budget_planner.db.retention`) + every 24 h on the app lifespan task. Audit rows are never deleted. Logs `event="retention_purge"` counts only. No migration.
 - File: `phase-5-data-protection/T-D60-ip-user-agent-retention-purge.md`. Reference: ADR-0078 §7. Tests: `tests/unit/services/test_retention.py`, `tests/integration/startup/test_startup_migrate.py`.
 
-### ◻ T-D61 [S] Data inventory + "what the operator can see in v3" → T-D54..T-D60
+### ✅ T-D61 [S] Data inventory + "what the operator can see in v3" → T-D54..T-D60
 - `runbooks/data-inventory.md`: every location of user data/secrets with protection + retention; honest operator-visibility statement.
 - File: `phase-5-data-protection/T-D61-data-inventory-runbook.md`. Reference: ADR-0078 §8.
+- Done 2026-11-16: `runbooks/data-inventory.md` (15 user-data and 17 secret locations, operator-visibility statement, quarterly check). Includes ADR-0111: every host secret is also in instance metadata. Its open-items list tracks what the repo cannot verify (provider disk encryption, journald retention, encrypted Litestream generation).
 
 ---
 

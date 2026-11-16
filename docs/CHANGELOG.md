@@ -3,6 +3,7 @@
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
 - **Feat(T-D44): prod uptime check as a scheduled workflow** (user decision instead of UptimeRobot). `uptime.yml` runs every 5 min: `/health` must be 200 and the host agent status (ADR-0111) must not be `failed`. A failed run emails the operator and opens one issue; the next green run closes it. No secrets. Test `tests/unit/deploy/test_uptime_workflow.py`; `disaster-recovery.md` updated.
 - **Chore(T-D130): Dependabot version-update PRs turned off.** `.github/dependabot.yml` removed, open Dependabot PRs closed. pip-audit and trivy in `security.yml` still gate every PR.
+- **Docs(T-D61): data inventory runbook** `runbooks/data-inventory.md` (ADR-0078 §8, ADR-0111): every location of user data and secrets with protection, retention and readers, plus what the operator can see.
 - **Docs: v3 status tidy-up.** T-D25/T-D26/T-D27/T-D121 marked done; T-D106 done (no `DRILL_URL` reads left); T-D109/T-D115 superseded by ADR-0111; T-D33 re-scoped to the drill; T-D104 note. Operator checklist refreshed (steps 1-11 and 11b done). `github-settings.md`: `prod-deploy` was never created, `DRILL_HOST` unused. Deleted the stale tracked `terraform/envs/prod/terraform.tfvars.bak` (old `app_image_tag` and deploy pubkey; nothing read it).
 
 ## 2026-11-16 (T-D129 — Terraform-declared host state, ADR-0111)
