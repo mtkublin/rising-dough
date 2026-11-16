@@ -472,3 +472,56 @@ This is a read-only audit of the whole repository at a pinned commit, run **afte
 - Mutation testing (Mutmut, `domain` and `services`) runs as a baseline during the audit. Adopting it as tooling needs its own ADR (next free number) during the prevention pass. It is tracked as a score and is not a CI gate.
 - Timing: after v3 ships and **before v4 starts**. The audit is a v4 Phase 0 precondition.
 - Critical/High remediation of duplicated logic, repository bypass and user-scoping gaps must land before v4 Phase 3 (field encryption).
+
+---
+
+## 9. UI Behaviour Test Harness (added 2026-11-16)
+
+Tests that pin the app's UI behaviour independently of today's markup, built before the Sourdough redesign (§10). Plan: `docs/plans/ui-test-harness/` (T-UT01..T-UT12). Decision: ADR-0106.
+
+### 9.1 Outputs
+
+- **Contract tests** for every route in `app.routes` (status, redirects, `HX-*` headers, CSRF, auth/authz, DB and `audit_log` effects), enforced by a route-coverage meta-test.
+- **UI map** (`tests/ui_map/`): semantic names resolved by role, label or documented id. No test asserts on CSS class names or copy outside it.
+- **Generated crawler** that activates every control on every page and checks for errors, console errors, failed requests, duplicate ids and horizontal scroll.
+- **Journey tests** for every critical flow, on UI-map names only.
+- **Feature-parity inventory** mapping every current feature to a page or overlay of the designer's handoff, with gaps decided by the operator.
+- The designer's handoff committed under `docs/design/rising-dough-frontend/`.
+
+### 9.2 Constraints
+
+- Tests and docs only. Old templates may gain `id` / `data-testid` hooks where role/label lookups are ambiguous; no other template, CSS or JS change.
+- Behaviour is frozen: bugs found become strict `xfail`s with a new task id, not fixes.
+- No access to `data/budget.sqlite`.
+- Timing: after v3 ships; may overlap quality-audit remediation; must be complete before §10 starts.
+
+---
+
+## 10. Sourdough Redesign (added 2026-11-16)
+
+The whole presentation layer is replaced by the designer's handoff "Rising Dough · Sourdough redesign". Plan: `docs/plans/ui-redesign/` (T-UR00..T-UR17). Decision: ADR-0107.
+
+### 10.1 Scope
+
+- Every page, overlay and state of the app rendered from the handoff's markup, CSS, fonts, icons and presentational JS. Existing templates, CSS and presentational JS are not reused and are deleted at the end.
+- Behaviour code is kept and adapted: routers, services, filters, HTMX endpoints, `htmx-csrf.js`, `passkeys.js`, CSP and security headers.
+- Feature parity with v3. Screens the handoff draws but the app lacks are wired only after their own requirement is added here.
+- Light and dark themes, 320–1920 px, keyboard map and command palette as in the handoff.
+
+### 10.2 Non-functional
+
+- Tailwind removed; plain CSS in `@layer`s bundled by `just css` (Python). The dev-only Node toolchain keeps `stylelint`, `pixelmatch` and Playwright. The §3 stack lines are updated at T-UR15.
+- WCAG 2.1 AA: axe 0 serious / critical on every page at 375 and 1440 in both themes; 44 px touch targets; reduced motion respected.
+- Budgets: CSS ≤ 50 kB gzipped, JS ≤ 30 kB gzipped plus htmx, fonts ≤ 250 kB; LCP < 2.5 s, CLS < 0.1, INP < 200 ms on `/today`, `/ledger`, `/plan`.
+- Chromium, Firefox and WebKit (latest two versions).
+
+### 10.3 Constraints
+
+- Test-first per surface against the §9 harness; contract tests do not change.
+- Released to prod once, after every surface is migrated and the old frontend is deleted (no mixed chrome, no leftover templates, CSS, JS, Tailwind tooling or dead view-model code), through the ADR-0099 pipeline.
+- Timing: after §9 and the quality-audit `[pre-v4-P3]` remediation; before v4 Phase 2. v4 Phase 1 may run in parallel.
+- v4 screens (unlock, claim and recovery code, Data protection, `/privacy`, export) are built after the redesign, from its design system.
+
+### 10.4 Non-goals
+
+- New features, IA changes beyond the handoff (ADR-0051 is kept), server-side theme persistence, a JS bundler.

@@ -109,3 +109,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0104 | [Env-Stack IAM Moves to the Local Bootstrap; CI Loses IAMManager](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md) (amends ADR-0100; relates to ADR-0091, ADR-0092, ADR-0098, ADR-0099) |
 | 0105 | [Committed Includes Every Overdue Unpromoted Item](0105-committed-includes-all-overdue-items.md) (amends ADR-0039; relates to ADR-0043, ADR-0085, ADR-0087, ADR-0089) |
 | 0105 | [CI Identities in the Durability Bucket Policies](0105-ci-principals-in-durability-bucket-policies.md) (amends ADR-0091, ADR-0100; relates to ADR-0099, ADR-0104) |
+| 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) |
+| 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
