@@ -41,7 +41,7 @@ Mutation testing (Mutmut) is folded in. A baseline run during the audit adds its
 |---|---|---|
 | 0 — Preconditions | v3 shipped; pin the audit commit; audit worktree; scratch DB | operator go-ahead |
 | 1 — Automated baseline | linters in report-only mode, complexity, dead code, clones, import graph, coverage, security scanners, Mutmut spike and baseline | raw reports committed under `baseline/` |
-| 2 — Review tracks (parallel, read-only) | A duplication · B layering · C correctness · D security · E frontend · F tests · G dead code and doc drift | each track file complete against its checklist |
+| 2 — Review tracks (parallel, read-only) | A duplication · B layering · C correctness · D security · E frontend · F tests · G dead code and doc drift; then H red team (after D; local + clean drill, rules of engagement) | each track file complete against its checklist; every H finding has a repro |
 | 3 — Verify and consolidate | adversarial verification, dedupe, severity calibration, single best mitigation | `findings.md` final; operator review |
 | 4 — Prevention (sequential, after 3) | root-cause classes → controls in CLAUDE.md, skills, docs and automated guards | `prevention.md` signed off; doc/skill edits merged |
 | 5 — Remediation backlog | findings → T-Q2xx tasks and ADRs, ordered by severity | backlog reviewed; pre-v4-Phase-3 subset tagged |

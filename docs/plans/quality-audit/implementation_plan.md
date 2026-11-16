@@ -77,9 +77,9 @@ This is the original Mutmut plan's Phase 0 (spike) and Phase 3 (first run plus t
 
 ---
 
-## 3 · Phase 2 — Review tracks (T-Q04 … T-Q10)
+## 3 · Phase 2 — Review tracks (T-Q04 … T-Q10, T-Q18)
 
-Seven tracks run in parallel. They are read-only and dispatched with the `orchestrator-mode` skill (ADR-0066). Each track agent gets its own worktree and writes **only** `docs/plans/quality-audit/tracks/<track>.md`, so merges cannot conflict. Each track file contains:
+Seven review tracks (A–G) run in parallel. The red-team track (H) starts when Track D is complete; its rules are in §3.1. They are read-only and dispatched with the `orchestrator-mode` skill (ADR-0066). Each track agent gets its own worktree and writes **only** `docs/plans/quality-audit/tracks/<track>.md`, so merges cannot conflict. Each track file contains:
 
 1. **Coverage statement**: which files and modules were read, and which checklist items were applied. If something was skipped, the file says so.
 2. **Findings** in the §4 schema, with track-local ids (`A-01`, `B-01` …).
@@ -179,6 +179,33 @@ ADRs: 0027, 0030, 0031.
 - **Doc drift:** for each ADR that is still Accepted, check that the code still behaves as it says, and flag ADRs that should be marked superseded. Also: CHANGELOG versus `tasks.md` ✅ status; `requirements.md` versus implemented behaviour; `CLAUDE.md` commands versus the `justfile` (for example the documented `just dev --db=` flag). ADR number collisions (the original Mutmut plan named ADR-0095, which is already taken).
 - **Config drift:** pre-commit hooks versus `just ci` versus GitHub Actions. Are the same checks run with the same versions?
 
+### Track H — Red team (T-Q18) · after Track D
+
+Track D reviews the code. Track H tries to **exploit** the running system and chain weaknesses: cross-step logic flaws, session edge cases, infra and CI wiring. It is white-box (agents get the source) and goal-driven. Inputs: `tracks/D-security.md` (its authz table and Questions are leads to exploit, so the two tracks do not duplicate), the ADR-0079 threat model and residual risks, ADR-0078.
+
+Four agents, one per target. Each writes only its own track file and its repros:
+
+| Agent | File | Target | Where | Goals |
+|---|---|---|---|---|
+| H1 | `tracks/H1-ci-supply-chain.md` | CI/CD and supply chain | static analysis of `.github/workflows/`, environments and secrets config, Terraform IAM (no runs against the real repo, see §3.1) | a path from an untrusted PR or branch to prod credentials or a prod deploy: workflow or script injection, `pull_request_target` / `workflow_run` trust, artifact or cache poisoning, unpinned actions, `drill-gate` status spoofing or bypass, environment-secret scope (ADR-0099, ADR-0100, ADR-0104) |
+| H2 | `tracks/H2-isolation.md` | Isolation between users and privilege | local app on a seeded scratch DB with two users and one admin | user A reads or changes user B's data on every route with B's record ids (pages, HTMX fragments, exports, undo / restore, audit views); non-admin to admin; admin actions on themselves (ADR-0061, ADR-0073, ADR-0078) |
+| H3 | `tracks/H3-auth.md` | Authentication and sessions | local app on a seeded scratch DB | session fixation, theft and replay after logout; re-auth bypass; passkey ceremony edge cases (challenge reuse, cross-user credential); rate-limit bypass (header rotation, parallel requests); CSRF on HTMX posts (ADR-0067, ADR-0076) |
+| H4 | `tracks/H4-infra.md` | Infrastructure exposure | a fresh drill VM (`mode=explore`), over the tailnet, operator-triggered | reachable ports and services, tailnet ACL gaps, Caddy headers and CSP on error paths, access to backup and replica buckets with drill credentials, secrets in logs, image layers, cloud-init or Terraform state (ADR-0094, ADR-0101, ADR-0091, ADR-0105) |
+
+Every finding needs a repro under `docs/plans/quality-audit/repro/H<n>/`: a failing pytest or a script with its recorded output. A suspicion without a repro goes into the track's Questions, not its findings. H1 findings that cannot be reproduced without running workflows are recorded as Probable with the exact config evidence.
+
+ADRs: 0061, 0067, 0073, 0076, 0078, 0079, 0091, 0094, 0099, 0100, 0101, 0104, 0105.
+
+### 3.1 · Track H rules of engagement
+
+- **Never prod.** No requests to the prod host, no prod credentials, no prod buckets, no `data/budget.sqlite`.
+- **Drill only for H4, and only a clean one.** The operator triggers each drill run (`mode=explore`) and gives an explicit go in the session. Before any H4 activity the agent confirms the drill has **no restored prod data** (restore creds empty, DB holds only seeded synthetic users) and records that check in `tracks/H4-infra.md`. If prod data is present, stop.
+- **H1–H3 run locally** against `just dev --db=<scratch>` with a seeded synthetic DB.
+- **No outward actions on the real repo or accounts:** no pushes, PRs, issues, workflow dispatches, secret reads or changes, and no Scaleway, Tailscale or GitHub API writes. Reading our own config is allowed. A disposable fork for H1 experiments needs a separate operator go.
+- **No denial of service or load testing.** No attacks on third parties beyond reading our own configuration.
+- **Critical found → stop and report** to the operator immediately (§5.1), following the common/security.md response protocol. Do not continue chaining on a Critical.
+- **Read-only audit rule still applies** (§11): no fixes, only findings and repros.
+
 ---
 
 ## 4 · Finding schema
@@ -218,7 +245,7 @@ A **Critical** finding found during the audit is reported to the operator immedi
 
 ### 5.2 Root-cause classes (used by Phase 4)
 
-`duplicate-logic` · `layer-leak` · `repo-bypass` · `scoping-gap` · `clock` · `silent-fallback` · `money-arith` · `weak-assertion` · `missing-invariant-test` · `import-cycle` · `wide-signature` · `oversized-module` · `template-logic` · `htmx-contract` · `dead-code` · `doc-drift` · `config-drift` · `security-control` · `dependency`
+`duplicate-logic` · `layer-leak` · `repo-bypass` · `scoping-gap` · `clock` · `silent-fallback` · `money-arith` · `weak-assertion` · `missing-invariant-test` · `import-cycle` · `wide-signature` · `oversized-module` · `template-logic` · `htmx-contract` · `dead-code` · `doc-drift` · `config-drift` · `security-control` · `dependency` · `ci-trust-boundary` · `infra-exposure`
 
 New classes may be added in Phase 3 if they are documented in `findings.md`.
 
@@ -330,14 +357,15 @@ v4 Phase 3 sweeps every repository for field encryption and moves aggregates int
 ## 10 · Execution model and budget
 
 - Phase 1: one agent (tools), plus one agent for the Mutmut spike and baseline.
-- Phase 2: seven track agents in parallel (orchestrator mode, one worktree each, each writing only its track file).
+- Phase 2: seven track agents in parallel (orchestrator mode, one worktree each, each writing only its track file), then four red-team agents (H1–H4) once Track D is merged. H1–H3 can run in parallel; H4 waits for an operator-triggered clean drill.
 - Phase 3: one or two verification agents plus the orchestrator consolidating.
 - Phase 4: sequential. One agent for gap analysis and design, then subagents per artefact edit.
-- Expected wall-clock time: Phase 1 about ½ day, Phase 2 about 1 day, Phase 3 about ½–1 day plus the operator review, Phase 4 about 1–2 days.
+- Expected wall-clock time: Phase 1 about ½ day, Phase 2 about 1 day plus about 1 day for Track H, Phase 3 about ½–1 day plus the operator review, Phase 4 about 1–2 days.
 
 ## 11 · Guardrails
 
 - No edits to `src/`, `tests/`, config or CI on the audit branch during Phases 1–3. Track agents that find themselves "just fixing" something must stop and record a finding instead.
+- Track H follows its rules of engagement (§3.1) in addition to these guardrails.
 - No `data/budget.sqlite` access of any kind. A tool that defaults to it (`just migrate`, `just seed`, the CSV import) is never run without `--db=<scratch>`.
 - No dependency changes committed during Phases 1–3. Tools run through `uv run --with`.
 - Worktree hygiene: prune each track worktree and branch as soon as it is merged into `audit/quality`.

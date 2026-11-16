@@ -57,7 +57,12 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
 - Vulture results checked by hand. Every Accepted ADR checked against the code (still true / drifted / should be superseded). Pre-commit vs `just ci` vs CI parity table.
 
-## Phase 3 — Verify and consolidate → T-Q04…T-Q10
+### T-Q18 [S] Track H — red team → T-Q07 → `tracks/H1-ci-supply-chain.md`, `H2-isolation.md`, `H3-auth.md`, `H4-infra.md`
+- Four agents per plan §3 Track H, white-box, with Track D's authz table and Questions as leads. H1–H3 in parallel locally on a seeded synthetic scratch DB; H4 on a fresh operator-triggered drill (`mode=explore`) after a recorded check that it holds no restored prod data.
+- Rules of engagement (plan §3.1) followed: never prod, no outward actions on the real repo or accounts, no DoS, stop and report on a Critical.
+- Every finding has a repro under `repro/H<n>/` (failing pytest or script with recorded output); suspicions without a repro are in Questions. Each file states which goals were attempted and which were not.
+
+## Phase 3 — Verify and consolidate → T-Q04…T-Q10, T-Q18
 
 ### T-Q11 [S] Adversarial verification and consolidation
 - Every Critical and High finding, plus at least 20% of Mediums, independently re-verified. Dismissed findings listed with reasons.

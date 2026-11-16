@@ -469,6 +469,7 @@ This is a read-only audit of the whole repository at a pinned commit, run **afte
 ### 8.2 Constraints
 
 - No production code changes during the audit. No dependency changes committed. No access to `data/budget.sqlite`.
+- A red-team track (Track H, T-Q18) runs after the security review: white-box exploit attempts on CI/CD and supply chain, isolation between users, authentication, and infrastructure. Only locally on synthetic scratch data, or on a fresh drill with no restored prod data and an explicit operator go per run. Never prod, no outward actions on the real repo or cloud accounts, no DoS. Every finding needs a reproduction.
 - Mutation testing (Mutmut, `domain` and `services`) runs as a baseline during the audit. Adopting it as tooling needs its own ADR (next free number) during the prevention pass. It is tracked as a score and is not a CI gate.
 - Timing: after v3 ships and **before v4 starts**. The audit is a v4 Phase 0 precondition.
 - Critical/High remediation of duplicated logic, repository bypass and user-scoping gaps must land before v4 Phase 3 (field encryption).

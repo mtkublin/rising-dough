@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-16 (T-Q18 — red-team track added to the quality audit)
+- **Docs(T-Q18): quality audit gains Track H, an agent red-team pass after Track D** (`docs/plans/quality-audit/implementation_plan.md` §3 Track H and §3.1 rules of engagement, requirements §8.2). Four white-box agents: CI/CD and supply chain (static, no runs against the real repo), isolation between users and privilege, authentication and sessions (both local on synthetic data), infrastructure (fresh drill without restored prod data, operator go per run). Every finding needs a repro; Critical stops the run. New root-cause classes `ci-trust-boundary`, `infra-exposure`. Not started.
+
 ## 2026-11-16 (T-UT01 — designer handoff vendored)
 - **Docs(T-UT01, ADR-0106): the "Rising Dough · Sourdough redesign" handoff is committed byte-identical under `docs/design/rising-dough-frontend/`** (157 files, 99 HTML, delivered 2026-11-14), with a SHA-256 manifest and `docs/design/README.md`. Pre-commit fixers and djlint exclude `docs/design/`; detect-secrets still scans it. All 99 pages open from `file://` in Chromium with 0 console errors and 0 requests outside the folder. The untracked `data/rising-dough-frontend/` copy can now be deleted.
 
