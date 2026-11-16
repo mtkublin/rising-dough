@@ -1,6 +1,7 @@
 # ADR-0037: v3 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags
 
 - **Status**: Proposed
+- **Superseded in part by**: ADR-0111 (SSH forced-command deploy step replaced by Terraform-declared host state)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
 - **Related**: ADR-0018 (CI matrix), ADR-0032 (v3 remote deployment), ADR-0035 (Terraform), ADR-0034 (Litestream)
 

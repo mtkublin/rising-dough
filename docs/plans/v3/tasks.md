@@ -767,3 +767,12 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D128 [S] One prod approval per release → ADR-0110 (Accepted 2026-11-16)
 - `deploy.yml` runs prod in the reviewer-less environment `prod-deploy` (deploy secrets only; branches `main` + tags `v*`). The terraform apply in `prod` is the single approval; `deploy-prod` still needs the apply. `rollback.yml` stays on `prod`.
 - Touches `deploy.yml`, `release.yml` comment, `tests/unit/deploy/test_release_approval.py`, runbooks `github-settings.md`, `deploy.md`, `operator-checklist.md`.
+
+### T-D129 [L] Terraform-declared host state, pulled by a host agent → ADR-0111
+- Why: the first pipeline release (2026-11-16) showed the SSH deploy path never worked (ADR-0111 Context). Prod got `sha-89ac3c2` by logged break-glass.
+- a. Docs: ADR-0111, ADR-0037/0110 superseded notes, this task, CHANGELOG.
+- b. Agent `terraform/host/agent/bp_agent.py` (stdlib only): fetch config, generation check, pinned cosign install + verify, atomic file writes, compose pull/up, service restarts, local `/ready` probe, `status.json`, back-off. Unit tests for the pure parts (`tests/unit/deploy/test_bp_agent.py`).
+- c. Terraform: compute module renders `bp-config` (all managed files, image ref + previous ref, cosign policy, generation) and `bp-agent` into `user_data` (sensitive); vars `app_image_ref`, `app_image_previous_ref`; outputs `app_image_ref`, `config_generation`; cloud-init reduced to fixed bootstrap + loader + systemd timer + `DOCKER-USER` metadata block; Caddy serves `/.well-known/bp-deploy-status.json`. tftest.
+- d. CI: `terraform.yml` passes the refs (previous from state), monitors the status after apply, re-applies swapped refs on failure in the same job; `release.yml` without `deploy-prod`; `rollback.yml` as an apply; `deploy.yml` and `deploy-budget-planner` removed; drill gate checks the status. Workflow tests.
+- e. Drill: gate run proves first-boot convergence, a second apply (new ref) converging live without reboot, and the size limit.
+- f. Prod migration runbook (one logged break-glass: install loader + timer + firewall rule, remove `deploy` user and key), then the first release through the new path. GitHub: delete `prod-deploy` environment and deploy secrets.

@@ -1,6 +1,7 @@
 # ADR-0110: One Prod Approval per Release
 
 - **Status**: Accepted
+- **Superseded by**: ADR-0111 (no deploy job, so no `prod-deploy` environment)
 - **Date**: 2026-11-16
 - **Relates to**: ADR-0100 (credential split), ADR-0109 (release trigger), T-D128
 - **Amends**: ADR-0099 (release gate: one approval per release instead of one per prod job)
