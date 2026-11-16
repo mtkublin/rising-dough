@@ -232,8 +232,10 @@ main() {
   if [[ "$${#}" -gt 0 ]]; then
     args=( $${1+"$${@}"} )
   elif [[ -n "$${SSH_ORIGINAL_COMMAND:-}" ]]; then
-    # shellcheck disable=SC2206  # word splitting is desired here
-    args=( $${SSH_ORIGINAL_COMMAND} )
+    # T-D127: split on spaces explicitly. The strict-mode IFS ($'\n\t') above
+    # does not split on spaces, so `deploy <tag>` arrived as one word. `read -a`
+    # also avoids glob expansion of the client-supplied string.
+    IFS=' ' read -r -a args <<< "$${SSH_ORIGINAL_COMMAND}"
   fi
 
   if [[ "$${#args[@]}" -eq 0 ]]; then

@@ -734,3 +734,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Gate run 43903186571 (2026-11-16): `quota exceeded(s): cp_servers_type_STARDUST1_S has reached its quota (1/1)`; prod holds the only Stardust. Teardown removed the partial drill.
 - Fix: root var `drill_instance_type` (default `DEV1-S`); prod pinned to `STARDUST1-S` in `main.tf`; compute output `server_type`; tftest runs for both envs. No prod diff.
 - The STARDUST1-S quota cannot be raised (operator, 2026-11-16): `DEV1-S` for the drill is permanent.
+
+### ✅ T-D127 [S] Deploy forced command did not split `SSH_ORIGINAL_COMMAND` → ADR-0037
+- First pipeline release (run 43913941966, 2026-11-16): `deploy-prod` got the usage text, exit 1. Host syslog: `subcmd=deploy sha-89ac3c2`, i.e. one word. The script's strict-mode `IFS=$'\n\t'` does not split on spaces, so `args=( $SSH_ORIGINAL_COMMAND )` stayed one element; single-word `status` worked, `deploy <tag>` and `rollback <tag>` never could. Prod was untouched (still `sha-075f986`).
+- Fix: `IFS=' ' read -r -a args <<< "$SSH_ORIGINAL_COMMAND"` (also no glob expansion). New `tests/unit/deploy/test_deploy_script.py` drives the rendered script through `SSH_ORIGINAL_COMMAND`.
+- Prod host: cloud-init does not re-run, so the running VM gets the same one-line patch by hand (logged in CHANGELOG); new VMs (drill, future prod replace) get it from cloud-init.
