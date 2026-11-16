@@ -727,4 +727,4 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D123 [S] Drill runs on DEV1-S: STARDUST1-S quota is 1 per organisation → ADR-0032 (amendment)
 - Gate run 43903186571 (2026-11-16): `quota exceeded(s): cp_servers_type_STARDUST1_S has reached its quota (1/1)`; prod holds the only Stardust. Teardown removed the partial drill.
 - Fix: root var `drill_instance_type` (default `DEV1-S`); prod pinned to `STARDUST1-S` in `main.tf`; compute output `server_type`; tftest runs for both envs. No prod diff.
-- Operator: request STARDUST1-S quota 2 (console Organization > Quotas); if granted, flip the default back.
+- The STARDUST1-S quota cannot be raised (operator, 2026-11-16): `DEV1-S` for the drill is permanent.

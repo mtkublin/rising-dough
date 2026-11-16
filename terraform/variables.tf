@@ -133,7 +133,7 @@ variable "dns_zone_project_id" {
 }
 
 variable "drill_instance_type" {
-  description = "Drill only (T-D123): instance type of the drill VM. Scaleway allows one STARDUST1-S per organisation and prod uses it, so the drill runs on DEV1-S. Prod is pinned to STARDUST1-S (ADR-0032) and ignores this."
+  description = "Drill only (T-D123): instance type of the drill VM. Scaleway allows one STARDUST1-S per organisation (not raisable) and prod uses it, so the drill runs on DEV1-S. Prod is pinned to STARDUST1-S (ADR-0032) and ignores this."
   type        = string
   default     = "DEV1-S"
 
