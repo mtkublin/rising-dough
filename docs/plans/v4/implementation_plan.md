@@ -52,6 +52,8 @@ Exit:
 
 ### Phase 2 — Session binding and unlock (T-E05..T-E07)
 
+Entry: Sourdough redesign released (`docs/plans/ui-redesign/`, T-UR17, ADR-0107). Unlock, claim and recovery-code screens use the new design system.
+
 Goal: logging in yields keys; nothing yet encrypts user data.
 Exit:
 - Password, PRF passkey and recovery-code unlock work.

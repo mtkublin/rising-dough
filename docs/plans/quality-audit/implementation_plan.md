@@ -151,6 +151,8 @@ ADRs: 0033, 0061, 0067, 0073, 0078, 0094.
 
 ### Track E — Frontend (T-Q08)
 
+> **Scope narrowed (2026-11-16, ADR-0107):** the Sourdough redesign replaces every template, all CSS and the presentational JS. Findings about markup, CSS, design tokens, duplicate partials and presentational JS are **out of scope**. Keep only what survives the redesign: logic in templates that belongs in a view model, HTMX emitter/listener contracts and swap targets, CSRF and CSP handling, and the kept behaviour JS (`htmx-csrf.js`, `passkeys.js`). Findings already recorded in the out-of-scope classes are closed as `superseded-by-ADR-0107`.
+
 - **Logic in templates:** arithmetic, sign flips, currency formatting outside the `money` filter or `amount` macro, conditionals on domain state that belong in a view model.
 - **Duplicate partials and macros:** near-identical forms, rows and slide-overs (from the jscpd output). The same widget implemented twice (combobox, numeric input, amount display).
 - **Design tokens:** hex literals, ad-hoc spacing, duplicated CSS rules, dead CSS (ADR-0027 toolchain).

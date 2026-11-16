@@ -16,6 +16,7 @@
 - The operator reviews ADR-0079..0083 and flips them to Accepted.
 - Post-v3 code-quality audit complete (`docs/plans/quality-audit/`, T-Q01..T-Q17 ✅, requirements §8).
 - Before Phase 3 (not Phase 0) starts: every quality-audit remediation task tagged `[pre-v4-P3]` is ✅.
+- Before Phase 2 (not Phase 0) starts: the Sourdough redesign is released (`docs/plans/ui-redesign/`, T-UR17 ✅, ADR-0107). v4 screens are built in the new design system.
 
 ---
 

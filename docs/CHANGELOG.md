@@ -2,6 +2,8 @@
 
 ## 2026-11-16 (T-D119 — opentelemetry-api ReDoS)
 - **Security(T-D119): `opentelemetry-api` 1.45.1 -> 1.45.2 (CVE-2026-126360, GHSA-mf5v-w3w3-f6cg).** A crafted `traceparent` header caused quadratic regex backtracking in `TraceContextTextMapPropagator.extract()`; FastAPI's default-on telemetry runs it on every request on the event loop. Transitive via `fastapi`; lockfile-only bump. The remaining pip-audit hit on macOS x86_64 (`cryptography` 48.0.1) is the known dev-only ADR-0067 fork (T-D91), not shipped to prod.
+## 2026-11-16 (T-UT00 / T-UR00 — UI test harness and Sourdough redesign plans)
+- **Docs: two new efforts planned, not started.** (1) UI behaviour test harness (`docs/plans/ui-test-harness/`, requirements §9, ADR-0106): route contract tests with a coverage meta-test, a role/label UI map replacing markup-coupled assertions, a generated crawler, journeys, a feature-parity inventory, and the designer handoff committed under `docs/design/`. (2) Sourdough redesign (`docs/plans/ui-redesign/`, requirements §10, ADR-0107): presentation rebuilt solely from the handoff, test-first per surface, Tailwind removed, released to prod once. Order: v3 → audit + `[pre-v4-P3]` remediation ∥ harness → redesign → v4 Phase 2. Quality-audit Track E narrowed to what survives the redesign; v4 Phase 2 entry gate added.
 
 ## 2026-11-16 (T-D115 — overdue commitments in Forecast Expenses)
 - **Fix(T-D115, ADR-0105): committed (Budget/Today "left", Forecast current-row Expenses) includes every overdue unpromoted item.** The window lower bound `today` is dropped: planned expense rows dated before today and recurring occurrences with `next_due < today` now count, however old. Due-today items were already counted.
