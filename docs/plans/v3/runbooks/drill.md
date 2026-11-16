@@ -13,7 +13,7 @@ Pipeline: ci -> build -> terraform apply drill (server and tailnet key always re
 
 ## Tailnet-only (ADR-0101)
 
-The drill has no public DNS record and no public 80/443. Browse it from a device on the tailnet at `https://budget-planner-drill.<tailnet>.ts.net` (certificate from tailscaled). Prerequisites: MagicDNS + HTTPS certificates enabled, ACL `tag:ci -> tag:drill:443` and your device allowed to `tag:drill:443`, `TAILNET_DNS_NAME` set in the drill environments (see `github-settings.md`). SSH stays tailnet-only too. If a stale node of the same name still exists the new node registers as `budget-planner-drill-1` and the certificate name will not match; wait for the old ephemeral node to expire or remove it in the admin console.
+The drill has no public DNS record and no public 80/443. Browse it from a device on the tailnet at `https://budget-planner-drill.<tailnet>.ts.net` (certificate from tailscaled). Prerequisites: MagicDNS + HTTPS certificates enabled, ACL `tag:ci -> tag:drill:443` and your device allowed to `tag:drill:443`, `TAILNET_DNS_NAME` set in the drill environments (see `github-settings.md`). SSH stays tailnet-only too. If a stale node of the same name still exists the new node registers as `budget-planner-drill-1` and the certificate name will not match; wait for the old ephemeral node to expire or remove it in the admin console. Until T-D124 lands, teardown leaves that node behind after every drill: remove it by hand (Machines > `budget-planner-drill` > Remove) before the next dispatch.
 
 ## Approval (optional)
 
