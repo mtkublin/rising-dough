@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-16 (T-D119 — opentelemetry-api ReDoS)
+- **Security(T-D119): `opentelemetry-api` 1.45.1 -> 1.45.2 (CVE-2026-126360, GHSA-mf5v-w3w3-f6cg).** A crafted `traceparent` header caused quadratic regex backtracking in `TraceContextTextMapPropagator.extract()`; FastAPI's default-on telemetry runs it on every request on the event loop. Transitive via `fastapi`; lockfile-only bump. The remaining pip-audit hit on macOS x86_64 (`cryptography` 48.0.1) is the known dev-only ADR-0067 fork (T-D91), not shipped to prod.
+
 ## 2026-11-16 (T-D115 — overdue commitments in Forecast Expenses)
 - **Fix(T-D115, ADR-0105): committed (Budget/Today "left", Forecast current-row Expenses) includes every overdue unpromoted item.** The window lower bound `today` is dropped: planned expense rows dated before today and recurring occurrences with `next_due < today` now count, however old. Due-today items were already counted.
 

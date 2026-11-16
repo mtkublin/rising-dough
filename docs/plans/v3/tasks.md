@@ -703,3 +703,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - PR plan 2026-11-16: `ci-plan` `insufficient permissions: read volume` refreshing `scaleway_instance_server.app` (root volume is an SBS volume). `ci-prod`/`ci-drill` would fail the same way on apply/destroy.
 - Code: bootstrap/ci policies add `BlockStorageFullAccess` (ci-prod, ci-drill) and `BlockStorageReadOnly` (ci-plan).
 - Operator: apply `terraform/bootstrap/ci` locally (allowed exception, ADR-0099); keys unchanged.
+
+### ✅ T-D119 [S] opentelemetry-api ReDoS (CVE-2026-126360) → T-D91
+- pip-audit 2026-11-16: `opentelemetry-api` 1.45.1 (transitive via `fastapi`) has CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg, quadratic regex backtracking in `TraceContextTextMapPropagator.extract()` on a crafted `traceparent`. Reachable: FastAPI's built-in telemetry (`tracing` on by default) calls `propagate.extract` on every request's headers, on the event loop.
+- Fix: `uv lock --upgrade-package opentelemetry-api` → 1.45.2. Lockfile only; no allowlist entry.
