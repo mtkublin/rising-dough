@@ -60,6 +60,7 @@ module "storage" {
   env_application_id  = var.app_application_id
   admin_principals    = var.bucket_admin_principals
   readonly_principals = local.bucket_readonly_principals # ADR-0092: + restore-reader on prod
+  plan_principals     = var.bucket_plan_principals       # ADR-0105: ci-plan on prod
   force_destroy       = var.env == "drill"
 }
 

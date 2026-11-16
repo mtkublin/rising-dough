@@ -34,3 +34,14 @@ variable "readonly_principals" {
     error_message = "Each read-only principal must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
   }
 }
+
+variable "plan_principals" {
+  description = "Terraform plan identities (prod: ci-plan) that may read the bucket's configuration but no objects (ADR-0105)."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.plan_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each plan principal must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}

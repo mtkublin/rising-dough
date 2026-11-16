@@ -108,3 +108,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0103 | [Image Scan Ignores Unfixed OS CVEs; Runtime Stage Applies Debian Upgrades](0103-image-scan-ignores-unfixed-os-cves.md) (amends ADR-0102; relates to ADR-0032, ADR-0099) |
 | 0104 | [Env-Stack IAM Moves to the Local Bootstrap; CI Loses IAMManager](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md) (amends ADR-0100; relates to ADR-0091, ADR-0092, ADR-0098, ADR-0099) |
 | 0105 | [Committed Includes Every Overdue Unpromoted Item](0105-committed-includes-all-overdue-items.md) (amends ADR-0039; relates to ADR-0043, ADR-0085, ADR-0087, ADR-0089) |
+| 0105 | [CI Identities in the Durability Bucket Policies](0105-ci-principals-in-durability-bucket-policies.md) (amends ADR-0091, ADR-0100; relates to ADR-0099, ADR-0104) |

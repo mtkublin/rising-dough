@@ -43,8 +43,26 @@ locals {
     Resource = local.resources
   }]
 
+  # ADR-0105: what a refresh of the bucket, its ACL and its policy reads. No objects.
+  plan_statements = length(var.plan_principals) == 0 ? [] : [{
+    Sid       = "AllowTerraformPlanRead"
+    Effect    = "Allow"
+    Principal = { SCW = var.plan_principals }
+    Action = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+      "s3:GetBucketCORS",
+      "s3:GetBucketVersioning",
+      "s3:GetLifecycleConfiguration",
+      "s3:GetBucketTagging",
+      "s3:GetBucketAcl",
+      "s3:GetBucketPolicy",
+      "s3:GetBucketObjectLockConfiguration",
+    ]
+    Resource = local.resources
+  }]
   policy = {
     Version   = "2023-04-17"
-    Statement = concat([local.env_statement], local.admin_statements, local.readonly_statements)
+    Statement = concat([local.env_statement], local.admin_statements, local.readonly_statements, local.plan_statements)
   }
 }

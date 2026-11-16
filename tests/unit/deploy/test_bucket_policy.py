@@ -16,6 +16,7 @@ MODULE = Path(__file__).resolve().parents[3] / "terraform" / "modules" / "bucket
 APP_ID = "11111111-1111-1111-1111-111111111111"
 OPERATOR = "user_id:22222222-2222-2222-2222-222222222222"
 RO_APP = "application_id:33333333-3333-3333-3333-333333333333"
+PLAN_APP = "application_id:44444444-4444-4444-4444-444444444444"
 
 pytestmark = pytest.mark.skipif(shutil.which("terraform") is None, reason="terraform not installed")
 
@@ -26,7 +27,9 @@ def _run(args: list[str], cwd: Path) -> str:
     return result.stdout
 
 
-def _render(tmp_path: Path, admin: list[str], readonly: list[str]) -> dict[str, Any]:
+def _render(
+    tmp_path: Path, admin: list[str], readonly: list[str], plan: list[str] | None = None
+) -> dict[str, Any]:
     mod = tmp_path / "mod"
     shutil.copytree(MODULE, mod)
     root = tmp_path / "root"
@@ -38,6 +41,7 @@ def _render(tmp_path: Path, admin: list[str], readonly: list[str]) -> dict[str, 
         f'  env_application_id = "{APP_ID}"\n'
         f"  admin_principals = {json.dumps(admin)}\n"
         f"  readonly_principals = {json.dumps(readonly)}\n"
+        f"  plan_principals = {json.dumps(plan or [])}\n"
         "}\n"
         'output "policy" { value = module.p.policy_json }\n'
     )
@@ -98,6 +102,26 @@ def test_prod_readonly_principals_get_read_only_actions(tmp_path: Path) -> None:
 def test_invalid_principal_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(AssertionError, match="admin principal"):
         _render(tmp_path, ["not-a-principal"], [])
+
+
+def test_plan_principals_read_bucket_config_only(tmp_path: Path) -> None:
+    """ADR-0105: ci-plan may refresh the bucket but never read or change objects."""
+    statements = _statements(_render(tmp_path, [OPERATOR], [], [PLAN_APP]))
+    plan = [st for st in statements if st["Sid"] == "AllowTerraformPlanRead"]
+
+    assert len(plan) == 1
+    assert _principals(plan[0]) == [PLAN_APP]
+    actions = set(plan[0]["Action"])
+    assert {"s3:GetBucketCORS", "s3:GetBucketPolicy", "s3:ListBucket"} <= actions
+    forbidden = {a for a in actions if "Object" in a and a != "s3:GetBucketObjectLockConfiguration"}
+    assert not forbidden
+    assert not any(a.startswith(("s3:Put", "s3:Delete")) or a == "s3:*" for a in actions)
+
+
+def test_no_plan_statement_by_default(tmp_path: Path) -> None:
+    statements = _statements(_render(tmp_path, [OPERATOR], []))
+
+    assert all(st["Sid"] != "AllowTerraformPlanRead" for st in statements)
 
 
 # --- T-D69 / ADR-0092: stable restore-reader wiring (static; no cloud) ---

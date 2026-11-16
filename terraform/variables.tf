@@ -210,6 +210,17 @@ variable "bucket_readonly_principals" {
   }
 }
 
+variable "bucket_plan_principals" {
+  description = "Terraform plan identities that may read this env's bucket configuration but no objects. Prod: ci-plan (ADR-0105). Empty on drill."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for p in var.bucket_plan_principals : can(regex("^(user|application)_id:[0-9a-f-]{36}$", p))])
+    error_message = "Each entry must look like 'user_id:<uuid>' or 'application_id:<uuid>'."
+  }
+}
+
 # ----------------------------------------------------------------------------
 # Computed locals derived from inputs (surfaced through outputs).
 # ----------------------------------------------------------------------------

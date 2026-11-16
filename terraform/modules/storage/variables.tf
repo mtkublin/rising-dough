@@ -31,6 +31,12 @@ variable "readonly_principals" {
   default     = []
 }
 
+variable "plan_principals" {
+  description = "Terraform plan identities allowed to read the bucket configuration only (prod: ci-plan) (ADR-0105)."
+  type        = list(string)
+  default     = []
+}
+
 variable "force_destroy" {
   description = "Allow terraform destroy to delete a non-empty bucket. true for drill only; keep false for prod."
   type        = bool

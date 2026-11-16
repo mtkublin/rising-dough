@@ -66,6 +66,7 @@ module "policy" {
   env_application_id  = var.env_application_id
   admin_principals    = var.admin_principals
   readonly_principals = var.readonly_principals
+  plan_principals     = var.plan_principals
 }
 
 resource "scaleway_object_bucket_policy" "durability" {

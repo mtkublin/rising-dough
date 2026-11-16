@@ -28,6 +28,9 @@ Same names in every environment, different values (ADR-0093). The three drill en
 | `LITESTREAM_AGE_IDENTITY`, `LITESTREAM_AGE_RECIPIENT` | x | x | x | per-env age keypair |
 | `MANAGED_DNS_ZONE` (optional) | x | x | x | |
 | `BUCKET_ADMIN_PRINCIPALS`, `BUCKET_READONLY_PRINCIPALS` (optional) | x | x | x | |
+| `BUCKET_PLAN_PRINCIPALS` (ADR-0105: `["application_id:<ci-plan>"]`) | x | x | | |
+
+ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply identity: prod/prod-plan add `application_id:<ci-prod>`, drill envs add `application_id:<ci-drill>` (`terraform -chdir=terraform/bootstrap/ci output ci_application_ids`).
 | `PROD_REPLICA_RO_ACCESS_KEY`, `PROD_REPLICA_RO_SECRET_KEY` | | | x | restore-reader of prod replica; drill only |
 | `APP_APPLICATION_ID` | prod app | prod app | drill app | `bootstrap/ci` output `app_application_ids` (ADR-0104) |
 | `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` | prod app key | prod app key | drill app key | Litestream identity; prod values read once from prod state, then from `bootstrap/ci` after a rotation (`key-rotation.md`) |
