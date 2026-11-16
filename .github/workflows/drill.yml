@@ -20,12 +20,11 @@
 #                 tear down right after the smoke test), `boot_logs`. Never posts a
 #                 status.
 #
-# Smoke instead of deploy.yml (documented in ADR-0099, Amendment 2026-11-07):
-# every drill apply replaces the server (and the tailnet key), and a fresh boot
-# runs cloud-init, which already pulls and starts `app_image_tag` (= the tag built
-# here). deploy.yml's SSH swap would re-pull the same image: a no-op that adds a
-# tailnet join and a race with cloud-init. The smoke job instead waits for the
-# /ready over the tailnet (fresh boot to ready takes ~3.5 min; the budget is 10 min).
+# ADR-0111: the drill exercises the same release path as prod. The apply sets
+# the image ref `sha-<short>@sha256:<digest>` built here in instance metadata;
+# on the fresh VM the host agent cosign-verifies, pulls and starts it. The smoke
+# job waits for /ready over the tailnet (fresh boot to ready takes ~3.5 min; the
+# budget is 10 min), then for the agent status to report this generation.
 #
 # Concurrency: group `drill` is shared with restore-drill.yml, the sweeper and
 # drill-destroy.yml; runs queue, never cancel a running apply/destroy.
@@ -155,7 +154,7 @@ jobs:
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill
-      image_tag: ${{ needs.build.outputs.image-tag }}
+      image_ref: ${{ needs.build.outputs.image-tag }}@${{ needs.build.outputs.image-digest }}
       replace: module.compute.scaleway_instance_server.app tailscale_tailnet_key.vm
       drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
       boot_log_upload: ${{ inputs.boot_logs }}
@@ -199,6 +198,22 @@ jobs:
           echo "::error::drill /ready never came up within 10 minutes" >&2
           exit 1
 
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # ADR-0111: the host agent applied exactly this generation and runs the
+      # cosign-verified, digest-pinned image.
+      - name: Wait for host agent status
+        env:
+          GENERATION: ${{ needs.apply.outputs.host_config_generation }}
+          HOST_IMAGE_REF: ${{ needs.apply.outputs.host_image_ref }}
+        run: >-
+          python3 scripts/ci/host_release.py wait --timeout 300
+          --url "${TARGET_URL}/.well-known/bp-deploy-status.json"
+          --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+
   # Gate mode (always) and explore with keep=false: destroy even when the apply
   # or smoke failed, as long as apply was attempted (a partial apply can leave
   # resources behind). Explore with keep=true stays up until the TTL.
@@ -215,9 +230,6 @@ jobs:
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill
-      # Placeholder: app_image_tag is only rendered into user-data, which a
-      # -destroy plan never creates (terraform.yml accepts any valid tag).
-      image_tag: sha-0000000
       destroy: true
     secrets: inherit  # pragma: allowlist secret
 

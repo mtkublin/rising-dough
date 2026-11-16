@@ -57,7 +57,7 @@ Terraform recreates:
 - Scaleway project resources (IAM app for Litestream, security group, Flex IPv4).
 - Stardust1-S instance in `pl-waw-2` (or the zone set in tfvars, ADR-0084) with cloud-init user-data.
 - DNS A/AAAA records pointing `budget-planner-prod` at the new IP.
-- `/etc/budget-planner/docker-compose.yml`, `/etc/litestream.yml`, Caddyfile, deploy user, `/usr/local/bin/deploy-budget-planner`.
+- `/etc/budget-planner/docker-compose.yml`, Litestream config, Caddyfile and registry auth: written by the host agent from `bp-config` on first boot (ADR-0111); no deploy user.
 
 Cloud-init boot sequence will:
 

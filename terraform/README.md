@@ -32,7 +32,10 @@ terraform/
 │   │   ├── docker-compose.yml.tpl   # app + litestream + caddy
 │   │   ├── Caddyfile.tpl            # auto-TLS, CSP nonce, access log
 │   │   └── litestream.yml.tpl       # WAL replication to Scaleway Object Storage
-│   └── bin/deploy-budget-planner.tpl # restricted deploy command (T-D32 finalises)
+│   └── bin/restore-from-prod.tpl    # drill-only restore helper (written by the agent)
+├── host/
+│   ├── agent/bp_agent.py            # host agent, shipped as metadata key bp-agent (ADR-0111)
+│   └── migrate/                     # one-time host migration (T-D129f)
 ├── bootstrap/                       # state-bucket root stack, local state (ADR-0096)
 └── scripts/
 ```
@@ -79,7 +82,7 @@ Before any apply, run `just drill-preflight` (or `just tf-preflight prod`). It i
 |---|---|
 | Required inputs (`SCW_*`, Tailscale OAuth, age identity/recipient, GHCR PAT) | empty, `<placeholder>` or wrong-prefix values |
 | Project match | `SCW_DEFAULT_PROJECT_ID` differing from `scaleway_project_id` (the provider silently uses the env value). The drill recipe maps `SCW_DRILL_PROJECT_ID` onto it |
-| App image on GHCR | `ghcr.io/<github_owner>/budget-planner:<app_image_tag>` not published (`NAME_UNKNOWN`) |
+| App image on GHCR | `ghcr.io/<github_owner>/budget-planner:<app_image_ref>` not published (`NAME_UNKNOWN`) |
 | Tailscale tag | OAuth client cannot mint a key for `tag:drill` / `tag:prod`; mints a 300 s ephemeral key and deletes it at once |
 | State backend | bucket from `backend.hcl` unreachable with the SCW keys (stdlib SigV4 `HEAD`, no extra dependency) |
 
@@ -144,7 +147,7 @@ just tf-render-check
 
 - `scaleway/scaleway` provider lags AWS in object-bucket primitives. Public-access blocking is enforced via a deny-plaintext bucket policy; the per-bucket encryption toggle is enforced by Scaleway at the account level.
 - `use_lockfile = true` in `backend.hcl` requires Terraform 1.10+ for native S3 lockfile support. The floor is `>= 1.10.0` (`versions.tf`, ADR-0090). CI and `.terraform-version` pin Terraform `1.17.1`.
-- The `deploy-budget-planner` script shipped here is a stub; T-D32 finalises the exact rollback catalog once the compose template stabilises in production.
+- The `cloud-init` metadata key runs once per VM; only `bp-agent` and `bp-config` changes reach a running VM (ADR-0111).
 
 ## Projects (ADR-0092)
 

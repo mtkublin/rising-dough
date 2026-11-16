@@ -85,7 +85,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 - All drill workflows share the `drill` concurrency group (queued, not cancelled).
 - Allowed non-GitHub exceptions: bootstrap stack (`terraform/bootstrap`, ADR-0096), logged break-glass runbook, one-time prod DB seed (explicit in-session user go).
 - Enforcement is by credentials: prod-write keys live only in the GitHub `prod` environment (ADR-0100); keep none in `terraform/.env`.
-- Until T-D89/T-D90 land, existing workflows (the `deploy.yml` `workflow_run` flow) differ from this policy; do not extend them.
+- Releases are one approved `terraform apply` that sets the image ref in instance metadata; the host agent converges ([ADR-0111](docs/adr/0111-terraform-declared-host-state.md)). There is no SSH deploy path; do not add one.
 
 ## Rules & scope
 

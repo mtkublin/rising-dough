@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -23,7 +24,7 @@ def test_root_variable_defaults_false_and_is_drill_only() -> None:
 
 def test_variable_is_passed_to_compute_and_template() -> None:
     assert "boot_log_upload = var.boot_log_upload" in ROOT_MAIN
-    assert "boot_log_upload             = var.boot_log_upload" in USER_DATA
+    assert re.search(r"boot_log_upload\s+= var\.boot_log_upload\n", USER_DATA)
 
 
 def test_lifecycle_rule_is_drill_gated() -> None:

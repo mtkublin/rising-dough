@@ -20,9 +20,47 @@ variable "image" {
   default     = "ubuntu_noble"
 }
 
-variable "app_image_tag" {
-  description = "Container image tag to pull on first boot."
+variable "app_image_ref" {
+  description = "App image `tag@sha256:digest` the host runs (ADR-0111). The agent verifies its cosign signature before pulling."
   type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$", var.app_image_ref))
+    error_message = "app_image_ref must be pinned by digest: <tag>@sha256:<64 hex>."
+  }
+}
+
+variable "app_image_previous_ref" {
+  description = "Ref prod ran before this apply (ADR-0111); CI reads it from state. Empty on a first apply. Informational: the rollback target."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.app_image_previous_ref == "" || can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$", var.app_image_previous_ref))
+    error_message = "app_image_previous_ref must be empty or <tag>@sha256:<64 hex>."
+  }
+}
+
+variable "github_repo" {
+  description = "GitHub repository whose build.yml signs the image (cosign certificate identity)."
+  type        = string
+}
+
+variable "cosign_version" {
+  description = "cosign release the host agent installs to verify images (ADR-0111)."
+  type        = string
+  default     = "v3.1.4"
+}
+
+variable "cosign_sha256" {
+  description = "sha256 of cosign-linux-amd64 for cosign_version (from the release's cosign_checksums.txt)."
+  type        = string
+  default     = "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa" # pragma: allowlist secret (public checksum)
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.cosign_sha256))
+    error_message = "cosign_sha256 must be 64 hex characters."
+  }
 }
 
 variable "hostname" {
@@ -59,12 +97,6 @@ variable "scw_secret_key" {
 
 variable "operator_ssh_pub" {
   description = "Operator's SSH public key (ed25519)."
-  type        = string
-  sensitive   = true
-}
-
-variable "deploy_ssh_pub" {
-  description = "GitHub Actions deploy keypair public key."
   type        = string
   sensitive   = true
 }

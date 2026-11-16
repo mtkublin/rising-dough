@@ -75,9 +75,9 @@ run "user_data_renders_break_glass_ufw_rules_before_enable" {
   }
 }
 
-# T-D83 / ADR-0098: the server's cloud_init (rendered secrets) must be marked
-# sensitive so plans never print it.
-run "server_cloud_init_is_sensitive" {
+# T-D83 / ADR-0098 / ADR-0111: the server's user_data (rendered secrets) must
+# be marked sensitive so plans never print it.
+run "server_user_data_is_sensitive" {
   command = plan
 
   module {
@@ -85,8 +85,8 @@ run "server_cloud_init_is_sensitive" {
   }
 
   assert {
-    condition     = output.cloud_init_is_sensitive
-    error_message = "scaleway_instance_server.app.cloud_init must be sensitive (T-D83, ADR-0098)."
+    condition     = output.user_data_is_sensitive
+    error_message = "scaleway_instance_server.app.user_data must be sensitive (T-D83, ADR-0098, ADR-0111)."
   }
 
   assert {
@@ -108,7 +108,7 @@ run "break_glass_rejected_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -215,7 +215,7 @@ run "console_password_rejected_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -293,7 +293,7 @@ run "boot_log_upload_rejected_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -351,7 +351,7 @@ run "drill_expires_at_rejected_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -379,7 +379,7 @@ run "drill_expires_at_rejects_malformed" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -407,12 +407,12 @@ run "prod_render_keeps_public_web" {
   }
 
   assert {
-    condition     = strcontains(nonsensitive(output.user_data), "ufw allow 80/tcp") && strcontains(nonsensitive(output.user_data), "email ops@render-check.example.invalid") && strcontains(nonsensitive(output.user_data), "\"80:80\"")
+    condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow 80/tcp") && strcontains(nonsensitive(output.all_rendered), "email ops@render-check.example.invalid") && strcontains(nonsensitive(output.all_rendered), "\"80:80\"")
     error_message = "Prod keeps ufw 80, ACME email and the 80:80 port mapping."
   }
 
   assert {
-    condition     = !strcontains(nonsensitive(output.user_data), "/var/run/tailscale")
+    condition     = !strcontains(nonsensitive(output.all_rendered), "/var/run/tailscale")
     error_message = "Prod Caddy must not mount the tailscaled socket."
   }
 }
@@ -434,17 +434,17 @@ run "drill_render_is_tailnet_only" {
   }
 
   assert {
-    condition     = strcontains(nonsensitive(output.user_data), "budget-planner-drill.tail0000.ts.net {") && strcontains(nonsensitive(output.user_data), "- /var/run/tailscale:/var/run/tailscale")
+    condition     = strcontains(nonsensitive(output.all_rendered), "budget-planner-drill.tail0000.ts.net {") && strcontains(nonsensitive(output.all_rendered), "- /var/run/tailscale:/var/run/tailscale")
     error_message = "Drill Caddy serves the ts.net host and mounts the tailscaled socket directory."
   }
 
   assert {
-    condition     = !strcontains(nonsensitive(output.user_data), "ufw allow 80/tcp") && !strcontains(nonsensitive(output.user_data), "\"80:80\"") && !strcontains(nonsensitive(output.user_data), "email ops@") && !strcontains(nonsensitive(output.user_data), "redir https://")
+    condition     = !strcontains(nonsensitive(output.all_rendered), "ufw allow 80/tcp") && !strcontains(nonsensitive(output.all_rendered), "\"80:80\"") && !strcontains(nonsensitive(output.all_rendered), "email ops@") && !strcontains(nonsensitive(output.all_rendered), "redir https://")
     error_message = "Drill opens no port 80 and has no ACME email or redirect site."
   }
 
   assert {
-    condition     = strcontains(nonsensitive(output.user_data), "ufw allow in on tailscale0 to any port 443")
+    condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow in on tailscale0 to any port 443")
     error_message = "Drill allows 443 only on tailscale0."
   }
 }
@@ -460,7 +460,7 @@ run "drill_requires_tailnet_dns_name" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -486,7 +486,7 @@ run "tailnet_dns_name_rejected_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -513,7 +513,7 @@ run "tailnet_dns_name_rejects_malformed" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -539,7 +539,7 @@ run "restore_reader_required_on_prod" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -565,7 +565,7 @@ run "restore_reader_rejected_on_drill" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -578,20 +578,6 @@ run "restore_reader_rejected_on_drill" {
   }
 
   expect_failures = [var.restore_reader_application_id]
-}
-
-# T-D115: the deploy user must be in the docker group to run `docker compose`.
-run "deploy_user_in_docker_group" {
-  command = plan
-
-  module {
-    source = "./tests/render"
-  }
-
-  assert {
-    condition     = length(regexall("- name: deploy\n(?:    .*\n)*?    groups: \\[docker\\]\n", nonsensitive(output.user_data))) == 1
-    error_message = "cloud-init must put the deploy user in the docker group (T-D115)."
-  }
 }
 
 # T-D123: Scaleway allows one STARDUST1-S per organisation (prod's). The drill
@@ -607,7 +593,7 @@ run "prod_instance_type_is_stardust" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -637,7 +623,7 @@ run "drill_instance_type_defaults_to_dev1_s" {
     domain                        = "example.invalid"
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
-    github_deploy_pubkey          = "ssh-ed25519 AAAA deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
     litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
     litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
@@ -652,4 +638,112 @@ run "drill_instance_type_defaults_to_dev1_s" {
     condition     = module.compute.server_type == "DEV1-S"
     error_message = "drill must default to DEV1-S (T-D123: STARDUST1-S quota is 1 per org)."
   }
+}
+
+# ADR-0111: bp-config carries the digest-pinned image, the cosign policy and
+# the managed files; cloud-init is only the fixed bootstrap.
+run "host_config_pins_image_and_policy" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).image.ref == "ghcr.io/render-check-owner/budget-planner:sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    error_message = "bp-config image.ref must be repo:tag@digest (ADR-0111)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@"
+    error_message = "cosign identity must be this repo's build.yml (ADR-0111)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).generation == output.host_config_generation
+    error_message = "bp-config generation must match the output the CI monitor waits for."
+  }
+
+  assert {
+    condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "image: ghcr.io/render-check-owner/budget-planner:sha-1234567@sha256:0123456789abcdef"
+    )
+    error_message = "The managed compose file must run the digest-pinned image."
+  }
+
+  assert {
+    condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
+      "handle /.well-known/bp-deploy-status.json"
+    )
+    error_message = "Caddy must serve the agent status for the CI monitor."
+  }
+
+  assert {
+    condition = alltrue([
+      for p in ["/etc/budget-planner/litestream-age.key", "/etc/budget-planner/litestream.env", "/root/.docker/config.json", "/usr/local/bin/restore-from-prod"] :
+      contains([for f in jsondecode(nonsensitive(output.host_config)).files : f.path], p)
+    ])
+    error_message = "Secrets files and the drill restore helper must be agent-managed files."
+  }
+}
+
+run "cloud_init_is_fixed_bootstrap_only" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "name: deploy") && !strcontains(nonsensitive(output.user_data), "deploy-budget-planner")
+    error_message = "No deploy user or forced-command script (ADR-0111 removes the SSH deploy path)."
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "/etc/budget-planner/")
+    error_message = "App files come from bp-config, not cloud-init (ADR-0111)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "--local-port 1-1023 -o \"$dir/bp_agent.py.new\" http://169.254.42.42/user_data/bp-agent")
+    error_message = "The loader must fetch bp-agent from metadata over a privileged port."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "iptables -I DOCKER-USER -d 169.254.42.42/32 -j DROP")
+    error_message = "Containers must be blocked from the metadata API (ADR-0111 §6)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "systemctl enable --now bp-converge.timer")
+    error_message = "The agent timer must be enabled at first boot."
+  }
+}
+
+run "image_ref_must_be_digest_pinned" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    app_image_ref                 = "sha-1234567"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    tailnet_dns_name              = "tail0000.ts.net"
+  }
+
+  expect_failures = [var.app_image_ref]
 }

@@ -164,20 +164,24 @@ variable "tailnet_dns_name" {
   }
 }
 
-variable "app_image_tag" {
-  description = "Container image tag the host should pull on first boot. Deploy pipeline updates it afterwards."
+variable "app_image_ref" {
+  description = "App image the host runs: `<tag>@sha256:<digest>` (ADR-0111). CI passes the build output; plans without a new image pass the current ref from state."
   type        = string
-  default     = "main"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$", var.app_image_ref))
+    error_message = "app_image_ref must be pinned by digest: <tag>@sha256:<64 hex>."
+  }
+}
+
+variable "app_image_previous_ref" {
+  description = "Ref the host ran before this apply (ADR-0111). CI reads it from state (`terraform output -raw app_image_ref`); empty on a first apply."
+  type        = string
+  default     = ""
 }
 
 variable "operator_ssh_pubkey" {
   description = "Operator's personal SSH public key (ed25519) authorised for the 'operator' sudoer account."
-  type        = string
-  sensitive   = true
-}
-
-variable "github_deploy_pubkey" {
-  description = "Public key of the GitHub Actions deploy keypair (ADR-0037). Pinned to the restricted deploy command."
   type        = string
   sensitive   = true
 }
@@ -191,6 +195,12 @@ variable "ghcr_pull_pat" {
 variable "github_owner" {
   description = "GitHub owner (user or org) that hosts the container image repository."
   type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository whose build.yml signs the image; the host agent's cosign identity (ADR-0111)."
+  type        = string
+  default     = "rising-dough"
 }
 
 # ----------------------------------------------------------------------------

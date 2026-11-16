@@ -114,3 +114,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |
 | 0109 | [Prod Releases Triggered by GitHub Releases on `main`](0109-release-from-github-release-tags.md) (amends ADR-0099) |
 | 0110 | [One Prod Approval per Release](0110-single-prod-approval-per-release.md) (amends ADR-0099; relates to ADR-0100, ADR-0109) |
+| 0111 | [Terraform-Declared Host State, Pulled by a Host Agent](0111-terraform-declared-host-state.md) (supersedes ADR-0037 deploy step and ADR-0110; amends ADR-0099) |

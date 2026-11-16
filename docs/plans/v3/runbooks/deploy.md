@@ -6,9 +6,11 @@ Standard release of a new version to production (a published GitHub release).
 
 ## Context
 
-v3 deploys land on the single Scaleway Stardust VM. Prod is released only by `.github/workflows/release.yml`, when a GitHub release is published (ADR-0099, ADR-0109): `guard` (tag is SemVer `vMAJOR.MINOR.PATCH` and its commit is an ancestor of `origin/main`) -> `ci` -> `build` (pushes the immutable image to GHCR as `sha-<short>` and `vX.Y.Z`, cosign-signed) -> `tf-apply-prod` -> `deploy-prod`. `deploy.yml` is a reusable (`workflow_call`) workflow with no triggers of its own; it SSHes into the host as the restricted `deploy` user to roll the `app` container forward. The on-host shim is `/usr/local/bin/deploy-budget-planner` (ADR-0037 §3).
+v3 releases land on the single Scaleway Stardust VM. Prod is released only by `.github/workflows/release.yml`, when a GitHub release is published (ADR-0099, ADR-0109): `guard` (tag is SemVer `vMAJOR.MINOR.PATCH` and its commit is an ancestor of `origin/main`) -> `ci` -> `build` (pushes the immutable image to GHCR as `sha-<short>` and `vX.Y.Z`, cosign-signed) -> `tf-apply-prod`.
 
-Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-path contract: merge to `main` -> operator publishes release `vX.Y.Z` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval (the only one) -> `deploy-prod` runs in the reviewer-less `prod-deploy` environment right after the apply -> the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
+ADR-0111: Terraform declares the whole host state in instance metadata (`user_data` keys `cloud-init`, `bp-agent`, `bp-config`). The release is that one apply: it sets `app_image_ref = vX.Y.Z@sha256:<digest>` and records the ref it replaces as `app_image_previous_ref`. On the host, `bp-converge.timer` runs the agent every 30 s; it reads `bp-config`, cosign-verifies the image, writes the managed files (compose, Caddyfile, Litestream, registry auth), runs `docker compose pull` + `up -d`, probes `/ready` and publishes `/.well-known/bp-deploy-status.json`. Nothing SSHes into the host.
+
+Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-path contract: merge to `main` -> operator publishes release `vX.Y.Z` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval (the only one) -> the same job waits until the host reports the new generation applied (default budget 10 min) -> done. If the host reports a failure or times out, the job re-applies with the refs swapped (automatic rollback), waits again, and still fails.
 
 ## Preconditions
 
@@ -30,16 +32,16 @@ Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-pat
 1. Confirm the `release.yml` run for the tag is green up to the approval gates:
    - `gh run list --workflow=release.yml --limit=5`
    - Expect `guard`, `ci` and `build` to be `success`. `guard` fails if the tag is not SemVer or its commit is not on `main`.
-2. Approve the `prod` environment once, for `tf-apply-prod` (review prompt in the Actions UI). `deploy-prod` then runs without a second approval (environment `prod-deploy`, ADR-0110). This is the single human gate on prod.
-   - Re-deploying an already built SHA (e.g. after rolling back) is not a `deploy.yml` dispatch. Use `rollback.yml` with `target` (see [`rollback.md`](rollback.md)).
-3. Deploy job executes (CI runner, not the host):
-   - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.
-   - Opens an SSH session to the `deploy` user: `ssh deploy@budget-planner-prod "deploy vX.Y.Z"`.
-   - The on-host shim pulls the new tag, writes the previous tag to `.previous-tag`, runs `docker compose up -d app`, and probes `/ready` up to 30 times at 1 s intervals.
-   - The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept, none older than `backup_max_age_days - 7` = 30 d) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. The old container is stopped before the new one starts, so there is only ever one writer.
+2. Approve the `prod` environment once, for `tf-apply-prod` (review prompt in the Actions UI). This is the single human gate on prod.
+   - Re-deploying an already built image (e.g. after rolling back) goes through `rollback.yml` with `target` (see [`rollback.md`](rollback.md)).
+3. The apply job (CI runner):
+   - Resolves the refs: the ref in state becomes `app_image_previous_ref`; both are printed.
+   - Applies. The plan shows an in-place `user_data` update on `scaleway_instance_server.app` (masked). Anything else (server replaced!) means stop and investigate.
+   - Polls `https://<prod fqdn>/.well-known/bp-deploy-status.json` until `generation` equals `terraform output host_config_generation`, `state` is `ok` and `running_ref` is the new ref.
+   - On the host the agent verifies the cosign signature, pulls, recreates `app` and probes `/ready`. The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept, none older than `backup_max_age_days - 7` = 30 d) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. Compose stops the old container before the new one starts, so there is only ever one writer.
 4. Watch the GitHub Actions step summary:
-   - Successful run posts the deployed SHA + the compare link against the previous SHA.
-   - Failed probe is auto-reverted by the shim (see Troubleshooting).
+   - A green run logged `converged: {...}` with the new generation.
+   - A failed release shows `::warning::host did not converge on …; rolling back to …` and ends with `::error::release rolled back to …` (see Troubleshooting).
 
 ## Verification
 
@@ -50,10 +52,9 @@ Run from your workstation. All three must pass before the deploy is considered d
 curl -fsS "https://budget-planner-prod/ready" | jq .
 # Expect: {"status":"ok","db":"ok","litestream":"ok", ...}
 
-# Deployed revision matches target SHA (image label is written at build time).
-ssh app@budget-planner-prod \
-  "docker inspect --format='{{index .Config.Labels \"org.opencontainers.image.revision\"}}' budget-planner-app-1"
-# Expect: <full SHA> matching the git revision deployed.
+# Host agent reports the release applied (ADR-0111).
+curl -fsS "https://budget-planner-prod/.well-known/bp-deploy-status.json" | jq .
+# Expect: state "ok", running_ref ".../budget-planner:vX.Y.Z@sha256:...", previous_ref the release before.
 
 # Caddy still serving HTTPS with current cert.
 curl -fsSI "https://budget-planner-prod/" | grep -i strict-transport-security
@@ -104,16 +105,16 @@ Resize to a larger type only if steady state exceeds about 700 MB or swap is use
 
 ## Troubleshooting
 
-- **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Dispatch `build.yml` from `main` or the `v*` tag (dispatch is main-or-tag-on-main only); if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
-- **SSH session rejected**: `deploy` user is key-restricted via `authorized_keys` with `command="/usr/local/bin/deploy-budget-planner"`. If the key does not match or `GITHUB_ACTIONS` IP is temporarily rate-limited by `fail2ban`, wait 10 min or SSH as `app` and `sudo fail2ban-client set sshd unbanip <gha-runner-ip>`.
-- **`/ready` probe fails during deploy**: the shim auto-reverts to `.previous-tag` and exits non-zero. Deploy workflow step summary shows the probe response + the last 50 log lines. Investigate before retrying; usually either a migration failure or Litestream not yet healthy.
+- **Status `error: cosign_verify`**: the image was built outside the expected GitHub OIDC identity (`build.yml` on this repo) or the signature is missing. Do **not** bypass. Dispatch `build.yml` from `main` or the `v*` tag (dispatch is main-or-tag-on-main only); if the signature still fails, treat it as a supply-chain red flag and rotate `GHCR_PULL_PAT` before trying again.
+- **Status `error: ready_timeout`**: the new image never answered `/ready`; the job rolled back automatically. Read the app log (`ssh app@budget-planner-prod 'docker logs budget-planner-app --tail 100'`). Usually a migration failure or Litestream not yet healthy.
+- **Status never reaches the new generation**: the agent did not run or cannot read metadata. `ssh app@budget-planner-prod 'systemctl status bp-converge.timer; sudo journalctl -u bp-converge.service -n 50 --no-pager'`. A `config_fetch` error means the metadata API answered non-200. After repeated failures the agent backs off (30 s doubling, max 15 min) per generation; a new apply resets it.
 - **`startup_migrations_failed` in the app log**: the entrypoint exited 1 and uvicorn never started. The failing migration was rolled back in its own transaction, but earlier migrations in the same batch stay applied. Each one is N-1 compatible, so the auto-reverted previous image still runs. Fix the migration in a new release. Never edit an applied migration file, because the checksum guard rejects it.
-- **`docker compose pull` 403s against GHCR**: `GHCR_PAT` expired. Rotate per `disaster-recovery.md` §Secrets and re-render `/etc/docker/config.json` via a break-glass prod apply (cloud-init runs once; see the Terraform plans section below).
+- **`error: compose` with a 403 from GHCR**: `GHCR_PULL_PAT` expired. Rotate it per `disaster-recovery.md` §Secrets, update the secret in the `prod` environment, and release again: the apply writes new registry auth through the agent (no VM replacement).
 - **Deploy succeeded but DNS still points elsewhere**: `terraform output prod_host_ipv4` vs `dig +short budget-planner-prod`. If they diverge, DNS was manually edited; reconcile via Terraform.
 
 ## Rollback
 
-- Auto-rollback is built into the shim — a failing `/ready` probe reverts to `.previous-tag` without manual action.
+- Auto-rollback is built into the release job: a host failure re-applies the previous ref in the same approved run.
 - Manual rollback (last known-good SHA, e.g. after discovering a prod-only bug minutes after a green deploy): see [`rollback.md`](rollback.md). Shape: `gh workflow run rollback.yml --ref main -f env=prod` (optionally `-f target=vX.Y.Z`).
 
 ## Rotate the Litestream API key (yearly, before expires_at)
@@ -122,13 +123,13 @@ Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Ter
 
 1. Read the date: `terraform -chdir=terraform/bootstrap/ci output app_key_expires_at`. Rotate at least 30 days before it (checklist F).
 2. Replace the key in `bootstrap/ci` with the break-glass key: `terraform -chdir=terraform/bootstrap/ci apply -replace='module.app_<env>.scaleway_iam_api_key.app'`. Run it only with explicit user go, under [`break-glass.md`](break-glass.md), and log it in `docs/CHANGELOG.md`. Then update `APP_SCW_ACCESS_KEY` / `APP_SCW_SECRET_KEY` in the env's GitHub environments (`prod` + `prod-plan`, or the three drill ones) from outputs `app_<env>_access_key` / `app_<env>_secret_key`.
-3. Impact: the key is rendered into the instance `cloud_init` (`/etc/budget-planner/litestream.env`), so the next env-stack plan (release from `main`) shows a `cloud_init` change on `scaleway_instance_server.app`. Read the plan first. If it says the server is replaced, stop: that recreates the VM and takes the restore path (see `disaster-recovery.md`). If it is an in-place update, cloud-init does not re-run on an existing VM (a `cloud_init` change only takes effect via `-replace=module.compute.scaleway_instance_server.app`, ADR-0098), so the host keeps the old key until step 4. Always read the plan through `just tf-plan-safe <env>` or `| python3 terraform/scripts/mask_plan.py`; the first plan after ADR-0098 may still print the old `cloud_init` unmasked once.
-4. Refresh the host secret by hand over Tailscale SSH. Print the new values with `terraform -chdir=terraform/bootstrap/ci output -raw app_<env>_access_key` and `app_<env>_secret_key`. Update `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` in `/etc/budget-planner/litestream.env` (mode 0600). Then run `cd /etc/budget-planner && docker compose up -d --force-recreate litestream`.
+3. Impact: the key is rendered into `bp-config` (`/etc/budget-planner/litestream.env` and the compose environment). The next env-stack apply (a release, or `rollback.yml`/a re-run of the last release) shows an in-place `user_data` update; the agent rewrites the files and restarts `litestream` and `app`. Read the plan first. If it says the server is replaced, stop: that recreates the VM and takes the restore path (see `disaster-recovery.md`). Always read the plan through `just tf-plan-safe <env>` or `| python3 terraform/scripts/mask_plan.py`.
+4. Wait for the status file to report the new generation (the apply job does this for prod).
 5. Verify: `docker compose logs --tail=50 litestream` shows no auth errors, and a fresh Litestream snapshot or generation appears in the bucket.
 6. Check `app_key_expires_at` is about one year ahead. Replace deletes the old key immediately, so there is no overlap window. Do steps 2 to 4 in one sitting; replication is paused only for that gap.
 
-## Terraform plans and cloud-init changes (T-D83, ADR-0098)
+## Terraform plans and host state changes (T-D83, ADR-0098, ADR-0111)
 
-- `cloud_init` embeds secrets. Run plans via `just tf-plan-safe drill|prod`, or pipe through `python3 terraform/scripts/mask_plan.py`. CI already does.
-- The first apply after ADR-0098 can show the OLD `cloud_init` once (state lacks the sensitive mark); mask it as above. That apply records the mark.
-- cloud-init runs once. A user-data change (`cloud_init`) plans as `updated in-place` but does nothing on the running VM. To apply it, the server must be replaced (`-replace=module.compute.scaleway_instance_server.app`). That is not a pipeline action: explicit user go, under [`break-glass.md`](break-glass.md). It recreates the VM; data restores from Litestream (see `disaster-recovery.md`).
+- `user_data` embeds secrets and is marked sensitive. Run plans via `just tf-plan-safe drill|prod`, or pipe through `python3 terraform/scripts/mask_plan.py`. CI already does.
+- `bp-config` and `bp-agent` changes are applied live: the provider rewrites the metadata in place and the agent converges within ~30 s. No reboot, no SSH.
+- The `cloud-init` key still runs once. A change there (users, Tailscale, firewall, the agent loader and timer) plans as an in-place update but does nothing on the running VM until the server is replaced (`-replace=module.compute.scaleway_instance_server.app`). That is not a pipeline action: explicit user go, under [`break-glass.md`](break-glass.md). It recreates the VM; data restores from Litestream (see `disaster-recovery.md`).

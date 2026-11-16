@@ -4,8 +4,8 @@
 
 ## 1. Environments (Settings > Environments)
 
-- [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **`main` and tag pattern `v*`** (the release runs from a `v*` tag, ADR-0109). Used by `tf-apply-prod` (the single approval per release, ADR-0110) and `rollback.yml` (env prod). Holds all Scaleway write credentials (ADR-0100).
-- [ ] **`prod-deploy`** (ADR-0110, T-D128): **no required reviewers**; deployment branches and tags: **`main` and tag pattern `v*`**. Used only by the prod `deploy` job of `deploy.yml`, which runs after the approved apply. Holds **only** `DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` and variable `PROD_URL` (same values as `prod`). Never add Scaleway keys, age identities or `APP_*` keys here. Rotate these in both `prod` and `prod-deploy`.
+- [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **`main` and tag pattern `v*`** (the release runs from a `v*` tag, ADR-0109). Used by `tf-apply-prod` (the single approval per release, ADR-0110; the release is this apply, ADR-0111) and by the apply of `rollback.yml` (env prod). Holds all Scaleway write credentials (ADR-0100).
+- [ ] **Delete `prod-deploy`** (ADR-0111, T-D129): the SSH deploy job is gone; a release is the approved `prod` apply. Delete the environment and its secrets (`DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `TS_OAUTH_*`, `PROD_URL` copies).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
 - [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
 - [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
@@ -18,13 +18,13 @@
 
 Same names in every environment, different values (ADR-0093). The three drill environments (`drill`, `drill-teardown`, `drill-plan`) hold identical copies of the drill column; keep them in sync when rotating (`key-rotation.md`). Verified against `.github/workflows/*.yml`.
 
-| Secret | `prod` (deploy rows also in `prod-deploy`) | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
+| Secret | `prod` | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
 |---|:-:|:-:|:-:|---|
 | `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` | ci-prod | ci-plan (read-only) | ci-drill | outputs of `terraform/bootstrap/ci` |
 | `SCW_DEFAULT_PROJECT_ID` | prod project | prod project | drill project | |
 | `SCW_DEFAULT_ORG_ID` | x | x | x | also used by `key-expiry.yml` (prod-plan) |
 | `ADMIN_EMAIL`, `APP_DOMAIN` | x | x | x | |
-| `OPERATOR_SSH_PUBKEY`, `DEPLOY_SSH_PUBKEY` | x | x | x | |
+| `OPERATOR_SSH_PUBKEY` | x | x | x | `DEPLOY_SSH_PUBKEY` is unused since ADR-0111; delete it everywhere |
 | `GHCR_PULL_PAT` | x | x | x | read:packages only |
 | `LITESTREAM_AGE_IDENTITY`, `LITESTREAM_AGE_RECIPIENT` | x | x | x | per-env age keypair |
 | `MANAGED_DNS_ZONE` (optional) | x | x | x | |
@@ -37,22 +37,18 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` | prod app key | prod app key | drill app key | Litestream identity; prod values read once from prod state, then from `bootstrap/ci` after a rotation (`key-rotation.md`) |
 | `RESTORE_READER_APPLICATION_ID` | x | x | | `bootstrap/ci` output `restore_reader_application_id`; prod only |
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
-| `DEPLOY_SSH_PRIVATE_KEY` | x | | x | different key per env |
-| `DEPLOY_SSH_KNOWN_HOSTS` | x | | x | |
-| `PROD_HOST` | x | | | tailnet name, e.g. `budget-planner-prod` |
+| `DEPLOY_SSH_PRIVATE_KEY` | | | x | `restore-drill.yml` only (operator SSH over the tailnet); delete from `prod` (ADR-0111) |
 | `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
-| Variable | `prod` (`PROD_URL` also in `prod-deploy`) | `drill`, `drill-teardown`, `drill-plan` |
+| Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
-| `PROD_URL` | x | |
 | `TAILNET_DNS_NAME` (ADR-0101), e.g. `tail1234.ts.net` (admin console > DNS; not a secret) | | x |
-| `DRILL_URL` (only for ad-hoc `deploy.yml` / `rollback.yml` on drill; set to `https://budget-planner-drill.<TAILNET_DNS_NAME>`) | | x |
 
 `drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
 Repo-level variable (T-D126): `IMAGE_RETENTION_ENABLED` (`true` lets the scheduled `image-retention.yml` delete; unset = dry run). The `budget-planner` package must be linked to the repo with Actions access role Write ([`image-retention.md`](image-retention.md)). Otherwise none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
-Note: `rollback.yml` selects the environment from its `env` input, so it reads `PROD_HOST`/`DRILL_HOST`/`*_URL` from the chosen environment; make sure both host secrets resolve where used (if a workflow reads a secret from an environment that does not hold it, add it there).
+Unused since ADR-0111 (delete): `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, variables `PROD_URL` and `DRILL_URL`. `rollback.yml` is an apply through `terraform.yml` and reads the same secrets as a release.
 
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 

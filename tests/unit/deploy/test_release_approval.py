@@ -1,4 +1,8 @@
-"""One reviewer approval per prod release (ADR-0110). Static, no network."""
+"""One reviewer approval per prod release (ADR-0110, ADR-0111). Static, no network.
+
+ADR-0111: the release is the approved `terraform apply` in environment `prod`;
+there is no deploy job, so no second (reviewer-less) environment either.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +13,6 @@ import yaml  # type: ignore[import-untyped]
 
 WORKFLOWS = Path(__file__).resolve().parents[3] / ".github" / "workflows"
 REVIEWER_ENV = "prod"
-DEPLOY_ENV = "prod-deploy"
-DEPLOY_SECRETS = {
-    "DEPLOY_SSH_PRIVATE_KEY",
-    "DEPLOY_SSH_KNOWN_HOSTS",
-    "PROD_HOST",
-    "DRILL_HOST",
-    "TS_OAUTH_CLIENT_ID",
-    "TS_OAUTH_SECRET",
-}
 
 
 def _load(name: str) -> dict[str, Any]:
@@ -30,20 +25,12 @@ def _env_name(job: dict[str, Any]) -> str:
     return str(env["name"] if isinstance(env, dict) else env)
 
 
-def test_deploy_job_uses_prod_deploy_for_prod_and_env_for_drill() -> None:
-    name = _env_name(_load("deploy.yml")["jobs"]["deploy"])
-    assert "inputs.env == 'prod'" in name
-    assert name.endswith("|| inputs.env }}")
-    prod_branch = name.split("&&")[1].split("||")[0].strip().strip("'")
-    assert prod_branch == DEPLOY_ENV
-    assert prod_branch != REVIEWER_ENV
-
-
-def test_release_deploys_only_after_the_approved_apply() -> None:
+def test_release_has_exactly_one_prod_apply_and_no_deploy_job() -> None:
     jobs = _load("release.yml")["jobs"]
-    assert jobs["tf-apply-prod"]["with"]["env"] == "prod"
-    assert jobs["deploy-prod"]["with"]["env"] == "prod"
-    assert "tf-apply-prod" in jobs["deploy-prod"]["needs"]
+    prod_calls = [j for j in jobs.values() if j.get("with", {}).get("env") == "prod"]
+    assert prod_calls == [jobs["tf-apply-prod"]]
+    assert jobs["tf-apply-prod"]["uses"] == "./.github/workflows/terraform.yml"
+    assert not any("environment" in j for j in jobs.values())
 
 
 def test_terraform_apply_job_is_environment_gated() -> None:
@@ -52,17 +39,22 @@ def test_terraform_apply_job_is_environment_gated() -> None:
     assert any("inputs.env" in e for e in envs)
 
 
-def test_deploy_reads_no_secret_outside_the_deploy_set() -> None:
-    text = (WORKFLOWS / "deploy.yml").read_text()
-    used = {
-        part.split("}}")[0].split("|")[0].strip().split()[0] for part in text.split("secrets.")[1:]
-    }
-    assert used <= DEPLOY_SECRETS
-    assert "SCW_" not in text
+def test_no_workflow_uses_the_reviewerless_prod_deploy_environment() -> None:
+    for path in WORKFLOWS.glob("*.yml"):
+        assert "prod-deploy" not in path.read_text(), path.name
 
 
-def test_rollback_stays_behind_reviewers() -> None:
+def test_rollback_goes_through_the_gated_apply() -> None:
     jobs = _load("rollback.yml")["jobs"]
-    names = [_env_name(j) for j in jobs.values() if "environment" in j]
-    assert names
-    assert all(DEPLOY_ENV not in n for n in names)
+    assert jobs["apply"]["uses"] == "./.github/workflows/terraform.yml"
+    assert jobs["apply"]["with"]["env"] == "${{ inputs.env }}"
+    assert not any("environment" in j for j in jobs.values())
+
+
+def test_prod_apply_waits_for_host_and_rolls_back_in_the_same_job() -> None:
+    steps = _load("terraform.yml")["jobs"]["apply"]["steps"]
+    names = [s["name"] for s in steps]
+    wait = names.index("Wait for host convergence (prod)")
+    rollback = names.index("Roll back to the previous ref (prod)")
+    assert names.index("terraform apply (${{ inputs.env }})") < wait < rollback
+    assert "steps.converge.outcome == 'failure'" in steps[rollback]["if"]

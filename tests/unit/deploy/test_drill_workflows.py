@@ -139,11 +139,7 @@ def test_destroy_is_dispatch_only() -> None:
     job = _load("drill-destroy.yml")["jobs"]["destroy"]
 
     assert set(triggers) == {"workflow_dispatch"}
-    assert job["with"] == {
-        "env": "drill",
-        "image_tag": "sha-0000000",
-        "destroy": True,
-    }
+    assert job["with"] == {"env": "drill", "destroy": True}
 
 
 def test_terraform_workflow_drill_only_inputs_are_gated() -> None:
