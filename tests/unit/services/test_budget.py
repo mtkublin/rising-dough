@@ -926,3 +926,118 @@ def test_recurring_counted_once_per_occurrence_across_long_window(
     assert split == (300_000, 0)
     total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 20), end=date(2026, 5, 20))
     assert total == 300_000
+
+
+# ---------------------------------------------------------------------------
+# ADR-0105: committed includes every overdue unpromoted item (T-D115)
+# ---------------------------------------------------------------------------
+_OVERDUE_TODAY = date(2026, 2, 20)
+
+
+def _planned_expense(
+    conn: sqlite3.Connection, world: dict[str, int], cat: str, on: date, amount: int
+) -> None:
+    planned.create(
+        conn,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=on,
+            category_id=world[cat],
+            account_id=world["checking"],
+            amount=amount,
+        ),
+    )
+
+
+def _overdue_rule(
+    conn: sqlite3.Connection, world: dict[str, int], cat: str, next_due: date, amount: int
+) -> None:
+    rule = recurring.create_rule(
+        conn,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=next_due,
+            category_id=world[cat],
+            account_id=world["checking"],
+            default_amount=amount,
+        ),
+    )
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=next_due))
+
+
+def test_committed_in_window_unbounded_start_counts_all_overdue_planned(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    _planned_expense(conn, committed_world, "groceries", date(2025, 6, 1), 1_000)
+    _planned_expense(conn, committed_world, "groceries", date(2026, 2, 19), 2_000)
+    _planned_expense(conn, committed_world, "groceries", date(2026, 2, 28), 4_000)
+    total = bs.committed_in_window(conn, USER_ID, start=None, end=date(2026, 2, 25))
+    assert total == 3_000
+
+
+def test_committed_in_window_unbounded_start_expands_recurring_from_next_due(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    # Monthly rent overdue since Dec 5: Dec 5, Jan 5, Feb 5 all still owed.
+    _overdue_rule(conn, committed_world, "rent", date(2025, 12, 5), 300_000)
+    total = bs.committed_in_window(conn, USER_ID, start=None, end=date(2026, 2, 25))
+    assert total == 900_000
+
+
+def test_month_summary_committed_includes_overdue_planned_any_age(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    """Overdue (before today, even before the period) + due-today + upcoming all count."""
+    _planned_expense(conn, committed_world, "groceries", date(2025, 11, 3), 1_000)
+    _planned_expense(conn, committed_world, "groceries", date(2026, 2, 10), 2_000)
+    _planned_expense(conn, committed_world, "groceries", _OVERDUE_TODAY, 4_000)
+    _planned_expense(conn, committed_world, "groceries", date(2026, 2, 26), 8_000)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY)
+    assert s.totals.committed_minor == 15_000
+    assert s.totals.remaining_minor == 400_000 - 15_000
+
+
+def test_month_summary_committed_includes_overdue_recurring(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    _overdue_rule(conn, committed_world, "rent", date(2026, 1, 5), 300_000)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY)
+    # Jan 5 + Feb 5 (both overdue); Mar 5 is outside [.., end of month).
+    assert s.totals.committed_minor == 600_000
+
+
+def test_month_summary_overdue_unbudgeted_goes_to_unbudgeted_committed(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    misc = categories.create(
+        conn, USER_ID, NewCategory(name="Misc", direction=Direction.EXPENSE)
+    ).id
+    world = {**committed_world, "misc": misc}
+    _planned_expense(conn, world, "misc", date(2026, 2, 1), 5_000)
+    _overdue_rule(conn, world, "misc", date(2026, 2, 15), 700)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY)
+    assert s.totals.committed_minor == 0
+    assert s.totals.unbudgeted_committed_minor == 5_700
+    assert s.totals.remaining_minor == 400_000
+
+
+def test_month_summary_promoted_overdue_planned_not_committed(
+    conn: sqlite3.Connection, committed_world: dict[str, int]
+) -> None:
+    _planned_expense(conn, committed_world, "groceries", date(2026, 2, 10), 2_000)
+    row = planned.list_filtered(conn, USER_ID, PlannedFilter(promoted=False))[0]
+    txn = transactions.create(
+        conn,
+        USER_ID,
+        NewTransaction(
+            operation_date=date(2026, 2, 10),
+            category_id=committed_world["groceries"],
+            account_id=committed_world["checking"],
+            amount=2_000,
+        ),
+    )
+    planned.stamp_promotion(conn, USER_ID, row.id, txn.id)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY)
+    assert s.totals.committed_minor == 0
+    assert s.totals.spent_minor == 2_000

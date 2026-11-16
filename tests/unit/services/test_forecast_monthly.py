@@ -17,7 +17,7 @@ from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.preferences import PREF_INCOME_ANCHOR_CATEGORY_ID
-from budget_planner.domain.recurring import NewRecurringRule
+from budget_planner.domain.recurring import NewRecurringRule, PatchRecurringRule
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts,
@@ -554,3 +554,71 @@ def test_eom_chain_each_row_equals_prev_eom_plus_net(
             f"got {row.end_balance_base_minor}"
         )
         prev = row.end_balance_base_minor
+
+
+# ---------------------------------------------------------------------------
+# ADR-0105: current-period Expenses includes every overdue item (T-D115)
+# ---------------------------------------------------------------------------
+def _planned_expense(
+    conn: sqlite3.Connection, world: dict[str, int], cat: str, on: date, amount: int
+) -> None:
+    planned.create(
+        conn,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=on, category_id=world[cat], account_id=world["a1"], amount=amount
+        ),
+    )
+
+
+def _overdue_rule(
+    conn: sqlite3.Connection, world: dict[str, int], cat: str, next_due: date, amount: int
+) -> None:
+    rule = recurring.create_rule(
+        conn,
+        USER_ID,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=next_due,
+            category_id=world[cat],
+            account_id=world["a1"],
+            default_amount=amount,
+        ),
+    )
+    recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=next_due))
+
+
+def test_current_row_expenses_include_overdue_planned_and_recurring(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=500_000)
+    )
+    _planned_expense(conn, world, "groceries", date(2026, 8, 1), 1_000)  # old overdue
+    _planned_expense(conn, world, "groceries", date(2026, 10, 20), 2_000)  # overdue
+    _planned_expense(conn, world, "groceries", TODAY, 4_000)  # due today
+    _planned_expense(conn, world, "groceries", date(2026, 10, 29), 8_000)  # upcoming
+    _overdue_rule(conn, world, "groceries", date(2026, 10, 10), 16_000)  # overdue recurring
+    with _dead_client() as http:
+        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+    oct_row = _row_for(monthly, date(2026, 10, 1))
+    assert oct_row.expense_base_minor == 31_000
+    assert oct_row.planned_budget_base_minor == 500_000 - 31_000
+
+
+def test_current_row_unbudgeted_overdue_lowers_eom(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Overdue items in categories without a budget must still leave the balance."""
+    budgets_repo.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=500_000)
+    )
+    with _dead_client() as http:
+        before = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+    _planned_expense(conn, world, "rent", date(2026, 9, 15), 3_000)
+    _overdue_rule(conn, world, "rent", date(2026, 10, 15), 5_000)
+    with _dead_client() as http:
+        after = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+    oct_before, oct_after = before.months[0], after.months[0]
+    assert oct_after.expense_base_minor - oct_before.expense_base_minor == 8_000
+    assert oct_before.end_balance_base_minor - oct_after.end_balance_base_minor == 8_000

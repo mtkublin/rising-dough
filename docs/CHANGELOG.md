@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-16 (T-D115 — overdue commitments in Forecast Expenses)
+- **Fix(T-D115, ADR-0105): committed (Budget/Today "left", Forecast current-row Expenses) includes every overdue unpromoted item.** The window lower bound `today` is dropped: planned expense rows dated before today and recurring occurrences with `next_due < today` now count, however old. Due-today items were already counted.
+
 ## 2026-11-07 (T-D99 — terraform workflow trivy pin)
 - **CI(T-D99): `terraform.yml` trivy config scan bumped from `trivy-action` v0.29.0 to v0.36.0 (`ed142fd0…`, same pin as `security.yml`).** v0.29.0 resolved `aquasecurity/setup-trivy@v0.2.2`, a tag that no longer exists, so the `Terraform` workflow failed at "Set up job". Inputs unchanged and valid for v0.36.0.
 

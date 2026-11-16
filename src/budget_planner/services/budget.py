@@ -254,7 +254,7 @@ def _committed_by_category(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    start: dt.date,
+    start: dt.date | None,
     end: dt.date,
     today: dt.date | None = None,
     base_currency: str | None = None,
@@ -264,9 +264,10 @@ def _committed_by_category(
     Expense-direction categories only (transit + adjustment + income
     excluded). Sources: unpromoted planned rows and active recurring-rule
     occurrences (overrides applied) - see :func:`committed_in_window`.
+    ``start=None`` drops the lower bound so every overdue item counts (ADR-0105).
     """
     out: dict[int, int] = defaultdict(int)
-    if end <= start:
+    if start is not None and end <= start:
         return out
     to_base = base_amount_converter(conn, user_id, today=today, base_currency=base_currency)
 
@@ -299,7 +300,7 @@ def _committed_by_category(
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id not in expense_ids:
             continue
-        rule_start = max(rule.next_due, start)
+        rule_start = rule.next_due if start is None else max(rule.next_due, start)
         if rule_start > inclusive_end:
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
@@ -318,7 +319,7 @@ def committed_in_window(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    start: dt.date,
+    start: dt.date | None,
     end: dt.date,
     today: dt.date | None = None,
     base_currency: str | None = None,
@@ -327,7 +328,8 @@ def committed_in_window(
 
     Composes unpromoted planned expenses and active recurring-rule expense
     occurrences (``state=skipped`` drops, ``state=overridden`` merges).
-    Returns ``0`` when ``end <= start``. This is the unfiltered total; the
+    Returns ``0`` when ``end <= start``; ``start=None`` means unbounded
+    (all overdue items, ADR-0105). This is the unfiltered total; the
     budget "left" math uses :func:`committed_split_in_window` (ADR-0085).
     """
     by_cat = _committed_by_category(
@@ -340,7 +342,7 @@ def committed_split_in_window(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    start: dt.date,
+    start: dt.date | None,
     end: dt.date,
     budgeted_category_ids: frozenset[int],
     today: dt.date | None = None,
@@ -548,8 +550,9 @@ def month_summary(  # noqa: PLR0915
     left_daily_spend_minor: int | None = None
     days_until_next_income = max((next_income_date - today).days, 1)
 
-    # ADR-0039/0085: committed = unpromoted planned + active-recurring expense
-    # amounts due in [today, next_income_date) in BUDGETED categories only. Zero-budget months keep
+    # ADR-0039/0085/0105: committed = unpromoted planned + active-recurring expense
+    # amounts due before next_income_date (no lower bound: every overdue item
+    # counts) in BUDGETED categories only. Zero-budget months keep
     # committed_minor=0 so the dim sub-line renders a flat zero (clearer
     # than hiding).
     if budgeted_total == 0:
@@ -559,7 +562,7 @@ def month_summary(  # noqa: PLR0915
         committed_total, unbudgeted_committed = committed_split_in_window(
             conn,
             user_id,
-            start=today,
+            start=None,
             end=next_income_date,
             today=today,
             budgeted_category_ids=frozenset(

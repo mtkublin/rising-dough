@@ -679,3 +679,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Exposed once T-D101 let `trivy fs` pass: the image scan (now correctly HIGH/CRITICAL-filtered) exits 1, with findings hidden in SARIF. Step 1: `if: failure()` table re-run, same as fs. Step 2: fix (base image / dependency bump) or allowlist (`.security-allowlist.yml` `trivy_image`).
 - 2026-11-13 findings: 109 HIGH/CRITICAL, all Debian 12.15 OS packages, none with a fixed version; Python packages clean. Decision (user): move the base to `python:3.12-slim-trixie` (ADR-0102). If trivy still fails on trixie, the rest needs a separate decision (see ADR-0102 Consequences).
 - trixie result: 109 HIGH, 0 CRITICAL; only zlib1g CVE-2026-76844 has a fix. Decision (user): runtime `apt-get upgrade -y` + `ignore-unfixed: true` on the image scan only (ADR-0103).
+
+### ✅ T-D115 [S] Forecast current-period Expenses includes overdue commitments → ADR-0105
+- Bug: Plan · Forecast current row `Expenses` (from `budget.month_summary` committed) used window `[today, next_income)`, dropping unpromoted planned rows dated before today and recurring occurrences with `next_due < today`. Unbudgeted overdue vanished from EOM entirely.
+- Fix: committed window has no lower bound (`committed_in_window(start=None)`); recurring expands from `next_due`. Also lowers Budget/Today "left" by budgeted overdue.
+- Tests: `tests/unit/services/test_budget.py` + `tests/unit/services/test_forecast_monthly.py` overdue cases (planned + recurring, budgeted + unbudgeted, older than the current period, due today).
