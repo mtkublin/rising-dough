@@ -12,12 +12,9 @@ The recovery path is: a prod `terraform apply` from the committed state (break-g
 
 This runbook also covers the "lost all admins" scenario (ADR-0061 §3): the DB is fine but no `is_admin = 1 AND deleted_at IS NULL` row exists. The admin-bootstrap routine re-promotes a user when provided a new email + initial password via Terraform.
 
-Uptime monitor id (T-D44): record below once the monitor is created.
+Uptime monitor (T-D44): `.github/workflows/uptime.yml`, every 5 minutes. It fails when `/health` is not 200 or the host agent status (`/.well-known/bp-deploy-status.json`, ADR-0111) reports `failed`. A failed scheduled run emails the operator (GitHub notification), and the workflow keeps one open issue titled "Prod uptime check failing" until the next green run closes it. No external account, no monitor id.
 
-```
-UptimeRobot monitor id: <TBD — fill in once T-D44 lands>
-Betterstack heartbeat url: <TBD>
-```
+Limits: GitHub can start scheduled runs several minutes late, and a GitHub outage hides a prod outage. Check by hand with `gh workflow run uptime.yml`.
 
 ## Preconditions
 

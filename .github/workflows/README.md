@@ -24,6 +24,7 @@ release published (tag vX.Y.Z)
 | `drill-sweeper.yml` | cron every 15 min, dispatch | destroys expired/orphan drills |
 | `drill-destroy.yml` | dispatch | manual teardown |
 | `restore-drill.yml` | monthly schedule, dispatch | concurrency group `drill` |
+| `uptime.yml` | cron every 5 min, dispatch | T-D44: prod `/health` + host agent status; opens one issue on failure, closes it on recovery; no secrets |
 
 Drill flows (T-D90, `drill.yml`; concurrency group `drill` shared with
 `restore-drill.yml`, `drill-sweeper.yml`, `drill-destroy.yml`):
