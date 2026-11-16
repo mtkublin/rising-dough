@@ -139,10 +139,10 @@ jobs:
           format: table
           skip-setup-trivy: true
 
+      # T-D120: uploads are unconditional; upload-sarif authenticates with GITHUB_TOKEN
+      # (security-events: write) and the repo is public, so Code Scanning is free.
       - name: Upload SARIF (fs)
-        if: ${{ always() && env.CODEQL_TOKEN != '' }}
-        env:
-          CODEQL_TOKEN: ${{ secrets.CODEQL_TOKEN }}
+        if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@9887d98ae49f1f598651b556d8c8f02f3ea065cb  # v3.27.0
         with:
           sarif_file: trivy-fs.sarif
@@ -222,10 +222,9 @@ jobs:
           format: table
           skip-setup-trivy: true
 
+      # T-D120: uploads are unconditional (see the fs upload above).
       - name: Upload SARIF (image)
-        if: ${{ always() && env.CODEQL_TOKEN != '' }}
-        env:
-          CODEQL_TOKEN: ${{ secrets.CODEQL_TOKEN }}
+        if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@9887d98ae49f1f598651b556d8c8f02f3ea065cb  # v3.27.0
         with:
           sarif_file: trivy-image.sarif

@@ -703,3 +703,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - PR plan 2026-11-16: `ci-plan` `insufficient permissions: read volume` refreshing `scaleway_instance_server.app` (root volume is an SBS volume). `ci-prod`/`ci-drill` would fail the same way on apply/destroy.
 - Code: bootstrap/ci policies add `BlockStorageFullAccess` (ci-prod, ci-drill) and `BlockStorageReadOnly` (ci-plan).
 - Operator: apply `terraform/bootstrap/ci` locally (allowed exception, ADR-0099); keys unchanged.
+
+### ✅ T-D120 [S] Drop dead CI secrets: DEPLOY_SSH_KNOWN_HOSTS_DRILL, CODEQL_TOKEN switch → ADR-0094
+- `DEPLOY_SSH_KNOWN_HOSTS_DRILL` was never set and could not match a fresh drill VM; the host key comes from `ssh-keyscan` over the tailnet (ADR-0094). The pin step now only creates `~/.ssh/known_hosts`.
+- `CODEQL_TOKEN` was only an on/off switch for the Trivy SARIF uploads (auth is `GITHUB_TOKEN`). Repo is public, Code Scanning is free: uploads are now unconditional, findings land in the Security tab.
