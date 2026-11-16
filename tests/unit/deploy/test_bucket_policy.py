@@ -112,10 +112,11 @@ def test_plan_principals_read_bucket_config_only(tmp_path: Path) -> None:
     assert len(plan) == 1
     assert _principals(plan[0]) == [PLAN_APP]
     actions = set(plan[0]["Action"])
-    assert {"s3:GetBucketCORS", "s3:GetBucketPolicy", "s3:ListBucket"} <= actions
+    assert {"s3:GetBucketCORS", "s3:GetBucketAcl", "s3:ListBucket"} <= actions
     forbidden = {a for a in actions if "Object" in a and a != "s3:GetBucketObjectLockConfiguration"}
     assert not forbidden
     assert not any(a.startswith(("s3:Put", "s3:Delete")) or a == "s3:*" for a in actions)
+    assert "s3:GetBucketPolicy" not in actions  # unsupported by Scaleway (MalformedPolicy)
 
 
 def test_no_plan_statement_by_default(tmp_path: Path) -> None:

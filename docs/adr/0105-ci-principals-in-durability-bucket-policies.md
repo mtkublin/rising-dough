@@ -19,9 +19,9 @@ The first PR plan with the CI keys (2026-11-16) failed: `ci-plan` got `403 Acces
 
 ### 2. The plan identity reads bucket configuration only
 
-New input `bucket_plan_principals` (root) → `plan_principals` (storage, bucket_policy) → statement `AllowTerraformPlanRead` with the reads a refresh of the bucket, its ACL and its policy performs: `s3:ListBucket`, `s3:GetBucketLocation`, `s3:GetBucketCORS`, `s3:GetBucketVersioning`, `s3:GetLifecycleConfiguration`, `s3:GetBucketTagging`, `s3:GetBucketAcl`, `s3:GetBucketPolicy`, `s3:GetBucketObjectLockConfiguration`. No object reads (`GetObject`), no writes, no deletes. Prod and prod-plan set `BUCKET_PLAN_PRINCIPALS = ["application_id:<ci-plan>"]`; drill leaves it empty (`drill-plan` uses the `ci-drill` key, already an admin).
+New input `bucket_plan_principals` (root) → `plan_principals` (storage, bucket_policy) → statement `AllowTerraformPlanRead` with the reads a refresh of the bucket and its ACL performs: `s3:ListBucket`, `s3:GetBucketLocation`, `s3:GetBucketCORS`, `s3:GetBucketVersioning`, `s3:GetLifecycleConfiguration`, `s3:GetBucketTagging`, `s3:GetBucketAcl`, `s3:GetBucketObjectLockConfiguration`, `s3:GetEncryptionConfiguration`. No object reads (`GetObject`), no writes, no deletes. Prod and prod-plan set `BUCKET_PLAN_PRINCIPALS = ["application_id:<ci-plan>"]`; drill leaves it empty (`drill-plan` uses the `ci-drill` key, already an admin).
 
-The action list is derived from what the provider reads, not verified against a live refresh; if a plan hits another 403, the missing read action is added here.
+Only actions on Scaleway's supported bucket-policy list are allowed; anything else makes `PutBucketPolicy` fail with `400 MalformedPolicy` (first attempt included `s3:GetBucketPolicy`, which is not on the list). Reading the policy itself is therefore not grantable through the bucket policy; if `ci-plan` cannot refresh `scaleway_object_bucket_policy`, that is solved outside this statement. The list is derived from what the provider reads, not verified against a live refresh; if a plan hits another 403 on a supported action, it is added here.
 
 ### 3. One-time break-glass to break the deadlock (prod)
 

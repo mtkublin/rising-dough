@@ -43,7 +43,8 @@ locals {
     Resource = local.resources
   }]
 
-  # ADR-0105: what a refresh of the bucket, its ACL and its policy reads. No objects.
+  # ADR-0105: what a refresh of the bucket and its ACL reads. No objects. Only
+  # actions Scaleway supports in bucket policies (no s3:GetBucketPolicy: 400 MalformedPolicy).
   plan_statements = length(var.plan_principals) == 0 ? [] : [{
     Sid       = "AllowTerraformPlanRead"
     Effect    = "Allow"
@@ -56,8 +57,8 @@ locals {
       "s3:GetLifecycleConfiguration",
       "s3:GetBucketTagging",
       "s3:GetBucketAcl",
-      "s3:GetBucketPolicy",
       "s3:GetBucketObjectLockConfiguration",
+      "s3:GetEncryptionConfiguration",
     ]
     Resource = local.resources
   }]
