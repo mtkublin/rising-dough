@@ -1,25 +1,26 @@
 # Workflows
 
-Policy: ADR-0099 — production releases happen only from `main`, through one
-dependency-ordered pipeline.
+Policy: ADR-0099, ADR-0109 — production releases happen only from a published
+GitHub release whose tag is on `main`, through one dependency-ordered pipeline.
 
 ```
-push to main
+release published (tag vX.Y.Z)
   release.yml  (concurrency: release-prod)
+    guard         -> tag is SemVer and an ancestor of origin/main
     ci            -> ci.yml        (workflow_call)
-    build         -> build.yml     (needs ci; outputs image-tag, image-digest, image-ref)
-    tf-apply-prod -> terraform.yml (needs build; env prod = required reviewers; -var app_image_tag)
-    deploy-prod   -> deploy.yml    (needs build, tf-apply-prod; env prod; smoke GET /ready)
+    build         -> build.yml     (needs ci; also tags the image vX.Y.Z; outputs image-tag, image-digest, image-ref)
+    tf-apply-prod -> terraform.yml (needs build; env prod = required reviewers; -var app_image_tag = vX.Y.Z)
+    deploy-prod   -> deploy.yml    (needs build, tf-apply-prod; env prod; deploys vX.Y.Z; smoke GET /ready)
 ```
 
 | Workflow | Triggers | Notes |
 |---|---|---|
-| `release.yml` | push `main`, dispatch (main only) | the only prod path |
+| `release.yml` | release published (tag `vX.Y.Z` on `main`), dispatch (tag input, ADR-0109) | the only prod path; `guard` job first |
 | `ci.yml` | pull_request `main`, workflow_call | |
-| `build.yml` | workflow_call, dispatch (main only) | cosign-signed; no push/tag/release triggers |
-| `terraform.yml` | pull_request (fmt/validate/tflint/plan, masked), workflow_call | inputs `env`, `image_tag`, `replace`, `destroy`, drill-only `drill_expires_at`, `boot_log_upload`; prod requires `main`; plan masked via `mask_plan.py`, `plan.bin` never uploaded (ADR-0098) |
+| `build.yml` | workflow_call, dispatch (main or `v*` tag on main) | cosign-signed; no push/tag/release triggers |
+| `terraform.yml` | pull_request (fmt/validate/tflint/plan, masked), workflow_call | inputs `env`, `image_tag`, `replace`, `destroy`, drill-only `drill_expires_at`, `boot_log_upload`; prod requires `main` or a `v*` tag on main (`scripts/ci/ref_guard.py`); plan masked via `mask_plan.py`, `plan.bin` never uploaded (ADR-0098) |
 | `deploy.yml` | workflow_call | inputs `env` (drill\|prod), `image_tag`; tailnet SSH, `/ready` probe, rollback on failure |
-| `rollback.yml` | dispatch | prod only from `main` |
+| `rollback.yml` | dispatch (input `target`: `vX.Y.Z` or `sha-…`) | prod only from `main` or a `v*` tag on main |
 | `drill.yml` | dispatch only (`mode=gate`\|`explore`) | drill only; gate posts commit status `drill-gate`; env `drill` reviewers optional; smoke + teardown in `drill-teardown` |
 | `drill-sweeper.yml` | cron every 15 min, dispatch | destroys expired/orphan drills |
 | `drill-destroy.yml` | dispatch | manual teardown |

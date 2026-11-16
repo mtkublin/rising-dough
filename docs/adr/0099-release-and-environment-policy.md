@@ -64,3 +64,7 @@ Supersedes the `*-deploy` push and `pull_request` triggers of decision 3 (and th
 - Branch protection on `main` requires status `drill-gate` (plus the existing CI checks). Any later push changes the PR head SHA, which has no `drill-gate`, so the merge is blocked again until someone re-dispatches the gate. This is intended: the gate always describes the exact commit that merges.
 - The status reflects apply and smoke only. If teardown fails the workflow run fails but the status is unchanged; the sweeper (expires-at tag) is the backstop.
 - Because a manual dispatch is itself a human action, the required reviewer on the `drill` environment (T-D96, ADR-0101) becomes optional (see `runbooks/github-settings.md`).
+
+## Amendment 2026-11-16 (T-D125): prod releases come from GitHub releases
+
+Superseded by [ADR-0109](0109-release-from-github-release-tags.md) for the release trigger: `release.yml` runs when a GitHub release (tag `vMAJOR.MINOR.PATCH`, commit on `main`) is published, not on every push to `main`. The "prod only from `main`" ref guards now read "`main`, or a `v*` tag whose commit is an ancestor of `main`". The `prod` environment approval, the PR gate and the credentials model are unchanged.

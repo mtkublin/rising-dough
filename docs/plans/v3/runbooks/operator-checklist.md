@@ -97,11 +97,23 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - **Done when:** the release run is green and prod serves a newer image than `sha-075f986`.
 - Runbooks: [`deploy.md`](deploy.md), [`rollback.md`](rollback.md) if it goes wrong.
 
+### 11a. Tag ruleset on `v*` (ADR-0109, T-D125)
+- [ ] **Where:** GitHub UI, before cutting the first release after the T-D125 merge.
+- Create the tag ruleset as described in [`github-settings.md`](github-settings.md) section 3b.
+- The merge that brings T-D125 is the last merge-triggered release. From then on prod releases come from `gh release create vX.Y.Z --target main` ([`deploy.md`](deploy.md)).
+- **Done when:** the ruleset is active on `v*`.
+
 ### 11b. Drop ci-prod's transitional IAM read access (ADR-0104)
 - [ ] **Where:** laptop.
 - After the release in step 11 has applied (its plan showed `module.iam` and `module.restore_reader` as no longer managed, nothing destroyed): `terraform apply -var ci_prod_iam_transition=false` in `terraform/bootstrap/ci`.
 - **Done when:** `ci-prod`'s policy has no organization rule and a prod PR plan still succeeds.
 - Runbook: [`key-rotation.md`](key-rotation.md) part 2, step 7.
+
+### 11c. Enable GHCR image retention (T-D126)
+- [ ] **Where:** GitHub UI (package settings, Actions) and laptop.
+- After the first release: link package `budget-planner` to the repo (Actions role Write), dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
+- **Done when:** a scheduled or `dry_run=false` run shows `mode: APPLY` and the next release still deploys.
+- Runbook: [`image-retention.md`](image-retention.md).
 
 ### 12. Open question for the user
 - [x] Skipped 2026-11-16: the user does not remember the cut-off message "Also, once drill is deployed by"; nothing recorded.

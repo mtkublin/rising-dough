@@ -735,6 +735,30 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: root var `drill_instance_type` (default `DEV1-S`); prod pinned to `STARDUST1-S` in `main.tf`; compute output `server_type`; tftest runs for both envs. No prod diff.
 - The STARDUST1-S quota cannot be raised (operator, 2026-11-16): `DEV1-S` for the drill is permanent.
 
+### ✅ T-D124 [S] Drill teardown removes the drill's tailnet node → ADR-0101
+- Found 2026-11-16 after the first green gate (run 43907146399): teardown destroyed the VM, but the ephemeral node `budget-planner-drill` stayed in the tailnet as offline. Ephemeral nodes are only removed after an offline period (minutes to hours). A drill started meanwhile registers as `budget-planner-drill-1`, so the `*.ts.net` certificate name and `DRILL_URL` do not match and smoke fails.
+- Operator (one-time): Tailscale admin console > Settings > OAuth clients: new client `budget-planner-drill-cleanup`, scope `devices:core` write, tag `tag:drill` only. Store as `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (teardown, sweeper) and `drill` (early destroy).
+- Code: a step after each drill destroy (drill.yml teardown, drill-destroy.yml, drill-sweeper.yml) gets an OAuth token, lists devices, and deletes every device whose hostname is `budget-planner-drill` or `budget-planner-drill-<n>` and that carries `tag:drill`. Never touches `tag:prod` or `tag:ci`. Idempotent: no device found is success. A failed delete is a warning, not a failed teardown (the VM is already gone).
+- Test: static workflow test that each destroy path has the step and filters on `tag:drill`.
+- Done 2026-11-16: shared `scripts/tailnet_drill_cleanup.py` + `tailnet-cleanup` job (`needs` the destroy job, `if: always()` unless destroy was skipped, environment `drill-teardown`) in all three destroy workflows; test `tests/unit/deploy/test_tailnet_drill_cleanup.py`. Until the operator creates the OAuth client and secrets the job only warns: remove the node by hand (admin console > Machines > `budget-planner-drill` > Remove) before the next drill.
+- Not chosen: `tailscale logout` from a shutdown hook on the VM (Scaleway destroy does not reliably shut down cleanly first).
+
+### ✅ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
+- No retention today: every release and every drill gate pushes a `sha-…` image (plus cosign signature artifacts) to `ghcr.io/mtkublin/budget-planner`, and GHCR keeps all versions forever. A private package counts against the GitHub Packages storage quota.
+- Plan: weekly `image-retention.yml` (cron + `workflow_dispatch` with `dry_run`, default true for the first runs) using `actions/delete-package-versions` (pinned by SHA):
+  - keep: newest 20 `sha-…` versions, everything tagged `main` or `v*` (T-D125), and the images prod has as `current` and `previous` (read via the deploy `status` command, or covered by N);
+  - delete: untagged versions and orphaned signature artifacts older than 7 days, `sha-…` beyond the newest 20.
+- Needs a token with `delete:packages` (the workflow's `GITHUB_TOKEN` with `packages: write` works when the package is linked to the repo).
+- Test: static workflow test for the keep rules, `dry_run` default and a pinned action.
+- Done 2026-11-16: `.github/workflows/image-retention.yml` + `scripts/ghcr_retention.py` (the action cannot express the signature/child-manifest rules; selection is unit-tested in `tests/unit/deploy/test_image_retention.py`). Scheduled runs dry-run until the repo variable `IMAGE_RETENTION_ENABLED` is `true`; dispatch deletes only with `dry_run=false`. Also kept: every version younger than 7 days and child manifests of kept indexes (provenance/SBOM make `build-push-action` push untagged children). Prod current/previous are assumed to be within the newest 20. Runbook: `runbooks/image-retention.md`.
+- Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
+- Timing (user, 2026-11-16): after the first release.
+
+### ✅ T-D125 [M] Release prod from GitHub releases on `main` → ADR-0109 (Accepted 2026-11-16)
+- Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
+- Touches `release.yml`, `build.yml`, `terraform.yml`, `deploy.yml` (main-ref guards become "main or a `v*` tag on main", one shared tested script), `rollback.yml`, runbooks `deploy.md` / `rollback.md`, `github-settings.md` (tag ruleset).
+- Timing (user, 2026-11-16): after the first merge-triggered release (operator checklist step 11). Accepting ADR-0109 flips it to Accepted.
+
 ### ✅ T-D127 [S] Deploy forced command did not split `SSH_ORIGINAL_COMMAND` → ADR-0037
 - First pipeline release (run 43913941966, 2026-11-16): `deploy-prod` got the usage text, exit 1. Host syslog: `subcmd=deploy sha-89ac3c2`, i.e. one word. The script's strict-mode `IFS=$'\n\t'` does not split on spaces, so `args=( $SSH_ORIGINAL_COMMAND )` stayed one element; single-word `status` worked, `deploy <tag>` and `rollback <tag>` never could. Prod was untouched (still `sha-075f986`).
 - Fix: `IFS=' ' read -r -a args <<< "$SSH_ORIGINAL_COMMAND"` (also no glob expansion). New `tests/unit/deploy/test_deploy_script.py` drives the rendered script through `SSH_ORIGINAL_COMMAND`.

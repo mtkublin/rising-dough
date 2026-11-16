@@ -1,8 +1,9 @@
 # Build + publish signed container images.
 #
 # ADR-0037 §2 — Immutable SHA-tagged images; cosign keyless-signed via GitHub OIDC.
-# ADR-0099: only reusable (called by release.yml after ci passes) or manually
-# dispatched from main. No push / tag / release triggers. The image tag and
+# ADR-0099 / ADR-0109: only reusable (called by release.yml after ci passes) or
+# manually dispatched from main or a v* tag on main. No push / tag / release
+# triggers. On a release (ref refs/tags/vX.Y.Z) the image is also tagged vX.Y.Z. The image tag and
 # digest are exposed as workflow_call outputs for terraform apply + deploy.
 #
 # Pinned third-party actions by 40-char SHA (never floating tags). Update the
@@ -50,9 +51,10 @@ jobs:
     name: Build + push image
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Guard: a direct manual dispatch builds only from main (ADR-0099). Reusable
-    # calls (release from main, drill gates from any branch) always build (T-D122).
-    if: inputs.called || github.ref == 'refs/heads/main'
+    # Guard: a direct manual dispatch builds only from main or a v* tag on main
+    # (ADR-0099, ADR-0109; the "Guard direct dispatch" step checks the tag). Reusable
+    # calls (release from a tag, drill gates from any branch) always build (T-D122).
+    if: inputs.called || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     outputs:
       image-tag: ${{ steps.image-ref.outputs.tag }}
       image-ref: ${{ steps.image-ref.outputs.ref }}
@@ -61,6 +63,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: ${{ inputs.called && 1 || 0 }}
+
+      - name: Guard direct dispatch (ADR-0109)
+        if: ${{ !inputs.called }}
+        run: python3 scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2  # v3.10.0
@@ -86,6 +94,7 @@ jobs:
           tags: |
             type=raw,value=sha-${{ steps.sha.outputs.short }}
             type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=semver,pattern={{version}}
 
       - name: Build and push
