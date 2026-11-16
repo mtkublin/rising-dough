@@ -49,7 +49,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 
 `drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
-Repo-level: none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
+Repo-level variable (T-D126): `IMAGE_RETENTION_ENABLED` (`true` lets the scheduled `image-retention.yml` delete; unset = dry run). The `budget-planner` package must be linked to the repo with Actions access role Write ([`image-retention.md`](image-retention.md)). Otherwise none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
 Note: `rollback.yml` selects the environment from its `env` input, so it reads `PROD_HOST`/`DRILL_HOST`/`*_URL` from the chosen environment; make sure both host secrets resolve where used (if a workflow reads a secret from an environment that does not hold it, add it there).
 
@@ -71,11 +71,12 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
-One OAuth client, used by every environment:
+Two OAuth clients. `budget-planner-automation` is used by every environment; `budget-planner-drill-cleanup` only by the drill environments (it deletes the drill's leftover tailnet node after destroy):
 
 | Client | Scope | Tag assigned to the client | Goes to |
 |---|---|---|---|
 | `budget-planner-automation` | `auth_keys` write | `tag:automation` | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in `prod`, `prod-plan`, `drill`, `drill-teardown`, `drill-plan` |
+| `budget-planner-drill-cleanup` (T-D124) | `devices:core` write | `tag:drill` only | `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (used by the `tailnet-cleanup` jobs of `drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) and `drill` (keep in sync) |
 
 - The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).

@@ -1,0 +1,69 @@
+# GHCR image retention for ghcr.io/<owner>/budget-planner (T-D126, ADR-0099).
+#
+# Selection logic lives in scripts/ghcr_retention.py (unit-tested). Rules:
+#   keep   newest 20 sha-* versions, anything tagged main or v*, every version
+#          younger than 7 days, child manifests of kept images and the cosign
+#          signature/attestation artifacts of kept images. Prod's current and
+#          previous image are assumed to be among the newest 20 (rollback depth 1).
+#   delete untagged versions, orphaned sha256-*.sig/.att/.sbom artifacts and
+#          sha-* beyond the newest 20 (all only when older than 7 days).
+# Safety switch: scheduled runs only delete when the repo variable
+# IMAGE_RETENTION_ENABLED is 'true'; otherwise they print the plan (dry run).
+# A manual dispatch deletes only when the dry_run input is set to false.
+# Requires the package linked to this repo with Actions write access.
+
+name: image-retention
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the plan only; delete nothing.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-retention
+  cancel-in-progress: false
+
+jobs:
+  retention:
+    name: Prune GHCR versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Decide mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          DRY_RUN_INPUT: ${{ inputs.dry_run }}
+          ENABLED: ${{ vars.IMAGE_RETENTION_ENABLED }}
+        run: |
+          apply=false
+          if [ "${EVENT}" = "workflow_dispatch" ]; then
+            [ "${DRY_RUN_INPUT}" = "false" ] && apply=true
+          elif [ "${ENABLED}" = "true" ]; then
+            apply=true
+          fi
+          echo "apply=${apply}" >> "$GITHUB_OUTPUT"
+
+      - name: Plan and prune
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          APPLY: ${{ steps.mode.outputs.apply }}
+        run: |
+          set -euo pipefail
+          flags=()
+          [ "${APPLY}" = "true" ] && flags+=(--apply)
+          python3 scripts/ghcr_retention.py --owner "${OWNER}" "${flags[@]}" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
