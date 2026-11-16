@@ -81,7 +81,7 @@
 - [ ] Remove the obsolete repo secret `SCW_DRILL_PROJECT_ID` and variable `LITESTREAM_AGE_RECIPIENT` if you created them (T-D69 / T-D56 scheme).
 - [ ] Variables: `DRILL_URL`, `PROD_URL`.
 - [ ] Prod must be applied before the first automated restore drill (the `PROD_REPLICA_RO_*` values come from its outputs); the manual T-D25 drill apply can run first without a restore.
-- [ ] Optional: `CODEQL_TOKEN`. Without it, the SARIF upload in `security.yml` is skipped.
+- [x] No `CODEQL_TOKEN` needed. The SARIF upload in `security.yml` is unconditional and uses `GITHUB_TOKEN` (T-D120).
 
 ### A6. Local tooling
 

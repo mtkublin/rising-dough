@@ -12,8 +12,6 @@
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY
 #   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
-#   DEPLOY_SSH_KNOWN_HOSTS_DRILL   - legacy pinned known_hosts entry (optional; the drill host
-#                                    key is scanned over the authenticated tailnet, ADR-0094).
 #   TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET
 #                                  - Tailscale OAuth client (scopes auth_keys; owns tag:ci,
 #                                    tag:drill): CI joins the tailnet as tag:ci and Terraform
@@ -130,12 +128,13 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - name: Pin known_hosts for drill host
+      - name: Prepare ~/.ssh
+        # known_hosts is filled later by ssh-keyscan over the tailnet (ADR-0094).
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS_DRILL }}" > ~/.ssh/known_hosts
+          : > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Check required Terraform inputs

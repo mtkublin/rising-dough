@@ -707,3 +707,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D119 [S] opentelemetry-api ReDoS (CVE-2026-126360) → T-D91
 - pip-audit 2026-11-16: `opentelemetry-api` 1.45.1 (transitive via `fastapi`) has CVE-2026-126360 / GHSA-mf5v-w3w3-f6cg, quadratic regex backtracking in `TraceContextTextMapPropagator.extract()` on a crafted `traceparent`. Reachable: FastAPI's built-in telemetry (`tracing` on by default) calls `propagate.extract` on every request's headers, on the event loop.
 - Fix: `uv lock --upgrade-package opentelemetry-api` → 1.45.2. Lockfile only; no allowlist entry.
+
+### ✅ T-D120 [S] Drop dead CI secrets: DEPLOY_SSH_KNOWN_HOSTS_DRILL, CODEQL_TOKEN switch → ADR-0094
+- `DEPLOY_SSH_KNOWN_HOSTS_DRILL` was never set and could not match a fresh drill VM; the host key comes from `ssh-keyscan` over the tailnet (ADR-0094). The pin step now only creates `~/.ssh/known_hosts`.
+- `CODEQL_TOKEN` was only an on/off switch for the Trivy SARIF uploads (auth is `GITHUB_TOKEN`). Repo is public, Code Scanning is free: uploads are now unconditional, findings land in the Security tab.

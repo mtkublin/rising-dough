@@ -38,7 +38,6 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
 | `DEPLOY_SSH_PRIVATE_KEY` | x | | x | different key per env |
 | `DEPLOY_SSH_KNOWN_HOSTS` | x | | x | |
-| `DEPLOY_SSH_KNOWN_HOSTS_DRILL` | | | x | restore-drill |
 | `PROD_HOST` | x | | | tailnet name, e.g. `budget-planner-prod` |
 | `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
@@ -50,7 +49,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 
 `drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
-Repo-level (not environment): `CODEQL_TOKEN` (security.yml). `GITHUB_TOKEN` is automatic.
+Repo-level: none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
 Note: `rollback.yml` selects the environment from its `env` input, so it reads `PROD_HOST`/`DRILL_HOST`/`*_URL` from the chosen environment; make sure both host secrets resolve where used (if a workflow reads a secret from an environment that does not hold it, add it there).
 

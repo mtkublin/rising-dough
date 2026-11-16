@@ -34,7 +34,7 @@ From a device on the tailnet:
 ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod
 ```
 
-Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete.
+Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. No drill pin secret exists; the drill host key is never pinned (T-D120).
 
 ### 4. Rotating the OAuth client
 
