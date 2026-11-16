@@ -7,8 +7,8 @@
 ## Sequencing
 
 ```
-v3 ships ─┬─ quality audit (T-Q01..T-Q17) ── [pre-v4-P3] remediation ─┐
-          └─ UI test harness (T-UT01..T-UT12) ────────────────────────┴─ redesign (T-UR00..T-UR17) ─ v4 Phase 2
+v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3] remediation ─┐
+                      └─ UI test harness (T-UT01..T-UT12) ────────────────────────┴─ redesign (T-UR00..T-UR17) ─ v4 Phase 2
                                                     v4 Phase 1 (crypto core, no UI) may run alongside the redesign ─┘
 ```
 

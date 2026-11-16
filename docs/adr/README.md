@@ -111,3 +111,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0105 | [CI Identities in the Durability Bucket Policies](0105-ci-principals-in-durability-bucket-policies.md) (amends ADR-0091, ADR-0100; relates to ADR-0099, ADR-0104) |
 | 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) |
 | 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
+| 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |

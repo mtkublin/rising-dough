@@ -10,7 +10,7 @@
 ## Phase 0 — Preconditions
 
 ### T-Q01 [S] Pin the audit commit and set up the environment
-- Blocked on v3 shipping (v3 Phase 4 ✅, prod cut over).
+- Blocked on v3 shipping (v3 Phase 4 ✅, prod cut over) and on the faster-CI effort (`docs/plans/ci-speed/`, T-CS06 ✅, ADR-0108), so the audit reviews the new test and CI setup.
 - `AUDIT_SHA` recorded; worktree and branch `audit/quality`; scratch DB `/tmp/audit.sqlite` copied from `data/demo.sqlite`.
 - `findings.md` header filled in: SHA, date, tool versions, LOC per package.
 - `just ci` green at `AUDIT_SHA`. If it is red, log the failure as Q-000.
@@ -52,7 +52,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Markup, CSS, token and presentational-JS findings are out of scope: the Sourdough redesign replaces them (ADR-0107, implementation_plan Track E note).
 
 ### T-Q09 [P] Track F — tests → `tracks/F-tests.md`
-- Mutmut real gaps carried in. Over-mocking, weak assertions, fixture duplication, flakiness (randomised order run) and coverage gaps listed. Prod-DB path grep clean, or flagged as a finding.
+- Mutmut real gaps carried in. Redundant-test candidates (coverage contexts + Mutmut) checked by hand. Over-mocking, weak assertions, fixture duplication, flakiness (randomised order run) and coverage gaps listed. Prod-DB path grep clean, or flagged as a finding.
 
 ### T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
 - Vulture results checked by hand. Every Accepted ADR checked against the code (still true / drifted / should be superseded). Pre-commit vs `just ci` vs CI parity table.
