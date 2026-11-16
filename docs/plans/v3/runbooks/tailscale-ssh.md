@@ -23,7 +23,7 @@ The ACL is deliberately not in Terraform (tailnet-global; two env states would b
 
 ```sh
 ssh operator@budget-planner-prod
-ssh deploy@budget-planner-prod "rollback"   # restricted deploy user, see rollback.md
+# no deploy user: releases and rollbacks are Terraform applies (deploy.md, rollback.md)
 ```
 
 ### 3. Host keys over the tailnet
@@ -34,7 +34,7 @@ From a device on the tailnet:
 ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod
 ```
 
-Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. No drill pin secret exists; the drill host key is never pinned (T-D120).
+Verify the printed keys when you first connect (or pin them in your own `known_hosts`); no GitHub secret holds them any more, since no workflow SSHes into prod (ADR-0111). The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. No drill pin secret exists; the drill host key is never pinned (T-D120).
 
 ### 4. Rotating the OAuth client
 
