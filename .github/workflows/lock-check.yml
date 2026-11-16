@@ -23,7 +23,7 @@ jobs:
 
       - name: Install uv
         # astral-sh/setup-uv@v3.2.4 → pinned by commit SHA.
-        uses: astral-sh/setup-uv@180f8b44399608a850e1db031fa65c77746566d3
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
         with:
           version: "latest"
           enable-cache: true
