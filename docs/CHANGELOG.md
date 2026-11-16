@@ -2,6 +2,7 @@
 
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
 - **Fix(T-D132): the ADR-0036 nonce CSP is now sent on HTML responses.** The Caddyfile set it via a site-level request matcher, which never matched; it is now set in `reverse_proxy` with a `handle_response` response matcher (verified against real `caddy:2.8`). Reaches prod with the next release. Test `tests/unit/deploy/test_caddy_csp.py`.
+- **Ops(T-D129e, T-D33): drill runs 2026-11-16.** The explore drill converged through the host agent on first boot (status `ok`). The break image deployed and stayed `unhealthy`, and `rollback.yml env=drill` swapped the refs back in place. The `failed` state and reconvergence were not observed (operator tailnet down). Drill destroyed. Final `drill-gate` pending: two stale drill tailnet nodes must go first.
 - **Fix(T-D131): Terraform workflow Trivy config scan pinned to trivy v0.76.2**; 0.70.0 panicked on the ADR-0111 `sensitive()` values (`value is marked`).
 - **Feat(T-D44): prod uptime check as a scheduled workflow** (user decision instead of UptimeRobot). `uptime.yml` runs every 5 min: `/health` must be 200 and the host agent status (ADR-0111) must not be `failed`. A failed run emails the operator and opens one issue; the next green run closes it. No secrets. Test `tests/unit/deploy/test_uptime_workflow.py`; `disaster-recovery.md` updated.
 - **Chore(T-D130): Dependabot version-update PRs turned off.** `.github/dependabot.yml` removed, open Dependabot PRs closed. pip-audit and trivy in `security.yml` still gate every PR.

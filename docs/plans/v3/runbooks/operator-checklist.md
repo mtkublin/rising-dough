@@ -5,6 +5,11 @@
 - Prod is live at https://budget.rising-dough.eu and runs `sha-89ac3c2`, moved there by a logged break-glass after the first pipeline release's SSH deploy failed (T-D127, ADR-0111 Context).
 - v3 is merged into `main` (PR #2). The follow-ups (T-D124..T-D130) are on `v3-followups`, PR #14.
 - Steps 1-11 and 11b are done. Step 11a is done too. Open: 10a (move prod to the host agent, T-D129f), then the release, then 11c (image retention).
+- Next (2026-11-16 end of day), in order:
+  1. Remove the stale tailnet nodes `budget-planner-drill` and `budget-planner-drill-1`, or create the T-D124 cleanup client and its `TS_CLEANUP_*` secrets (`github-settings.md` section 4).
+  2. Run the gate on the PR #14 head: `gh workflow run drill.yml -R mtkublin/rising-dough --ref v3-followups -f mode=gate`. Then merge PR #14.
+  3. Step 10a (prod migration), then `gh release create vX.Y.Z --target main` and approve the apply. Rollback target if it fails: `sha-89ac3c2`.
+  4. After the release: delete the dead deploy secrets (`github-settings.md`), 11c retention, re-run Observatory (T-D132), T-D43 smoke, T-D45 cost alert, delete `/data/pre-seed-*` on prod.
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
