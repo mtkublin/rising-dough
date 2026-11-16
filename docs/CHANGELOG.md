@@ -984,3 +984,4 @@
 - **Docs: v3 proposal decisions recorded** (2026-11-16): T-D106 next after the first release; T-D104 deferred to the next cloud-init change; T-D102, T-D105, T-D108 won't do for now.
 - **Ops(T-D107): first green drill gate** (run 43907146399, `ec01640`): build, DEV1-S apply, smoke over the tailnet with a valid `*.ts.net` certificate, teardown.
 - **Fix(T-D127): deploy forced command splits `SSH_ORIGINAL_COMMAND` on spaces.** The first pipeline deploy failed with usage/exit 1 (`deploy sha-89ac3c2` parsed as one word under strict-mode IFS). Prod unaffected.
+- **Break-glass (T-D127), 2026-11-16:** operator patched `/usr/local/bin/deploy-budget-planner` on the prod host in place (same one-line `read -r -a` split as the repo fix; backup `deploy-budget-planner.bak-20261116`). Reason: cloud-init does not re-run on the running VM, so every pipeline deploy would keep failing. Verified: `SSH_ORIGINAL_COMMAND='status extra'` → exit 2. No app, data or infra change.
