@@ -8,7 +8,7 @@ Standard release of a new version to production (a published GitHub release).
 
 v3 deploys land on the single Scaleway Stardust VM. Prod is released only by `.github/workflows/release.yml`, when a GitHub release is published (ADR-0099, ADR-0109): `guard` (tag is SemVer `vMAJOR.MINOR.PATCH` and its commit is an ancestor of `origin/main`) -> `ci` -> `build` (pushes the immutable image to GHCR as `sha-<short>` and `vX.Y.Z`, cosign-signed) -> `tf-apply-prod` -> `deploy-prod`. `deploy.yml` is a reusable (`workflow_call`) workflow with no triggers of its own; it SSHes into the host as the restricted `deploy` user to roll the `app` container forward. The on-host shim is `/usr/local/bin/deploy-budget-planner` (ADR-0037 §3).
 
-Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-path contract: merge to `main` -> operator publishes release `vX.Y.Z` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval -> `deploy-prod` waits for the same approval -> the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
+Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-path contract: merge to `main` -> operator publishes release `vX.Y.Z` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval (the only one) -> `deploy-prod` runs in the reviewer-less `prod-deploy` environment right after the apply -> the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
 
 ## Preconditions
 
@@ -30,7 +30,7 @@ Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-pat
 1. Confirm the `release.yml` run for the tag is green up to the approval gates:
    - `gh run list --workflow=release.yml --limit=5`
    - Expect `guard`, `ci` and `build` to be `success`. `guard` fails if the tag is not SemVer or its commit is not on `main`.
-2. Approve the `prod` environment for `tf-apply-prod` and then for `deploy-prod`. Both jobs wait on the same required-reviewer gate (`gh run approve <run-id>` or the Actions UI). This is the single human gate on prod.
+2. Approve the `prod` environment once, for `tf-apply-prod` (review prompt in the Actions UI). `deploy-prod` then runs without a second approval (environment `prod-deploy`, ADR-0110). This is the single human gate on prod.
    - Re-deploying an already built SHA (e.g. after rolling back) is not a `deploy.yml` dispatch. Use `rollback.yml` with `target` (see [`rollback.md`](rollback.md)).
 3. Deploy job executes (CI runner, not the host):
    - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.

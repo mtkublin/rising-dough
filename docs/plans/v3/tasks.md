@@ -758,3 +758,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
 - Touches `release.yml`, `build.yml`, `terraform.yml`, `deploy.yml` (main-ref guards become "main or a `v*` tag on main", one shared tested script), `rollback.yml`, runbooks `deploy.md` / `rollback.md`, `github-settings.md` (tag ruleset).
 - Timing (user, 2026-11-16): after the first merge-triggered release (operator checklist step 11). Accepting ADR-0109 flips it to Accepted.
+
+### ✅ T-D128 [S] One prod approval per release → ADR-0110 (Accepted 2026-11-16)
+- `deploy.yml` runs prod in the reviewer-less environment `prod-deploy` (deploy secrets only; branches `main` + tags `v*`). The terraform apply in `prod` is the single approval; `deploy-prod` still needs the apply. `rollback.yml` stays on `prod`.
+- Touches `deploy.yml`, `release.yml` comment, `tests/unit/deploy/test_release_approval.py`, runbooks `github-settings.md`, `deploy.md`, `operator-checklist.md`.

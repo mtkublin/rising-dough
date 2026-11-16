@@ -6,8 +6,10 @@
 # not on push to main. Cut one with `gh release create vX.Y.Z --target main`.
 # The first job refuses any tag whose commit is not an ancestor of origin/main.
 # The merge that introduced this trigger was the last merge-triggered release.
-# Terraform apply and deploy run in the GitHub environment `prod` (required
-# reviewers). The version tag is passed to terraform (-var app_image_tag) and
+# ADR-0110: ONE approval per release. Terraform apply runs in the GitHub
+# environment `prod` (required reviewers, the only prod-write credential);
+# deploy runs in `prod-deploy` (no reviewers, deploy secrets only) and only
+# after the approved apply succeeds. The version tag is passed to terraform (-var app_image_tag) and
 # to deploy, so prod `current`/`previous` record it. No drill stage here: drill
 # is validated pre-merge (T-D90).
 

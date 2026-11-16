@@ -4,7 +4,8 @@
 
 ## 1. Environments (Settings > Environments)
 
-- [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **Selected branches: `main` only**. Used by `deploy-prod`, `apply-prod`, `rollback` (env prod).
+- [ ] **`prod`**: Required reviewers = you (and prevent self-review only if a second reviewer exists). Deployment branches and tags: **`main` and tag pattern `v*`** (the release runs from a `v*` tag, ADR-0109). Used by `tf-apply-prod` (the single approval per release, ADR-0110) and `rollback.yml` (env prod). Holds all Scaleway write credentials (ADR-0100).
+- [ ] **`prod-deploy`** (ADR-0110, T-D128): **no required reviewers**; deployment branches and tags: **`main` and tag pattern `v*`**. Used only by the prod `deploy` job of `deploy.yml`, which runs after the approved apply. Holds **only** `DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` and variable `PROD_URL` (same values as `prod`). Never add Scaleway keys, age identities or `APP_*` keys here. Rotate these in both `prod` and `prod-deploy`.
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
 - [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
 - [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
@@ -17,7 +18,7 @@
 
 Same names in every environment, different values (ADR-0093). The three drill environments (`drill`, `drill-teardown`, `drill-plan`) hold identical copies of the drill column; keep them in sync when rotating (`key-rotation.md`). Verified against `.github/workflows/*.yml`.
 
-| Secret | `prod` | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
+| Secret | `prod` (deploy rows also in `prod-deploy`) | `prod-plan` | `drill`, `drill-teardown`, `drill-plan` | Notes |
 |---|:-:|:-:|:-:|---|
 | `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` | ci-prod | ci-plan (read-only) | ci-drill | outputs of `terraform/bootstrap/ci` |
 | `SCW_DEFAULT_PROJECT_ID` | prod project | prod project | drill project | |
@@ -41,7 +42,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `PROD_HOST` | x | | | tailnet name, e.g. `budget-planner-prod` |
 | `DRILL_HOST` | | | x | e.g. `budget-planner-drill` |
 
-| Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
+| Variable | `prod` (`PROD_URL` also in `prod-deploy`) | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
 | `PROD_URL` | x | |
 | `TAILNET_DNS_NAME` (ADR-0101), e.g. `tail1234.ts.net` (admin console > DNS; not a secret) | | x |
