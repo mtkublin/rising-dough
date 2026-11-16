@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
+- **Fix(T-D131): Terraform workflow Trivy config scan pinned to trivy v0.76.2**; 0.70.0 panicked on the ADR-0111 `sensitive()` values (`value is marked`).
 - **Feat(T-D44): prod uptime check as a scheduled workflow** (user decision instead of UptimeRobot). `uptime.yml` runs every 5 min: `/health` must be 200 and the host agent status (ADR-0111) must not be `failed`. A failed run emails the operator and opens one issue; the next green run closes it. No secrets. Test `tests/unit/deploy/test_uptime_workflow.py`; `disaster-recovery.md` updated.
 - **Chore(T-D130): Dependabot version-update PRs turned off.** `.github/dependabot.yml` removed, open Dependabot PRs closed. pip-audit and trivy in `security.yml` still gate every PR.
 - **Docs(T-D61): data inventory runbook** `runbooks/data-inventory.md` (ADR-0078 §8, ADR-0111): every location of user data and secrets with protection, retention and readers, plus what the operator can see.

@@ -787,3 +787,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
 - Decision 2026-11-16 (user): the weekly Dependabot PRs and branches (GitHub Actions, Docker base image) are noise for a single maintainer. Removed `.github/dependabot.yml` (its mention in `HANDOFF.md` is historical); open Dependabot PRs closed and their branches deleted. Dependabot security updates were already off.
 - What still catches vulnerable dependencies: `security.yml` (pip-audit, trivy fs + image) on every PR, and GitHub vulnerability alerts (no PRs). Action and base-image bumps are manual from now on.
+
+### ✅ T-D131 [S] `Trivy config scan` panics on the ADR-0111 Terraform → (no ADR; CI fix)
+- Explore drill run 43951985795 (2026-11-16): `fmt + validate + lint` failed in "Trivy config scan" with `panic: value is marked, so must be unmarked first` (go-cty, trivy `iac/terraform/context.mergeObjects`). Trigger: `modules/compute` merges objects that hold `sensitive()` values (T-D129). Reproduced with trivy 0.69.3 and 0.70.0 (the trivy-action v0.36.0 default); 0.76.2 does not panic and reports 0 misconfigurations.
+- Fix: `version: v0.76.2` on that step in `terraform.yml`. `security.yml` scans (fs, image) are unchanged.

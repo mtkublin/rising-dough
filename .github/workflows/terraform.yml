@@ -124,6 +124,9 @@ jobs:
       - name: Trivy config scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          # T-D131: trivy 0.70.0 (action default) panics on sensitive() values
+          # ("value is marked"); 0.76.2 scans the ADR-0111 user_data cleanly.
+          version: v0.76.2
           scan-type: config
           scan-ref: terraform
           exit-code: "1"
