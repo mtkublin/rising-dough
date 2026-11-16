@@ -38,14 +38,76 @@ def test_main_tag_stays_gated_by_default_branch() -> None:
     assert workflow.count("value=main") == 1
 
 
-def test_release_chain_is_ci_build_tf_apply_deploy() -> None:
+def test_release_chain_is_guard_ci_build_tf_apply_deploy() -> None:
     jobs = _load("release.yml")["jobs"]
 
-    assert jobs["ci"].get("needs") is None
-    assert jobs["build"]["needs"] == "ci"
-    assert jobs["tf-apply-prod"]["needs"] == "build"
-    assert set(jobs["deploy-prod"]["needs"]) == {"build", "tf-apply-prod"}
-    assert _triggers("release.yml")["push"]["branches"] == ["main"]
+    assert jobs["guard"].get("needs") is None
+    assert jobs["ci"]["needs"] == "guard"
+    assert set(jobs["build"]["needs"]) == {"guard", "ci"}
+    assert set(jobs["tf-apply-prod"]["needs"]) == {"guard", "build"}
+    assert set(jobs["deploy-prod"]["needs"]) == {"guard", "build", "tf-apply-prod"}
+
+
+def test_release_triggers_on_published_release_not_push() -> None:
+    """ADR-0109: merging to main builds nothing for prod."""
+    triggers = _triggers("release.yml")
+
+    assert set(triggers) == {"release", "workflow_dispatch"}
+    assert triggers["release"] == {"types": ["published"]}
+    tag_input = triggers["workflow_dispatch"]["inputs"]["tag"]
+    assert tag_input["required"] is True
+    assert tag_input["type"] == "string"
+
+
+def test_release_guard_runs_the_shared_script_with_full_history() -> None:
+    steps = _load("release.yml")["jobs"]["guard"]["steps"]
+    checkout = next(s for s in steps if "actions/checkout" in s.get("uses", ""))
+    runs = " ".join(s.get("run", "") for s in steps)
+
+    assert checkout["with"]["fetch-depth"] == 0
+    assert 'scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}"' in runs
+
+
+def test_prod_gets_the_version_tag_through_inputs_only() -> None:
+    jobs = _load("release.yml")["jobs"]
+    version = "${{ needs.guard.outputs.tag }}"
+
+    assert jobs["tf-apply-prod"]["with"]["image_tag"] == version
+    assert jobs["deploy-prod"]["with"]["image_tag"] == version
+
+
+def test_build_also_tags_the_version_on_release_refs() -> None:
+    workflow = (WORKFLOWS / "build.yml").read_text()
+
+    assert (
+        "type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}"
+        in workflow
+    )
+    assert "type=raw,value=sha-${{ steps.sha.outputs.short }}" in workflow
+
+
+def test_no_workflow_hardcodes_a_main_only_ref_check_for_prod() -> None:
+    for name in ("terraform.yml", "deploy.yml", "rollback.yml"):
+        text = (WORKFLOWS / name).read_text()
+        assert '!= "refs/heads/main"' not in text, name
+        assert "scripts/ci/ref_guard.py ref" in text, name
+
+
+def test_deploy_accepts_version_and_sha_tags() -> None:
+    text = (WORKFLOWS / "deploy.yml").read_text()
+
+    assert "^(sha-[0-9a-f]{7,40}|v[0-9]+\\.[0-9]+\\.[0-9]+)$" in text
+
+
+def test_rollback_validates_target_through_the_script() -> None:
+    wf = _load("rollback.yml")
+    inputs = _triggers("rollback.yml")["workflow_dispatch"]["inputs"]
+    text = (WORKFLOWS / "rollback.yml").read_text()
+
+    assert "image_sha" not in inputs
+    assert inputs["target"]["required"] is False
+    assert 'ref_guard.py rollback-target "${RAW}"' in text
+    assert wf["permissions"]["contents"] == "read"
 
 
 def test_release_serialises_prod_releases() -> None:
@@ -82,4 +144,6 @@ def test_build_guard_lets_reusable_calls_through() -> None:
 
     assert called == {"type": "boolean", "default": True, "description": called["description"]}
     assert "called" not in (triggers["workflow_dispatch"] or {}).get("inputs", {})
-    assert guard == "inputs.called || github.ref == 'refs/heads/main'"
+    assert guard == (
+        "inputs.called || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')"
+    )

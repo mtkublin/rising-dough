@@ -2,33 +2,39 @@
 
 > **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
 
-Standard release of a new SHA to production.
+Standard release of a new version to production (a published GitHub release).
 
 ## Context
 
-v3 deploys land on the single Scaleway Stardust VM. Prod is released only by `.github/workflows/release.yml`, on push to `main` (ADR-0099): `ci` -> `build` (pushes the immutable `sha-<short>` image to GHCR, cosign-signed) -> `tf-apply-prod` -> `deploy-prod`. `deploy.yml` is a reusable (`workflow_call`) workflow with no triggers of its own; it SSHes into the host as the restricted `deploy` user to roll the `app` container forward. The on-host shim is `/usr/local/bin/deploy-budget-planner` (ADR-0037 §3).
+v3 deploys land on the single Scaleway Stardust VM. Prod is released only by `.github/workflows/release.yml`, when a GitHub release is published (ADR-0099, ADR-0109): `guard` (tag is SemVer `vMAJOR.MINOR.PATCH` and its commit is an ancestor of `origin/main`) -> `ci` -> `build` (pushes the immutable image to GHCR as `sha-<short>` and `vX.Y.Z`, cosign-signed) -> `tf-apply-prod` -> `deploy-prod`. `deploy.yml` is a reusable (`workflow_call`) workflow with no triggers of its own; it SSHes into the host as the restricted `deploy` user to roll the `app` container forward. The on-host shim is `/usr/local/bin/deploy-budget-planner` (ADR-0037 §3).
 
-The happy-path contract: merge to `main` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval -> `deploy-prod` waits for the same approval -> the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
+Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-path contract: merge to `main` -> operator publishes release `vX.Y.Z` -> CI green -> image built and signed -> `terraform apply prod` waits for the `prod` environment approval -> `deploy-prod` waits for the same approval -> the deploy user pulls the tag, swaps the `app` service, and `/ready` returns 200 within 30 s.
 
 ## Preconditions
 
 - Pre-merge CI (`.github/workflows/ci.yml`) is green on the merge commit.
-- The merge commit is on `main`.
-- Image `ghcr.io/<owner>/budget-planner:sha-<short>` exists in GHCR and is signed (keyless cosign, GitHub OIDC).
+- The commit to release is on `main`, and the drill gate was green on the PR that merged it.
+- Pick the next SemVer `vMAJOR.MINOR.PATCH` (no pre-release suffix). Tags are immutable (tag ruleset, `github-settings.md` section 3b); a wrong tag is superseded by a new version, never moved.
+- Image `ghcr.io/<owner>/budget-planner:vX.Y.Z` exists in GHCR and is signed (keyless cosign, GitHub OIDC).
 - Operator has access to the GitHub Actions environment named `prod` and 2FA active on their GitHub account.
 - Prod host DNS (`budget-planner-prod`) still resolves to the Scaleway Flex IPv4 recorded in `terraform output prod_host_ipv4`.
 - `budget-planner-prod-pl-waw` bucket is reachable from the host (Litestream health probe green in the last 5 min).
 
 ## Procedure
 
-1. Confirm the `release.yml` run for the target commit is green up to the approval gates:
-   - `gh run list --workflow=release.yml --branch=main --limit=5`
-   - Expect `ci` and `build` to be `success` for the merge commit you intend to deploy.
+0. Cut the release (operator, from any checkout):
+   ```sh
+   gh release create vX.Y.Z --target main --title "vX.Y.Z" --generate-notes
+   ```
+   Publishing triggers `release.yml`. A draft does not. To re-run a failed release for the same tag: `gh workflow run release.yml --ref vX.Y.Z -f tag=vX.Y.Z` (the ref and the input must be the same tag).
+1. Confirm the `release.yml` run for the tag is green up to the approval gates:
+   - `gh run list --workflow=release.yml --limit=5`
+   - Expect `guard`, `ci` and `build` to be `success`. `guard` fails if the tag is not SemVer or its commit is not on `main`.
 2. Approve the `prod` environment for `tf-apply-prod` and then for `deploy-prod`. Both jobs wait on the same required-reviewer gate (`gh run approve <run-id>` or the Actions UI). This is the single human gate on prod.
-   - Re-deploying an already built SHA (e.g. after rolling back) is not a `deploy.yml` dispatch. Use `rollback.yml` with `image_sha` (see [`rollback.md`](rollback.md)).
+   - Re-deploying an already built SHA (e.g. after rolling back) is not a `deploy.yml` dispatch. Use `rollback.yml` with `target` (see [`rollback.md`](rollback.md)).
 3. Deploy job executes (CI runner, not the host):
    - Verifies the cosign signature on `ghcr.io/<owner>/budget-planner:sha-<short>`.
-   - Opens an SSH session to the `deploy` user: `ssh deploy@budget-planner-prod "deploy sha-<short>"`.
+   - Opens an SSH session to the `deploy` user: `ssh deploy@budget-planner-prod "deploy vX.Y.Z"`.
    - The on-host shim pulls the new tag, writes the previous tag to `.previous-tag`, runs `docker compose up -d app`, and probes `/ready` up to 30 times at 1 s intervals.
    - The new container's entrypoint (`/app/docker-entrypoint.sh`, ADR-0071) runs `python -m budget_planner.db.startup_migrate` before uvicorn starts. When migrations are pending it first writes a backup to `/data/backups/budget.db.pre-migrate-<NNNN>-<ts>` (newest 3 kept, none older than `backup_max_age_days - 7` = 30 d) and then applies them, each in its own transaction. It logs `event="startup_migrations"`. Nothing is written when the schema is already current. The old container is stopped before the new one starts, so there is only ever one writer.
 4. Watch the GitHub Actions step summary:
@@ -98,7 +104,7 @@ Resize to a larger type only if steady state exceeds about 700 MB or swap is use
 
 ## Troubleshooting
 
-- **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Dispatch `build.yml` on `main` for the same SHA (dispatch is `main`-only); if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
+- **`cosign verify` fails on the runner**: image was built outside the expected GitHub OIDC identity or the signature is missing. Do **not** bypass. Dispatch `build.yml` from `main` or the `v*` tag (dispatch is main-or-tag-on-main only); if the signature still fails, treat as a supply-chain red flag and rotate `GHCR_PAT` + `DEPLOY_SSH_PRIVATE_KEY` before trying again.
 - **SSH session rejected**: `deploy` user is key-restricted via `authorized_keys` with `command="/usr/local/bin/deploy-budget-planner"`. If the key does not match or `GITHUB_ACTIONS` IP is temporarily rate-limited by `fail2ban`, wait 10 min or SSH as `app` and `sudo fail2ban-client set sshd unbanip <gha-runner-ip>`.
 - **`/ready` probe fails during deploy**: the shim auto-reverts to `.previous-tag` and exits non-zero. Deploy workflow step summary shows the probe response + the last 50 log lines. Investigate before retrying; usually either a migration failure or Litestream not yet healthy.
 - **`startup_migrations_failed` in the app log**: the entrypoint exited 1 and uvicorn never started. The failing migration was rolled back in its own transaction, but earlier migrations in the same batch stay applied. Each one is N-1 compatible, so the auto-reverted previous image still runs. Fix the migration in a new release. Never edit an applied migration file, because the checksum guard rejects it.
@@ -108,7 +114,7 @@ Resize to a larger type only if steady state exceeds about 700 MB or swap is use
 ## Rollback
 
 - Auto-rollback is built into the shim — a failing `/ready` probe reverts to `.previous-tag` without manual action.
-- Manual rollback (last known-good SHA, e.g. after discovering a prod-only bug minutes after a green deploy): see [`rollback.md`](rollback.md). Shape: `gh workflow run rollback.yml --ref main -f env=prod`.
+- Manual rollback (last known-good SHA, e.g. after discovering a prod-only bug minutes after a green deploy): see [`rollback.md`](rollback.md). Shape: `gh workflow run rollback.yml --ref main -f env=prod` (optionally `-f target=vX.Y.Z`).
 
 ## Rotate the Litestream API key (yearly, before expires_at)
 
