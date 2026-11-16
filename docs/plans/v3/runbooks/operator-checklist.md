@@ -78,7 +78,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Runbook: [`drill.md`](drill.md).
 
 ### 9. Fix PR checks, push, run the first gate
-- [ ] **Where:** laptop + GitHub UI.
+- [x] **Where:** laptop + GitHub UI. Done 2026-11-16: `drill-gate` success on `ec01640` (run 43907146399), after T-D121/T-D122/T-D123.
 - Merge the T-D99 / T-D101 fixes and push v3.
 - First merge PR #3 (T-D121): `drill.yml` must exist on `main` before GitHub accepts a dispatch.
 - Run `gh workflow run drill.yml --ref v3 -f mode=gate` (no approval: the `drill` environment has no reviewer).
