@@ -71,3 +71,15 @@ def test_release_is_the_only_prod_caller() -> None:
     ]
 
     assert callers == ["release.yml"]
+
+
+def test_build_guard_lets_reusable_calls_through() -> None:
+    """T-D122: in a called workflow github.event_name/ref are the caller's, so a drill
+    gate dispatched on a branch must not be skipped. Direct dispatch stays main-only."""
+    triggers = _triggers("build.yml")
+    called = triggers["workflow_call"]["inputs"]["called"]
+    guard = _load("build.yml")["jobs"]["build-and-push"]["if"]
+
+    assert called == {"type": "boolean", "default": True, "description": called["description"]}
+    assert "called" not in (triggers["workflow_dispatch"] or {}).get("inputs", {})
+    assert guard == "inputs.called || github.ref == 'refs/heads/main'"

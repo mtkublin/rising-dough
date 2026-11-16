@@ -719,3 +719,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: job-level `permissions` on every reusable call in those three files; `tests/unit/deploy/test_reusable_permissions.py` asserts, for every workflow, that each caller grants what its local reusable workflow requests.
 - `main`'s registration copies stay stale (never run; dispatch uses `--ref v3`); v3 merged `origin/main` first so PR #2 is a plain modification, no add/add conflict.
 - Done when PR #3 is merged, the gate dispatch starts, and `drill-gate` is `success`.
+
+### ✅ T-D122 [S] `build.yml` guard skipped every branch drill gate → ADR-0099
+- First gate that started (run 43900541187, 2026-11-16): `build` skipped, so apply/smoke skipped and `drill-gate` = failure. The guard `github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'` meant "direct dispatch only from main", but in a called workflow `github.event_name`/`github.ref` are the caller's: a drill dispatched on a branch always skipped the build.
+- Fix: `workflow_call` input `called` (default true); guard `inputs.called || github.ref == 'refs/heads/main'`. Direct dispatch has no such input, so it stays main-only. Test in `tests/unit/deploy/test_build_workflow.py`.

@@ -13,6 +13,13 @@ name: build
 
 on:
   workflow_call:
+    inputs:
+      # T-D122: marks reusable calls. In a called workflow github.event_name and
+      # github.ref are the caller's, so the dispatch guard below needs this.
+      called:
+        description: Set by workflow_call (default); absent on a direct dispatch.
+        type: boolean
+        default: true
     outputs:
       image-tag:
         description: Primary immutable image tag (sha-<short>)
@@ -43,8 +50,9 @@ jobs:
     name: Build + push image
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Guard: manual dispatch only from main (ADR-0099).
-    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # Guard: a direct manual dispatch builds only from main (ADR-0099). Reusable
+    # calls (release from main, drill gates from any branch) always build (T-D122).
+    if: inputs.called || github.ref == 'refs/heads/main'
     outputs:
       image-tag: ${{ steps.image-ref.outputs.tag }}
       image-ref: ${{ steps.image-ref.outputs.ref }}
