@@ -983,3 +983,4 @@
 - **Fix(T-D123): drill VM on `DEV1-S`** (ADR-0032 amendment). Scaleway allows one STARDUST1-S per organisation and prod uses it; the gate apply failed on the quota. Prod stays on STARDUST1-S.
 - **Docs: v3 proposal decisions recorded** (2026-11-16): T-D106 next after the first release; T-D104 deferred to the next cloud-init change; T-D102, T-D105, T-D108 won't do for now.
 - **Ops(T-D107): first green drill gate** (run 43907146399, `ec01640`): build, DEV1-S apply, smoke over the tailnet with a valid `*.ts.net` certificate, teardown.
+- **Feat(T-D124): drill teardown removes the drill's tailnet node** (2026-11-16, ADR-0101): `scripts/tailnet_drill_cleanup.py` plus a `tailnet-cleanup` job after every drill destroy path deletes `budget-planner-drill[-n]` devices tagged `tag:drill` via the Tailscale API (OAuth client `budget-planner-drill-cleanup`, secrets `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET`). Failures only warn.

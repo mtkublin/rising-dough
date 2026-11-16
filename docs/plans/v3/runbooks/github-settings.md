@@ -63,11 +63,12 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
-One OAuth client, used by every environment:
+Two OAuth clients. `budget-planner-automation` is used by every environment; `budget-planner-drill-cleanup` only by the drill environments (it deletes the drill's leftover tailnet node after destroy):
 
 | Client | Scope | Tag assigned to the client | Goes to |
 |---|---|---|---|
 | `budget-planner-automation` | `auth_keys` write | `tag:automation` | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in `prod`, `prod-plan`, `drill`, `drill-teardown`, `drill-plan` |
+| `budget-planner-drill-cleanup` (T-D124) | `devices:core` write | `tag:drill` only | `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (used by the `tailnet-cleanup` jobs of `drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) and `drill` (keep in sync) |
 
 - The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).

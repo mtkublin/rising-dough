@@ -735,10 +735,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: root var `drill_instance_type` (default `DEV1-S`); prod pinned to `STARDUST1-S` in `main.tf`; compute output `server_type`; tftest runs for both envs. No prod diff.
 - The STARDUST1-S quota cannot be raised (operator, 2026-11-16): `DEV1-S` for the drill is permanent.
 
-### T-D124 [S] Drill teardown removes the drill's tailnet node → ADR-0101
+### ✅ T-D124 [S] Drill teardown removes the drill's tailnet node → ADR-0101
 - Found 2026-11-16 after the first green gate (run 43907146399): teardown destroyed the VM, but the ephemeral node `budget-planner-drill` stayed in the tailnet as offline. Ephemeral nodes are only removed after an offline period (minutes to hours). A drill started meanwhile registers as `budget-planner-drill-1`, so the `*.ts.net` certificate name and `DRILL_URL` do not match and smoke fails.
 - Operator (one-time): Tailscale admin console > Settings > OAuth clients: new client `budget-planner-drill-cleanup`, scope `devices:core` write, tag `tag:drill` only. Store as `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (teardown, sweeper) and `drill` (early destroy).
 - Code: a step after each drill destroy (drill.yml teardown, drill-destroy.yml, drill-sweeper.yml) gets an OAuth token, lists devices, and deletes every device whose hostname is `budget-planner-drill` or `budget-planner-drill-<n>` and that carries `tag:drill`. Never touches `tag:prod` or `tag:ci`. Idempotent: no device found is success. A failed delete is a warning, not a failed teardown (the VM is already gone).
 - Test: static workflow test that each destroy path has the step and filters on `tag:drill`.
-- Until done: remove the node by hand (admin console > Machines > `budget-planner-drill` > Remove) before starting the next drill.
+- Done 2026-11-16: shared `scripts/tailnet_drill_cleanup.py` + `tailnet-cleanup` job (`needs` the destroy job, `if: always()` unless destroy was skipped, environment `drill-teardown`) in all three destroy workflows; test `tests/unit/deploy/test_tailnet_drill_cleanup.py`. Until the operator creates the OAuth client and secrets the job only warns: remove the node by hand (admin console > Machines > `budget-planner-drill` > Remove) before the next drill.
 - Not chosen: `tailscale logout` from a shutdown hook on the VM (Scaleway destroy does not reliably shut down cleanly first).
