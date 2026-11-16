@@ -41,9 +41,9 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - T-D103 decided (ADR-0104): this stack now also owns the prod app identity, the drill app identity and the restore-reader. `ci-prod`/`ci-drill` have no IAMManager.
 - `terraform init`, then **import the prod IAM before the first apply** (runbook section "Import the env-stack IAM into bootstrap/ci", steps 1-3). The plan must show creates only and no change under `module.app_prod` / `module.restore_reader`.
 - Apply locally.
-- Store the local state file (holds key secrets, gitignored) in the password manager.
+- Keep the local state file (holds key secrets, gitignored) on the FileVault-encrypted laptop. Off-laptop backup optional (2026-11-16: operator skipped; recovery = re-import, `key-rotation.md`).
 - Verify the drill state bucket policy principals.
-- **Done when:** `ci-prod`, `ci-drill`, `ci-plan` keys and `module.app_drill` exist, the prod IAM is imported unchanged, the state file is in the password manager, and bucket policy principals are as intended.
+- **Done when:** `ci-prod`, `ci-drill`, `ci-plan` keys and `module.app_drill` exist, the prod IAM is imported unchanged, and bucket policy principals are as intended.
 - Runbook: [`key-rotation.md`](key-rotation.md).
 
 ### 5. GitHub environments
