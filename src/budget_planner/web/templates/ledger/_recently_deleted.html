@@ -47,7 +47,7 @@
                 </td>
                 <td class="num">
                   {% set ccy = accounts_by_id[t.account_id].currency if accounts_by_id.get(t.account_id) else '' %}
-                  <span class="numeric">{{ "{:,.2f}".format(t.amount / 100.0) }} {{ ccy }}</span>
+                  <span class="numeric">{{ t.amount|money_num(ccy) }} {{ ccy }}</span>
                 </td>
                 <td class="rd-actions">
                   <button class="rd-btn rd-btn--sm"
@@ -92,7 +92,7 @@
                 </td>
                 <td class="num">
                   {% set ccy = accounts_by_id[p.account_id].currency if accounts_by_id.get(p.account_id) else '' %}
-                  <span class="numeric">{{ "{:,.2f}".format(p.amount / 100.0) }} {{ ccy }}</span>
+                  <span class="numeric">{{ p.amount|money_num(ccy) }} {{ ccy }}</span>
                 </td>
                 <td class="rd-actions">
                   <button class="rd-btn rd-btn--sm"

@@ -25,7 +25,6 @@ class NewUserPreference:
 
     key: str
     value: str
-    user_id: int = 1
 
 
 PREF_INCOME_ANCHOR_CATEGORY_ID: Final[str] = "income_anchor_category_id"

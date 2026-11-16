@@ -1,0 +1,55 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Confirm it's you · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-auth__brand" aria-label="Rising Dough">
+    <p class="rd-auth__wordmark">Rising Dough</p>
+    <p class="rd-auth__lede">
+      One more <em>check</em> before we go on.
+    </p>
+    <p class="rd-auth__foot">Private budget planner · invited users only</p>
+  </section>
+  <section class="rd-auth__panel" aria-labelledby="reauth-heading">
+    <div class="rd-auth__card">
+      <header>
+        <div class="rd-eyebrow">Signed in as {{ current_user.email or current_user.name }}</div>
+        <h1 id="reauth-heading">Confirm it's you</h1>
+        <p class="rd-auth__status">This action changes how you or others sign in, so we ask again.</p>
+      </header>
+      {% if error %}
+        <p class="rd-auth__error"
+           role="alert"
+           id="reauth-error"
+           {% if throttled %} data-throttled{% endif %}>{{ error }}</p>
+      {% endif %}
+      {% if has_passkeys %}
+        <button type="button"
+                class="rd-btn rd-btn--primary rd-auth__submit"
+                data-passkey-reauth
+                data-next="{{ next_path }}">Confirm with passkey</button>
+        <p class="rd-auth__status"
+           data-passkey-status
+           role="status"
+           aria-live="polite"></p>
+        <div class="rd-auth__divider">or use your password</div>
+      {% endif %}
+      <form class="rd-form" method="post" action="/auth/reauth" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <label class="rd-field">
+          <span class="rd-field__label">Current password</span>
+          <input type="password"
+                 name="password"
+                 autocomplete="current-password"
+                 required
+                 {% if not has_passkeys %}autofocus{% endif %}
+                 {% if error and not throttled %}aria-describedby="reauth-error" aria-invalid="true"{% endif %}>
+        </label>
+        <button type="submit"
+                class="rd-btn {% if not has_passkeys %}rd-btn--primary{% endif %} rd-auth__submit">Confirm</button>
+      </form>
+      <p class="rd-auth__status">
+        <a href="{{ next_path }}">Cancel</a>
+      </p>
+    </div>
+  </section>
+{% endblock %}

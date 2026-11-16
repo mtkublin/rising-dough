@@ -39,8 +39,29 @@ class MissingSystemCategoryError(RuntimeError):
     """Raised when the seeded ``Reconciliation`` category cannot be found."""
 
 
+class InvalidAvailableError(ValueError):
+    """Raised when an available-credit figure is outside ``0..credit_limit``."""
+
+
+def available_to_target_balance(credit_limit_minor: int, available_minor: int) -> int:
+    """Convert bank-reported available credit to the target derived balance.
+
+    ``used = credit_limit - available``; liabilities store owed amounts as
+    negative balances, so the target balance is ``-used`` (T-D52, ADR-0011).
+    Raises ``InvalidAvailableError`` unless ``0 <= available <= credit_limit``.
+    """
+    if credit_limit_minor <= 0:
+        raise InvalidAvailableError("credit limit must be positive")
+    if available_minor < 0:
+        raise InvalidAvailableError("available credit cannot be negative")
+    if available_minor > credit_limit_minor:
+        raise InvalidAvailableError("available credit cannot exceed the credit limit")
+    return available_minor - credit_limit_minor
+
+
 def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
     conn: sqlite3.Connection,
+    user_id: int,
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,
@@ -64,33 +85,30 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
     chosen category direction so ``derive_balance`` still matches the
     actual balance.
     """
-    account = accounts_repo.find_by_id(conn, account_id, include_deleted=True)
+    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
     if account is None:
         raise AccountNotFoundError(account_id)
     if account.deleted_at is not None:
         raise CannotReconcileDeletedAccountError(account_id)
 
-    derived = balance_svc.derive_balance(conn, account_id)
+    derived = balance_svc.derive_balance(conn, user_id, account_id)
     delta = actual_balance_minor - derived
     if delta == 0:
         raise NoAdjustmentNeededError(account_id)
 
     if category_id is not None:
-        chosen = categories_repo.find_by_id(conn, category_id)
+        chosen = categories_repo.find_by_id(conn, user_id, category_id)
         if chosen is None:
             raise MissingSystemCategoryError(f"id={category_id}")
         category = chosen
     else:
-        default = categories_repo.find_by_name(conn, RECONCILIATION_CATEGORY_NAME)
+        default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
         if default is None:
             raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
         category = default
         assert category.direction is Direction.ADJUSTMENT  # schema invariant
 
-    # Preserve direction semantics (ADR-0008). The adjustment table uses the
-    # Reconciliation (direction=ADJUSTMENT) signed-amount exception. For
-    # non-system categories we store ``abs(delta)`` and rely on
-    # ``category.direction`` to drive sign in balance derivation.
+    # Preserve direction semantics (ADR-0008).
     stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
 
     description = f"auto-reconciliation {today.isoformat()}"
@@ -99,6 +117,7 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
 
     return transactions_repo.create(
         conn,
+        user_id,
         NewTransaction(
             operation_date=today,
             category_id=category.id,
@@ -114,7 +133,9 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
 __all__ = [
     "AccountNotFoundError",
     "CannotReconcileDeletedAccountError",
+    "InvalidAvailableError",
     "MissingSystemCategoryError",
     "NoAdjustmentNeededError",
+    "available_to_target_balance",
     "reconcile",
 ]

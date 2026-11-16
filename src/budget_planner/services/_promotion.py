@@ -31,18 +31,14 @@ class ValidationError(ValueError):
 
 def validate_promotion(
     conn: sqlite3.Connection,
+    user_id: int,
     *,
     direction: Direction,
     account_id: int,
     dest_account_id: int | None,
     amount: int,
 ) -> None:
-    """Raise if a promotion payload violates the shared contract.
-
-    Parameters mirror the three fields that materialise on the resulting
-    ``transactions`` row: source account, (optional) transit destination,
-    and amount. ``direction`` is read from the paired category.
-    """
+    """Raise if a promotion payload violates the shared contract."""
     if direction is Direction.ADJUSTMENT:
         raise UnsupportedDirectionError(
             "adjustment promotion is handled by the reconciliation flow"
@@ -52,8 +48,8 @@ def validate_promotion(
     if direction is Direction.TRANSIT:
         if dest_account_id is None:
             raise ValidationError("transit requires dest_account_id")
-        src = accounts_repo.find_by_id(conn, account_id)
-        dst = accounts_repo.find_by_id(conn, dest_account_id)
+        src = accounts_repo.find_by_id(conn, user_id, account_id)
+        dst = accounts_repo.find_by_id(conn, user_id, dest_account_id)
         if src is None or dst is None:  # pragma: no cover - FK blocks it
             raise ValidationError("transit source or destination account not found")
         if src.currency != dst.currency:

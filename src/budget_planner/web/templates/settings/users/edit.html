@@ -1,0 +1,55 @@
+{# T-D17 — edit form (slide-over body). Context: target (AuthUser), me_id,
+   errors, form_values, hx_enabled (HTMX attrs only
+   when opened from the roster, whose #users-table is the swap target). Re-rendered in place via HX-Retarget on 422. #}
+<form id="user-edit-form"
+      class="rd-form"
+      method="post"
+      action="/settings/users/{{ target.id }}"
+      {% if hx_enabled %}hx-post="/settings/users/{{ target.id }}" hx-target="#users-table" hx-swap="outerHTML" data-reset-on-submit{% endif %}
+      data-users-admin
+      novalidate>
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  {% if errors %}
+    {% include "settings/users/_add-errors.html" %}
+  {% endif %}
+  <label class="rd-field">
+    <span class="rd-field__label">Email</span>
+    <input type="email"
+           name="email"
+           value="{{ form_values.email }}"
+           autocomplete="off"
+           required
+           {% if errors.get('email') %}aria-invalid="true"{% endif %}>
+  </label>
+  <label class="rd-field">
+    <span class="rd-field__label">Name</span>
+    <input type="text"
+           name="name"
+           value="{{ form_values.name }}"
+           autocomplete="off"
+           maxlength="100"
+           {% if errors.get('name') %}aria-invalid="true"{% endif %}>
+  </label>
+  <div class="rd-toggle-card">
+    <label class="rd-toggle">
+      <input type="checkbox"
+             name="is_admin"
+             {% if form_values.is_admin %}checked{% endif %}>
+      <span class="rd-toggle__switch" aria-hidden="true"></span>
+      <span>
+        <span class="rd-toggle__title">Admin</span>
+        <small class="rd-toggle__hint">
+          {% if target.id == me_id %}
+            Removing your own admin rights takes effect immediately.
+          {% else %}
+            Can manage users. Still can't see their data.
+          {% endif %}
+        </small>
+      </span>
+    </label>
+  </div>
+  <div class="rd-slideover-footer">
+    <a class="rd-btn rd-btn--ghost" href="/settings/users">Cancel</a>
+    <button type="submit" class="rd-btn rd-btn--primary">Save changes</button>
+  </div>
+</form>

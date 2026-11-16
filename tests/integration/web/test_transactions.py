@@ -23,20 +23,24 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         acc2 = accounts_repo.create(
-            conn, NewAccount(name="Savings", currency="PLN", opening_balance=0)
+            conn, USER_ID, NewAccount(name="Savings", currency="PLN", opening_balance=0)
         )
         groc = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         )
         return {"acc": acc.id, "acc2": acc2.id, "groc": groc.id, "salary": salary.id}
     finally:
@@ -50,6 +54,7 @@ def _create_txn(
     try:
         txn = transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 1),
                 category_id=cat_id,
@@ -128,10 +133,10 @@ def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str
 def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        acc_pln = accounts_repo.create(conn, NewAccount(name="A", currency="PLN"))
-        acc_eur = accounts_repo.create(conn, NewAccount(name="B", currency="EUR"))
+        acc_pln = accounts_repo.create(conn, USER_ID, NewAccount(name="A", currency="PLN"))
+        acc_eur = accounts_repo.create(conn, USER_ID, NewAccount(name="B", currency="EUR"))
         cat = categories_repo.create(
-            conn, NewCategory(name="Transit X", direction=Direction.TRANSIT)
+            conn, USER_ID, NewCategory(name="Transit X", direction=Direction.TRANSIT)
         )
     finally:
         conn.close()
@@ -314,6 +319,7 @@ def visa_setup(_migrated: Settings) -> dict[str, int]:
     try:
         visa = accounts_repo.create(
             conn,
+            USER_ID,
             NewAccount(
                 name="Visa",
                 currency="PLN",
@@ -322,10 +328,14 @@ def visa_setup(_migrated: Settings) -> dict[str, int]:
             ),
         )
         asset = accounts_repo.create(
-            conn, NewAccount(name="Bank", currency="PLN", opening_balance=200_000)
+            conn, USER_ID, NewAccount(name="Bank", currency="PLN", opening_balance=200_000)
         )
-        expense = categories_repo.create(conn, NewCategory(name="X", direction=Direction.EXPENSE))
-        income = categories_repo.create(conn, NewCategory(name="Pay", direction=Direction.INCOME))
+        expense = categories_repo.create(
+            conn, USER_ID, NewCategory(name="X", direction=Direction.EXPENSE)
+        )
+        income = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Pay", direction=Direction.INCOME)
+        )
         return {
             "visa": visa.id,
             "asset": asset.id,
@@ -388,7 +398,7 @@ def test_preview_handles_adjustment_signed_amount(
 ) -> None:
     conn = get_connection(_migrated)
     try:
-        adj_cat = categories_repo.find_by_name(conn, "Reconciliation")
+        adj_cat = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
         assert adj_cat is not None
     finally:
         conn.close()

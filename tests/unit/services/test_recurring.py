@@ -29,6 +29,8 @@ from budget_planner.repositories import (
 from budget_planner.services import recurring as rec_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 
+USER_ID = 1
+
 _UTC = UTC
 
 
@@ -486,15 +488,18 @@ def test_occurrence_in_month_december_boundary() -> None:
 @pytest.fixture
 def world(conn: sqlite3.Connection) -> dict[str, int]:
     """Seed accounts + categories + a monthly rent rule starting next_due = today+."""
-    checking = accounts_repo.create(conn, NewAccount(name="Checking", currency="PLN")).id
-    savings = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN")).id
-    eur = accounts_repo.create(conn, NewAccount(name="EUR", currency="EUR")).id
-    rent = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE)).id
-    transit = categories_repo.find_by_name(conn, "Transit")
-    reconciliation = categories_repo.find_by_name(conn, "Reconciliation")
+    checking = accounts_repo.create(conn, USER_ID, NewAccount(name="Checking", currency="PLN")).id
+    savings = accounts_repo.create(conn, USER_ID, NewAccount(name="Savings", currency="PLN")).id
+    eur = accounts_repo.create(conn, USER_ID, NewAccount(name="EUR", currency="EUR")).id
+    rent = categories_repo.create(
+        conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    transit = categories_repo.find_by_name(conn, USER_ID, "Transit")
+    reconciliation = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
     assert transit is not None and reconciliation is not None
     rule = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 5),
@@ -519,16 +524,16 @@ def test_promote_happy_path_advances_next_due(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     rule_id = world["rule"]
-    before = recurring_repo.find_rule(conn, rule_id)
+    before = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert before is not None
     due = before.next_due
-    txn = rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
     assert txn.promoted_from_recurring_rule_id == rule_id
     assert txn.promoted_from_recurring_date == due
     assert txn.amount == 200_000
     assert txn.operation_date == due
 
-    after = recurring_repo.find_rule(conn, rule_id)
+    after = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert after is not None
     assert after.next_due > due
     assert after.last_promoted_date == due
@@ -536,10 +541,11 @@ def test_promote_happy_path_advances_next_due(
 
 def test_promote_overridden_amount_merges(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert rule is not None
     recurring_repo.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule_id,
             occurrence_date=rule.next_due,
@@ -548,22 +554,23 @@ def test_promote_overridden_amount_merges(conn: sqlite3.Connection, world: dict[
             description_override="rent + utilities",
         ),
     )
-    txn = rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
     assert txn.amount == 250_000
     assert txn.description == "rent + utilities"
     # ADR-0046: default list hides consumed; history retains it.
-    assert recurring_repo.list_overrides(conn, rule_id) == []
-    historical = recurring_repo.list_overrides_all(conn, rule_id)
+    assert recurring_repo.list_overrides(conn, USER_ID, rule_id) == []
+    historical = recurring_repo.list_overrides_all(conn, USER_ID, rule_id)
     assert len(historical) == 1
     assert historical[0].promoted_to_txn_id == txn.id
 
 
 def test_promote_skipped_blocks(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert rule is not None
     recurring_repo.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule_id,
             occurrence_date=rule.next_due,
@@ -571,15 +578,16 @@ def test_promote_skipped_blocks(conn: sqlite3.Connection, world: dict[str, int])
         ),
     )
     with pytest.raises(rec_svc.CannotPromoteSkippedError):
-        rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
 
 
 def test_promote_edits_override_defaults(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert rule is not None
     recurring_repo.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule_id,
             occurrence_date=rule.next_due,
@@ -589,6 +597,7 @@ def test_promote_edits_override_defaults(conn: sqlite3.Connection, world: dict[s
     )
     txn = rec_svc.promote_recurring(
         conn,
+        USER_ID,
         rule_id,
         rec_svc.PromotionEdits(amount_minor=180_000, description="edited"),
     )
@@ -601,6 +610,7 @@ def test_promote_end_of_rule_deactivates(conn: sqlite3.Connection, world: dict[s
     checking = world["checking"]
     one_off = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 5),
@@ -611,8 +621,8 @@ def test_promote_end_of_rule_deactivates(conn: sqlite3.Connection, world: dict[s
             default_description="one-off",
         ),
     )
-    rec_svc.promote_recurring(conn, one_off.id, rec_svc.PromotionEdits())
-    after = recurring_repo.find_rule(conn, one_off.id, include_deleted=True)
+    rec_svc.promote_recurring(conn, USER_ID, one_off.id, rec_svc.PromotionEdits())
+    after = recurring_repo.find_rule(conn, USER_ID, one_off.id, include_deleted=True)
     assert after is not None
     assert not after.active
 
@@ -621,6 +631,7 @@ def test_promote_zero_amount_rejected(conn: sqlite3.Connection, world: dict[str,
     with pytest.raises(ValidationError):
         rec_svc.promote_recurring(
             conn,
+            USER_ID,
             world["rule"],
             rec_svc.PromotionEdits(amount_minor=0),
         )
@@ -631,6 +642,7 @@ def test_promote_transit_cross_currency_rejected(
 ) -> None:
     transit_rule = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 5),
@@ -641,7 +653,7 @@ def test_promote_transit_cross_currency_rejected(
         ),
     )
     with pytest.raises(ValidationError):
-        rec_svc.promote_recurring(conn, transit_rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, transit_rule.id, rec_svc.PromotionEdits())
 
 
 def test_promote_adjustment_direction_unsupported(
@@ -649,6 +661,7 @@ def test_promote_adjustment_direction_unsupported(
 ) -> None:
     adj_rule = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 5),
@@ -658,24 +671,24 @@ def test_promote_adjustment_direction_unsupported(
         ),
     )
     with pytest.raises(UnsupportedDirectionError):
-        rec_svc.promote_recurring(conn, adj_rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, adj_rule.id, rec_svc.PromotionEdits())
 
 
 def test_promote_unknown_rule(conn: sqlite3.Connection) -> None:
     with pytest.raises(rec_svc.RecurringNotFoundError):
-        rec_svc.promote_recurring(conn, 9999, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, 9999, rec_svc.PromotionEdits())
 
 
 def test_promote_inactive_rule(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    recurring_repo.deactivate_rule(conn, world["rule"])
+    recurring_repo.deactivate_rule(conn, USER_ID, world["rule"])
     with pytest.raises(rec_svc.InactiveRecurringError):
-        rec_svc.promote_recurring(conn, world["rule"], rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
 
 
 def test_promote_writes_audit(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
     entries_before = len(audit_repo.list_entries(conn, "recurring_rule", rule_id))
-    rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
     entries_after = audit_repo.list_entries(conn, "recurring_rule", rule_id)
     # Promotion adds one audit entry on the rule mutation (update).
     assert len(entries_after) == entries_before + 1
@@ -686,20 +699,22 @@ def test_skip_and_advance_advances_without_promotion(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     rule_id = world["rule"]
-    before = recurring_repo.find_rule(conn, rule_id)
+    before = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert before is not None
     due = before.next_due
-    new_due = rec_svc.skip_and_advance(conn, rule_id)
+    new_due = rec_svc.skip_and_advance(conn, USER_ID, rule_id)
     assert new_due is not None
     assert new_due > due
 
-    after = recurring_repo.find_rule(conn, rule_id)
+    after = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert after is not None
     assert after.next_due == new_due
     # Skip is not a promotion: last_promoted_date must stay as it was.
     assert after.last_promoted_date == before.last_promoted_date
     # The ephemeral skip override has been removed after advancing.
-    assert all(o.occurrence_date != due for o in recurring_repo.list_overrides(conn, rule_id))
+    assert all(
+        o.occurrence_date != due for o in recurring_repo.list_overrides(conn, USER_ID, rule_id)
+    )
 
 
 def test_skip_and_advance_end_of_rule_deactivates(
@@ -709,6 +724,7 @@ def test_skip_and_advance_end_of_rule_deactivates(
     checking = world["checking"]
     one_off = recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 5),
@@ -718,33 +734,34 @@ def test_skip_and_advance_end_of_rule_deactivates(
             default_amount=100,
         ),
     )
-    out = rec_svc.skip_and_advance(conn, one_off.id)
+    out = rec_svc.skip_and_advance(conn, USER_ID, one_off.id)
     assert out is None
-    after = recurring_repo.find_rule(conn, one_off.id, include_deleted=True)
+    after = recurring_repo.find_rule(conn, USER_ID, one_off.id, include_deleted=True)
     assert after is not None
     assert not after.active
 
 
 def test_skip_and_advance_unknown_rule(conn: sqlite3.Connection) -> None:
     with pytest.raises(rec_svc.RecurringNotFoundError):
-        rec_svc.skip_and_advance(conn, 9999)
+        rec_svc.skip_and_advance(conn, USER_ID, 9999)
 
 
 def test_skip_and_advance_inactive_rule(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    recurring_repo.deactivate_rule(conn, world["rule"])
+    recurring_repo.deactivate_rule(conn, USER_ID, world["rule"])
     with pytest.raises(rec_svc.InactiveRecurringError):
-        rec_svc.skip_and_advance(conn, world["rule"])
+        rec_svc.skip_and_advance(conn, USER_ID, world["rule"])
 
 
 def test_promote_date_override_shifts_operation_date(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     rule_id = world["rule"]
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert rule is not None
     shifted = rule.next_due + _dt_module.timedelta(days=3)
     recurring_repo.upsert_override(
         conn,
+        USER_ID,
         NewRecurringOverride(
             rule_id=rule_id,
             occurrence_date=rule.next_due,
@@ -752,7 +769,7 @@ def test_promote_date_override_shifts_operation_date(
             date_override=shifted,
         ),
     )
-    txn = rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
     assert txn.operation_date == shifted
     # Provenance keeps the canonical occurrence date for dedup.
     assert txn.promoted_from_recurring_date == rule.next_due
@@ -763,8 +780,8 @@ def test_promote_rollback_on_set_next_due_failure(
 ) -> None:
     rule_id = world["rule"]
     empty = TransactionFilter()
-    txns_before = len(transactions_repo.list_filtered(conn, empty))
-    before = recurring_repo.find_rule(conn, rule_id)
+    txns_before = len(transactions_repo.list_filtered(conn, USER_ID, empty))
+    before = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert before is not None
 
     def _boom(*args: object, **kwargs: object) -> None:
@@ -772,10 +789,10 @@ def test_promote_rollback_on_set_next_due_failure(
 
     monkeypatch.setattr("budget_planner.repositories.recurring.set_next_due", _boom)
     with pytest.raises(RuntimeError):
-        rec_svc.promote_recurring(conn, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
 
-    txns_after = len(transactions_repo.list_filtered(conn, empty))
+    txns_after = len(transactions_repo.list_filtered(conn, USER_ID, empty))
     assert txns_after == txns_before
-    after = recurring_repo.find_rule(conn, rule_id)
+    after = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert after is not None
     assert after.next_due == before.next_due

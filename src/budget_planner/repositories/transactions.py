@@ -1,4 +1,11 @@
-"""Transaction repository — pure CRUD + rich filter support."""
+"""Transaction repository — pure CRUD + rich filter support.
+
+## User-scoping discipline (T-D16 / ADR-0061 §5)
+
+Every function takes ``user_id`` as the first positional arg after ``conn``;
+every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
+``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,7 @@ from budget_planner.domain.transactions import (
     Transaction,
     TransactionFilter,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
+from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -47,14 +54,15 @@ def _row_to_txn(row: sqlite3.Row) -> Transaction:
 
 def find_by_id(
     conn: sqlite3.Connection,
+    user_id: int,
     txn_id: int,
     *,
     include_deleted: bool = False,
 ) -> Transaction | None:
-    sql = f"SELECT {_COLUMNS} FROM transactions WHERE id = ?"
+    sql = f"SELECT {_COLUMNS} FROM transactions WHERE id = ? AND user_id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (txn_id,)).fetchone()
+    row = conn.execute(sql, (txn_id, user_id)).fetchone()
     return _row_to_txn(row) if row is not None else None
 
 
@@ -105,15 +113,20 @@ def _append_filter_clauses(
 
 def list_filtered(
     conn: sqlite3.Connection,
+    user_id: int,
     filters: TransactionFilter,
     *,
     include_deleted: bool = False,
 ) -> list[Transaction]:
     cols = ", ".join(f"t.{c}" for c in _COLUMNS.split(", "))
-    sql = f"SELECT {cols} FROM transactions t JOIN categories c ON c.id = t.category_id"
+    sql = (
+        f"SELECT {cols} FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id"
+    )
     clauses, params = _append_filter_clauses(filters, include_deleted)
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
+    clauses.insert(0, "t.user_id = ?")
+    params.insert(0, user_id)
+    sql += " WHERE " + " AND ".join(clauses)
     direction = "DESC" if filters.order_desc else "ASC"
     sql += f" ORDER BY t.operation_date {direction}, t.id {direction}"
     if filters.limit is not None:
@@ -133,7 +146,14 @@ def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
     return norm
 
 
-def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
+def create(conn: sqlite3.Connection, user_id: int, data: NewTransaction) -> Transaction:
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    )
+
     def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
         cursor = c.execute(
             "INSERT INTO transactions("
@@ -142,7 +162,7 @@ def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
             "promoted_from_recurring_rule_id, promoted_from_recurring_date) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                data.user_id,
+                user_id,
                 data.operation_date.isoformat(),
                 data.category_id,
                 data.account_id,
@@ -159,7 +179,7 @@ def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
             ),
         )
         new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, new_id)
+        created = find_by_id(c, user_id, new_id)
         assert created is not None
         return new_id, created
 
@@ -174,12 +194,19 @@ def create(conn: sqlite3.Connection, data: NewTransaction) -> Transaction:
 
 def update(
     conn: sqlite3.Connection,
+    user_id: int,
     txn_id: int,
     data: PatchTransaction,
 ) -> Transaction:
-    prev = find_by_id(conn, txn_id, include_deleted=True)
+    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"transaction {txn_id} not found")
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    )
     changes = _normalise_patch(data.as_dict())
 
     def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
@@ -187,10 +214,10 @@ def update(
             sets = [f"{field} = ?" for field in changes]
             sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
             c.execute(
-                f"UPDATE transactions SET {', '.join(sets)} WHERE id = ?",
-                (*changes.values(), txn_id),
+                f"UPDATE transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+                (*changes.values(), txn_id, user_id),
             )
-        updated = find_by_id(c, txn_id, include_deleted=True)
+        updated = find_by_id(c, user_id, txn_id, include_deleted=True)
         assert updated is not None
         return txn_id, updated
 
@@ -203,8 +230,8 @@ def update(
     )
 
 
-def soft_delete(conn: sqlite3.Connection, txn_id: int) -> None:
-    prev = find_by_id(conn, txn_id)
+def soft_delete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> None:
+    prev = find_by_id(conn, user_id, txn_id)
     if prev is None:
         return
 
@@ -212,8 +239,8 @@ def soft_delete(conn: sqlite3.Connection, txn_id: int) -> None:
         c.execute(
             "UPDATE transactions SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND deleted_at IS NULL",
-            (txn_id,),
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (txn_id, user_id),
         )
         return txn_id, None
 
@@ -227,22 +254,22 @@ def soft_delete(conn: sqlite3.Connection, txn_id: int) -> None:
 
 
 def list_recently_deleted(
-    conn: sqlite3.Connection, *, days: int = 90, limit: int = 500
+    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[Transaction]:
     """T-R70 — soft-deleted transactions within the last `days` days (ADR-0019)."""
     sql = (
         f"SELECT {_COLUMNS} FROM transactions "
-        "WHERE deleted_at IS NOT NULL "
+        "WHERE user_id = ? AND deleted_at IS NOT NULL "
         "AND deleted_at > datetime('now', ?) "
         "ORDER BY deleted_at DESC "
         "LIMIT ?"
     )
-    rows = conn.execute(sql, (f"-{days} days", limit)).fetchall()
+    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
     return [_row_to_txn(r) for r in rows]
 
 
-def undelete(conn: sqlite3.Connection, txn_id: int) -> Transaction:
-    prev = find_by_id(conn, txn_id, include_deleted=True)
+def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction:
+    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
     if prev is None:
         raise LookupError(f"transaction {txn_id} not found")
 
@@ -250,10 +277,10 @@ def undelete(conn: sqlite3.Connection, txn_id: int) -> Transaction:
         c.execute(
             "UPDATE transactions SET deleted_at = NULL, "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (txn_id,),
+            "WHERE id = ? AND user_id = ?",
+            (txn_id, user_id),
         )
-        restored = find_by_id(c, txn_id)
+        restored = find_by_id(c, user_id, txn_id)
         assert restored is not None
         return txn_id, restored
 

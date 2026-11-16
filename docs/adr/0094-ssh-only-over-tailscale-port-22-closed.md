@@ -1,0 +1,104 @@
+# ADR-0094: SSH Only Over Tailscale; Port 22 Closed to the Internet
+
+- **Status**: Accepted
+- **Date**: 2026-11-06
+- **Amends**: [ADR-0035](0035-v3-infrastructure-as-code-terraform.md) (security group `22/80/443`, firewall step), [ADR-0032](0032-v3-remote-deployment-scaleway-stardust-warsaw.md)
+- **Related**: [ADR-0037](0037-v3-github-actions-deploy-pipeline.md) (deploy SSH), [ADR-0069](0069-admin-bootstrap-env-policy-and-operator-cli.md) (secret-file pattern), [ADR-0088](0088-dns-zone-not-owned-by-env-state.md) (tailnet-global resource not owned by env state), T-D67
+
+## Context
+
+1. Inbound TCP 22 was open to `0.0.0.0/0` on the security group and in `ufw` (all interfaces). Even with key-only auth this exposes sshd to scanners, `fail2ban` noise and any future sshd CVE.
+2. The app itself must stay public on 80/443 (TCP) and 443 (UDP, HTTP/3) through Caddy. Only admin/CI traffic (operator SSH, GitHub Actions deploy/rollback/restore-drill) needs a private path.
+3. Operator decision (2026-11-06): use Tailscale (Personal plan, free) for SSH/admin only. App users never need Tailscale.
+4. The tailnet ACL is tailnet-global. If both the `drill` and `prod` Terraform states managed it, they would fight over one object (the same trap as the DNS zone, ADR-0088).
+
+## Decision
+
+1. **Security group** (`modules/compute`): remove inbound TCP 22. Keep default-drop inbound plus 80/tcp, 443/tcp, 443/udp. Inbound UDP 41641 (Tailscale direct path) is deliberately **not** opened: Tailscale works outbound-only through NAT traversal and DERP relays (outbound policy is `accept`), and a direct path is only a latency optimisation for an admin shell. Fewer open ports wins.
+2. **Host firewall** (amended by T-D71): `ufw allow in on tailscale0 to any port 22 proto tcp` replaces `ufw allow 22/tcp`, so host SSH is reachable only on the Tailscale interface (defence in depth behind the security group). Rules by interface name are valid before `tailscale0` exists; `ufw --force enable` runs after them. Break-glass (item 7) now also needs a temporary `ufw allow 22/tcp` on the host, which has no console login, so break-glass is effectively limited to hosts already reachable by other means; accepted trade-off.
+3. **VM join** (Terraform + cloud-init):
+   - Root module configures the `tailscale/tailscale` provider with an OAuth client (`tailscale_oauth_client_id` / `tailscale_oauth_client_secret`, sensitive, supplied via `TF_VAR_*`; `scopes = ["auth_keys"]`). `tailnet` is omitted: per provider docs it defaults to the tailnet owning the credentials.
+   - `tailscale_tailnet_key.vm`: `preauthorized = true`, `reusable = false`, `tags = ["tag:<env>"]`, `ephemeral = (env == "drill")`, `expiry = 3600`. Prod stays a normal (non-ephemeral) node; drill nodes are removed from the tailnet automatically after they go offline, so the monthly destroy leaves nothing behind.
+   - The key is passed to cloud-init as a sensitive input and written to `/run/tailscale-authkey` (tmpfs, `0600 root`, ADR-0069 secret-file pattern). `tailscale up --auth-key=file:/run/tailscale-authkey --hostname=budget-planner-<env> --advertise-tags=tag:<env> --accept-dns=false` reads it from the file (`file:` prefix supported by the CLI), and the same `runcmd` removes it afterwards. The key is single-use and expires in 1 h, so the copy that remains in cloud-init `user-data` (like every other secret rendered there) is inert after first boot.
+   - Tailscale is installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu`, `noble`). **No Tailscale SSH**: normal sshd stays, key-only, users `operator` and the restricted `deploy` are unchanged.
+   - Output `tailscale_hostname` (`budget-planner-<env>`, the MagicDNS name). No `tailscale_device` data lookup: the name is deterministic.
+4. **ACL not managed in env state.** The intended policy is committed as `docs/plans/v3/runbooks/tailscale-acl.hujson` and pasted by the operator in the admin console (runbook `tailscale-ssh.md`). It defines `tagOwners` for `tag:prod`, `tag:drill`, `tag:ci` and allows only: operator's own devices to `tag:prod,tag:drill` on 22, and `tag:ci` to `tag:prod,tag:drill` on 22.
+5. **CI**: `deploy.yml`, `rollback.yml`, `restore-drill.yml` add `tailscale/github-action` (pinned to a commit SHA) with `oauth-client-id`, `oauth-secret`, `tags: tag:ci` before the first SSH. `DRILL_HOST` / `PROD_HOST` secrets (deploy, rollback) now hold the tailnet names `budget-planner-drill` / `budget-planner-prod`. In `restore-drill.yml`, public `DRILL_HOST` stays for the HTTPS `/ready` probe and a new `DRILL_SSH_HOST=budget-planner-drill` is used for SSH. The drill host joins the tailnet during apply, so a bounded wait (60 x 10 s) polls `ssh-keyscan` until the name answers on 22, and records the host keys. `terraform.yml` plan jobs also receive `TF_VAR_tailscale_oauth_*` because the variables are required.
+6. **Host keys over the tailnet.** `known_hosts` entries are produced with `ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-<env>` from a device on the tailnet. The peer is authenticated by its WireGuard node key and ACL, so this is not an internet trust-on-first-use. Prod: run once from the operator laptop and store the output as `DEPLOY_SSH_KNOWN_HOSTS`. Drill: scanned at runtime (a new host key every run).
+7. **Break-glass** (Tailscale outage, expired/lost OAuth client, broken `tailscaled`): temporarily add a port-22 inbound rule for the operator's current IP to the VM security group with `scw` (exact commands in the runbook), SSH as `operator` with the existing key, fix Tailscale, then remove the rule. The Scaleway serial console is not a login path (passwords are locked) but shows boot/cloud-init output for diagnosis. Last resort: `terraform apply -replace` the VM and restore from Litestream (disaster-recovery runbook).
+
+## Evidence (verified 2026-11-06)
+
+- `tailscale/terraform-provider-tailscale` v0.29.3 (`docs/index.md`): provider args `oauth_client_id`, `oauth_client_secret` (sensitive), `scopes`, `tailnet` (optional, defaults to the credentials' tailnet). `docs/resources/tailnet_key.md`: args `reusable`, `ephemeral`, `preauthorized`, `expiry` (seconds), `tags`, `description`; read-only sensitive `key`. Constraint `~> 0.29`.
+- `tailscale/github-action` v4.4.0 = commit `064b10558093f38325e838ddea35486bdc6b1d5c` (`action.yml`): inputs `oauth-client-id`, `oauth-secret`, `tags` (OAuth client needs `auth_keys` scope and must own the tags), `ping`, `timeout`, `retry`; the `post:` step logs the node out. <!-- pragma: allowlist secret -->
+- Tailscale CLI source (`cmd/tailscale/cli/up.go`): `--auth-key`: "if it begins with `file:`, then it's a path to a file containing the authkey".
+- `pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg` and `noble.tailscale-keyring.list` exist (HTTP 200).
+- `terraform validate` on Terraform 1.17.1 with the provider downloaded: valid.
+
+## Consequences
+
+- sshd is invisible to the internet; the only public surface is Caddy on 80/443.
+- Operator and CI need Tailscale. Admin access depends on the Tailscale control plane and DERP availability (break-glass above).
+- Tailscale becomes a new trust dependency: the OAuth client (scope `auth_keys`, tags only) can mint node keys but cannot read or write the ACL. Treat `TS_OAUTH_SECRET` like `DEPLOY_SSH_PRIVATE_KEY`.
+- Hostname collision risk: if a destroyed ephemeral drill node has not yet been garbage-collected, a new `budget-planner-drill` registers as `budget-planner-drill-1`; the bounded wait would then time out or reach the stale entry and fail safely (destroy still runs, T-D66). Re-run later.
+- Optional hardening (operator choice): Tailnet Lock.
+- `DEPLOY_SSH_KNOWN_HOSTS_DRILL` is obsolete.
+
+## Amendment (2026-11-06): OAuth client owns `tag:automation`, which owns the minted tags
+
+**Problem.** The OAuth client was created with tags `tag:prod`, `tag:drill`, `tag:ci`, and `tagOwners` listed only the operator's email. Tailscale checks an auth-key request against the OAuth client's own tags and its `tagOwners` chain. Every single-tag key request failed with `requested tags [tag:drill] are invalid or not permitted (400)`. This broke `terraform apply` (`tailscale_tailnet_key`) and would have broken `tailscale/github-action` with `tags: tag:ci`.
+
+**Fix (applied in the Tailscale console, verified against the API).**
+- The OAuth client carries only `tag:automation`, scope Auth Keys: write.
+- `tag:automation` is ownership-only; no device carries it.
+- `tagOwners` is the owner chain:
+
+```
+"tag:automation": ["<operator email>"],
+"tag:prod":  ["<operator email>", "tag:automation"],
+"tag:drill": ["<operator email>", "tag:automation"],
+"tag:ci":    ["<operator email>", "tag:automation"],
+```
+
+The `acls` rules, the Terraform code and the workflows are unchanged. Decision item 4 above describes the tag set as it stood before this amendment. The ACL file (`runbooks/tailscale-acl.hujson`), checklist A9 and runbook `tailscale-ssh.md` now reflect the owner-tag pattern. The security consequence in Consequences is unchanged: the OAuth client still cannot read or write the ACL.
+
+## Amendment (2026-11-07): break-glass implemented as drill-only `break_glass_ssh_cidrs`; prod forbidden by validation
+
+**Problem.** The first drill VM applied cloud-init (hostname set) but never joined the tailnet and ports 80/443 stayed closed for 18+ minutes. With no port 22 and ufw limited to `tailscale0`, the failed boot could not be debugged.
+
+**Decision (T-D81).**
+- New root variable `break_glass_ssh_cidrs` (`list(string)`, default `[]`). Validation: every entry is a valid CIDR, and the list must be empty unless `env = "drill"` (`break_glass_ssh_cidrs is drill-only`). Prod cannot open public SSH through Terraform.
+- Per CIDR: one inbound TCP 22 accept rule on the security group (`dynamic` block, `ip_range`, IPv4 and IPv6) and one `ufw allow from <cidr> to any port 22 proto tcp` in cloud-init. Empty list renders exactly the previous security group and user-data.
+- The firewall block (defaults, rules, `ufw --force enable`) now runs first in `runcmd`, before the Tailscale install and join, so break-glass works even if Tailscale fails or hangs. `tailscale up` is wrapped in `timeout 120`.
+- sshd keeps its default (all interfaces); nothing binds it to `tailscale0`. The `operator` user and key work over the public IP.
+- Supersedes the manual `scw` rule procedure in item 7 for the drill; the runbook documents the Terraform path. The variable is temporary: apply without it to close port 22.
+
+## Amendment (2026-11-07): drill-only serial-console password for `operator`; `docker` group created before `users`
+
+**Problem.** In the 2026-11-07 drill the VM booted with break-glass SSH (T-D81). Port 22 opened about 20 s after boot, but `operator` and `deploy` both got `Permission denied (publickey)` for 4 minutes; then sshd stopped listening. The VM never joined the tailnet. The Scaleway serial console only showed `login:` and every user is `lock_passwd: true`, so the boot could not be inspected. Separately, `operator` has `groups: [sudo, docker]`, but the `docker` group only exists after the `docker.io` package installs (packages stage), so `useradd -G sudo,docker` can fail in the init stage and the user is never created (cloud-init version dependent).
+
+**Decision (T-D84).**
+- New root variable `break_glass_console_password` (`bool`, default `false`). Validation: must be `false` unless `env = "drill"` (`break_glass_console_password is drill-only`). Prod cannot enable it through Terraform.
+- `random_password.console` (`count` 0 or 1, length 24, `special = false` so it is easy to type in the web console). Sensitive root output `console_password` (null when disabled); read with `terraform output -raw console_password`.
+- Only the bcrypt hash enters user-data: `random_password.console[0].bcrypt_hash` is passed through the new sensitive compute variable `console_password_hash` into the template, which sets `lock_passwd: false` and `hashed_passwd: '<hash>'` for `operator` only (init stage, earliest possible). The plaintext never enters user-data. When disabled the rendered `operator` user is unchanged (`lock_passwd: true`, no `hashed_passwd`).
+- `bcrypt_hash` exists in hashicorp/random 3.9.1 (pinned `~> 3.6` in `versions.tf`). Ubuntu 24.04 uses libxcrypt, which supports `$2a$`/`$2b$`/`$2y$` bcrypt hashes in `/etc/shadow` (`yescrypt` is only the default for new hashes), so PAM and `login` on the serial console accept it.
+- SSH password login stays disabled: the template now sets `ssh_pwauth: false` explicitly. The password works on the console only.
+- `docker` group fix: a top-level cloud-init `groups: [docker]` key. `cc_users_groups` creates groups before users; the later `docker.io` install reuses the existing group. Users are otherwise unchanged.
+- The variable is temporary. Disable by applying without it and `-replace` of the server (ADR-0098: user-data changes do not re-run on an in-place update). Runbook: `tailscale-ssh.md`.
+
+## Amendment 2026-11-07 (T-D86): boot log upload
+
+**Problem.** The drill VM's first boot stalls in cloud-init's init stage (hostname set, users never created; no SSH, no console login). Without rescue mode there is no way to read logs. `bootcmd` is known to run on these boots.
+
+**Decision (T-D86).**
+- New root variable `boot_log_upload` (`bool`, default `false`). Validation: must be `false` unless `env = "drill"` (`boot_log_upload is drill-only`). Passed to the compute module and the template.
+- When enabled, `bootcmd` writes an uploader script and a 0600 root-only env file (bucket write credential already rendered for Litestream, bucket name, region; no new secrets) under `/run` (tmpfs) itself, because `write_files` runs after `bootcmd`. It then starts the script detached (`nohup setsid ... &`; the whole step is wrapped in `|| true`, no `set -e`).
+- The script snapshots every 30 s for 60 min, then every 5 min for 2 h, then exits: `cloud-init.log`, `cloud-init-output.log`, `journalctl -b`, `dmesg`, `cloud-init status --long`, `ps auxf`, `free -m`. Each is piped through a `sed` that redacts `tskey-...`, `AGE-SECRET-KEY-1...` and values of keys containing PASSWORD/SECRET/TOKEN/_KEY. Upload uses `curl --aws-sigv4` (curl 8.5 on Ubuntu 24.04, no apt needed) to `s3://<drill bucket>/boot-logs/<instance-id>/<boot-id>/<file>`. Instance id comes from the Scaleway metadata service, falling back to the hostname.
+- The storage module gets a lifecycle rule expiring prefix `boot-logs/` after 7 days, created only when `expire_boot_logs` is true (`env == "drill"`), so the prod bucket is unchanged.
+- Disabled renders nothing (no `boot-log` text in user-data). Temporary: apply without the variable and `-replace` the server (ADR-0098). Runbook: `tailscale-ssh.md`.
+
+## Amendment (2026-11-07, T-D87): init-stage ordering
+
+Two init-stage failures (cloud-init 26.2, Ubuntu 24.04) broke every first boot. (1) `write_files` runs before `users_groups` and before `docker.io` installs, so `owner: root:docker` raised `KeyError: getgrnam(): name not found: 'docker'`, aborting the whole module and dropping every later file (Caddyfile, litestream config, deploy script); runcmd then failed with `docker compose` "no configuration file provided". (2) `useradd operator` failed (exit 9) because Ubuntu ships a system group `operator` (gid 37), so the user was never created.
+
+Rules: any `write_files` entry owned by a non-root user or group must set `defer: true` (written by `write_files_deferred` in the final stage, after packages and before `scripts_user` runs runcmd). Any `users[]` entry named like a stock Ubuntu system group must set `no_user_group: true` (or `primary_group`). The `operator` name is kept (workflows SSH as `operator@`). Enforced by `tests/unit/deploy/test_cloud_init_ordering.py`. Related first-boot sequence: ADR-0035.

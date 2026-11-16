@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner.config import Settings
 from budget_planner.services import forecast as forecast_service
 from budget_planner.web import charts
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
@@ -41,13 +41,14 @@ def _parse_horizon_months(request: Request) -> int:
 
 def _compute(
     conn: sqlite3.Connection,
+    user_id: int,
     settings: Settings,
     horizon_months: int,
 ) -> forecast_service.MonthlySeries:
     today = date.today()  # noqa: DTZ011
     with httpx.Client(timeout=5.0) as client:
         return forecast_service.forecast_monthly(
-            conn, client, today, horizon_months, settings.base_currency
+            conn, user_id, client, today, horizon_months, settings.base_currency
         )
 
 
@@ -65,9 +66,10 @@ def index(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, settings, horizon_months)
+    monthly = _compute(conn, user_id, settings, horizon_months)
     chart = _series_to_chart(monthly)
     return render(
         request,
@@ -83,9 +85,10 @@ def view_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, settings, horizon_months)
+    monthly = _compute(conn, user_id, settings, horizon_months)
     chart = _series_to_chart(monthly)
     return render(
         request,

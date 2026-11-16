@@ -11,6 +11,7 @@
       hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
       hx-swap="none"
       data-override-form
+      {% if inline is defined and inline %}data-override-inline{% endif %}
       data-reset-on-submit>
   {% if category %}
     <div class="rd-override__title">{{ category_label(category) if category_label is defined else category.name }}</div>
@@ -39,10 +40,13 @@
                inputmode="decimal"
                data-numeric
                placeholder="0.00"
-               autofocus
+               {% if inline is not defined or not inline %}autofocus{% endif %}
                required>
         <span class="cur">{{ base_ccy }}</span>
       </span>
+      {% if inline is defined and inline %}
+        <button type="button" class="rd-btn rd-btn--ghost" data-override-cancel>Cancel</button>
+      {% endif %}
       <button type="submit" class="rd-btn rd-btn--primary">Save ↵</button>
     </div>
     {% if default_amount_minor is defined and default_amount_minor %}

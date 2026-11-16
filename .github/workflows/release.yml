@@ -1,0 +1,53 @@
+# Prod release pipeline (ADR-0099) — the ONLY path to production.
+#
+#   ci -> build -> tf-apply-prod -> deploy-prod (smoke /ready inside deploy)
+#
+# Runs on push to main. Terraform apply and deploy run in the GitHub
+# environment `prod` (required reviewers). The image tag produced by `build`
+# is passed to terraform (-var app_image_tag) and to deploy. No drill stage
+# here: drill is validated pre-merge (T-D90).
+
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  deployments: write
+  pull-requests: write
+
+concurrency:
+  group: release-prod
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit  # pragma: allowlist secret
+
+  build:
+    needs: ci
+    uses: ./.github/workflows/build.yml
+    secrets: inherit  # pragma: allowlist secret
+
+  tf-apply-prod:
+    needs: build
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: prod
+      image_tag: ${{ needs.build.outputs.image-tag }}
+    secrets: inherit  # pragma: allowlist secret
+
+  deploy-prod:
+    needs: [build, tf-apply-prod]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      env: prod
+      image_tag: ${{ needs.build.outputs.image-tag }}
+    secrets: inherit  # pragma: allowlist secret

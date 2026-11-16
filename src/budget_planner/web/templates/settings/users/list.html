@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{# T-D17 — admin-only user roster (ADR-0061 §4, ADR-0073). #}
+{% block title %}Users · Settings · Rising Dough{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet"
+        href="{{ url_for('static', path='settings-users.css') }}?v=tD17">
+{% endblock %}
+{% block main %}
+  <div class="rd-users" data-users-admin>
+    <header class="rd-screen-header">
+      <div class="rd-screen-header__title">
+        <div class="rd-eyebrow">Settings · Admin</div>
+        <h1>Users</h1>
+      </div>
+      <div class="rd-screen-header__actions">
+        <a class="rd-btn rd-btn--primary" href="#user-add">+ Add user</a>
+      </div>
+    </header>
+    {% include "settings/_tabs.html" %}
+    <section id="panel-users"
+             role="tabpanel"
+             aria-labelledby="tab-users"
+             class="rd-users__body">
+      <div id="user-feedback" class="rd-users__feedback" aria-live="polite">
+        {% if toast %}
+          {% include "settings/users/_password-toast.html" %}
+        {% endif %}
+      </div>
+      <div class="rd-users__grid">
+        <section id="user-add"
+                 class="rd-panel rd-users__add"
+                 aria-labelledby="add-heading">
+          <div class="rd-panel__head">
+            <div>
+              <h2 id="add-heading" class="rd-panel__title">Add a user</h2>
+              <p>We generate a password and show it to you once. They change it at first sign-in.</p>
+            </div>
+          </div>
+          <form class="rd-form"
+                method="post"
+                action="/settings/users"
+                hx-post="/settings/users"
+                hx-target="#user-feedback"
+                hx-swap="innerHTML"
+                data-reset-on-submit
+                novalidate>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            {% if form_errors %}
+              {% set errors = form_errors %}
+              {% include "settings/users/_add-errors.html" %}
+            {% endif %}
+            <label class="rd-field">
+              <span class="rd-field__label">Email</span>
+              <input type="email"
+                     name="email"
+                     value="{{ form_values.get('email', '') }}"
+                     autocomplete="off"
+                     required
+                     {% if form_errors.get('email') %}aria-invalid="true"{% endif %}>
+            </label>
+            <label class="rd-field">
+              <span class="rd-field__label">Name</span>
+              <input type="text"
+                     name="name"
+                     value="{{ form_values.get('name', '') }}"
+                     autocomplete="off"
+                     maxlength="100"
+                     placeholder="Defaults to the part before @">
+            </label>
+            <div class="rd-toggle-card">
+              <label class="rd-toggle">
+                <input type="checkbox"
+                       name="is_admin"
+                       {% if form_values.get('is_admin') %}checked{% endif %}>
+                <span class="rd-toggle__switch" aria-hidden="true"></span>
+                <span>
+                  <span class="rd-toggle__title">Admin</span>
+                  <small class="rd-toggle__hint">Can manage users. Still can't see their data.</small>
+                </span>
+              </label>
+            </div>
+            <button type="submit" class="rd-btn rd-btn--primary rd-users__submit">Create user</button>
+          </form>
+        </section>
+        <section class="rd-panel rd-users__roster" aria-labelledby="roster-heading">
+          <div class="rd-panel__head">
+            <div>
+              <h2 id="roster-heading" class="rd-panel__title">People with access</h2>
+              <p>
+                {{ users|length }} live {{ 'account' if users|length == 1 else 'accounts' }}. You manage the roster; you can't see anyone else's data.
+              </p>
+            </div>
+          </div>
+          {% include "settings/users/_table.html" %}
+        </section>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', path='js/users-admin.js') }}?v=tD17" defer></script>
+{% endblock %}

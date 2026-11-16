@@ -1,0 +1,419 @@
+/* Ledger: planned, recurring, recently deleted */
+.rd-ledger--sched {
+  --ledger-cols: var(--track-due) minmax(var(--track-min-md), 2fr) minmax(var(--track-min-sm), 1.2fr) var(--track-amount-sched) var(--track-actions) var(--track-actions);
+}
+
+/*
+ * Phone: three lines, the right edge holds amount, row menu and the row's main action.
+ *   title ………………………… amount ⋮
+ *   [CHIP] account
+ *   due · status ……………… [promote] / ▸
+ * The row's ::before / ::after are zero-width line breaks in the wrapping flex row.
+ */
+.rd-row.rd-row--sched {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}
+
+.rd-row--sched::before,
+.rd-row--sched::after {
+  content: "";
+  flex: 0 0 100%;
+  height: var(--space-1-5);
+}
+
+.rd-row--sched::before {
+  order: 4;
+}
+
+.rd-row--sched::after {
+  order: 7;
+}
+
+.rd-row--sched .rd-row__title {
+  order: 1;
+  flex: 1 1 0;
+}
+
+.rd-row--sched > .rd-row__amount {
+  order: 2;
+  flex: none;
+  align-self: center;
+}
+
+.rd-row--sched > .rd-row__actions {
+  display: contents;
+}
+
+.rd-row--sched [data-js="row-menu"] {
+  order: 3;
+  flex: none;
+}
+
+.rd-row--sched > .rd-row__cat {
+  order: 5;
+  flex: none;
+  max-width: 100%;
+}
+
+.rd-row--sched .rd-row__sub {
+  order: 6;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rd-sched__due {
+  order: 8;
+  flex: none;
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-sched__due .rd-row__sub {
+  display: block;
+  letter-spacing: normal;
+}
+
+.rd-sched__status {
+  order: 9;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--font-size-data);
+}
+
+.rd-row--sched .rd-row__actions > .rd-btn:not(.rd-btn--icon),
+.rd-row--sched .rd-expand {
+  order: 10;
+  flex: none;
+}
+
+.rd-formula-mark {
+  margin-inline-start: var(--space-1);
+  font-size: var(--font-size-data);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-ink-muted);
+  text-decoration: none;
+}
+
+.rd-ovr-badge {
+  display: inline-flex;
+  padding: var(--space-micro) var(--space-2-5);
+  border: var(--border-width) solid color-mix(in srgb, var(--color-ink-muted) 60%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-ink-muted) 20%, transparent);
+  font-size: var(--font-size-caption);
+}
+
+.rd-expand::before {
+  content: "▸";
+  font-size: var(--font-size-heading);
+}
+
+.rd-expand[aria-expanded="true"]::before {
+  content: "▾";
+}
+
+.rd-expand-spacer {
+  display: none;
+  order: 10;
+  width: var(--size-control);
+}
+
+.rd-row--cadence {
+  padding: var(--space-3) 0 var(--space-2);
+}
+
+/* Expanded detail row: formula and/or overrides */
+.rd-detail {
+  display: block;
+}
+
+.rd-detail[hidden] {
+  display: none;
+}
+
+.rd-detail > td {
+  display: block;
+  padding: var(--space-2) 0 var(--space-4);
+}
+
+.rd-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.rd-detail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-menu);
+  background: var(--color-raised);
+  min-width: 0;
+}
+
+.rd-detail__panel > .rd-caption {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--letter-spacing-caption);
+}
+
+.rd-ovr__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rd-ovr__item > :first-child {
+  white-space: nowrap;
+}
+
+.rd-ovr__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto var(--track-icon);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-control);
+  border-top: var(--border-width) solid var(--color-rule);
+  font-size: var(--font-size-body);
+}
+
+.rd-ovr__item .rd-btn--icon {
+  font-size: var(--font-size-heading);
+}
+
+.rd-ovr__amount {
+  text-align: end;
+}
+
+.rd-ovr__delta {
+  text-align: end;
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-formula__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-control-sm);
+  font-size: var(--font-size-heading);
+}
+
+.rd-formula__sign {
+  width: var(--space-4);
+  text-align: center;
+}
+
+.rd-formula__of {
+  font-size: var(--font-size-data);
+}
+
+.rd-formula__next {
+  font-size: var(--font-size-body);
+}
+
+/* Recently deleted */
+.rd-deleted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rd-deleted__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-title-sm);
+  line-height: var(--line-height-title-sm);
+}
+
+.rd-deleted__count {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-body);
+  letter-spacing: normal;
+  color: var(--color-ink-muted);
+}
+
+.rd-empty-inline {
+  padding: var(--space-5);
+  border: var(--border-width) dashed var(--color-rule);
+  border-radius: var(--radius-menu);
+  font-size: var(--font-size-body);
+  color: var(--color-ink-muted);
+}
+
+.rd-hero__note--band {
+  margin-top: var(--space-2);
+}
+
+.rd-table-scroll--flush {
+  margin-top: 0;
+}
+
+.rd-row--del-planned,
+.rd-row--del-cat {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--font-size-body);
+}
+
+.rd-row--del-planned {
+  grid-template-areas:
+    "desc desc amount"
+    "cat due due"
+    "when when actions";
+}
+
+.rd-row--del-cat {
+  grid-template-areas:
+    "cat cat actions"
+    "dir when actions";
+}
+
+.rd-del__when {
+  grid-area: when;
+  font-size: var(--font-size-caption);
+}
+
+.rd-del__due {
+  grid-area: due;
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-del__desc {
+  grid-area: desc;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-del__cat {
+  grid-area: cat;
+  justify-self: start;
+}
+
+.rd-del__dir {
+  grid-area: dir;
+  font-size: var(--font-size-data);
+}
+
+.rd-ledger--deleted-planned .rd-row--head,
+.rd-ledger--deleted-cats .rd-row--head {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  .rd-ledger--sched {
+    min-width: var(--table-min-sched);
+  }
+
+  .rd-row.rd-row--sched {
+    display: grid;
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+    gap: var(--space-4);
+    min-height: var(--size-row-lg);
+  }
+
+  .rd-row--sched::before,
+  .rd-row--sched::after {
+    display: none;
+  }
+
+  .rd-row--sched .rd-row__title,
+  .rd-row--sched > .rd-row__amount,
+  .rd-row--sched [data-js="row-menu"],
+  .rd-row--sched > .rd-row__cat,
+  .rd-row--sched .rd-row__sub,
+  .rd-sched__due,
+  .rd-sched__status,
+  .rd-row--sched .rd-row__actions > .rd-btn:not(.rd-btn--icon),
+  .rd-row--sched .rd-expand {
+    order: 0;
+  }
+
+  .rd-sched__due {
+    font-size: var(--font-size-data);
+    letter-spacing: normal;
+    color: inherit;
+  }
+
+  .rd-row--sched > .rd-row__actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .rd-expand-spacer {
+    display: block;
+    order: 0;
+  }
+
+  .rd-detail > td {
+    margin: 0 0 var(--space-3);
+    padding: var(--space-4) 0;
+  }
+
+  .rd-detail__grid {
+    grid-template-columns: var(--track-due) minmax(0, var(--track-content-max));
+    gap: var(--space-4);
+  }
+
+  .rd-detail__grid::before {
+    content: "";
+  }
+
+  .rd-detail__grid--two {
+    grid-template-columns: var(--track-due) 1fr 1fr;
+  }
+
+  .rd-ovr__item {
+    grid-template-columns: var(--track-due) 1fr var(--track-due) var(--track-icon);
+  }
+
+  .rd-ledger--deleted-planned,
+  .rd-ledger--deleted-cats {
+    min-width: var(--table-min);
+  }
+
+  .rd-ledger--deleted-planned .rd-row--head,
+  .rd-ledger--deleted-cats .rd-row--head {
+    display: grid;
+  }
+
+  .rd-row--del-planned > *,
+  .rd-row--del-cat > * {
+    grid-area: auto;
+  }
+
+  .rd-del__desc {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  .rd-del__when,
+  .rd-del__due {
+    font-size: inherit;
+  }
+
+  .rd-row--del-planned {
+    grid-template-columns: var(--track-deleted) var(--track-deleted-due) minmax(var(--track-min-sm), 1fr) var(--track-amount-sched) var(--track-amount) var(--track-restore);
+    gap: var(--space-4);
+    min-height: var(--size-row-md);
+  }
+
+  .rd-row--del-cat {
+    grid-template-columns: var(--track-deleted) minmax(var(--track-min-md), 1fr) var(--track-amount-sched) var(--track-restore);
+    gap: var(--space-4);
+    min-height: var(--size-row-md);
+  }
+
+  .rd-row--del-planned.rd-row--head,
+  .rd-row--del-cat.rd-row--head {
+    min-height: 0;
+  }
+}

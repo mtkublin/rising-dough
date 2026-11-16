@@ -1,5 +1,7 @@
 # T-D20 — Terraform bootstrap (state bucket, versions, providers)
 
+> **Superseded in part (2026-11-06, T-D72, ADR-0096):** deliverable 1 (`terraform/scripts/bootstrap-state.sh`) was replaced by the Terraform root stack `terraform/bootstrap/`. The script text below is historical.
+
 - **Phase**: 2 — Infrastructure
 - **Sequential**: this is the first infrastructure task; everything else in Phase 2 depends on it
 - **Depends on**: nothing (one-shot bootstrap before `terraform init`)
@@ -13,11 +15,11 @@ Terraform cannot store its own state if the state bucket does not exist yet. The
 ## Deliverables
 
 1. `terraform/scripts/bootstrap-state.sh` — idempotent script that creates `budget-planner-tfstate-pl-waw` in `pl-waw` with versioning on, no public access. Reads `SCW_ACCESS_KEY` + `SCW_SECRET_KEY` from the operator's environment.
-2. `terraform/.terraform-version` — pins Terraform v1.9+.
+2. `terraform/.terraform-version` — pins Terraform 1.17.1 (raised from 1.9 by T-D64, ADR-0090).
 3. `terraform/versions.tf`:
    ```hcl
    terraform {
-     required_version = ">= 1.9.0"
+     required_version = ">= 1.10.0"
      required_providers {
        scaleway = {
          source  = "scaleway/scaleway"
@@ -35,7 +37,7 @@ Terraform cannot store its own state if the state bucket does not exist yet. The
    provider "scaleway" {
      project_id = var.scw_project_id
      region     = "pl-waw"
-     zone       = "pl-waw-1"
+     zone       = "pl-waw-2"  # ADR-0084
    }
    ```
 5. `terraform/backend.tf` — empty backend block; config supplied per environment:

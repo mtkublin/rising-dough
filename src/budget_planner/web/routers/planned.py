@@ -22,7 +22,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import export as export_service, planned as planned_service
-from budget_planner.web.deps import get_db
+from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
@@ -72,11 +72,13 @@ def _hx_trigger_payload(payload: dict[str, object]) -> str:
 
 
 @router.post("/batch/promote-due", response_class=HTMLResponse)
-def planned_batch_promote_due(conn: sqlite3.Connection = Depends(get_db)) -> Response:
+def planned_batch_promote_due(
+    conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+) -> Response:
     """Promote every unpromoted planned row with ``operation_date <= today``."""
     today = date.today()  # noqa: DTZ011
     try:
-        result = planned_service.batch_promote_due(conn, today)
+        result = planned_service.batch_promote_due(conn, user_id, today)
     except (
         planned_service.AlreadyPromotedError,
         planned_service.CannotPromoteDeletedError,
@@ -109,6 +111,7 @@ def planned_batch_promote_due(conn: sqlite3.Connection = Depends(get_db)) -> Res
 async def planned_batch_undo(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """Reverse a prior batch planned promote.
 
@@ -128,7 +131,7 @@ async def planned_batch_undo(
 
     with db_transaction(conn):
         for txn_id in txn_ids:
-            transactions_repo.soft_delete(conn, txn_id)
+            transactions_repo.soft_delete(conn, user_id, txn_id)
         for pid in planned_ids:
             # Replay audit: find the entry right before the batch stamping
             # (operation="update" with prev_json carrying the pre-batch state)
@@ -151,8 +154,8 @@ async def planned_batch_undo(
             conn.execute(
                 "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
                 "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ?",
-                (prev_txn_id, pid),
+                "WHERE id = ? AND user_id = ?",
+                (prev_txn_id, pid, user_id),
             )
     resp = Response(status_code=204)
     resp.headers["HX-Trigger"] = _hx_trigger_payload(
@@ -168,18 +171,26 @@ async def planned_batch_undo(
 
 
 @router.get("/table", response_class=HTMLResponse)
-def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def table_fragment(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     """Legacy fragment alias (T-064).
 
     Delegates to the unified ledger fragment with ``view=planned``.
     """
     from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
 
-    return render_table_for(request, conn, "planned")
+    return render_table_for(request, conn, user_id, "planned")
 
 
 @router.get("/new", response_class=HTMLResponse)
-def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def new_form(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
@@ -188,8 +199,8 @@ def new_form(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HT
         form_include="partials/planned/_form.html",
         planned=None,
         action="/planned",
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
+        categories=categories_repo.list_all(conn, user_id),
+        accounts=accounts_repo.list_all(conn, user_id),
         errors={},
     )
 
@@ -214,13 +225,14 @@ def create_planned(  # noqa: PLR0917
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
     op_date = _parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
-    acc = accounts_repo.find_by_id(conn, account_id)
-    cat = categories_repo.find_by_id(conn, category_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -232,7 +244,7 @@ def create_planned(  # noqa: PLR0917
         except ValueError:
             errors["dest_account_id"] = "invalid dest account"
         else:
-            if accounts_repo.find_by_id(conn, dest_id) is None:
+            if accounts_repo.find_by_id(conn, user_id, dest_id) is None:
                 errors["dest_account_id"] = "unknown dest account"
     minor: int | None = None
     if acc is not None:
@@ -245,14 +257,15 @@ def create_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=None,
             action="/planned",
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
+            categories=categories_repo.list_all(conn, user_id),
+            accounts=accounts_repo.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
     pl = planned_repo.create(
         conn,
+        user_id,
         NewPlannedTransaction(
             operation_date=op_date,
             category_id=category_id,
@@ -284,9 +297,12 @@ def _from_persisted(pl: Any, acc: Any, cat: Any) -> dict[str, Any]:
 
 @router.get("/{planned_id}/edit", response_class=HTMLResponse)
 def edit_form(
-    planned_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    planned_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, planned_id)
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -306,8 +322,8 @@ def edit_form(
         form_include="partials/planned/_form.html",
         planned=pl,
         action=f"/planned/{planned_id}",
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
+        categories=categories_repo.list_all(conn, user_id),
+        accounts=accounts_repo.list_all(conn, user_id),
         errors={},
     )
 
@@ -322,11 +338,12 @@ def update_planned(  # noqa: PLR0917
     amount: str = Form(...),
     description: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, planned_id)
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
     op_date = _parse_date(operation_date)
     if op_date is None:
@@ -344,14 +361,15 @@ def update_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=pl,
             action=f"/planned/{planned_id}",
-            categories=categories_repo.list_all(conn),
-            accounts=accounts_repo.list_all(conn),
+            categories=categories_repo.list_all(conn, user_id),
+            accounts=accounts_repo.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
     planned_repo.update(
         conn,
+        user_id,
         planned_id,
         PatchPlannedTransaction(
             operation_date=op_date,
@@ -361,30 +379,38 @@ def update_planned(  # noqa: PLR0917
             description=description,
         ),
     )
-    updated = planned_repo.find_by_id(conn, planned_id)
+    updated = planned_repo.find_by_id(conn, user_id, planned_id)
     assert updated is not None and acc is not None
-    cat = categories_repo.find_by_id(conn, updated.category_id)
+    cat = categories_repo.find_by_id(conn, user_id, updated.category_id)
     html = render(request, "partials/planned/_row.html", view=_from_persisted(updated, acc, cat))
     trigger(html, "forecast-stale", "ledger-stale")
     return html
 
 
 @router.post("/{planned_id}/delete")
-def delete_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
-    pl = planned_repo.find_by_id(conn, planned_id)
+def delete_planned(
+    planned_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    planned_repo.soft_delete(conn, planned_id)
+    planned_repo.soft_delete(conn, user_id, planned_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "forecast-stale", "ledger-stale")
     return resp
 
 
 @router.post("/{planned_id}/restore")
-def restore_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+def restore_planned(
+    planned_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
-        planned_repo.undelete(conn, planned_id)
+        planned_repo.undelete(conn, user_id, planned_id)
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
@@ -394,9 +420,12 @@ def restore_planned(planned_id: int, conn: sqlite3.Connection = Depends(get_db))
 
 @router.get("/{planned_id}/promote", response_class=HTMLResponse)
 def promote_form(
-    planned_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    planned_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, planned_id)
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -405,7 +434,7 @@ def promote_form(
             errors={"planned": "not found"},
             status_code=404,
         )
-    acc = accounts_repo.find_by_id(conn, pl.account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
     return render(
         request,
         "partials/planned/_promote_modal.html",
@@ -420,13 +449,14 @@ def promote_inline(
     planned_id: int,
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """F-02 — Row-expand inline Promote form for Today Upcoming."""
-    pl = planned_repo.find_by_id(conn, planned_id)
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, pl.account_id)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
     return render(
         request,
         "partials/planned/_promote_inline_row.html",
@@ -444,11 +474,12 @@ def promote_submit(  # noqa: PLR0917
     amount: str = Form(...),
     description: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, planned_id)
+    pl = planned_repo.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, pl.account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
     op_date = _parse_date(operation_date)
     errors: dict[str, str] = {}
     if op_date is None:
@@ -471,6 +502,7 @@ def promote_submit(  # noqa: PLR0917
     try:
         planned_service.promote_to_actual(
             conn,
+            user_id,
             planned_id,
             planned_service.PromotionEdits(
                 operation_date=op_date,
@@ -492,8 +524,8 @@ def promote_submit(  # noqa: PLR0917
             errors={"promotion": str(exc)},
             status_code=422,
         )
-    cat = categories_repo.find_by_id(conn, pl.category_id)
-    pl2 = planned_repo.find_by_id(conn, planned_id, include_deleted=True)
+    cat = categories_repo.find_by_id(conn, user_id, pl.category_id)
+    pl2 = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
     assert pl2 is not None
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl2, acc, cat))
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
@@ -501,10 +533,14 @@ def promote_submit(  # noqa: PLR0917
 
 
 @router.get("/export")
-def export(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> Response:
+def export(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
     fmt = request.query_params.get("format", "csv")
     flt = parse_filter(request)
-    views = list(planned_service.list_planned(conn, flt))
+    views = list(planned_service.list_planned(conn, user_id, flt))
     rows = [
         {
             "key": v.persisted_id if v.persisted_id is not None else -1,

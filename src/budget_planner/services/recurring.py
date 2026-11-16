@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
 
 from budget_planner.domain.enums import Cadence, OverrideState
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
     Occurrence,
@@ -29,6 +30,7 @@ from budget_planner.domain.recurring import (
     RecurringRule,
 )
 from budget_planner.domain.transactions import NewTransaction, Transaction
+from budget_planner.repositories import planned as planned_repo
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +355,7 @@ def _resolve_override_for_next_due(
 
 def promote_recurring(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     edits: PromotionEdits,
 ) -> Transaction:
@@ -390,14 +393,14 @@ def promote_recurring(
         validate_promotion,
     )
 
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, user_id, rule_id)
     if rule is None:
         raise RecurringNotFoundError(rule_id)
     if not rule.active:
         raise InactiveRecurringError(rule_id)
 
     due_date = rule.next_due
-    overrides = recurring_repo.list_overrides(conn, rule_id)
+    overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
     match = _resolve_override_for_next_due(overrides, due_date)
 
     # Defaults start from the rule. Formula rules recompute from the
@@ -406,7 +409,7 @@ def promote_recurring(
         resolve_rule_amount,
     )
 
-    default_amount = resolve_rule_amount(conn, rule, due_date)
+    default_amount = resolve_rule_amount(conn, user_id, rule, due_date)
     default_description = rule.default_description
     effective_date = due_date
     if match is not None:
@@ -433,12 +436,13 @@ def promote_recurring(
             "edit the formula or override this occurrence"
         )
 
-    category = categories_repo.find_by_id(conn, rule.category_id, include_deleted=True)
+    category = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     if category is None:  # pragma: no cover - FK guarantees existence
         raise ValidationError(f"category {rule.category_id} not found")
 
     validate_promotion(
         conn,
+        user_id,
         direction=category.direction,
         account_id=rule.account_id,
         dest_account_id=rule.dest_account_id,
@@ -465,12 +469,13 @@ def promote_recurring(
     )
 
     with db_transaction(conn):
-        txn = transactions_repo.create(conn, new_txn)
+        txn = transactions_repo.create(conn, user_id, new_txn)
         if new_next_due is None:
-            recurring_repo.set_inactive(conn, rule_id)
+            recurring_repo.set_inactive(conn, user_id, rule_id)
         else:
             recurring_repo.set_next_due(
                 conn,
+                user_id,
                 rule_id,
                 next_due=new_next_due,
                 last_promoted_date=due_date,
@@ -479,8 +484,8 @@ def promote_recurring(
             # ADR-0046: soft-consume the override by stamping the new txn id
             # instead of deleting the row. Keeps the override visible to
             # historical reads (formula compute per ADR-0045).
-            recurring_repo.mark_override_promoted(conn, match.id, txn_id=txn.id)
-        updated_rule = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
+            recurring_repo.mark_override_promoted(conn, user_id, match.id, txn_id=txn.id)
+        updated_rule = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
         audit_svc.write_audit(
             conn,
             entity_type="recurring_rule",
@@ -494,6 +499,7 @@ def promote_recurring(
 
 def skip_and_advance(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
 ) -> dt.date | None:
     """Skip the next-due occurrence and advance ``next_due`` without promoting.
@@ -509,7 +515,7 @@ def skip_and_advance(
     from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
     from budget_planner.services import audit as audit_svc  # noqa: PLC0415
 
-    rule = recurring_repo.find_rule(conn, rule_id)
+    rule = recurring_repo.find_rule(conn, user_id, rule_id)
     if rule is None:
         raise RecurringNotFoundError(rule_id)
     if not rule.active:
@@ -528,6 +534,7 @@ def skip_and_advance(
         # Record the skip (audit emitted by the override upsert path).
         recurring_repo.upsert_override(
             conn,
+            user_id,
             NewRecurringOverride(
                 rule_id=rule_id,
                 occurrence_date=due_date,
@@ -535,18 +542,19 @@ def skip_and_advance(
             ),
         )
         if new_next_due is None:
-            recurring_repo.set_inactive(conn, rule_id)
+            recurring_repo.set_inactive(conn, user_id, rule_id)
         else:
             recurring_repo.set_next_due(
                 conn,
+                user_id,
                 rule_id,
                 next_due=new_next_due,
                 last_promoted_date=rule.last_promoted_date,
             )
         # The skip override has served its purpose — remove it so the next
         # occurrence isn't re-skipped if ``next_due`` ever cycles back.
-        recurring_repo.delete_override(conn, rule_id, due_date)
-        updated_rule = recurring_repo.find_rule(conn, rule_id, include_deleted=True)
+        recurring_repo.delete_override(conn, user_id, rule_id, due_date)
+        updated_rule = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
         audit_svc.write_audit(
             conn,
             entity_type="recurring_rule",
@@ -579,6 +587,7 @@ class BatchPromoteResult:
 
 def batch_promote_due(
     conn: sqlite3.Connection,
+    user_id: int,
     today: dt.date,
 ) -> BatchPromoteResult:
     """Promote every active rule whose ``next_due`` is on-or-before ``today``.
@@ -596,20 +605,20 @@ def batch_promote_due(
     advanced: list[int] = []
     skipped: list[int] = []
     with db_transaction(conn):
-        for rule in recurring_repo.list_rules(conn, active_only=True):
+        for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
             if rule.next_due > today:
                 continue
             override = _resolve_override_for_next_due(
-                recurring_repo.list_overrides(conn, rule.id), rule.next_due
+                recurring_repo.list_overrides(conn, user_id, rule.id), rule.next_due
             )
             from budget_planner.domain.enums import OverrideState  # noqa: PLC0415
 
             if override is not None and override.state is OverrideState.SKIPPED:
                 # Advance past the skip without creating a transaction.
-                skip_and_advance(conn, rule.id)
+                skip_and_advance(conn, user_id, rule.id)
                 skipped.append(rule.id)
                 continue
-            txn = promote_recurring(conn, rule.id, PromotionEdits())
+            txn = promote_recurring(conn, user_id, rule.id, PromotionEdits())
             promoted.append(txn.id)
             advanced.append(rule.id)
     return BatchPromoteResult(
@@ -626,6 +635,43 @@ from budget_planner.services.recurring_formula import (  # noqa: E402
     rt_expand,
 )
 
+
+def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    overrides: Sequence[RecurringOverride],
+    window_start: dt.date,
+    window_end: dt.date,
+) -> tuple[Occurrence, ...]:
+    """Expand ``rule`` from ``max(next_due, window_start)`` (ADR-0087, ADR-0089).
+
+    The filter is on the canonical occurrence date: occurrences before
+    ``next_due`` are already promoted (or skipped) and are never returned.
+    """
+    start = max(rule.next_due, window_start)
+    if start > window_end:
+        return ()
+    return rt_expand(conn, user_id, rule, overrides, start, window_end)
+
+
+def linked_occurrence_keys(
+    conn: sqlite3.Connection, user_id: int
+) -> frozenset[tuple[int, dt.date]]:
+    """Return ``(rule_id, occurrence_date)`` for every unpromoted linked planned row.
+
+    Window-independent (ADR-0087 amendment): a linked row represents its
+    occurrence wherever it was re-dated, so consumers skip matching virtual
+    occurrences. Unlinked rows never suppress anything.
+    """
+    rows = planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False))
+    return frozenset(
+        (row.recurring_rule_id, row.occurrence_date)
+        for row in rows
+        if row.recurring_rule_id is not None and row.occurrence_date is not None
+    )
+
+
 __all__ = [
     "BatchPromoteResult",
     "CannotPromoteSkippedError",
@@ -636,8 +682,10 @@ __all__ = [
     "apply_overrides",
     "batch_promote_due",
     "expand",
+    "expand_unpromoted",
     "first_due_on_or_after",
     "generate_occurrences",
+    "linked_occurrence_keys",
     "occurrence_in_month",
     "promote_recurring",
     "resolve_rule_amount",

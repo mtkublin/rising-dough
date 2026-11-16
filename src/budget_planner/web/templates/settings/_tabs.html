@@ -1,0 +1,18 @@
+{# Settings tab strip shared by /settings, /settings/security and /settings/users (T-D17, T-D47).
+   The "Users" tab is rendered for admins only (ADR-0061 §4). #}
+{% set me = request.state.user if request.state.user is defined else none %}
+{% set tabs = [('categories', 'Categories', '/settings?tab=categories'), ('fx', 'Currency & FX', '/settings?tab=fx'), ('prefs', 'Preferences', '/settings?tab=prefs'), ('security', 'Security', '/settings/security')] %}
+{% if me and me.is_admin %}
+  {% set tabs = tabs + [('users', 'Users', '/settings/users')] %}
+{% endif %}
+<div class="rd-segmented rd-settings-tabs" role="tablist">
+  {% for slug, label, href in tabs %}
+    {% set is_active = (active_tab == slug) %}
+    <a id="tab-{{ slug }}"
+       role="tab"
+       aria-selected="{{ 'true' if is_active else 'false' }}"
+       aria-controls="panel-{{ slug }}"
+       class="rd-segmented__item{% if is_active %} rd-segmented__item--active{% endif %}"
+       href="{{ href }}">{{ label }}</a>
+  {% endfor %}
+</div>

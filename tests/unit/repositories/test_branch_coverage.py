@@ -29,20 +29,22 @@ from budget_planner.repositories import (
     transactions,
 )
 
+USER_ID = 1
+
 pytestmark = pytest.mark.unit
 
 
 def test_categories_find_by_name_include_deleted_recovers_tombstone(
     conn: sqlite3.Connection, category_id: int
 ) -> None:
-    cat = categories.find_by_id(conn, category_id)
+    cat = categories.find_by_id(conn, USER_ID, category_id)
     assert cat is not None
-    categories.soft_delete(conn, category_id)
+    categories.soft_delete(conn, USER_ID, category_id)
 
     # include_deleted=False (default) hides the tombstone.
-    assert categories.find_by_name(conn, cat.name) is None
+    assert categories.find_by_name(conn, USER_ID, cat.name) is None
     # include_deleted=True surfaces it (closes the branch at categories.py:47->49).
-    found = categories.find_by_name(conn, cat.name, include_deleted=True)
+    found = categories.find_by_name(conn, USER_ID, cat.name, include_deleted=True)
     assert found is not None
     assert found.id == category_id
 
@@ -50,10 +52,12 @@ def test_categories_find_by_name_include_deleted_recovers_tombstone(
 def test_budgets_default_get_include_deleted_recovers_tombstone(
     conn: sqlite3.Connection, category_id: int
 ) -> None:
-    created = budgets.set_default(conn, NewBudgetDefault(category_id=category_id, amount=1000))
-    budgets.clear_default(conn, category_id)
-    assert budgets.get_default(conn, category_id) is None
-    found = budgets.get_default(conn, category_id, include_deleted=True)
+    created = budgets.set_default(
+        conn, USER_ID, NewBudgetDefault(category_id=category_id, amount=1000)
+    )
+    budgets.clear_default(conn, USER_ID, category_id)
+    assert budgets.get_default(conn, USER_ID, category_id) is None
+    found = budgets.get_default(conn, USER_ID, category_id, include_deleted=True)
     assert found is not None
     assert found.id == created.id
 
@@ -61,10 +65,10 @@ def test_budgets_default_get_include_deleted_recovers_tombstone(
 def test_budgets_default_list_include_deleted_surfaces_tombstone(
     conn: sqlite3.Connection, category_id: int
 ) -> None:
-    budgets.set_default(conn, NewBudgetDefault(category_id=category_id, amount=1000))
-    budgets.clear_default(conn, category_id)
-    assert budgets.list_defaults(conn) == []
-    rows = budgets.list_defaults(conn, include_deleted=True)
+    budgets.set_default(conn, USER_ID, NewBudgetDefault(category_id=category_id, amount=1000))
+    budgets.clear_default(conn, USER_ID, category_id)
+    assert budgets.list_defaults(conn, USER_ID) == []
+    rows = budgets.list_defaults(conn, USER_ID, include_deleted=True)
     assert len(rows) == 1
 
 
@@ -72,11 +76,11 @@ def test_budgets_recurring_get_include_deleted_recovers_tombstone(
     conn: sqlite3.Connection, category_id: int
 ) -> None:
     budgets.set_recurring(
-        conn, NewBudgetRecurringOverride(category_id=category_id, month=4, amount=2000)
+        conn, USER_ID, NewBudgetRecurringOverride(category_id=category_id, month=4, amount=2000)
     )
-    budgets.clear_recurring(conn, category_id, 4)
-    assert budgets.get_recurring(conn, category_id, 4) is None
-    found = budgets.get_recurring(conn, category_id, 4, include_deleted=True)
+    budgets.clear_recurring(conn, USER_ID, category_id, 4)
+    assert budgets.get_recurring(conn, USER_ID, category_id, 4) is None
+    found = budgets.get_recurring(conn, USER_ID, category_id, 4, include_deleted=True)
     assert found is not None
 
 
@@ -84,11 +88,11 @@ def test_budgets_recurring_list_include_deleted_surfaces_tombstone(
     conn: sqlite3.Connection, category_id: int
 ) -> None:
     budgets.set_recurring(
-        conn, NewBudgetRecurringOverride(category_id=category_id, month=4, amount=2000)
+        conn, USER_ID, NewBudgetRecurringOverride(category_id=category_id, month=4, amount=2000)
     )
-    budgets.clear_recurring(conn, category_id, 4)
-    assert budgets.list_recurring(conn) == []
-    assert len(budgets.list_recurring(conn, include_deleted=True)) == 1
+    budgets.clear_recurring(conn, USER_ID, category_id, 4)
+    assert budgets.list_recurring(conn, USER_ID) == []
+    assert len(budgets.list_recurring(conn, USER_ID, include_deleted=True)) == 1
 
 
 def test_budgets_one_off_get_include_deleted_recovers_tombstone(
@@ -96,11 +100,12 @@ def test_budgets_one_off_get_include_deleted_recovers_tombstone(
 ) -> None:
     budgets.set_one_off(
         conn,
+        USER_ID,
         NewBudgetOneOffOverride(category_id=category_id, year=2026, month=3, amount=5000),
     )
-    budgets.clear_one_off(conn, category_id, 2026, 3)
-    assert budgets.get_one_off(conn, category_id, 2026, 3) is None
-    found = budgets.get_one_off(conn, category_id, 2026, 3, include_deleted=True)
+    budgets.clear_one_off(conn, USER_ID, category_id, 2026, 3)
+    assert budgets.get_one_off(conn, USER_ID, category_id, 2026, 3) is None
+    found = budgets.get_one_off(conn, USER_ID, category_id, 2026, 3, include_deleted=True)
     assert found is not None
 
 
@@ -109,19 +114,21 @@ def test_budgets_one_off_list_year_filter_combines_with_include_deleted(
 ) -> None:
     budgets.set_one_off(
         conn,
+        USER_ID,
         NewBudgetOneOffOverride(category_id=category_id, year=2026, month=5, amount=1000),
     )
     budgets.set_one_off(
         conn,
+        USER_ID,
         NewBudgetOneOffOverride(category_id=category_id, year=2027, month=5, amount=2000),
     )
-    budgets.clear_one_off(conn, category_id, 2026, 5)
+    budgets.clear_one_off(conn, USER_ID, category_id, 2026, 5)
 
     # year filter alone + default include_deleted=False (closes year-is-not-None branch).
-    only_2027 = budgets.list_one_off(conn, year=2027)
+    only_2027 = budgets.list_one_off(conn, USER_ID, year=2027)
     assert len(only_2027) == 1 and only_2027[0].year == 2027
     # year filter + include_deleted=True combined.
-    both_2026 = budgets.list_one_off(conn, year=2026, include_deleted=True)
+    both_2026 = budgets.list_one_off(conn, USER_ID, year=2026, include_deleted=True)
     assert len(both_2026) == 1 and both_2026[0].year == 2026
 
 
@@ -131,10 +138,11 @@ def test_budgets_one_off_list_without_filters_returns_everything(
     """`year=None` + ``include_deleted=True`` reaches the "no clauses" path."""
     budgets.set_one_off(
         conn,
+        USER_ID,
         NewBudgetOneOffOverride(category_id=category_id, year=2026, month=5, amount=1000),
     )
-    budgets.clear_one_off(conn, category_id, 2026, 5)
-    all_rows = budgets.list_one_off(conn, year=None, include_deleted=True)
+    budgets.clear_one_off(conn, USER_ID, category_id, 2026, 5)
+    all_rows = budgets.list_one_off(conn, USER_ID, year=None, include_deleted=True)
     assert len(all_rows) == 1
 
 
@@ -143,6 +151,7 @@ def test_recurring_list_rules_active_only_filter(
 ) -> None:
     r = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 15),
@@ -151,13 +160,13 @@ def test_recurring_list_rules_active_only_filter(
             default_amount=1000,
         ),
     )
-    recurring.deactivate_rule(conn, r.id)
+    recurring.deactivate_rule(conn, USER_ID, r.id)
 
     # active_only=False, include_deleted=False: deactivated row still returned.
-    all_live = recurring.list_rules(conn, active_only=False)
+    all_live = recurring.list_rules(conn, USER_ID, active_only=False)
     assert len(all_live) == 1
     # active_only=True: deactivated row excluded.
-    active = recurring.list_rules(conn, active_only=True)
+    active = recurring.list_rules(conn, USER_ID, active_only=True)
     assert active == []
 
 
@@ -167,6 +176,7 @@ def test_recurring_list_rules_include_deleted_without_active_filter(
     """`include_deleted=True` + ``active_only=False`` reaches the "no WHERE" path."""
     r = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 15),
@@ -175,8 +185,8 @@ def test_recurring_list_rules_include_deleted_without_active_filter(
             default_amount=1000,
         ),
     )
-    recurring.soft_delete_rule(conn, r.id)
-    rows = recurring.list_rules(conn, active_only=False, include_deleted=True)
+    recurring.soft_delete_rule(conn, USER_ID, r.id)
+    rows = recurring.list_rules(conn, USER_ID, active_only=False, include_deleted=True)
     assert len(rows) == 1
 
 
@@ -186,6 +196,7 @@ def test_recurring_list_rules_active_only_with_include_deleted(
     """`active_only=True` + ``include_deleted=True`` combines both predicates."""
     live = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 15),
@@ -196,6 +207,7 @@ def test_recurring_list_rules_active_only_with_include_deleted(
     )
     deleted = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 2, 15),
@@ -204,8 +216,8 @@ def test_recurring_list_rules_active_only_with_include_deleted(
             default_amount=2000,
         ),
     )
-    recurring.deactivate_rule(conn, deleted.id)
-    rows = recurring.list_rules(conn, active_only=True, include_deleted=True)
+    recurring.deactivate_rule(conn, USER_ID, deleted.id)
+    rows = recurring.list_rules(conn, USER_ID, active_only=True, include_deleted=True)
     assert [r.id for r in rows] == [live.id]
 
 
@@ -214,6 +226,7 @@ def test_transactions_update_with_empty_patch_is_noop_but_writes_audit(
 ) -> None:
     created = transactions.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 2, 1),
             category_id=category_id,
@@ -222,7 +235,7 @@ def test_transactions_update_with_empty_patch_is_noop_but_writes_audit(
         ),
     )
     # Empty patch: no SET clause runs, but mutate() still writes an audit row.
-    updated = transactions.update(conn, created.id, PatchTransaction())
+    updated = transactions.update(conn, USER_ID, created.id, PatchTransaction())
     assert updated.id == created.id
     assert updated.amount == created.amount
 
@@ -232,6 +245,7 @@ def test_planned_update_with_empty_patch_is_noop_but_writes_audit(
 ) -> None:
     created = planned.create(
         conn,
+        USER_ID,
         NewPlannedTransaction(
             operation_date=date(2026, 2, 1),
             category_id=category_id,
@@ -239,7 +253,7 @@ def test_planned_update_with_empty_patch_is_noop_but_writes_audit(
             amount=5555,
         ),
     )
-    updated = planned.update(conn, created.id, PatchPlannedTransaction())
+    updated = planned.update(conn, USER_ID, created.id, PatchPlannedTransaction())
     assert updated.id == created.id
     assert updated.amount == created.amount
 
@@ -249,6 +263,7 @@ def test_recurring_update_with_empty_patch_is_noop_but_writes_audit(
 ) -> None:
     r = recurring.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 15),
@@ -257,6 +272,6 @@ def test_recurring_update_with_empty_patch_is_noop_but_writes_audit(
             default_amount=1000,
         ),
     )
-    updated = recurring.update_rule(conn, r.id, PatchRecurringRule())
+    updated = recurring.update_rule(conn, USER_ID, r.id, PatchRecurringRule())
     assert updated.id == r.id
     assert updated.default_amount == r.default_amount

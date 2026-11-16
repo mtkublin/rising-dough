@@ -33,6 +33,8 @@ from budget_planner.repositories import (
     categories as categories_repo,
 )
 
+USER_ID = 1
+
 # ``old → new`` tuples. Kept here so the acceptance list in
 # ADR-0023 maps 1:1 to a parametrised test case.
 _REDIRECTS: tuple[tuple[str, str], ...] = (
@@ -50,9 +52,11 @@ def seeded(_migrated: Settings) -> dict[str, int]:
     """Enough data so every landing page can render once redirected."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         groc = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         return {"acc": acc.id, "groc": groc.id}
     finally:

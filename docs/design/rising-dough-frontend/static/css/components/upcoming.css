@@ -1,0 +1,173 @@
+/* Upcoming list (Today) — planned entries grouped by overdue / due today / next N days */
+.rd-upcoming__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.rd-upcoming__group {
+  margin-top: var(--space-5);
+  padding-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-regular);
+}
+
+/*
+ * Phone: three lines; the right edge holds the amount and the row's actions.
+ *   name ……………………………… amount
+ *   date · account [CHIP]
+ *   flag ……………………… [promote] ⋮
+ * The row's ::before / ::after are zero-width line breaks in the wrapping flex row.
+ */
+.rd-upcoming__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2-5);
+  padding: var(--space-3-5) 0;
+  border-top: var(--border-width) solid var(--color-rule);
+}
+
+.rd-upcoming__row::before,
+.rd-upcoming__row::after {
+  content: "";
+  flex: 0 0 100%;
+  height: var(--space-2);
+}
+
+.rd-upcoming__row::before {
+  order: 3;
+}
+
+.rd-upcoming__row::after {
+  order: 7;
+}
+
+.rd-upcoming__row.htmx-request {
+  color: var(--color-ink-muted);
+  cursor: progress;
+}
+
+.rd-upcoming__main {
+  display: contents;
+}
+
+.rd-upcoming__name {
+  grid-area: name;
+  order: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: break-word;
+}
+
+.rd-upcoming__date,
+.rd-upcoming__account {
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-upcoming__date {
+  grid-area: date;
+  order: 4;
+}
+
+.rd-upcoming__account {
+  grid-area: acct;
+  order: 5;
+}
+
+.rd-upcoming__flag {
+  grid-area: flag;
+  order: 8;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-upcoming__cat {
+  grid-area: cat;
+  order: 6;
+  justify-self: start;
+  min-width: 0;
+}
+
+.rd-upcoming__amount {
+  grid-area: amount;
+  order: 2;
+  place-self: baseline end;
+}
+
+.rd-upcoming__actions {
+  grid-area: actions;
+  order: 9;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+
+.rd-upcoming__foot {
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-rule);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-upcoming__more {
+  color: var(--color-ink);
+}
+
+.rd-upcoming__promote-all {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  .rd-upcoming__row::before,
+  .rd-upcoming__row::after {
+    display: none;
+  }
+
+  .rd-upcoming__row {
+    display: grid;
+    grid-template-columns: var(--track-date) minmax(0, 1fr) var(--track-category) var(--track-amount) var(--track-actions);
+    grid-template-areas: "date main cat amount actions";
+    gap: var(--space-4);
+    min-height: var(--size-row-lg);
+    padding: var(--space-2) 0;
+  }
+
+  .rd-upcoming__main {
+    grid-area: main;
+    display: block;
+    min-width: 0;
+    font-size: var(--font-size-heading);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .rd-upcoming__account {
+    font-size: var(--font-size-data);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: normal;
+  }
+
+  .rd-upcoming__flag {
+    display: block;
+  }
+
+  .rd-upcoming__amount {
+    align-self: center;
+  }
+
+  .rd-upcoming__actions {
+    justify-content: flex-end;
+    margin-inline-start: 0;
+  }
+
+  .rd-upcoming__promote-all {
+    display: block;
+  }
+}

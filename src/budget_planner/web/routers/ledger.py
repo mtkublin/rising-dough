@@ -25,8 +25,13 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import planned as planned_service, recurring_formula as formula_svc
-from budget_planner.web.deps import get_db
+from budget_planner.services import (
+    fx as fx_service,
+    ledger_totals,
+    planned as planned_service,
+    recurring_formula as formula_svc,
+)
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
 from budget_planner.web.rendering import render
 
@@ -75,9 +80,11 @@ def parse_filters(request: Request) -> LedgerFilters:
     )
 
 
-def _hydrate_txn_rows(conn: sqlite3.Connection, rows: list[Any]) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
+def _hydrate_txn_rows(
+    conn: sqlite3.Connection, user_id: int, rows: list[Any]
+) -> list[dict[str, Any]]:
+    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for r in rows:
         cat = cats.get(r.category_id)
@@ -98,9 +105,11 @@ def _hydrate_txn_rows(conn: sqlite3.Connection, rows: list[Any]) -> list[dict[st
     return out
 
 
-def _hydrate_planned_rows(conn: sqlite3.Connection, views: list[Any]) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
+def _hydrate_planned_rows(
+    conn: sqlite3.Connection, user_id: int, views: list[Any]
+) -> list[dict[str, Any]]:
+    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for v in views:
         cat = cats.get(v.category_id)
@@ -130,16 +139,17 @@ def _hydrate_planned_rows(conn: sqlite3.Connection, views: list[Any]) -> list[di
 
 def _hydrate_recurring_rows(
     conn: sqlite3.Connection,
+    user_id: int,
     filters: LedgerFilters | None = None,
 ) -> list[dict[str, Any]]:
     # Ledger Recurring tab lists only live rules (ADR-0038 §Ledger-UI):
     # Delete behaviourally deactivates, which must remove the row from view.
     rules = sorted(
-        recurring_repo.list_rules(conn, active_only=True),
+        recurring_repo.list_rules(conn, user_id, active_only=True),
         key=lambda r: (r.next_due, r.id),
     )
-    cats = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, include_deleted=True)}
+    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
     # V.34 — client-side filters (date_from / date_to / account_ids /
     # category_ids / direction / search). Date range matches against
     # `next_due`.
@@ -164,7 +174,7 @@ def _hydrate_recurring_rows(
                 continue
             if search_lc and search_lc not in (rule.default_description or "").lower():
                 continue
-        overrides = recurring_repo.list_overrides(conn, rule.id)
+        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         # T-122: locate the override (if any) on the current `next_due` so the
         # row can bold / italicise the appropriate cells.
         override_on_next_due = next(
@@ -175,7 +185,7 @@ def _hydrate_recurring_rows(
         # formula rules recompute from the current source-rule state for
         # the `next_due` calendar month (ADR-0045). Overrides win per the
         # unchanged ADR-0038 override precedence.
-        formula_amount = formula_svc.resolve_rule_amount(conn, rule, rule.next_due)
+        formula_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
         effective_amount_minor = (
             override_on_next_due.amount_override
             if override_on_next_due is not None and override_on_next_due.amount_override is not None
@@ -222,7 +232,9 @@ def _direction_tuple(raw: str | None) -> tuple[Direction, ...]:
         return ()
 
 
-def _actual_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[str, Any]]:
+def _actual_rows(
+    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+) -> list[dict[str, Any]]:
     txn_filter = TransactionFilter(
         date_from=filters.date_from,
         date_to=filters.date_to,
@@ -234,10 +246,46 @@ def _actual_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[
         offset=(filters.page - 1) * filters.page_size,
         order_desc=True,
     )
-    return _hydrate_txn_rows(conn, transactions_repo.list_filtered(conn, txn_filter))
+    return _hydrate_txn_rows(
+        conn, user_id, transactions_repo.list_filtered(conn, user_id, txn_filter)
+    )
 
 
-def _planned_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict[str, Any]]:
+def _actual_day_nets(
+    conn: sqlite3.Connection, base_ccy: str, rows: list[dict[str, Any]]
+) -> dict[str, int | None]:
+    """Per-day net (base-currency minor units, ISO-date keys) for the Actual view.
+
+    Signs follow ADR-0008 (adjustment amounts are pre-signed); T-D48. A day whose
+    FX rate is unavailable maps to ``None`` so the header omits a wrong figure.
+    """
+    items = [
+        (
+            r["operation_date"],
+            r["amount"],
+            r["category"].direction if r["category"] else None,
+            r["currency"],
+        )
+        for r in rows
+    ]
+    result: dict[str, int | None] = {}
+
+    def convert(amount: int, day: date, ccy: str) -> int:
+        # Cached rates only: rendering must never block on the network.
+        return fx_service.convert_cached(conn, amount, day, ccy, base_ccy)
+
+    for day in {i[0] for i in items}:
+        day_items = [i for i in items if i[0] == day]
+        try:
+            result[day.isoformat()] = ledger_totals.day_nets(day_items, convert)[day]
+        except fx_service.FxUnavailableError:
+            result[day.isoformat()] = None
+    return result
+
+
+def _planned_rows(
+    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+) -> list[dict[str, Any]]:
     # Ledger · Planned should surface the pending backlog + the forward
     # window, not the current calendar month (the service default). Expand
     # to [today-30d, today+180d] when the user hasn't filtered.
@@ -249,8 +297,8 @@ def _planned_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict
         category_ids=filters.category_ids,
         directions=_direction_tuple(filters.direction),
     )
-    views = list(planned_service.list_planned(conn, pl_filter))
-    rows = _hydrate_planned_rows(conn, views)
+    views = list(planned_service.list_planned(conn, user_id, pl_filter))
+    rows = _hydrate_planned_rows(conn, user_id, views)
     if filters.search:
         q = filters.search.lower()
         rows = [r for r in rows if q in (r.get("description") or "").lower()]
@@ -260,20 +308,29 @@ def _planned_rows(conn: sqlite3.Connection, filters: LedgerFilters) -> list[dict
 def _render_table(
     request: Request,
     conn: sqlite3.Connection,
+    user_id: int,
     view: ViewKind,
     filters: LedgerFilters,
 ) -> HTMLResponse:
     if view == "actual":
-        rows = _actual_rows(conn, filters)
+        rows = _actual_rows(conn, user_id, filters)
     elif view == "planned":
-        rows = _planned_rows(conn, filters)
+        rows = _planned_rows(conn, user_id, filters)
     else:
-        rows = _hydrate_recurring_rows(conn, filters)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, include_deleted=True)}
+        rows = _hydrate_recurring_rows(conn, user_id, filters)
+    categories_by_id = {
+        c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)
+    }
+    day_nets = (
+        _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
+        if view == "actual"
+        else {}
+    )
     return render(
         request,
         "ledger/_table.html",
         view=view,
+        day_nets=day_nets,
         rows=rows,
         page=filters.page,
         page_size=filters.page_size,
@@ -317,16 +374,16 @@ def _recurring_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
     return {"monthly_in_minor": monthly_in, "monthly_out_minor": monthly_out}
 
 
-def _tab_counts(conn: sqlite3.Connection) -> dict[str, int]:
+def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
     """Ledger tab counts (ADR-0056 §4): total actual + unpromoted planned +
     active recurring. Keeps logic in one place so the shell + fragments
     always display the same number.
     """
     actual_total = len(
-        transactions_repo.list_filtered(conn, TransactionFilter(limit=None, offset=0))
+        transactions_repo.list_filtered(conn, user_id, TransactionFilter(limit=None, offset=0))
     )
-    planned_pending = len(planned_repo.list_filtered(conn, PlannedFilter(promoted=False)))
-    recurring_active = len(recurring_repo.list_rules(conn, active_only=True))
+    planned_pending = len(planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False)))
+    recurring_active = len(recurring_repo.list_rules(conn, user_id, active_only=True))
     return {
         "actual": actual_total,
         "planned": planned_pending,
@@ -335,35 +392,44 @@ def _tab_counts(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 @router.get("", response_class=HTMLResponse)
-def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def index(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     view = coerce_view(request.query_params.get("view"))
     filters = parse_filters(request)
     if view == "actual":
-        rows = _actual_rows(conn, filters)
+        rows = _actual_rows(conn, user_id, filters)
     elif view == "planned":
-        rows = _planned_rows(conn, filters)
+        rows = _planned_rows(conn, user_id, filters)
     else:
-        rows = _hydrate_recurring_rows(conn, filters)
+        rows = _hydrate_recurring_rows(conn, user_id, filters)
     recurring_summary = _recurring_summary(rows) if view == "recurring" else None
     planned_total_minor = (
         sum(r.get("amount_minor") or 0 for r in rows if not r.get("is_promoted"))
         if view == "planned"
         else 0
     )
-    cats_list = categories_repo.list_all(conn, include_deleted=True)
+    cats_list = categories_repo.list_all(conn, user_id, include_deleted=True)
     return render(
         request,
         "ledger/index.html",
         view=view,
         views=view_kinds(),
         rows=rows,
+        day_nets=(
+            _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
+            if view == "actual"
+            else {}
+        ),
         filters=filters,
-        categories=categories_repo.list_all(conn),
-        accounts=accounts_repo.list_all(conn),
+        categories=categories_repo.list_all(conn, user_id),
+        accounts=accounts_repo.list_all(conn, user_id),
         page=filters.page,
         page_size=filters.page_size,
         has_next=(view == "actual" and len(rows) == filters.page_size),
-        tab_counts=_tab_counts(conn),
+        tab_counts=_tab_counts(conn, user_id),
         today_date=date.today(),  # noqa: DTZ011
         recurring_summary=recurring_summary,
         planned_total_minor=planned_total_minor,
@@ -372,23 +438,31 @@ def index(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLR
 
 
 @router.get("/table", response_class=HTMLResponse)
-def table_fragment(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def table_fragment(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     view = coerce_view(request.query_params.get("view"))
     filters = parse_filters(request)
-    return _render_table(request, conn, view, filters)
+    return _render_table(request, conn, user_id, view, filters)
 
 
 @router.get("/recently-deleted", response_class=HTMLResponse)
-def recently_deleted(request: Request, conn: sqlite3.Connection = Depends(get_db)) -> HTMLResponse:
+def recently_deleted(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> HTMLResponse:
     """T-R70 — list soft-deleted transactions, planned, and categories (90-day cutoff).
 
     ADR-0019 (soft delete + audit); ADR-0022 (archived categories).
     """
-    txns = transactions_repo.list_recently_deleted(conn, days=90)
-    planned_items = planned_repo.list_recently_deleted(conn, days=90)
-    cats = categories_repo.list_recently_deleted(conn, days=90)
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn)}
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn)}
+    txns = transactions_repo.list_recently_deleted(conn, user_id, days=90)
+    planned_items = planned_repo.list_recently_deleted(conn, user_id, days=90)
+    cats = categories_repo.list_recently_deleted(conn, user_id, days=90)
+    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
+    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
     return render(
         request,
         "ledger/_recently_deleted.html",
@@ -403,6 +477,7 @@ def recently_deleted(request: Request, conn: sqlite3.Connection = Depends(get_db
 def render_table_for(
     request: Request,
     conn: sqlite3.Connection,
+    user_id: int,
     view: ViewKind,
 ) -> HTMLResponse:
     """Public helper used by legacy fragment aliases (``/transactions/table``,
@@ -410,7 +485,7 @@ def render_table_for(
     ``/ledger/table`` output.
     """
     filters = parse_filters(request)
-    return _render_table(request, conn, view, filters)
+    return _render_table(request, conn, user_id, view, filters)
 
 
 __all__ = ["parse_filters", "render_table_for", "router"]

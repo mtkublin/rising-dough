@@ -1,0 +1,105 @@
+# T-D92 / ADR-0100: weekly monitor for Scaleway IAM API key expiry (CI keys and
+# the Litestream app keys). Read-only on Scaleway: uses the read-only ci-plan key
+# from the ungated `prod-plan` environment to list the organization's API keys
+# via the IAM API. Fails the run, and opens/updates one issue, when any key
+# expires in fewer than 30 days. Rotation: docs/plans/v3/runbooks/key-rotation.md.
+#
+# Environment `prod-plan` secrets used: SCW_SECRET_KEY, SCW_DEFAULT_ORG_ID.
+
+name: Key expiry
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      warn_days:
+        description: "Fail when a key expires in fewer than this many days"
+        required: false
+        default: "30"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: key-expiry
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: IAM API key expiry
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: prod-plan
+    env:
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_ORG_ID: ${{ secrets.SCW_DEFAULT_ORG_ID }}
+      WARN_DAYS: ${{ inputs.warn_days || '30' }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Mask secrets
+        run: echo "::add-mask::$SCW_SECRET_KEY"
+
+      - name: List API keys and check expiry
+        run: |
+          python3 -I - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import subprocess
+          import sys
+          import urllib.parse
+          import urllib.request
+
+          warn_days = int(os.environ["WARN_DAYS"])
+          now = dt.datetime.now(dt.timezone.utc)
+          query = urllib.parse.urlencode(
+              {"organization_id": os.environ["SCW_ORG_ID"], "page_size": 100}
+          )
+          req = urllib.request.Request(
+              f"https://api.scaleway.com/iam/v1alpha1/api-keys?{query}",
+              headers={"X-Auth-Token": os.environ["SCW_SECRET_KEY"]},
+          )
+          with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+              keys = json.load(resp)["api_keys"]
+
+          rows = []
+          for key in keys:
+              raw = key.get("expires_at")
+              if not raw:
+                  continue
+              expiry = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+              days = (expiry - now).days
+              rows.append((days, key["access_key"], key.get("description", ""), raw))
+          rows.sort()
+
+          for days, access_key, desc, raw in rows:
+              print(f"{days:5d} d  {access_key}  {raw}  {desc}")
+
+          expiring = [r for r in rows if r[0] < warn_days]
+          if not expiring:
+              print(f"OK: no key expires within {warn_days} days ({len(rows)} keys with expiry)")
+              sys.exit(0)
+
+          lines = [f"- `{a}` expires {raw} ({d} d): {desc}" for d, a, desc, raw in expiring]
+          body = (
+              f"Scaleway IAM API keys expiring in fewer than {warn_days} days:\n\n"
+              + "\n".join(lines)
+              + "\n\nRotate per `docs/plans/v3/runbooks/key-rotation.md` "
+              "(section: expiry alert). Auto-opened by the Key expiry workflow."
+          )
+          title = "Scaleway API key expiring soon"
+          found = subprocess.run(
+              ["gh", "issue", "list", "--state", "open", "--search", f'"{title}" in:title',
+               "--json", "number", "--jq", ".[0].number // empty"],
+              check=True, capture_output=True, text=True,
+          ).stdout.strip()
+          if found:
+              subprocess.run(["gh", "issue", "comment", found, "--body", body], check=True)
+          else:
+              subprocess.run(["gh", "issue", "create", "--title", title, "--body", body], check=True)
+          print("FAIL: keys expiring soon:", ", ".join(r[1] for r in expiring))
+          sys.exit(1)
+          PY

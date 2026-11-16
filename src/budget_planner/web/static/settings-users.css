@@ -1,0 +1,248 @@
+/* T-D17 — /settings/users admin roster (ADR-0061 §4, ADR-0073).
+ * Builds on rising-dough.css primitives (rd-panel, rd-table, rd-form,
+ * rd-toggle) and the design tokens in tokens.css. */
+
+.rd-users__body {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rd-users__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.rd-users__roster,
+.rd-users__add {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.rd-users__add .rd-form {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+/* Settings tab strip (shared with /settings): wraps instead of overflowing
+   once the admin-only "Users" tab is present. */
+.rd-settings-tabs {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.rd-users__submit { justify-self: start; }
+
+/* Wide screens: the add form is one compact row above the roster. */
+@media (width > 1100px) {
+  .rd-users__add .rd-form {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+    align-items: end;
+  }
+
+  .rd-users__add .rd-users__errors { grid-column: 1 / -1; }
+  .rd-users__add .rd-toggle-card { padding: 0.55rem 0.9rem; }
+}
+
+.rd-users__email {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rd-users__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  color: var(--mute);
+  font-size: 0.82rem;
+}
+
+.rd-users__row--me { background: color-mix(in oklab, var(--accent-soft) 45%, transparent); }
+
+.rd-users__role {
+  font-size: 0.82rem;
+  color: var(--mute);
+}
+
+.rd-users__role--admin {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.rd-users__never { color: var(--mute); font-style: italic; }
+
+.rd-users__nowrap { white-space: nowrap; }
+
+.rd-users__actions-cell { width: 1%; }
+
+.rd-users__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.rd-users__actions form { margin: 0; }
+
+.rd-users__errors {
+  border-left: 3px solid var(--expense);
+  background: var(--expense-soft);
+  color: var(--ink);
+  border-radius: var(--radius-control);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.88rem;
+}
+
+.rd-users__errors ul { margin: 0; padding: 0; list-style: none; }
+
+.rd-users__feedback:empty { display: none; }
+
+/* One-shot password toast: deliberately loud, stays until dismissed. */
+.rd-password-toast {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, var(--line));
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  padding: 1rem 1.25rem 1.1rem;
+  animation: rd-password-toast-in var(--dur, 200ms) var(--ease, ease-out);
+}
+
+.rd-password-toast__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.rd-password-toast__title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.rd-password-toast__who { color: var(--accent); }
+
+.rd-password-toast__dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--mute);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  padding: 0.1rem 0.45rem;
+}
+
+.rd-password-toast__dismiss:hover { background: var(--sunk); color: var(--ink); }
+
+.rd-password-toast__dismiss:focus-visible,
+.rd-password-toast__secret .rd-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rd-password-toast__secret {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  background: var(--sunk);
+  border-radius: var(--radius-control);
+  padding: 0.6rem 0.75rem;
+}
+
+.rd-password-toast__secret pre {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
+.rd-password-toast__note {
+  margin: 0.7rem 0 0;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+
+@keyframes rd-password-toast-in {
+  from { opacity: 0; transform: translateY(-0.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-password-toast { animation: none; }
+}
+
+/* Tablet + mobile: rows become stacked cards so the actions never hide
+   behind a horizontal scroll or wrap into a tall column. */
+@media (width <= 1100px) {
+  .rd-users__table thead,
+  .rd-users__table .rd-users__hide-md { display: none; }
+
+  .rd-users__table td[data-label]::before {
+    content: attr(data-label) " · ";
+    color: var(--mute);
+    font-size: 0.78rem;
+  }
+
+  .rd-users__table,
+  .rd-users__table tbody,
+  .rd-users__table tr,
+  .rd-users__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .rd-table-scroll .rd-users__table { min-width: 0; }
+
+  .rd-table-scroll .rd-users__table tbody td:first-child {
+    position: static;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .rd-users__table tr {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rd-users__table tr:last-child { border-bottom: 0; }
+
+  .rd-users__table td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .rd-users__table td + td { margin-top: 0.3rem; }
+  .rd-users__table td[data-label] { font-size: 0.85rem; }
+  .rd-users__email { max-width: 100%; }
+
+  .rd-users__actions-cell { width: 100%; }
+
+  .rd-users__actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 0.65rem;
+  }
+}

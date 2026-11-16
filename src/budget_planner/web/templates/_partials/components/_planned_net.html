@@ -1,0 +1,11 @@
+{# planned_net(planned, ccy) — ADR-0089. Sub-line under an account Balance:
+   "−9,824.01 planned → 2,575.99". Hidden when net is 0 or missing. #}
+{%- macro planned_net(planned, ccy) -%}
+  {%- if planned and planned.net_minor != 0 -%}
+    {%- set n = planned.net_minor -%}
+    <div class="rd-acct-planned num">
+      <span class="{{ 'neg' if n < 0 else 'pos' }}">{{ '−' if n < 0 else '+' }}{{ n|money_num(ccy, abs_value=True) }}</span>
+      planned → <span class="{{ 'neg' if planned.projected_minor < 0 else '' }}">{{ planned.projected_minor|money_num(ccy) }}</span>
+    </div>
+  {%- endif -%}
+{%- endmacro -%}

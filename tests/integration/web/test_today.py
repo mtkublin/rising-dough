@@ -19,6 +19,8 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 
+USER_ID = 1
+
 
 def test_today_renders(client: TestClient) -> None:
     r = client.get("/today")
@@ -34,8 +36,12 @@ def test_today_upcoming_row_tint_overdue_due_future(
     No badge text — only row background colour differentiates status."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         today = date.today()  # noqa: DTZ011
         for op_date, desc in [
             (today - timedelta(days=2), "Past bill"),
@@ -44,6 +50,7 @@ def test_today_upcoming_row_tint_overdue_due_future(
         ]:
             planned_repo.create(
                 conn,
+                USER_ID,
                 NewPlannedTransaction(
                     operation_date=op_date,
                     category_id=cat.id,
@@ -74,7 +81,7 @@ def test_today_upcoming_row_tint_overdue_due_future(
     assert due.select_one(".rd-upcoming__badge") is None
 
     future = by_desc["Future bill"]
-    classes = future.get("class") or []
+    classes: list[str] = future.get("class") or []  # type: ignore[assignment]
     assert "rd-upcoming__row--overdue" not in classes
     assert "rd-upcoming__row--due" not in classes
     assert future.select_one(".rd-upcoming__badge") is None

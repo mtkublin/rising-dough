@@ -24,16 +24,12 @@ from budget_planner.repositories import (
 
 def _recurring_candidate_date(
     conn: sqlite3.Connection,
+    user_id: int,
     rule_id: int,
     next_due: dt.date,
 ) -> dt.date | None:
-    """Return the effective date for ``rule.next_due`` after override lookup.
-
-    ``OverrideState.SKIPPED`` on ``next_due`` → ``None`` (row excluded).
-    ``OverrideState.OVERRIDDEN`` with a non-null ``date_override`` → the
-    override's shifted date. Otherwise the canonical ``next_due`` stands.
-    """
-    for override in recurring_repo.list_overrides(conn, rule_id):
+    """Return the effective date for ``rule.next_due`` after override lookup."""
+    for override in recurring_repo.list_overrides(conn, user_id, rule_id):
         if override.occurrence_date != next_due:
             continue
         if override.state is OverrideState.SKIPPED:
@@ -46,6 +42,7 @@ def _recurring_candidate_date(
 
 def next_anchor_date(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     after: dt.date,
     *,
@@ -71,6 +68,7 @@ def next_anchor_date(
     # Persisted one-offs.
     planned_rows = planned_repo.list_filtered(
         conn,
+        user_id,
         PlannedFilter(
             date_from=window_start,
             date_to=window_end,
@@ -81,10 +79,10 @@ def next_anchor_date(
     candidates: list[dt.date] = [row.operation_date for row in planned_rows]
 
     # Active recurring rules — honour overrides on ``next_due``.
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id != category_id:
             continue
-        effective = _recurring_candidate_date(conn, rule.id, rule.next_due)
+        effective = _recurring_candidate_date(conn, user_id, rule.id, rule.next_due)
         if effective is None:
             continue
         if window_start <= effective <= window_end:

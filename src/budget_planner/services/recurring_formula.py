@@ -13,6 +13,7 @@ it for a tree walker leaves the primitives untouched.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import logging
 import sqlite3
@@ -142,8 +143,54 @@ def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
     return out
 
 
+def _source_rule_month_value(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    start: dt.date,
+    end: dt.date,
+    *,
+    in_progress: frozenset[int],
+    cache: dict[tuple[int, int, int], int],
+) -> int:
+    """Sum the effective amounts of ``rule``'s occurrences in ``[start, end]``.
+
+    Per ADR-0086 every source rule (fixed or formula) contributes its
+    *effective* per-occurrence amount: the computed formula value (or
+    ``default_amount`` for fixed rules) replaced by any ``amount_override``;
+    ``skipped`` occurrences contribute 0. Overrides come from
+    ``list_overrides_all`` so soft-consumed (promoted) overrides stay visible
+    (ADR-0046). A formula source whose schedule has no occurrence in the
+    month contributes 0 without being evaluated (ADR-0047 month-scope gate).
+    """
+    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+    from budget_planner.services.recurring import (  # noqa: PLC0415
+        apply_overrides,
+        generate_occurrences,
+    )
+
+    occs = generate_occurrences(rule, start, end)
+    if not occs:
+        return 0
+    if rule.amount_formula is not None:
+        per_occurrence = _evaluate(
+            conn,
+            user_id,
+            rule.amount_formula,
+            start.year,
+            start.month,
+            exclude_rule_id=rule.id,
+            in_progress=in_progress | {rule.id},
+            cache=cache,
+        )
+        occs = tuple(dataclasses.replace(occ, amount=per_occurrence) for occ in occs)
+    overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
+    return sum(occ.amount for occ in apply_overrides(occs, overrides))
+
+
 def _sum_category_in_month(
     conn: sqlite3.Connection,
+    user_id: int,
     category_ids: Iterable[int],
     year: int,
     month: int,
@@ -164,12 +211,11 @@ def _sum_category_in_month(
     overrides stay visible).
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import expand, generate_occurrences  # noqa: PLC0415
 
     start, end = _month_bounds(year, month)
     cat_set = set(category_ids)
     total = 0
-    for rule in recurring_repo.list_rules(conn, active_only=True):
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.id == exclude_rule_id:
             continue
         if rule.category_id not in cat_set:
@@ -182,28 +228,15 @@ def _sum_category_in_month(
         if key in cache:
             total += cache[key]
             continue
-        if rule.amount_formula is None:
-            overrides = recurring_repo.list_overrides_all(conn, rule.id)
-            value = sum(occ.amount for occ in expand(rule, overrides, start, end))
-        else:
-            # ADR-0047 month-scope fix: a formula source rule contributes only
-            # if its canonical schedule produces an occurrence in (year, month).
-            # Without this gate a yearly bonus formula would feed its computed
-            # value into every month's parent sum, not just the payout month.
-            n_occurrences = len(generate_occurrences(rule, start, end))
-            if n_occurrences == 0:
-                value = 0
-            else:
-                per_occurrence = _evaluate(
-                    conn,
-                    rule.amount_formula,
-                    year,
-                    month,
-                    exclude_rule_id=rule.id,
-                    in_progress=in_progress | {rule.id},
-                    cache=cache,
-                )
-                value = n_occurrences * per_occurrence
+        value = _source_rule_month_value(
+            conn,
+            user_id,
+            rule,
+            start,
+            end,
+            in_progress=in_progress,
+            cache=cache,
+        )
         cache[key] = value
         total += value
     return total
@@ -211,6 +244,7 @@ def _sum_category_in_month(
 
 def _evaluate(
     conn: sqlite3.Connection,
+    user_id: int,
     formula: AmountFormula,
     year: int,
     month: int,
@@ -219,15 +253,12 @@ def _evaluate(
     in_progress: frozenset[int],
     cache: dict[tuple[int, int, int], int],
 ) -> int:
-    """Evaluate the linear-combination formula for ``(year, month)``.
-
-    Each term contributes ``sign * coefficient * Σ sources``. Memoisation +
-    in-progress tracking passed through to ``_sum_category_in_month``.
-    """
+    """Evaluate the linear-combination formula for ``(year, month)``."""
     total = 0
     for term in formula.terms:
         term_sum = _sum_category_in_month(
             conn,
+            user_id,
             term.source_category_ids,
             year,
             month,
@@ -245,24 +276,21 @@ def _evaluate(
 # ---------------------------------------------------------------------------
 def compute_formula_amount(
     conn: sqlite3.Connection,
+    user_id: int,
     formula: AmountFormula,
     year: int,
     month: int,
     *,
     exclude_rule_id: int | None = None,
 ) -> int:
-    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``.
-
-    Thin wrapper that establishes a fresh memoisation cache + empty
-    in-progress set. The recursive heavy lifting lives in :func:`_evaluate` +
-    :func:`_sum_category_in_month`.
-    """
+    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``."""
     cache: dict[tuple[int, int, int], int] = {}
     in_progress: frozenset[int] = (
         frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
     )
     return _evaluate(
         conn,
+        user_id,
         formula,
         year,
         month,
@@ -274,18 +302,16 @@ def compute_formula_amount(
 
 def resolve_rule_amount(
     conn: sqlite3.Connection,
+    user_id: int,
     rule: RecurringRule,
     occurrence_date: dt.date,
 ) -> int:
-    """Return the amount to use for an occurrence of ``rule``.
-
-    Fixed rules → ``rule.default_amount``. Formula rules → recomputed from
-    the formula using the occurrence's calendar month.
-    """
+    """Return the amount to use for an occurrence of ``rule``."""
     if rule.amount_formula is None:
         return rule.default_amount
     return compute_formula_amount(
         conn,
+        user_id,
         rule.amount_formula,
         occurrence_date.year,
         occurrence_date.month,
@@ -293,8 +319,9 @@ def resolve_rule_amount(
     )
 
 
-def rt_expand(
+def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     conn: sqlite3.Connection,
+    user_id: int,
     rule: RecurringRule,
     overrides: Iterable[RecurringOverride],
     range_start: dt.date,
@@ -313,12 +340,13 @@ def rt_expand(
 
     occs = generate_occurrences(rule, range_start, range_end)
     if rule.amount_formula is not None:
-        occs = tuple(_with_formula_amount(conn, rule, occs))
+        occs = tuple(_with_formula_amount(conn, user_id, rule, occs))
     return apply_overrides(occs, overrides)
 
 
 def _with_formula_amount(
     conn: sqlite3.Connection,
+    user_id: int,
     rule: RecurringRule,
     occurrences: Sequence[Occurrence],
 ) -> Iterable[Occurrence]:
@@ -330,6 +358,7 @@ def _with_formula_amount(
         if key not in month_cache:
             month_cache[key] = compute_formula_amount(
                 conn,
+                user_id,
                 rule.amount_formula,
                 key[0],
                 key[1],
@@ -354,24 +383,19 @@ def _with_formula_amount(
 # ---------------------------------------------------------------------------
 def validate_formula_sources(
     conn: sqlite3.Connection,
+    user_id: int,
     formula: AmountFormula,
     *,
     exclude_rule_id: int | None = None,
 ) -> None:
-    """Topological reachability check — reject cycles (ADR-0047).
-
-    Walks the dependency graph from ``formula``'s referenced categories →
-    rules in those categories → their formulas → ... — depth-first, raising
-    :class:`FormulaCycleError` if ``exclude_rule_id`` is ever reachable from
-    itself. Visited set guards against re-walking shared subgraphs.
-    """
+    """Topological reachability check — reject cycles (ADR-0047)."""
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
 
     # Sentinel for brand-new rules (not yet persisted) so the walk still
     # catches a cycle the new rule would introduce once persisted.
     target_id = -1 if exclude_rule_id is None else exclude_rule_id
 
-    all_rules = recurring_repo.list_rules(conn, active_only=True)
+    all_rules = recurring_repo.list_rules(conn, user_id, active_only=True)
     by_category: dict[int, list[RecurringRule]] = {}
     for rule in all_rules:
         by_category.setdefault(rule.category_id, []).append(rule)
@@ -442,6 +466,7 @@ PreviewResult = PreviewOk | PreviewError
 
 def _invalid_source_ids(
     conn: sqlite3.Connection,
+    user_id: int,
     terms: Sequence[DraftTerm],
 ) -> tuple[int, int] | None:
     """Return (term_index, bad_category_id) when a term points at an
@@ -449,7 +474,7 @@ def _invalid_source_ids(
     """
     from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
 
-    live_ids = {c.id for c in categories_repo.list_all(conn)}
+    live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
     for idx, term in enumerate(terms):
         for cid in term.source_category_ids:
             if cid not in live_ids:
@@ -459,6 +484,7 @@ def _invalid_source_ids(
 
 def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
     conn: sqlite3.Connection,
+    user_id: int,
     when: dt.date,
     draft_rule_id: int | None,
     terms: Sequence[DraftTerm],
@@ -482,7 +508,7 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
             offending_term_index=None,
         )
 
-    bad = _invalid_source_ids(conn, terms)
+    bad = _invalid_source_ids(conn, user_id, terms)
     if bad is not None:
         term_idx, bad_id = bad
         return PreviewError(
@@ -518,7 +544,7 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
         )
 
     try:
-        validate_formula_sources(conn, formula, exclude_rule_id=draft_rule_id)
+        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
     except FormulaCycleError as exc:
         return PreviewError(
             code="cycle",
@@ -529,6 +555,7 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
     try:
         amount_minor = compute_formula_amount(
             conn,
+            user_id,
             formula,
             when.year,
             when.month,

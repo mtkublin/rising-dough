@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.accounts import NewAccount, PatchAccount
+from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import (
@@ -27,12 +27,13 @@ from budget_planner.repositories import (
     snapshots as snapshots_repo,
 )
 from budget_planner.services import (
+    account_planned as planned_service,
     accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
-from budget_planner.web.deps import get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
@@ -45,17 +46,28 @@ def _today() -> date:
     return date.today()  # noqa: DTZ011 — intentional naive local date
 
 
+def _planned_now(
+    conn: sqlite3.Connection, user_id: int, settings: Settings
+) -> planned_service.AccountsPlanned:
+    return planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
+
+
 _SPARKLINE_WIDTH = 120
 _SPARKLINE_HEIGHT = 32
 
 
-def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
-    """Build the full context dict a single `_card.html` include needs."""
-    acc = accounts_repo.find_by_id(conn, account_id)
+def _card_context(
+    conn: sqlite3.Connection,
+    user_id: int,
+    account_id: int,
+    planned: planned_service.AccountsPlanned,
+) -> dict[str, Any]:
+    """Build the full context dict a single `_card.html` / `_row.html` needs."""
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     assert acc is not None
-    bal = balance_service.derive_balance(conn, account_id)
-    stats = balance_service.account_stats(conn, account_id)
-    series = balance_service.balance_series(conn, account_id)
+    bal = balance_service.derive_balance(conn, user_id, account_id)
+    stats = balance_service.account_stats(conn, user_id, account_id)
+    series = balance_service.balance_series(conn, user_id, account_id)
     series_values = [v for _, v in series]
     sparkline = balance_service.sparkline_points(
         series_values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT
@@ -65,7 +77,7 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
         if sparkline
         else ""
     )
-    snapshots = snapshots_repo.list_for_account(conn, account_id)
+    snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
     return {
         "account": acc,
         "balance": bal,
@@ -77,12 +89,14 @@ def _card_context(conn: sqlite3.Connection, account_id: int) -> dict[str, Any]:
         "sparkline_width": _SPARKLINE_WIDTH,
         "sparkline_height": _SPARKLINE_HEIGHT,
         "snapshots": snapshots,
+        "planned": planned.by_account.get(account_id),
     }
 
 
-def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
-    accs = accounts_repo.list_all(conn)
-    cards: list[dict[str, Any]] = [_card_context(conn, a.id) for a in accs]
+def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, Any]:
+    accs = accounts_repo.list_all(conn, user_id)
+    planned = planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
+    cards: list[dict[str, Any]] = [_card_context(conn, user_id, a.id, planned) for a in accs]
     # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
     # to the bottom. Assets land first, biggest first; liabilities land last,
     # smallest-liability-first so the credit card with the largest balance
@@ -93,7 +107,7 @@ def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
             -(card["balance"] if card["balance"] >= 0 else -card["balance"]),
         )
     )
-    fortune = fortune_service.compute_fortune(conn, settings)
+    fortune = fortune_service.compute_fortune(conn, user_id, settings)
     return {
         "cards": cards,
         "fortune": fortune,
@@ -101,6 +115,7 @@ def _hydrate(conn: sqlite3.Connection, settings: Settings) -> dict[str, Any]:
         "totals_by_ccy": fortune.net_by_ccy,
         "fortune_base": fortune.net_base,
         "today_date": _today(),
+        "planned_base": planned.base_net_minor,
     }
 
 
@@ -109,8 +124,9 @@ def index(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    data = _hydrate(conn, settings)
+    data = _hydrate(conn, user_id, settings)
     return render(request, "accounts/index.html", **data)
 
 
@@ -118,13 +134,14 @@ def index(
 def last_checked(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """ADR-0056 §6 — latest snapshot or reconcile date per account.
 
     Powers the Accounts table "last checked" column + any inline
     freshness indicator. Pure read; no DB write.
     """
-    rows = accounts_service.last_checked(conn)
+    rows = accounts_service.last_checked(conn, user_id)
     return render(
         request,
         "partials/accounts/_last_checked.html",
@@ -175,6 +192,8 @@ def create_account(  # noqa: PLR0917
     is_liability: str = Form(""),
     credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
     cur = currency.upper().strip()
@@ -205,6 +224,7 @@ def create_account(  # noqa: PLR0917
     opening = to_minor_units(opening_dec, cur)
     acc = accounts_repo.create(
         conn,
+        user_id,
         NewAccount(
             name=name.strip(),
             currency=cur,
@@ -217,7 +237,7 @@ def create_account(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, acc.id),
+        card=_card_context(conn, user_id, acc.id, _planned_now(conn, user_id, settings)),
     )
     trigger(html, "balance-stale")
     return html
@@ -225,9 +245,12 @@ def create_account(  # noqa: PLR0917
 
 @router.get("/{account_id}/edit", response_class=HTMLResponse)
 def edit_form(
-    account_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    account_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -257,8 +280,10 @@ def update_account(  # noqa: PLR0917
     is_liability: str = Form(""),
     credit_limit: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -295,6 +320,7 @@ def update_account(  # noqa: PLR0917
         clear_limit = True
     accounts_repo.update(
         conn,
+        user_id,
         account_id,
         PatchAccount(
             name=name.strip(),
@@ -304,20 +330,24 @@ def update_account(  # noqa: PLR0917
             clear_credit_limit=clear_limit,
         ),
     )
-    updated = accounts_repo.find_by_id(conn, account_id)
+    updated = accounts_repo.find_by_id(conn, user_id, account_id)
     assert updated is not None
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, account_id),
+        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
     )
     trigger(html, "balance-stale")
     return html
 
 
 @router.post("/{account_id}/delete")
-def delete_account(account_id: int, conn: sqlite3.Connection = Depends(get_db)) -> Response:
-    accounts_repo.soft_delete(conn, account_id)
+def delete_account(
+    account_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    accounts_repo.soft_delete(conn, user_id, account_id)
     resp = Response(content="", media_type="text/html")
     resp.headers["HX-Trigger"] = json.dumps(
         {
@@ -334,13 +364,14 @@ def take_snapshot(
     account_id: int,
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
-    bal = balance_service.derive_balance(conn, account_id)
+    bal = balance_service.derive_balance(conn, user_id, account_id)
     snap = snapshots_repo.create(
-        conn, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
+        conn, user_id, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
     )
     resp = render(
         request,
@@ -354,11 +385,32 @@ def take_snapshot(
     return resp
 
 
+def _uses_available(acc: Account) -> bool:
+    """T-D52 — liability with a credit limit reconciles by available credit."""
+    return bool(acc.is_liability and acc.credit_limit_minor)
+
+
+def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
+    if not _uses_available(acc):
+        return {"by_available": False}
+    limit = acc.credit_limit_minor or 0
+    used = max(-derived, 0)
+    return {
+        "by_available": True,
+        "credit_limit_minor": limit,
+        "used_minor": used,
+        "available_minor": max(limit - used, 0),
+    }
+
+
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)
 def reconcile_form(
-    account_id: int, request: Request, conn: sqlite3.Connection = Depends(get_db)
+    account_id: int,
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -368,10 +420,10 @@ def reconcile_form(
             errors={"account": "not found"},
             status_code=404,
         )
-    derived = balance_service.derive_balance(conn, account_id)
-    snapshots = snapshots_repo.list_for_account(conn, account_id)
-    categories = [c for c in categories_repo.list_all(conn) if not c.is_system]
-    reconciliation_cat = categories_repo.find_by_name(conn, "Reconciliation")
+    derived = balance_service.derive_balance(conn, user_id, account_id)
+    snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
+    categories = [c for c in categories_repo.list_all(conn, user_id) if not c.is_system]
+    reconciliation_cat = categories_repo.find_by_name(conn, user_id, "Reconciliation")
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
@@ -381,6 +433,7 @@ def reconcile_form(
         categories=categories,
         reconciliation_cat=reconciliation_cat,
         errors={},
+        **_available_mode_context(acc, derived),
     )
 
 
@@ -392,24 +445,39 @@ def reconcile_submit(  # noqa: PLR0917
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, account_id)
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
-    try:
-        actual = Decimal(actual_balance)
-    except InvalidOperation:
+    derived = balance_service.derive_balance(conn, user_id, account_id)
+
+    def _reject(message: str) -> Response:
         return render(
             request,
             "partials/accounts/_reconcile_modal.html",
             account=acc,
-            derived=0,
-            categories=[c for c in categories_repo.list_all(conn) if not c.is_system],
-            reconciliation_cat=categories_repo.find_by_name(conn, "Reconciliation"),
-            errors={"actual_balance": "invalid number"},
+            derived=derived,
+            categories=[c for c in categories_repo.list_all(conn, user_id) if not c.is_system],
+            reconciliation_cat=categories_repo.find_by_name(conn, user_id, "Reconciliation"),
+            errors={"actual_balance": message},
             status_code=422,
+            **_available_mode_context(acc, derived),
         )
+
+    try:
+        actual = Decimal(actual_balance.replace(",", ".").strip())
+    except InvalidOperation:
+        return _reject("invalid number")
     actual_minor = to_minor_units(actual, acc.currency)
+    if _uses_available(acc):
+        try:
+            actual_minor = reconciliation_service.available_to_target_balance(
+                acc.credit_limit_minor or 0, actual_minor
+            )
+        except reconciliation_service.InvalidAvailableError as exc:
+            return _reject(str(exc))
     chosen_cat_id: int | None = None
     if category_id.strip():
         try:
@@ -418,18 +486,19 @@ def reconcile_submit(  # noqa: PLR0917
             chosen_cat_id = None
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
         reconciliation_service.reconcile(
-            conn, account_id, actual_minor, _today(), category_id=chosen_cat_id
+            conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
         )
     if save_snapshot.strip().lower() in ("1", "on", "true", "yes"):
-        bal = balance_service.derive_balance(conn, account_id)
+        bal = balance_service.derive_balance(conn, user_id, account_id)
         snapshots_repo.create(
             conn,
+            user_id,
             NewAccountSnapshot(account_id=account_id, balance=bal, note="reconcile snapshot"),
         )
     html = render(
         request,
         "partials/accounts/_row.html",
-        card=_card_context(conn, account_id),
+        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
         today_date=_today(),
     )
     trigger(html, "balance-stale", "forecast-stale")

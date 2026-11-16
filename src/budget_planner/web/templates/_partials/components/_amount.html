@@ -11,7 +11,7 @@
   {% endif -%}
   <span class="{{ cls }}">
     {%- if is_neg %}−{% elif is_pos %}+{% endif -%}
-    {{ (m|abs / 100.0)|round(2) }}
+    {{ m|abs|money_num(currency) }}
     <span class="rd-amount__currency">{{ currency }}</span>
     {%- if formula -%}
       <span class="rd-amount__formula" title="Derived from formula">ƒ</span>

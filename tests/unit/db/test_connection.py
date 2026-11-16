@@ -39,6 +39,34 @@ def test_pragma_foreign_keys_is_on(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_pragma_secure_delete_is_on(tmp_path: Path) -> None:
+    """ADR-0078 §6 — deleted content must be zeroed on disk, not left in free pages."""
+    settings = _settings(tmp_path)
+    conn = get_connection(settings)
+    try:
+        row = conn.execute("PRAGMA secure_delete").fetchone()
+        assert row[0] == 1
+    finally:
+        conn.close()
+
+
+def test_deleted_row_content_is_not_left_on_disk(tmp_path: Path) -> None:
+    """ADR-0078 §6 — a deleted sentinel must be absent from the DB file bytes
+    after a checkpoint. Checkpoint is explicit because wal_autocheckpoint = 0."""
+    sentinel = "SENTINEL-T-D58-7f3a9c1e"
+    db_file = tmp_path / "scratch.sqlite"
+    conn = get_connection(_settings(tmp_path, "scratch.sqlite"))
+    try:
+        conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT NOT NULL)")
+        conn.execute("INSERT INTO t (v) VALUES (?)", (sentinel,))
+        conn.execute("DELETE FROM t")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    finally:
+        conn.close()
+
+    assert sentinel.encode() not in db_file.read_bytes()
+
+
 def test_row_factory_is_row(tmp_path: Path) -> None:
     settings = _settings(tmp_path)
     conn = get_connection(settings)

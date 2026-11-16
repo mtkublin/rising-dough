@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>New account · filled, foreign currency · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a" aria-current="page">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero" aria-labelledby="hero-label">
+<div class="rd-hero__body">
+<h1 class="rd-hero__label" id="hero-label"><span class="u-hide-below-md">net worth · 10 accounts</span><span class="u-hide-from-md">net worth</span></h1>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure rd-hero__figure--wide" data-digits="7" data-marks="2" data-signs="0">34,439.69</span><span class="rd-hero__unit">PLN</span></p>
+<p class="rd-hero__note"><span class="u-hide-below-md">assets 36,895.43 · liabilities −2,455.74 · planned −312.54</span><span class="u-hide-from-md">assets 36,895.43 · liabilities −2,455.74</span></p>
+</div>
+</section>
+<section class="rd-panel rd-accounts" aria-label="Accounts">
+<div class="rd-accounts__head"><p class="rd-caption u-hide-from-md">10 ACCOUNTS</p><a class="rd-btn" href="../../pages/overlays/new-account.html">+ new account</a></div>
+<div class="rd-table-scroll rd-table-scroll--tight" tabindex="0" role="region" aria-label="Accounts and balances (scrolls sideways)">
+<table class="rd-ledger rd-ledger--accounts">
+<caption class="u-visually-hidden">Accounts and balances</caption>
+<thead><tr class="rd-row rd-row--head"><th scope="col">ACCOUNT</th><th scope="col">TREND</th><th scope="col">CHECKED</th><th scope="col" class="rd-account__txns">TXNS</th><th scope="col" class="rd-row__amount">BALANCE</th><th scope="col"><span class="u-visually-hidden">Reconcile</span></th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody>
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Investments A</span><span class="rd-row__sub">investment</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">2</td>
+<td class="rd-row__amount"><span class="rd-amount">16,991.29 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-344" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-344" popover role="menu" aria-label="Investments A actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Investments A</p><p class="rd-menu__sub">investment · 16,991.29 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-344" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Savings</span><span class="rd-row__sub">savings</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">8</td>
+<td class="rd-row__amount"><span class="rd-amount">12,453.04 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-345" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-345" popover role="menu" aria-label="Savings actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Savings</p><p class="rd-menu__sub">savings · 12,453.04 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-345" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Investments C</span><span class="rd-row__sub">investment</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 JUL</td>
+<td class="rd-account__txns">6</td>
+<td class="rd-row__amount"><span class="rd-amount">5,729.22 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-346" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-346" popover role="menu" aria-label="Investments C actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Investments C</p><p class="rd-menu__sub">investment · 5,729.22 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-346" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Checking</span><span class="rd-row__sub">bank</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">84</td>
+<td class="rd-row__amount"><span class="rd-amount">3,685.81 <span class="rd-amount__cur">PLN</span></span><span class="rd-amount__note">→ 3,662.52 after planned</span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-347" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-347" popover role="menu" aria-label="Checking actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Checking</p><p class="rd-menu__sub">bank · 3,685.81 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-347" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Investments B</span><span class="rd-row__sub">investment</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">2</td>
+<td class="rd-row__amount"><span class="rd-amount">2,383.68 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-348" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-348" popover role="menu" aria-label="Investments B actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Investments B</p><p class="rd-menu__sub">investment · 2,383.68 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-348" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Investments D</span><span class="rd-row__sub">investment</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 JUL</td>
+<td class="rd-account__txns">0</td>
+<td class="rd-row__amount"><span class="rd-amount">2,287.46 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-349" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-349" popover role="menu" aria-label="Investments D actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Investments D</p><p class="rd-menu__sub">investment · 2,287.46 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-349" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Cash Wallet</span><span class="rd-row__sub">cash</span></td>
+<td class="rd-account__trend"><svg class="rd-spark" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">13</td>
+<td class="rd-row__amount"><span class="rd-amount">85.94 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-350" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-350" popover role="menu" aria-label="Cash Wallet actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Cash Wallet</p><p class="rd-menu__sub">cash · 85.94 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-350" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Checking EUR</span><span class="rd-row__sub">bank</span></td>
+<td class="rd-account__trend"><svg class="rd-spark rd-spark--negative" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 JUL</td>
+<td class="rd-account__txns">24</td>
+<td class="rd-row__amount"><span class="rd-amount rd-amount--negative">−6,601.15 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-351" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-351" popover role="menu" aria-label="Checking EUR actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Checking EUR</p><p class="rd-menu__sub">bank · −6,601.15 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-351" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Credit Card</span><span class="rd-row__sub">credit card · liability</span><span class="rd-account__credit"><span class="rd-bar rd-bar--sm" role="img" aria-label="16 percent spent, 80 percent left">██<span class="rd-bar__left">░░░░░░░░</span></span> used 16% · available 12,521.63 of 14,977.37</span></td>
+<td class="rd-account__trend"><svg class="rd-spark rd-spark--negative" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 APR</td>
+<td class="rd-account__txns">468</td>
+<td class="rd-row__amount"><span class="rd-amount rd-amount--negative">−2,455.74 <span class="rd-amount__cur">PLN</span></span><span class="rd-amount__note">→ −2,744.99 after planned</span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile--liability.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-352" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-352" popover role="menu" aria-label="Credit Card actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Credit Card</p><p class="rd-menu__sub">liability · −2,455.74 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile--liability.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account--liability.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-352" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+<!-- fragment: rows/account-row -->
+<tr class="rd-row rd-row--account">
+<td class="rd-row__desc"><span class="rd-row__title">Everyday Spending</span><span class="rd-row__sub">bank</span></td>
+<td class="rd-account__trend"><svg class="rd-spark rd-spark--negative" role="img" aria-label="Balance trend" width="100" height="28" viewBox="0 0 100 28"><polyline class="rd-spark__line" points="0,20 10,18 20,19 30,14 40,16 50,12 60,15 70,10 80,12 90,9 100,8"/></svg></td>
+<td class="rd-account__checked"><span class="u-hide-from-md"> · checked </span>01 SEP</td>
+<td class="rd-account__txns">30</td>
+<td class="rd-row__amount"><span class="rd-amount rd-amount--negative">−119.86 <span class="rd-amount__cur">PLN</span></span></td>
+<td class="rd-account__reconcile"><a class="rd-btn rd-btn--quiet rd-btn--sm rd-link" href="../../pages/overlays/reconcile.html">reconcile</a></td>
+<td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-353" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-353" popover role="menu" aria-label="Everyday Spending actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Everyday Spending</p><p class="rd-menu__sub">bank · −119.86 PLN</p></div><a class="rd-menu__item rd-menu__item--phone" role="menuitem" href="../../pages/overlays/reconcile.html">reconcile</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-account.html">edit</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-account--blocked.html">delete</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-353" popovertargetaction="hide">cancel</button></div></td>
+</tr>
+<!-- /fragment -->
+</tbody>
+</table>
+</div>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html" aria-current="page">accounts</a></nav>
+<div id="modal-root"><!-- fragment: overlays/new-account -->
+<dialog class="rd-dialog" id="dlg-357" aria-labelledby="dlg-357-title" data-js="modal"><form class="rd-dialog__form" method="post" action="#"><header class="rd-dialog__band"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="dlg-357-title">new account</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div><div class="rd-dialog__hero"><div class="rd-dialog__hero-row"><label class="u-visually-hidden" for="hero-amount">Opening balance</label><input class="rd-dialog__amount" id="hero-amount" name="amount" inputmode="decimal" autocomplete="off" value="1,250.00" placeholder="0.00" data-js="amount-input" required><span class="rd-dialog__cur">EUR</span></div><p class="rd-dialog__hero-note">opening balance</p></div></header><div class="rd-dialog__body"><div class="rd-field"><label class="rd-field__label" for="na-name">name</label><span class="rd-input"><input class="rd-input__control" id="na-name" name="name" type="text" value="Revolut EUR" placeholder="e.g. Revolut EUR" required></span></div>
+<div class="rd-fields-row"><div class="rd-field"><label class="rd-field__label" for="na-currency">currency</label><span class="rd-input"><input class="rd-input__control" id="na-currency" name="currency" type="text" value="EUR" placeholder="type to filter ISO code…" list="iso-codes" autocomplete="off" maxlength="3"></span></div><div class="rd-field"><label class="rd-field__label" for="na-type">type</label><span class="rd-select-wrap"><select class="rd-select rd-select--field" id="na-type" name="type"><option selected>bank</option><option>cash</option><option>savings</option><option>investment</option><option>credit card</option></select></span></div></div>
+<datalist id="iso-codes"><option value="PLN"></option><option value="EUR"></option><option value="USD"></option><option value="GBP"></option><option value="CHF"></option></datalist>
+<p class="rd-field__hint rd-field__hint--solo">currency is fixed after creation</p>
+<div class="rd-field"><label class="rd-field__label" for="na-asof">as of</label><span class="rd-input"><input class="rd-input__control" id="na-asof" name="asof" type="date" value="2026-10-31"></span></div>
+<div class="rd-field rd-field--seg" role="radiogroup" aria-labelledby="seg-356"><span class="rd-field__label" id="seg-356">counts as</span><div class="rd-segmented"><label class="rd-segmented__option"><input type="radio" name="counts_as" value="asset" checked>asset</label><label class="rd-segmented__option"><input type="radio" name="counts_as" value="liability">liability</label></div></div><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--quiet" data-js="dialog-close">cancel</button><button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">[ create account ]</button></div></div></form></dialog>
+<!-- /fragment --></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

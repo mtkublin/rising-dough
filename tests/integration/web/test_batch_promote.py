@@ -22,14 +22,18 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded_ids(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         cat = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
     finally:
         conn.close()
@@ -60,6 +64,7 @@ def test_recurring_batch_promote_with_due_rule(
     try:
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 10, 1),
@@ -70,7 +75,7 @@ def test_recurring_batch_promote_with_due_rule(
             ),
         )
         recurring_repo.set_next_due(
-            conn, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
+            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
         )
     finally:
         conn.close()
@@ -93,6 +98,7 @@ def test_planned_batch_promote_with_due_row(
     try:
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 20),
                 category_id=seeded_ids["category_id"],
@@ -120,6 +126,7 @@ def test_recurring_batch_undo_restores_state(
     try:
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 10, 1),
@@ -130,7 +137,7 @@ def test_recurring_batch_undo_restores_state(
             ),
         )
         recurring_repo.set_next_due(
-            conn, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
+            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
         )
     finally:
         conn.close()
@@ -159,6 +166,7 @@ def test_planned_batch_undo_restores_state(
     try:
         planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 20),
                 category_id=seeded_ids["category_id"],

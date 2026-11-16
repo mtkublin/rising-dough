@@ -30,6 +30,12 @@
       {{ summary.totals.committed_minor|money(base_ccy) }} committed
       <span class="budget-lds__committed-tag text-faint">(recurring + planned)</span>
     </p>
+    {% if summary.totals.unbudgeted_committed_minor > 0 %}
+      <p class="budget-lds__unbudgeted tabular-nums text-faint text-sm"
+         data-unbudgeted-committed="{{ summary.totals.unbudgeted_committed_minor }}">
+        + {{ summary.totals.unbudgeted_committed_minor|money(base_ccy) }} planned in unbudgeted categories (not counted)
+      </p>
+    {% endif %}
     <p class="budget-lds__caption text-muted">
       {% if summary.left_daily_spend_minor is none %}
         No budgets set for this month yet.

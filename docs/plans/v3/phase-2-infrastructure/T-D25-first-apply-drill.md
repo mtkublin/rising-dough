@@ -1,5 +1,7 @@
 # T-D25 — First `terraform apply` on the `drill` environment
 
+> **Superseded by ADR-0099 (2026-11-07).** The first drill apply is now run by the drill pipeline (`drill.yml`), not a local `terraform apply -var-file=...`. Current procedure: [`runbooks/drill.md`](../runbooks/drill.md). The text below is the original spec, kept as written.
+
 - **Phase**: 2 — Infrastructure
 - **Sequential**: last step of Phase 2 (except T-D26 teardown and T-D27 prod)
 - **Depends on**: T-D21, T-D22, T-D24 (full module set + cloud-init)

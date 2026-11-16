@@ -24,6 +24,8 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 _SEG_COUNT = 3
 
 
@@ -31,12 +33,15 @@ _SEG_COUNT = 3
 def seeded(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         cat_exp = categories_repo.create(
-            conn, NewCategory(name="Groceries", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Groceries", direction=Direction.EXPENSE)
         )
         txn = transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 1),
                 category_id=cat_exp.id,
@@ -47,6 +52,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
         )
         pl = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 20),
                 category_id=cat_exp.id,
@@ -57,6 +63,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
         )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -169,7 +176,7 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     assert resp.status_code == 200
     conn = get_connection(_migrated)
     try:
-        remaining = recurring_repo.list_overrides(conn, seeded["rule"])
+        remaining = recurring_repo.list_overrides(conn, USER_ID, seeded["rule"])
     finally:
         conn.close()
     assert [ov.occurrence_date for ov in remaining] == [date(2026, 2, 1)]
@@ -235,10 +242,11 @@ def test_ledger_filter_by_category(
     conn = get_connection(_migrated)
     try:
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 10, 2),
                 category_id=salary.id,
@@ -302,11 +310,16 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
     stay user-expected after schema or repo refactors."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-        cat = categories_repo.create(conn, NewCategory(name="Food", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
         for day, desc in ((1, "oldest"), (15, "middle"), (28, "newest")):
             transactions_repo.create(
                 conn,
+                USER_ID,
                 NewTransaction(
                     operation_date=date(2026, 10, day),
                     category_id=cat.id,
@@ -329,3 +342,110 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
     assert newest_idx < middle_idx < oldest_idx, (
         f"expected DESC by date; got newest@{newest_idx} middle@{middle_idx} oldest@{oldest_idx}"
     )
+
+
+def _day_net_text(html: str, day_label: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    for head in soup.select("tr.rd-day-head"):
+        if day_label in head.get_text():
+            net = head.select_one(".num")
+            return net.get_text(strip=True) if net else ""
+    raise AssertionError(f"day head {day_label!r} not found")
+
+
+def test_actual_day_net_with_negative_reconciliation(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-D48 — -700 reconciliation + -100 + -50 expenses nets -850.00, not positive."""
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
+        exp = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
+        rec = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
+        assert rec is not None
+        day = date(2026, 11, 2)
+        for cat_id, amount in ((rec.id, -70000), (exp.id, 10000), (exp.id, 5000)):
+            transactions_repo.create(
+                conn,
+                USER_ID,
+                NewTransaction(
+                    operation_date=day,
+                    category_id=cat_id,
+                    account_id=acc.id,
+                    amount=amount,
+                    description="x",
+                ),
+            )
+    finally:
+        conn.close()
+    r = client.get("/ledger?view=actual")
+    assert r.status_code == 200
+    assert _day_net_text(r.text, "02 Nov") == "net -850.00"
+    assert "net +" not in r.text
+
+
+def _seed_eur_day(settings: Settings, *, with_rate: bool) -> None:
+    from decimal import Decimal  # noqa: PLC0415
+
+    from budget_planner.domain.fx import NewFxRate  # noqa: PLC0415
+    from budget_planner.repositories import fx as fx_repo  # noqa: PLC0415
+
+    conn = get_connection(settings)
+    try:
+        eur = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Euro", currency="EUR", opening_balance=0)
+        )
+        exp = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Food", direction=Direction.EXPENSE)
+        )
+        rec = categories_repo.find_by_name(conn, USER_ID, "Reconciliation")
+        assert rec is not None
+        day = date(2026, 11, 2)
+        if with_rate:
+            fx_repo.upsert_rate(
+                conn, NewFxRate(date=day, from_ccy="EUR", to_ccy="PLN", rate=Decimal("4"))
+            )
+        for cat_id, amount in ((rec.id, -10000), (exp.id, 2500)):
+            transactions_repo.create(
+                conn,
+                USER_ID,
+                NewTransaction(
+                    operation_date=day,
+                    category_id=cat_id,
+                    account_id=eur.id,
+                    amount=amount,
+                    description="x",
+                ),
+            )
+    finally:
+        conn.close()
+
+
+def test_actual_day_net_converts_foreign_currency_to_base(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-D48 — EUR -100 reconciliation, -25 expense at 4.0 -> net -500.00 PLN."""
+    _seed_eur_day(_migrated, with_rate=True)
+    r = client.get("/ledger?view=actual")
+    assert _day_net_text(r.text, "02 Nov") == "net -500.00"
+
+
+def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
+    client: TestClient, _migrated: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rendering /ledger must not touch the network; uncached day hides its net."""
+    import httpx  # noqa: PLC0415
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise AssertionError("network FX fetch during ledger render")
+
+    monkeypatch.setattr(httpx.Client, "get", _boom)
+    monkeypatch.setattr(httpx.Client, "send", _boom)
+    _seed_eur_day(_migrated, with_rate=False)
+    r = client.get("/ledger?view=actual")
+    assert r.status_code == 200
+    assert _day_net_text(r.text, "02 Nov") == ""

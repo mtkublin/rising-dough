@@ -130,7 +130,7 @@ def test_patch_dtos_as_dict_strips_none() -> None:
 
 
 def test_new_dtos_construct_with_minimal_fields() -> None:
-    assert NewAccount(name="ING", currency="PLN").user_id == 1
+    assert NewAccount(name="ING", currency="PLN").opening_balance == 0
     assert NewCategory(name="Food", direction=Direction.EXPENSE).is_system is False
     NewTransaction(operation_date=date(2026, 1, 1), category_id=1, account_id=1, amount=100)
     NewPlannedTransaction(operation_date=date(2026, 1, 1), category_id=1, account_id=1, amount=100)

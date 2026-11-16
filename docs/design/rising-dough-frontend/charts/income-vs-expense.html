@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Chart · Income vs expense loaves · Rising Dough</title>
+<link rel="icon" href="../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../static/css/main.css">
+<script src="../static/js/theme.js"></script>
+<script defer src="../static/js/reveal.js"></script>
+<script defer src="../static/js/expand.js"></script>
+<script defer src="../static/js/filters.js"></script>
+<script defer src="../static/js/formula.js"></script>
+<script defer src="../static/js/dialog.js"></script>
+<script defer src="../static/js/row-menu.js"></script>
+<script defer src="../static/js/palette.js"></script>
+<script defer src="../static/js/shortcuts.js"></script>
+<script defer src="../static/js/combobox.js"></script>
+<script defer src="../static/js/amount-input.js"></script>
+<script defer src="../static/js/bulk-select.js"></script>
+<script defer src="../static/js/segmented.js"></script>
+<script defer src="../static/js/toast.js"></script>
+<script defer src="../static/js/theme-switch.js"></script>
+<script defer src="../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app rd-app--bare">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main rd-main--gap">
+<h1 class="rd-comp-title">Income vs expense loaves</h1>
+<p class="rd-body rd-muted"><a class="rd-link" href="index.html">← all charts</a></p>
+<!-- chart notes: Income vs expense loaves. viewBox 0 0 520 300; plot x 50–520, y 16 (30k) – 250 (0); gridline every 10k. Month slot 116 wide starting x 60; income loaf (filled) 34 wide at slot+16, expense loaf (outline) at slot+58. Loaf = rect with 4px base corners and a semicircular top (radius = width/2); top y = 250 − value·(234 / scale max). Past months: .rd-loaf (past fill) / .rd-loaf--outline; this period: add .rd-loaf--now. Hover/focus band .rd-chart__band and tooltip 270×64. Mobile: keep 4 months; the svg scales to the card width. -->
+<section class="rd-card" aria-label="Income vs expense loaves"><p class="rd-body rd-muted">Income vs expense loaves. viewBox 0 0 520 300; plot x 50–520, y 16 (30k) – 250 (0); gridline every 10k. Month slot 116 wide starting x 60; income loaf (filled) 34 wide at slot+16, expense loaf (outline) at slot+58. Loaf = rect with 4px base corners and a semicircular top (radius = width/2); top y = 250 − value·(234 / scale max). Past months: .rd-loaf (past fill) / .rd-loaf--outline; this period: add .rd-loaf--now. Hover/focus band .rd-chart__band and tooltip 270×64. Mobile: keep 4 months; the svg scales to the card width.</p><div class="rd-chart-card__plot rd-chart-sample"><svg class="rd-chart rd-chart--loaves" role="img" viewBox="0 0 520 300" aria-label="Monthly income and expense, Jul to Oct 2026. Hover a month for exact totals.">
+<!-- plot x 50–520, y 16–250; month slot 116 wide; income loaf 34 wide at slot+16, expense loaf at slot+58; loaf top = 17px radius arc, base corners 4px -->
+<line class="rd-chart__grid" x1="50" x2="520" y1="250.0" y2="250.0"/><text class="rd-chart__tick" x="44" y="254.0" text-anchor="end">0k</text>
+<line class="rd-chart__grid" x1="50" x2="520" y1="172.0" y2="172.0"/><text class="rd-chart__tick" x="44" y="176.0" text-anchor="end">10k</text>
+<line class="rd-chart__grid" x1="50" x2="520" y1="94.0" y2="94.0"/><text class="rd-chart__tick" x="44" y="98.0" text-anchor="end">20k</text>
+<line class="rd-chart__grid" x1="50" x2="520" y1="16.0" y2="16.0"/><text class="rd-chart__tick" x="44" y="20.0" text-anchor="end">30k</text>
+<g class="rd-chart__pt" tabindex="0" aria-label="Jul 2026: income 21,412.06 PLN, expense 22,354.18 PLN"><rect class="rd-chart__band" x="60.0" y="16" width="108" height="234" rx="12"/><path class="rd-loaf" d="M76.0,246.0 Q76.0,250.0 80.0,250.0 L106.0,250.0 Q110.0,250.0 110.0,246.0 L110.0,100.0 A17.0,17.0 0 0 0 76.0,100.0 Z"/><path class="rd-loaf rd-loaf--outline" d="M118.0,246.0 Q118.0,250.0 122.0,250.0 L148.0,250.0 Q152.0,250.0 152.0,246.0 L152.0,92.6 A17.0,17.0 0 0 0 118.0,92.6 Z"/><text class="rd-chart__label" x="114.0" y="272" text-anchor="middle">JUL</text><text class="rd-chart__sublabel" x="114.0" y="288" text-anchor="middle">2026</text><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="0.0" y="89.6" width="270" height="64" rx="12"/><text class="rd-chart__tick" x="14.0" y="107.6">JUL 2026</text><text class="rd-chart__tip-value" x="14.0" y="125.6">in 21,412.06 · out 22,354.18</text><text class="rd-chart__tick" x="14.0" y="143.6">net −942.12</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Aug 2026: income 22,018.40 PLN, expense 25,201.77 PLN"><rect class="rd-chart__band" x="176.0" y="16" width="108" height="234" rx="12"/><path class="rd-loaf" d="M192.0,246.0 Q192.0,250.0 196.0,250.0 L222.0,250.0 Q226.0,250.0 226.0,246.0 L226.0,95.3 A17.0,17.0 0 0 0 192.0,95.3 Z"/><path class="rd-loaf rd-loaf--outline" d="M234.0,246.0 Q234.0,250.0 238.0,250.0 L264.0,250.0 Q268.0,250.0 268.0,246.0 L268.0,70.4 A17.0,17.0 0 0 0 234.0,70.4 Z"/><text class="rd-chart__label" x="230.0" y="272" text-anchor="middle">AUG</text><text class="rd-chart__sublabel" x="230.0" y="288" text-anchor="middle">2026</text><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="95.0" y="67.4" width="270" height="64" rx="12"/><text class="rd-chart__tick" x="109.0" y="85.4">AUG 2026</text><text class="rd-chart__tip-value" x="109.0" y="103.4">in 22,018.40 · out 25,201.77</text><text class="rd-chart__tick" x="109.0" y="121.4">net −3,183.37</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Sep 2026: income 21,377.95 PLN, expense 26,040.12 PLN"><rect class="rd-chart__band" x="292.0" y="16" width="108" height="234" rx="12"/><path class="rd-loaf" d="M308.0,246.0 Q308.0,250.0 312.0,250.0 L338.0,250.0 Q342.0,250.0 342.0,246.0 L342.0,100.3 A17.0,17.0 0 0 0 308.0,100.3 Z"/><path class="rd-loaf rd-loaf--outline" d="M350.0,246.0 Q350.0,250.0 354.0,250.0 L380.0,250.0 Q384.0,250.0 384.0,246.0 L384.0,63.9 A17.0,17.0 0 0 0 350.0,63.9 Z"/><text class="rd-chart__label" x="346.0" y="272" text-anchor="middle">SEP</text><text class="rd-chart__sublabel" x="346.0" y="288" text-anchor="middle">2026</text><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="211.0" y="60.9" width="270" height="64" rx="12"/><text class="rd-chart__tick" x="225.0" y="78.9">SEP 2026</text><text class="rd-chart__tip-value" x="225.0" y="96.9">in 21,377.95 · out 26,040.12</text><text class="rd-chart__tick" x="225.0" y="114.9">net −4,662.17</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Oct 2026: income 22,341.10 PLN, expense 19,417.18 PLN"><rect class="rd-chart__band" x="408.0" y="16" width="108" height="234" rx="12"/><path class="rd-loaf rd-loaf--now" d="M424.0,246.0 Q424.0,250.0 428.0,250.0 L454.0,250.0 Q458.0,250.0 458.0,246.0 L458.0,92.7 A17.0,17.0 0 0 0 424.0,92.7 Z"/><path class="rd-loaf rd-loaf--outline rd-loaf--now" d="M466.0,246.0 Q466.0,250.0 470.0,250.0 L496.0,250.0 Q500.0,250.0 500.0,246.0 L500.0,115.5 A17.0,17.0 0 0 0 466.0,115.5 Z"/><text class="rd-chart__label" x="462.0" y="272" text-anchor="middle">OCT</text><text class="rd-chart__sublabel" x="462.0" y="288" text-anchor="middle">2026</text><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="250.0" y="89.7" width="270" height="64" rx="12"/><text class="rd-chart__tick" x="264.0" y="107.7">OCT 2026</text><text class="rd-chart__tip-value" x="264.0" y="125.7">in 22,341.10 · out 19,417.18</text><text class="rd-chart__tick" x="264.0" y="143.7">net +2,923.92</text></g></g>
+<line class="rd-chart__axis" x1="50" x2="520" y1="250" y2="250"/></svg></div></section>
+</main>
+</div>
+
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+
+</body>
+</html>

@@ -104,7 +104,6 @@ class NewRecurringRule:
     day_of_month: int | None = None
     month_of_year: int | None = None
     active: bool = True
-    user_id: int = 1
     amount_formula: AmountFormula | None = None
 
 

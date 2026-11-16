@@ -21,7 +21,7 @@
 <a href="/today" class="rd-wordmark">Rising Dough</a>
 <nav aria-label="Primary navigation">
   <ul class="rd-nav">
-    {{ navlink('/today', 'Today', 'g o', extra_paths=('/',)) }}
+    {{ navlink('/today', 'Today', 'g o') }}
     {{ navlink('/ledger', 'Ledger', 'g l', extra_paths=('/transactions', '/planned', '/recurring')) }}
     {{ navlink('/plan', 'Plan', 'g p', extra_paths=('/budget', '/forecast', '/analytics')) }}
     {{ navlink('/accounts', 'Accounts', 'g a') }}
@@ -30,5 +30,15 @@
     <ul class="rd-nav">
       {{ navlink('/settings', 'Settings', 'g s', extra_paths=('/categories',)) }}
     </ul>
+    {% set me = request.state.user if request.state.user is defined else none %}
+    {% if me %}
+      <div class="rd-rail__account">
+        <span class="rd-rail__who" title="{{ me.email or me.name }}">{{ me.email or me.name }}</span>
+        <form method="post" action="/auth/logout">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="rd-btn rd-btn--ghost rd-rail__signout">Sign out</button>
+        </form>
+      </div>
+    {% endif %}
   </div>
 </nav>

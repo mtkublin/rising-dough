@@ -1,0 +1,30 @@
+{# T-D17 — roster table. Swapped as a whole (outerHTML / out-of-band) after
+   every mutation so rows, pills and counts never drift.
+   Context: users, me_id; optional oob_table (OOB swap), flash_message. #}
+<div id="users-table"
+     class="rd-table-scroll"
+     {% if oob_table is defined and oob_table %}hx-swap-oob="true"{% endif %}>
+  <table class="rd-table rd-users__table">
+    <thead>
+      <tr>
+        <th scope="col">User</th>
+        <th scope="col">Role</th>
+        <th scope="col" class="rd-users__hide-md">Added</th>
+        <th scope="col">Last seen</th>
+        <th scope="col">
+          <span class="sr-only">Actions</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody id="users-tbody">
+      {% for u in users %}
+        {% include "settings/users/_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if flash_message is defined and flash_message %}
+  {% with level = "success", message = flash_message %}
+    {% include "partials/_flash.html" %}
+  {% endwith %}
+{% endif %}

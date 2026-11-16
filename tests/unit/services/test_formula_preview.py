@@ -22,15 +22,24 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import recurring_formula as formula_svc
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seeded(conn: sqlite3.Connection) -> dict[str, int]:
-    acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
-    salary = categories_repo.create(conn, NewCategory(name="Salary", direction=Direction.INCOME))
-    tax = categories_repo.create(conn, NewCategory(name="Tax", direction=Direction.EXPENSE))
+    acc = accounts_repo.create(
+        conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+    )
+    salary = categories_repo.create(
+        conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
+    )
+    tax = categories_repo.create(
+        conn, USER_ID, NewCategory(name="Tax", direction=Direction.EXPENSE)
+    )
     # Seed a recurring rule in Salary category so the formula has a source.
     recurring_repo.create_rule(
         conn,
+        USER_ID,
         NewRecurringRule(
             cadence=Cadence.MONTHLY,
             start_date=date(2026, 1, 1),
@@ -43,6 +52,7 @@ def seeded(conn: sqlite3.Connection) -> dict[str, int]:
     # Also a transaction so sums have something to accrue.
     transactions_repo.create(
         conn,
+        USER_ID,
         NewTransaction(
             operation_date=date(2026, 1, 15),
             category_id=salary.id,
@@ -62,7 +72,7 @@ class TestPreview:
     def test_empty_returns_empty_error(
         self, conn: sqlite3.Connection, seeded: dict[str, int]
     ) -> None:
-        result = formula_svc.preview(conn, date(2026, 2, 1), None, [])
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, [])
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "empty"
 
@@ -76,7 +86,7 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
         assert isinstance(result, formula_svc.PreviewOk)
         assert result.amount_minor == 25_000  # 25% of 100_000
 
@@ -95,7 +105,7 @@ class TestPreview:
                 source_category_ids=(99_999,),  # bogus
             ),
         ]
-        result = formula_svc.preview(conn, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "invalid_source"
         assert result.offending_term_index == 1
@@ -114,7 +124,7 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             ),
         ]
-        result = formula_svc.preview(conn, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "non_positive"
 
@@ -128,14 +138,14 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
         assert isinstance(result, formula_svc.PreviewError)
         assert result.offending_term_index == 0
 
     def test_self_cycle_detected(self, conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
         # Simulate editing the salary rule and referencing its own category:
         # exclude_rule_id = the salary rule id. Preview should flag cycle.
-        rules = recurring_repo.list_rules(conn, active_only=True)
+        rules = recurring_repo.list_rules(conn, USER_ID, active_only=True)
         salary_rule = next(r for r in rules if r.category_id == seeded["salary_id"])
         drafts = [
             formula_svc.DraftTerm(
@@ -144,7 +154,7 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, date(2026, 2, 1), salary_rule.id, drafts)
+        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), salary_rule.id, drafts)
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "cycle"
 
@@ -158,6 +168,6 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        formula_svc.preview(conn, date(2026, 2, 1), None, drafts)
+        formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
         after = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
         assert before == after

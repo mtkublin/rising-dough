@@ -1,0 +1,21 @@
+# Restore-only Litestream config for the local prod-sim stack (T-D56).
+#
+# Same replica as deploy/litestream.yml plus the age identity. The identity is
+# injected as $LITESTREAM_AGE_IDENTITY by the `litestream-restore` service,
+# which reads the dev-only key file deploy/litestream-age-DEV-ONLY.key.
+# Never passed to `litestream replicate`.
+
+dbs:
+  - path: /data/budget.db
+    replicas:
+      - type: s3
+        endpoint: http://minio:9000
+        region: us-east-1
+        bucket: budget-planner-prodsim
+        path: budget
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        force-path-style: true
+        age:
+          identities:
+            - ${LITESTREAM_AGE_IDENTITY}

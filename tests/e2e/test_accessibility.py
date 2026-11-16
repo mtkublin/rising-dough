@@ -17,7 +17,7 @@ from playwright.sync_api import Page
 
 pytestmark = pytest.mark.e2e
 
-_ROUTES = ("/", "/ledger", "/accounts", "/budget")
+_ROUTES = ("/today", "/ledger", "/accounts", "/budget")
 
 
 @pytest.mark.parametrize("route", _ROUTES)
@@ -33,7 +33,7 @@ def test_landmarks_present(page: Page, live_server: tuple[str, object], route: s
 
 def test_skip_link_focuses_first(page: Page, live_server: tuple[str, object]) -> None:
     base_url, _ = live_server
-    page.goto(f"{base_url}/")
+    page.goto(f"{base_url}/today")
     page.keyboard.press("Tab")
     focused_href = page.evaluate(
         "() => document.activeElement && document.activeElement.getAttribute('href')"
@@ -44,7 +44,7 @@ def test_skip_link_focuses_first(page: Page, live_server: tuple[str, object]) ->
 def test_tab_reaches_primary_nav(page: Page, live_server: tuple[str, object]) -> None:
     """After the skip link, Tab should visit every nav anchor in document order."""
     base_url, _ = live_server
-    page.goto(f"{base_url}/")
+    page.goto(f"{base_url}/today")
     # First Tab lands on the skip link; subsequent Tabs on nav items.
     seen: list[str] = []
     for _ in range(12):

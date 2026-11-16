@@ -22,15 +22,20 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def ctx(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN"))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Main", currency="PLN"))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         pl = planned_repo.create(
             conn,
+            USER_ID,
             NewPlannedTransaction(
                 operation_date=date(2026, 10, 15),
                 category_id=cat.id,

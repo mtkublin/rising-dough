@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Today · can I afford it, invalid · Rising Dough</title>
+<link rel="icon" href="../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../static/css/main.css">
+<script src="../static/js/theme.js"></script>
+<script defer src="../static/js/reveal.js"></script>
+<script defer src="../static/js/expand.js"></script>
+<script defer src="../static/js/filters.js"></script>
+<script defer src="../static/js/formula.js"></script>
+<script defer src="../static/js/dialog.js"></script>
+<script defer src="../static/js/row-menu.js"></script>
+<script defer src="../static/js/palette.js"></script>
+<script defer src="../static/js/shortcuts.js"></script>
+<script defer src="../static/js/combobox.js"></script>
+<script defer src="../static/js/amount-input.js"></script>
+<script defer src="../static/js/bulk-select.js"></script>
+<script defer src="../static/js/segmented.js"></script>
+<script defer src="../static/js/toast.js"></script>
+<script defer src="../static/js/theme-switch.js"></script>
+<script defer src="../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../pages/today.html" aria-keyshortcuts="g o" aria-current="page">today</a><a class="rd-mainnav__link" href="../pages/ledger/actual.html" aria-keyshortcuts="g l">ledger</a><a class="rd-mainnav__link" href="../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero rd-hero--tall" aria-labelledby="hero-label">
+<pre class="rd-hero__loaf" aria-hidden="true">          .:+*###%%%%###*+:.
+       .:*#%@@@@@@@@@@@@@@@%#*:.
+     .+#%@@@@@@@@@@@@@@@@@@@@@%#+.
+   .:*%@@@@@@@@@@@@@@@@@@@@@@@@@%*:.
+  :*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*:
+ :#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#:
+  :+*##%%%%%%%%%%%%%%%%%%%%%%%%##*+:  </pre>
+<div class="rd-hero__body">
+<div class="rd-hero__head"><h1 class="rd-hero__label" id="hero-label">left to spend per day</h1><span class="rd-status">● on track</span></div>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure rd-hero__figure--xl" data-digits="5" data-marks="1" data-signs="0">199.99</span><span class="rd-hero__unit">PLN / day</span></p>
+<p class="rd-hero__note"><span class="u-hide-below-md">7 days until next income (Salary, 7 nov)</span><span class="u-hide-from-md">7 days until salary (7 nov)</span></p>
+</div>
+</section>
+<section class="rd-panel rd-today" aria-label="Period and net worth">
+<div class="rd-today__period">
+<p class="rd-caption">PERIOD · 7 OCT → 7 NOV · DAY 25 OF 31</p>
+<p><span class="rd-bar rd-bar--lg" role="img" aria-label="78 percent spent, 15 percent left">████████████████▒<span class="rd-bar__left">░░░</span></span></p>
+<dl class="rd-stats">
+<div><dt class="rd-stats__label">spent</dt><dd class="rd-stats__value">5,014.55</dd></div>
+<div><dt class="rd-stats__label">committed ▒</dt><dd class="rd-stats__value">34.60</dd></div>
+<div><dt class="rd-stats__label">left</dt><dd class="rd-stats__value">1,399.93</dd></div>
+<div><dt class="rd-stats__label">of</dt><dd class="rd-stats__value">6,449.08</dd></div>
+</dl>
+<form class="rd-afford" method="post" action="#">
+<label class="rd-afford__label" for="afford">can i afford it?</label>
+<span class="rd-input rd-input--afford"><input class="rd-input__control rd-input__control--end" id="afford" name="amount" inputmode="decimal" autocomplete="off" value="" data-js="amount-input" aria-invalid="true" aria-describedby="afford-error"><span class="rd-input__suffix">PLN</span></span>
+<!-- fragment: today/afford-result -->
+<output class="rd-afford__output" id="afford-result" for="afford" aria-live="polite"><span class="rd-afford__result">→ per day becomes 164.28 <span class="rd-muted">(↓ 35.71)</span></span></output>
+<!-- /fragment -->
+<p class="rd-field__error" id="afford-error">▲ Enter an amount, like 250.00</p>
+</form>
+</div>
+<div class="rd-today__networth">
+<p class="rd-caption">NET WORTH · ALL ACCOUNTS</p>
+<p class="rd-figure-row"><span class="rd-figure">34,439.69</span><span class="rd-caption">PLN</span></p>
+<p class="rd-today__nw-note">assets 36,895.43 · liabilities −2,455.74</p>
+<p class="rd-today__links"><a class="rd-link" href="../pages/accounts.html">all 10 accounts →</a><a class="rd-link" href="../pages/plan/forecast.html">forecast →</a></p>
+</div>
+</section>
+<section class="rd-panel-section rd-upcoming" aria-labelledby="upcoming-title">
+<div class="rd-section-head">
+<div class="rd-section-head__start">
+<h2 class="rd-section-title" id="upcoming-title">Upcoming</h2>
+<div class="rd-segmented" role="group" aria-label="Upcoming range">
+<button type="button" class="rd-segmented__option" aria-pressed="false">7 days</button>
+<button type="button" class="rd-segmented__option" aria-pressed="true">30 days</button>
+<button type="button" class="rd-segmented__option" aria-pressed="false">all</button>
+</div>
+</div>
+<form method="post" action="#" class="rd-upcoming__promote-all" data-demo-flash="Promoted 2 due entries"><button type="submit" class="rd-btn" name="promote_all" value="due">promote all due</button></form>
+</div>
+<!-- fragment: today/upcoming-list -->
+<div class="rd-upcoming__body" id="upcoming-list">
+<h3 class="rd-upcoming__group rd-caption">▲ OVERDUE · 1</h3>
+<ul class="rd-upcoming__list">
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">28 OCT</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Annual insurance</span> <span class="rd-upcoming__account">· Checking</span><span class="rd-upcoming__flag">▲ overdue 3 days</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="coral">Other</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−412.00 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--planned.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-132" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-132" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Annual insurance · −412.00 PLN</p><p class="rd-menu__sub">28 OCT · Checking</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Annual insurance · 28 OCT">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-132" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+</ul>
+<h3 class="rd-upcoming__group rd-caption">● DUE TODAY · 1</h3>
+<ul class="rd-upcoming__list">
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">31 OCT</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Tax refund</span> <span class="rd-upcoming__account">· Checking EUR</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="mint">VAT Refund</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">+1,120.45 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--planned.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-133" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-133" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Tax refund · +1,120.45 PLN</p><p class="rd-menu__sub">31 OCT · Checking EUR</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Tax refund · 31 OCT">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-133" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+</ul>
+<h3 class="rd-upcoming__group rd-caption">NEXT 30 DAYS</h3>
+<ul class="rd-upcoming__list">
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">01 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Fixed Costs</span> <span class="rd-upcoming__account">· Credit Card</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−277.94 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-134" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-134" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Fixed Costs · −277.94 PLN</p><p class="rd-menu__sub">01 NOV · Credit Card</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Fixed Costs · 01 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-134" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">01 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Subscriptions</span> <span class="rd-upcoming__account">· Credit Card</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="gold">Subscriptions</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−11.31 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-135" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-135" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Subscriptions · −11.31 PLN</p><p class="rd-menu__sub">01 NOV · Credit Card</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Subscriptions · 01 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-135" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">05 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Subscriptions</span> <span class="rd-upcoming__account">· Checking</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="gold">Subscriptions</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−23.29 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-136" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-136" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Subscriptions · −23.29 PLN</p><p class="rd-menu__sub">05 NOV · Checking</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Subscriptions · 05 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-136" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">07 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Fixed Costs</span> <span class="rd-upcoming__account">· Checking</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−522.18 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-137" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-137" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Fixed Costs · −522.18 PLN</p><p class="rd-menu__sub">07 NOV · Checking</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Fixed Costs · 07 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-137" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">07 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Fixed Costs</span> <span class="rd-upcoming__account">· Checking</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="violet">Fixed costs</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−2,296.87 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-138" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-138" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Fixed Costs · −2,296.87 PLN</p><p class="rd-menu__sub">07 NOV · Checking</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Fixed Costs · 07 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-138" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+<!-- fragment: rows/upcoming-row -->
+<li class="rd-upcoming__row">
+<span class="rd-upcoming__date">07 NOV</span>
+<span class="rd-upcoming__main"><span class="rd-upcoming__name">Bank Fees #18</span> <span class="rd-upcoming__account">· Checking EUR</span></span>
+<span class="rd-upcoming__cat"><span class="rd-chip" data-color="sky">Bank fees</span></span>
+<span class="rd-upcoming__amount"><span class="rd-amount">−15.56 <span class="rd-amount__cur">PLN</span></span></span>
+<div class="rd-upcoming__actions"><a class="rd-btn" href="../pages/overlays/promote--recurring.html">promote</a><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-139" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-139" popover role="menu" aria-label="Row actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Bank Fees #18 · −15.56 PLN</p><p class="rd-menu__sub">07 NOV · Checking EUR</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="skip" data-demo-label="Bank Fees #18 · 07 NOV">skip</button><a class="rd-menu__item" role="menuitem" href="../pages/overlays/override--occurrence.html">override</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-139" popovertargetaction="hide">cancel</button></div></div>
+</li>
+<!-- /fragment -->
+</ul>
+<p class="rd-upcoming__foot">showing 6 of 23 · <a class="rd-link rd-upcoming__more" href="../pages/ledger/planned.html">open in ledger →</a></p>
+</div>
+<!-- /fragment -->
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../pages/today.html" aria-current="page">today</a><a class="rd-tabbar__link" href="../pages/ledger/actual.html">ledger</a><a class="rd-tabbar__new" href="../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

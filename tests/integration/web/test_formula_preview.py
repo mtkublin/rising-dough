@@ -21,17 +21,22 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def seed_ids(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN", opening_balance=0))
+        acc = accounts_repo.create(
+            conn, USER_ID, NewAccount(name="Main", currency="PLN", opening_balance=0)
+        )
         salary = categories_repo.create(
-            conn, NewCategory(name="Salary", direction=Direction.INCOME)
+            conn, USER_ID, NewCategory(name="Salary", direction=Direction.INCOME)
         )
         recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -43,6 +48,7 @@ def seed_ids(_migrated: Settings) -> dict[str, int]:
         )
         transactions_repo.create(
             conn,
+            USER_ID,
             NewTransaction(
                 operation_date=date(2026, 1, 15),
                 category_id=salary.id,

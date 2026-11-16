@@ -50,7 +50,6 @@ class NewCategory:
 
     name: str
     direction: Direction
-    user_id: int = 1
     is_system: bool = False
     color: str | None = None
 

@@ -1,5 +1,7 @@
 # T-D40 — First backup restore drill
 
+> **Superseded by ADR-0099 (2026-11-07).** Drill applies for the restore drill run through `drill.yml` / `restore-drill.yml`, not a local `terraform apply -var-file=...`. Current procedure: [`runbooks/drill.md`](../runbooks/drill.md) and [`runbooks/restore.md`](../runbooks/restore.md). The text below is the original spec, kept as written.
+
 - **Phase**: 4 — Validation
 - **Sequential**: must complete before production is declared live
 - **Depends on**: T-D27 (prod up and taking writes)

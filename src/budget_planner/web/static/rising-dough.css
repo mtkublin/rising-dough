@@ -451,6 +451,8 @@ nav[aria-label="Primary navigation"] { flex: 1; display: flex; flex-direction: c
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--line);
 }
@@ -1046,7 +1048,14 @@ kbd.rd-kbd {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
-.ledger-scroll { overflow-x: auto; }
+
+.ledger-scroll {
+  overflow-x: auto;
+
+  /* Anchor absolutely-positioned descendants (.sr-only th labels) so they
+   * don't escape the scroller and widen the document (T-VIS). */
+  position: relative;
+}
 
 /* Category chip inside legacy ledger rows ↦ pill. */
 .ledger .category-chip,
@@ -1178,7 +1187,9 @@ kbd.rd-kbd {
 .rd-tabbar { display: none; }
 
 @media (width <= 640px) {
-  .rd-shell { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), not 1fr: a bare 1fr has an `auto` minimum so wide tables
+   * (.ledger-scroll) blow the single column past the viewport (T-VIS). */
+  .rd-shell { grid-template-columns: minmax(0, 1fr); }
   .rd-rail { display: none; }
   .rd-main { padding: 1rem 1rem 5rem; }
 
@@ -1782,6 +1793,22 @@ kbd.rd-kbd {
 @media (width <= 640px) {
   .rd-table-scroll .rd-table { min-width: 36rem; }
 
+  /* T-VIS6 — /accounts: drop Trend / Checked / Txns so Account + Balance
+   * (with planned sub-line) + Actions fit 375 px without sideways scroll. */
+  .rd-table-scroll .rd-table--accounts { min-width: 0; table-layout: auto; }
+
+  .rd-table--accounts .rd-col-trend,
+  .rd-table--accounts .rd-col-checked,
+  .rd-table--accounts .rd-col-txns { display: none; }
+
+  .rd-table--accounts th,
+  .rd-table--accounts td { padding-inline: 0.5rem; }
+  .rd-table--accounts td.num { text-align: right; white-space: normal; }
+  .rd-table--accounts .rd-acct-planned { white-space: normal; }
+  .rd-table--accounts .rd-actions { padding-inline: 0.25rem; text-align: right; }
+  .rd-table--accounts .rd-actions .rd-btn { display: block; margin-inline-start: auto; margin-bottom: 0.25rem; }
+  .rd-table--accounts .rd-desc > .rd-pill { white-space: normal; }
+
   /* T-R54 — Swap the Plan · Year heatmap table for per-category cards. */
   .rd-plan-year__scroll { display: none; }
   .rd-plan-year__cards { display: block; }
@@ -1835,7 +1862,7 @@ kbd.rd-kbd {
 /* ─── Plan · Budget top bar + override card (manual-audit #34, #35) ─ */
 .rd-period-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
   gap: 2rem;
   align-items: center;
   padding: 1rem 1.5rem;
@@ -1847,7 +1874,21 @@ kbd.rd-kbd {
 .rd-period-bar__range { font-family: var(--font-display); font-size: 1.1rem; margin-top: 0.15rem; }
 .rd-period-bar__anchor { font-size: 0.75rem; margin-top: 0.1rem; }
 .rd-period-bar__anchor a { color: var(--ink); text-underline-offset: 2px; }
-.rd-period-bar__right { text-align: right; }
+
+.rd-period-bar__left,
+.rd-period-bar__bar,
+.rd-period-bar__right { min-width: 0; }
+.rd-period-bar__right { text-align: right; overflow-wrap: anywhere; }
+
+@media (width <= 640px) {
+  /* T-VIS4: stack the three columns so the per-day figure and meta lines fit 375px. */
+  .rd-period-bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .rd-period-bar__right { text-align: left; }
+}
 .rd-period-bar__perday { font-size: 1.6rem; letter-spacing: -0.02em; }
 .rd-period-bar__meta { font-size: 0.75rem; margin-top: 0.15rem; }
 
@@ -2102,8 +2143,37 @@ kbd.rd-kbd {
 .rd-rec-overrides { font-size: 0.75rem; }
 
 /* ─── Budget override inline slot (visual-audit V.8) ─────────────── */
-.rd-budget-override-slot:not(:empty) { margin-top: 0.75rem; }
-.rd-budget-override-slot .rd-override { margin: 0; }
+
+/* T-D49: the form lives in a per-row slot (<tr><td colspan>) under its row. */
+.rd-override-slot-row > td:empty { display: none; }
+
+/* T-D49a: a closed slot row must take zero height and draw no border at any
+   viewport; it only exists while the form is swapped in. */
+.rd-override-slot-row:not(:has(.rd-override)) { display: none; }
+.rd-override-slot-row > td { padding: 0.5rem 0.75rem 0.9rem; }
+.rd-override-slot-row .rd-override { margin: 0 0 0 auto; }
+
+@media (width <= 1024px) {
+  /* Table scrolls horizontally here: keep the form inside the viewport. */
+  .rd-table-scroll .rd-table tbody .rd-override-slot-row > td:first-child {
+    position: static;
+    box-shadow: none;
+  }
+
+  .rd-override-slot-row .rd-override {
+    position: sticky;
+    left: 0.75rem;
+    width: min(28rem, calc(100vw - 3.5rem));
+  }
+}
+
+@media (width <= 640px) {
+  /* Table is wider than the viewport: pin the form to the visible left edge. */
+  .rd-override-slot-row .rd-override { margin: 0; width: calc(100vw - 3.5rem); }
+  .rd-override-slot-row .rd-override__row { flex-wrap: wrap; }
+  .rd-override-slot-row .rd-override__input { flex: 1 1 100%; }
+  .rd-override-slot-row .rd-override__row .rd-btn { flex: 1 1 0; justify-content: center; }
+}
 
 /* ─── Settings · categories (visual-audit V.6) ────────────────────── */
 .rd-cat-group { margin-top: 1.25rem; }
@@ -2162,7 +2232,7 @@ kbd.rd-kbd {
 /* ─── Accounts hero (manual-audit #51) ────────────────────────────── */
 .rd-accounts-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 1fr 1fr;
+  grid-template-columns: minmax(0, 1.4fr) 1fr 1fr 1fr;
   gap: 2rem;
   align-items: end;
   margin-bottom: 1.5rem;
@@ -2175,6 +2245,9 @@ kbd.rd-kbd {
 }
 .rd-accounts-hero__hint { font-size: 0.75rem; margin-top: 0.25rem; }
 .rd-accounts-hero__sub { font-size: 1.35rem; margin-top: 0.2rem; }
+
+/* ADR-0089 — planned net sub-line under an account balance */
+.rd-acct-planned { font-size: 0.75rem; margin-top: 0.15rem; white-space: nowrap; }
 
 @media (width <= 640px) {
   .rd-accounts-hero { grid-template-columns: 1fr; }
@@ -2305,13 +2378,14 @@ kbd.rd-kbd {
 .rd-ledger-recently { margin-top: 1.25rem; font-size: 0.8rem; }
 .rd-ledger-recently a { color: var(--accent); text-underline-offset: 2px; }
 
-@media (width <= 960px) {
+@media (width <= 1200px) {
+  /* 1024-wide tablets: the nowrap chip row + 15rem search overflowed (T-VIS). */
   .rd-ledger-chips { flex-wrap: wrap; }
   .rd-ledger-chips .rd-chips__search { flex: 1 1 100%; margin-left: 0; }
 }
 
 /* ─── Today · Upcoming (grid rows, per desktop-01-today.html:16-22) ─ */
-.rd-panel__head-left { display: flex; align-items: center; gap: 1rem; }
+.rd-panel__head-left { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; min-width: 0; }
 .rd-upcoming { padding: 0.5rem 1.25rem 0.75rem; }
 
 .rd-upcoming__group {
@@ -2397,16 +2471,17 @@ kbd.rd-kbd {
 
 @media (width <= 640px) {
   .rd-upcoming__row {
-    grid-template-columns: 44px 1fr auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     grid-template-areas:
       "date desc amt"
-      "date cat  actions";
+      "date cat  cat"
+      "date actions actions";
   }
   .rd-upcoming__date { grid-area: date; }
-  .rd-upcoming__desc { grid-area: desc; }
+  .rd-upcoming__desc { grid-area: desc; flex-wrap: wrap; }
   .rd-upcoming__cat { grid-area: cat; }
   .rd-upcoming__amt { grid-area: amt; }
-  .rd-upcoming__actions { grid-area: actions; flex-wrap: wrap; }
+  .rd-upcoming__actions { grid-area: actions; flex-wrap: wrap; justify-content: flex-start; }
   .rd-promote-inline__grid { grid-template-columns: 1fr; }
 }
 

@@ -19,3 +19,4 @@ Work on the application itself before any Scaleway resource exists. Everything h
 - [T-D13](T-D13-ci-security-scans.md) — CI security scans.
 - [T-D14](T-D14-audit-request-ctx.md) — Audit log carries client IP + session user.
 - [T-D15](T-D15-graceful-shutdown.md) — Graceful shutdown handling.
+- [T-D53](T-D53-session-hardening.md) — Session hardening: absolute cap, step-up re-auth, hashed ids.

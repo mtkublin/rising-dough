@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Security · Settings · Rising Dough{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet"
+        href="{{ url_for('static', path='settings-users.css') }}?v=tD17">
+  <link rel="stylesheet"
+        href="{{ url_for('static', path='settings-security.css') }}?v=sec1">
+{% endblock %}
+{% block main %}
+  <header class="rd-screen-header">
+    <div class="rd-screen-header__title">
+      <div class="rd-eyebrow">Settings · {{ current_user.email or current_user.name }}</div>
+      <h1>Security</h1>
+    </div>
+  </header>
+  {% include "settings/_tabs.html" %}
+  <section id="panel-security"
+           role="tabpanel"
+           aria-labelledby="tab-security"
+           class="rd-auth-page rd-pw-page rd-sec-stack">
+    <section id="password"
+             class="rd-panel rd-pw-panel"
+             aria-labelledby="pw-heading">
+      <h2 id="pw-heading" class="rd-panel__title">Password</h2>
+      <div class="rd-sec-password">{% include "settings/_password_form.html" %}</div>
+    </section>
+    <section id="passkeys" class="rd-panel" aria-labelledby="passkeys-heading">
+      <div class="rd-panel__head">
+        <div>
+          <h2 id="passkeys-heading" class="rd-panel__title">Passkeys</h2>
+          <p>Sign in without a password on devices you trust.</p>
+        </div>
+      </div>
+      {% if passkeys %}
+        <div class="rd-table-scroll">
+          <table class="rd-table">
+            <thead>
+              <tr>
+                <th scope="col">Label</th>
+                <th scope="col" class="rd-auth-hide-sm">Added</th>
+                <th scope="col" class="rd-auth-hide-sm">Last used</th>
+                <th scope="col">
+                  <span class="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pk in passkeys %}
+                <tr>
+                  <td>
+                    <span class="rd-auth-device">{{ pk.label or "Passkey" }}</span>
+                    <span class="rd-auth-meta rd-auth-show-sm">used {{ pk.last_used_at|dt_local("%d %b %H:%M") if pk.last_used_at else "never" }}</span>
+                  </td>
+                  <td class="rd-auth-hide-sm">{{ pk.created_at|dt_local }}</td>
+                  <td class="rd-auth-hide-sm">{{ pk.last_used_at|dt_local if pk.last_used_at else "Never" }}</td>
+                  <td class="rd-auth-action">
+                    <form method="post" action="/auth/passkeys/{{ pk.id }}/revoke">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                      <button type="submit"
+                              class="rd-btn rd-btn--sm rd-btn--danger"
+                              aria-label="Remove passkey {{ pk.label or 'Passkey' }}">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="rd-empty-state">No passkeys yet. Add one below to sign in with a tap.</p>
+      {% endif %}
+      <form class="rd-form rd-sec-register" data-passkey-register>
+        <label class="rd-field">
+          <span class="rd-field__label">Label <em>so you can tell devices apart</em></span>
+          <input type="text"
+                 name="label"
+                 maxlength="{{ label_max_length }}"
+                 placeholder="e.g. MacBook Air"
+                 autocomplete="off">
+        </label>
+        <div>
+          <button type="submit" class="rd-btn rd-btn--primary">Add passkey</button>
+        </div>
+        <p class="rd-auth__status"
+           data-passkey-status
+           role="status"
+           aria-live="polite"></p>
+      </form>
+    </section>
+    <section id="sessions" class="rd-panel" aria-labelledby="sessions-heading">
+      <div class="rd-panel__head">
+        <div>
+          <h2 id="sessions-heading" class="rd-panel__title">Active sessions</h2>
+          <p>Devices signed in to your account. Sign out any you don't recognise.</p>
+        </div>
+      </div>
+      <div class="rd-table-scroll">
+        <table class="rd-table">
+          <thead>
+            <tr>
+              <th scope="col">Device</th>
+              <th scope="col" class="rd-auth-hide-sm">Signed in</th>
+              <th scope="col" class="rd-auth-hide-sm">Last seen</th>
+              <th scope="col" class="rd-auth-hide-sm">Expires</th>
+              <th scope="col">
+                <span class="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in session_rows %}
+              {% set s = row.session %}
+              <tr>
+                <td>
+                  <span class="rd-auth-device"
+                        title="{{ s.user_agent or 'Unknown device' }}">{{ s.user_agent or "Unknown device" }}</span>
+                  <span class="rd-auth-meta">{{ s.ip or "—" }}<span class="rd-auth-show-sm"> · seen {{ s.last_seen_at|dt_local("%d %b %H:%M") }} · expires {{ row.absolute_expires_at|dt_local("%d %b %Y") }}</span></span>
+                  {% if row.is_current %}<span class="rd-pill rd-pill--income">This device</span>{% endif %}
+                </td>
+                <td class="rd-auth-hide-sm">{{ s.created_at|dt_local }}</td>
+                <td class="rd-auth-hide-sm">{{ s.last_seen_at|dt_local }}</td>
+                <td class="rd-auth-hide-sm">{{ row.absolute_expires_at|dt_local("%d %b %Y") }}</td>
+                <td class="rd-auth-action">
+                  <form method="post" action="/auth/sessions/{{ s.handle }}/revoke">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit"
+                            class="rd-btn rd-btn--sm rd-btn--danger"
+                            aria-label="{{ 'Sign out this device' if row.is_current else 'Sign out session ' ~ loop.index }}">
+                      Sign out
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/passkeys.js') }}?v=pk4" defer></script>
+{% endblock %}

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Plan · forecast · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p" aria-current="page">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero" aria-labelledby="hero-label">
+<div class="rd-hero__body">
+<h1 class="rd-hero__label" id="hero-label">projected balance · end of sep 2027</h1>
+<p class="rd-hero__figure-row"><span class="rd-hero__figure rd-hero__figure--wide" data-digits="7" data-marks="2" data-signs="0">79,047.79</span><span class="rd-hero__unit">PLN</span></p>
+<p class="rd-hero__note">+46,320.57 PLN over 12 months · peak 86,239.67 in aug 2027</p>
+</div>
+</section>
+<section class="rd-panel" aria-label="Forecast">
+<div class="rd-plan-head"><nav class="rd-tabs rd-tabs--compact" aria-label="Plan view"><a class="rd-tabs__tab" href="../../pages/plan/budget.html">budget</a><a class="rd-tabs__tab" href="../../pages/plan/year.html">year</a><a class="rd-tabs__tab" href="../../pages/plan/forecast.html" aria-current="page">forecast</a><a class="rd-tabs__tab" href="../../pages/plan/analytics.html">analytics</a></nav><div class="rd-horizon"><span class="rd-caption" id="horizon-label">HORIZON · MONTHS</span><div class="rd-segmented" role="group" aria-labelledby="horizon-label"><button type="button" class="rd-segmented__option" aria-pressed="false">6</button><button type="button" class="rd-segmented__option" aria-pressed="true">12</button><button type="button" class="rd-segmented__option" aria-pressed="false">24</button><button type="button" class="rd-segmented__option" aria-pressed="false">60</button></div></div></div>
+<!-- fragment: charts/forecast -->
+<figure class="rd-chart-card" aria-labelledby="fc-chart-title">
+<figcaption class="rd-caption" id="fc-chart-title">PROJECTED BALANCE · OCT 2026 – SEP 2027 · PLN</figcaption>
+<div class="rd-chart-card__plot"><svg class="rd-chart rd-chart--forecast" role="img" viewBox="0 0 1184 330" aria-label="Projected balance by month, Oct 2026 to Sep 2027. Each month has a point; hover or focus a point for its end-of-month balance.">
+<!-- plot area x 64–1158, y 16–262; 5 gridlines; one point per month, 98px apart; tooltip 190×64, flips below the point when it would clip the top -->
+<line class="rd-chart__grid" x1="64" x2="1158" y1="262.0" y2="262.0"/><text class="rd-chart__tick" x="56" y="266.0" text-anchor="end">20,000</text>
+<line class="rd-chart__grid" x1="64" x2="1158" y1="200.5" y2="200.5"/><text class="rd-chart__tick" x="56" y="204.5" text-anchor="end">40,000</text>
+<line class="rd-chart__grid" x1="64" x2="1158" y1="139.0" y2="139.0"/><text class="rd-chart__tick" x="56" y="143.0" text-anchor="end">60,000</text>
+<line class="rd-chart__grid" x1="64" x2="1158" y1="77.5" y2="77.5"/><text class="rd-chart__tick" x="56" y="81.5" text-anchor="end">80,000</text>
+<line class="rd-chart__grid" x1="64" x2="1158" y1="16.0" y2="16.0"/><text class="rd-chart__tick" x="56" y="20.0" text-anchor="end">100,000</text>
+<line class="rd-chart__axis" x1="64" x2="1158" y1="262" y2="262"/>
+<line class="rd-chart__axis" x1="72.0" x2="72.0" y1="262" y2="268"/><text class="rd-chart__label" x="72.0" y="286" text-anchor="middle">OCT</text><text class="rd-chart__sublabel" x="72.0" y="302" text-anchor="middle">2026</text>
+<line class="rd-chart__axis" x1="170.0" x2="170.0" y1="262" y2="268"/><text class="rd-chart__label" x="170.0" y="286" text-anchor="middle">NOV</text><text class="rd-chart__sublabel" x="170.0" y="302" text-anchor="middle">2026</text>
+<line class="rd-chart__axis" x1="268.0" x2="268.0" y1="262" y2="268"/><text class="rd-chart__label" x="268.0" y="286" text-anchor="middle">DEC</text><text class="rd-chart__sublabel" x="268.0" y="302" text-anchor="middle">2026</text>
+<line class="rd-chart__axis" x1="366.0" x2="366.0" y1="262" y2="268"/><text class="rd-chart__label" x="366.0" y="286" text-anchor="middle">JAN</text><text class="rd-chart__sublabel" x="366.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="464.0" x2="464.0" y1="262" y2="268"/><text class="rd-chart__label" x="464.0" y="286" text-anchor="middle">FEB</text><text class="rd-chart__sublabel" x="464.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="562.0" x2="562.0" y1="262" y2="268"/><text class="rd-chart__label" x="562.0" y="286" text-anchor="middle">MAR</text><text class="rd-chart__sublabel" x="562.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="660.0" x2="660.0" y1="262" y2="268"/><text class="rd-chart__label" x="660.0" y="286" text-anchor="middle">APR</text><text class="rd-chart__sublabel" x="660.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="758.0" x2="758.0" y1="262" y2="268"/><text class="rd-chart__label" x="758.0" y="286" text-anchor="middle">MAY</text><text class="rd-chart__sublabel" x="758.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="856.0" x2="856.0" y1="262" y2="268"/><text class="rd-chart__label" x="856.0" y="286" text-anchor="middle">JUN</text><text class="rd-chart__sublabel" x="856.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="954.0" x2="954.0" y1="262" y2="268"/><text class="rd-chart__label" x="954.0" y="286" text-anchor="middle">JUL</text><text class="rd-chart__sublabel" x="954.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="1052.0" x2="1052.0" y1="262" y2="268"/><text class="rd-chart__label" x="1052.0" y="286" text-anchor="middle">AUG</text><text class="rd-chart__sublabel" x="1052.0" y="302" text-anchor="middle">2027</text>
+<line class="rd-chart__axis" x1="1150.0" x2="1150.0" y1="262" y2="268"/><text class="rd-chart__label" x="1150.0" y="286" text-anchor="middle">SEP</text><text class="rd-chart__sublabel" x="1150.0" y="302" text-anchor="middle">2027</text>
+<polygon class="rd-chart__area" points="72.0,262 72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4 1150.0,262"/>
+<polyline class="rd-chart__line" points="72.0,222.9 170.0,216.9 268.0,222.2 366.0,217.2 464.0,192.6 562.0,115.0 660.0,107.2 758.0,83.1 856.0,74.4 954.0,66.3 1052.0,58.3 1150.0,80.4"/>
+<g class="rd-chart__pt" tabindex="0" aria-label="Oct 2026: 32,727.22 PLN, net −1,712.47"><line class="rd-chart__guide" x1="72.0" x2="72.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="72.0" cy="222.9" r="18"/><circle class="rd-chart__dot" cx="72.0" cy="222.9" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="0.0" y="144.9" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="14.0" y="162.9">OCT 2026 · END OF MONTH</text><text class="rd-chart__tip-value" x="14.0" y="180.9">32,727.22 PLN</text><text class="rd-chart__tick" x="14.0" y="198.9">net −1,712.47</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Nov 2026: 34,679.79 PLN, net +1,952.57"><line class="rd-chart__guide" x1="170.0" x2="170.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="170.0" cy="216.9" r="18"/><circle class="rd-chart__dot" cx="170.0" cy="216.9" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="75.0" y="138.9" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="89.0" y="156.9">NOV 2026 · END OF MONTH</text><text class="rd-chart__tip-value" x="89.0" y="174.9">34,679.79 PLN</text><text class="rd-chart__tick" x="89.0" y="192.9">net +1,952.57</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Dec 2026: 32,955.77 PLN, net −1,724.02"><line class="rd-chart__guide" x1="268.0" x2="268.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="268.0" cy="222.2" r="18"/><circle class="rd-chart__dot" cx="268.0" cy="222.2" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="173.0" y="144.2" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="187.0" y="162.2">DEC 2026 · END OF MONTH</text><text class="rd-chart__tip-value" x="187.0" y="180.2">32,955.77 PLN</text><text class="rd-chart__tick" x="187.0" y="198.2">net −1,724.02</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Jan 2027: 34,574.88 PLN, net +1,619.11"><line class="rd-chart__guide" x1="366.0" x2="366.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="366.0" cy="217.2" r="18"/><circle class="rd-chart__dot" cx="366.0" cy="217.2" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="271.0" y="139.2" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="285.0" y="157.2">JAN 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="285.0" y="175.2">34,574.88 PLN</text><text class="rd-chart__tick" x="285.0" y="193.2">net +1,619.11</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Feb 2027: 42,555.38 PLN, net +7,980.50"><line class="rd-chart__guide" x1="464.0" x2="464.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="464.0" cy="192.6" r="18"/><circle class="rd-chart__dot" cx="464.0" cy="192.6" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="369.0" y="114.6" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="383.0" y="132.6">FEB 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="383.0" y="150.6">42,555.38 PLN</text><text class="rd-chart__tick" x="383.0" y="168.6">net +7,980.50</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Mar 2027: 67,789.79 PLN, net +25,234.41"><line class="rd-chart__guide" x1="562.0" x2="562.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="562.0" cy="115.0" r="18"/><circle class="rd-chart__dot" cx="562.0" cy="115.0" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="467.0" y="37.0" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="481.0" y="55.0">MAR 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="481.0" y="73.0">67,789.79 PLN</text><text class="rd-chart__tick" x="481.0" y="91.0">net +25,234.41</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Apr 2027: 70,356.82 PLN, net +2,567.03"><line class="rd-chart__guide" x1="660.0" x2="660.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="660.0" cy="107.2" r="18"/><circle class="rd-chart__dot" cx="660.0" cy="107.2" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="565.0" y="29.2" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="579.0" y="47.2">APR 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="579.0" y="65.2">70,356.82 PLN</text><text class="rd-chart__tick" x="579.0" y="83.2">net +2,567.03</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="May 2027: 78,176.35 PLN, net +7,819.53"><line class="rd-chart__guide" x1="758.0" x2="758.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="758.0" cy="83.1" r="18"/><circle class="rd-chart__dot" cx="758.0" cy="83.1" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="663.0" y="5.1" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="677.0" y="23.1">MAY 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="677.0" y="41.1">78,176.35 PLN</text><text class="rd-chart__tick" x="677.0" y="59.1">net +7,819.53</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Jun 2027: 81,013.51 PLN, net +2,837.16"><line class="rd-chart__guide" x1="856.0" x2="856.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="856.0" cy="74.4" r="18"/><circle class="rd-chart__dot" cx="856.0" cy="74.4" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="761.0" y="88.4" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="775.0" y="106.4">JUN 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="775.0" y="124.4">81,013.51 PLN</text><text class="rd-chart__tick" x="775.0" y="142.4">net +2,837.16</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Jul 2027: 83,626.59 PLN, net +2,613.08"><line class="rd-chart__guide" x1="954.0" x2="954.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="954.0" cy="66.3" r="18"/><circle class="rd-chart__dot" cx="954.0" cy="66.3" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="859.0" y="80.3" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="873.0" y="98.3">JUL 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="873.0" y="116.3">83,626.59 PLN</text><text class="rd-chart__tick" x="873.0" y="134.3">net +2,613.08</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Aug 2027: 86,239.67 PLN, net +2,613.08"><line class="rd-chart__guide" x1="1052.0" x2="1052.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="1052.0" cy="58.3" r="18"/><circle class="rd-chart__dot" cx="1052.0" cy="58.3" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="957.0" y="72.3" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="971.0" y="90.3">AUG 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="971.0" y="108.3">86,239.67 PLN</text><text class="rd-chart__tick" x="971.0" y="126.3">net +2,613.08</text></g></g>
+<g class="rd-chart__pt" tabindex="0" aria-label="Sep 2027: 79,047.79 PLN, net −7,191.88"><line class="rd-chart__guide" x1="1150.0" x2="1150.0" y1="16" y2="262"/><circle class="rd-chart__hit" cx="1150.0" cy="80.4" r="18"/><circle class="rd-chart__dot" cx="1150.0" cy="80.4" r="5"/><g class="rd-chart__tip"><rect class="rd-chart__tip-box" x="994.0" y="2.4" width="190" height="64" rx="12"/><text class="rd-chart__tick" x="1008.0" y="20.4">SEP 2027 · END OF MONTH</text><text class="rd-chart__tip-value" x="1008.0" y="38.4">79,047.79 PLN</text><text class="rd-chart__tick" x="1008.0" y="56.4">net −7,191.88</text></g></g>
+</svg></div>
+</figure>
+<!-- /fragment -->
+<section class="rd-fc" aria-labelledby="fc-table-title">
+<h2 class="rd-fc__title" id="fc-table-title">Projected balance by month</h2>
+<div class="rd-table-scroll rd-fc__scroll" tabindex="0" role="region" aria-label="Table (scrolls sideways)">
+<table class="rd-ledger rd-ledger--forecast">
+<thead><tr class="rd-row rd-row--head"><th scope="col">MONTH</th><th scope="col" class="rd-fc__num">INCOME</th><th scope="col" class="rd-fc__num">EXPENSES</th><th scope="col" class="rd-fc__num">PLANNED BUDGET</th><th scope="col" class="rd-fc__num">NET</th><th scope="col" class="rd-fc__num">BALANCE (EOM)</th></tr></thead>
+<tbody>
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Oct 2026</th><td class="rd-fc__num">0.00<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">312.54<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">1,399.93<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__net--negative">▲ −1,712.47<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">32,727.22<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Nov 2026</th><td class="rd-fc__num">20,707.93<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,197.08<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,558.28<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">1,952.57<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">34,679.79<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Dec 2026</th><td class="rd-fc__num">18,204.66<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">14,724.56<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,204.12<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__net--negative">▲ −1,724.02<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">32,955.77<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Jan 2027</th><td class="rd-fc__num">18,592.59<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">11,415.20<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,558.28<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">1,619.11<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">34,574.88<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Feb 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,459.79<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">190.86<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">7,980.50<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">42,555.38<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Mar 2027</th><td class="rd-fc__num">59,190.66<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">29,071.31<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">4,884.94<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">25,234.41<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">67,789.79<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Apr 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,620.76<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,443.36<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">2,567.03<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">70,356.82<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">May 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,620.76<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">190.86<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">7,819.53<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">78,176.35<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Jun 2027</th><td class="rd-fc__num">21,944.34<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,709.87<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,397.31<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">2,837.16<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">81,013.51<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Jul 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,620.76<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,397.31<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">2,613.08<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">83,626.59<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Aug 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,620.76<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">5,397.31<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">2,613.08<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">86,239.67<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+<!-- fragment: rows/forecast-month -->
+<tr class="rd-row rd-row--forecast"><th scope="row" class="rd-fc__month">Sep 2027</th><td class="rd-fc__num">21,631.15<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">13,620.76<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num">15,202.27<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__net--negative">▲ −7,191.88<span class="rd-amount__cur"> PLN</span></td><td class="rd-fc__num rd-fc__bal">79,047.79<span class="rd-amount__cur"> PLN</span></td></tr>
+<!-- /fragment -->
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html" aria-current="page">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

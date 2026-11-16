@@ -4,7 +4,7 @@
 - **Parallel-safe**: no — depends on auth + repository sweep
 - **Depends on**: T-D02, T-D16
 - **Blocks**: T-D43 (prod smoke journey exercises this flow end-to-end)
-- **References**: [ADR-0061](../../../adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) §4
+- **References**: [ADR-0061](../../../adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) §4, [ADR-0073](../../../adr/0073-user-admin-panel-guard-and-one-shot-password.md) (guard placement, toast delivery, 409/422 contract, audit attribution)
 
 ## Context
 
@@ -34,14 +34,14 @@ The admin bootstrapped by Terraform (T-D19) manages the user roster through an a
    - `templates/settings/users/list.html` — table of live users (email, name, admin badge, created_at, last session), with "Add user" affordance.
    - `templates/settings/users/_row.html` — HTMX partial for a single row.
    - `templates/settings/users/edit.html` — slide-over.
-   - `templates/settings/users/_password_toast.html` — one-shot password display with copy button.
+   - `templates/settings/users/_password-toast.html` — one-shot password display with copy button.
    - Settings sidebar partial updated to show the "Users" tab only when `request.state.user.is_admin == 1`.
 6. **i18n**: UI chrome in English per ADR-0058.
 
 ## Acceptance criteria
 
 - `pytest tests/unit/services/test_users.py` covers: create (seeds system categories), edit (uniqueness, last-admin demote refusal, self-demote refusal when actor is sole admin), reset_password (regenerates + flags must_change), soft_delete (session revocation + last-admin refusal + self-delete refusal).
-- `pytest tests/integration/web/test_settings_users.py` covers: non-admin GET `/settings/users` → 404; admin GET → 200; create user → toast carries plaintext once and the plaintext is **not** in any audit row; delete last admin → 422 with specific message.
+- `pytest tests/integration/web/test_settings_users.py` covers: non-admin GET `/settings/users` → 404; admin GET → 200; create user → toast carries plaintext once and the plaintext is **not** in any audit row; delete last admin → 409 with specific message (ADR-0073 §3; invalid / duplicate email → 422).
 - `frontend-visual-audit` sweep against `/settings/users` at 1440 / 1024 / 375 — zero `horizontalScroll`, zero `consoleErrors`.
 - Audit log carries one row per admin action; `actor_user_id` is populated.
 

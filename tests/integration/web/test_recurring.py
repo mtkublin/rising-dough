@@ -24,15 +24,20 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 
+USER_ID = 1
+
 
 @pytest.fixture
 def ctx(_migrated: Settings) -> dict[str, int]:
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Main", currency="PLN"))
-        cat = categories_repo.create(conn, NewCategory(name="Rent", direction=Direction.EXPENSE))
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Main", currency="PLN"))
+        cat = categories_repo.create(
+            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+        )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -159,9 +164,9 @@ def test_create_transit_persists_dest_account(
     """Transit recurring rule must round-trip dest_account_id from the form."""
     conn = get_connection(_migrated)
     try:
-        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        dest = accounts_repo.create(conn, USER_ID, NewAccount(name="Savings", currency="PLN"))
         transit_cat = next(
-            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+            c for c in categories_repo.list_all(conn, USER_ID) if c.direction == Direction.TRANSIT
         )
     finally:
         conn.close()
@@ -179,7 +184,7 @@ def test_create_transit_persists_dest_account(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        rules = recurring_repo.list_rules(conn)
+        rules = recurring_repo.list_rules(conn, USER_ID)
         created = next(r for r in rules if r.category_id == transit_cat.id)
     finally:
         conn.close()
@@ -192,7 +197,7 @@ def test_create_transit_without_dest_rejected(
     conn = get_connection(_migrated)
     try:
         transit_cat = next(
-            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+            c for c in categories_repo.list_all(conn, USER_ID) if c.direction == Direction.TRANSIT
         )
     finally:
         conn.close()
@@ -216,9 +221,9 @@ def test_create_transit_cross_currency_rejected(
 ) -> None:
     conn = get_connection(_migrated)
     try:
-        eur_acc = accounts_repo.create(conn, NewAccount(name="EUR", currency="EUR"))
+        eur_acc = accounts_repo.create(conn, USER_ID, NewAccount(name="EUR", currency="EUR"))
         transit_cat = next(
-            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+            c for c in categories_repo.list_all(conn, USER_ID) if c.direction == Direction.TRANSIT
         )
     finally:
         conn.close()
@@ -242,12 +247,13 @@ def test_update_transit_persists_dest_account(
 ) -> None:
     conn = get_connection(_migrated)
     try:
-        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        dest = accounts_repo.create(conn, USER_ID, NewAccount(name="Savings", currency="PLN"))
         transit_cat = next(
-            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+            c for c in categories_repo.list_all(conn, USER_ID) if c.direction == Direction.TRANSIT
         )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -257,7 +263,7 @@ def test_update_transit_persists_dest_account(
                 default_amount=10000,
             ),
         )
-        new_dest = accounts_repo.create(conn, NewAccount(name="Brokerage", currency="PLN"))
+        new_dest = accounts_repo.create(conn, USER_ID, NewAccount(name="Brokerage", currency="PLN"))
     finally:
         conn.close()
     r = client.post(
@@ -274,7 +280,7 @@ def test_update_transit_persists_dest_account(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        updated = recurring_repo.find_rule(conn, rule.id)
+        updated = recurring_repo.find_rule(conn, USER_ID, rule.id)
     finally:
         conn.close()
     assert updated is not None
@@ -286,12 +292,13 @@ def test_edit_transit_form_prefills_dest(
 ) -> None:
     conn = get_connection(_migrated)
     try:
-        dest = accounts_repo.create(conn, NewAccount(name="Savings", currency="PLN"))
+        dest = accounts_repo.create(conn, USER_ID, NewAccount(name="Savings", currency="PLN"))
         transit_cat = next(
-            c for c in categories_repo.list_all(conn) if c.direction == Direction.TRANSIT
+            c for c in categories_repo.list_all(conn, USER_ID) if c.direction == Direction.TRANSIT
         )
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 1),
@@ -444,7 +451,7 @@ def test_delete_override_bad_date(client: TestClient, ctx: dict[str, int]) -> No
 def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
     conn = get_connection(_migrated)
     try:
-        rule = recurring_repo.find_rule(conn, rule_id)
+        rule = recurring_repo.find_rule(conn, USER_ID, rule_id)
         assert rule is not None
         return rule.next_due
     finally:
@@ -474,7 +481,7 @@ def test_promote_submit_no_edits(
     # DB side-effect: rule's next_due advanced + one new transaction exists.
     conn = get_connection(_migrated)
     try:
-        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        rows = transactions_repo.list_filtered(conn, USER_ID, TransactionFilter())
         assert len(rows) == 1
         assert rows[0].promoted_from_recurring_rule_id == ctx["rule"]
     finally:
@@ -514,12 +521,13 @@ def test_promote_submit_invalid_date_422(client: TestClient, ctx: dict[str, int]
 def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated: Settings) -> None:
     conn = get_connection(_migrated)
     try:
-        pln = accounts_repo.create(conn, NewAccount(name="PLN", currency="PLN")).id
-        eur = accounts_repo.create(conn, NewAccount(name="EUR", currency="EUR")).id
-        transit = categories_repo.find_by_name(conn, "Transit")
+        pln = accounts_repo.create(conn, USER_ID, NewAccount(name="PLN", currency="PLN")).id
+        eur = accounts_repo.create(conn, USER_ID, NewAccount(name="EUR", currency="EUR")).id
+        transit = categories_repo.find_by_name(conn, USER_ID, "Transit")
         assert transit is not None
         transit_rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2026, 1, 5),
@@ -548,7 +556,7 @@ def test_skip_next_advances(client: TestClient, ctx: dict[str, int], _migrated: 
     # No new transaction.
     conn = get_connection(_migrated)
     try:
-        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        rows = transactions_repo.list_filtered(conn, USER_ID, TransactionFilter())
         assert len(rows) == 0
     finally:
         conn.close()
@@ -624,7 +632,7 @@ def test_recurring_promote_submit_advances_and_fires_triggers(
     # One transaction created.
     conn = get_connection(_migrated)
     try:
-        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        rows = transactions_repo.list_filtered(conn, USER_ID, TransactionFilter())
         assert len(rows) == 1
     finally:
         conn.close()
@@ -641,7 +649,7 @@ def test_recurring_skip_next_advances_without_txn(
     assert after > before
     conn = get_connection(_migrated)
     try:
-        rows = transactions_repo.list_filtered(conn, TransactionFilter())
+        rows = transactions_repo.list_filtered(conn, USER_ID, TransactionFilter())
         assert len(rows) == 0
     finally:
         conn.close()
@@ -657,7 +665,7 @@ def test_recurring_delete_soft_deactivates(
     assert r.status_code == 200
     conn = get_connection(_migrated)
     try:
-        rule = recurring_repo.find_rule(conn, ctx["rule"], include_deleted=True)
+        rule = recurring_repo.find_rule(conn, USER_ID, ctx["rule"], include_deleted=True)
         assert rule is not None
         assert rule.active is False
     finally:
@@ -740,15 +748,16 @@ def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Setti
     that next_due."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.create(conn, NewAccount(name="Freshly", currency="PLN"))
+        acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Freshly", currency="PLN"))
         cat = categories_repo.create(
-            conn, NewCategory(name="Utilities", direction=Direction.EXPENSE)
+            conn, USER_ID, NewCategory(name="Utilities", direction=Direction.EXPENSE)
         )
         # Pick a start_date in the past so repository backfills next_due to a
         # future canonical date (not start_date itself).
         past_start = dt.date.today() - dt.timedelta(days=800)  # noqa: DTZ011
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=past_start,
@@ -766,7 +775,9 @@ def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Setti
 
     conn = get_connection(_migrated)
     try:
-        rows = transactions_repo.list_filtered(conn, TransactionFilter(account_ids=(acc.id,)))
+        rows = transactions_repo.list_filtered(
+            conn, USER_ID, TransactionFilter(account_ids=(acc.id,))
+        )
         assert len(rows) == 1
         assert rows[0].operation_date == backfilled
         assert rows[0].promoted_from_recurring_date == backfilled
@@ -794,7 +805,7 @@ def test_create_with_end_date_persists(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        rules = recurring_repo.list_rules(conn)
+        rules = recurring_repo.list_rules(conn, USER_ID)
         created = next(r for r in rules if r.start_date == date(2030, 2, 1))
     finally:
         conn.close()
@@ -836,7 +847,7 @@ def test_create_end_date_in_past_marks_inactive(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        rules = recurring_repo.list_rules(conn)
+        rules = recurring_repo.list_rules(conn, USER_ID)
         created = next(r for r in rules if r.start_date == date(2020, 1, 1))
     finally:
         conn.close()
@@ -849,14 +860,15 @@ def test_update_end_date_before_next_due_deactivates(
     """Shortening end_date below rule.next_due flips active=False in one patch."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.find_by_id(conn, ctx["acc"])
+        acc = accounts_repo.find_by_id(conn, USER_ID, ctx["acc"])
         assert acc is not None
-        cat = categories_repo.find_by_id(conn, ctx["cat"])
+        cat = categories_repo.find_by_id(conn, USER_ID, ctx["cat"])
         assert cat is not None
         from budget_planner.domain.recurring import PatchRecurringRule  # noqa: PLC0415
 
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2030, 1, 1),
@@ -867,7 +879,7 @@ def test_update_end_date_before_next_due_deactivates(
         )
         # Pin next_due to a predictable future date.
         rule = recurring_repo.update_rule(
-            conn, rule.id, PatchRecurringRule(next_due=date(2030, 6, 1))
+            conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2030, 6, 1))
         )
         assert rule.active is True
     finally:
@@ -887,7 +899,7 @@ def test_update_end_date_before_next_due_deactivates(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        updated = recurring_repo.find_rule(conn, rule.id)
+        updated = recurring_repo.find_rule(conn, USER_ID, rule.id)
     finally:
         conn.close()
     assert updated is not None
@@ -901,12 +913,13 @@ def test_update_clearing_end_date_round_trips(
     """Posting an empty end_date clears a previously-set stop date."""
     conn = get_connection(_migrated)
     try:
-        acc = accounts_repo.find_by_id(conn, ctx["acc"])
+        acc = accounts_repo.find_by_id(conn, USER_ID, ctx["acc"])
         assert acc is not None
-        cat = categories_repo.find_by_id(conn, ctx["cat"])
+        cat = categories_repo.find_by_id(conn, USER_ID, ctx["cat"])
         assert cat is not None
         rule = recurring_repo.create_rule(
             conn,
+            USER_ID,
             NewRecurringRule(
                 cadence=Cadence.MONTHLY,
                 start_date=date(2030, 1, 1),
@@ -933,7 +946,7 @@ def test_update_clearing_end_date_round_trips(
     assert r.status_code == 200, r.text
     conn = get_connection(_migrated)
     try:
-        updated = recurring_repo.find_rule(conn, rule.id)
+        updated = recurring_repo.find_rule(conn, USER_ID, rule.id)
     finally:
         conn.close()
     assert updated is not None

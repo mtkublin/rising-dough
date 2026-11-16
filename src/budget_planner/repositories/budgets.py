@@ -1,4 +1,11 @@
-"""Budget tier repositories (defaults + recurring + one-off; ADR-0014)."""
+"""Budget tier repositories (defaults + recurring + one-off; ADR-0014).
+
+## User-scoping discipline (T-D16 / ADR-0061 §5)
+
+Every function takes ``user_id`` as the first positional arg after ``conn``;
+every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
+``tests/architecture/test_user_id_filter.py`` static test backstops the rule.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,7 @@ from budget_planner.domain.budgets import (
     NewBudgetOneOffOverride,
     NewBudgetRecurringOverride,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
+from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
 
 _DEFAULT_COLS = "id, user_id, category_id, amount, created_at, updated_at, deleted_at"
 _RECURRING_COLS = "id, user_id, category_id, month, amount, created_at, updated_at, deleted_at"
@@ -63,48 +70,51 @@ def _row_to_one_off(row: sqlite3.Row) -> BudgetOneOffOverride:
 # ---------------------------------------------------------------------------
 def get_default(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     *,
     include_deleted: bool = False,
 ) -> BudgetDefault | None:
-    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE category_id = ?"
+    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE category_id = ? AND user_id = ?"
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (category_id,)).fetchone()
+    row = conn.execute(sql, (category_id, user_id)).fetchone()
     return _row_to_default(row) if row is not None else None
 
 
 def list_defaults(
-    conn: sqlite3.Connection, *, include_deleted: bool = False
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
 ) -> list[BudgetDefault]:
-    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults"
+    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE user_id = ?"
     if not include_deleted:
-        sql += " WHERE deleted_at IS NULL"
+        sql += " AND deleted_at IS NULL"
     sql += " ORDER BY category_id ASC"
-    return [_row_to_default(r) for r in conn.execute(sql).fetchall()]
+    return [_row_to_default(r) for r in conn.execute(sql, (user_id,)).fetchall()]
 
 
-def set_default(conn: sqlite3.Connection, data: NewBudgetDefault) -> BudgetDefault:
-    existing = get_default(conn, data.category_id)
+def set_default(conn: sqlite3.Connection, user_id: int, data: NewBudgetDefault) -> BudgetDefault:
+    require_owned(conn, user_id, category_ids=(data.category_id,))
+    existing = get_default(conn, user_id, data.category_id)
     prev = existing
 
     def _action(c: sqlite3.Connection) -> tuple[int, BudgetDefault]:
         if existing is None:
             cursor = c.execute(
                 "INSERT INTO budget_defaults(user_id, category_id, amount) VALUES (?, ?, ?)",
-                (data.user_id, data.category_id, data.amount),
+                (user_id, data.category_id, data.amount),
             )
             new_id = int(cursor.lastrowid or 0)
         else:
             c.execute(
                 "UPDATE budget_defaults SET amount = ?, "
                 "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ?",
-                (data.amount, existing.id),
+                "WHERE id = ? AND user_id = ?",
+                (data.amount, existing.id, user_id),
             )
             new_id = existing.id
         row = c.execute(
-            f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE id = ?", (new_id,)
+            f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE id = ? AND user_id = ?",
+            (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_default(row)
 
@@ -117,8 +127,8 @@ def set_default(conn: sqlite3.Connection, data: NewBudgetDefault) -> BudgetDefau
     )
 
 
-def clear_default(conn: sqlite3.Connection, category_id: int) -> None:
-    prev = get_default(conn, category_id)
+def clear_default(conn: sqlite3.Connection, user_id: int, category_id: int) -> None:
+    prev = get_default(conn, user_id, category_id)
     if prev is None:
         return
 
@@ -127,8 +137,8 @@ def clear_default(conn: sqlite3.Connection, category_id: int) -> None:
             "UPDATE budget_defaults "
             "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (prev.id,),
+            "WHERE id = ? AND user_id = ?",
+            (prev.id, user_id),
         )
         return prev.id, None
 
@@ -146,6 +156,7 @@ def clear_default(conn: sqlite3.Connection, category_id: int) -> None:
 # ---------------------------------------------------------------------------
 def get_recurring(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     month: int,
     *,
@@ -153,28 +164,29 @@ def get_recurring(
 ) -> BudgetRecurringOverride | None:
     sql = (
         f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides "
-        "WHERE category_id = ? AND month = ?"
+        "WHERE category_id = ? AND month = ? AND user_id = ?"
     )
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (category_id, month)).fetchone()
+    row = conn.execute(sql, (category_id, month, user_id)).fetchone()
     return _row_to_recurring(row) if row is not None else None
 
 
 def list_recurring(
-    conn: sqlite3.Connection, *, include_deleted: bool = False
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
 ) -> list[BudgetRecurringOverride]:
-    sql = f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides"
+    sql = f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides WHERE user_id = ?"
     if not include_deleted:
-        sql += " WHERE deleted_at IS NULL"
+        sql += " AND deleted_at IS NULL"
     sql += " ORDER BY category_id ASC, month ASC"
-    return [_row_to_recurring(r) for r in conn.execute(sql).fetchall()]
+    return [_row_to_recurring(r) for r in conn.execute(sql, (user_id,)).fetchall()]
 
 
 def set_recurring(
-    conn: sqlite3.Connection, data: NewBudgetRecurringOverride
+    conn: sqlite3.Connection, user_id: int, data: NewBudgetRecurringOverride
 ) -> BudgetRecurringOverride:
-    existing = get_recurring(conn, data.category_id, data.month)
+    require_owned(conn, user_id, category_ids=(data.category_id,))
+    existing = get_recurring(conn, user_id, data.category_id, data.month)
     prev = existing
 
     def _action(c: sqlite3.Connection) -> tuple[int, BudgetRecurringOverride]:
@@ -182,20 +194,21 @@ def set_recurring(
             cursor = c.execute(
                 "INSERT INTO budget_recurring_overrides("
                 "user_id, category_id, month, amount) VALUES (?, ?, ?, ?)",
-                (data.user_id, data.category_id, data.month, data.amount),
+                (user_id, data.category_id, data.month, data.amount),
             )
             new_id = int(cursor.lastrowid or 0)
         else:
             c.execute(
                 "UPDATE budget_recurring_overrides SET amount = ?, "
                 "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ?",
-                (data.amount, existing.id),
+                "WHERE id = ? AND user_id = ?",
+                (data.amount, existing.id, user_id),
             )
             new_id = existing.id
         row = c.execute(
-            f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides WHERE id = ?",
-            (new_id,),
+            f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides "
+            "WHERE id = ? AND user_id = ?",
+            (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_recurring(row)
 
@@ -208,8 +221,8 @@ def set_recurring(
     )
 
 
-def clear_recurring(conn: sqlite3.Connection, category_id: int, month: int) -> None:
-    prev = get_recurring(conn, category_id, month)
+def clear_recurring(conn: sqlite3.Connection, user_id: int, category_id: int, month: int) -> None:
+    prev = get_recurring(conn, user_id, category_id, month)
     if prev is None:
         return
 
@@ -218,8 +231,8 @@ def clear_recurring(conn: sqlite3.Connection, category_id: int, month: int) -> N
             "UPDATE budget_recurring_overrides "
             "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (prev.id,),
+            "WHERE id = ? AND user_id = ?",
+            (prev.id, user_id),
         )
         return prev.id, None
 
@@ -237,6 +250,7 @@ def clear_recurring(conn: sqlite3.Connection, category_id: int, month: int) -> N
 # ---------------------------------------------------------------------------
 def get_one_off(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     year: int,
     month: int,
@@ -245,37 +259,38 @@ def get_one_off(
 ) -> BudgetOneOffOverride | None:
     sql = (
         f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides "
-        "WHERE category_id = ? AND year = ? AND month = ?"
+        "WHERE category_id = ? AND year = ? AND month = ? AND user_id = ?"
     )
     if not include_deleted:
         sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (category_id, year, month)).fetchone()
+    row = conn.execute(sql, (category_id, year, month, user_id)).fetchone()
     return _row_to_one_off(row) if row is not None else None
 
 
 def list_one_off(
     conn: sqlite3.Connection,
+    user_id: int,
     *,
     year: int | None = None,
     include_deleted: bool = False,
 ) -> list[BudgetOneOffOverride]:
-    sql = f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides"
-    clauses: list[str] = []
-    params: list[object] = []
+    sql = f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE user_id = ?"
+    params: list[object] = [user_id]
     if year is not None:
-        clauses.append("year = ?")
+        sql += " AND year = ?"
         params.append(year)
     if not include_deleted:
-        clauses.append("deleted_at IS NULL")
-    if clauses:
-        sql += " WHERE " + " AND ".join(clauses)
+        sql += " AND deleted_at IS NULL"
     sql += " ORDER BY year ASC, month ASC, category_id ASC"
     rows = conn.execute(sql, params).fetchall()
     return [_row_to_one_off(r) for r in rows]
 
 
-def set_one_off(conn: sqlite3.Connection, data: NewBudgetOneOffOverride) -> BudgetOneOffOverride:
-    existing = get_one_off(conn, data.category_id, data.year, data.month)
+def set_one_off(
+    conn: sqlite3.Connection, user_id: int, data: NewBudgetOneOffOverride
+) -> BudgetOneOffOverride:
+    require_owned(conn, user_id, category_ids=(data.category_id,))
+    existing = get_one_off(conn, user_id, data.category_id, data.year, data.month)
     prev = existing
 
     def _action(c: sqlite3.Connection) -> tuple[int, BudgetOneOffOverride]:
@@ -283,20 +298,20 @@ def set_one_off(conn: sqlite3.Connection, data: NewBudgetOneOffOverride) -> Budg
             cursor = c.execute(
                 "INSERT INTO budget_one_off_overrides("
                 "user_id, category_id, year, month, amount) VALUES (?, ?, ?, ?, ?)",
-                (data.user_id, data.category_id, data.year, data.month, data.amount),
+                (user_id, data.category_id, data.year, data.month, data.amount),
             )
             new_id = int(cursor.lastrowid or 0)
         else:
             c.execute(
                 "UPDATE budget_one_off_overrides SET amount = ?, "
                 "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ?",
-                (data.amount, existing.id),
+                "WHERE id = ? AND user_id = ?",
+                (data.amount, existing.id, user_id),
             )
             new_id = existing.id
         row = c.execute(
-            f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE id = ?",
-            (new_id,),
+            f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE id = ? AND user_id = ?",
+            (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_one_off(row)
 
@@ -311,11 +326,12 @@ def set_one_off(conn: sqlite3.Connection, data: NewBudgetOneOffOverride) -> Budg
 
 def clear_one_off(
     conn: sqlite3.Connection,
+    user_id: int,
     category_id: int,
     year: int,
     month: int,
 ) -> None:
-    prev = get_one_off(conn, category_id, year, month)
+    prev = get_one_off(conn, user_id, category_id, year, month)
     if prev is None:
         return
 
@@ -324,8 +340,8 @@ def clear_one_off(
             "UPDATE budget_one_off_overrides "
             "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
             "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ?",
-            (prev.id,),
+            "WHERE id = ? AND user_id = ?",
+            (prev.id, user_id),
         )
         return prev.id, None
 

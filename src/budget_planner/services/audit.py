@@ -24,7 +24,13 @@ import sqlite3
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
+from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories._shared import write_audit as _write_audit_row
+
+# Module-level singleton for the default empty context — ruff B008 would
+# otherwise flag ``RequestCtx.empty()`` inline in parameter defaults.
+# ``RequestCtx`` is frozen; sharing one instance across callers is safe.
+_EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
 
 AuditOperation = Literal["create", "update", "delete", "undelete"]
 
@@ -68,10 +74,16 @@ def write_audit(
     operation: AuditOperation,
     prev: Mapping[str, Any] | Any | None,
     new: Mapping[str, Any] | Any | None,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> None:
     """Validate shape then insert a single ``audit_log`` row.
 
     Must be called inside the caller's transaction. Does not commit.
+
+    ``request_ctx`` is forwarded to the row writer; defaults to
+    :meth:`RequestCtx.empty` so existing callers that have not been
+    plumbed through for T-D14 keep working — the four request-context
+    columns land as NULL, matching the pre-migration-0013 shape.
     """
     _check_shape(operation, prev, new)
     _write_audit_row(
@@ -81,6 +93,7 @@ def write_audit(
         operation=cast(str, operation),
         prev=prev,
         new=new,
+        request_ctx=request_ctx,
     )
 
 

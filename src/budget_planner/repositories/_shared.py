@@ -16,11 +16,18 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from typing import Any
+
+from budget_planner.domain.request_ctx import RequestCtx
+
+# Module-level singleton for the default empty request context —
+# ``RequestCtx`` is frozen so sharing one instance is safe. Ruff B008
+# forbids inlining the ``RequestCtx.empty()`` call in parameter defaults.
+_EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
 
 
 def utc_now_iso() -> str:
@@ -45,15 +52,41 @@ def write_audit(
     operation: str,
     prev: Any | None,
     new: Any | None,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+    actor_user_id: int | None = None,
 ) -> None:
     """Insert a single row into ``audit_log``.
 
     Called from inside :func:`mutate`; must share the same transaction.
+
+    ``request_ctx`` carries the forensic metadata written to the four
+    columns added by migration 0013 (``ip``, ``user_id``, ``session_id``,
+    ``user_agent``). The default :meth:`RequestCtx.empty` matches
+    pre-T-D14 behaviour — every new column lands as NULL — so existing
+    call sites keep working without being retrofitted. See
+    ``src/budget_planner/domain/request_ctx.py``.
+
+    ``actor_user_id`` fills the column added by migration 0012: the admin
+    issuing a privileged mutation against another user's row (T-D17,
+    ADR-0073 §5). ``None`` (the default) leaves it NULL.
     """
     conn.execute(
-        "INSERT INTO audit_log(entity_type, entity_id, operation, prev_json, new_json) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (entity_type, entity_id, operation, _dumps(prev), _dumps(new)),
+        "INSERT INTO audit_log("
+        "entity_type, entity_id, operation, prev_json, new_json, "
+        "ip, user_id, session_id, user_agent, actor_user_id"
+        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            entity_type,
+            entity_id,
+            operation,
+            _dumps(prev),
+            _dumps(new),
+            request_ctx.ip,
+            request_ctx.user_id,
+            request_ctx.session_id,
+            request_ctx.user_agent,
+            actor_user_id,
+        ),
     )
 
 
@@ -112,12 +145,18 @@ def mutate[T](
     operation: str,
     prev: Any | None,
     action: Callable[[sqlite3.Connection], tuple[int, T]],
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> T:
     """Run ``action`` inside a transaction and emit a paired audit row.
 
     ``action(conn)`` returns ``(entity_id, new_value)`` where
     ``entity_id`` is the row id after the mutation and ``new_value`` is the
     hydrated DTO (or ``None`` for a delete).
+
+    ``request_ctx`` is forwarded unchanged to :func:`write_audit` so the
+    audit row carries the inbound request's forensic metadata (T-D14).
+    Defaults to :meth:`RequestCtx.empty` — callers that have not yet
+    threaded a real context behave exactly as before.
     """
     with transaction(conn):
         new_id, new_value = action(conn)
@@ -128,8 +167,37 @@ def mutate[T](
             operation=operation,
             prev=prev,
             new=new_value,
+            request_ctx=request_ctx,
         )
         return new_value
+
+
+def require_owned(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    account_ids: Iterable[int | None] = (),
+    category_ids: Iterable[int | None] = (),
+) -> None:
+    """Raise :class:`LookupError` unless every referenced FK row belongs to ``user_id``.
+
+    Guards writes against cross-user FK linking (T-D16 / ADR-0061 §5): a
+    leaked ``account_id`` / ``category_id`` from another user must not be
+    attachable to the caller's rows. ``None`` ids are skipped. Soft-deleted
+    parents still count as owned — liveness is the service layer's concern.
+    """
+    for account_id in {a for a in account_ids if a is not None}:
+        row = conn.execute(
+            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?", (account_id, user_id)
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"account {account_id} not found")
+    for category_id in {c for c in category_ids if c is not None}:
+        row = conn.execute(
+            "SELECT 1 FROM categories WHERE id = ? AND user_id = ?", (category_id, user_id)
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"category {category_id} not found")
 
 
 def parse_dt(value: str | None) -> datetime | None:
