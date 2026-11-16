@@ -111,6 +111,9 @@ resource "tailscale_tailnet_key" "vm" {
 module "compute" {
   source = "./modules/compute"
 
+  # T-D123: STARDUST1-S quota is 1 per organisation (prod). Drill uses another type.
+  instance_type = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
+
   name_prefix       = local.name_prefix
   scaleway_zone     = var.scaleway_zone
   app_image_tag     = var.app_image_tag

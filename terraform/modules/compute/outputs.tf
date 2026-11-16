@@ -43,3 +43,8 @@ output "public_web_rules" {
   description = "Public inbound web rules of the security group (empty on a tailnet-only drill, ADR-0101; test hook, not a secret)."
   value       = local.public_web_rules
 }
+
+output "server_type" {
+  description = "Scaleway instance type of the VM (T-D123)."
+  value       = scaleway_instance_server.app.type
+}

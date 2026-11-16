@@ -132,6 +132,17 @@ variable "dns_zone_project_id" {
   }
 }
 
+variable "drill_instance_type" {
+  description = "Drill only (T-D123): instance type of the drill VM. Scaleway allows one STARDUST1-S per organisation and prod uses it, so the drill runs on DEV1-S. Prod is pinned to STARDUST1-S (ADR-0032) and ignores this."
+  type        = string
+  default     = "DEV1-S"
+
+  validation {
+    condition     = can(regex("^[A-Z0-9]+(-[A-Z0-9]+)+$", var.drill_instance_type))
+    error_message = "drill_instance_type must be a Scaleway commercial type such as DEV1-S."
+  }
+}
+
 variable "tailnet_dns_name" {
   description = "Drill only (T-D97, ADR-0101): the tailnet's MagicDNS suffix, e.g. 'tail1234.ts.net' (admin console > DNS). The drill is tailnet-only: its hostname is budget-planner-drill.<tailnet_dns_name>, it gets no public DNS record and no public 80/443. Not a secret. Required when env = drill, must be empty on prod."
   type        = string
