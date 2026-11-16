@@ -152,6 +152,7 @@ def test_restore_reader_is_read_only_and_project_scoped() -> None:
     assert '"ObjectStorageReadOnly"' in reader
     assert "FullAccess" not in reader
     assert "project_ids          = [var.scaleway_project_id]" in reader
+    assert re.search(r"ignore_changes\s*=\s*\[expires_at\]", reader)
 
 
 def test_dns_records_use_zone_project() -> None:

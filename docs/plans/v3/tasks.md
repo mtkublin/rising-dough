@@ -643,6 +643,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Code: `modules/iam` → `bootstrap/ci/modules/app_iam` (`module.app_prod`, `module.app_drill`); `modules/restore_reader` → `bootstrap/ci/modules/restore_reader`. Env stack: `removed { destroy = false }` for both modules; new root inputs `app_application_id`, `app_scw_access_key`, `app_scw_secret_key`, `restore_reader_application_id`; outputs move to `bootstrap/ci`. Workflows pass `APP_*` / `RESTORE_READER_APPLICATION_ID` secrets.
 - CI policies: `ci-prod` and `ci-drill` lose `IAMManager`; `ci-prod` holds `IAMReadOnly` only while `ci_prod_iam_transition = true` (one release); `ci-plan` keeps `IAMReadOnly` for `key-expiry.yml`.
 - Operator: import the existing prod IAM into `bootstrap/ci` (no new prod keys), read the current secrets from prod state once, set GitHub secrets; after the first release set `ci_prod_iam_transition = false` and re-apply. Runbook: `runbooks/key-rotation.md` part 2.
+- 2026-11-16 operator import: the imported restore-reader key planned a replace (`expires_at` 1-year provider default -> null, forces replacement). Added `ignore_changes = [expires_at]`, as the app key already has (T-D74).
 
 ### T-D104 [S] (proposed) `release.yml` `replace` dispatch input for prod `-replace`
 - `workflow_dispatch` input `replace`, main-only and approval-gated, for prod `-replace` operations (cloud-init changes need a server replace). Depends on: ADR-0099 (amendment).

@@ -21,4 +21,11 @@ resource "scaleway_iam_policy" "restore_reader" {
 resource "scaleway_iam_api_key" "restore_reader" {
   application_id = scaleway_iam_application.restore_reader.id
   description    = "Restore-drill read-only key for the prod replica bucket."
+
+  # Scaleway sets a 1-year default expiry when expires_at is unset; expires_at
+  # forces replacement, so the imported key (ADR-0104) would be re-created.
+  # Rotate before it (runbooks/key-rotation.md cadence table).
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }
