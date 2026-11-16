@@ -711,3 +711,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### ✅ T-D120 [S] Drop dead CI secrets: DEPLOY_SSH_KNOWN_HOSTS_DRILL, CODEQL_TOKEN switch → ADR-0094
 - `DEPLOY_SSH_KNOWN_HOSTS_DRILL` was never set and could not match a fresh drill VM; the host key comes from `ssh-keyscan` over the tailnet (ADR-0094). The pin step now only creates `~/.ssh/known_hosts`.
 - `CODEQL_TOKEN` was only an on/off switch for the Trivy SARIF uploads (auth is `GITHUB_TOKEN`). Repo is public, Code Scanning is free: uploads are now unconditional, findings land in the Security tab.
+
+### T-D121 [S] Register drill workflows on `main` before the first gate → ADR-0099
+- 2026-11-16: `gh workflow run drill.yml --ref v3 -f mode=gate` → `HTTP 404: workflow drill.yml not found on the default branch`. GitHub dispatches only workflows that exist on the default branch; `main` had only `ci.yml`.
+- Fix: PR #3 copies `drill.yml` and `drill-destroy.yml` byte-for-byte from v3 onto `main` (workflow_dispatch only, never run from `main`; identical files, so PR #2 has no conflict).
+- Done when PR #3 is merged and the first gate dispatch is accepted.
