@@ -59,11 +59,12 @@ Unused since ADR-0111 (delete once T-D129 is on `main`): `DEPLOY_SSH_PUBKEY` (al
 
 ## 3b. Tag ruleset on `v*` (ADR-0109)
 
-- [ ] Settings > Rules > Rulesets > New tag ruleset: target tags matching `v*`, enforcement Active.
-- [ ] Restrict creations: only the operator (repository admin role or the operator's bypass entry). Nobody else can mint a release tag.
-- [ ] Restrict deletions and restrict updates (block force pushes): tags are immutable. A wrong release is superseded by a new version.
-- [ ] Do not add the GitHub Actions app to the bypass list.
+- [x] Settings > Rules > Rulesets > New tag ruleset: target tags matching `v*`, enforcement Active.
+- [x] Restrict creations: only the operator (repository admin role or the operator's bypass entry). Nobody else can mint a release tag.
+- [x] Restrict deletions and restrict updates (block force pushes): tags are immutable. A wrong release is superseded by a new version.
+- [x] Do not add the GitHub Actions app to the bypass list.
 - **Done when:** a non-operator `git push origin v9.9.9` is rejected and `git push --delete origin <existing v* tag>` is rejected for everyone.
+- Done 2026-11-16 via the API as two rulesets, because one bypass list covers every rule in a ruleset: `release-tags-create` (creation; bypass: repository admin role) and `release-tags-immutable` (update, deletion, non-fast-forward; no bypass).
 
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 

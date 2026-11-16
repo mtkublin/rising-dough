@@ -4,7 +4,7 @@
 
 - Prod is live at https://budget.rising-dough.eu and runs `sha-89ac3c2`, moved there by a logged break-glass after the first pipeline release's SSH deploy failed (T-D127, ADR-0111 Context).
 - v3 is merged into `main` (PR #2). The follow-ups (T-D124..T-D130) are on `v3-followups`, PR #14.
-- Steps 1-11 and 11b are done. Open: 10a (move prod to the host agent, T-D129f), 11a (tag ruleset) and 11c (image retention), in the order 11a, 10a, release, 11c.
+- Steps 1-11 and 11b are done. Step 11a is done too. Open: 10a (move prod to the host agent, T-D129f), then the release, then 11c (image retention).
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
@@ -103,7 +103,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - **Done when:** the release run is green with `converged: …` and `/.well-known/bp-deploy-status.json` reports state `ok`.
 
 ### 11a. Tag ruleset on `v*` (ADR-0109, T-D125)
-- [ ] **Where:** GitHub UI, before cutting the first release after the T-D125 merge.
+- [x] Done 2026-11-16 (rulesets `release-tags-create`, `release-tags-immutable`). **Where:** GitHub UI, before cutting the first release after the T-D125 merge.
 - Create the tag ruleset as described in [`github-settings.md`](github-settings.md) section 3b.
 - The merge that brings T-D125 is the last merge-triggered release. From then on prod releases come from `gh release create vX.Y.Z --target main` ([`deploy.md`](deploy.md)).
 - **Done when:** the ruleset is active on `v*`.
