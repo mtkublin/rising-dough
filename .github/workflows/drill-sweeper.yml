@@ -81,6 +81,10 @@ jobs:
     name: destroy expired drill
     needs: check
     if: needs.check.outputs.expired == 'true'
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill

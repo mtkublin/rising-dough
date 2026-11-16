@@ -80,7 +80,8 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 ### 9. Fix PR checks, push, run the first gate
 - [ ] **Where:** laptop + GitHub UI.
 - Merge the T-D99 / T-D101 fixes and push v3.
-- Run `gh workflow run drill.yml --ref v3 -f mode=gate` and approve the `drill` environment.
+- First merge PR #3 (T-D121): `drill.yml` must exist on `main` before GitHub accepts a dispatch.
+- Run `gh workflow run drill.yml --ref v3 -f mode=gate` (no approval: the `drill` environment has no reviewer).
 - **Done when:** commit status `drill-gate` is `success` on the v3 head. Confirm the tailnet certificate behavior (T-D107).
 - Runbook: [`drill.md`](drill.md).
 
