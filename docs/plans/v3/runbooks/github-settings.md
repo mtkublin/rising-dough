@@ -49,7 +49,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 
 `drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.
 
-Repo-level: none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
+Repo-level variable (T-D126): `IMAGE_RETENTION_ENABLED` (`true` lets the scheduled `image-retention.yml` delete; unset = dry run). The `budget-planner` package must be linked to the repo with Actions access role Write ([`image-retention.md`](image-retention.md)). Otherwise none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
 Note: `rollback.yml` selects the environment from its `env` input, so it reads `PROD_HOST`/`DRILL_HOST`/`*_URL` from the chosen environment; make sure both host secrets resolve where used (if a workflow reads a secret from an environment that does not hold it, add it there).
 

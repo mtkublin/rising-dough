@@ -735,12 +735,13 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: root var `drill_instance_type` (default `DEV1-S`); prod pinned to `STARDUST1-S` in `main.tf`; compute output `server_type`; tftest runs for both envs. No prod diff.
 - The STARDUST1-S quota cannot be raised (operator, 2026-11-16): `DEV1-S` for the drill is permanent.
 
-### T-D126 [S] (proposed) GHCR image retention for `budget-planner` → ADR-0099
+### ✅ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
 - No retention today: every release and every drill gate pushes a `sha-…` image (plus cosign signature artifacts) to `ghcr.io/mtkublin/budget-planner`, and GHCR keeps all versions forever. A private package counts against the GitHub Packages storage quota.
 - Plan: weekly `image-retention.yml` (cron + `workflow_dispatch` with `dry_run`, default true for the first runs) using `actions/delete-package-versions` (pinned by SHA):
   - keep: newest 20 `sha-…` versions, everything tagged `main` or `v*` (T-D125), and the images prod has as `current` and `previous` (read via the deploy `status` command, or covered by N);
   - delete: untagged versions and orphaned signature artifacts older than 7 days, `sha-…` beyond the newest 20.
 - Needs a token with `delete:packages` (the workflow's `GITHUB_TOKEN` with `packages: write` works when the package is linked to the repo).
 - Test: static workflow test for the keep rules, `dry_run` default and a pinned action.
+- Done 2026-11-16: `.github/workflows/image-retention.yml` + `scripts/ghcr_retention.py` (the action cannot express the signature/child-manifest rules; selection is unit-tested in `tests/unit/deploy/test_image_retention.py`). Scheduled runs dry-run until the repo variable `IMAGE_RETENTION_ENABLED` is `true`; dispatch deletes only with `dry_run=false`. Also kept: every version younger than 7 days and child manifests of kept indexes (provenance/SBOM make `build-push-action` push untagged children). Prod current/previous are assumed to be within the newest 20. Runbook: `runbooks/image-retention.md`.
 - Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
 - Timing (user, 2026-11-16): after the first release.
