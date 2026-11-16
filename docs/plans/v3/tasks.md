@@ -658,7 +658,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `terraform/scripts/preflight.py` and the `docs/plans/v3` docs still mention `drill.budget.rising-dough.eu`. `deploy.yml` and `rollback.yml` still read `vars.DRILL_URL`; switch them to the ts.net host derived from `vars.TAILNET_DNS_NAME`. Depends on: ADR-0101, T-D97.
 - Decision 2026-11-16 (user): do next, after the first release (step 11). `deploy.yml`/`rollback.yml` work today only because `vars.DRILL_URL` already holds the ts.net URL.
 
-### T-D107 [S] Verify tailnet certificate on the first `mode=gate` drill run
+### ✅ T-D107 [S] Verify tailnet certificate on the first `mode=gate` drill run
+- Verified 2026-11-16, gate run 43907146399 on `ec01640`: smoke `curl -fsS` (no `-k`) passed from CI as `tag:ci`, and the operator laptop got HTTP 200 with a valid certificate (`ssl_verify_result=0`). Caddy obtains the `*.ts.net` certificate from tailscaled; the first ~1 min after boot shows connect errors and 5 s timeouts while it does.
 - Verify Caddy obtains the `*.ts.net` certificate from tailscaled (not verified against the Caddy or Tailscale docs). Also handle a stale `budget-planner-drill` tailnet node, which makes the new node register as `-1` and breaks the certificate name. Fix if it fails.
 - Depends on: T-D98, operator checklist steps 2 and 9.
 
