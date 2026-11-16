@@ -690,3 +690,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Found 2026-11-16 while verifying the T-D109 key: `deploy-budget-planner status` on prod printed `open /etc/budget-planner/docker-compose.yml: permission denied`. The script calls `docker compose` as `deploy`, but cloud-init gave `deploy` no `docker` group (the compose file is `root:docker 0640`). Every pipeline deploy and rollback would fail.
 - Fix: `groups: [docker]` on the `deploy` user in `cloud-init/bootstrap.yaml.tpl`. The SSH forced command still restricts `deploy` to `deploy-budget-planner` (ADR-0037 section 3). Note: `docker` group membership is root-equivalent on the host, so the forced command is the security boundary.
 - Running prod VM: cloud-init does not re-run (ADR-0098). Operator adds the group by hand once (`sudo usermod -aG docker deploy`), logged in `docs/CHANGELOG.md`. New VMs (drill, any prod replace) get it from cloud-init.
+
+### ✅ T-D116 [S] Rename secret `GITHUB_DEPLOY_PUBKEY` → `DEPLOY_SSH_PUBKEY` → ADR-0093
+- GitHub rejects secret names starting with `GITHUB_` (HTTP 422), so the secret `terraform.yml` and `restore-drill.yml` read could never be created; `TF_VAR_github_deploy_pubkey` was always empty in CI. Found 2026-11-16 during operator checklist step 5. Renamed in workflows and docs; the Terraform variable name is unchanged.

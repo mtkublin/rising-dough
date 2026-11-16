@@ -23,7 +23,7 @@ Same names in every environment, different values (ADR-0093). The three drill en
 | `SCW_DEFAULT_PROJECT_ID` | prod project | prod project | drill project | |
 | `SCW_DEFAULT_ORG_ID` | x | x | x | also used by `key-expiry.yml` (prod-plan) |
 | `ADMIN_EMAIL`, `APP_DOMAIN` | x | x | x | |
-| `OPERATOR_SSH_PUBKEY`, `GITHUB_DEPLOY_PUBKEY` | x | x | x | |
+| `OPERATOR_SSH_PUBKEY`, `DEPLOY_SSH_PUBKEY` | x | x | x | |
 | `GHCR_PULL_PAT` | x | x | x | read:packages only |
 | `LITESTREAM_AGE_IDENTITY`, `LITESTREAM_AGE_RECIPIENT` | x | x | x | per-env age keypair |
 | `MANAGED_DNS_ZONE` (optional) | x | x | x | |

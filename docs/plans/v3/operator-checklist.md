@@ -43,7 +43,7 @@
 ### A4. SSH keys
 
 - [ ] Operator key: `ssh-keygen -t ed25519 -C operator@laptop`. The public key goes to `operator_ssh_pubkey` / `OPERATOR_SSH_PUBKEY`.
-- [ ] Separate deploy keypair for GitHub Actions. The private key goes to `DEPLOY_SSH_PRIVATE_KEY`; the public key goes to `GITHUB_DEPLOY_PUBKEY`. Keep both in the password manager (the DR runbook assumes it).
+- [ ] Separate deploy keypair for GitHub Actions. The private key goes to `DEPLOY_SSH_PRIVATE_KEY`; the public key goes to `DEPLOY_SSH_PUBKEY`. Keep both in the password manager (the DR runbook assumes it).
 
 ### A5. GitHub secrets and variables (pre-apply)
 
@@ -59,7 +59,7 @@
 | `ADMIN_EMAIL` | repo | `admin_email` | no | local tfvars |
 | `APP_DOMAIN` | repo | `domain` | no | local tfvars (`rising-dough.eu`) |
 | `OPERATOR_SSH_PUBKEY` | repo | `operator_ssh_pubkey` | yes | local tfvars (public key, treated as sensitive by Terraform) |
-| `GITHUB_DEPLOY_PUBKEY` | repo | `github_deploy_pubkey` | yes | public half of the deploy keypair (A4) |
+| `DEPLOY_SSH_PUBKEY` | repo | `github_deploy_pubkey` | yes | public half of the deploy keypair (A4) |
 | `GHCR_PULL_PAT` | repo | `ghcr_pull_pat` | yes | read-only GHCR PAT (A3) |
 | `LITESTREAM_AGE_IDENTITY` | repo | `litestream_age_identity` | yes | `age-keygen -o litestream-age.key` (whole file or the `AGE-SECRET-KEY-1...` line); same PROD identity for drill |
 | `LITESTREAM_AGE_RECIPIENT` | repo | `litestream_age_recipient` | no | `age-keygen -y litestream-age.key` (was a variable; now a secret) |

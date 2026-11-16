@@ -956,5 +956,6 @@
 - **Fix(T-D103): restore-reader API key ignores `expires_at`** so the imported key is not replaced (Scaleway's 1-year default expiry forces replacement otherwise).
 
 ## 2026-11-16 (T-D109 / T-D115 — prod deploy key and deploy user)
-- **Ops(T-D109): prod `deploy` user now trusts `~/.ssh/rising_dough_deploy` (`SHA256:p4pE…`)**, appended by hand to `/home/deploy/.ssh/authorized_keys` with the cloud-init forced-command options (operator, over tailnet SSH). The old `SHA256:PXLm…` line stays until the first pipeline deploy succeeds. GitHub `GITHUB_DEPLOY_PUBKEY` / `DEPLOY_SSH_PRIVATE_KEY` use the new key; the next release plans an in-place `cloud_init` update recording it.
+- **Ops(T-D109): prod `deploy` user now trusts `~/.ssh/rising_dough_deploy` (`SHA256:p4pE…`)**, appended by hand to `/home/deploy/.ssh/authorized_keys` with the cloud-init forced-command options (operator, over tailnet SSH). The old `SHA256:PXLm…` line stays until the first pipeline deploy succeeds. GitHub `DEPLOY_SSH_PUBKEY` / `DEPLOY_SSH_PRIVATE_KEY` use the new key; the next release plans an in-place `cloud_init` update recording it.
 - **Fix(T-D115): cloud-init puts `deploy` in the `docker` group**; `deploy-budget-planner` could not read the compose file (`root:docker 0640`). Running prod VM: operator runs `sudo usermod -aG docker deploy` once.
+- **Fix(T-D116): deploy public key secret renamed `GITHUB_DEPLOY_PUBKEY` → `DEPLOY_SSH_PUBKEY`** (GitHub forbids the `GITHUB_` prefix for secret names).
