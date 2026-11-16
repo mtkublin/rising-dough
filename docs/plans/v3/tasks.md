@@ -753,3 +753,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Done 2026-11-16: `.github/workflows/image-retention.yml` + `scripts/ghcr_retention.py` (the action cannot express the signature/child-manifest rules; selection is unit-tested in `tests/unit/deploy/test_image_retention.py`). Scheduled runs dry-run until the repo variable `IMAGE_RETENTION_ENABLED` is `true`; dispatch deletes only with `dry_run=false`. Also kept: every version younger than 7 days and child manifests of kept indexes (provenance/SBOM make `build-push-action` push untagged children). Prod current/previous are assumed to be within the newest 20. Runbook: `runbooks/image-retention.md`.
 - Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
 - Timing (user, 2026-11-16): after the first release.
+
+### ✅ T-D125 [M] Release prod from GitHub releases on `main` → ADR-0109 (Accepted 2026-11-16)
+- Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
+- Touches `release.yml`, `build.yml`, `terraform.yml`, `deploy.yml` (main-ref guards become "main or a `v*` tag on main", one shared tested script), `rollback.yml`, runbooks `deploy.md` / `rollback.md`, `github-settings.md` (tag ruleset).
+- Timing (user, 2026-11-16): after the first merge-triggered release (operator checklist step 11). Accepting ADR-0109 flips it to Accepted.

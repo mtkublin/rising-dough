@@ -61,6 +61,14 @@ Note: `rollback.yml` selects the environment from its `env` input, so it reads `
 - [ ] Require linked conversation resolution; block force pushes and deletions.
 - [ ] Restrict who can push to matching branches (operator only).
 
+## 3b. Tag ruleset on `v*` (ADR-0109)
+
+- [ ] Settings > Rules > Rulesets > New tag ruleset: target tags matching `v*`, enforcement Active.
+- [ ] Restrict creations: only the operator (repository admin role or the operator's bypass entry). Nobody else can mint a release tag.
+- [ ] Restrict deletions and restrict updates (block force pushes): tags are immutable. A wrong release is superseded by a new version.
+- [ ] Do not add the GitHub Actions app to the bypass list.
+- **Done when:** a non-operator `git push origin v9.9.9` is rejected and `git push --delete origin <existing v* tag>` is rejected for everyone.
+
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
 Two OAuth clients. `budget-planner-automation` is used by every environment; `budget-planner-drill-cleanup` only by the drill environments (it deletes the drill's leftover tailnet node after destroy):

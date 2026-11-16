@@ -30,8 +30,8 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
 
 ### Primary path — `rollback.yml` dispatch
 
-1. `gh workflow run rollback.yml --ref main -f env=prod` (empty `image_sha` uses `.previous-tag`; add `-f image_sha=<sha>` to pin a known-good SHA).
-2. Approve the `prod` environment when it parks. `rollback.yml` refuses `env=prod` unless the ref is `main`.
+1. `gh workflow run rollback.yml --ref main -f env=prod` (empty `target` uses `.previous-tag`; add `-f target=v1.2.3` to pin a known-good version, or `-f target=sha-<short>` for a SHA tag).
+2. Approve the `prod` environment when it parks. `rollback.yml` refuses `env=prod` unless the ref is `main` or a `v*` tag on `main` (ADR-0109).
 3. The GHA step summary reports the SHA it reverted to. `env=drill` can be dispatched from any ref.
 
 ### Break-glass path — direct SSH (operator workstation)
@@ -48,15 +48,15 @@ Not a routine path. Use it only during a GitHub Actions outage, with explicit us
    ```
 3. The shim runs `TAG="$(cat .previous-tag)" docker compose up -d app`.
 
-### Pinned-SHA path — `image_sha`
+### Pinned-target path — `target`
 
-If `.previous-tag` is empty (first deploy ever, or someone wiped it), dispatch `rollback.yml` with an explicit target. Prod is accepted from `main` only.
+If `.previous-tag` is empty (first deploy ever, or someone wiped it), dispatch `rollback.yml` with an explicit target (`vMAJOR.MINOR.PATCH`, `sha-<hex>` or a bare git SHA, validated by `scripts/ci/ref_guard.py`). Prod is accepted from `main` or a `v*` tag on `main` only.
 
 ```sh
-gh workflow run rollback.yml --ref main -f env=prod -f image_sha=<known-good-short-sha>
+gh workflow run rollback.yml --ref main -f env=prod -f target=<known-good-version-or-sha>
 ```
 
-Only use a SHA you can see in `git log origin/main` and that was in `prod` previously (GHCR tag `sha-<short>` still exists).
+Prefer a version (`gh release list`) that was in `prod` previously. A SHA must be visible in `git log origin/main` and its GHCR tag `sha-<short>` must still exist.
 
 ## Verification
 
