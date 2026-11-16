@@ -981,3 +981,4 @@
 - **Fix(T-D121): drill/drill-destroy/drill-sweeper grant their reusable workflows' permissions.** First gate run was a `startup_failure` (caller granted `contents: read`; `build.yml`/`terraform.yml` request more). New test checks every caller against its callee.
 - **Fix(T-D122): `build.yml` builds when called from a branch drill gate.** Its main-only dispatch guard read the caller's event/ref, so every branch gate skipped build, apply and smoke.
 - **Fix(T-D123): drill VM on `DEV1-S`** (ADR-0032 amendment). Scaleway allows one STARDUST1-S per organisation and prod uses it; the gate apply failed on the quota. Prod stays on STARDUST1-S.
+- **Docs: v3 proposal decisions recorded** (2026-11-16): T-D106 next after the first release; T-D104 deferred to the next cloud-init change; T-D102, T-D105, T-D108 won't do for now.

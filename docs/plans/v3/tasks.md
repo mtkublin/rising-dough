@@ -634,9 +634,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Root cause (2026-11-13 run): the table re-run is clean. trivy-action logs "Building SARIF report with all severities": with `format: sarif` it drops the `severity` filter unless `limit-severities-for-sarif: true`, so `exit-code: 1` fired on LOW/MEDIUM findings. Fix: set `limit-severities-for-sarif: true` on both the fs and image scans. The table step stays as a diagnostic.
 - Depends on: operator checklist step 1. Blocks: merge of PR v3→main.
 
-### T-D102 [M] (proposed) Consolidate PR checks into one `pr.yml` graph
+### T-D102 [M] (won't do for now) Consolidate PR checks into one `pr.yml` graph
 - Merge ci, security, terraform plan and lock-check into a single `pr.yml` graph with one summary required check. `release.yml`, `drill.yml` and the cron/manual workflows stay separate.
 - Awaiting user decision. Would need an ADR if adopted (amends the ADR-0099 required-check set). Depends on: T-D99, T-D101.
+- Decision 2026-11-16 (user): not now. Churn right before the first release; the `protect-main` ruleset already lists the 9 checks by name. Revisit if check names start changing often (each rename means a ruleset edit).
 
 ### ✅ T-D103 [L] Move all IAM resources into the local bootstrap → ADR-0104
 - Decided 2026-11-13 (user): do it before operator checklist step 4 (bootstrap 3b).
@@ -645,21 +646,25 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Operator: import the existing prod IAM into `bootstrap/ci` (no new prod keys), read the current secrets from prod state once, set GitHub secrets; after the first release set `ci_prod_iam_transition = false` and re-apply. Runbook: `runbooks/key-rotation.md` part 2.
 - 2026-11-16 operator import: the imported restore-reader key planned a replace (`expires_at` 1-year provider default -> null, forces replacement). Added `ignore_changes = [expires_at]`, as the app key already has (T-D74).
 
-### T-D104 [S] (proposed) `release.yml` `replace` dispatch input for prod `-replace`
+### T-D104 [S] (deferred) `release.yml` `replace` dispatch input for prod `-replace`
 - `workflow_dispatch` input `replace`, main-only and approval-gated, for prod `-replace` operations (cloud-init changes need a server replace). Depends on: ADR-0099 (amendment).
+- Decision 2026-11-16 (user): keep for the next cloud-init change. Without it, a prod cloud-init change (e.g. T-D115's docker group) needs a manual host fix or break-glass `-replace`. A replace means a new VM, a Litestream restore and downtime.
 
-### T-D105 [S] (proposed) `drill.yml` explore-mode inputs for drill break-glass variables
+### T-D105 [S] (won't do for now) `drill.yml` explore-mode inputs for drill break-glass variables
 - Explore-mode dispatch inputs for the drill-only break-glass variables `break_glass_console_password` and `break_glass_ssh_cidrs`. Depends on: T-D98.
+- Decision 2026-11-16 (user): not needed. `boot_logs=true` covers boot debugging and tailnet SSH works whenever the VM is up.
 
 ### T-D106 [S] Clean up leftover public-drill references after ADR-0101
 - `terraform/scripts/preflight.py` and the `docs/plans/v3` docs still mention `drill.budget.rising-dough.eu`. `deploy.yml` and `rollback.yml` still read `vars.DRILL_URL`; switch them to the ts.net host derived from `vars.TAILNET_DNS_NAME`. Depends on: ADR-0101, T-D97.
+- Decision 2026-11-16 (user): do next, after the first release (step 11). `deploy.yml`/`rollback.yml` work today only because `vars.DRILL_URL` already holds the ts.net URL.
 
 ### T-D107 [S] Verify tailnet certificate on the first `mode=gate` drill run
 - Verify Caddy obtains the `*.ts.net` certificate from tailscaled (not verified against the Caddy or Tailscale docs). Also handle a stale `budget-planner-drill` tailnet node, which makes the new node register as `-1` and breaks the certificate name. Fix if it fails.
 - Depends on: T-D98, operator checklist steps 2 and 9.
 
-### T-D108 [S] (optional) Per-env Tailscale OAuth clients
+### T-D108 [S] (won't do for now) Per-env Tailscale OAuth clients
 - Separate OAuth clients per environment instead of the single `tag:automation` client. Depends on: operator checklist step 2.
+- Decision 2026-11-16 (user): low value for a single maintainer whose OAuth secret lives only in GitHub environments. Revisit if more people or environments get the secret.
 
 ### T-D109 [S] Resolve the prod deploy-key mismatch
 - The deploy public key in prod's config has fingerprint `SHA256:PXLm…`; no local private key matches it. `~/.ssh/rising_dough_deploy` is `SHA256:p4pE…`. Decide which key the GitHub `prod` environment's deploy-key secret holds, then rotate the prod deploy pubkey through the pipeline if needed (`runbooks/key-rotation.md`). Depends on: operator checklist step 5.
