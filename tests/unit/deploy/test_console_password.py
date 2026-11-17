@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -31,7 +32,7 @@ def test_password_resource_is_conditional_and_typeable() -> None:
 def test_only_bcrypt_hash_reaches_compute_and_template() -> None:
     assert "random_password.console[0].bcrypt_hash" in ROOT_MAIN
     assert "random_password.console[0].result" not in ROOT_MAIN
-    assert "console_password_hash       = var.console_password_hash" in USER_DATA
+    assert re.search(r"console_password_hash\s+= var\.console_password_hash\n", USER_DATA)
     assert "console_password" not in USER_DATA.replace("console_password_hash", "")
     block = COMPUTE_VARS.split('variable "console_password_hash"')[1]
     assert "sensitive   = true" in block

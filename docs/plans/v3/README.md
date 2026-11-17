@@ -28,7 +28,7 @@
 |---|---|---|
 | 1 — Prerequisites | App-side changes (auth, config, SQLite PRAGMAs, Docker, security headers) | Local docker-compose smoke green; new tests at ≥ 90% coverage |
 | 2 — Infrastructure | Terraform modules + cloud-init bootstrap; apply to `drill` env | drill pipeline apply succeeds (`drill.yml`); `/health` reachable via public DNS on drill |
-| 3 — Deployment | Build + deploy workflows; cosign; rollback script | Pre-merge drill gate green; push to `main` runs `release.yml` (signed image, prod apply and deploy after approval); manual rollback (`rollback.yml`) restores previous SHA |
+| 3 — Deployment | Build + deploy workflows; cosign; rollback script | Pre-merge drill gate green; push to `main` runs `release.yml` (signed image, prod apply after approval, the host agent converges the VM); manual rollback (`rollback.yml`) restores previous SHA |
 | 4 — Validation | Backup drill; security scan; smoke; monitoring; runbooks | Monthly drill automated; Mozilla Observatory A+; UptimeRobot wired; production acceptance |
 | 5 — Data protection | Audit-tail scoping, no-store, age-encrypted replica, 37-day copy ceiling, secure_delete, log hygiene, IP/UA retention, data inventory | ADR-0078 exit criteria; restore drill against encrypted replica |
 
@@ -37,7 +37,7 @@
 ## Dependencies
 
 Phase 2 depends on Phase 1 (needs a `Dockerfile` and a `/health` endpoint before any VM is useful).
-Phase 3 depends on Phase 2 (needs the VM and the deploy user before a deploy workflow can run).
+Phase 3 depends on Phase 2 (needs the VM and the host agent (ADR-0111) before a release workflow can run).
 Phase 4 depends on Phase 3 (needs real deploys to validate).
 
 Within Phase 1 most tasks are parallel-safe; the data-layer PRAGMA change (T-D05) must land before Litestream config (T-D23 in Phase 2). The multi-user migration (T-D16a) and repository-filter sweep (T-D16) must land before the admin bootstrap service (T-D19) and before any Phase 2 apply (so cloud-init env can inject `BUDGET_PLANNER_ADMIN_EMAIL` + `BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD`).

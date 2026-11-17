@@ -56,9 +56,9 @@ def test_non_root_owned_write_files_are_deferred() -> None:
             assert re.search(r"(?m)^    defer: true$", entry), entry.splitlines()[0]
 
 
-def test_compose_entry_is_deferred() -> None:
-    entry = next(e for e in _entries(_section("write_files")) if "docker-compose.yml" in e)
-    assert "defer: true" in entry
+def test_app_files_are_agent_managed_not_cloud_init() -> None:
+    # ADR-0111: compose, Caddy, Litestream and secrets files come from bp-config.
+    assert not any("/etc/budget-planner/" in e for e in _entries(_section("write_files")))
 
 
 def test_users_named_like_system_groups_avoid_group_collision() -> None:

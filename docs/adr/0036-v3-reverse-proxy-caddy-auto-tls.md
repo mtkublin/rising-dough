@@ -162,3 +162,7 @@ ${hostname} {
 - **Traefik** — rejected (overkill for one host, dynamic routing not needed).
 - **HAProxy + Lego** — rejected (two moving parts for TLS; Caddy covers both).
 - **Cloudflare in front of the host** — rejected (adds a third-party dependency and introduces a surface for request forwarding issues; the app is small enough that direct termination is simpler and keeps data in-region).
+
+## Addendum 2026-11-16 (T-D132): the CSP must be set with a response matcher
+
+The CSP was never sent in prod: `header @html ...` with `@html { header Content-Type text/html* }` is a request matcher, so it never matched a browser GET. A `match { ... }` block inside `header` is not supported by Caddy 2.8 (it is parsed as a header named `Match`). The CSP therefore stays at Caddy (§3 is unchanged) but is set inside `reverse_proxy` with `@html header Content-Type text/html*` and `handle_response @html { header Content-Security-Policy "..."; copy_response }`, where the named matcher is evaluated against the upstream response. Policy string and nonce are unchanged. Guarded by `tests/unit/deploy/test_caddy_csp.py`.

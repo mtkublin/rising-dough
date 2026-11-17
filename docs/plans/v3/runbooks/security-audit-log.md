@@ -1,0 +1,85 @@
+# Security audit log (T-D42)
+
+Append-only log of external security scans of the live prod site `https://budget.rising-dough.eu`. All scans are read-only (GET/HEAD only, no login, no form fuzzing, no load). Raw output is kept outside the repo (scratch); only summaries are recorded here. Cookie values are never recorded.
+
+## 2026-11-16
+
+Target: `budget.rising-dough.eu` (151.115.78.144 / 2001:bc8:1d90:3010::). Deployed image: `ghcr.io/mtkublin/budget-planner:sha-89ac3c2` (Debian 13.7 base, ADR-0102). Policy references: ADR-0036 (Caddy headers/CSP), ADR-0103 (image scan ignores unfixed OS CVEs).
+
+### Results vs targets
+
+| Tool | Target | Result | Status |
+|------|--------|--------|--------|
+| Mozilla HTTP Observatory (API v2, algorithm v6) | >= A+ | **B, score 75**, 11/12 tests passed, 1 failed (CSP) | FAIL |
+| testssl.sh 3.2 | grade A | **A+** (score 96; protocol 100, key exchange 100, cipher 90); no vulnerabilities | PASS |
+| trivy image, CI policy (`HIGH,CRITICAL --ignore-unfixed`) | no HIGH/CRITICAL | **0 findings** (OS and Python) | PASS |
+| trivy image, full (no `--ignore-unfixed`) | record only | 107 HIGH, 0 CRITICAL; 27 distinct CVEs in 24 Debian packages; none has a fixed version | Recorded |
+| nikto 2.5.0 | no significant findings | **Incomplete**: aborted after ~300 requests (error limit 20 reached); nothing reported before abort | Partial |
+
+### 1. Mozilla HTTP Observatory
+
+Command: `curl -X POST "https://observatory-api.mdn.mozilla.net/api/v2/scan?host=budget.rising-dough.eu"`, details from `GET /api/v2/analyze?host=budget.rising-dough.eu`.
+
+- Grade B, score 75, tests passed 11/12.
+- Only failed test: `content-security-policy` (`csp-not-implemented`, -25). Passing: cookies (+5, `__Host-csrf` Secure + SameSite=Lax), COOP (+10, `same-origin`), HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, redirection to HTTPS, CORS not implemented, COEP not implemented (no penalty).
+- The score is 75 solely because the CSP is missing (finding F1). With a valid no-unsafe CSP the grade is expected to reach A+ or better.
+
+### 2. testssl.sh
+
+Image: `drwetter/testssl.sh:3.2` (digest `sha256:64bab3c1fd8eee440f68d5e020dd633c1f2d375fe0ae593bdfec2725110a7e29`, run under amd64 emulation on arm64; took 1573 s).
+Command: `docker run --rm -v <scratch>:/out drwetter/testssl.sh:3.2 --quiet --color 0 --severity LOW --jsonfile /out/testssl.json budget.rising-dough.eu`
+
+- Overall grade **A+** (experimental SSL Labs 2009r rating, final score 96).
+- Protocols: TLS 1.2 and TLS 1.3 only; SSLv2/3, TLS 1.0/1.1 not offered. ALPN h2 + http/1.1. HTTP/3 advertised via Alt-Svc.
+- Ciphers: AEAD with forward secrecy only (ECDHE-ECDSA AES-GCM, ChaCha20); server cipher order set; curves prime256v1, X25519.
+- Certificate: ECDSA P-256, Let's Encrypt (YE2), valid 2026-11-07 to 2027-02-05 (80 days left at scan time), SAN matches, chain OK, CT present.
+- Vulnerabilities: Heartbleed, CCS, ROBOT, CRIME, BREACH, POODLE, SWEET32, FREAK, DROWN, LOGJAM, BEAST, LUCKY13, RC4: all not vulnerable.
+- Informational (no grade impact): OCSP stapling not offered (Let's Encrypt has ended OCSP; CRL only); no DNS CAA record (F4).
+- HSTS: 365 days, includeSubDomains, preload.
+
+### 3. nikto
+
+Image: `ghcr.io/sullo/nikto@sha256:0bb37022ebfadc38d6a9a2755c03bfd1f9e079e01e8946fe548153d9ba0c2012` (Nikto 2.5.0; upstream image, pinned by digest because only `latest` is published).
+Command: `docker run --rm <image> -h budget.rising-dough.eu -p 443 -ssl -Pause 1 -ask no -nointeractive -maxtime 20m` (single run).
+
+- Findings reported: informational only (`x-request-id` uncommon header; Alt-Svc advertises HTTP/3; root redirects to `/auth/login?next=%2Ftoday`; no server banner, so the Caddy `Server` header is stripped as intended).
+- The scan terminated early: "Error limit (20) reached for host" after 300 of about 7000 requests (plugin "Site Files"), 533 s. Likely cause: Caddy rate limiting or error responses to probe paths. Not retried (policy: max one run). Coverage is partial; the result means "nothing found in the first ~4%", not a clean bill of health.
+
+### 4. trivy image
+
+Tool: trivy 0.69.3. Image scanned: `ghcr.io/mtkublin/budget-planner:sha-89ac3c2`, pulled directly from GHCR (pullable, so no local rebuild; amd64 only, so `--platform linux/amd64`).
+
+- `trivy image --platform linux/amd64 --severity HIGH,CRITICAL --ignore-unfixed <image>`: **0 vulnerabilities** in `debian 13.7` and in `Python` (CI policy, ADR-0103, passes).
+- Same without `--ignore-unfixed`: 107 HIGH, 0 CRITICAL; 27 distinct CVEs across 24 OS packages (util-linux family: bsdutils, mount, login, libblkid1, libmount1, libsmartcols1, libuuid1, liblastlog2-2; krb5 libs; curl/libcurl4t64; ncurses; libsqlite3-0; libsystemd0/libudev1; libacl1; perl-base). **None has a fixed version** in Debian, so nothing is actionable by rebuild. No Python dependency findings.
+- `.security-allowlist.yml` `trivy_image` list is empty (consistent with ADR-0103); no allowlist entries were needed.
+
+### 5. Manual header checks (against ADR-0036)
+
+`curl -sI /` returns 302 to `/auth/login?next=%2Ftoday`; `GET /auth/login` returns 200 HTML. (`HEAD /auth/login` returns 405 with `Allow: GET`; harmless.)
+
+| Header | ADR-0036 expectation | Observed |
+|--------|----------------------|----------|
+| Strict-Transport-Security | max-age=31536000; includeSubDomains; preload | Present, as specified (also on the 302) |
+| X-Content-Type-Options | nosniff | Present |
+| X-Frame-Options | DENY | Present |
+| Referrer-Policy | strict-origin-when-cross-origin | Present |
+| Permissions-Policy | camera/microphone/geolocation off, interest-cohort off | Present, as specified |
+| Cross-Origin-Opener-Policy | same-origin | Present |
+| Content-Security-Policy (nonce, `frame-ancestors 'none'`) | On every HTML response | **Missing** on `GET /auth/login` (200 text/html) |
+| Server banner | removed | Absent (OK) |
+| HTTP to HTTPS | redirect | 308 to `https://budget.rising-dough.eu/` (OK) |
+| Cookies | Secure, SameSite | `__Host-csrf`: Path=/, Secure, SameSite=Lax, no Domain (OK; not HttpOnly, as is normal for a double-submit CSRF cookie) |
+
+### Findings needing action
+
+| # | Severity | Finding | Suggested fix |
+|---|----------|---------|---------------|
+| F1 | HIGH (an ADR-0036 control is not active). **Fixed in code by T-D132 (2026-11-16); prod gets it with the next release, then re-run Observatory.** | No `Content-Security-Policy` header is served on HTML responses, so there is no nonce-based script restriction, `frame-ancestors`, `form-action` or `object-src` protection. This is the only reason Observatory shows B/75 instead of A+. In `terraform/cloud-init/compose/Caddyfile.tpl` the CSP is attached with `header @html ...` where `@html { header Content-Type text/html* }`; that `header` matcher inspects the **request** headers, so it most likely never matches (the response `Content-Type` is unknown at match time). The app middleware (`web/middleware/security_headers.py`) only consumes the nonce and does not emit the CSP itself. | Either (a) emit the CSP from `SecurityHeadersMiddleware` for HTML responses using the `X-CSP-Nonce` request header (one place for nonce and header, unit-testable), or (b) use a response-phase matcher in Caddy and cover it with a render test. Add an integration assertion that `GET /auth/login` carries the CSP, then re-run Observatory (expect >= A+). Docs first per CLAUDE.md (ADR-0036 follow-up task). |
+| F2 | LOW | nikto aborted at about 4% (error limit), so web-layer coverage is incomplete. | Optionally rerun against a drill environment with the rate limit relaxed, or accept given Observatory + testssl + trivy coverage. |
+| F3 | LOW / informational | 107 HIGH unfixed Debian 13.7 findings (27 distinct CVEs) in the image; no upstream fix. | No action now (ADR-0103). Re-run the full scan periodically and after each base-image bump; act once a `FixedVersion` appears. |
+| F4 | LOW / informational | No DNS CAA record for `rising-dough.eu`; certificate is 90-day Let's Encrypt (80 days left, auto-renewed by Caddy). | Optionally add `CAA 0 issue "letsencrypt.org"` at the DNS provider; watch cert expiry via the uptime check (T-D44). |
+
+### Not run / caveats
+
+- Every requested tool ran; nikto ended early (F2). The Docker daemon had to be started locally first. An earlier testssl start while Docker was down failed immediately; the recorded run is the complete one.
+- Observatory results reflect the site at 2026-11-16 20:30 UTC.

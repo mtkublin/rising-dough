@@ -1,0 +1,10 @@
+# T-D59 / ADR-0078 §5: 14 daily generations of the Caddy access log.
+/var/log/caddy/access.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

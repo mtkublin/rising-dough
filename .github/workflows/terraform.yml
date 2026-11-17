@@ -14,10 +14,19 @@ on:
         description: Target environment (drill | prod). prod requires ref main.
         type: string
         required: true
-      image_tag:
-        description: Image tag passed as -var app_image_tag (sha-<short>)
+      image_ref:
+        description: >-
+          ADR-0111 - app image `<tag>@sha256:<digest>` the host should run. Empty
+          keeps the ref recorded in state (or, with rollback, means the recorded
+          previous ref). Ignored for destroy.
         type: string
-        required: true
+        required: false
+        default: ""
+      rollback:
+        description: ADR-0111 - roll back to image_ref, or to the previous ref recorded in state.
+        type: boolean
+        required: false
+        default: false
       replace:
         description: Space-separated resource addresses for -replace (optional)
         type: string
@@ -38,6 +47,13 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      host_config_generation:
+        description: ADR-0111 - generation the host agent reports once converged (empty for destroy).
+        value: ${{ jobs.apply.outputs.host_config_generation }}
+      host_image_ref:
+        description: ADR-0111 - full image ref (repo:tag@digest) the host should run (empty for destroy).
+        value: ${{ jobs.apply.outputs.host_image_ref }}
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -59,6 +75,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: ${{ inputs.env != 'prod' && 1 || 0 }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
@@ -106,6 +124,9 @@ jobs:
       - name: Trivy config scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          # T-D131: trivy 0.70.0 (action default) panics on sensitive() values
+          # ("value is marked"); 0.76.2 scans the ADR-0111 user_data cleanly.
+          version: v0.76.2
           scan-type: config
           scan-ref: terraform
           exit-code: "1"
@@ -147,7 +168,6 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
-      TF_VAR_github_deploy_pubkey: ${{ secrets.DEPLOY_SSH_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
@@ -169,6 +189,9 @@ jobs:
       # T-D67 / ADR-0094: Tailscale provider (auth key minting). Plan only reads.
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
+      # ADR-0111: placeholder; Terraform steps set it from the "Resolve image
+      # refs" step outputs as step-level env.
+      TF_VAR_app_image_ref: ""
 
     steps:
       - name: Checkout
@@ -191,14 +214,31 @@ jobs:
             done <<< "${!v:-}"
           done
 
-      - name: Check required Terraform inputs
-        run: python3 scripts/check_tf_vars.py
-
       - name: terraform init (${{ matrix.env }})
         run: terraform init -input=false -backend-config=envs/${{ matrix.env }}/backend.hcl -reconfigure
 
+      # ADR-0111: a PR plan keeps the image ref recorded in state; never applied,
+      # so an empty state (drill after teardown) may use a placeholder. Steps
+      # that need the refs get them as step-level env (wins over job env).
+      - name: Resolve image refs
+        id: refs
+        run: |
+          set -euo pipefail
+          current="$(terraform output -raw app_image_ref 2>/dev/null || true)"
+          previous="$(terraform output -raw app_image_previous_ref 2>/dev/null || true)"
+          python3 ../scripts/ci/host_release.py refs --current "${current}" --current-previous "${previous}" --plan-only | tee -a "$GITHUB_OUTPUT"
+
+      - name: Check required Terraform inputs
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
+        run: python3 scripts/check_tf_vars.py
+
       - name: terraform plan (${{ matrix.env }})
         id: plan
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: |
           # T-D83 / ADR-0098: never print raw plan output (cloud_init embeds
           # secrets and Terraform may show the prior state value unmasked).
@@ -290,7 +330,6 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
-      TF_VAR_github_deploy_pubkey: ${{ secrets.DEPLOY_SSH_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
@@ -311,7 +350,11 @@ jobs:
       TF_VAR_restore_reader_application_id: ${{ inputs.env == 'prod' && secrets.RESTORE_READER_APPLICATION_ID || '' }}
       # T-D67 / ADR-0094: Tailscale provider (auth key minting).
       TARGET_ENV: ${{ inputs.env }}
-      IMAGE_TAG: ${{ inputs.image_tag }}
+      IMAGE_REF: ${{ inputs.image_ref }}
+      TF_ROLLBACK: ${{ inputs.rollback }}
+      # ADR-0111: placeholder; Terraform steps set it from the "Resolve image
+      # refs" step outputs as step-level env.
+      TF_VAR_app_image_ref: ""
       TF_REPLACE: ${{ inputs.replace }}
       TF_DESTROY: ${{ inputs.destroy }}
       # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
@@ -319,6 +362,10 @@ jobs:
       TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+    outputs:
+      host_config_generation: ${{ steps.host.outputs.generation }}
+      host_image_ref: ${{ steps.host.outputs.image_ref }}
 
     steps:
       - name: Checkout
@@ -330,22 +377,15 @@ jobs:
           terraform_version: 1.17.1
           terraform_wrapper: false
 
-      - name: Guard env / ref / image tag (ADR-0099)
+      - name: Guard env / ref (ADR-0099, ADR-0109)
         run: |
           set -euo pipefail
           case "${TARGET_ENV}" in
             drill) ;;
             prod)
-              if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-                echo "::error::prod apply runs only from main (got ${GITHUB_REF})" >&2
-                exit 1
-              fi ;;
+              python3 scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}" ;;
             *) echo "::error::env must be drill or prod" >&2; exit 1 ;;
           esac
-          if ! [[ "${IMAGE_TAG}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
-            echo "::error::invalid image_tag '${IMAGE_TAG}'" >&2
-            exit 1
-          fi
 
       - name: Mask secret inputs (T-D83)
         run: |
@@ -358,18 +398,37 @@ jobs:
             done <<< "${!v:-}"
           done
 
-      - name: Check required Terraform inputs
-        run: python3 scripts/check_tf_vars.py
-
       - name: terraform init (${{ inputs.env }})
         run: terraform init -input=false -backend-config=envs/${{ inputs.env }}/backend.hcl -reconfigure
+
+      # ADR-0111: the current ref (from state) becomes the previous ref; a
+      # rollback swaps them. Refs are <tag>@sha256:<digest> (validated).
+      - name: Resolve image refs
+        id: refs
+        run: |
+          set -euo pipefail
+          current="$(terraform output -raw app_image_ref 2>/dev/null || true)"
+          previous="$(terraform output -raw app_image_previous_ref 2>/dev/null || true)"
+          flags=()
+          if [ "${TF_DESTROY}" = "true" ]; then flags+=(--destroy); fi
+          if [ "${TF_ROLLBACK}" = "true" ]; then flags+=(--rollback); fi
+          python3 ../scripts/ci/host_release.py refs --new "${IMAGE_REF}" --current "${current}" --current-previous "${previous}" "${flags[@]}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Check required Terraform inputs
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
+        run: python3 scripts/check_tf_vars.py
 
       # T-D83 / ADR-0098: plan output is always piped through mask_plan.py and
       # plan.bin is never uploaded (it embeds raw config/state values).
       - name: terraform plan (${{ inputs.env }})
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
         run: |
           set -euo pipefail
-          args=(-no-color -out=plan.bin -var "app_image_tag=${IMAGE_TAG}")
+          args=(-no-color -out=plan.bin)
           if [ "${TF_DESTROY}" = "true" ]; then args+=(-destroy); fi
           for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
           terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
@@ -378,3 +437,46 @@ jobs:
         run: |
           set -o pipefail
           terraform apply -no-color -input=false plan.bin | python3 scripts/mask_plan.py
+
+      - name: Record host state outputs (ADR-0111)
+        id: host
+        if: ${{ !inputs.destroy }}
+        run: |
+          set -euo pipefail
+          {
+            echo "generation=$(terraform output -raw host_config_generation)"
+            echo "image_ref=$(terraform output -raw host_image_ref)"
+            echo "url=https://$(terraform output -raw fqdn)/.well-known/bp-deploy-status.json"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      # ADR-0111: the release is done when the host agent reports this
+      # generation applied. Prod only: the drill is tailnet-only, so drill.yml
+      # checks the status from its tailnet-connected smoke job.
+      - name: Wait for host convergence (prod)
+        id: converge
+        if: ${{ !inputs.destroy && inputs.env == 'prod' }}
+        env:
+          STATUS_URL: ${{ steps.host.outputs.url }}
+          GENERATION: ${{ steps.host.outputs.generation }}
+          HOST_IMAGE_REF: ${{ steps.host.outputs.image_ref }}
+        run: python3 ../scripts/ci/host_release.py wait --url "${STATUS_URL}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+
+      # ADR-0111: automatic rollback inside the already approved job: re-apply
+      # with the refs swapped, wait for the host, and keep the job failed.
+      - name: Roll back to the previous ref (prod)
+        if: ${{ failure() && steps.converge.outcome == 'failure' && steps.refs.outputs.previous != '' }}
+        env:
+          STATUS_URL: ${{ steps.host.outputs.url }}
+          # Swapped: the previous ref runs again, the failed one is recorded as previous.
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.previous }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.ref }}
+        run: |
+          set -euo pipefail
+          echo "::warning::host did not converge on ${TF_VAR_app_image_previous_ref}; rolling back to ${TF_VAR_app_image_ref}"
+          terraform plan -no-color -input=false -out=rollback.bin | python3 scripts/mask_plan.py
+          terraform apply -no-color -input=false rollback.bin | python3 scripts/mask_plan.py
+          python3 ../scripts/ci/host_release.py wait --url "${STATUS_URL}" \
+            --generation "$(terraform output -raw host_config_generation)" \
+            --ref "$(terraform output -raw host_image_ref)"
+          echo "::error::release rolled back to ${TF_VAR_app_image_ref}"
+          exit 1

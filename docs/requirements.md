@@ -305,19 +305,18 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 
 ### 6.4 Deployment pipeline (new NFR)
 
-- GitHub Actions: `build.yml` (image + cosign) → `deploy.yml` (SSH to deploy user, auto-rollback on `/ready` probe failure).
-- Deploy user has `/usr/sbin/nologin` + `command=".../deploy-budget-planner"` restriction. No arbitrary SSH.
-- Immutable SHA-tagged images; cosign keyless via GitHub OIDC.
+- GitHub Actions: `build.yml` (image + cosign) → `terraform.yml` apply. Terraform declares the whole host state in instance metadata (compose, Caddy, Litestream config, registry auth, digest-pinned image ref, the host agent itself); a host agent (systemd timer, every 30 s) cosign-verifies the image, converges, probes `/ready` and publishes a status file. The apply job waits for that status and re-applies the previous ref on failure (ADR-0111).
+- No SSH deploy path: no deploy user, no forced command. CI never logs into the host (ADR-0111).
+- Immutable images pinned by digest (`<tag>@sha256:<digest>`); cosign keyless via GitHub OIDC, verified on the host.
 - Prod deploy requires explicit `prod` environment approval; drill apply requires approval of the `drill` environment's required reviewer (ADR-0101, T-D96). Teardown, sweeping and plan are ungated (`drill-teardown`, `drill-plan`).
-- Rollback is one SSH call or one `workflow_dispatch`.
+- Rollback is one `workflow_dispatch` (`rollback.yml`): an approved apply that swaps the current and previous image refs recorded in Terraform state.
 
 Release and environment policy (ADR-0099):
 
-- Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval) -> `deploy prod` -> smoke `/ready`, orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
+- Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval; the release itself, ADR-0111) -> wait for the host agent status (`/ready` included), orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
 - Drill deploys run through one reusable drill pipeline (T-D90, T-D98), started only by `workflow_dispatch`: `mode=gate` (default; ephemeral, always torn down, posts commit status `drill-gate` on the built SHA, required by branch protection on every PR to `main`) or `mode=explore` (`ttl_minutes`, default 60, swept every 15 min). All drill workflows share the `drill` concurrency group.
 - Only exceptions: initial prod bring-up (2026-11-07), the local-only bootstrap stack (ADR-0096), a logged break-glass runbook, and a one-time prod DB seed copy (explicit user go). Enforced by credentials: prod-write secrets exist only in the GitHub `prod` environment (ADR-0100, T-D92).
 - The drill is tailnet-only (ADR-0101, T-D97): no public DNS record and no public 80/443; the app answers on its MagicDNS name `budget-planner-drill.<tailnet>.ts.net` with a certificate from the local tailscaled. The smoke job joins the tailnet (`tag:ci`, ACL `tag:ci -> tag:drill:443`) and probes that URL (environment variable `TAILNET_DNS_NAME`). `ci-drill` holds no DNS permission on the prod project.
-- Until T-D89/T-D90 land, the `deploy.yml` `workflow_run` flow above is superseded by this policy.
 
 ### 6.5 Durability (amends §3.7 for v3)
 

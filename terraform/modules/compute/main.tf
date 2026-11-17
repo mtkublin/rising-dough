@@ -67,13 +67,12 @@ resource "scaleway_instance_server" "app" {
     scaleway_instance_ip.ipv6.id,
   ]
 
-  # T-D83 / ADR-0098: the provider schema does not mark cloud_init sensitive,
-  # and Terraform printed the PRIOR (state) value in plain text on update or
-  # -replace. sensitive() makes the state record it as a sensitive attribute.
-  # Note: cloud-init runs once; a user-data change needs
-  # -replace=module.compute.scaleway_instance_server.app (an in-place update
-  # only rewrites the stored value).
-  cloud_init = sensitive(local.user_data)
+  # ADR-0111: cloud-init, bp-agent and bp-config metadata keys, updated in place.
+  # cloud-init itself runs once (first boot); the agent converges to bp-config
+  # on every change. T-D83 / ADR-0098: the provider schema does not mark
+  # user_data sensitive and Terraform printed prior values in plain text;
+  # sensitive() makes the state record it as a sensitive attribute.
+  user_data = sensitive(local.user_data)
 
   tags = concat(
     [

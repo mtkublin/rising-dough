@@ -1,4 +1,4 @@
-# NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
+# NOTE: rendered by Terraform into bp-config; the host agent writes it (ADR-0111). Edit the .tpl.
 # ADR-0036 §1: Caddyfile shape (auto-TLS, security headers, CSP nonce, rate limit, access logs).
 
 # ADR-0101: on the tailnet-only drill (`tailnet_only`) the hostname is a *.ts.net
@@ -31,15 +31,30 @@ ${hostname} {
     vars nonce {http.request.uuid}
     request_header X-CSP-Nonce {vars.nonce}
 
-    @html {
-        header Content-Type text/html*
+    # ADR-0111: host agent convergence status for the CI release monitor
+    # (generation, image refs, state; no secrets).
+    handle /.well-known/bp-deploy-status.json {
+        header Cache-Control "no-store"
+        root * /srv/bp-status
+        rewrite * /status.json
+        file_server
     }
-    header @html Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'nonce-{vars.nonce}'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
 
-    reverse_proxy app:8000 {
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Real-IP {remote_host}
-        header_up X-CSP-Nonce {vars.nonce}
+    handle {
+        reverse_proxy app:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+            header_up X-CSP-Nonce {vars.nonce}
+
+            # T-D132 / ADR-0036: inside reverse_proxy a named matcher is a RESPONSE
+            # matcher. A site-level `@html` + `header @html` tests the request and never
+            # matches; `match {}` inside `header` is unsupported in Caddy 2.8.
+            @html header Content-Type text/html*
+            handle_response @html {
+                header Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'nonce-{vars.nonce}'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+                copy_response
+            }
+        }
     }
 
     log {

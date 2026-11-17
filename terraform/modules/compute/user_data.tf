@@ -1,14 +1,23 @@
 # ----------------------------------------------------------------------------
-# Cloud-init user_data assembly.
-# Each template is rendered independently and then composed into the top-level
-# bootstrap.yaml.tpl via the `*_rendered` inputs. This keeps indentation safe
-# and allows `yq -e .` / `caddy validate --config -` to lint each file in CI.
+# Host state assembly (ADR-0111).
+#
+# Three instance metadata keys, all in scaleway_instance_server.user_data:
+#   cloud-init  fixed bootstrap (users, Tailscale, Docker, firewall, the agent
+#               loader + timer); runs once at first boot.
+#   bp-agent    the host agent (terraform/host/agent/bp_agent.py).
+#   bp-config   everything the agent converges to: managed files, image ref,
+#               cosign policy. Updated in place by every apply; the agent picks
+#               it up within ~30 s (no reboot, no SSH).
+# Each file template is rendered independently so indentation stays safe and
+# CI can lint each one (`caddy validate`, YAML parse).
 # ----------------------------------------------------------------------------
 
 locals {
+  image_repo  = "ghcr.io/${var.github_owner}/budget-planner"
+  compose_dir = "/etc/budget-planner"
+
   docker_compose_rendered = templatefile("${path.module}/../../cloud-init/compose/docker-compose.yml.tpl", {
-    github_owner           = var.github_owner
-    app_image_tag          = var.app_image_tag
+    app_image              = "${local.image_repo}:${var.app_image_ref}"
     cookie_secret          = var.cookie_secret
     trusted_hosts          = var.trusted_hosts_csv
     admin_email            = var.admin_email
@@ -38,53 +47,96 @@ locals {
     bucket_region   = var.bucket_region
   })
 
-  deploy_script_rendered = templatefile("${path.module}/../../cloud-init/bin/deploy-budget-planner.tpl", {
-    owner             = var.github_owner
-    app_image         = "ghcr.io/${var.github_owner}/budget-planner"
-    compose_dir       = "/etc/budget-planner"
-    previous_tag_file = "/etc/budget-planner/previous-tag"
-  })
-
-  # T-D41a: drill-only restore helper. Empty string on other environments, which
-  # also drops the write_files entries in bootstrap.yaml.tpl.
+  # T-D41a: drill-only restore helper. Empty string on other environments.
   restore_script_rendered = var.enable_restore_helper ? templatefile("${path.module}/../../cloud-init/bin/restore-from-prod.tpl", {
-    compose_dir      = "/etc/budget-planner"
-    restore_env_file = "/etc/budget-planner/restore-source.env"
+    compose_dir      = local.compose_dir
+    restore_env_file = "${local.compose_dir}/restore-source.env"
     source_bucket    = var.restore_source_bucket
     source_path      = "db"
     source_endpoint  = var.bucket_endpoint
     source_region    = var.bucket_region
     drill_bucket     = var.bucket_name
-    age_key_file     = "/etc/budget-planner/litestream-age.key"
+    age_key_file     = "${local.compose_dir}/litestream-age.key"
   }) : ""
 
-  ghcr_auth_b64 = base64encode("deploy:${var.ghcr_pull_pat}")
-
-  user_data = templatefile("${path.module}/../../cloud-init/bootstrap.yaml.tpl", {
-    hostname                    = var.hostname
-    operator_ssh_pubkey         = var.operator_ssh_pub
-    github_deploy_pubkey        = var.deploy_ssh_pub
-    scw_access_key              = var.scw_access_key
-    scw_secret_key              = var.scw_secret_key
-    ghcr_auth_b64               = local.ghcr_auth_b64
-    docker_compose_rendered     = local.docker_compose_rendered
-    caddyfile_rendered          = local.caddyfile_rendered
-    litestream_rendered         = local.litestream_rendered
-    litestream_restore_rendered = local.litestream_restore_rendered
-    age_identity                = var.litestream_age_identity
-    deploy_script_rendered      = local.deploy_script_rendered
-    enable_restore_helper       = var.enable_restore_helper
-    restore_script_rendered     = local.restore_script_rendered
-    restore_access_key          = var.scw_access_key_restore
-    restore_secret_key          = var.scw_secret_key_restore
-    tailscale_authkey           = var.tailscale_authkey
-    tailscale_hostname          = var.tailscale_hostname
-    tailscale_tag               = var.tailscale_tag
-    break_glass_ssh_cidrs       = var.break_glass_ssh_cidrs
-    console_password_hash       = var.console_password_hash
-    boot_log_upload             = var.boot_log_upload
-    bucket_name                 = var.bucket_name
-    bucket_region               = var.bucket_region
-    tailnet_only                = var.tailnet_only
+  docker_config_json = jsonencode({
+    auths = { "ghcr.io" = { auth = base64encode("deploy:${var.ghcr_pull_pat}") } }
   })
+
+  # Every file the agent owns. `restart`: compose services to restart when the
+  # file changes (bind-mounted config that `compose up -d` does not notice).
+  managed_files = concat(
+    [
+      { path = "${local.compose_dir}/docker-compose.yml", mode = "0600", content = local.docker_compose_rendered, restart = [] },
+      { path = "${local.compose_dir}/Caddyfile", mode = "0644", content = local.caddyfile_rendered, restart = ["caddy"] },
+      { path = "${local.compose_dir}/litestream.yml", mode = "0644", content = local.litestream_rendered, restart = ["litestream"] },
+      # T-D56 / ADR-0078 §3: restore-only config + age identity (ADR-0069 secret-file pattern).
+      { path = "${local.compose_dir}/litestream-restore.yml", mode = "0644", content = local.litestream_restore_rendered, restart = [] },
+      { path = "${local.compose_dir}/litestream-age.key", mode = "0600", content = "${trimspace(var.litestream_age_identity)}\n", restart = [] },
+      { path = "${local.compose_dir}/litestream.env", mode = "0600", content = "SCW_ACCESS_KEY=${var.scw_access_key}\nSCW_SECRET_KEY=${var.scw_secret_key}\n", restart = ["litestream"] },
+      # Operator `sudo docker compose pull` uses root's registry auth.
+      { path = "/root/.docker/config.json", mode = "0600", content = "${local.docker_config_json}\n", restart = [] },
+      { path = "/etc/logrotate.d/caddy-access", mode = "0644", content = file("${path.module}/../../cloud-init/compose/caddy-access.logrotate"), restart = [] },
+    ],
+    var.enable_restore_helper ? [
+      # T-D41a: drill-only read-only credential for the PROD replica + helper.
+      { path = "${local.compose_dir}/restore-source.env", mode = "0600", content = "RESTORE_ACCESS_KEY_ID=${var.scw_access_key_restore}\nRESTORE_SECRET_ACCESS_KEY=${var.scw_secret_key_restore}\n", restart = [] },
+      { path = "/usr/local/bin/restore-from-prod", mode = "0755", content = local.restore_script_rendered, restart = [] },
+    ] : [],
+  )
+
+  agent_source = file("${path.module}/../../host/agent/bp_agent.py")
+
+  # The agent applies a generation once; the hash covers the agent too, so a
+  # new agent version re-runs the apply.
+  host_config_body = {
+    schema       = 1
+    compose_file = "${local.compose_dir}/docker-compose.yml"
+    image = {
+      ref          = "${local.image_repo}:${var.app_image_ref}"
+      previous_ref = var.app_image_previous_ref == "" ? "" : "${local.image_repo}:${var.app_image_previous_ref}"
+      container    = "budget-planner-app"
+    }
+    ready = {
+      url     = "https://${var.hostname}/ready"
+      resolve = "${var.hostname}:443:127.0.0.1"
+    }
+    docker_config_json = local.docker_config_json
+    cosign = {
+      version         = var.cosign_version
+      url             = "https://github.com/sigstore/cosign/releases/download/${var.cosign_version}/cosign-linux-amd64"
+      sha256          = var.cosign_sha256
+      identity_regexp = "^https://github\\.com/${var.github_owner}/${var.github_repo}/\\.github/workflows/build\\.yml@"
+      issuer          = "https://token.actions.githubusercontent.com"
+    }
+    files = [for f in local.managed_files : merge(f, { owner = "root", group = "root" })]
+  }
+  # A sha256 over the config reveals nothing about the secrets inside it; the
+  # CI monitor compares it with the status the host reports.
+  host_config_generation = nonsensitive(sha256(join("\n", [jsonencode(local.host_config_body), sha256(local.agent_source)])))
+  host_config_json       = jsonencode(merge(local.host_config_body, { generation = local.host_config_generation }))
+
+  cloud_init_rendered = templatefile("${path.module}/../../cloud-init/bootstrap.yaml.tpl", {
+    hostname              = var.hostname
+    operator_ssh_pubkey   = var.operator_ssh_pub
+    scw_access_key        = var.scw_access_key
+    scw_secret_key        = var.scw_secret_key
+    tailscale_authkey     = var.tailscale_authkey
+    tailscale_hostname    = var.tailscale_hostname
+    tailscale_tag         = var.tailscale_tag
+    break_glass_ssh_cidrs = var.break_glass_ssh_cidrs
+    console_password_hash = var.console_password_hash
+    boot_log_upload       = var.boot_log_upload
+    bucket_name           = var.bucket_name
+    bucket_region         = var.bucket_region
+    tailnet_only          = var.tailnet_only
+  })
+
+  # ADR-0111: the provider writes the whole map on every change and reads every
+  # key back, so all keys live here (no separate `cloud_init` attribute).
+  user_data = {
+    "cloud-init" = local.cloud_init_rendered
+    "bp-agent"   = local.agent_source
+    "bp-config"  = local.host_config_json
+  }
 }
