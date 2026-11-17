@@ -983,3 +983,4 @@
 - **Fix(T-D123): drill VM on `DEV1-S`** (ADR-0032 amendment). Scaleway allows one STARDUST1-S per organisation and prod uses it; the gate apply failed on the quota. Prod stays on STARDUST1-S.
 - **Docs: v3 proposal decisions recorded** (2026-11-16): T-D106 next after the first release; T-D104 deferred to the next cloud-init change; T-D102, T-D105, T-D108 won't do for now.
 - **Ops(T-D107): first green drill gate** (run 43907146399, `ec01640`): build, DEV1-S apply, smoke over the tailnet with a valid `*.ts.net` certificate, teardown.
+- **Docs: savings goals + sourdough starter idea captured** (2026-11-17): `docs/requirements.md` §12 (idea, not scheduled) and `docs/plans/gamification/README.md` (principles, architecture notes, open questions). No ADR or tasks yet.

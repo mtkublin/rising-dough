@@ -547,3 +547,21 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 - Prefer existing tools and plugins to custom selection logic.
 - Targets: GitHub `ci` job under 2 min; local `just ci` at least 3× faster; pre-commit on a small diff under 15 s.
 - Timing: after v3 ships, before the quality audit pins its commit.
+
+---
+
+## 12. Savings Goals + Sourdough Starter (idea, added 2026-11-17)
+
+**Status: idea, not scheduled.** Nothing here is in scope until ADRs are written and this section is promoted to a scope section. Notes and open questions: `docs/plans/gamification/`.
+
+### 12.1 Idea
+
+- **Savings goals:** target amount, deadline, linked account(s), progress, and a projection to the deadline. The app has no goal mechanism yet.
+- **Sourdough starter:** a Tamagotchi-style character fed by one-time setup milestones (first account, first recurring payment, …), regular-logging and reconciliation habits, and goal progress. It goes dormant when neglected and never dies.
+
+### 12.2 Constraints (when scheduled)
+
+- After the §10 redesign ships. Goals first, starter second.
+- Reward consistency, accurate reconciliation and goal progress, never transaction volume or spending.
+- Starter state is derived from data at render time (no offline background jobs, per v4 §7.2). Only unlocked milestones are persisted.
+- Goal amounts and names are encrypted columns under §7.2. Goals, milestones and the starter preference are per user. The starter can be hidden.
