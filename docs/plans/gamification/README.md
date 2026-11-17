@@ -1,6 +1,7 @@
 # Savings goals + sourdough starter (gamification)
 
-> **Status**: idea, not scheduled. No ADR, no tasks yet. Captured 2026-11-17.
+> **Status**: idea, not scheduled. No feature ADR, no tasks yet. Captured 2026-11-17.
+> **Stack decision**: [ADR-0112](../../adr/0112-frontend-stays-server-rendered-no-spa-framework.md) (no SPA framework; animation via CSS/SVG/Web Animations API).
 > **Requirements**: [`docs/requirements.md` §12](../../requirements.md#12-savings-goals--sourdough-starter-idea-added-2026-11-17).
 > **Next step**: grill the open questions below, then write the ADRs and `tasks.md`.
 
@@ -45,7 +46,7 @@ Without goals, the starter can only react to setup milestones and logins, so the
 - **v4 encryption constrains the design (ADR-0080, ADR-0081).** Amounts are encrypted, and aggregates run in Python on decrypted rows while a session is live. So there is no background job computing hunger or goal progress while the user is offline: everything is computed at render time from plaintext dates and timestamps, plus amounts decrypted in-session. Goal target amounts and names join the encrypted-column list in §7.2. Design the goals schema for this from day one, whether it lands before or after v4 Phase 2.
 - **Multi-user (ADR-0061):** goals, milestones and the starter preference are per user.
 - **Multi-currency (ADR-0006):** a goal has its own currency. Progress across accounts in other currencies converts at historical FX rates, the same way the existing aggregates do.
-- **Art and motion.** Starter states (dormant, bubbly, rising, overflowing) are drawn by the designer within the sourdough design system. Animate only transform and opacity, and respect `prefers-reduced-motion`. Stay inside the §10.2 JS/CSS budgets.
+- **Art and motion.** Starter states (dormant, bubbly, rising, overflowing) are drawn by the designer within the sourdough design system. Animation follows ADR-0112: CSS state classes, HTMX swap/settle classes, View Transitions, SVG + Web Animations API. Animate only transform and opacity, and respect `prefers-reduced-motion`. Stay inside the §10.2 JS/CSS budgets. A Lottie/Rive runtime needs a lazy-loaded, per-page budget exception recorded in the starter ADR.
 
 ## Open questions
 

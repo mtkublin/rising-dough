@@ -984,3 +984,4 @@
 - **Docs: v3 proposal decisions recorded** (2026-11-16): T-D106 next after the first release; T-D104 deferred to the next cloud-init change; T-D102, T-D105, T-D108 won't do for now.
 - **Ops(T-D107): first green drill gate** (run 43907146399, `ec01640`): build, DEV1-S apply, smoke over the tailnet with a valid `*.ts.net` certificate, teardown.
 - **Docs: savings goals + sourdough starter idea captured** (2026-11-17): `docs/requirements.md` §12 (idea, not scheduled) and `docs/plans/gamification/README.md` (principles, architecture notes, open questions). No ADR or tasks yet.
+- **Docs: ADR-0112 accepted** (2026-11-17): the frontend stays server-rendered (Jinja + HTMX) through and after the redesign. React/Next/Vue are rejected; animation uses CSS, SVG, the Web Animations API and View Transitions. Lottie/Rive only with a per-page budget exception.

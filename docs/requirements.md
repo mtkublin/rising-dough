@@ -564,4 +564,5 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 - After the §10 redesign ships. Goals first, starter second.
 - Reward consistency, accurate reconciliation and goal progress, never transaction volume or spending.
 - Starter state is derived from data at render time (no offline background jobs, per v4 §7.2). Only unlocked milestones are persisted.
+- Animation on the server-rendered stack (ADR-0112): CSS, SVG and the Web Animations API, no SPA framework.
 - Goal amounts and names are encrypted columns under §7.2. Goals, milestones and the starter preference are per user. The starter can be hidden.

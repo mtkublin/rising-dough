@@ -112,3 +112,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) |
 | 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
 | 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |
+| 0112 | [Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs](0112-frontend-stays-server-rendered-no-spa-framework.md) (relates to ADR-0107, ADR-0027, ADR-0080, ADR-0081) |
