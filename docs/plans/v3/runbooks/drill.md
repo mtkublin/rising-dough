@@ -27,6 +27,18 @@ Every PR to `main` needs a passing `drill-gate` status on its head SHA (branch p
 
 The expiry is the server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_expires_at`). `drill-sweeper.yml` runs every 15 min, lists servers of the drill project via the Scaleway API and destroys the drill when the tag is expired, or when a server has no tag and is older than 8 h. It is a no-op if nothing is up. Re-dispatching `drill.yml` extends the TTL (new apply, new tag).
 
+## Drill lock (T-D138)
+
+Every drill workflow (`drill.yml`, `restore-drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) starts with job `drill-lock` (ADR-0115); nothing else runs unless it passes. It fails with an explicit `::error::` when:
+
+- another drill-group run is active (name, run id, URL are printed);
+- a drill VM exists in the Scaleway drill project (`budget-planner-drill*`; prints `expires-at` and creation time). Expired but not yet swept: "run drill-destroy.yml first". Not expired: "drill VM ... is up until ... (kept explore drill?); run drill-destroy.yml or wait";
+- an online `tag:drill` node exists in the tailnet.
+
+`drill-destroy.yml` and `drill-sweeper.yml` only check for other active runs. Any API error or missing credential fails the lock (fail closed). The lock never destroys anything.
+
+To use a drill while a kept explore drill is up: `gh workflow run drill-destroy.yml`, then dispatch. `force=true` (`drill.yml`, `restore-drill.yml`) skips the VM and tailnet checks and prints a warning; operator only, it can replace and destroy a running explore drill. The check runs inside the `drill` concurrency group, so no other run can create a VM meanwhile. A third dispatch still cancels an older pending run silently (GitHub); dispatch drills one at a time.
+
 ## Early destroy
 
 `gh workflow run drill-destroy.yml` (any ref). Destroy runs pass the placeholder `image_tag: sha-0000000`; it is only rendered into user-data, which a destroy plan never creates.

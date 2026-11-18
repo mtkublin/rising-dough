@@ -62,6 +62,11 @@ on:
         type: boolean
         required: false
         default: false
+      force:
+        description: "OPERATOR ONLY. Skip the drill-VM and tailnet checks of the drill lock (T-D138). Can replace and destroy a running explore drill. The other-run check always applies."
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: drill
@@ -71,10 +76,41 @@ permissions:
   contents: read
 
 jobs:
+  # T-D138 (ADR-0115): FIRST job. Fails the run when another drill run is active or
+  # (unless noted) a drill VM / online tag:drill node exists. Runs inside the `drill`
+  # concurrency group, so no other run can create a VM while it evaluates.
+  drill-lock:
+    name: drill lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds SCW_SECRET_KEY and TS_CLEANUP_*
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+      TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+      DRILL_LOCK_FORCE: ${{ inputs.force }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/drill_lock.py
+            scripts/tailnet_drill_cleanup.py
+
+      - name: Acquire drill lock
+        run: python3 scripts/ci/drill_lock.py
+
   # Gate mode only: mark the exact commit as pending as soon as the run starts
   # (it may have queued behind other drill work).
   gate-start:
     name: gate status (pending)
+    needs: drill-lock
     if: ${{ inputs.mode == 'gate' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -102,6 +138,7 @@ jobs:
 
   ci:
     name: ci
+    needs: drill-lock
     uses: ./.github/workflows/ci.yml
     secrets: inherit  # pragma: allowlist secret
 

@@ -17,8 +17,39 @@ permissions:
   contents: read
 
 jobs:
+  # T-D138 (ADR-0115): FIRST job. Fails the run when another drill run is active or
+  # (unless noted) a drill VM / online tag:drill node exists. Runs inside the `drill`
+  # concurrency group, so no other run can create a VM while it evaluates.
+  drill-lock:
+    name: drill lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds SCW_SECRET_KEY and TS_CLEANUP_*
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+      TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+      DRILL_LOCK_CHECK_VM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/drill_lock.py
+            scripts/tailnet_drill_cleanup.py
+
+      - name: Acquire drill lock
+        run: python3 scripts/ci/drill_lock.py
+
   destroy:
     name: terraform destroy (drill)
+    needs: drill-lock
     # T-D121: reusable callee requests these; less is a startup_failure.
     permissions:
       contents: read
