@@ -36,6 +36,8 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
 
 `env=drill` can be dispatched from any ref (the drill is usually torn down; a rollback there only makes sense on an explore drill with `keep=true`).
 
+A drill rollback keeps the drill's run id (T-D139, ADR-0116): `terraform.yml` reads `drill_run_id` from state, so the host name `budget-planner-drill-<id>` does not change. If state already holds a wrong id (a rollback before this fix renamed the host), repair with `gh workflow run rollback.yml -f env=drill -f drill_run_id=<id the node was created with>` (digits only, no target = roll forward). The input overrides the state value and is ignored for prod. The job fails if no id can be determined.
+
 ### Break-glass path
 
 Not a routine path. During a GitHub Actions outage, with explicit user go, follow [`break-glass.md`](break-glass.md) and log the reason and target in `docs/CHANGELOG.md`. The host-side equivalent is: pin the compose `image:` line to the known-good `tag@digest` and `docker compose up -d app`. The agent rewrites the compose file on its next run if the metadata still names another generation, so stop it first (`sudo systemctl stop bp-converge.timer`) and re-enable it once a normal apply has caught up.

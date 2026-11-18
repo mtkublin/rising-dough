@@ -22,3 +22,12 @@ The drill serves `https://budget-planner-drill.<tailnet>.ts.net` and Caddy gets 
 - Each drill costs one certificate, but under a name never used before, so the per-name limit no longer applies. The remaining ceiling is 50 certificates per week for the tailnet domain (`ts.net` is on the Public Suffix List).
 - The operator SSH name of an explore drill is `budget-planner-drill-<run id>` (printed by the workflow, also the `tailscale_hostname` output).
 - Rejected: persisting the certificate across drills (private key material outside the VM, new moving parts); a self-signed or `tls internal` drill certificate (the smoke would stop testing the real TLS path).
+
+## Amendment 2026-11-18 (T-D139-FIX): re-applies on an existing drill reuse its run id
+
+Only the run that creates the drill VM (`drill.yml`, `restore-drill.yml` apply) mints a new `drill_run_id` (its own run id). `rollback.yml env=drill` re-applies Terraform on the live drill and used to set `drill_run_id` to its own run id: the host agent rewrote the bp-config hostname, Caddy had no tailscale certificate for the new name and TLS broke (explore drill 44356288331, rollback run 44360554182).
+
+- Terraform output `drill_run_id` records the id in state (empty on prod).
+- `terraform.yml` inputs `reuse_drill_run_id` (bool) and `drill_run_id` (digits-only override). With `reuse_drill_run_id` on a drill, a step after `terraform init` sets `TF_VAR_drill_run_id` from the override, else from `terraform output -raw drill_run_id` (`scripts/ci/drill_run_id.py`). No value, or non-digits: the job fails; it never falls back to a new id.
+- `rollback.yml` passes `reuse_drill_run_id: true` for drill and has an optional `drill_run_id` dispatch input (operator repair when state already holds a wrong id). Prod is unaffected (the id stays empty).
+- `drill-destroy.yml` and `drill-sweeper.yml` only destroy; they do not depend on the name beyond the cleanup pattern, so they are unchanged.

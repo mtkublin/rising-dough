@@ -70,3 +70,8 @@ output "ci_ssh_authorized" {
   description = "True when the CI SSH key is authorised on the host (drill only, T-D137). Boolean, not a secret; test hook."
   value       = local.ci_ssh_pubkey_effective != ""
 }
+
+output "drill_run_id" {
+  description = "Drill only (T-D139, ADR-0116): numeric run id baked into the tailnet name; empty on prod. CI re-applies on an existing drill read it back so the host name does not change."
+  value       = var.drill_run_id
+}

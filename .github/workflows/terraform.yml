@@ -47,6 +47,19 @@ on:
         type: boolean
         required: false
         default: false
+      reuse_drill_run_id:
+        description: >-
+          Drill only (T-D139, ADR-0116) - this apply targets an EXISTING drill VM (rollback): keep the
+          drill_run_id recorded in state (or drill_run_id below) instead of this run's id. Fails if none.
+          Creating runs (drill.yml, restore-drill.yml) leave it false. Ignored for prod.
+        type: boolean
+        required: false
+        default: false
+      drill_run_id:
+        description: Drill only, with reuse_drill_run_id - digits-only override of the id recorded in state (operator repair). Ignored otherwise.
+        type: string
+        required: false
+        default: ""
     outputs:
       host_config_generation:
         description: ADR-0111 - generation the host agent reports once converged (empty for destroy).
@@ -310,6 +323,7 @@ jobs:
       TF_VAR_app_image_ref: ""
       TF_REPLACE: ${{ inputs.replace }}
       TF_DESTROY: ${{ inputs.destroy }}
+      DRILL_RUN_ID_OVERRIDE: ${{ inputs.env == 'drill' && inputs.drill_run_id || '' }}
       # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
       TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
       TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
@@ -372,6 +386,18 @@ jobs:
 
       - name: terraform init (${{ inputs.env }})
         run: terraform init -input=false -backend-config=envs/${{ inputs.env }}/backend.hcl -reconfigure
+
+      # T-D139 / ADR-0116: an apply on an existing drill keeps its run id (the
+      # host name is built from it). Overrides the TF_VAR_ the action exported;
+      # fails rather than minting a new id.
+      - name: Reuse the drill run id (existing drill)
+        if: ${{ inputs.env == 'drill' && inputs.reuse_drill_run_id }}
+        run: |
+          set -euo pipefail
+          state_id="$(terraform output -raw drill_run_id 2>/dev/null || true)"
+          id="$(python3 ../scripts/ci/drill_run_id.py --override "${DRILL_RUN_ID_OVERRIDE}" --state "${state_id}")"
+          echo "TF_VAR_drill_run_id=${id}" >> "$GITHUB_ENV"
+          echo "drill run id: ${id} (state: ${state_id:-none}, override: ${DRILL_RUN_ID_OVERRIDE:-none})"
 
       # ADR-0111: the current ref (from state) becomes the previous ref; a
       # rollback swaps them. Refs are <tag>@sha256:<digest> (validated).
