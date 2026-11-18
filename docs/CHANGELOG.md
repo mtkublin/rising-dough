@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D138 lock-conflict proof)
+- **Docs(T-D138): lock-conflict proof recorded** (run 44383745599, gate from `main` failed at `drill lock` while kept explore drill 44381760469 was up; T-D138 ✅).
+
 ## 2026-11-18 (v3 closeout docs: v3.0.3 prod, T-D56, T-D133, T-D144)
 - **Docs(v3-closeout): record v3.0.3 on prod.** v3.0.3 is live (T-D144 `/health/replication` 200 on prod); T-D56 dry run from `main` found 0 plaintext objects, so no delete run; T-D133 gate proof green (run 44366621363); T-D144 second UptimeRobot monitor set as a Keyword monitor (HEAD issue fixed by T-D146, in PR #26, prod ships in v3.0.4). T-D41 and T-D138 stay ◐ with the remaining steps noted.
 ## 2026-11-18 (T-D147 drill-gate skip)
