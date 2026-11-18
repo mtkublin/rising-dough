@@ -16,7 +16,7 @@ Explore drill run 44356288331 (host `budget-planner-drill-44356288331`, image `s
 - **T-D144 `/health/replication` (PASS on drill):** 200 `status: ok` on the real S3 replica, generation `6ce9a8950d6d4780`, age 126 s, still 200 after every rollback. Prod verify and the second monitor follow v3.0.3.
 - **Teardown:** `drill-destroy.yml` run 44365679103 dispatched (orchestrator confirms the result).
 
-Not covered by these results: the `failed` (`ready_timeout`) state on a break image (T-D33 detection, T-D129e), and the T-D138 negative case (gate fails at `drill-lock` while the kept drill is up).
+Not covered by these results: the `failed` (`ready_timeout`) state on a break image (T-D33 detection, T-D129e), and the T-D138 negative case (covered 2026-11-18: run 44383745599 (lock held by explore drill 44381760469) and run 44387134093 (lock passes after destroy)).
 
 ## Prerequisites
 

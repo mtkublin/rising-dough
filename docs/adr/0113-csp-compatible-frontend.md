@@ -54,3 +54,4 @@ Scope of this decision: the policy string in ADR-0036 is otherwise unchanged; th
 ## Follow-ups
 
 - T-D140d: replace `style="..."` attributes with classes, then drop `'unsafe-inline'` from `style-src` and restore a nonce or hash policy for styles.
+- 2026-11-18: T-D140d (drop style-src 'unsafe-inline') deferred to the redesign migration, ADR-0107. The redesign rebuilds the templates anyway, so inline styles are removed there instead of twice. Tracked in `docs/plans/ui-redesign/tasks.md` (T-UR16 hardening item).

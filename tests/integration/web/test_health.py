@@ -69,3 +69,23 @@ def test_health_does_not_touch_db(tmp_path: Path) -> None:
     client = TestClient(create_app(settings=cfg))
     r = client.get("/health")
     assert r.status_code == 200
+
+
+def test_head_health_matches_get_with_empty_body(health_client: TestClient) -> None:
+    r = health_client.head("/health")
+    assert r.status_code == health_client.get("/health").status_code == 200
+    assert r.content == b""
+
+
+def test_head_ready_matches_get_when_ok(health_client: TestClient) -> None:
+    r = health_client.head("/ready")
+    assert r.status_code == health_client.get("/ready").status_code == 200
+    assert r.content == b""
+
+
+def test_head_ready_is_503_when_db_not_ready() -> None:
+    cfg = Settings(_env_file=None, database_url="sqlite:////dev/null")
+    client = TestClient(create_app(settings=cfg))
+    r = client.head("/ready")
+    assert r.status_code == client.get("/ready").status_code == 503
+    assert r.content == b""

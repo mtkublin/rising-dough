@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-18 (T-D145 audit attribution)
+- **Fix(T-D145, ADR-0122): domain audit rows record owner and actor.** `mutate` and `services.audit.write_audit` take a mandatory `user_id`; every domain write now stores `user_id = actor_user_id = owner` (was NULL for both, so `audit_tail` showed a user's own rows as `[other-user]`). Migration `0016_audit_backfill_owner` backfills `user_id` on existing rows from the entity owner (`actor_user_id` stays NULL). Tests: `tests/integration/test_audit_attribution.py`, `tests/integration/web/test_audit_attribution_web.py`.
+## 2026-11-18 (T-D147-FIX2 skip workflow base tip)
+- **CI(T-D147): `drill-gate-skip` checks out `base.ref` (tip of `main`) instead of `base.sha`**, so PRs opened before the classifier landed no longer fail with a missing `drill_gate_skip.py` (PR #29, run 44396176171). Missing classifier now yields verdict `gate`, exit 0, no status. ADR-0121 amended.
+## 2026-11-18 (T-D140d deferral)
+- **Docs(T-D140d): style-src `'unsafe-inline'` removal deferred to the redesign migration.** User decision; the inline `style=` cleanup and CSP tightening move to the Sourdough redesign (ADR-0107, T-UR16 hardening item). ADR-0113 follow-up annotated; T-D140d stays unchecked.
+
+## 2026-11-18 (T-D41 restore drill from main)
+- **Docs(T-D41): restore drill from `main` recorded** (run 44387134093, pass, entry posted to restore-log issue #28; T-D41 ✅). The same run is the T-D138 positive leg: `drill lock` passed after the explore drill was destroyed.
+
+## 2026-11-18 (T-D138 lock-conflict proof)
+- **Docs(T-D138): lock-conflict proof recorded** (run 44383745599, gate from `main` failed at `drill lock` while kept explore drill 44381760469 was up; T-D138 ✅).
+
+## 2026-11-18 (v3 closeout docs: v3.0.3 prod, T-D56, T-D133, T-D144)
+- **Docs(v3-closeout): record v3.0.3 on prod.** v3.0.3 is live (T-D144 `/health/replication` 200 on prod); T-D56 dry run from `main` found 0 plaintext objects, so no delete run; T-D133 gate proof green (run 44366621363); T-D144 second UptimeRobot monitor set as a Keyword monitor (HEAD issue fixed by T-D146, in PR #26, prod ships in v3.0.4). T-D41 and T-D138 stay ◐ with the remaining steps noted.
+## 2026-11-18 (T-D147 drill-gate skip)
+- **CI(T-D147): non-deploy PRs get `drill-gate` automatically.** New `drill-gate-skip.yml` plus `scripts/ci/drill_gate_skip.py` (allowlist, fail closed) post `drill-gate` success when every changed file is docs, tests, `.claude/`, LICENSE or markdown outside deploy dirs. Workflow and script edits always need the real gate. ADR-0121 (amends ADR-0099).
+
+## 2026-11-18 (T-D146 HEAD on health routes)
+- **Fix(T-D146): `/health`, `/health/replication` and `/ready` answer HEAD like GET.** They returned 405 on HEAD, which the free UptimeRobot plan uses. Same status codes (including 503), empty body. ADR-0119 amended.
+
 ## 2026-11-18 (T-D140 — prod CSP blocks HTMX and inline JS; decision recorded)
 - **Fix(T-D155, ADR-0113): override tier toggle works on /plan Year** (2026-11-18). `budget-override.js` was loaded only by the Budget tab, so the Year cell popover never synced the "This month only / Every <Mon> / New default" chip and hint. Now loaded from `base.html`; inline save refetches `#plan-budget` only when present (Year tab reloads). Tests: e2e `test_override_tier_toggle.py`.
 - **Fix(T-D153, ADR-0113): same source and destination account is a 422, not a 500** (2026-11-18). Planned create/update and transaction create/update run `services.account_pair.validate_distinct_accounts` and re-render the form with `dest_account_id: destination must differ from the source account`; nothing is written. Update paths also check the stored destination. Recurring rules have no such CHECK. Tests: unit, integration (`test_same_account_validation.py`), e2e `test_planned_validation.py`.
@@ -1105,3 +1126,6 @@
 - **Fix(T-D139): drill re-applies reuse the existing drill run id** (2026-11-18, ADR-0116): `rollback.yml env=drill` no longer renames the drill host to its own run id. `terraform.yml` reads `drill_run_id` from state (or the new `drill_run_id` rollback input as a repair override) and fails rather than minting a new id.
 - **Ops: break-glass force-unlock of the drill state** (2026-11-18, break-glass runbook "Stuck lock"): drill-gate run 44370013040 on `feat/ci-speed` was cancelled during `terraform apply (drill)`, leaving lock `3ba59f1a-edef-c8d3-e54c-03ca841cb2e7` (created 18:33:09 UTC) on `drill/terraform.tfstate`; its teardown then failed to acquire the lock. Operator released it with the org-admin key after confirming no workflow run was active; `terraform state list` was empty (apply created nothing). Drill env only; prod untouched.
 - **Docs: savings goals + sourdough starter scoped** (2026-11-18, ADR-0124, ADR-0125, ADR-0126): requirements §12 promoted from idea to scope (G1.x goals, S1.x starter), plan + tasks in `docs/plans/gamification/` (T-GS00..T-GS21), designer brief `docs/design/gamification-brief.md`. Envelope allocations + net-worth goals first; starter with a fading health score, milestones and a bakery shelf second. ADR-0112 (frontend stays server-rendered) renumbered to ADR-0123 after colliding with main's ADR-0112.
+- **Ops: drill durability bucket removed by hand** (2026-11-18): after the cancelled drill-gate run 44370013040, the operator deleted the orphaned drill Litestream (durability) bucket in the Scaleway console before the rerun applied. The drill project then held only the state bucket `budget-planner-tfstate-drill-pl-waw`; the rerun (44376120258) passed and tore down cleanly.
+- **Docs(T-CS09): path-filtered Terraform checks are not required checks** (2026-11-18, ADR-0121): the operator removed `fmt + validate + lint`, `plan (drill)` and `plan (prod)` from the `protect-main` ruleset by hand, because `terraform.yml` only runs on Terraform changes and left PR #23 blocked. `drill-gate` covers fmt/validate and the drill apply; the release plans prod before the approved apply.
+- **Perf(T-CS08): GitHub `ci` job median under 2 min** (2026-11-18, ADR-0108): runner profiling showed the spread comes from the assigned CPU model (pytest 68–102 s on one commit). The root test conftest now caches FastAPI's endpoint signature analysis, which every fresh test app repeated (first-request CPU 87 → 57 ms per app; production unchanged). Median of 5 runs 2:04 → 1:56; the slowest runner CPU still takes 2:12–2:15. Temporary profiling step removed.

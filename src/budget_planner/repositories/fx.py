@@ -100,6 +100,7 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
         operation="update" if prev is not None else "create",
         prev=prev,
         action=_action,
+        user_id=None,
     )
 
 

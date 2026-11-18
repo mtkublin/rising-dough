@@ -99,7 +99,9 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
         assert created is not None
         return new_id, created
 
-    return mutate(conn, entity_type="account", operation="create", prev=None, action=_action)
+    return mutate(
+        conn, entity_type="account", operation="create", prev=None, action=_action, user_id=user_id
+    )
 
 
 def update(
@@ -128,7 +130,9 @@ def update(
         assert updated is not None
         return account_id, updated
 
-    return mutate(conn, entity_type="account", operation="update", prev=prev, action=_action)
+    return mutate(
+        conn, entity_type="account", operation="update", prev=prev, action=_action, user_id=user_id
+    )
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, account_id: int) -> None:
@@ -146,7 +150,9 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, account_id: int) -> None
         )
         return account_id, None
 
-    mutate(conn, entity_type="account", operation="delete", prev=prev, action=_action)
+    mutate(
+        conn, entity_type="account", operation="delete", prev=prev, action=_action, user_id=user_id
+    )
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account:
@@ -165,7 +171,14 @@ def undelete(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account
         assert restored is not None
         return account_id, restored
 
-    return mutate(conn, entity_type="account", operation="undelete", prev=prev, action=_action)
+    return mutate(
+        conn,
+        entity_type="account",
+        operation="undelete",
+        prev=prev,
+        action=_action,
+        user_id=user_id,
+    )
 
 
 __all__ = [

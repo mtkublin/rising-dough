@@ -166,6 +166,7 @@ def create(
         operation="create",
         prev=None,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -214,6 +215,7 @@ def update(
         operation="update",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -238,6 +240,7 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> None
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -278,6 +281,7 @@ def undelete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> Planned
         operation="undelete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -305,6 +309,7 @@ def stamp_promotion(
         operation="update",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 

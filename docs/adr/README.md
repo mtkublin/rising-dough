@@ -122,8 +122,11 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0116 | [The Drill's Tailnet Name Is Unique Per Run](0116-drill-tailnet-name-unique-per-run.md) (amends ADR-0101; relates to ADR-0094, ADR-0099) |
 | 0117 | [One Source for Shared GitHub Workflow Logic](0117-dry-github-workflows.md) (relates to ADR-0099, ADR-0111, ADR-0115, ADR-0116) |
 | 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
+| 0121 | [Drill-Gate Skip for Non-Deploy PRs](0121-drill-gate-skip-for-non-deploy-prs.md) (amends ADR-0099; relates to ADR-0115) |
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
 | 0123 | [Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs](0123-frontend-stays-server-rendered-no-spa-framework.md) (renumbered from 0112; relates to ADR-0107, ADR-0027, ADR-0080, ADR-0081) |
 | 0124 | [Savings Goals — Envelope Allocations and Net-Worth Goals](0124-savings-goals-envelopes-and-net-worth.md) (relates to ADR-0006, ADR-0019, ADR-0042, ADR-0056, ADR-0061, ADR-0081, ADR-0125) |
 | 0125 | [The Sourdough Starter — Feed Signals, Health Score, Milestones, Shelf](0125-sourdough-starter-rules.md) (amends ADR-0011; relates to ADR-0124, ADR-0123, ADR-0041, ADR-0081) |
 | 0126 | [Goals and Starter UI Built From a Designer Handoff Extending the Redesign](0126-gamification-design-handoff.md) (relates to ADR-0107, ADR-0123, ADR-0113, ADR-0106) |
+| 0121 | [Path-Filtered Workflows Are Not Required Checks](0121-path-filtered-workflows-are-not-required-checks.md) (amends ADR-0099; relates to ADR-0115, ADR-0120) |
+| 0122 | [Domain Audit Rows Record Owner and Actor](0122-domain-audit-rows-record-owner-and-actor.md) (amends ADR-0019, ADR-0022, ADR-0061, ADR-0073; relates to ADR-0078) |

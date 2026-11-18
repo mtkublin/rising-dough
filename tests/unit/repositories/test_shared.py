@@ -69,7 +69,7 @@ def test_mutate_writes_audit_and_rolls_back_on_failure(
     def _ok(c: sqlite3.Connection) -> tuple[int, dict[str, int]]:
         return 7, {"x": 1}
 
-    mutate(conn, entity_type="test", operation="create", prev=None, action=_ok)
+    mutate(conn, entity_type="test", operation="create", prev=None, action=_ok, user_id=None)
     rows = audit.list_entries(conn, "test", 7)
     assert len(rows) == 1
     assert rows[0].operation.value == "create"
@@ -79,7 +79,7 @@ def test_mutate_writes_audit_and_rolls_back_on_failure(
         raise ValueError("nope")
 
     with pytest.raises(ValueError):
-        mutate(conn, entity_type="test", operation="update", prev=None, action=_bad)
+        mutate(conn, entity_type="test", operation="update", prev=None, action=_bad, user_id=None)
     assert audit.list_entries(conn, "test", 7) == rows
 
 
