@@ -13,9 +13,7 @@ INLINE_SCRIPT = re.compile(r"<script\b(?![^>]*\bsrc=)[^>]*>", re.IGNORECASE)
 HANDLER_ATTR = re.compile(r"""\s(on[a-z]+|hx-on[:\w-]*)\s*=""", re.IGNORECASE)
 JS_HREF = re.compile(r"""(href|action)\s*=\s*["']\s*javascript:""", re.IGNORECASE)
 
-# base.html is owned by T-D140a (moves its inline script to static JS); drop this
-# skip once that lands.
-SKIPPED = {"base.html"}
+SKIPPED: frozenset[str] = frozenset()
 
 
 def _templates() -> list[Path]:
