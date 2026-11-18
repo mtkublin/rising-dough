@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D42 security scan of prod v3.0.1)
+- **Security(T-D42): prod passes the targets.** Observatory A+ (130, was B/75; F1 CSP closed), testssl A+, trivy 0 HIGH/CRITICAL on `v3.0.1`. nikto still cannot complete (TLS handshakes refused under scan, F2, LOW). **CAA record added** to `terraform/modules/dns` (Let's Encrypt + Sectigo for ZeroSSL fallback, no wildcard; prod only) with a module tftest; reaches prod with the next approved apply. T-D42 done. Log: `runbooks/security-audit-log.md`.
+
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
 - **Docs:** `github-settings.md` says to keep `DEPLOY_SSH_PRIVATE_KEY` in `drill` (`restore-drill.yml` uses it). `deploy.md` says where to find the drill admin password. Operator checklist "Next" replaced.

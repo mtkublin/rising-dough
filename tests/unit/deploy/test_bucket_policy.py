@@ -183,4 +183,4 @@ def test_restore_reader_is_read_only_and_project_scoped() -> None:
 def test_dns_records_use_zone_project() -> None:
     dns = (MODULE.parent / "dns" / "main.tf").read_text()
 
-    assert dns.count("project_id = var.zone_project_id") == 2
+    assert dns.count("project_id = var.zone_project_id") == 4  # A, AAAA, CAA issue, CAA issuewild
