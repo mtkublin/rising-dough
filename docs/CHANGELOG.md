@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
+- **Fix(T-D136): Litestream survives a restart with age-encrypted replicas** (ADR-0113). `calcPos` decrypts the last WAL segment only when `age.identities` is set; prod had recipients only, so any restart would stall replication. The replicate config now carries the identity (prod, drill, prod-sim) and a new `litestream-entrypoint.sh` forces one new generation per host (marker in `/data`, meta dir only; the DB is never touched). Tests: `test_litestream_age.py`, `test_litestream_entrypoint.py`, render tftest. Drill verification pending (DRILL-2).
 - **Ops: dead ADR-0111 secrets and variables deleted** (user-approved): `DEPLOY_SSH_PUBKEY` (prod, drill, drill-plan, drill-teardown), `DEPLOY_SSH_KNOWN_HOSTS`/`PROD_HOST`/`DEPLOY_SSH_PRIVATE_KEY` (prod), `DRILL_HOST` and `DRILL_URL` (3 drill envs), `PROD_URL` (prod). `DEPLOY_SSH_PRIVATE_KEY` kept in drill envs.
 - **Ops(T-D126): image-retention dry run failed** (run 44297239247): `ghcr_retention.py` 404 in `fetch_children`. T-D126 back to ◐; retention not enabled.
 - **Docs(T-D44): uptime cadence investigated.** Only 3 scheduled runs in ~28h: GitHub throttles `*/5` schedules. T-D44 back to ◐; external monitor recommended.
