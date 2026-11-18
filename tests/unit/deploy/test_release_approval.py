@@ -67,7 +67,7 @@ def _step(steps: list[dict[str, Any]], name: str) -> dict[str, Any]:
 
 
 def test_vm_replacement_is_detected_before_apply_without_printing_the_plan() -> None:
-    """T-D155 / ADR-0121: the plan JSON holds secrets; only `replaced=` is printed."""
+    """T-D155 / ADR-0122: the plan JSON holds secrets; only `replaced=` is printed."""
     job = _load("terraform.yml")["jobs"]["apply"]
     names = [s["name"] for s in job["steps"]]
     detect = names.index("Detect VM replacement")

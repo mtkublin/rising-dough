@@ -14,7 +14,7 @@ then reads ``bp-config`` (one JSON document rendered by Terraform), and:
 4. probes ``/ready`` through Caddy and writes ``status.json``, which Caddy
    serves at ``/.well-known/bp-deploy-status.json`` for the CI monitor. The
    status carries ``restore``: how this host's database came to be, from the
-   report ``litestream-restore`` writes (T-D155, ADR-0121).
+   report ``litestream-restore`` writes (T-D155, ADR-0122).
 
 A failed generation is retried with exponential back-off. The agent never
 changes the desired state; CI decides (re-apply with the previous ref).
@@ -51,7 +51,7 @@ APPLIED_FILE = STATE_DIR / "applied-generation"
 FAILURE_FILE = STATE_DIR / "failure.json"
 DOCKER_CONFIG_DIR = STATE_DIR / "docker"
 COSIGN_DIR = Path("/usr/local/lib/bp-agent")
-# Written by litestream-restore.sh on the /data bind mount (T-D155, ADR-0121).
+# Written by litestream-restore.sh on the /data bind mount (T-D155, ADR-0122).
 RESTORE_REPORT_FILE = Path("/data/restore-report.json")
 RESTORE_RESULTS = frozenset({"restored", "empty", "skipped-db-present"})
 RESTORE_FIELD_MAX = 64

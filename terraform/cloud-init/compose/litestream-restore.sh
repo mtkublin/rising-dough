@@ -1,5 +1,5 @@
 #!/bin/sh
-# T-D155 / ADR-0121: entrypoint of the one-shot litestream-restore service.
+# T-D155 / ADR-0122: entrypoint of the one-shot litestream-restore service.
 # Written verbatim by the host agent (ADR-0111); no Terraform templating.
 #
 # Runs before app and litestream (compose depends_on). When the database is
@@ -82,7 +82,7 @@ if grep -q 'no matching backups found' "$out"; then
     hand_back
     exit 0
   fi
-  log "database missing and the replica has no generation; refusing to start empty (set allow_empty_db for a first boot, ADR-0121)"
+  log "database missing and the replica has no generation; refusing to start empty (set allow_empty_db for a first boot, ADR-0122)"
   exit 1
 fi
 log "restore failed"

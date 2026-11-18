@@ -23,7 +23,7 @@ Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
       Poll the agent status (/.well-known/bp-deploy-status.json) until it
       reports GEN applied and FULL_REF running; fail fast when the agent
       reports GEN failed. With --require-restore (a release that replaced the
-      VM, T-D155 / ADR-0121) the status must also report
+      VM, T-D155 / ADR-0122) the status must also report
       `restore.result == "restored"`; any other value once converged fails.
   replaced
       Read `terraform show -json` plan output on stdin and print
@@ -48,7 +48,7 @@ REF = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$")
 # holds none; never reaches a host.
 PLACEHOLDER = "sha-0000000@sha256:" + "0" * 64
 
-# T-D155 / ADR-0121: the resource whose replacement means a fresh host + restore.
+# T-D155 / ADR-0122: the resource whose replacement means a fresh host + restore.
 SERVER_ADDRESS = "module.compute.scaleway_instance_server.app"
 RESTORED = "restored"
 

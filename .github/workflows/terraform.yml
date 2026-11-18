@@ -61,12 +61,12 @@ on:
         required: false
         default: ""
       drill_root_volume_type:
-        description: Drill only (ADR-0121 §7, replace-rehearsal.yml) - l_ssd or sbs_volume. Prod is always l_ssd.
+        description: Drill only (ADR-0122 §7, replace-rehearsal.yml) - l_ssd or sbs_volume. Prod is always l_ssd.
         type: string
         required: false
         default: l_ssd
       drill_allow_empty_db:
-        description: Drill only (ADR-0121 §7, replace-rehearsal.yml) - "false" proves the restore guard refuses an empty replica. Ignored for prod.
+        description: Drill only (ADR-0122 §7, replace-rehearsal.yml) - "false" proves the restore guard refuses an empty replica. Ignored for prod.
         type: string
         required: false
         default: "true"
@@ -78,7 +78,7 @@ on:
         description: ADR-0111 - full image ref (repo:tag@digest) the host should run (empty for destroy).
         value: ${{ jobs.apply.outputs.host_image_ref }}
       server_replaced:
-        description: T-D155 / ADR-0121 - "true" when this apply replaced the app server (fresh host, restored DB).
+        description: T-D155 / ADR-0122 - "true" when this apply replaced the app server (fresh host, restored DB).
         value: ${{ jobs.apply.outputs.server_replaced }}
 
 concurrency:
@@ -341,7 +341,7 @@ jobs:
       # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
       TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
       TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
-      # ADR-0121 §7: rehearsal knobs, forced to their defaults otherwise (prod ignores them).
+      # ADR-0122 §7: rehearsal knobs, forced to their defaults otherwise (prod ignores them).
       TF_VAR_drill_root_volume_type: ${{ inputs.env == 'drill' && inputs.drill_root_volume_type || 'l_ssd' }}
       TF_VAR_drill_allow_empty_db: ${{ inputs.env == 'drill' && inputs.drill_allow_empty_db || 'true' }}
 
@@ -449,7 +449,7 @@ jobs:
           for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
           terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
 
-      # T-D155 / ADR-0121: a replaced server is a fresh host that restores the
+      # T-D155 / ADR-0122: a replaced server is a fresh host that restores the
       # database. The plan JSON holds secrets: it goes straight into the script,
       # which prints only `replaced=true|false`.
       - name: Detect VM replacement
@@ -487,7 +487,7 @@ jobs:
           SERVER_REPLACED: ${{ steps.replace.outputs.replaced }}
         run: |
           set -euo pipefail
-          # T-D155 / ADR-0121: a fresh host boots, installs Docker and restores
+          # T-D155 / ADR-0122: a fresh host boots, installs Docker and restores
           # the database; it must report restore.result == "restored".
           args=()
           if [ "${SERVER_REPLACED}" = "true" ]; then args+=(--timeout 1800 --require-restore); fi
@@ -513,7 +513,7 @@ jobs:
           echo "::error::release rolled back to ${TF_VAR_app_image_ref}"
           exit 1
 
-      # T-D155 / ADR-0121: swapping the image cannot fix a failed first boot or
+      # T-D155 / ADR-0122: swapping the image cannot fix a failed first boot or
       # restore on a replaced VM; no automatic rollback.
       - name: Replaced VM did not converge (prod)
         if: ${{ failure() && steps.converge.outcome == 'failure' && steps.replace.outputs.replaced == 'true' }}

@@ -123,4 +123,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0118 | [The VM Root Volume Is Local SSD, Declared Explicitly](0118-local-ssd-root-volume.md) (amends ADR-0032; relates to ADR-0035, ADR-0084, ADR-0099, ADR-0111, ADR-0114) |
 | 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
-| 0121 | [A Prod VM Replacement Is Safe Unattended](0121-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
+| 0122 | [A Prod VM Replacement Is Safe Unattended](0122-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |

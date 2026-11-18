@@ -76,6 +76,6 @@ output "root_volume_size_gb" {
 }
 
 output "allow_empty_db" {
-  description = "Whether litestream-restore may start an empty database (T-D155, ADR-0121; test hook, not a secret)."
+  description = "Whether litestream-restore may start an empty database (T-D155, ADR-0122; test hook, not a secret)."
   value       = var.allow_empty_db
 }

@@ -183,7 +183,7 @@ def test_failed_delete_is_a_warning_not_an_error(
     assert "::warning::" in capsys.readouterr().out
 
 
-# --- prod mode (T-D155, ADR-0121) --------------------------------------------
+# --- prod mode (T-D155, ADR-0122) --------------------------------------------
 
 
 def _prod(
@@ -310,7 +310,7 @@ def test_prod_without_secrets_warns(capsys: pytest.CaptureFixture[str]) -> None:
     assert "prod" in out
 
 
-# --- drill rehearsal of a replacement (ADR-0121 §7) --------------------------
+# --- drill rehearsal of a replacement (ADR-0122 §7) --------------------------
 
 RUN_NAME = "budget-planner-drill-4242"
 CREDS = {"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}
