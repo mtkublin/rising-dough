@@ -10,7 +10,7 @@ import yaml  # type: ignore[import-untyped]
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKFLOWS = ROOT / ".github" / "workflows"
-DRILL_FILES = ("drill.yml", "drill-sweeper.yml", "drill-destroy.yml")
+DRILL_FILES = ("drill.yml", "drill-sweeper.yml", "drill-destroy.yml", "replace-rehearsal.yml")
 
 
 def _load(name: str) -> dict[str, Any]:

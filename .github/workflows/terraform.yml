@@ -60,6 +60,16 @@ on:
         type: string
         required: false
         default: ""
+      drill_root_volume_type:
+        description: Drill only (ADR-0121 §7, replace-rehearsal.yml) - l_ssd or sbs_volume. Prod is always l_ssd.
+        type: string
+        required: false
+        default: l_ssd
+      drill_allow_empty_db:
+        description: Drill only (ADR-0121 §7, replace-rehearsal.yml) - "false" proves the restore guard refuses an empty replica. Ignored for prod.
+        type: string
+        required: false
+        default: "true"
     outputs:
       host_config_generation:
         description: ADR-0111 - generation the host agent reports once converged (empty for destroy).
@@ -331,6 +341,9 @@ jobs:
       # T-D90: drill-only knobs, forced to their prod-safe values otherwise.
       TF_VAR_drill_expires_at: ${{ inputs.env == 'drill' && inputs.drill_expires_at || '' }}
       TF_VAR_boot_log_upload: ${{ inputs.env == 'drill' && inputs.boot_log_upload || false }}
+      # ADR-0121 §7: rehearsal knobs, forced to their defaults otherwise (prod ignores them).
+      TF_VAR_drill_root_volume_type: ${{ inputs.env == 'drill' && inputs.drill_root_volume_type || 'l_ssd' }}
+      TF_VAR_drill_allow_empty_db: ${{ inputs.env == 'drill' && inputs.drill_allow_empty_db || 'true' }}
 
     outputs:
       host_config_generation: ${{ steps.host.outputs.generation }}

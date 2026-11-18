@@ -1,0 +1,485 @@
+# Rehearse a prod VM replacement on the drill (T-D155, ADR-0121 §7).
+#
+# Replays the T-D143 release (Block Storage root -> l_ssd, which forces a new
+# Tailscale key and a new server) on one drill and fails on any gap:
+#
+#   apply-empty    drill_allow_empty_db=false on the empty drill bucket
+#   check-empty    litestream-restore refused ("refusing to start empty"); no DB
+#   apply-seed     same VM (server_replaced must be false), flag true: app starts empty
+#   seed           marker rows 1..20 through the app; wait until Litestream shipped them
+#   writer         one marker row per second through the app until the old host is gone
+#   apply-replace  drill_root_volume_type=l_ssd: server_replaced must be true
+#   verify         tailnet cleanup + rename; restore report `restored` with the seeded
+#                  generation; agent status with --require-restore; every committed
+#                  marker row present (shutdown flush); PRAGMA integrity_check ok
+#   teardown       always, then the drill tailnet cleanup
+#
+# Dispatch only, with explicit operator go (CLAUDE.md):
+#   gh workflow run replace-rehearsal.yml --ref <branch>
+# Concurrency group `drill` (queued, never cancelled); drill-lock is the first job
+# (ADR-0115). It does not post the `drill-gate` status. ~40 min.
+#
+# Environments: applies through terraform.yml (env `drill`); the SSH jobs run in
+# `drill` (DEPLOY_SSH_PRIVATE_KEY, TS_OAUTH_*, TS_CLEANUP_*); teardown as in drill.yml.
+
+name: replace-rehearsal
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: drill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
+
+jobs:
+  # T-D138 (ADR-0115): FIRST job, as in drill.yml.
+  drill-lock:
+    name: drill lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds SCW_SECRET_KEY and TS_CLEANUP_*
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+      TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+      DRILL_LOCK_FORCE: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/drill_lock.py
+            scripts/tailnet_drill_cleanup.py
+
+      - name: Acquire drill lock
+        run: python3 scripts/ci/drill_lock.py
+
+  # The newest GitHub release (prod's line), as restore-drill.yml. Agent, compose
+  # and restore guard come from this branch's Terraform, not from the image.
+  image:
+    name: Resolve app image
+    needs: drill-lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      ref: ${{ steps.image.outputs.ref }}
+      expires-at: ${{ steps.ttl.outputs.expires_at }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci/host_release.py
+
+      - name: Resolve app image
+        id: image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/budget-planner
+        run: |
+          set -euo pipefail
+          TAG="$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // empty')"
+          TAG="${TAG:-main}"
+          echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
+          python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
+
+      # Sweeper backstop if teardown fails (T-D90).
+      - name: Compute expires-at
+        id: ttl
+        run: echo "expires_at=$(date -u -d '+120 minutes' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+  apply-empty:
+    name: apply (empty bucket, allow_empty_db=false)
+    needs: image
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.image.outputs.ref }}
+      drill_expires_at: ${{ needs.image.outputs.expires-at }}
+      drill_root_volume_type: sbs_volume
+      drill_allow_empty_db: "false"
+    secrets: inherit  # pragma: allowlist secret
+
+  check-empty:
+    name: restore guard refused the empty replica
+    needs: apply-empty
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: drill # DEPLOY_SSH_PRIVATE_KEY lives only here
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: litestream-restore exited non-zero and nothing started empty
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          remote() { ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" "$@"; }
+          for i in $(seq 1 60); do
+            state="$(remote "sudo docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' budget-planner-litestream-restore 2>/dev/null" || true)"
+            echo "attempt ${i}: litestream-restore ${state:-not created yet}"
+            case "${state}" in
+              "exited 0") echo "::error::litestream-restore succeeded on an empty replica" >&2; exit 1 ;;
+              exited\ *) break ;;
+            esac
+            sleep 15
+          done
+          case "${state}" in exited\ *) ;; *) echo "::error::litestream-restore never ran" >&2; exit 1 ;; esac
+          remote "sudo docker logs budget-planner-litestream-restore 2>&1 | tail -n 20" | tee restore.log
+          grep -q "refusing to start empty" restore.log
+          remote "sudo test ! -e /data/budget.db && sudo test ! -e /data/restore-report.json"
+          running="$(remote "sudo docker inspect -f '{{.State.Running}}' budget-planner-app 2>/dev/null" || true)"
+          if [ "${running}" = "true" ]; then echo "::error::the app is running without a database" >&2; exit 1; fi
+          echo "guard held: no database, no report, app not running"
+
+  apply-seed:
+    name: apply (same VM, allow_empty_db=true)
+    needs: [image, check-empty]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.image.outputs.ref }}
+      drill_expires_at: ${{ needs.image.outputs.expires-at }}
+      drill_root_volume_type: sbs_volume
+      reuse_drill_run_id: true
+    secrets: inherit  # pragma: allowlist secret
+
+  seed:
+    name: seed marker rows and wait for replication
+    needs: apply-seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      generation: ${{ steps.replicated.outputs.generation }}
+    env:
+      STATUS_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}/.well-known/bp-deploy-status.json
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: An in-place change must not count as a replacement
+        env:
+          REPLACED: ${{ needs.apply-seed.outputs.server_replaced }}
+        run: |
+          echo "apply-seed server_replaced=${REPLACED}"
+          test "${REPLACED}" = "false"
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Host converged and reports an empty start
+        env:
+          GENERATION: ${{ needs.apply-seed.outputs.host_config_generation }}
+          HOST_IMAGE_REF: ${{ needs.apply-seed.outputs.host_image_ref }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/host_release.py wait --timeout 900 \
+            --url "${STATUS_URL}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+          curl -fsS "${STATUS_URL}" | jq -e '.restore.result == "empty"'
+
+      - name: Write marker rows 1..20
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- init' < scripts/ci/rehearsal_marker.sh
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- write 20' < scripts/ci/rehearsal_marker.sh
+
+      # sync-interval is 10 s; three intervals ship the rows. The generation is
+      # what the replaced host must report it restored.
+      - name: Wait for replication and record the generation
+        id: replicated
+        run: |
+          set -euo pipefail
+          sleep 35
+          gen="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo cat /data/.budget.db-litestream/generation')"
+          if ! [[ "${gen}" =~ ^[0-9a-f]{16}$ ]]; then echo "::error::no Litestream generation (got '${gen}')" >&2; exit 1; fi
+          echo "seeded generation ${gen}"
+          echo "generation=${gen}" >> "$GITHUB_OUTPUT"
+
+  # Lets apply-replace start only once the writer is committing rows, so the
+  # replacement happens under load.
+  writer-started:
+    name: writer is committing
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      at: ${{ steps.started.outputs.at }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Wait until marker rows beyond 25 exist
+        id: started
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh || true)"
+            max="${stats%%|*}"
+            if [[ "${max}" =~ ^[0-9]+$ ]] && [ "${max}" -gt 25 ]; then
+              echo "writer running (${stats})"
+              # apply-replace starts after this; the new tailnet node is newer.
+              echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::the writer never started" >&2
+          exit 1
+
+  writer:
+    name: write through the replacement
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      last: ${{ steps.write.outputs.last }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      # Ends only when the app container stops (shutdown) or the host vanishes
+      # (ssh keepalive, exit 255); a failed insert is retried while the app runs.
+      # The last "committed" line is the newest row the old host acknowledged;
+      # the replaced host must have it.
+      - name: Insert one row per second until the old host is gone
+        id: write
+        run: |
+          set -uo pipefail
+          timeout 1500 ssh -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
+            operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- writer 21' < scripts/ci/rehearsal_marker.sh | tee writer.log
+          rc="${PIPESTATUS[0]}"
+          echo "writer ssh exit ${rc}"
+          if ! grep -q '^writer stopped: app gone' writer.log && [ "${rc}" != 255 ]; then
+            echo "::error::the writer ended without the old host going away (exit ${rc})" >&2
+            exit 1
+          fi
+          last="$(grep -o 'committed [0-9]*' writer.log | tail -n 1 | cut -d' ' -f2)"
+          echo "last committed row: ${last:-none}"
+          if [ -z "${last}" ] || [ "${last}" -le 25 ]; then
+            echo "::error::the writer committed too few rows to prove anything" >&2
+            exit 1
+          fi
+          echo "last=${last}" >> "$GITHUB_OUTPUT"
+
+  apply-replace:
+    name: apply (l_ssd, replaces the VM)
+    needs: [image, writer-started]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.image.outputs.ref }}
+      drill_expires_at: ${{ needs.image.outputs.expires-at }}
+      drill_root_volume_type: l_ssd
+      reuse_drill_run_id: true
+    secrets: inherit  # pragma: allowlist secret
+
+  verify:
+    name: verify the replaced host
+    needs: [seed, writer-started, writer, apply-replace]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    environment: drill
+    permissions:
+      contents: read
+    env:
+      STATUS_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}/.well-known/bp-deploy-status.json
+      SEED_GENERATION: ${{ needs.seed.outputs.generation }}
+      WRITER_LAST: ${{ needs.writer.outputs.last }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: The plan was detected as a replacement
+        env:
+          REPLACED: ${{ needs.apply-replace.outputs.server_replaced }}
+        run: |
+          echo "apply-replace server_replaced=${REPLACED}"
+          test "${REPLACED}" = "true"
+
+      # The drill's certificate is for the plain name, so HTTPS needs the rename.
+      - name: Remove the old node and rename the new one (replaced-VM logic)
+        timeout-minutes: 15
+        env:
+          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+          # The old node never counts as settled: it was created before this.
+          CREATED_AFTER: ${{ needs.writer-started.outputs.at }}
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 40); do
+            if python3 scripts/tailnet_drill_cleanup.py --env drill --replaced-name "${DRILL_SSH_HOST}" \
+              --require --created-after "${CREATED_AFTER}"; then
+              echo "tailnet settled after attempt ${i}"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::the old node was not removed or the new one not renamed" >&2
+          exit 1
+
+      - name: SSH to the replaced drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Restore report names the seeded generation
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          report=""
+          for i in $(seq 1 60); do
+            report="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo cat /data/restore-report.json 2>/dev/null' || true)"
+            if [ -n "${report}" ]; then break; fi
+            echo "attempt ${i}: no restore report yet"
+            sleep 10
+          done
+          echo "restore report: ${report}"
+          jq -e --arg gen "${SEED_GENERATION}" '.result == "restored" and .generation == $gen' <<<"${report}"
+
+      # The agent may first fail its /ready probe while Caddy waits for the
+      # certificate of the renamed node; a failed generation is retried with
+      # back-off, so retry the wait until the deadline.
+      - name: Host converged with restore.result == "restored"
+        timeout-minutes: 30
+        env:
+          GENERATION: ${{ needs.apply-replace.outputs.host_config_generation }}
+          HOST_IMAGE_REF: ${{ needs.apply-replace.outputs.host_image_ref }}
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 12); do
+            if python3 scripts/ci/host_release.py wait --timeout 120 --require-restore \
+              --url "${STATUS_URL}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"; then
+              exit 0
+            fi
+            echo "attempt ${i} not converged yet"
+            sleep 20
+          done
+          exit 1
+
+      - name: Every committed marker row survived (shutdown flush)
+        run: |
+          set -euo pipefail
+          stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh)"
+          max="${stats%%|*}"
+          count="${stats##*|}"
+          echo "restored marker rows: max=${max} count=${count}; writer's last committed: ${WRITER_LAST}"
+          {
+            echo "### Replacement rehearsal (ADR-0121 §7)"
+            echo "- seeded generation: \`${SEED_GENERATION}\`"
+            echo "- writer's last committed row: ${WRITER_LAST}"
+            echo "- restored rows: max ${max}, count ${count}"
+            echo "- lost committed rows: $(( WRITER_LAST > max ? WRITER_LAST - max : 0 ))"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "${count}" -eq "${max}"
+          if [ "${max}" -lt "${WRITER_LAST}" ]; then
+            echo "::error::$(( WRITER_LAST - max )) committed row(s) lost in the replacement; ADR-0121 §4 drain fallback needed" >&2
+            exit 1
+          fi
+
+      - name: PRAGMA integrity_check
+        run: |
+          set -euo pipefail
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'PRAGMA integrity_check;'")"
+          echo "integrity_check=${result}"
+          test "${result}" = "ok"
+
+  teardown:
+    name: teardown (drill)
+    needs: [apply-empty, check-empty, apply-seed, seed, writer-started, writer, apply-replace, verify]
+    if: ${{ always() && needs.apply-empty.result != 'skipped' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      destroy: true
+    secrets: inherit  # pragma: allowlist secret
+
+  # T-D124 (ADR-0101), T-D133: removes every node this drill left behind.
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: teardown
+    if: ${{ always() && needs.teardown.result != 'skipped' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tailnet-cleanup.yml
+    secrets: inherit  # pragma: allowlist secret

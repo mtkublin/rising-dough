@@ -326,7 +326,7 @@ Release and environment policy (ADR-0099):
 - 30-day retention, daily snapshots.
 - **Maximum copy age 37 days** for every copy of user data outside the live DB (Litestream generations 30 d + bucket noncurrent versions 7 d; pre-migration backups ≤ 30 d; drill copies deleted per run). Replicas are age-encrypted to an operator-held identity. See [ADR-0078](adr/0078-v3-data-protection-quick-wins.md) §3–§4 (T-D56, T-D57).
 - RPO ≤ 15 s. RTO target < 60 min for full re-provision.
-- A VM replacement is a normal release: the host never starts on an empty DB unless `allow_empty_db` is set, reports what it restored, and gets a fresh Tailscale key. See [ADR-0121](adr/0121-safe-prod-vm-replacement.md).
+- A VM replacement is a normal release: the host never starts on an empty DB unless `allow_empty_db` is set, reports what it restored, and gets a fresh Tailscale key. See [ADR-0121](adr/0121-safe-prod-vm-replacement.md). Before a release that replaces the prod VM, `replace-rehearsal.yml` must pass on the release commit (ADR-0121 §7).
 - Monthly automated restore drill opens a GitHub issue on failure.
 
 ### 6.6 Observability (new NFR, minimal)

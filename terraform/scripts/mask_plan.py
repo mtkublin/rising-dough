@@ -43,6 +43,10 @@ SECRET_KEY_LINE = re.compile(
 
 HEREDOC_INDENT_EXTRA = 4
 
+# Terraform annotates the closing line of an attribute that forces replacement:
+# `EOT # forces replacement`. Only that annotation is allowed after the delimiter.
+HEREDOC_CLOSE_NOTE = re.compile(r"^\s*(?P<delim>\w+)(?:\s+# forces replacement)?\s*$")
+
 
 def mask_secret_key_value(line: str) -> str:
     """Mask the value of a secret-named `KEY: v` / `KEY=v` line (keeps the key)."""
@@ -65,6 +69,11 @@ def _redaction_line(indent: str, count: int) -> str:
     return f"{indent}(redacted by mask_plan.py: {count} lines)\n"
 
 
+def _closes(line: str, delimiter: str) -> bool:
+    match = HEREDOC_CLOSE_NOTE.match(line)
+    return match is not None and match["delim"] == delimiter
+
+
 def mask_lines(lines: Iterable[str]) -> Iterator[str]:
     """Lazily mask an iterable of lines.
 
@@ -83,7 +92,7 @@ def mask_lines(lines: Iterable[str]) -> Iterator[str]:
                 delimiter = opened["delim"]
                 indent = " " * (len(line) - len(line.lstrip()) + HEREDOC_INDENT_EXTRA)
                 hidden = 0
-        elif line.strip() == delimiter:
+        elif _closes(line, delimiter):
             yield _redaction_line(indent, hidden)
             yield mask_line(line)
             delimiter = None

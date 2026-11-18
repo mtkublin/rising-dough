@@ -249,7 +249,14 @@ def _reaches(
 
 
 @pytest.mark.parametrize(
-    "name", ["drill.yml", "restore-drill.yml", "drill-destroy.yml", "drill-sweeper.yml"]
+    "name",
+    [
+        "drill.yml",
+        "restore-drill.yml",
+        "drill-destroy.yml",
+        "drill-sweeper.yml",
+        "replace-rehearsal.yml",
+    ],
 )
 def test_every_job_depends_on_drill_lock(name: str) -> None:
     jobs = _jobs(name)

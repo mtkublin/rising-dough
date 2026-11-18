@@ -25,12 +25,21 @@ ADR-0118 (T-D143) replaces the prod VM on its next apply. So far prod has only b
 5. **Longer wait on replacement.** After the plan, `terraform.yml` pipes `terraform show -json plan.bin` into `host_release.py replaced`. The script prints only `replaced=true|false`; the plan JSON holds secrets and is never printed or uploaded. It is `true` when `module.compute.scaleway_instance_server.app` has both `delete` and `create` in its actions. Then the job waits up to 1800 s instead of 600 s (job timeout 50 min) and skips the automatic image rollback: a rollback cannot fix a failed first boot, so the operator follows `disaster-recovery.md`. The job exposes `server_replaced` for the cleanup in §1.
 6. **Operator checks stay in the runbook.** Before approving a replacing release, record prod row counts and max ids (`restore.md`). Afterwards compare them on the new host before closing the release.
 
+7. **Rehearse the replacement on the drill before the release.** `replace-rehearsal.yml` (dispatch only, `drill` concurrency group, drill lock first) runs the T-D143 transition on one drill and fails on any gap:
+   1. **Fail closed.** Apply with `drill_allow_empty_db = false` on the drill's empty bucket. Over tailnet SSH: `litestream-restore` exited non-zero with "refusing to start empty", and there is no `/data/budget.db` and no report.
+   2. **Seed.** Re-apply on the same VM (Block Storage root, `drill_root_volume_type = "sbs_volume"`, as prod today) with the flag true. The plan must not replace the server (`server_replaced == false`). The app starts empty (report `empty`). Marker rows are written through the app container, and the job waits until Litestream has shipped them, recording the generation from `/data/.budget.db-litestream/generation`.
+   3. **Replace.** Apply with `drill_root_volume_type = "l_ssd"`. That changes `vm_spec`, so a new key and `cloud_init` force a server replacement, exactly as T-D143 does on prod; `server_replaced` must be `true`. While the apply runs, a writer inserts one marker row per second through the app container until the old host goes away, and records the last committed row.
+   4. **Verify.** The cleanup removes the offline old node and renames the new one (the drill's certificate needs the plain name). The status must report `restore.result == "restored"` with the seeded generation. Every row the writer saw committed must be present (shutdown flush, §4), and `PRAGMA integrity_check` must be `ok`.
+   5. Teardown and the drill tailnet cleanup always run.
+
+   The drill-only Terraform variables `drill_root_volume_type` (default `l_ssd`) and `drill_allow_empty_db` (default `true`) exist only for this. Prod ignores both (`l_ssd`, `allow_empty_db`). The rehearsal does not replace the `drill-gate` status. Gaps it cannot close: the STARDUST1-S boot time and power-off (the drill is DEV1-S), the `tag:prod` cleanup client, and the size of prod's data.
+
 ## Consequences
 
 - A prod VM replacement (ADR-0118, or any future type or image change) is one approved release. It fails closed instead of coming up empty or unreachable.
 - The drill sets `allow_empty_db = true`. Its gate still passes on an empty bucket, and the restore drill keeps using `restore-from-prod`.
 - `bp-deploy-status.json` gains a small `restore` object. It is public like the rest of the file, so it carries no counts.
-- T-D143 is blocked on T-D155 for prod. The T-D143 drill gate can run first.
+- T-D143 is blocked on T-D155 for prod, and its release on a green `replace-rehearsal.yml` run on the PR head.
 - Rejected:
   - Reusable or long-lived Tailscale keys: a leaked key would join any machine as `tag:prod`.
   - Removing `-if-replica-exists`: it breaks the drill and a first-ever boot.

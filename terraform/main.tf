@@ -111,10 +111,12 @@ moved {
 locals {
   vm_spec = {
     # T-D123: STARDUST1-S quota is 1 per organisation (prod). Drill uses another type.
-    instance_type       = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
-    image               = "ubuntu_noble"
-    zone                = var.scaleway_zone
-    root_volume_type    = "l_ssd"
+    instance_type = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
+    image         = "ubuntu_noble"
+    zone          = var.scaleway_zone
+    # ADR-0121 §7: the replacement rehearsal boots the drill on Block Storage
+    # (as prod before T-D143) and then moves it to l_ssd. Prod is always l_ssd.
+    root_volume_type    = var.env == "prod" ? "l_ssd" : var.drill_root_volume_type
     root_volume_size_gb = 10
   }
   vm_spec_id = substr(sha256(jsonencode(local.vm_spec)), 0, 12)
@@ -190,7 +192,8 @@ module "compute" {
   litestream_age_recipient = var.litestream_age_recipient
 
   # T-D155 / ADR-0121: the drill bucket starts empty; prod must restore or fail.
-  allow_empty_db = var.env == "drill" || var.allow_empty_db
+  # The rehearsal (§7) turns it off on the drill once to prove the refusal.
+  allow_empty_db = var.env == "drill" ? var.drill_allow_empty_db : var.allow_empty_db
 
   # T-D57: single knob; also drives the app container env.
   backup_max_age_days = var.backup_max_age_days

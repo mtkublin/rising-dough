@@ -1,0 +1,73 @@
+name: Drill SSH over the tailnet
+description: >-
+  Join the tailnet as tag:ci, record the drill host's keys and wait for operator
+  SSH (T-D67, ADR-0094; shared by replace-rehearsal.yml, ADR-0121 §7). Same steps
+  as restore-drill.yml's restore job. Later steps run `ssh operator@<host>`.
+
+inputs:
+  host:
+    description: Drill MagicDNS short name, e.g. budget-planner-drill-<run id>.
+    required: true
+  ssh-private-key:
+    description: secrets.DEPLOY_SSH_PRIVATE_KEY (environment `drill` only).
+    required: true
+  ts-oauth-client-id:
+    description: secrets.TS_OAUTH_CLIENT_ID
+    required: true
+  ts-oauth-secret:
+    description: secrets.TS_OAUTH_SECRET
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure SSH agent
+      uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.ssh-private-key }}
+
+    - name: Connect to tailnet (tag:ci)
+      uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+      with:
+        oauth-client-id: ${{ inputs.ts-oauth-client-id }}
+        oauth-secret: ${{ inputs.ts-oauth-secret }}
+        tags: tag:ci
+
+    # ssh-keyscan over the tailnet is authenticated by WireGuard node identity and
+    # the ACL (tag:ci -> tag:drill:22), not trust-on-first-use over the internet.
+    - name: Wait for the host on the tailnet and record its keys
+      shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        : > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+        for i in $(seq 1 72); do
+          keys="$(ssh-keyscan -T 5 -t ed25519,ecdsa,rsa "${HOST}" 2>/dev/null || true)"
+          if [ -n "${keys}" ]; then
+            printf '%s\n' "${keys}" >> ~/.ssh/known_hosts
+            echo "${HOST} reachable on the tailnet after attempt ${i}"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "::error::${HOST} never answered on port 22 over the tailnet" >&2
+        exit 1
+
+    - name: Wait for operator SSH login
+      shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+      run: |
+        set -uo pipefail
+        for i in $(seq 1 18); do
+          if ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${HOST}" true; then
+            echo "operator SSH login ok (attempt ${i})"
+            exit 0
+          fi
+          sleep 10
+        done
+        ssh -vv -o BatchMode=yes -o ConnectTimeout=10 operator@"${HOST}" true 2>&1 | tail -n 40 || true
+        echo "::error::operator SSH login to ${HOST} failed" >&2
+        exit 1

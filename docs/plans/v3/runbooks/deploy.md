@@ -138,6 +138,8 @@ Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Ter
 
 A plan that replaces `module.compute.scaleway_instance_server.app` (instance type, image, zone or root volume change, e.g. ADR-0118) recreates the host and restores the database from Litestream. Read the plan; the replacement also shows a new `tailscale_tailnet_key.vm` (its description carries the VM spec hash).
 
+Before cutting the release: a green `replace-rehearsal.yml` run on the release commit (`drill.md`, "Replacement rehearsal"; ADR-0121 §7).
+
 Before approving the prod apply:
 
 1. Litestream is current: `docker compose logs --tail=50 litestream` shows recent `write wal segment` lines and no errors.
