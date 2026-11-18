@@ -173,8 +173,24 @@ CFG
     restore -config /etc/litestream-restore.yml -o "$${DB_PATH}" "$${DB_PATH}"
 }
 
+# T-D40-FIX3: `litestream restore` builds the DB in budget.db.tmp, checkpoints the
+# replayed WAL into it, renames it to budget.db and leaves budget.db.tmp-wal (empty)
+# and budget.db.tmp-shm behind. They would trip the T-D57 "no extra DB copies" check.
+# A non-empty tmp-wal means the restored DB may lack committed pages: fail, never delete.
+remove_restore_tmp_sidecars() {
+  local wal="$${DB_PATH}.tmp-wal" shm="$${DB_PATH}.tmp-shm"
+  if [[ -s "$${wal}" ]]; then
+    die "$${wal} is not empty; restored DB may be incomplete; leaving stack stopped"
+  fi
+  if [[ -e "$${wal}" || -e "$${shm}" ]]; then
+    rm -f -- "$${wal}" "$${shm}"
+    log "removed litestream restore tmp sidecars ($${wal}, $${shm})"
+  fi
+}
+
 verify_and_chown() {
   local result
+  remove_restore_tmp_sidecars
   result="$(sqlite3 "$${DB_PATH}" 'PRAGMA integrity_check;')"
   log "integrity_check=$${result}"
   [[ "$${result}" == "ok" ]] || die "integrity_check failed; leaving stack stopped"

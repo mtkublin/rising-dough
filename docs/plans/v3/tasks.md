@@ -401,6 +401,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Readiness review and restore-log entry template (2026-11-18): `phase-4-validation/T-D40-first-restore-drill.md`.
 - Run 44330551119 (2026-11-18) restored fine but failed the `/ready` probe in `restore-from-prod` (probed `localhost`, which Caddy has no cert for, and expected `status:"ok"` instead of `status:"ready"` + `db:"ok"`). Fixed (T-D40-FIX): probe by host name with verified TLS, check `ready`/`ok`, log failures. Still ◻ until a green re-run.
 - Run 44340976282 (2026-11-18): restore, integrity and ready all ok; failed on a RETURN-trap bug (`cfg: unbound variable` after `main` returned). Fixed (T-D40-FIX2): temp config cleaned by the EXIT trap. Still ◻ until a green re-run.
+- Run 44346338885 (2026-11-18): restore, ready and integrity green; the T-D57 check found `budget.db.tmp-wal`/`-shm` left by `litestream restore`. Fixed (T-D40-FIX3): the script removes them (fails if the tmp-wal is non-empty). Still ◻ until a green re-run.
 
 ### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
