@@ -28,10 +28,10 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
   - **Point-in-time** — a specific UTC timestamp within the 30-day window.
 - A read-only IAM credential scoped to `budget-planner-prod-pl-waw` exists (preferred — do not reuse the write credential the host already has for Litestream). `terraform/bootstrap/ci` creates it (`restore_reader_access_key` / `restore_reader_secret_key` outputs, ADR-0092, ADR-0104); do not create ad-hoc applications, they would not be in the bucket policy.
 - The age identity is available: `/etc/budget-planner/litestream-age.key` exists on the host (the host agent writes it from `litestream_age_identity` via `bp-config`), and the operator password manager holds the master copy. **Without the identity the replica cannot be decrypted; a restore attempted without it fails.**
-- You have operator SSH access as `app@budget-planner-prod`.
+- You have operator SSH access as `operator@budget-planner-prod`.
 - You have recorded the current audit-row count for a sanity check after restore:
   ```sh
-  ssh app@budget-planner-prod \
+  ssh operator@budget-planner-prod \
     "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'" \
     || echo "DB unreadable — expected if corruption triggered this runbook"
   ```
@@ -41,22 +41,22 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
 1. Announce the restore to any other operator (if applicable). Prod will be read-only for the duration.
 2. Stop the app container (Litestream stays up — we want it to flush pending WAL):
    ```sh
-   ssh app@budget-planner-prod "cd /etc/budget-planner && docker compose stop app"
+   ssh operator@budget-planner-prod "cd /etc/budget-planner && docker compose stop app"
    ```
 3. Wait 15 s for Litestream to flush any outstanding WAL to the bucket, then stop Litestream:
    ```sh
-   ssh app@budget-planner-prod "sleep 15 && cd /etc/budget-planner && docker compose stop litestream"
+   ssh operator@budget-planner-prod "sleep 15 && cd /etc/budget-planner && docker compose stop litestream"
    ```
 4. Move the current DB aside (do not delete — forensic value):
    ```sh
-   ssh app@budget-planner-prod \
+   ssh operator@budget-planner-prod \
      "sudo mv /data/budget.db /data/budget.db.pre-restore-$(date -u +%Y%m%dT%H%M%SZ) \
       && sudo mv /data/budget.db-wal /data/budget.db-wal.pre-restore 2>/dev/null || true \
       && sudo mv /data/budget.db-shm /data/budget.db-shm.pre-restore 2>/dev/null || true"
    ```
 5. Export the read-only credential (if different from the write credential already on the host) into the restore shell:
    ```sh
-   ssh app@budget-planner-prod
+   ssh operator@budget-planner-prod
    export LITESTREAM_ACCESS_KEY_ID='<RO-KEY-ID>'
    export LITESTREAM_SECRET_ACCESS_KEY='<RO-KEY-SECRET>'
    ```
@@ -94,7 +94,7 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
 Use this to undo a migration that broke data, or to roll back a release flagged **"rollback requires restore"** (ADR-0071 §4). The entrypoint keeps the newest 3 `VACUUM INTO` copies taken just before each migrating start:
 
 ```sh
-ssh app@budget-planner-prod "ls -lt /data/backups/"
+ssh operator@budget-planner-prod "ls -lt /data/backups/"
 # budget.db.pre-migrate-<last applied NNNN>-<UTC ts>
 ```
 
@@ -112,12 +112,12 @@ ssh app@budget-planner-prod "ls -lt /data/backups/"
 
 ```sh
 # Integrity.
-ssh app@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
+ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
 # Expect: ok
 
 # Row counts — compare against the pre-restore numbers you recorded,
 # minus any writes that happened between the recovery point and the restore.
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"
 
 # Readiness probe hits DB.
@@ -125,7 +125,7 @@ curl -fsS "https://budget-planner-prod/ready" | jq .
 # Expect: {"status":"ok","db":"ok", ...}
 
 # Litestream is replicating again, not just reading.
-ssh app@budget-planner-prod "docker compose -f /etc/budget-planner/docker-compose.yml logs litestream --tail 20"
+ssh operator@budget-planner-prod "docker compose -f /etc/budget-planner/docker-compose.yml logs litestream --tail 20"
 # Expect: "write wal segment ..." lines within 30 s.
 ```
 
@@ -147,7 +147,7 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 1. Stop app + Litestream again.
 2. Swap the files back:
    ```sh
-   ssh app@budget-planner-prod \
+   ssh operator@budget-planner-prod \
      "sudo mv /data/budget.db /data/budget.db.restore-attempt-$(date -u +%Y%m%dT%H%M%SZ) \
       && sudo mv /data/budget.db.pre-restore-* /data/budget.db"
    ```

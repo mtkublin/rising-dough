@@ -104,6 +104,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 ### 10a. Migrate prod to the host agent (ADR-0111, T-D129f)
 - [ ] **Where:** your workstation (tailnet) + GitHub UI, after T-D129 is on `main` and before the next release.
 - ~~Create the `prod-deploy` environment (ADR-0110)~~: superseded; the release is the approved apply, there is no deploy job.
+- 2026-11-18: bootstrap installed (script run, timer and guard active). Release `v3.0.0` blocked before prod (T-D134); finish with `v3.0.1`.
 - Follow [`host-state-migration.md`](host-state-migration.md): install the agent bootstrap on the prod VM (one script, logged), cut the release, then delete `prod-deploy` and the deploy secrets.
 - **Done when:** the release run is green with `converged: …` and `/.well-known/bp-deploy-status.json` reports state `ok`.
 
