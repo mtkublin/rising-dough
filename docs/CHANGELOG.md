@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (v3 remaining work — restore drill never run)
+- **Docs(T-D40, T-D41, T-D56): the restore path has never been proven.** `restore-log.md` has no entries and `restore-drill.yml` has never run, so T-D41 goes from ✅ to ◐. Plan: one watched `restore-drill.yml` dispatch after the first good release closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. It must happen before the first unattended cron run on 2026-12-01, and before any plaintext generation is deleted. Operator checklist "State" and "Next" refreshed. T-D130 marked done.
+
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
 - **Fix(T-D132): the ADR-0036 nonce CSP is now sent on HTML responses.** The Caddyfile set it via a site-level request matcher, which never matched; it is now set in `reverse_proxy` with a `handle_response` response matcher (verified against real `caddy:2.8`). Reaches prod with the next release. Test `tests/unit/deploy/test_caddy_csp.py`.
 - **Ops(T-D129e, T-D33): drill runs 2026-11-16.** The explore drill converged through the host agent on first boot (status `ok`). The break image deployed and stayed `unhealthy`, and `rollback.yml env=drill` swapped the refs back in place. The `failed` state and reconvergence were not observed (operator tailnet down). Drill destroyed. Final `drill-gate` pending: two stale drill tailnet nodes must go first.

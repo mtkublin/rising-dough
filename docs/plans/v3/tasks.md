@@ -396,11 +396,15 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Provision `drill` env from scratch, restore from the prod bucket read-only credential, verify integrity + audit count.
 - Append dated row to `docs/plans/v3/runbooks/restore-log.md`.
 - File: `phase-4-validation/T-D40-first-restore-drill.md`. Reference: ADR-0034 §5.
+- Status 2026-11-18: never run. Prod went live without it, although the task file names it as a gate before go-live. `restore-log.md` has no entries, so no backup has ever been restored from the prod replica. RPO/RTO and the `restore-reader` credential are unproven.
+- Plan: after the first good release through the host agent (T-D129f), the operator dispatches `restore-drill.yml` from `main` and watches the run. That run is the first restore-log entry. It closes this task, the first-run gap in T-D41, and the T-D56 drill acceptance. It must also show that `restore-from-prod` (written before ADR-0111, T-D41a) still works on an agent-managed drill host: the agent must not restart or overwrite the restored stack mid-restore.
 
-### ✅ T-D41 [S] Monthly automated restore drill → T-D40
+### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
 - On failure, opens an issue titled `restore-drill-failure-YYYY-MM`.
 - File: `phase-4-validation/T-D41-monthly-restore-drill.md`.
+- Status 2026-11-18 (was ✅): the workflow is written but has never run. GitHub lists no runs, and it was not on `main` for the 2026-11-01 cron. The first scheduled run is 2026-12-01 03:00 UTC and would be unattended. It picks the newest release, so a good release must exist before then.
+- Done when: one green run (the T-D40 manual dispatch counts) has appended its entry to `restore-log.md`.
 
 ### ✅ T-D41a [S] `restore-from-prod` drill host helper → T-D41, T-D19a
 - Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
@@ -461,6 +465,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 ### ◐ T-D56 [S] Litestream replica encryption (age) + version alignment → T-D21, T-D23, T-D41a
 - **Status: code done; prod-sim + drill acceptance pending (needs Docker / drill env).** Verified: age is absent in Litestream 0.5.x (rejected since v0.5.1), so everything pins `litestream/litestream:0.3.14` (see ADR-0078 §3 addendum).
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
+- Order (2026-11-18): the restore drill in the cut-over is the T-D40 run, and no restore has been proven yet. Delete the plaintext generations only after that run is green against the encrypted replica.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 
 ### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
@@ -786,7 +791,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - e. Drill (user go 2026-11-16): gate run proves first-boot convergence, cosign verify and the metadata size limit; an explore drill (`keep=true`) plus `rollback.yml env=drill` proves a live metadata update converging without reboot. Caddyfile is first validated by that boot (no local `caddy validate`).
 - f. Prod migration (needs user go): runbook `runbooks/host-state-migration.md` + `terraform/host/migrate/adr-0111-install-agent.sh` (✅ written; one logged break-glass: install loader + timer + firewall rule, remove `deploy` user and key), then the first release through the new path. GitHub: delete `prod-deploy` environment and deploy secrets.
 
-### T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
+### ✅ T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
 - Decision 2026-11-16 (user): the weekly Dependabot PRs and branches (GitHub Actions, Docker base image) are noise for a single maintainer. Removed `.github/dependabot.yml` (its mention in `HANDOFF.md` is historical); open Dependabot PRs closed and their branches deleted. Dependabot security updates were already off.
 - What still catches vulnerable dependencies: `security.yml` (pip-audit, trivy fs + image) on every PR, and GitHub vulnerability alerts (no PRs). Action and base-image bumps are manual from now on.
 
