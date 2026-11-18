@@ -697,6 +697,25 @@ run "host_config_pins_image_and_policy" {
     error_message = "Caddy must set the CSP via a handle_response response matcher (T-D132)."
   }
 
+  # T-D140a / ADR-0113: strict script-src, style-src without a nonce.
+  assert {
+    condition = (
+      strcontains(
+        one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
+        "style-src 'self' 'unsafe-inline';"
+      )
+      && !strcontains(
+        one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
+        "style-src 'self' 'nonce-"
+      )
+      && !strcontains(
+        one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
+        "script-src 'self' 'unsafe"
+      )
+    )
+    error_message = "CSP: script-src must stay strict; style-src must be 'self' 'unsafe-inline' with no nonce (ADR-0113)."
+  }
+
   assert {
     condition = alltrue([
       for p in ["/etc/budget-planner/litestream-age.key", "/etc/budget-planner/litestream.env", "/root/.docker/config.json", "/usr/local/bin/restore-from-prod"] :

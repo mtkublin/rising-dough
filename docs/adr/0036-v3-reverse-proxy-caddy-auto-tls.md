@@ -166,3 +166,7 @@ ${hostname} {
 ## Addendum 2026-11-16 (T-D132): the CSP must be set with a response matcher
 
 The CSP was never sent in prod: `header @html ...` with `@html { header Content-Type text/html* }` is a request matcher, so it never matched a browser GET. A `match { ... }` block inside `header` is not supported by Caddy 2.8 (it is parsed as a header named `Match`). The CSP therefore stays at Caddy (§3 is unchanged) but is set inside `reverse_proxy` with `@html header Content-Type text/html*` and `handle_response @html { header Content-Security-Policy "..."; copy_response }`, where the named matcher is evaluated against the upstream response. Policy string and nonce are unchanged. Guarded by `tests/unit/deploy/test_caddy_csp.py`.
+
+## Addendum 2026-11-18 (T-D140): `style-src` amended by ADR-0113
+
+The `style-src` directive in §1 is replaced by `style-src 'self' 'unsafe-inline'` (stopgap, no nonce). Inline style attributes are allowed until the templates move to classes (T-D140d). `script-src` is unchanged and stays strict. See [ADR-0113](0113-csp-compatible-frontend.md). The prod policy broke HTMX-driven buttons because the frontend used inline scripts, a CDN and Google Fonts; ADR-0113 fixes the frontend side.

@@ -26,14 +26,4 @@
      and HTMX can rebind forms. ``_slideover_fragment`` is the already-
      rendered HTML string provided by `rendering.render`. #}
   <div id="rd-modal-prerender" hidden>{{ _slideover_fragment|safe }}</div>
-  <script>
-    (function () {
-      var root = document.getElementById("modal-root");
-      var prerender = document.getElementById("rd-modal-prerender");
-      if (!root || !prerender) return;
-      root.innerHTML = prerender.innerHTML;
-      prerender.remove();
-      if (window.htmx) window.htmx.process(root);
-    })();
-  </script>
 {% endblock %}

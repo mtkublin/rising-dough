@@ -240,6 +240,10 @@ def create_account(  # noqa: PLR0917
         card=_card_context(conn, user_id, acc.id, _planned_now(conn, user_id, settings)),
     )
     trigger(html, "balance-stale")
+    # T-D150: the form targets itself and the accounts list has no region that
+    # refetches on a trigger, so skip the swap and reload to show the new item.
+    html.headers["HX-Reswap"] = "none"
+    html.headers["HX-Refresh"] = "true"
     return html
 
 

@@ -218,3 +218,24 @@ def test_restore_after_archive(client: TestClient, cat_id: int) -> None:
 def test_restore_without_archive_404(client: TestClient, cat_id: int) -> None:
     r = client.post(f"/categories/{cat_id}/restore")
     assert r.status_code == 404
+
+
+def test_create_reloads_page_without_swap(client: TestClient) -> None:
+    # T-D150: the Settings category list has no region that refetches on a trigger.
+    r = client.post(
+        "/categories",
+        data={"name": "Pets", "direction": "expense"},
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/settings"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "budget-stale" in r.headers["HX-Trigger"]
+
+
+def test_new_form_targets_itself_and_resets_on_submit(client: TestClient) -> None:
+    r = client.get("/categories/new")
+    assert 'id="category-form"' in r.text
+    assert 'hx-target="#category-form"' in r.text
+    assert "table.ledger" not in r.text
+    assert "data-reset-on-submit" in r.text

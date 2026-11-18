@@ -23,11 +23,12 @@
   "#6b4bb3",
   "#9b4bb3"
 ] %}
-<form hx-post="{{ action }}"
-      hx-target="{% if category %}#category-{{ category.id }}{% else %}table.ledger tbody{% endif %}"
-      hx-swap="{% if category %}outerHTML{% else %}beforeend{% endif %}"
+<form {% if not category %}id="category-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if category %}#category-{{ category.id }}{% else %}#category-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form cat-form"
-      data-cat-form>
+      data-cat-form
+      {% if not category %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Name</span>
     <input type="text"
@@ -107,108 +108,8 @@
   <footer class="rd-slideover-footer">
     <button type="button"
             class="rd-btn rd-btn--ghost"
-            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
-      Cancel
-    </button>
+            data-action="close-overlay">Cancel</button>
     <button type="submit"
             class="rd-btn rd-btn--primary">{% if category %}Save ↩{% else %}Create category ↩{% endif %}</button>
   </footer>
 </form>
-<script>
-  // T-R66 — Category form interactions (idempotent, HTMX-safe).
-  (function () {
-    var FALLBACK = {
-      income:     "#2f8f5a",
-      expense:    "#c9403a",
-      transit:    "#3b7fa3",
-      adjustment: "#8a7a90"
-    };
-    function hexToHue(hex) {
-      // Rough oklch-aligned hue from sRGB hex — only used to drive the preview pill tint.
-      if (!hex || hex.charAt(0) !== "#" || hex.length !== 7) return 0;
-      var r = parseInt(hex.substr(1,2),16)/255;
-      var g = parseInt(hex.substr(3,2),16)/255;
-      var b = parseInt(hex.substr(5,2),16)/255;
-      var max = Math.max(r,g,b), min = Math.min(r,g,b), h = 0;
-      if (max !== min) {
-        var d = max - min;
-        if (max === r) h = ((g - b) / d) % 6;
-        else if (max === g) h = (b - r) / d + 2;
-        else h = (r - g) / d + 4;
-        h = Math.round(h * 60);
-        if (h < 0) h += 360;
-      }
-      return h;
-    }
-    function wire(form) {
-      if (!form || form.dataset.catWired === "1") return;
-      form.dataset.catWired = "1";
-      var nameInput = form.querySelector("[data-cat-name]");
-      var dirInputs = form.querySelectorAll("[data-cat-dir]");
-      var defaultRadio = form.querySelector("[data-cat-color-default]");
-      var swatchRadios = form.querySelectorAll("[data-cat-color-swatch]");
-      var clearInput = form.querySelector("[data-cat-clear]");
-      var previewPill = form.querySelector("[data-cat-preview-pill]");
-      var previewDir = form.querySelector("[data-cat-preview-dir]");
-      function activeDirection() {
-        var checked = form.querySelector("[data-cat-dir]:checked");
-        if (checked) return checked.value;
-        var hidden = form.querySelector("input[type='hidden'][data-cat-dir]");
-        return hidden ? hidden.value : "expense";
-      }
-      function activeColor() {
-        if (defaultRadio && defaultRadio.checked) return null;
-        var picked = form.querySelector("[data-cat-color-swatch]:checked");
-        return picked ? picked.value : null;
-      }
-      function syncClear() {
-        if (!clearInput) return;
-        clearInput.checked = !!(defaultRadio && defaultRadio.checked);
-      }
-      function syncSelected() {
-        form.querySelectorAll(".rd-swatch, .rd-swatches__default").forEach(function (label) {
-          var input = label.querySelector("input[type='radio']");
-          if (input && input.checked) label.classList.add("is-selected");
-          else label.classList.remove("is-selected");
-        });
-        form.querySelectorAll(".rd-segmented__item").forEach(function (label) {
-          var input = label.querySelector("input[type='radio']");
-          if (input && input.checked) label.classList.add("rd-segmented__item--active");
-          else label.classList.remove("rd-segmented__item--active");
-        });
-      }
-      function syncPreview() {
-        var name = (nameInput && nameInput.value.trim()) || "name";
-        var dir = activeDirection();
-        var color = activeColor() || FALLBACK[dir];
-        if (previewPill) {
-          previewPill.textContent = name;
-          // Mirror the live chip chrome used elsewhere: color-mix wash + hex fg.
-          previewPill.setAttribute(
-            "style",
-            "background: color-mix(in oklab, " + color + " 16%, transparent); color: " + color
-          );
-        }
-        if (previewDir) {
-          previewDir.className = "rd-dir rd-dir--" + dir;
-          previewDir.textContent = (dir === "income") ? "↑ income" : (dir === "expense") ? "↓ expense" : (dir === "transit") ? "⇄ transit" : "⟲ adjust";
-        }
-      }
-      if (nameInput) nameInput.addEventListener("input", syncPreview);
-      dirInputs.forEach(function (i) { i.addEventListener("change", function () { syncSelected(); syncPreview(); }); });
-      if (defaultRadio) defaultRadio.addEventListener("change", function () { syncClear(); syncSelected(); syncPreview(); });
-      swatchRadios.forEach(function (r) { r.addEventListener("change", function () { syncClear(); syncSelected(); syncPreview(); }); });
-      syncClear();
-      syncSelected();
-      syncPreview();
-    }
-    function wireAll() { document.querySelectorAll("[data-cat-form]").forEach(wire); }
-    wireAll();
-    document.addEventListener("htmx:afterSwap", function (evt) {
-      var root = evt.target;
-      if (!root) return;
-      if (root.matches && root.matches("[data-cat-form]")) { wire(root); return; }
-      if (root.querySelectorAll) root.querySelectorAll("[data-cat-form]").forEach(wire);
-    });
-  })();
-</script>
