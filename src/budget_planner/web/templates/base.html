@@ -12,18 +12,18 @@
           type="image/svg+xml"
           href="{{ url_for('static', path='favicon.svg') }}?v=fav1">
     <link rel="stylesheet"
-          href="{{ url_for('static', path='fonts.css') }}?v=rd1">
+          href="{{ url_for('static', path='fonts.css') }}?v=t140c">
     <link rel="stylesheet"
           href="{{ url_for('static', path='tokens.css') }}?v=rd1">
     <link rel="stylesheet"
-          href="{{ url_for('static', path='tailwind.css') }}?v=t102">
+          href="{{ url_for('static', path='tailwind.css') }}?v=t140c">
     <link rel="stylesheet"
-          href="{{ url_for('static', path='app.css') }}?v=fit1">
+          href="{{ url_for('static', path='app.css') }}?v=t140c">
     <link rel="stylesheet"
           href="{{ url_for('static', path='rising-dough.css') }}?v=rd7">
     <link rel="stylesheet"
           href="{{ url_for('static', path='auth.css') }}?v=auth1">
-    <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}"></script>
+    <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}?v=t140c"></script>
     <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
@@ -65,26 +65,27 @@
     <div id="toast-root" aria-live="polite"></div>
     {% include "partials/_palette.html" %}
     {% include "partials/_shortcuts.html" %}
-    <script src="{{ url_for('static', path='js/palette.js') }}" defer></script>
-    <script src="{{ url_for('static', path='js/shortcuts.js') }}?v=rd1" defer></script>
+    <script src="{{ url_for('static', path='js/palette.js') }}?v=t140c" defer></script>
+    <script src="{{ url_for('static', path='js/shortcuts.js') }}?v=t140c" defer></script>
     <script src="{{ url_for('static', path='js/numeric-input.js') }}?v=t110"
             defer></script>
     <script src="{{ url_for('static', path='js/combobox.js') }}?v=t110" defer></script>
     <script src="{{ url_for('static', path='js/kebab.js') }}?v=kebab" defer></script>
     <script src="{{ url_for('static', path='js/bulk-select.js') }}?v=rd1" defer></script>
     <script src="{{ url_for('static', path='js/rising-dough.js') }}?v=rd1" defer></script>
-    <script src="{{ url_for('static', path='js/rd-wire.js') }}?v=t140" defer></script>
-    <script src="{{ url_for('static', path='js/overlay-actions.js') }}?v=t140"
+    <script src="{{ url_for('static', path='js/rd-wire.js') }}?v=t140c" defer></script>
+    <script src="{{ url_for('static', path='js/overlay-actions.js') }}?v=t140c"
             defer></script>
-    <script src="{{ url_for('static', path='js/txn-form.js') }}?v=t140" defer></script>
-    <script src="{{ url_for('static', path='js/reconcile-form.js') }}?v=t140"
+    <script src="{{ url_for('static', path='js/txn-form.js') }}?v=t140c" defer></script>
+    <script src="{{ url_for('static', path='js/reconcile-form.js') }}?v=t140c"
             defer></script>
-    <script src="{{ url_for('static', path='js/account-form.js') }}?v=t140" defer></script>
-    <script src="{{ url_for('static', path='js/category-form.js') }}?v=t140"
+    <script src="{{ url_for('static', path='js/account-form.js') }}?v=t140c"
             defer></script>
-    <script src="{{ url_for('static', path='js/recurring-form.js') }}?v=t140"
+    <script src="{{ url_for('static', path='js/category-form.js') }}?v=t140c"
             defer></script>
-    <script src="{{ url_for('static', path='js/app-init.js') }}?v=init1" defer></script>
+    <script src="{{ url_for('static', path='js/recurring-form.js') }}?v=t140c"
+            defer></script>
+    <script src="{{ url_for('static', path='js/app-init.js') }}?v=t140c" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>
