@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-18 (DRILL-1 — first restore drill attempts, blocked on the drill SSH key)
+- **Ops(T-D40, T-D41): three watched `restore-drill.yml` runs, none reached the restore.** Run 44297154259 (`main`): `Permission denied (publickey)` on the trigger step; the failure issue could not be opened (labels missing). Run 44299998687: the stale tailnet node from run 1 made the new host `budget-planner-drill-1`, so the tailnet wait timed out. Run 44302972922: the new login check shows the root cause: **the `drill` secret `DEPLOY_SSH_PRIVATE_KEY` is the old deploy key (`rising_dough_deploy`, SHA256:p4pE...), but the host authorizes `OPERATOR_SSH_PUBKEY` (`rising_dough_operator`, SHA256:DLYP...)**. Operator action: set `DEPLOY_SSH_PRIVATE_KEY` in `drill` to the operator private key, then re-dispatch. All three runs destroyed the drill; no drill tailnet node remains.
+- **Fix(T-D41):** `restore-drill.yml` verifies the operator SSH login (prints public fingerprints, retries) before the restore, creates its failure-issue labels, and removes the drill tailnet node after the run (T-D124). Static tests extended. The host agent does not fight the helper: a stopped app container still reports its image, so the agent sees the host as converged. Run 1 resolved `v3.0.1` correctly.
+
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
 - **Docs:** `github-settings.md` says to keep `DEPLOY_SSH_PRIVATE_KEY` in `drill` (`restore-drill.yml` uses it). `deploy.md` says where to find the drill admin password. Operator checklist "Next" replaced.
