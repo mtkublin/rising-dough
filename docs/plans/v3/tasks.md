@@ -773,6 +773,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
 - Timing (user, 2026-11-16): after the first release.
 - 2026-11-18: first dry run (run 44297239247) FAILED: `ghcr_retention.py` `fetch_children` raised `HTTP Error 404` on a registry manifest GET, so no plan was produced. Open bug; retention stays disabled. Status changed from done to partial (◐) until a dry run succeeds.
+- 2026-11-18 fix (branch `wi/docs/v3-remaining/RET`): root cause was the `Accept` header. `fetch_children` asked only for index media types, and GHCR answers `404 MANIFEST_UNKNOWN` ("Accept header does not support OCI manifests") for a cosign `.sig` artifact, which is a plain OCI image manifest. The Accept header now lists all four manifest types; a remaining 404 means "children undetermined" and then no untagged version is deleted (other errors abort). Dry run 44299557709 on the branch is green: 59 kept, 0 to delete (everything is younger than 7 days or protected). Stays ◐: enabling `IMAGE_RETENTION_ENABLED` and the first real run are the user's decision.
 
 ### ✅ T-D125 [M] Release prod from GitHub releases on `main` → ADR-0109 (Accepted 2026-11-16)
 - Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
