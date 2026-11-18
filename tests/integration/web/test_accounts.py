@@ -637,3 +637,23 @@ def test_liability_available_shows_two_decimals(client: TestClient, _migrated: S
     assert r.status_code == 200
     assert "Available 3,765.44 ·" in r.text
     assert "Available 3,765 ·" not in r.text
+
+
+def test_create_reloads_page_without_swap(client: TestClient) -> None:
+    # T-D150: the accounts table has no region that refetches on a trigger.
+    r = client.post(
+        "/accounts",
+        data={"name": "Travel", "currency": "EUR"},
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/accounts"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "balance-stale" in r.headers["HX-Trigger"]
+
+
+def test_new_form_targets_itself_not_accounts_grid(client: TestClient) -> None:
+    r = client.get("/accounts/new")
+    assert 'id="account-form"' in r.text
+    assert 'hx-target="#account-form"' in r.text
+    assert "#accounts-grid" not in r.text
