@@ -9,7 +9,7 @@
 - Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
 - ADR-0097 (amended 2026-11-18): the orchestrator no longer runs a local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR CI cover it; only `tests/e2e` runs locally.
 - Next, in order:
-  1. **DRILL-2 (kept explore drill, pending).** Run 44356288331. Checks: passkey registration (T-D135), smoke journey (T-D43), rollback test (T-D33), Litestream restart (T-D136), `/health/replication` (T-D144). Record a check only after it passes. Checklist: [`DRILL-2-checklist.md`](../phase-4-validation/DRILL-2-checklist.md).
+  1. **DRILL-2 (done 2026-11-18, explore drill 44356288331; results in the checklist).** Run 44356288331. Checks: passkey registration (T-D135), smoke journey (T-D43), rollback test (T-D33), Litestream restart (T-D136), `/health/replication` (T-D144). Record a check only after it passes. Checklist: [`DRILL-2-checklist.md`](../phase-4-validation/DRILL-2-checklist.md).
   2. **Gate drill (pending).** `drill-gate` green on the PR head SHA. It proves T-D133. It also proves T-D138 (the drill lock): with the kept drill still up, the gate must fail at `drill-lock`; after `drill-destroy.yml`, it passes.
   3. **PR merge.** Merge to `main` once `drill-gate` is green on the head SHA (`protect-main` ruleset).
   4. **v3.0.3 release.** `gh release create v3.0.3 -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Carries T-D144.
