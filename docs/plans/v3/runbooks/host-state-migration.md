@@ -19,19 +19,19 @@ This is a logged break-glass host change (ADR-0099 exception list): explicit use
 
 1. Install the bootstrap and remove the SSH deploy path (from a checkout of the merged `main`):
    ```sh
-   ssh app@budget-planner-prod 'sudo bash -s' < terraform/host/migrate/adr-0111-install-agent.sh
+   ssh operator@budget-planner-prod 'sudo bash -s' < terraform/host/migrate/adr-0111-install-agent.sh
    ```
    Expect `bp-agent bootstrap installed; deploy path removed`. The script is idempotent; its unit and loader bodies are byte-identical to `terraform/cloud-init/bootstrap.yaml.tpl` (tested). Until step 2 the agent reports `config_fetch` failures every 30 s (`bp-config` does not exist in the metadata yet). It changes nothing on the host while it does.
 2. Check the agent and the guard:
    ```sh
-   ssh app@budget-planner-prod 'systemctl is-active bp-converge.timer bp-metadata-guard.service; sudo iptables -C DOCKER-USER -d 169.254.42.42/32 -j DROP && echo guard-ok; sudo journalctl -u bp-converge.service -n 5 --no-pager'
+   ssh operator@budget-planner-prod 'systemctl is-active bp-converge.timer bp-metadata-guard.service; sudo iptables -C DOCKER-USER -d 169.254.42.42/32 -j DROP && echo guard-ok; sudo journalctl -u bp-converge.service -n 5 --no-pager'
    ```
 3. Cut the next release ([`deploy.md`](deploy.md) step 0) and approve `prod` once. The apply writes `bp-config`. Within ~30 s the agent cosign-verifies the image, rewrites the compose file, Caddyfile, Litestream config and registry auth, recreates the containers and probes `/ready`. The job waits for `/.well-known/bp-deploy-status.json` to report the generation.
    - State holds no previous ref yet, so this first release has **no automatic rollback**. If it fails, roll back explicitly to the image prod ran before: `gh workflow run rollback.yml --ref main -f env=prod -f target=<previous release or sha-tag>` (the break-glass release on 2026-11-16 was `sha-89ac3c2`).
 4. Verify:
    ```sh
    curl -fsS https://budget-planner-prod/.well-known/bp-deploy-status.json | jq .
-   ssh app@budget-planner-prod 'id deploy 2>&1; ls -l /usr/local/bin/deploy-budget-planner 2>&1; sudo ls -l /etc/budget-planner/'
+   ssh operator@budget-planner-prod 'id deploy 2>&1; ls -l /usr/local/bin/deploy-budget-planner 2>&1; sudo ls -l /etc/budget-planner/'
    ```
    Expect state `ok` with the release ref, `no such user`, no deploy script, and the compose file at `root:root 0600`.
 5. GitHub cleanup ([`github-settings.md`](github-settings.md)): delete the `prod-deploy` environment; delete `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS` and `PROD_HOST`, plus the variables `PROD_URL` and `DRILL_URL`. Remove the deploy public key from the password manager entry (its private half is useless now).
@@ -39,4 +39,4 @@ This is a logged break-glass host change (ADR-0099 exception list): explicit use
 
 ## Rollback of the migration
 
-There is no way back to the SSH deploy path; `deploy.yml` and the deploy user are gone. If the agent misbehaves, stop it (`ssh app@budget-planner-prod 'sudo systemctl disable --now bp-converge.timer'`). The containers keep running as they are; fix forward with a new release.
+There is no way back to the SSH deploy path; `deploy.yml` and the deploy user are gone. If the agent misbehaves, stop it (`ssh operator@budget-planner-prod 'sudo systemctl disable --now bp-converge.timer'`). The containers keep running as they are; fix forward with a new release.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-18 (T-D129f / T-D134 — prod migrated to the host agent; release v3.0.0 blocked before prod)
+- **Break-glass (T-D129f): prod host migrated to the ADR-0111 host agent.** Operator ran `terraform/host/migrate/adr-0111-install-agent.sh` from `main` `f41c6a2` (`bp-agent bootstrap installed; deploy path removed`): loader, `bp-converge.timer`, `bp-metadata-guard` installed and active (`guard-ok`); `deploy` user, key and script removed. No database or container change.
+- **Ops: release `v3.0.0` (run 44288680132) did not reach prod.** The `prod` environment had no `v*` tag rule (added by the operator), then the prod ref guard failed on a wrong script path (T-D134). Prod still runs `sha-89ac3c2`.
+- **Fix(T-D134): prod-only release path.** Ref guard path, full history for the prod guard, guard exercised on the drill, workflow script-path test. Runbooks: `ssh operator@budget-planner-prod` (was `app@`). T-D133 (DRY the workflows) recorded.
+
+## 2026-11-17 (T-D124 proven, drill gate on PR #14)
+- **Ops(T-D124): drill tailnet cleanup works.** Cleanup OAuth client + `TS_CLEANUP_*` secrets set; `drill-destroy.yml` run 44041451732 removed the drill's node. Gate drill 44035943280 green on PR #14 head `50944b6`; explore drill 44039509630 checked by the operator (UI over the tailnet, admin login OK).
+
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
 - **Fix(T-D132): the ADR-0036 nonce CSP is now sent on HTML responses.** The Caddyfile set it via a site-level request matcher, which never matched; it is now set in `reverse_proxy` with a `handle_response` response matcher (verified against real `caddy:2.8`). Reaches prod with the next release. Test `tests/unit/deploy/test_caddy_csp.py`.
 - **Ops(T-D129e, T-D33): drill runs 2026-11-16.** The explore drill converged through the host agent on first boot (status `ok`). The break image deployed and stayed `unhealthy`, and `rollback.yml env=drill` swapped the refs back in place. The `failed` state and reconvergence were not observed (operator tailnet down). Drill destroyed. Final `drill-gate` pending: two stale drill tailnet nodes must go first.

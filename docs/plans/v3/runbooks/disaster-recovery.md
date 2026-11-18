@@ -84,10 +84,10 @@ curl -fsSI "https://budget-planner-prod/" | head -5   # 200 or 302 means Caddy +
 ### 4. Verify the restored DB
 
 ```sh
-ssh app@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
+ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
 # Expect: ok
 
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"
 # Compare against the last known-good count from the previous week's drill
 # (restore-log.md). Deltas should match the write rate up to the recovery point.
@@ -99,7 +99,7 @@ curl -fsS "https://budget-planner-prod/ready" | jq .
 Confirm Litestream is replicating back **to the same bucket** — if the bucket is the one we restored from, we are now writing a new generation into it (expected).
 
 ```sh
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "docker compose -f /etc/budget-planner/docker-compose.yml logs litestream --tail 30"
 # Expect "generation ..." + "write wal segment ..." lines within 30 s.
 ```
@@ -141,12 +141,12 @@ echo | openssl s_client -connect "budget-planner-prod:443" -servername "budget-p
   | openssl x509 -noout -dates -issuer
 
 # DB integrity + audit log tail.
-ssh app@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT id, entity_type, operation, actor_user_id, created_at FROM audit_log ORDER BY id DESC LIMIT 10;'"
 
 # Litestream writing new WAL segments.
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "docker compose -f /etc/budget-planner/docker-compose.yml logs litestream --since 2m | grep -c 'write wal segment'"
 # Expect: non-zero.
 
