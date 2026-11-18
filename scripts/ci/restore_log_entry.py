@@ -25,9 +25,13 @@ UNKNOWN = "unknown"
 PROD_NOT_QUERIED = "n/a (prod not queried)"
 
 _GENERATION = r"[0-9a-f]{16}"
-SNAPSHOT_RE = re.compile(rf"restoring snapshot ({_GENERATION})/([0-9a-f]{{1,8}})")
+# litestream 0.3.14 logs key=value lines, indices in decimal (run 44351020259).
+SNAPSHOT_RE = re.compile(
+    rf'msg="restoring snapshot".*?\bgeneration=({_GENERATION})\b.*?\bindex=(\d+)\b'
+)
 WAL_RANGE_RE = re.compile(
-    rf"restoring wal files:?\s+generation=({_GENERATION})\s+index=\[([0-9a-f]+),\s*([0-9a-f]+)\]"
+    rf'msg="restoring wal files".*?\bgeneration=({_GENERATION})\b'
+    r"\s.*?\bindex_min=(\d+)\s+index_max=(\d+)\b"
 )
 SOURCE_RE = re.compile(r"restoring from (s3://[A-Za-z0-9._\-/]+)")
 AUDIT_RE = re.compile(r"^(\d+)\|(\d*)\|([0-9TZ:.\-]*)$")
@@ -81,9 +85,9 @@ def parse_restore_output(text: str) -> RestoreOutput:
     return RestoreOutput(
         source=source[1] if source else UNKNOWN,
         generation=generation,
-        snapshot_index=int(snap[2], 16) if snap else None,
-        wal_min=int(wal[2], 16) if wal else None,
-        wal_max=int(wal[3], 16) if wal else None,
+        snapshot_index=int(snap[2]) if snap else None,
+        wal_min=int(wal[2]) if wal else None,
+        wal_max=int(wal[3]) if wal else None,
     )
 
 

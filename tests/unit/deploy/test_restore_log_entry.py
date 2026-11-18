@@ -1,4 +1,5 @@
 """T-D41: restore-log entry builder and the restore-drill workflow wiring. No network."""
+# ruff: noqa: E501  (RESTORE_OUTPUT is verbatim litestream output from run 44351020259)
 
 from __future__ import annotations
 
@@ -30,10 +31,15 @@ cleanup = _load("litestream_cleanup", ROOT / "scripts" / "ci" / "litestream_clea
 
 GENERATION = "2901fbd3873a6696"  # pragma: allowlist secret
 RESTORE_OUTPUT = f"""\
+time=2026-11-18T16:51:51.998Z level=INFO msg="restoring snapshot" db=/data/budget.db replica=s3 generation={GENERATION} index=0 path=/data/budget.db.tmp
+time=2026-11-18T16:51:52.025Z level=INFO msg="restoring wal files" db=/data/budget.db replica=s3 generation={GENERATION} index_min=0 index_max=3
+time=2026-11-18T16:51:52.030Z level=INFO msg="downloaded wal" db=/data/budget.db replica=s3 generation={GENERATION} index=3 elapsed=5.009916ms
+time=2026-11-18T16:51:52.081Z level=INFO msg="applied wal" db=/data/budget.db replica=s3 generation={GENERATION} index=3 elapsed=6.397313ms
 restore-from-prod: restoring from s3://budget-planner-prod-pl-waw/db (read-only)
-2026/11/18 16:51:52 restoring snapshot {GENERATION}/00000000 to /data/budget.db.tmp
-2026/11/18 16:51:52 restoring wal files: generation={GENERATION} index=[00000000,00000003]
+restore-from-prod: removed litestream restore tmp sidecars (/data/budget.db.tmp-wal, /data/budget.db.tmp-shm)
 restore-from-prod: integrity_check=ok
+restore-from-prod: ready.status=ready ready.db=ok (attempt 3)
+restore-from-prod: restore complete in 19s
 """
 STARTED = datetime(2026, 11, 18, 16, 46, 0, tzinfo=UTC)
 READY = datetime(2026, 11, 18, 16, 52, 5, tzinfo=UTC)
