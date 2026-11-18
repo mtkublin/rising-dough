@@ -96,7 +96,9 @@ def test_restore_drill_waits_for_tailnet_host_and_passes_oauth_vars() -> None:
     text = (WORKFLOWS / "restore-drill.yml").read_text()
 
     assert "DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}" in text
-    assert "TF_VAR_tailscale_oauth_client_id" in text
+    # T-D133: Terraform inputs (incl. the OAuth client) come from scripts/ci/tf_env.py.
+    assert "uses: ./.github/workflows/terraform.yml" in text
+    assert "tailscale_oauth_client_id" in (ROOT / "scripts/ci/tf_env.py").read_text()
     wait = text.index("Wait for drill host on the tailnet")
     assert wait < text.index("Trigger restore on drill host")
     assert 'operator@"${DRILL_HOST}"' not in text  # SSH never targets the public name
@@ -116,3 +118,18 @@ def test_restore_drill_failure_issue_creates_its_labels() -> None:
     for label in ("restore-drill", "incident"):
         create = text.index(f"gh label create {label} ")
         assert create < text.index("gh issue create")
+
+
+def test_restore_waits_for_host_agent_status_before_restore() -> None:
+    """Readiness review: no restore while the host agent may still be converging or in back-off."""
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    wait = text.index("- name: Wait for host agent status ok")
+    restore = text.index("- name: Trigger restore on drill host")
+
+    assert text.index("- name: Verify operator SSH login") < wait < restore
+    step = text[wait:restore]
+    assert "scripts/ci/host_release.py wait" in step
+    assert "/.well-known/bp-deploy-status.json" in step
+    assert "needs.apply.outputs.host_config_generation" in step
+    assert "needs.apply.outputs.host_image_ref" in step
+    assert "timeout-minutes:" in step

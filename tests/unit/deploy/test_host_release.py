@@ -177,3 +177,49 @@ def test_wait_cli(capsys: pytest.CaptureFixture[str]) -> None:
 def test_fetch_status_requires_https() -> None:
     with pytest.raises(hr.ReleaseError, match="https"):
         hr.fetch_status("http://h/s")
+
+
+# --- resolve-ref (T-D133) ---------------------------------------------------
+
+DIGEST_A = "sha256:" + "a" * 64
+
+
+def test_resolve_ref_joins_tag_and_digest() -> None:
+    seen: list[str] = []
+
+    def inspect(image_tag: str) -> str:
+        seen.append(image_tag)
+        return f'"{DIGEST_A}"\n'
+
+    assert hr.resolve_ref("ghcr.io/o/budget-planner", "v1.2.3", inspect) == f"v1.2.3@{DIGEST_A}"
+    assert seen == ["ghcr.io/o/budget-planner:v1.2.3"]
+
+
+def test_resolve_ref_rejects_non_digest_output() -> None:
+    with pytest.raises(hr.ReleaseError, match="sha256 digest"):
+        hr.resolve_ref("ghcr.io/o/x", "main", lambda _t: "null")
+
+
+def test_resolve_ref_rejects_bad_tag() -> None:
+    with pytest.raises(hr.ReleaseError, match="not valid"):
+        hr.resolve_ref("ghcr.io/o/x", "a b", lambda _t: DIGEST_A)
+
+
+def test_resolve_ref_cli_prints_output_line(capsys: pytest.CaptureFixture[str]) -> None:
+    rc = hr.main(
+        ["resolve-ref", "--image", "ghcr.io/o/x", "--tag", "sha-abc1234"],
+        inspect=lambda _t: DIGEST_A,
+    )
+
+    assert rc == 0
+    assert capsys.readouterr().out == f"ref=sha-abc1234@{DIGEST_A}\n"
+
+
+def test_resolve_ref_cli_reports_failure(capsys: pytest.CaptureFixture[str]) -> None:
+    def boom(_t: str) -> str:
+        raise hr.ReleaseError("cannot inspect")
+
+    rc = hr.main(["resolve-ref", "--image", "i", "--tag", "main"], inspect=boom)
+
+    assert rc == 1
+    assert "cannot inspect" in capsys.readouterr().err

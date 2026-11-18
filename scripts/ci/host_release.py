@@ -14,6 +14,10 @@ Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
       apply and after a destroy). Refs are
       `<tag>@sha256:<digest>`. A plan that is never applied (PR plan,
       -destroy) may fall back to a placeholder ref.
+  resolve-ref --image IMAGE --tag TAG
+      Resolve TAG of IMAGE (e.g. ghcr.io/owner/budget-planner) to its manifest
+      digest with `docker buildx imagetools inspect` and print `ref=TAG@DIGEST`
+      for $GITHUB_OUTPUT (T-D133). The caller logs in to the registry first.
   wait --url URL --generation GEN --ref FULL_REF [--timeout S] [--interval S]
       Poll the agent status (/.well-known/bp-deploy-status.json) until it
       reports GEN applied and FULL_REF running; fail fast when the agent
@@ -25,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess  # nosec B404
 import sys
 import time
 import urllib.request
@@ -36,7 +41,11 @@ REF = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$")
 # holds none; never reaches a host.
 PLACEHOLDER = "sha-0000000@sha256:" + "0" * 64
 
+DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
+
 Fetch = Callable[[str], Mapping[str, object] | None]
+Inspect = Callable[[str], str]
 
 
 class ReleaseError(ValueError):
@@ -90,6 +99,38 @@ def resolve_refs(
     raise ReleaseError("no image ref: pass one, or apply once so state records it")
 
 
+def resolve_ref(image: str, tag: str, inspect: Inspect) -> str:
+    """`<tag>@<digest>` for `image:tag`; `inspect` returns the raw manifest digest."""
+    if not TAG.fullmatch(tag):
+        raise ReleaseError(f"image tag is not valid: '{tag}'")
+    digest = inspect(f"{image}:{tag}").strip().strip('"')
+    if not DIGEST.fullmatch(digest):
+        raise ReleaseError(f"{image}:{tag} did not resolve to a sha256 digest; got '{digest}'")
+    return _check("resolved ref", f"{tag}@{digest}")
+
+
+def inspect_digest(image_tag: str) -> str:
+    """Manifest digest of a registry image via buildx (needs a prior docker login)."""
+    try:
+        proc = subprocess.run(  # noqa: S603  # nosec B603 B607
+            [  # noqa: S607
+                "docker",
+                "buildx",
+                "imagetools",
+                "inspect",
+                image_tag,
+                "--format",
+                "{{json .Manifest.Digest}}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ReleaseError(f"cannot inspect {image_tag}: {exc}") from exc
+    return proc.stdout
+
+
 def converged(status: Mapping[str, object] | None, generation: str, ref: str) -> bool:
     """True when the agent reports `generation` applied and `ref` running.
 
@@ -139,7 +180,11 @@ def fetch_status(url: str) -> Mapping[str, object] | None:
     return body if isinstance(body, dict) else None
 
 
-def main(argv: Sequence[str] | None = None, fetch: Fetch = fetch_status) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    fetch: Fetch = fetch_status,
+    inspect: Inspect = inspect_digest,
+) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
     refs = sub.add_parser("refs")
@@ -149,6 +194,9 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = fetch_status) -> int:
     refs.add_argument("--rollback", action="store_true")
     refs.add_argument("--destroy", action="store_true")
     refs.add_argument("--plan-only", action="store_true")
+    resolve = sub.add_parser("resolve-ref")
+    resolve.add_argument("--image", required=True)
+    resolve.add_argument("--tag", required=True)
     wait = sub.add_parser("wait")
     wait.add_argument("--url", required=True)
     wait.add_argument("--generation", required=True)
@@ -167,6 +215,8 @@ def main(argv: Sequence[str] | None = None, fetch: Fetch = fetch_status) -> int:
                 plan_only=args.plan_only,
             )
             sys.stdout.write(resolved.output_lines())
+        elif args.cmd == "resolve-ref":
+            sys.stdout.write(f"ref={resolve_ref(args.image, args.tag, inspect)}\n")
         else:
             status = wait_converged(
                 fetch,

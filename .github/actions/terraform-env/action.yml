@@ -1,0 +1,27 @@
+name: Terraform inputs
+description: >-
+  Export every Terraform input as TF_VAR_* from the job's secrets and variables
+  (T-D133, T-D70, ADR-0093). The mapping lives in scripts/ci/tf_env.py. Call it
+  after checkout; later steps of the same job see the variables.
+
+inputs:
+  env:
+    description: Target environment, drill or prod. Drill-only inputs are empty on prod (T-D137).
+    required: true
+  secrets-json:
+    description: "Pass the toJSON of the secrets context (a composite action cannot read it)."
+    required: true
+  vars-json:
+    description: "Pass the toJSON of the vars context."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Export TF_VAR_* inputs
+      shell: bash
+      env:
+        SECRETS_JSON: ${{ inputs.secrets-json }}
+        VARS_JSON: ${{ inputs.vars-json }}
+        TARGET_ENV: ${{ inputs.env }}
+      run: python3 "${GITHUB_ACTION_PATH}/../../../scripts/ci/tf_env.py" --env "${TARGET_ENV}"

@@ -119,3 +119,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0114 | [Litestream Replicate Config Carries the Age Identity; One Forced New Generation](0114-litestream-replicate-identity-and-forced-generation.md) (amends ADR-0078 §3; relates to ADR-0111, ADR-0112) |
 | 0115 | [A Drill VM Is Exclusive; Every Drill Workflow Starts With a Drill Lock](0115-drill-vm-is-exclusive-drill-lock.md) (amends ADR-0099; relates to ADR-0101, ADR-0092) |
 | 0116 | [The Drill's Tailnet Name Is Unique Per Run](0116-drill-tailnet-name-unique-per-run.md) (amends ADR-0101; relates to ADR-0094, ADR-0099) |
+| 0117 | [One Source for Shared GitHub Workflow Logic](0117-dry-github-workflows.md) (relates to ADR-0099, ADR-0111, ADR-0115, ADR-0116) |

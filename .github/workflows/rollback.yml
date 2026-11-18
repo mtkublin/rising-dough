@@ -78,8 +78,7 @@ jobs:
           fi
           TAG="$(python3 scripts/ci/ref_guard.py rollback-target "${RAW_TARGET}")"
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
-          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          echo "ref=${TAG}@${DIGEST}" | tee -a "$GITHUB_OUTPUT"
+          python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
 
   apply:
     name: rollback ${{ inputs.env }}
