@@ -52,11 +52,12 @@
 - **Acceptance**: a one-module service change selects its unit **and** integration tests at commit; a migration / `conftest.py` / dependency change runs the full default selection at commit; a docs-only commit runs no tests.
 - **Validation**: recorded hook runs in `baseline.md`.
 
-### ◻ T-CS08 [S] GitHub job reliably under 2 min → T-CS06
+### ✅ T-CS08 [S] GitHub job reliably under 2 min → T-CS06
 - **Context**: after T-CS01…T-CS07 the `ci` job median is 2:15 (1:32–2:38) with pytest at 61–118 s on the same commit; local targets are met (`baseline.md`).
 - **Deliverables**: `--durations=30` under xdist on the runner (several runs) to separate runner variance from slow tests; then the cheapest fix among: per-worker load balance (`--dist load` vs `loadgroup`, `--maxworkers`), the FastAPI per-app route-state cost (~70–100 ms per web test, T-CS01), or splitting lint + typecheck into a parallel job (ADR-0108 alternative, deferred). A new ADR if the job layout changes.
 - **Acceptance**: median of 5 runs under 2:00.
 - **Findings** (`baseline.md` "T-CS08 — runner profile"): median 2:04 over 4 attempts of one commit. The spread is the runner CPU (68–102 s pytest). The largest avoidable cost is FastAPI's lazy route state on each new app's first request (~87 ms CPU per web test).
+- **Result**: step 1 landed (median of 5 runs 1:56; the slowest CPU still 2:12–2:15). Step 2 (sharding) was declined by the operator on 2026-11-18; revisit if the median drifts above 2:00.
 - **Step 1**: cache `get_typed_signature` in `tests/conftest.py` (test process only; production unchanged), measure 4 attempts. If the median stays ≥ 2:00, step 2 is to shard pytest over two parallel jobs and combine coverage (needs an ADR: new job layout and required-check names).
 
 ### ✅ T-CS09 [S] Path-filtered Terraform checks are no longer required → ADR-0121

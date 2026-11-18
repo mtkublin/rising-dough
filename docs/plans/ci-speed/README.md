@@ -2,7 +2,7 @@
 
 > **What**: cut CI and local check time with parallel tests, slow-test fixes, and change-based checks in the inner loop, while every gate keeps running the full suite.
 > **Decision**: [ADR-0108](../../adr/0108-faster-ci-parallel-tests-and-change-based-inner-loop.md). Requirements: [`docs/requirements.md` §11](../../requirements.md#11-faster-ci-added-2026-11-16).
-> **Tasks**: [`tasks.md`](tasks.md) (T-CS01…T-CS07). Local gate policy: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md).
+> **Tasks**: [`tasks.md`](tasks.md) (T-CS01…T-CS09). Local gate policy: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md). Required checks: [ADR-0121](../../adr/0121-path-filtered-workflows-are-not-required-checks.md).
 
 ## When
 

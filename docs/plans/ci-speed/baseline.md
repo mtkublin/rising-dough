@@ -285,3 +285,21 @@ Where the local test time goes (`--durations=0`, 4 workers, 242 s of test time):
 Web test setup has a median of 110 ms. Timed step by step, almost all of it is the first request on a fresh app (the CSRF client's priming `GET /healthz`, 139 ms wall). App construction (0.6 ms), the DB copy (1.5 ms), the login seed (3.9 ms) and the lifespan (3.4 ms) are small. FastAPI 0.161 builds every route's state lazily on a new app's first request (`effective_candidates` → `_populate_api_route_state` → dependency analysis): about 87 ms of CPU per app.
 
 `fastapi.dependencies.utils.get_typed_signature` is a pure function of the endpoint callable. Caching it in the test process cuts that cost to 57 ms per app (−35%). The rest is per-app route state, and caching it would mean patching deeper FastAPI internals.
+
+## T-CS08 — results (signature cache, `f25745f`)
+
+Five attempts of the same commit:
+
+| Attempt | Runner CPU | pytest | Job | Same CPU before |
+|---|---|---|---|---|
+| 1 | AMD EPYC 7763 | 95.1 s | 2:12 | 102.5 s / 2:18 |
+| 2 | AMD EPYC 9V45 | 65.9 s | 1:36 | 68.0 s / 1:45 |
+| 3 | Intel Xeon 6975P-C | 71.7 s | 1:55 | 77.8 s / 1:51 |
+| 4 | AMD EPYC 9V74 | 78.9 s | 1:56 | — |
+| 5 | AMD EPYC 7763 | 94.1 s | 2:15 | 102.5 s / 2:18 |
+| **median** | | **78.9 s** | **1:56** | 2:04 (4 attempts) |
+
+- **Acceptance met: the median of 5 runs is under 2:00.**
+- On the same CPU model, pytest is 3–8% faster.
+- The slowest runner CPU (AMD EPYC 7763) still takes 2:12–2:15. That remaining spread is GitHub's hardware assignment.
+- Sharding pytest over two parallel jobs would bring every runner under 2:00. It was not done (operator decision, 2026-11-18): it needs an ADR, a coverage-combine job and new required-check names, and roughly doubles runner minutes. Revisit if the median drifts above 2:00.
