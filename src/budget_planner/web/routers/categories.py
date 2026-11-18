@@ -111,6 +111,10 @@ def create_category(  # noqa: PLR0917
     )
     html = render(request, "partials/categories/_row.html", category=cat)
     trigger(html, "budget-stale")
+    # T-D150: the form targets itself and the categories list has no region that
+    # refetches on a trigger, so skip the swap and reload to show the new item.
+    html.headers["HX-Reswap"] = "none"
+    html.headers["HX-Refresh"] = "true"
     return html
 
 

@@ -11,6 +11,8 @@
       hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
       hx-swap="none"
       data-override-form
+      data-month-label="{{ month_label }}"
+      data-this-year="{{ this_year }}"
       {% if inline is defined and inline %}data-override-inline{% endif %}
       data-reset-on-submit>
   {% if category %}
@@ -57,31 +59,3 @@
   {% endif %}
   {% include "partials/_form_errors.html" %}
 </form>
-<script>
-  (function () {
-    var form = document.currentScript.previousElementSibling;
-    while (form && !form.matches("[data-override-form]")) {
-      form = form.previousElementSibling;
-    }
-    if (!form) return;
-    var tiers = form.querySelectorAll("input[name='tier']");
-    var hintTail = form.querySelector("[data-override-hint-tail]");
-    function sync() {
-      var picked = form.querySelector("input[name='tier']:checked");
-      form.querySelectorAll(".rd-override__tiers .rd-segmented__item").forEach(function (item) {
-        var r = item.querySelector("input[name='tier']");
-        item.classList.toggle("rd-segmented__item--active", !!(r && r.checked));
-      });
-      if (!hintTail || !picked) return;
-      if (picked.value === "default") {
-        hintTail.textContent = "replaces the default";
-      } else if (picked.value === "recurring") {
-        hintTail.textContent = "replaces default every {{ month_label }}";
-      } else {
-        hintTail.textContent = "wins over default for {{ month_label }} {{ this_year }} only";
-      }
-    }
-    tiers.forEach(function (t) { t.addEventListener("change", sync); });
-    sync();
-  })();
-</script>

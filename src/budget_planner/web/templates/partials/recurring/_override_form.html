@@ -28,23 +28,23 @@
      aria-modal="true"
      aria-labelledby="recurring-override-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over slide-over--override" tabindex="-1">
     <header class="slide-over__header">
       <h2 id="recurring-override-title" class="slide-over__title">Override occurrence</h2>
       <button type="button"
               class="slide-over__close"
               aria-label="Close"
-              onclick="this.closest('.slide-over-root').parentElement.innerHTML='';">×</button>
+              data-action="close-overlay">×</button>
     </header>
     <div class="slide-over__body">
       {% if rule %}
         <form hx-post="/recurring/{{ rule.id }}/overrides"
-              hx-target="#recurring-{{ rule.id }}"
+              hx-target="closest .slide-over-root"
               hx-swap="outerHTML"
               class="rd-override rd-override--standalone"
               data-recurring-override-form
-              data-reset-on-submit>
+              data-close-overlay-on-success>
           <div class="rd-override__head">
             <div class="rd-override__title">{{ rule.default_description or rule.cadence.value|capitalize }}</div>
             <nav class="rd-period-nav rd-override__period"
@@ -104,71 +104,3 @@
     </div>
   </aside>
 </div>
-<script>
-  (function () {
-    var forms = document.querySelectorAll('[data-recurring-override-form]');
-    var form = forms[forms.length - 1];
-    if (!form) return;
-    var yearInput = form.querySelector('[data-period-year]');
-    var monthInput = form.querySelector('[data-period-month]');
-    var label = form.querySelector('[data-period-label]');
-    var hint = form.querySelector('[data-period-hint]');
-    var picker = form.querySelector('[data-period-picker]');
-    var yearDisplay = form.querySelector('[data-year-display]');
-    var grid = form.querySelector('[data-month-grid]');
-    var monthsLong = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    function render() {
-      var y = parseInt(yearInput.value, 10);
-      var m = parseInt(monthInput.value, 10);
-      if (isNaN(y) || isNaN(m)) return;
-      var text = monthsLong[m - 1] + ' ' + y;
-      if (label) label.textContent = text;
-      if (hint) hint.textContent = text;
-      if (yearDisplay) yearDisplay.textContent = String(y);
-      if (grid) {
-        grid.querySelectorAll('[data-month-cell]').forEach(function (btn) {
-          var mm = parseInt(btn.getAttribute('data-month-cell'), 10);
-          btn.classList.toggle('rd-period-nav__cell--active', mm === m);
-        });
-      }
-    }
-    function step(delta) {
-      var y = parseInt(yearInput.value, 10);
-      var m = parseInt(monthInput.value, 10);
-      m += delta;
-      while (m < 1) { m += 12; y -= 1; }
-      while (m > 12) { m -= 12; y += 1; }
-      yearInput.value = String(y);
-      monthInput.value = String(m);
-      render();
-    }
-    form.querySelector('[data-period-prev]').addEventListener('click', function () { step(-1); });
-    form.querySelector('[data-period-next]').addEventListener('click', function () { step(1); });
-    form.querySelector('[data-year-prev]').addEventListener('click', function (ev) {
-      ev.preventDefault();
-      yearInput.value = String(parseInt(yearInput.value, 10) - 1);
-      render();
-    });
-    form.querySelector('[data-year-next]').addEventListener('click', function (ev) {
-      ev.preventDefault();
-      yearInput.value = String(parseInt(yearInput.value, 10) + 1);
-      render();
-    });
-    if (grid) {
-      grid.addEventListener('click', function (ev) {
-        var cell = ev.target.closest('[data-month-cell]');
-        if (!cell) return;
-        ev.preventDefault();
-        monthInput.value = cell.getAttribute('data-month-cell');
-        render();
-        if (picker && picker.open) picker.open = false;
-      });
-    }
-    document.addEventListener('click', function (ev) {
-      if (!picker || !picker.open) return;
-      if (picker.contains(ev.target)) return;
-      picker.open = false;
-    });
-    render();
-  })();
-</script>

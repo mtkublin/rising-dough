@@ -6,14 +6,19 @@
    Happened / Planned / Repeats paths (full three-mode merge deferred — see
    T-R38 follow-up in docs/plans/v2/tasks.md). #}
 {% from "_partials/combobox.html" import combobox %}
+{% set ccy_by_account = {} %}
+{% for a in accounts or [] %}
+  {% set _ = ccy_by_account.update({a.id|string: a.currency}) %}
+{% endfor %}
 {% set txn_account = (accounts|selectattr('id', 'equalto', txn.account_id)|first) if txn else none %}
 <form id="txn-form"
       hx-post="{{ action }}"
-      hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-table tbody{% endif %}"
-      hx-swap="{% if txn %}outerHTML{% else %}afterbegin{% endif %}"
+      hx-target="#txn-form"
+      hx-swap="outerHTML"
       class="rd-form txn-form"
       data-txn-form
-      {% if not txn %}data-reset-on-submit{% endif %}>
+      data-account-currencies='{{ ccy_by_account|tojson }}'
+      {% if txn %}data-close-overlay-on-success{% else %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
@@ -79,47 +84,7 @@
   <footer class="rd-slideover-footer">
     <button type="button"
             class="rd-btn rd-btn--ghost"
-            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
-      Cancel
-    </button>
+            data-action="close-overlay">Cancel</button>
     <button type="submit" class="rd-btn rd-btn--primary">{% if txn %}Save{% else %}Add entry{% endif %}</button>
   </footer>
 </form>
-<script>
-  // T-R38 — Keep the amount field's currency suffix in sync with the picked account.
-  (function () {
-    function wire(form) {
-      if (!form || form.dataset.txnWired === "1") return;
-      form.dataset.txnWired = "1";
-      // Account combobox hydrates `data-value` after selection.
-      var acctHidden = form.querySelector("input[type='hidden'][name='account_id']");
-      var acctInput = form.querySelector("[name='account_id'] + input, input[role='combobox']");
-      var suffix = form.querySelector("[data-currency-suffix]");
-      if (!suffix) return;
-      var currencyByAccountId = {};
-      {% if accounts %}
-        currencyByAccountId = {
-          {% for a in accounts %}"{{ a.id }}": "{{ a.currency }}"{{ "," if not loop.last }}{% endfor %}
-        };
-      {% endif %}
-      function sync() {
-        var id = acctHidden && acctHidden.value;
-        var ccy = id ? (currencyByAccountId[id] || "") : "";
-        suffix.setAttribute("data-suffix", ccy);
-      }
-      if (acctHidden) {
-        // Mirror on each input in the combobox region.
-        form.addEventListener("input", sync);
-        form.addEventListener("change", sync);
-      }
-      sync();
-    }
-    document.querySelectorAll("[data-txn-form]").forEach(wire);
-    document.addEventListener("htmx:afterSwap", function (evt) {
-      var root = evt.target;
-      if (!root) return;
-      if (root.matches && root.matches("[data-txn-form]")) { wire(root); return; }
-      if (root.querySelectorAll) root.querySelectorAll("[data-txn-form]").forEach(wire);
-    });
-  })();
-</script>

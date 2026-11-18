@@ -31,7 +31,7 @@ from budget_planner.repositories import (
 from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
@@ -382,6 +382,8 @@ async def create_rule(
         effective_amount_minor=minor,
     )
     trigger(html, "forecast-stale", "ledger-stale")
+    # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
@@ -731,19 +733,10 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         rule_id,
         PatchRecurringRule(**patch_kwargs),
     )
-    updated = recurring_repo.find_rule(conn, user_id, rule_id)
-    assert updated is not None and acc is not None
-    cat = categories_repo.find_by_id(conn, user_id, updated.category_id)
-    html = render(
-        request,
-        "partials/recurring/_row.html",
-        rule=updated,
-        overrides=recurring_repo.list_overrides(conn, user_id, rule_id),
-        account=acc,
-        category=cat,
-        effective_amount_minor=minor,
-    )
+    # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
+    html = Response()
     trigger(html, "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
@@ -826,23 +819,35 @@ def add_override(  # noqa: PLR0917, PLR0911
     rule = recurring_repo.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
+    acc = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+
+    def _invalid(field: str, message: str) -> Response:
+        # T-D151: re-render the override form with the error inside the slide-over.
+        return render(
+            request,
+            "partials/recurring/_override_form.html",
+            rule=rule,
+            account=acc,
+            default_year=year if 1900 <= year <= 9999 else rule.next_due.year,  # noqa: PLR2004
+            default_month=month if 1 <= month <= 12 else rule.next_due.month,  # noqa: PLR2004
+            default_amount_str=amount,
+            errors={field: message},
+            status_code=422,
+        )
+
     if not (1900 <= year <= 9999 and 1 <= month <= 12):  # noqa: PLR2004
-        return Response(status_code=422, content="invalid year or month")
+        return _invalid("month", "invalid year or month")
     occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:
-        return Response(
-            status_code=422,
-            content=f"rule has no occurrence in {year:04d}-{month:02d}",
-        )
-    acc = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+        return _invalid("month", f"rule has no occurrence in {year:04d}-{month:02d}")
     if acc is None:
-        return Response(status_code=422, content="rule has no live account")
+        return _invalid("account", "rule has no live account")
     try:
         dec = Decimal(amount.replace(",", "."))
     except InvalidOperation:
-        return Response(status_code=422, content="invalid amount")
+        return _invalid("amount", "invalid amount")
     if dec <= 0:
-        return Response(status_code=422, content="amount must be positive")
+        return _invalid("amount", "amount must be positive")
     amount_minor = to_minor_units(dec, acc.currency)
     recurring_repo.upsert_override(
         conn,
@@ -856,19 +861,9 @@ def add_override(  # noqa: PLR0917, PLR0911
             date_override=None,
         ),
     )
-    overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
-    acc = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    cat = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
-    html = render(
-        request,
-        "partials/recurring/_row.html",
-        rule=rule,
-        overrides=overrides,
-        account=acc,
-        category=cat,
-        effective_amount_minor=_effective_amount_for_render(conn, user_id, rule),
-    )
+    html = Response()
     trigger(html, "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
@@ -1083,20 +1078,9 @@ def promote_submit(  # noqa: PLR0912, PLR0917
             status_code=422,
         )
 
-    updated = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
-    assert updated is not None
-    acc = accounts_repo.find_by_id(conn, user_id, updated.account_id, include_deleted=True)
-    cat = categories_repo.find_by_id(conn, user_id, updated.category_id, include_deleted=True)
-    html = render(
-        request,
-        "partials/recurring/_row.html",
-        rule=updated,
-        overrides=recurring_repo.list_overrides(conn, user_id, rule_id),
-        account=acc,
-        category=cat,
-        effective_amount_minor=_effective_amount_for_render(conn, user_id, updated),
-    )
+    html = Response()
     trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

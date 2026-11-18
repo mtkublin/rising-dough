@@ -116,27 +116,3 @@
     One-off (bold) overrides win for a specific month; recurring (hatched) applies every year. Click a cell to edit. Categories without a budget are collapsed above.
   </p>
 </section>
-<script>
-  (function () {
-    // Close any open year popover when the user clicks outside of it.
-    function closeAll() {
-      document.querySelectorAll('.rd-year-popover-slot').forEach(function (s) {
-        if (s.children.length) s.innerHTML = '';
-      });
-    }
-    document.addEventListener('click', function (evt) {
-      var cell = evt.target.closest('.rd-plan-year__cell');
-      if (cell) {
-        // Click inside a cell: close OTHER cells' popovers.
-        document.querySelectorAll('.rd-year-popover-slot').forEach(function (s) {
-          if (!cell.contains(s) && s.children.length) s.innerHTML = '';
-        });
-        return;
-      }
-      closeAll();
-    });
-    document.addEventListener('keydown', function (evt) {
-      if (evt.key === 'Escape') closeAll();
-    });
-  })();
-</script>
