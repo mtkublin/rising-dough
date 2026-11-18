@@ -20,7 +20,7 @@ DESTROY_PATHS = [
     ("drill.yml", "teardown"),
     ("drill-destroy.yml", "destroy"),
     ("drill-sweeper.yml", "destroy"),
-    ("restore-drill.yml", "restore-drill"),
+    ("restore-drill.yml", "destroy"),
 ]
 
 
@@ -36,7 +36,7 @@ def _load_script() -> ModuleType:
 cleanup = _load_script()
 
 
-def _job(name: str) -> dict[str, Any]:
+def _job(name: str) -> dict[str, Any]:  # caller-side cleanup job
     loaded: dict[str, Any] = yaml.safe_load((WORKFLOWS / name).read_text())
     job: dict[str, Any] = loaded["jobs"]["tailnet-cleanup"]
     return job
@@ -51,9 +51,17 @@ def test_destroy_path_has_cleanup_after_destroy(name: str, destroy_job: str) -> 
     condition = " ".join(str(job["if"]).split())
     assert "always()" in condition
     assert f"needs.{destroy_job}.result != 'skipped'" in condition
+    assert job["permissions"] == {"contents": "read"}
+    # T-D133: one reusable workflow serves every destroy path.
+    assert job["uses"] == "./.github/workflows/tailnet-cleanup.yml"
+
+
+def test_reusable_cleanup_workflow_runs_the_shared_script_ungated() -> None:
+    loaded: dict[str, Any] = yaml.safe_load((WORKFLOWS / "tailnet-cleanup.yml").read_text())
+    job = loaded["jobs"]["cleanup"]
+
     assert job["environment"] == "drill-teardown"
     assert job["permissions"] == {"contents": "read"}
-    # No terraform.yml reusable call: a plain job that runs the shared script.
     runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
     assert "scripts/tailnet_drill_cleanup.py" in runs
     env = {k: v for s in job["steps"] for k, v in (s.get("env") or {}).items()}

@@ -62,7 +62,8 @@ def test_drill_helper_deletes_copies_on_exit() -> None:
 def test_drill_workflow_asserts_no_extra_db_files() -> None:
     wf = _read(".github/workflows/restore-drill.yml")
     assert "Verify no extra DB copies remain" in wf
-    assert wf.index("Verify no extra DB copies remain") < wf.index("Terraform destroy (drill)")
+    # The check runs in the restore job, which the shared destroy job waits for (T-D133).
+    assert wf.index("Verify no extra DB copies remain") < wf.index("  destroy:\n")
 
 
 def test_terraform_knob_reaches_app_container_env() -> None:
