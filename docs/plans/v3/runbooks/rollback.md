@@ -51,10 +51,10 @@ curl -fsS "https://budget-planner-prod/.well-known/bp-deploy-status.json" | jq .
 # Expect: state "ok", running_ref ".../budget-planner:<target tag>@sha256:..."
 
 # Older image tolerated the newer schema (expected after a migrating release).
-ssh app@budget-planner-prod "docker logs budget-planner-app 2>&1 | grep -E 'schema_ahead_of_image|startup_migrations' | tail -2"
+ssh operator@budget-planner-prod "docker logs budget-planner-app 2>&1 | grep -E 'schema_ahead_of_image|startup_migrations' | tail -2"
 
 # Audit log is intact — rollback does not touch the DB.
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT count(*), max(id) FROM audit_log;'"
 ```
 
@@ -66,7 +66,7 @@ Spot-check the user-facing symptom that triggered the rollback. If it still repr
 - **"rollback: host already runs …"**: the target equals the current ref; nothing to do, or you meant another target.
 - **Status reports `state: failed`, `error: cosign_verify`**: the target image's signature does not match the `build.yml` identity. Do not bypass; pick another target and treat it as a supply-chain red flag.
 - **Status reports `error: ready_timeout`**: the target image also fails `/ready`. This is a data-shaped incident, not a code regression. Stop. Switch to [`restore.md`](restore.md).
-- **Status never reaches the new generation**: check the agent on the host: `ssh app@budget-planner-prod 'sudo journalctl -u bp-converge.service -n 50 --no-pager'`.
+- **Status never reaches the new generation**: check the agent on the host: `ssh operator@budget-planner-prod 'sudo journalctl -u bp-converge.service -n 50 --no-pager'`.
 
 ## Rollback (of this rollback)
 

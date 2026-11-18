@@ -7,7 +7,7 @@
 # files). Idempotent. Logged break-glass host change: explicit user go, entry in
 # docs/CHANGELOG.md. Run from a checkout of the merged commit:
 #
-#   ssh app@budget-planner-prod 'sudo bash -s' < terraform/host/migrate/adr-0111-install-agent.sh
+#   ssh operator@budget-planner-prod 'sudo bash -s' < terraform/host/migrate/adr-0111-install-agent.sh
 #
 # The file bodies below must equal terraform/cloud-init/bootstrap.yaml.tpl
 # (tests/unit/deploy/test_host_migration.py checks this).

@@ -67,14 +67,14 @@ Every admin `POST` under `/settings/users` (add, edit, reset password, remove) n
 
 ```sh
 # Row exists, live, and has the expected is_admin flag.
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT id, email, is_admin, must_change_password, deleted_at FROM users WHERE lower(email) = lower('<new-email>');\""
 
 # Audit entry present.
 curl -fsS -b <admin-session-cookie-jar> "https://budget-planner-prod/debug/audit-tail?entity_type=users&limit=5" | jq .
 
 # System categories were seeded for the new user (ADR-0061 §6).
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT count(*) FROM categories WHERE user_id = <new-user-id> AND is_system = 1;\""
 # Expect: 2 (Transit + Reconciliation).
 ```
@@ -91,7 +91,7 @@ ssh app@budget-planner-prod \
 
 - User's existing sessions are revoked:
   ```sh
-  ssh app@budget-planner-prod \
+  ssh operator@budget-planner-prod \
     "sqlite3 /data/budget.db \"SELECT count(*) FROM sessions WHERE user_id = <target-id> AND revoked_at IS NULL;\""
   # Expect: 0 immediately after reset. (The user's next login creates a fresh session.)
   ```
@@ -99,7 +99,7 @@ ssh app@budget-planner-prod \
   ```sh
   curl -fsS -b <admin-cookie-jar> "https://budget-planner-prod/debug/audit-tail?entity_type=users&operation=update&limit=5"
   # Reset rows are `operation = 'update'` with `new_json.action = "reset_password"` (ADR-0073 §6):
-  ssh app@budget-planner-prod \
+  ssh operator@budget-planner-prod \
     "sqlite3 /data/budget.db \"SELECT id, entity_id, actor_user_id, changed_at FROM audit_log WHERE entity_type = 'users' AND json_extract(new_json, '$.action') = 'reset_password' ORDER BY id DESC LIMIT 5;\""
   ```
 
@@ -115,9 +115,9 @@ ssh app@budget-planner-prod \
 
 ```sh
 # User is soft-deleted and sessions are gone.
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT id, email, deleted_at FROM users WHERE id = <target-id>;\""
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT count(*) FROM sessions WHERE user_id = <target-id> AND revoked_at IS NULL;\""
 # Expect: deleted_at IS NOT NULL, sessions count = 0.
 
@@ -143,7 +143,7 @@ Document the removal in the operator's own notes if a hard-delete request is ant
 ### Verification (promote)
 
 ```sh
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT id, email, is_admin FROM users WHERE id = <target-id>;\""
 # Expect: is_admin = 1.
 ```
@@ -160,7 +160,7 @@ The invariant lives in `services/users.py` (per ADR-0061 §1) and is enforced se
 
 ```sh
 # How many live admins currently exist?
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT count(*) FROM users WHERE is_admin = 1 AND deleted_at IS NULL;\""
 # If this returns 1, do NOT demote or delete that user. Promote a second admin first.
 ```

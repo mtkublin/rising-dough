@@ -66,10 +66,10 @@ curl -fsSI "https://budget-planner-prod/" | grep -i strict-transport-security
 Then record the deploy in the GitHub `prod` environment history (automatic — nothing to do). If this deploy ships a schema migration, confirm it was applied and backed up:
 
 ```sh
-ssh app@budget-planner-prod \
+ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db 'SELECT version, filename, applied_at FROM schema_migrations ORDER BY version DESC LIMIT 3;'"
-ssh app@budget-planner-prod "ls -l /data/backups/"
-ssh app@budget-planner-prod "docker logs budget-planner-app 2>&1 | grep startup_migrations | tail -1"
+ssh operator@budget-planner-prod "ls -l /data/backups/"
+ssh operator@budget-planner-prod "docker logs budget-planner-app 2>&1 | grep startup_migrations | tail -1"
 # Expect: applied=[...new files...] and backup=/data/backups/budget.db.pre-migrate-...
 ```
 
@@ -106,8 +106,8 @@ Resize to a larger type only if steady state exceeds about 700 MB or swap is use
 ## Troubleshooting
 
 - **Status `error: cosign_verify`**: the image was built outside the expected GitHub OIDC identity (`build.yml` on this repo) or the signature is missing. Do **not** bypass. Dispatch `build.yml` from `main` or the `v*` tag (dispatch is main-or-tag-on-main only); if the signature still fails, treat it as a supply-chain red flag and rotate `GHCR_PULL_PAT` before trying again.
-- **Status `error: ready_timeout`**: the new image never answered `/ready`; the job rolled back automatically. Read the app log (`ssh app@budget-planner-prod 'docker logs budget-planner-app --tail 100'`). Usually a migration failure or Litestream not yet healthy.
-- **Status never reaches the new generation**: the agent did not run or cannot read metadata. `ssh app@budget-planner-prod 'systemctl status bp-converge.timer; sudo journalctl -u bp-converge.service -n 50 --no-pager'`. A `config_fetch` error means the metadata API answered non-200. After repeated failures the agent backs off (30 s doubling, max 15 min) per generation; a new apply resets it.
+- **Status `error: ready_timeout`**: the new image never answered `/ready`; the job rolled back automatically. Read the app log (`ssh operator@budget-planner-prod 'docker logs budget-planner-app --tail 100'`). Usually a migration failure or Litestream not yet healthy.
+- **Status never reaches the new generation**: the agent did not run or cannot read metadata. `ssh operator@budget-planner-prod 'systemctl status bp-converge.timer; sudo journalctl -u bp-converge.service -n 50 --no-pager'`. A `config_fetch` error means the metadata API answered non-200. After repeated failures the agent backs off (30 s doubling, max 15 min) per generation; a new apply resets it.
 - **`startup_migrations_failed` in the app log**: the entrypoint exited 1 and uvicorn never started. The failing migration was rolled back in its own transaction, but earlier migrations in the same batch stay applied. Each one is N-1 compatible, so the auto-reverted previous image still runs. Fix the migration in a new release. Never edit an applied migration file, because the checksum guard rejects it.
 - **`error: compose` with a 403 from GHCR**: `GHCR_PULL_PAT` expired. Rotate it per `disaster-recovery.md` §Secrets, update the secret in the `prod` environment, and release again: the apply writes new registry auth through the agent (no VM replacement).
 - **Deploy succeeded but DNS still points elsewhere**: `terraform output prod_host_ipv4` vs `dig +short budget-planner-prod`. If they diverge, DNS was manually edited; reconcile via Terraform.
