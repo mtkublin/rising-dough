@@ -69,6 +69,8 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      # T-D137: public CI key (drill environment variable) so the CI deploy key can SSH as operator.
+      TF_VAR_ci_ssh_pubkey: ${{ vars.CI_SSH_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
       TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}

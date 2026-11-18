@@ -35,6 +35,12 @@ variable "console_password_hash" {
   default     = ""
 }
 
+variable "ci_ssh_pub" {
+  description = "CI SSH public key rendered for the operator (T-D137)."
+  type        = string
+  default     = ""
+}
+
 variable "boot_log_upload" {
   description = "Render the drill-only boot log uploader (T-D86)."
   type        = bool
@@ -70,6 +76,7 @@ module "compute" {
   scw_access_key    = "SCWDUMMYACCESSKEY0000"
   scw_secret_key    = "00000000-dummy-0000-0000-000000000000" # pragma: allowlist secret
   operator_ssh_pub  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAADUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMM operator-dummy"
+  ci_ssh_pub        = var.ci_ssh_pub
   ghcr_pull_pat     = "ghp_DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   github_owner      = "render-check-owner"
   github_repo       = "render-check-repo"

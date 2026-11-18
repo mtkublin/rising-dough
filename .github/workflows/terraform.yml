@@ -168,6 +168,9 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      # T-D137: public CI key, drill only. The && guard keeps the variable out of the prod
+      # leg, and main.tf drops it on any env but drill.
+      TF_VAR_ci_ssh_pubkey: ${{ matrix.env == 'drill' && vars.CI_SSH_PUBKEY || '' }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
@@ -330,6 +333,9 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      # T-D137: public CI key, drill only. The && guard keeps the variable out of the prod
+      # leg, and main.tf drops it on any env but drill.
+      TF_VAR_ci_ssh_pubkey: ${{ inputs.env == 'drill' && vars.CI_SSH_PUBKEY || '' }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
       TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}

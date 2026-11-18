@@ -65,3 +65,8 @@ output "host_image_ref" {
   description = "Full image ref (repo:tag@digest) the host agent reports as running once converged (ADR-0111)."
   value       = module.compute.app_image_ref
 }
+
+output "ci_ssh_authorized" {
+  description = "True when the CI SSH key is authorised on the host (drill only, T-D137). Boolean, not a secret; test hook."
+  value       = local.ci_ssh_pubkey_effective != ""
+}

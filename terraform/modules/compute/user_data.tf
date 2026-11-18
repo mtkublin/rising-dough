@@ -122,6 +122,7 @@ locals {
   cloud_init_rendered = templatefile("${path.module}/../../cloud-init/bootstrap.yaml.tpl", {
     hostname              = var.hostname
     operator_ssh_pubkey   = var.operator_ssh_pub
+    ci_ssh_pubkey         = var.ci_ssh_pub
     scw_access_key        = var.scw_access_key
     scw_secret_key        = var.scw_secret_key
     tailscale_authkey     = var.tailscale_authkey
