@@ -33,11 +33,11 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.db.migrate import apply_migrations
 from budget_planner.services import _passwords
 from budget_planner.web.app import create_app
 from budget_planner.web.middleware.csrf import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 from tests.auth_support import FAST_ROUNDS, login_cookie
+from tests.db_template import copy_template, db_path_of
 
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -77,13 +77,10 @@ def settings(tmp_path: Path) -> Settings:
 
 
 @pytest.fixture
-def _migrated(settings: Settings) -> Iterator[Settings]:
-    conn = get_connection(settings)
-    try:
-        apply_migrations(conn)
-    finally:
-        conn.close()
-    yield settings
+def _migrated(settings: Settings, migrated_template: Path) -> Settings:
+    """``settings``' DB file, filled with the migrated template (T-CS02)."""
+    copy_template(migrated_template, db_path_of(settings))
+    return settings
 
 
 @pytest.fixture(autouse=True)

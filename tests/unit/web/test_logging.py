@@ -21,6 +21,11 @@ from budget_planner.logging import bind_request_id, clear_request_id, get_logger
 @pytest.fixture
 def log_output() -> Iterator[LogCapture]:
     cap = LogCapture()
+    # Restore the app's configuration afterwards rather than structlog's
+    # defaults: ``budget_planner.logging.configure`` is idempotent and will
+    # not run again, so a reset would leave later tests printing to stdout
+    # instead of the stdlib root logger (T-CS03 order dependence).
+    previous = structlog.get_config()
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -38,7 +43,7 @@ def log_output() -> Iterator[LogCapture]:
     finally:
         # Make sure nothing leaks across tests.
         clear_request_id()
-        structlog.reset_defaults()
+        structlog.configure(**previous)
 
 
 def test_event_has_iso_timestamp_and_level(log_output: LogCapture) -> None:
