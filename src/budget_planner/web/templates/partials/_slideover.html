@@ -14,7 +14,7 @@
      aria-modal="true"
      aria-labelledby="slide-over-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over" tabindex="-1">
     {{ slide_over_header(title=slide_over_title) }}
     <div class="slide-over__body">{% include form_include %}</div>

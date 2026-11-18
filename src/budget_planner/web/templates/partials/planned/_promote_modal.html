@@ -1,35 +1,55 @@
-<div role="dialog"
+{# Promote a planned item (T-D151): slide-over shell like the recurring promote
+   modal. The form targets its own slide-over root, so a 422 re-renders the modal
+   in place; success skips the swap and closes it. #}
+<div class="slide-over-root"
+     role="dialog"
      aria-modal="true"
      aria-labelledby="promote-title"
-     class="fixed inset-0 bg-black/20 flex items-center justify-center">
-  <form hx-post="/planned/{{ planned.id if planned else 0 }}/promote"
-        hx-target="#planned-p-{{ planned.id if planned else 0 }}"
-        hx-swap="outerHTML"
-        class="bg-white border border-[color:var(--rule)] p-6 rounded w-96">
-    <h2 id="promote-title" class="font-serif text-2xl mb-3">Promote to actual</h2>
-    {% if planned %}
-      <label class="block">
-        Date
-        <input type="date"
-               name="operation_date"
-               value="{{ planned.operation_date|date_fmt }}"
-               required>
-      </label>
-      <label class="block">
-        Amount
-        <input type="text"
-               name="amount"
-               value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
-               required>
-      </label>
-      <label class="block">
-        Description
-        <input type="text" name="description" value="{{ planned.description }}">
-      </label>
-    {% endif %}
-    {% include "partials/_form_errors.html" %}
-    <div class="mt-4 flex justify-end">
-      <button type="submit" class="btn-accent">Promote</button>
+     data-slideover
+     data-close-on-backdrop>
+  <aside class="slide-over" tabindex="-1">
+    <header class="slide-over__header">
+      <h2 id="promote-title" class="slide-over__title">Promote to actual</h2>
+      <button type="button"
+              class="slide-over__close"
+              aria-label="Close"
+              data-action="close-overlay">×</button>
+    </header>
+    <div class="slide-over__body">
+      {% if planned %}
+        <form hx-post="/planned/{{ planned.id }}/promote"
+              hx-target="closest .slide-over-root"
+              hx-swap="outerHTML"
+              class="form-stack"
+              data-close-overlay-on-success>
+          <label>
+            Date
+            <input type="date"
+                   name="operation_date"
+                   value="{{ planned.operation_date|date_fmt }}"
+                   required>
+          </label>
+          <label>
+            Amount
+            <input type="text"
+                   name="amount"
+                   value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
+                   inputmode="decimal"
+                   data-numeric
+                   required>
+          </label>
+          <label>
+            Description
+            <input type="text" name="description" value="{{ planned.description }}">
+          </label>
+          {% include "partials/_form_errors.html" %}
+          <div class="form-stack__actions">
+            <button type="submit" class="btn-accent">Promote</button>
+          </div>
+        </form>
+      {% else %}
+        {% include "partials/_form_errors.html" %}
+      {% endif %}
     </div>
-  </form>
+  </aside>
 </div>

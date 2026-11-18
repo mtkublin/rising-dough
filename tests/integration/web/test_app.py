@@ -33,7 +33,9 @@ def test_today_renders_shell(client: TestClient) -> None:
     assert r.status_code == 200
     body = r.text
     assert '<html lang="en"' in body
-    assert "htmx.org" in body
+    # ADR-0113 — htmx is vendored (CSP-compatible), never loaded from a CDN.
+    assert "/static/vendor/htmx-" in body
+    assert "unpkg.com" not in body
     # T-R50 — Plotly removed per ADR-0054; SVG charts are server-rendered now.
     assert "tailwind" in body
     soup = BeautifulSoup(body, "html.parser")

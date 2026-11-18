@@ -31,8 +31,9 @@ from budget_planner.services import (
     balance as balance_service,
     export as export_service,
 )
+from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
 
@@ -234,7 +235,7 @@ def _validate_amount(amount: str, currency: str) -> tuple[int | None, str | None
 
 
 @router.post("")
-def create_txn(  # noqa: PLR0917
+def create_txn(  # noqa: PLR0912, PLR0917
     request: Request,
     operation_date: str = Form(...),
     category_id: int = Form(...),
@@ -272,6 +273,8 @@ def create_txn(  # noqa: PLR0917
                 errors["dest_account_id"] = "unknown destination"
             elif acc is not None and dest.currency != acc.currency:
                 errors["dest_account_id"] = "cross-currency transit not supported"
+            elif (same := validate_distinct_accounts(account_id, parsed)) is not None:
+                errors["dest_account_id"] = same
             else:
                 dest_id = parsed
 
@@ -308,6 +311,9 @@ def create_txn(  # noqa: PLR0917
         txn=row,
     )
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    # The form is hosted by every page's Add overlay, not just the ledger: no
+    # row insert; the ledger refetches on `ledger-stale`, other pages reload.
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
@@ -381,6 +387,13 @@ def update_txn(  # noqa: PLR0917
         errors["operation_date"] = "invalid date"
     if acc is None:
         errors["account_id"] = "unknown account"
+    # Submitted destination wins; else the stored one still applies.
+    submitted_dest = _parse_int(dest_account_id) if dest_account_id else None
+    same = validate_distinct_accounts(
+        account_id, submitted_dest if submitted_dest is not None else existing.dest_account_id
+    )
+    if same is not None:
+        errors["dest_account_id"] = same
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)
@@ -413,11 +426,11 @@ def update_txn(  # noqa: PLR0917
             dest_account_id=dest_id_val,
         ),
     )
-    updated = transactions_repo.find_by_id(conn, user_id, txn_id)
-    assert updated is not None
-    row = _hydrate_rows(conn, user_id, [updated])[0]
-    html = render(request, "partials/transactions/_row.html", txn=row)
+    # The edit form is hosted by every page (T-D151): no row swap; the ledger
+    # refetches on `ledger-stale`, other pages reload.
+    html = Response()
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

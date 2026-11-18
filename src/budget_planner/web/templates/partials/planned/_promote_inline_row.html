@@ -9,7 +9,7 @@
   <form class="rd-promote-inline__form"
         hx-post="/planned/{{ planned.id }}/promote"
         hx-swap="none"
-        hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/today/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}">
+        data-refresh-upcoming>
     <div class="rd-promote-inline__grid">
       <span class="num mut rd-promote-inline__date">{{ planned.operation_date.strftime("%b %d") }}</span>
       <div class="rd-promote-inline__desc">
