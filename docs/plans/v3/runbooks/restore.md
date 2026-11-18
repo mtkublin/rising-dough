@@ -170,6 +170,8 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 
 The external monitor on `https://budget.rising-dough.eu/health/replication` (UptimeRobot, 5 min) goes red when the newest object in the prod replica is older than 26 h, or the probe stopped reporting. `/health` and `/ready` do not notice a stall. All commands below are single lines from the operator laptop.
 
+**Monitor setup (2026-11-18, v3.0.3).** The second UptimeRobot monitor is a **Keyword** monitor, not a plain status-code monitor: type Keyword, URL above, keyword `"status":"ok"`, alert when the keyword does not exist, 5 min. Why: the free UptimeRobot plan probes with HEAD and cannot change the method. Until T-D146 (v3.0.4) the route returned 405 on HEAD, so a plain HTTP(S) monitor would report the host down while it is healthy. The Keyword check uses GET and reads the body. A stale replica returns 503 and the keyword is missing, so the monitor still goes red. After v3.0.4 the plain HTTP(S) check also works (optional switch).
+
 **1. Detect and confirm**
 
 ```sh
