@@ -72,6 +72,10 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
      restore -config /etc/litestream.yml -o /data/budget.db /data/budget.db
    ```
    Point-in-time: add `-timestamp 2026-11-15T08:00:00Z` before the final path argument. To prove the encryption, the same command with `LITESTREAM_AGE_IDENTITY` unset must fail.
+   `litestream restore` leaves `/data/budget.db.tmp-wal` (empty) and `/data/budget.db.tmp-shm` behind. Remove them, but only if the WAL is empty; a non-empty tmp-wal means the restore is incomplete, so stop and investigate:
+   ```sh
+   sudo test ! -s /data/budget.db.tmp-wal && sudo rm -f /data/budget.db.tmp-wal /data/budget.db.tmp-shm
+   ```
 7. Fix ownership and permissions back to the `app` uid:
    ```sh
    sudo chown "$(id -u app):$(id -g app)" /data/budget.db

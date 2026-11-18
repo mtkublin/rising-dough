@@ -2,6 +2,9 @@
 
 ## 2026-11-18 (T-D144 replication stall alert)
 - **Feat(T-D144): `GET /health/replication` + a second UptimeRobot monitor (ADR-0119).** A `litestream-probe` compose service lists the replica every 5 min and writes a status file; the app answers 200 when the newest replica object is younger than 26 h, 503 otherwise (public, no secrets). Reaches prod with v3.0.3 through `bp-config`, no VM replace. Runbook `restore.md` has a new section "Replication stall: detect and recover". ADR-0112 note: no read-only key for the cleanup dry run; T-D56 closes without a delete run (0 plaintext objects, dry run 44328479375).
+## 2026-11-18 (T-D40 restore drill tmp sidecar fix)
+- **Fix(T-D40): `restore-from-prod` removes litestream restore tmp sidecars.** Run 44346338885 restored and passed ready and integrity, then the T-D57 check found `/data/budget.db.tmp-wal` and `.tmp-shm`: `litestream restore` (0.3.14) builds the DB in `budget.db.tmp`, checkpoints the WAL into it, renames it and leaves the sidecars. The script now removes them before the integrity check, and fails loudly (keeping the files) if the tmp-wal is non-empty. Docker repro on 0.3.14: tmp-wal is 0 bytes. Runbook `restore.md` has the same cleanup step. The workflow check is unchanged.
+
 ## 2026-11-18 (T-D40 restore drill RETURN-trap fix)
 - **Fix(T-D40): `restore-from-prod` RETURN-trap bug.** Run 44340976282 restored, passed integrity and `/ready`, then exited 1 with `cfg: unbound variable`: a `trap ... RETURN` set in `restore_from_prod` persisted and fired when `main` returned. The temp config is now a global removed by the `cleanup_copies` EXIT trap; no RETURN traps remain. Unit tests reproduce the old failure and prove the fix under bash 5.2 (Docker, skipped cleanly without it).
 
