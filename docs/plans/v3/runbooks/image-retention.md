@@ -17,6 +17,12 @@ Assumption: prod's current and previous images are within the newest 20 `sha-*` 
 3. One manual real run: dispatch with `dry_run=false`; confirm prod still pulls (`deploy.md` smoke) and `cosign verify` of the kept `main` image still works.
 4. Enable the schedule: repo Settings > Secrets and variables > Actions > Variables: `IMAGE_RETENTION_ENABLED=true`. Remove it (or set anything else) to return to dry-run.
 
+## Dry-run log
+- 2026-11-18, run 44297239247 (`main`, `dry_run=true`): failed before printing a plan. `ghcr_retention.py` `main` -> `fetch_children` got `HTTP Error 404` from `https://ghcr.io/v2/<owner>/budget-planner/manifests/<digest>` for one of the kept versions (the token request itself succeeded). Likely a kept version whose digest is not served as a manifest with the requested `Accept` types, or a digest that was deleted but still listed. Fix: treat 404 as no children (or log the digest), then re-run the dry run. `IMAGE_RETENTION_ENABLED` stays unset.
+  - Root cause: the failing digest was a cosign signature artifact (e.g. `sha256:11bb577c02f9…`, tag `sha256-2246e6f5….sig`), a plain OCI image manifest. The `Accept` header listed only index types, and GHCR returns `404 MANIFEST_UNKNOWN` ("Accept header does not support OCI manifests") in that case.
+  - Fix: `Accept` now covers OCI index, OCI manifest, Docker manifest list and Docker manifest v2. If a kept digest still returns 404, its children are undetermined; the script prints a warning and deletes no untagged version in that run (tagged versions are classified by tag, so they stay safe). Any other HTTP error aborts before anything is deleted.
+- 2026-11-18, run 44299557709 (branch `wi/docs/v3-remaining/RET`, `dry_run=true`): green. 59 versions kept, 0 to delete (all versions are younger than 7 days or protected; the oldest, `sha-075f986` and its signature and children, are kept as newest-20/children). Protected images confirmed kept: `v3.0.1`/`sha-4532791`/`latest` (`sha256:2246e6f5…`), `v3.0.0`/`sha-f41c6a2`, `main`/`sha-89ac3c2` (`sha256:85cb5808…`, prod rollback target), plus their signatures and untagged children. No warnings about undetermined children. Retention is still not enabled.
+
 ## Verification
 Step summary shows `mode: APPLY` and `deleted <id>` lines; the package version count drops; a new release still builds and deploys.
 

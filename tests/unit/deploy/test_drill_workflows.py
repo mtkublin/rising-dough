@@ -129,7 +129,7 @@ def test_gate_result_reflects_apply_and_smoke_only() -> None:
 def test_gate_start_has_no_dependencies_and_explore_posts_nothing() -> None:
     jobs = _load("drill.yml")["jobs"]
 
-    assert "needs" not in jobs["gate-start"]
+    assert jobs["gate-start"]["needs"] == "drill-lock"
     assert str(jobs["gate-start"]["if"]) == "${{ inputs.mode == 'gate' }}"
     assert "inputs.mode == 'gate'" in str(jobs["gate-result"]["if"])
 

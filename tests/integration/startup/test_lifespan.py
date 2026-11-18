@@ -46,6 +46,8 @@ def _settings(url: str, env: str, **kwargs: Any) -> Settings:
         env=env,  # type: ignore[arg-type]
         database_url=url,
         cookie_secret=COOKIE_SECRET,
+        webauthn_rp_id="budget.example.test",
+        webauthn_origin="https://budget.example.test",
         **kwargs,
     )
 
@@ -154,6 +156,8 @@ def test_uvicorn_process_exits_non_zero_without_admin_env(tmp_path: Path) -> Non
             "BUDGET_ENV": "production",
             "BUDGET_DATABASE_URL": url,
             "BUDGET_COOKIE_SECRET": COOKIE_SECRET,
+            "BUDGET_WEBAUTHN_RP_ID": "budget.example.test",
+            "BUDGET_WEBAUTHN_ORIGIN": "https://budget.example.test",
             "PYTHONUNBUFFERED": "1",
         }
     )

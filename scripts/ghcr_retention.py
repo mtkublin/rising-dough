@@ -16,12 +16,14 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.request
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+HTTP_NOT_FOUND = 404
 KEEP_SHA = 20
 MIN_AGE_DAYS = 7
 PACKAGE = "budget-planner"
@@ -31,6 +33,14 @@ RELEASE_TAG = re.compile(r"^(main|v\d.*)$")
 INDEX_TYPES = (
     "application/vnd.oci.image.index.v1+json",
     "application/vnd.docker.distribution.manifest.list.v2+json",
+)
+# GHCR answers 404 MANIFEST_UNKNOWN ("Accept header does not support OCI manifests")
+# when the Accept header omits the media type of the manifest. That is what happened
+# for cosign signature artifacts (plain OCI image manifests). Accept every type.
+MANIFEST_TYPES = (
+    *INDEX_TYPES,
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
 )
 
 
@@ -78,10 +88,18 @@ def select(
     versions: Sequence[Version],
     children: Mapping[str, Sequence[str]],
     now: datetime,
+    *,
     keep_sha: int = KEEP_SHA,
     min_age_days: int = MIN_AGE_DAYS,
+    unknown_children: Collection[str] = (),
 ) -> Plan:
-    """Pure selection. `children` maps an index digest to its child manifest digests."""
+    """Pure selection. `children` maps an index digest to its child manifest digests.
+
+    `unknown_children` lists kept digests whose manifest lookup returned 404, so their
+    children are undetermined. Only untagged versions can be hidden children (tagged
+    ones are classified by tag), so while any digest is unknown no untagged version is
+    deleted. Fail safe: keep rather than risk deleting a platform manifest of a kept image.
+    """
     cutoff = now - timedelta(days=min_age_days)
     sha_newest = sorted(
         (v for v in versions if any(SHA_TAG.match(t) for t in v.tags)),
@@ -111,6 +129,9 @@ def select(
         elif v.digest in protected:
             keep.append((v, "child manifest of a kept image"))
         else:
+            if unknown_children and not v.tags:
+                keep.append((v, "untagged, but a kept image's children are undetermined"))
+                continue
             is_delete, why = _classify_rest(v, protected, keep_sha)
             (delete if is_delete else keep).append((v, why))
     return Plan(keep=tuple(keep), delete=tuple(delete))
@@ -124,15 +145,26 @@ def _registry_token(owner: str, gh_token: str) -> str:
         return str(json.load(resp)["token"])
 
 
-def fetch_children(owner: str, gh_token: str, digest: str, token: str | None = None) -> list[str]:
-    """Child manifest digests of an image index (empty for a plain manifest)."""
+def fetch_children(
+    owner: str, gh_token: str, digest: str, token: str | None = None
+) -> list[str] | None:
+    """Child manifest digests of an image index (empty for a plain manifest).
+
+    Returns None when the registry answers 404 (children undetermined). Any other
+    error propagates and aborts the run before anything is deleted.
+    """
     token = token or _registry_token(owner, gh_token)
     req = urllib.request.Request(
         f"https://ghcr.io/v2/{owner}/{PACKAGE}/manifests/{digest}",
-        headers={"Authorization": f"Bearer {token}", "Accept": ", ".join(INDEX_TYPES)},
+        headers={"Authorization": f"Bearer {token}", "Accept": ", ".join(MANIFEST_TYPES)},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310  # nosec B310
-        doc = json.load(resp)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310  # nosec B310
+            doc = json.load(resp)
+    except urllib.error.HTTPError as exc:
+        if exc.code == HTTP_NOT_FOUND:
+            return None
+        raise
     return [str(m["digest"]) for m in doc.get("manifests", [])]
 
 
@@ -185,10 +217,16 @@ def main(argv: Sequence[str], clock: Callable[[], datetime] = lambda: datetime.n
         return 1
     pre = select(versions, {}, clock())
     token = _registry_token(args.owner, gh_token)
-    children = {
-        v.digest: fetch_children(args.owner, gh_token, v.digest, token) for v, _ in pre.keep
-    }
-    plan = select(versions, children, clock())
+    children: dict[str, list[str]] = {}
+    unknown: set[str] = set()
+    for v, _ in pre.keep:
+        found = fetch_children(args.owner, gh_token, v.digest, token)
+        if found is None:
+            unknown.add(v.digest)
+            print(f"warning: manifest {v.digest[:19]} not found; its children are undetermined")
+        else:
+            children[v.digest] = found
+    plan = select(versions, children, clock(), unknown_children=unknown)
     print(format_plan(plan, args.apply))
     if not plan.keep:
         print("selection kept nothing; refusing to delete", file=sys.stderr)

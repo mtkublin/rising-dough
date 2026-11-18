@@ -20,6 +20,7 @@ locals {
     app_image              = "${local.image_repo}:${var.app_image_ref}"
     cookie_secret          = var.cookie_secret
     trusted_hosts          = var.trusted_hosts_csv
+    hostname               = var.hostname
     admin_email            = var.admin_email
     admin_initial_password = var.admin_password
     backup_max_age_days    = var.backup_max_age_days
@@ -72,7 +73,9 @@ locals {
       { path = "${local.compose_dir}/litestream.yml", mode = "0644", content = local.litestream_rendered, restart = ["litestream"] },
       # T-D56 / ADR-0078 §3: restore-only config + age identity (ADR-0069 secret-file pattern).
       { path = "${local.compose_dir}/litestream-restore.yml", mode = "0644", content = local.litestream_restore_rendered, restart = [] },
-      { path = "${local.compose_dir}/litestream-age.key", mode = "0600", content = "${trimspace(var.litestream_age_identity)}\n", restart = [] },
+      { path = "${local.compose_dir}/litestream-age.key", mode = "0600", content = "${trimspace(var.litestream_age_identity)}\n", restart = ["litestream"] },
+      # T-D136 / ADR-0114: replicate entrypoint (identity export, one-time new generation).
+      { path = "${local.compose_dir}/litestream-entrypoint.sh", mode = "0755", content = file("${path.module}/../../cloud-init/compose/litestream-entrypoint.sh"), restart = ["litestream"] },
       { path = "${local.compose_dir}/litestream.env", mode = "0600", content = "SCW_ACCESS_KEY=${var.scw_access_key}\nSCW_SECRET_KEY=${var.scw_secret_key}\n", restart = ["litestream"] },
       # Operator `sudo docker compose pull` uses root's registry auth.
       { path = "/root/.docker/config.json", mode = "0600", content = "${local.docker_config_json}\n", restart = [] },
@@ -119,6 +122,7 @@ locals {
   cloud_init_rendered = templatefile("${path.module}/../../cloud-init/bootstrap.yaml.tpl", {
     hostname              = var.hostname
     operator_ssh_pubkey   = var.operator_ssh_pub
+    ci_ssh_pubkey         = var.ci_ssh_pub
     scw_access_key        = var.scw_access_key
     scw_secret_key        = var.scw_secret_key
     tailscale_authkey     = var.tailscale_authkey

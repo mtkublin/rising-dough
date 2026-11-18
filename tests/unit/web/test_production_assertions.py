@@ -25,6 +25,8 @@ def _settings(tmp_path: Path, *, env: Literal["dev", "test", "production"]) -> S
         env=env,
         database_url=f"sqlite:///{db_path.as_posix()}",
         cookie_secret="unit-test-secret",  # pragma: allowlist secret  # noqa: S106
+        webauthn_rp_id="budget.example.test",
+        webauthn_origin="https://budget.example.test",
     )
 
 

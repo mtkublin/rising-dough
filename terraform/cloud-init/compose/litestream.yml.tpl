@@ -16,9 +16,13 @@ dbs:
         snapshot-interval: 24h
         sync-interval: 10s
         # T-D56 / ADR-0078 §3: client-side age encryption (Litestream 0.3.x only).
-        # Public recipient only; the identity lives in
-        # /etc/budget-planner/litestream-age.key and is used by restores
-        # (litestream-restore.yml). Lost identity = unrecoverable replica.
+        # The identity lives in /etc/budget-planner/litestream-age.key. T-D136 /
+        # ADR-0114: replicate needs it too, because on every start Litestream
+        # decrypts the last WAL segment to find its position. The entrypoint
+        # (litestream-entrypoint.sh) exports it as $LITESTREAM_AGE_IDENTITY.
+        # Lost identity = unrecoverable replica.
         age:
           recipients:
             - ${age_recipient}
+          identities:
+            - $${LITESTREAM_AGE_IDENTITY}

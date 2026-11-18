@@ -14,6 +14,9 @@
 
 name: rollback
 
+# T-D138: the env is visible in the run title so the drill lock can tell drill from prod.
+run-name: rollback (${{ inputs.env }})
+
 on:
   workflow_dispatch:
     inputs:

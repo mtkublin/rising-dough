@@ -83,3 +83,69 @@ Tool: trivy 0.69.3. Image scanned: `ghcr.io/mtkublin/budget-planner:sha-89ac3c2`
 
 - Every requested tool ran; nikto ended early (F2). The Docker daemon had to be started locally first. An earlier testssl start while Docker was down failed immediately; the recorded run is the complete one.
 - Observatory results reflect the site at 2026-11-16 20:30 UTC.
+
+## 2026-11-18
+
+Target: `budget.rising-dough.eu` (151.115.78.144). Deployed image: `ghcr.io/mtkublin/budget-planner:v3.0.1` (Debian 13.7 base), live since the 2026-11-18 release (run 44294472551; CSP from T-D132 is now sent). All scans read-only, one normal pass each, from the operator laptop. Raw output kept in scratch only.
+
+### Results vs targets
+
+| Tool | Target | Result | Status |
+|------|--------|--------|--------|
+| Mozilla HTTP Observatory (API v2, algorithm v6) | >= A+ | **A+, score 130**, 12/12 tests passed (was B/75) | PASS |
+| testssl.sh 3.2 | grade A | **A+** (score 96; protocol 100, key exchange 100, cipher 90); no vulnerabilities | PASS |
+| trivy image, CI policy (`HIGH,CRITICAL --ignore-unfixed`) | no HIGH/CRITICAL | **0 findings** (OS and Python) | PASS |
+| trivy image, full (no `--ignore-unfixed`) | record only | 107 HIGH, 0 CRITICAL; 27 distinct CVEs in 24 Debian packages; none has a fixed version (same as 2026-11-16) | Recorded |
+| nikto 2.5.0 | no significant findings | **Ran to its 45 min time limit, not to the end of the checks**; 4 informational items, no vulnerability; 216 connection errors (see F2) | Partial |
+
+### 1. Mozilla HTTP Observatory
+
+Command: `curl -X POST "https://observatory-api.mdn.mozilla.net/api/v2/scan?host=budget.rising-dough.eu"` (scan at 2026-11-18 11:42 UTC).
+
+- Grade **A+**, score 130, 12 of 12 tests passed, 0 failed.
+- The only failure on 2026-11-16 (`content-security-policy`) is gone. `GET /auth/login` now returns `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-...'; style-src 'self' 'nonce-...'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'` (per-request nonce, no `unsafe-inline`).
+
+### 2. testssl.sh
+
+Image: `drwetter/testssl.sh:3.2` (amd64 emulation on arm64).
+Command: `docker run --rm -e MAX_SOCKET_FAIL=200 -e MAX_OSSL_FAIL=200 -e MAX_HEADER_FAIL=200 -v <scratch>:/out drwetter/testssl.sh:3.2 --quiet --color 0 --severity LOW --jsonfile-pretty /out/testssl3.json budget.rising-dough.eu`
+
+- Overall grade **A+** (final score 96), same as 2026-11-16.
+- TLS 1.2 and 1.3 only, AEAD + forward secrecy ciphers, curves prime256v1 and X25519; ECDSA P-256 certificate from Let's Encrypt (YE2), valid 2026-11-07 to 2027-02-05 (79 days left); HSTS 365 days, includeSubDomains, preload.
+- Heartbleed, CCS, Ticketbleed, ROBOT, CRIME, POODLE, SWEET32, FREAK, DROWN, LOGJAM, BEAST, LUCKY13, Winshock: all not vulnerable.
+- Informational, no grade impact: OCSP stapling not offered (Let's Encrypt ended OCSP); **DNS CAA RR not offered** (F4, fix pending release).
+- Operational note: the first two attempts aborted with "Connection refused / repeated TCP connect problems" (MAX_SOCKET_FAIL 2). Attempt 1 ran concurrently with nikto; attempt 2 ran right after nikto finished. The host (or Caddy) drops connections from the scanning IP after heavy probing. The third run (above, nothing else running, raised failure limits) completed.
+
+### 3. nikto
+
+Image: `ghcr.io/sullo/nikto@sha256:0bb37022ebfadc38d6a9a2755c03bfd1f9e079e01e8946fe548153d9ba0c2012` (Nikto 2.5.0). The error limit lives in `nikto.conf` (`FAILURES=20`); a copy with `FAILURES=500` was mounted read-only.
+Command: `docker run --rm -v <scratch>/nikto.conf:/etc/nikto.conf:ro <image> -config /etc/nikto.conf -h budget.rising-dough.eu -p 443 -ssl -Pause 1 -ask no -nointeractive -maxtime 45m -Display E` (single run, 11:45 to 12:30 UTC; no brute force, no DoS tuning).
+
+- Findings: informational only. `x-request-id` uncommon header; Alt-Svc advertises HTTP/3 (nikto cannot test QUIC); root redirects to `/auth/login?next=%2Ftoday`; no server banner; no CGI directories found.
+- Two "suggested header missing" lines were checked by hand and are not findings: nikto flagged no CSP and no `X-Content-Type-Options` on `/`, but `/` is a bodiless 302 and `curl -D -` shows `X-Content-Type-Options: nosniff` (plus HSTS, XFO, Referrer-Policy, Permissions-Policy, COOP) on it. CSP is only meant for HTML responses (ADR-0036) and is present on `/auth/login`.
+- Not complete: the run hit the 45 min limit with 216 request errors (201 "ssl connect failed", 15 connect timeouts), so only part of the check list ran. With the error limit raised, the scan no longer stops early, but the server keeps refusing TLS handshakes once nikto is active (the same behaviour that broke testssl). Consistent with a connection rate limit (host firewall or Caddy), not with an app fault; `/health` stayed 200 throughout. Coverage is "no findings in what was reachable", not a clean bill of health.
+
+### 4. trivy image
+
+Tool: trivy 0.69.3. Image: `ghcr.io/mtkublin/budget-planner:v3.0.1`, pulled directly from GHCR (no `security.yml` fallback needed; amd64 only, so `--platform linux/amd64`).
+
+- `trivy image --platform linux/amd64 --severity HIGH,CRITICAL --ignore-unfixed ghcr.io/mtkublin/budget-planner:v3.0.1`: **0 vulnerabilities** in `debian 13.7` and in the Python packages (CI policy, ADR-0103).
+- Same with `-f json` and no `--ignore-unfixed`: 107 HIGH, 0 CRITICAL; 27 distinct CVEs across 24 OS packages; **no finding has a `FixedVersion`**. Identical counts to the sha-89ac3c2 scan, so the v3.0.1 image adds nothing new.
+
+### Previous findings
+
+| # | Status | Note |
+|---|--------|------|
+| F1 CSP missing | **Closed** | CSP served (T-D132, v3.0.1); Observatory B/75 to A+/130. |
+| F2 nikto incomplete | **Open (LOW)** | Error limit no longer the blocker; the host refuses TLS handshakes during nikto, so the run is cut by the 45 min limit. Follow-up below. |
+| F3 unfixed Debian CVEs | Open, accepted (LOW) | ADR-0103; no fix available. Re-scan after each base-image bump. |
+| F4 no CAA record | **Fix in repo, pending release** | `terraform/modules/dns` now manages CAA for the app hostname (prod only, ADR-0101): `0 issue "letsencrypt.org"`, `0 issue "sectigo.com"`, `0 issuewild ";"`. Caddy has no `acme_ca`/`issuer` override, so its defaults apply: Let's Encrypt, then ZeroSSL as fallback; ZeroSSL issues through Sectigo (CAA identifier `sectigo.com`), so it must be listed or a fallback issuance would be refused. Reaches prod with the next approved `terraform apply`. Re-run testssl (`DNS CAA RR`) after that. |
+
+### New findings
+
+None at MEDIUM or above. No HIGH/CRITICAL needs a code fix.
+
+### Follow-ups
+
+- After the next release: check `dig CAA budget.rising-dough.eu` and that the next Caddy renewal still succeeds (renewals start about 30 days before 2027-02-05).
+- Optional (F2): re-run nikto against a drill with the connection limit relaxed, or find out which layer drops handshakes (UFW `limit`, Caddy rate limit, Scaleway security group). Not blocking.
