@@ -20,6 +20,7 @@ locals {
     app_image              = "${local.image_repo}:${var.app_image_ref}"
     cookie_secret          = var.cookie_secret
     trusted_hosts          = var.trusted_hosts_csv
+    hostname               = var.hostname
     admin_email            = var.admin_email
     admin_initial_password = var.admin_password
     backup_max_age_days    = var.backup_max_age_days

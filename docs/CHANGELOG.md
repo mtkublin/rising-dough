@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D135 — WebAuthn RP settings reach the host)
+- **Fix(T-D135): passkeys can work on the real hostnames.** The compose template now sets `BUDGET_WEBAUTHN_RP_ID` (the public hostname) and `BUDGET_WEBAUTHN_ORIGIN` (`https://<hostname>`) for prod and drill. `Settings` refuses to start in production with the localhost default or a mismatched origin (ADR-0067 §1). Tests in `test_config.py` and `render.tftest.hcl`. Reaches prod with the next release through the host agent (ADR-0111).
+
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
 - **Docs:** `github-settings.md` says to keep `DEPLOY_SSH_PRIVATE_KEY` in `drill` (`restore-drill.yml` uses it). `deploy.md` says where to find the drill admin password. Operator checklist "Next" replaced.
