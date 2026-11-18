@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D140d deferral)
+- **Docs(T-D140d): style-src `'unsafe-inline'` removal deferred to the redesign migration.** User decision; the inline `style=` cleanup and CSP tightening move to the Sourdough redesign (ADR-0107, T-UR16 hardening item). ADR-0113 follow-up annotated; T-D140d stays unchecked.
+
 ## 2026-11-18 (T-D41 restore drill from main)
 - **Docs(T-D41): restore drill from `main` recorded** (run 44387134093, pass, entry posted to restore-log issue #28; T-D41 ✅). The same run is the T-D138 positive leg: `drill lock` passed after the explore drill was destroyed.
 
