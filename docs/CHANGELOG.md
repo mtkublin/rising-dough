@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-18 (T-D143: local SSD root)
+- **Docs(T-D144): ADR-0119 proposed** — makes a prod VM replacement safe unattended: a fresh Tailscale key whenever the server is replaced, no silent empty DB (`allow_empty_db`), restore report checked by the release, shutdown-flush proof, 1800 s wait on replacement. T-D143 is blocked on it for prod.
 - **Docs(T-D143): ADR-0118 proposed** — prod VM boots from a Block Storage volume (provider default, ~€0.78/mo) instead of the included 10 GB local SSD that ADR-0032 assumed. Plan: declare `root_volume` `l_ssd` 10 GB; drill gate, then a prod release (VM replaced, IPs kept, DB from Litestream).
 
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
