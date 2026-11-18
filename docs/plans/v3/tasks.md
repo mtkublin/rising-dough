@@ -425,8 +425,11 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 
-### ✅ T-D44 [S] Uptime monitoring → T-D27
+### ◐ T-D44 [S] Uptime monitoring → T-D27
 - ~~UptimeRobot (or Betterstack free)~~ Decision 2026-11-16 (user): a scheduled GitHub Actions workflow `uptime.yml` checks `/health` and the host agent status every 5 min; a failed run emails the operator and opens one issue, the next green run closes it. Test `tests/unit/deploy/test_uptime_workflow.py`. Described in `docs/plans/v3/runbooks/disaster-recovery.md`.
+- Note 2026-11-18 (cadence): the workflow is on `main` since 2026-11-17 07:52 UTC; `gh run list` shows only 3 runs, all `schedule` and green (17:06, 23:49 UTC on 11-17; 04:44 on 11-18), roughly 5 to 7 hours apart instead of every 5 minutes (~330 expected). Not a config fault: cron `*/5 * * * *` and the `on:` block are valid, the workflow is `active`, the repo is public with recent pushes (so no 60-day auto-disable), and `concurrency: cancel-in-progress` cannot explain it (no cancelled or skipped runs are listed). Cause: GitHub schedule events are best effort and are delayed or dropped under load; `*/5` is the most contended cron and new or low-activity repos get the worst treatment. Effective detection latency is hours, so the check is not fit for purpose: status changed from done to partial (◐).
+  - Options: (1) external free monitor (UptimeRobot, Better Stack, Healthchecks.io) hitting `/health` every 1 to 5 min with email alerts: simplest, independent of GitHub outages (recommended; keep `uptime.yml` as a slow backup or drop it); (2) a different cron (off-peak minutes such as `7,22,37,52 * * * *`) only reduces drops, no guarantee; (3) Scaleway-side check (Cockpit/alert on a probe) adds platform cost and shares fate with the host; (4) host-side dead-man's switch pinging Healthchecks.io from `bp-converge`.
+  - Recommendation: option 1 (plus 4 if host-down detection is wanted). Needs a user decision and, per the change policy, a task/ADR update before any workflow change; none made here.
 - File: `phase-4-validation/T-D44-uptime-monitor.md`.
 
 ### ✅ T-D45 [S] Cost alert
@@ -759,7 +762,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Proven 2026-11-17: cleanup OAuth client and `TS_CLEANUP_*` secrets set by the operator; explore drill 44039509630, then `drill-destroy.yml` 44041451732 logged `Removed tailnet node budget-planner-drill`, and the node was gone from the console.
 - Not chosen: `tailscale logout` from a shutdown hook on the VM (Scaleway destroy does not reliably shut down cleanly first).
 
-### ✅ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
+### ◐ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
 - No retention today: every release and every drill gate pushes a `sha-…` image (plus cosign signature artifacts) to `ghcr.io/mtkublin/budget-planner`, and GHCR keeps all versions forever. A private package counts against the GitHub Packages storage quota.
 - Plan: weekly `image-retention.yml` (cron + `workflow_dispatch` with `dry_run`, default true for the first runs) using `actions/delete-package-versions` (pinned by SHA):
   - keep: newest 20 `sha-…` versions, everything tagged `main` or `v*` (T-D125), and the images prod has as `current` and `previous` (read via the deploy `status` command, or covered by N);
@@ -769,6 +772,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Done 2026-11-16: `.github/workflows/image-retention.yml` + `scripts/ghcr_retention.py` (the action cannot express the signature/child-manifest rules; selection is unit-tested in `tests/unit/deploy/test_image_retention.py`). Scheduled runs dry-run until the repo variable `IMAGE_RETENTION_ENABLED` is `true`; dispatch deletes only with `dry_run=false`. Also kept: every version younger than 7 days and child manifests of kept indexes (provenance/SBOM make `build-push-action` push untagged children). Prod current/previous are assumed to be within the newest 20. Runbook: `runbooks/image-retention.md`.
 - Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
 - Timing (user, 2026-11-16): after the first release.
+- 2026-11-18: first dry run (run 44297239247) FAILED: `ghcr_retention.py` `fetch_children` raised `HTTP Error 404` on a registry manifest GET, so no plan was produced. Open bug; retention stays disabled. Status changed from done to partial (◐) until a dry run succeeds.
 
 ### ✅ T-D125 [M] Release prod from GitHub releases on `main` → ADR-0109 (Accepted 2026-11-16)
 - Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
