@@ -133,3 +133,15 @@ def test_restore_waits_for_host_agent_status_before_restore() -> None:
     assert "needs.apply.outputs.host_config_generation" in step
     assert "needs.apply.outputs.host_image_ref" in step
     assert "timeout-minutes:" in step
+
+
+def test_restore_drill_ready_check_matches_the_app_contract() -> None:
+    """/ready answers {"status": "ready", "db": "ok"} (health.py), never status "ok"."""
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    step = text[text.index("- name: Verify /ready") : text.index("- name: Verify PRAGMA")]
+
+    assert 'test "${status}" = "ready"' in step
+    assert 'test "${db}" = "ok"' in step
+    assert 'test "${status}" = "ok"' not in step
+    health = (ROOT / "src/budget_planner/web/routers/health.py").read_text()
+    assert 'content={"status": "ready", "db": "ok"}' in health

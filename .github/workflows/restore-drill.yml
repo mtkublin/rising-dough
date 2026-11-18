@@ -241,12 +241,15 @@ jobs:
           ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             'sudo cloud-init status --wait >/dev/null; sudo /usr/local/bin/restore-from-prod'
 
-      - name: Verify /ready reports ok
+      - name: Verify /ready reports ready, db ok
         run: |
           set -euo pipefail
-          status="$(curl -fsS "https://${DRILL_HOST}/ready" | jq -r .status)"
-          echo "ready.status=${status}"
-          test "${status}" = "ok"
+          body="$(curl -fsS "https://${DRILL_HOST}/ready")"
+          status="$(jq -r .status <<<"${body}")"
+          db="$(jq -r .db <<<"${body}")"
+          echo "ready.status=${status} ready.db=${db}"
+          test "${status}" = "ready"
+          test "${db}" = "ok"
 
       - name: Verify PRAGMA integrity_check
         run: |
