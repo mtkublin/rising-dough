@@ -4,7 +4,7 @@
 
 - Prod is live at https://budget.rising-dough.eu and runs `sha-89ac3c2`, moved there by a logged break-glass after the first pipeline release's SSH deploy failed (T-D127, ADR-0111 Context).
 - v3 and the follow-ups (T-D124..T-D132) are on `main` (PR #2, PR #14). T-D124 drill tailnet cleanup proven 2026-11-17.
-- Steps 1-11, 11a and 11b are done. Step 10a: the agent bootstrap is installed on prod (2026-11-18). Release `v3.0.0` stopped in the apply job's "Guard env / ref" step, before any `terraform init`/`apply`, so prod is unchanged. Fix in progress (T-D134).
+- Steps 1-11, 11a and 11b are done. Step 10a: the agent bootstrap is installed on prod (2026-11-18). Release `v3.0.0` stopped in the apply job's "Guard env / ref" step, before any `terraform init`/`apply`, so prod is unchanged. Fixed by T-D134 (PR #16, merged 2026-11-18).
 - Next, in order:
   1. Release `v3.0.1` after the T-D134 fix (the `v*` tags are immutable, step 11a, so `v3.0.0` cannot be re-cut), approve the apply, and finish 10a. Rollback target if it fails: `sha-89ac3c2`.
   2. First restore drill (T-D40), before 2026-12-01 03:00 UTC. `restore-drill.yml` has never run and the monthly cron would make that first run unattended. Dispatch it from `main` after step 1 and watch it. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Delete plaintext Litestream generations only after it is green (T-D56).
