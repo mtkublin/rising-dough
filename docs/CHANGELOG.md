@@ -2,6 +2,7 @@
 
 ## 2026-11-18 (T-D140 — prod CSP blocks HTMX and inline JS; decision recorded)
 - **Docs(T-D140, ADR-0113): CSP-compatible frontend decided.** Prod v3.0.1 breaks Add, Promote and Override because the ADR-0036 nonce CSP blocks the htmx CDN script, inline scripts, inline handlers and Google Fonts. Decision: keep strict `script-src`, vendor htmx, self-host fonts, move behaviour to static JS, `style-src 'unsafe-inline'` as a stopgap, and an e2e CSP guard. ADR-0036 gets a `style-src` addendum. Tasks T-D140a–d recorded; code not started.
+- **Fix(T-D140a, ADR-0113): base.html CSP-compatible.** htmx 2.0.11 vendored in `static/vendor/`, fonts self-hosted (latin + latin-ext woff2, OFL), `base.html` inline script moved to `static/js/app-init.js`, `htmx-config` meta (`allowEval: false`, no injected indicator style), Caddy `style-src 'self' 'unsafe-inline'` (no nonce).
 
 ## 2026-11-18 (T-D129f / T-D134 — prod migrated to the host agent; release v3.0.0 blocked before prod)
 - **Break-glass (T-D129f): prod host migrated to the ADR-0111 host agent.** Operator ran `terraform/host/migrate/adr-0111-install-agent.sh` from `main` `f41c6a2` (`bp-agent bootstrap installed; deploy path removed`): loader, `bp-converge.timer`, `bp-metadata-guard` installed and active (`guard-ok`); `deploy` user, key and script removed. No database or container change.
