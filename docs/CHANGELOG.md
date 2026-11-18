@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-18 (release v3.0.2 and v3 docs catch-up)
+- **Release: `v3.0.2` is live on prod** (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). Carries the T-D136 Litestream fix: the one-time generation reset ran at 2026-11-18T14:37Z and replication is writing again (replication had stalled from 2026-11-07; RPO at most ~24 h, incident record in `runbooks/restore.md`). T-D135 WebAuthn settings verified on prod.
+- **Ops: prod checks done 2026-11-18.** CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126, first scheduled run 2026-11-23 03:17 UTC); external UptimeRobot monitor set up (T-D44, still ◐); `/data/pre-seed-*` folders removed on prod (data-inventory U6); `DEPLOY_SSH_PRIVATE_KEY` copies deleted from `drill-plan` and `drill-teardown` (kept in `drill` only).
+- **Docs: drill host name is per run** (`budget-planner-drill-<run id>`, ADR-0116, T-D139). Runbooks updated; historical log entries unchanged. Operator checklist "State" and "Next" refreshed.
+
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
 - **Fix(T-D139): drill gate failed at smoke because of the Let's Encrypt limit (5 certificates per exact name per week)** (ADR-0116). The fixed drill name `budget-planner-drill.<tailnet>` hit `429 rateLimited` in tailscaled, so Caddy never completed a TLS handshake (TCP open, no ServerHello, `curl: (28)`). The drill now registers as `budget-planner-drill-<run id>` (`drill_run_id`, passed by `terraform.yml`, `drill.yml`, `restore-drill.yml`). Tests: tftest + `test_tailnet_only_drill.py`.
 - **Fix(T-D137): the CI key can SSH into the drill host, drill only** (ADR-0094, ADR-0111). New optional `ci_ssh_pubkey` Terraform variable, forced to empty unless `env = drill` (`ci_ssh_pubkey_effective`), added as a second `operator` authorized key in cloud-init; fed from the environment variable `CI_SSH_PUBKEY` in `restore-drill.yml` and the drill legs of `terraform.yml`. Prod renders and config unchanged. Tests: tftest (prod drops it even when set) and a static workflow test. Operator sets the variable on `drill` and `drill-plan`; drill proof pending (restore drill).

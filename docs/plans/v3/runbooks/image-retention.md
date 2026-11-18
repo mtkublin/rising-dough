@@ -23,6 +23,9 @@ Assumption: prod's current and previous images are within the newest 20 `sha-*` 
   - Fix: `Accept` now covers OCI index, OCI manifest, Docker manifest list and Docker manifest v2. If a kept digest still returns 404, its children are undetermined; the script prints a warning and deletes no untagged version in that run (tagged versions are classified by tag, so they stay safe). Any other HTTP error aborts before anything is deleted.
 - 2026-11-18, run 44299557709 (branch `wi/docs/v3-remaining/RET`, `dry_run=true`): green. 59 versions kept, 0 to delete (all versions are younger than 7 days or protected; the oldest, `sha-075f986` and its signature and children, are kept as newest-20/children). Protected images confirmed kept: `v3.0.1`/`sha-4532791`/`latest` (`sha256:2246e6f5…`), `v3.0.0`/`sha-f41c6a2`, `main`/`sha-89ac3c2` (`sha256:85cb5808…`, prod rollback target), plus their signatures and untagged children. No warnings about undetermined children. Retention is still not enabled.
 
+## Enabled
+- 2026-11-18: `IMAGE_RETENTION_ENABLED=true` set by the operator, after the green dry run 44299557709. The first real scheduled run is Monday 2026-11-23 03:17 UTC. Check its step summary: `mode: APPLY`, only untagged or orphaned versions and `sha-*` beyond the newest 20 are deleted, and the next release still deploys.
+
 ## Verification
 Step summary shows `mode: APPLY` and `deleted <id>` lines; the package version count drops; a new release still builds and deploys.
 
