@@ -70,3 +70,8 @@ output "ci_ssh_authorized" {
   description = "True when the CI SSH key is authorised on the host (drill only, T-D137). Boolean, not a secret; test hook."
   value       = local.ci_ssh_pubkey_effective != ""
 }
+
+output "vm_spec_id" {
+  description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D144, ADR-0119). Not a secret."
+  value       = local.vm_spec_id
+}

@@ -614,6 +614,16 @@ run "prod_instance_type_is_stardust" {
     condition     = module.compute.root_volume_type == "l_ssd" && module.compute.root_volume_size_gb == 10
     error_message = "prod must boot from a 10 GB local SSD, not Block Storage (T-D143, ADR-0118)."
   }
+
+  assert {
+    condition     = module.compute.allow_empty_db == false
+    error_message = "prod must refuse to start an empty database by default (T-D144, ADR-0119)."
+  }
+
+  assert {
+    condition     = endswith(tailscale_tailnet_key.vm.description, " vm ${output.vm_spec_id}")
+    error_message = "the Tailscale key description must carry the VM spec hash so a new VM gets a new key (T-D144, ADR-0119)."
+  }
 }
 
 run "drill_instance_type_defaults_to_dev1_s" {
@@ -647,6 +657,73 @@ run "drill_instance_type_defaults_to_dev1_s" {
   assert {
     condition     = module.compute.root_volume_type == "l_ssd" && module.compute.root_volume_size_gb == 10
     error_message = "drill must boot from a 10 GB local SSD, not Block Storage (T-D143, ADR-0118)."
+  }
+
+  assert {
+    condition     = module.compute.allow_empty_db == true
+    error_message = "the drill bucket starts empty, so the drill must allow an empty database (T-D144, ADR-0119)."
+  }
+}
+
+# T-D144 / ADR-0119: a different VM spec means a different key description,
+# which forces a new single-use Tailscale key in the plan that replaces the VM.
+run "vm_spec_change_replaces_tailscale_key" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    drill_instance_type           = "DEV1-M"
+    tailnet_dns_name              = "tail1234.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.vm_spec_id != run.drill_instance_type_defaults_to_dev1_s.vm_spec_id
+    error_message = "a changed instance type must change vm_spec_id (T-D144, ADR-0119)."
+  }
+}
+
+run "prod_allow_empty_db_is_explicit" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    allow_empty_db                = true
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  assert {
+    condition     = module.compute.allow_empty_db == true
+    error_message = "allow_empty_db = true must reach the restore service (T-D144, ADR-0119)."
   }
 }
 
@@ -1065,4 +1142,41 @@ run "drill_run_id_rejected_on_prod" {
   }
 
   expect_failures = [var.drill_run_id]
+}
+
+# T-D144 / ADR-0119: the restore service runs the guard script, which the agent
+# writes, and gets the empty-DB flag.
+run "restore_guard_rendered_and_closed_by_default" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "LITESTREAM_ALLOW_EMPTY_DB: \"false\"")
+    error_message = "the restore service must refuse an empty database by default (T-D144, ADR-0119)."
+  }
+
+  assert {
+    condition     = length([for f in jsondecode(nonsensitive(output.host_config)).files : f if endswith(f.path, "/litestream-restore.sh") && f.mode == "0755"]) == 1
+    error_message = "the host agent must write litestream-restore.sh at 0755 (T-D144, ADR-0119)."
+  }
+}
+
+run "restore_guard_flag_renders_true" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    allow_empty_db = true
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "LITESTREAM_ALLOW_EMPTY_DB: \"true\"")
+    error_message = "allow_empty_db = true must reach the restore service (T-D144, ADR-0119)."
+  }
 }

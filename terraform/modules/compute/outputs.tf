@@ -74,3 +74,8 @@ output "root_volume_size_gb" {
   description = "Root volume size in GB (T-D143, ADR-0118; test hook)."
   value       = scaleway_instance_server.app.root_volume[0].size_in_gb
 }
+
+output "allow_empty_db" {
+  description = "Whether litestream-restore may start an empty database (T-D144, ADR-0119; test hook, not a secret)."
+  value       = var.allow_empty_db
+}

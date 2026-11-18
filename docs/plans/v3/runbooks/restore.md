@@ -131,6 +131,8 @@ ssh operator@budget-planner-prod "docker compose -f /etc/budget-planner/docker-c
 
 Record the restore in [`restore-log.md`](restore-log.md) with the recovery point, duration, operator, and `integrity_check` result.
 
+On a new host (VM replacement, ADR-0119) the compose `litestream-restore` service does the restore itself and records it in `/data/restore-report.json` (`restored`, `empty` or `skipped-db-present`). It refuses to start an empty database on prod unless `allow_empty_db` was set for that apply. See `deploy.md`, "Releases that replace the VM".
+
 ## Troubleshooting
 
 - **`restore` exits with "no generation" or "no snapshots found"**: the bucket path is wrong or the credential cannot list it. Confirm `s3://budget-planner-prod-pl-waw/db` resolves via `aws s3 ls --endpoint-url https://s3.pl-waw.scw.cloud s3://budget-planner-prod-pl-waw/db/ --profile <restore-creds>`.

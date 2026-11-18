@@ -420,3 +420,12 @@ variable "restore_reader_application_id" {
     error_message = "restore_reader_application_id must be a UUID on prod and empty on drill."
   }
 }
+
+# T-D144 / ADR-0119: a prod boot with no database and an empty replica fails
+# unless this is set for one reviewed apply (first-ever boot, deliberate fresh
+# start). The drill always allows it (its bucket starts empty).
+variable "allow_empty_db" {
+  description = "Let a prod host start an empty database when the replica has no generation. Keep false except for one reviewed apply."
+  type        = bool
+  default     = false
+}

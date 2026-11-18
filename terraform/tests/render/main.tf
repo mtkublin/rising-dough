@@ -59,6 +59,12 @@ variable "expires_at" {
   default     = ""
 }
 
+variable "allow_empty_db" {
+  description = "Render the restore service with the empty-DB guard relaxed (T-D144, ADR-0119)."
+  type        = bool
+  default     = false
+}
+
 locals {
   dummy_digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
 }
@@ -103,6 +109,7 @@ module "compute" {
   litestream_age_identity  = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   litestream_age_recipient = "age1dummydummydummydummydummydummydummydummydummydummydummydummydum"
   backup_max_age_days      = 37
+  allow_empty_db           = var.allow_empty_db
 }
 
 output "user_data_is_sensitive" {

@@ -243,3 +243,21 @@ variable "tailnet_only" {
   type        = bool
   default     = false
 }
+
+variable "allow_empty_db" {
+  description = "ADR-0119: let litestream-restore start an empty database when /data/budget.db is missing and the replica has no generation. false fails the boot instead (prod); true on the drill."
+  type        = bool
+  default     = false
+}
+
+variable "root_volume_type" {
+  description = "ADR-0118: root volume type. l_ssd is the local SSD included in the instance price."
+  type        = string
+  default     = "l_ssd"
+}
+
+variable "root_volume_size_gb" {
+  description = "ADR-0118: root volume size in GB (STARDUST1-S allows at most 10 GB of local SSD)."
+  type        = number
+  default     = 10
+}

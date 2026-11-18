@@ -133,3 +133,21 @@ Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Ter
 - `user_data` embeds secrets and is marked sensitive. Run plans via `just tf-plan-safe drill|prod`, or pipe through `python3 terraform/scripts/mask_plan.py`. CI already does.
 - `bp-config` and `bp-agent` changes are applied live: the provider rewrites the metadata in place and the agent converges within ~30 s. No reboot, no SSH.
 - The `cloud-init` key still runs once. A change there (users, Tailscale, firewall, the agent loader and timer) plans as an in-place update but does nothing on the running VM until the server is replaced (`-replace=module.compute.scaleway_instance_server.app`). That is not a pipeline action: explicit user go, under [`break-glass.md`](break-glass.md). It recreates the VM; data restores from Litestream (see `disaster-recovery.md`).
+
+## Releases that replace the VM (T-D144, ADR-0119)
+
+A plan that replaces `module.compute.scaleway_instance_server.app` (instance type, image, zone or root volume change, e.g. ADR-0118) recreates the host and restores the database from Litestream. Read the plan; the replacement also shows a new `tailscale_tailnet_key.vm` (its description carries the VM spec hash).
+
+Before approving the prod apply:
+
+1. Litestream is current: `docker compose logs --tail=50 litestream` shows recent `write wal segment` lines and no errors.
+2. Record the counts on the old host:
+   `ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"`
+3. Expect a few minutes of downtime. Tell users if anyone else is active.
+
+After the apply:
+
+1. `curl -fsS https://<host>/.well-known/bp-deploy-status.json | jq .restore` reports `"result": "restored"` and a generation. `empty` on prod means the replica was empty and `allow_empty_db` was set; stop and investigate.
+2. If the host never comes up, `litestream-restore` may have refused an empty replica ("refusing to start empty"). That is the guard working: check the bucket and credentials. Do not set `allow_empty_db` to get past it.
+3. Compare the counts from step 2 on the new host (`restore.md`, Verification). Writes made during the apply can be missing; anything older is a failed restore.
+4. Remove the old offline `budget-planner-prod` node from the tailnet admin console if the release job did not.
