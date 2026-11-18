@@ -38,14 +38,27 @@
           var root = document.getElementById("toast-root");
           if (!root) return;
           var el = document.createElement("div");
-          el.className = "rd-toast rd-toast--" + (d.kind || "info");
-          el.innerHTML = '<span>' + (d.message || "") + '</span>';
-          if (d.undo_href) {
+          el.className = "rd-toast rd-toast--" + (d.variant || "info");
+          var msg = document.createElement("span");
+          msg.textContent = d.message || "";
+          el.appendChild(msg);
+          if (d.undo_url) {
             var btn = document.createElement("button");
+            btn.type = "button";
             btn.className = "rd-toast__undo";
             btn.textContent = "Undo";
             btn.addEventListener("click", function () {
-              htmx.ajax("POST", d.undo_href, { target: "body", swap: "none" });
+              /* Undo endpoints read CSV form fields; join array payload values. */
+              var values = {};
+              var payload = d.undo_payload || {};
+              Object.keys(payload).forEach(function (k) {
+                values[k] = Array.isArray(payload[k]) ? payload[k].join(",") : payload[k];
+              });
+              /* Nothing refetches Today's hero/Upcoming on the *-stale triggers,
+                 so reload once the undo has landed. */
+              htmx.ajax("POST", d.undo_url, { target: "body", swap: "none", values: values }).then(function () {
+                window.location.reload();
+              });
               el.remove();
             });
             el.appendChild(btn);
