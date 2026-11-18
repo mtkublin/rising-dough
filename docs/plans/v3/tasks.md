@@ -826,7 +826,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Why it got through: the drill smoke has no browser under the CSP, and e2e runs without Caddy.
 - Decision: strict nonce `script-src` stays; vendored htmx, self-hosted fonts, no inline script or handlers, delegated static JS, `style-src 'unsafe-inline'` as a stopgap (ADR-0113). ADR-0036 gets a dated `style-src` addendum.
 - Done when: Add, Promote and Override work in prod after a release; the e2e CSP guard (T-D140c) fails on any CSP violation.
-- [ ] T-D140a: vendor htmx at a pinned 2.x in `static/vendor/`; self-host fonts (`fonts.css`, `font-display: swap`) and drop Google Fonts links; move the `base.html` inline script to static JS; `<meta name="htmx-config">` with `includeIndicatorStyles: false` and `allowEval: false`; Caddy `style-src 'self' 'unsafe-inline'` (no nonce) with a unit test.
+- [x] T-D140a: vendor htmx at a pinned 2.x in `static/vendor/`; self-host fonts (`fonts.css`, `font-display: swap`) and drop Google Fonts links; move the `base.html` inline script to static JS; `<meta name="htmx-config">` with `includeIndicatorStyles: false` and `allowEval: false`; Caddy `style-src 'self' 'unsafe-inline'` (no nonce) with a unit test.
 - [x] T-D140b: move the inline `<script>` blocks and the `onclick` / `hx-on` handlers in partials to delegated static JS (`data-*` attributes, works for HTMX-swapped content).
 - [ ] T-D140c: e2e CSP guard. The fixture parses the prod CSP from `terraform/cloud-init/compose/Caddyfile.tpl` (no drift) and fails tests on any browser CSP violation.
 - [ ] T-D140d (follow-up, not in this fix): replace `style="..."` attributes (27 templates) with classes, then drop `'unsafe-inline'` from `style-src`.
