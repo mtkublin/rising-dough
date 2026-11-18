@@ -12,7 +12,8 @@ COMPUTE_MAIN = ROOT / "terraform" / "modules" / "compute" / "main.tf"
 BOOTSTRAP = ROOT / "terraform" / "cloud-init" / "bootstrap.yaml.tpl"
 ROOT_MAIN = ROOT / "terraform" / "main.tf"
 WORKFLOWS = ROOT / ".github" / "workflows"
-SSH_WORKFLOWS = ("deploy.yml", "rollback.yml", "restore-drill.yml")
+# ADR-0111: deploy and rollback no longer SSH into hosts; only the restore drill does.
+SSH_WORKFLOWS = ("restore-drill.yml",)
 TAILSCALE_ACTION = re.compile(r"uses:\s*tailscale/github-action@[0-9a-f]{40}\b")
 SSH_CALL = re.compile(r"^\s*(?:result=\"\$\()?\s*ssh\s|\btimeout \d+ ssh\s", re.MULTILINE)
 
@@ -94,8 +95,53 @@ def test_workflow_joins_tailnet_before_first_ssh(name: str) -> None:
 def test_restore_drill_waits_for_tailnet_host_and_passes_oauth_vars() -> None:
     text = (WORKFLOWS / "restore-drill.yml").read_text()
 
-    assert "DRILL_SSH_HOST: budget-planner-drill" in text
-    assert "TF_VAR_tailscale_oauth_client_id" in text
+    assert "DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}" in text
+    # T-D133: Terraform inputs (incl. the OAuth client) come from scripts/ci/tf_env.py.
+    assert "uses: ./.github/workflows/terraform.yml" in text
+    assert "tailscale_oauth_client_id" in (ROOT / "scripts/ci/tf_env.py").read_text()
     wait = text.index("Wait for drill host on the tailnet")
     assert wait < text.index("Trigger restore on drill host")
     assert 'operator@"${DRILL_HOST}"' not in text  # SSH never targets the public name
+
+
+def test_restore_drill_verifies_operator_ssh_login_before_restore() -> None:
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    login = text.index("- name: Verify operator SSH login")
+    restore = text.index("- name: Trigger restore on drill host")
+    assert text.index("- name: Wait for drill host on the tailnet") < login < restore
+    assert "ssh-keygen -lf -" in text
+    assert "ssh-add -l" in text
+
+
+def test_restore_drill_failure_issue_creates_its_labels() -> None:
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    for label in ("restore-drill", "incident"):
+        create = text.index(f"gh label create {label} ")
+        assert create < text.index("gh issue create")
+
+
+def test_restore_waits_for_host_agent_status_before_restore() -> None:
+    """Readiness review: no restore while the host agent may still be converging or in back-off."""
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    wait = text.index("- name: Wait for host agent status ok")
+    restore = text.index("- name: Trigger restore on drill host")
+
+    assert text.index("- name: Verify operator SSH login") < wait < restore
+    step = text[wait:restore]
+    assert "scripts/ci/host_release.py wait" in step
+    assert "/.well-known/bp-deploy-status.json" in step
+    assert "needs.apply.outputs.host_config_generation" in step
+    assert "needs.apply.outputs.host_image_ref" in step
+    assert "timeout-minutes:" in step
+
+
+def test_restore_drill_ready_check_matches_the_app_contract() -> None:
+    """/ready answers {"status": "ready", "db": "ok"} (health.py), never status "ok"."""
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    step = text[text.index("- name: Verify /ready") : text.index("- name: Verify PRAGMA")]
+
+    assert 'test "${status}" = "ready"' in step
+    assert 'test "${db}" = "ok"' in step
+    assert 'test "${status}" = "ok"' not in step
+    health = (ROOT / "src/budget_planner/web/routers/health.py").read_text()
+    assert 'content={"status": "ready", "db": "ok"}' in health

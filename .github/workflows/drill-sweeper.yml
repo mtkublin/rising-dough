@@ -28,8 +28,39 @@ permissions:
   contents: read
 
 jobs:
+  # T-D138 (ADR-0115): FIRST job. Fails the run when another drill run is active or
+  # (unless noted) a drill VM / online tag:drill node exists. Runs inside the `drill`
+  # concurrency group, so no other run can create a VM while it evaluates.
+  drill-lock:
+    name: drill lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds SCW_SECRET_KEY and TS_CLEANUP_*
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+      TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+      DRILL_LOCK_CHECK_VM: "false"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/drill_lock.py
+            scripts/tailnet_drill_cleanup.py
+
+      - name: Acquire drill lock
+        run: python3 scripts/ci/drill_lock.py
+
   check:
     name: look for expired drills
+    needs: drill-lock
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: drill-teardown # ungated (ADR-0101): the sweeper must never wait for approval
@@ -88,8 +119,16 @@ jobs:
     uses: ./.github/workflows/terraform.yml
     with:
       env: drill
-      # Placeholder: app_image_tag is only rendered into user-data, which a
-      # -destroy plan never creates (terraform.yml accepts any valid tag).
-      image_tag: sha-0000000
       destroy: true
+    secrets: inherit  # pragma: allowlist secret
+
+  # T-D124 (ADR-0101), T-D133: one reusable workflow removes the node the destroyed
+  # VM leaves behind. Runs even when destroy failed (node may exist).
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: destroy
+    if: ${{ always() && needs.destroy.result != 'skipped' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tailnet-cleanup.yml
     secrets: inherit  # pragma: allowlist secret

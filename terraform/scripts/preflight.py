@@ -193,12 +193,14 @@ def _error_code(body: str) -> str | None:
 def check_image(tfvars: Mapping[str, str], environ: Mapping[str, str], http: Http) -> CheckResult:
     name = "ghcr image"
     owner = resolve_var("github_owner", tfvars, environ)
-    tag = resolve_var("app_image_tag", tfvars, environ)
+    image_ref = resolve_var("app_image_ref", tfvars, environ)
     pat = resolve_var("ghcr_pull_pat", tfvars, environ)
-    if not (owner and tag and pat):
-        return CheckResult(name, FAIL, "need github_owner, app_image_tag and ghcr_pull_pat")
+    if not (owner and image_ref and pat):
+        return CheckResult(name, FAIL, "need github_owner, app_image_ref and ghcr_pull_pat")
     repo = f"{owner}/budget-planner"
-    ref = f"ghcr.io/{repo}:{tag}"
+    ref = f"ghcr.io/{repo}:{image_ref}"
+    # ADR-0111: app_image_ref is `<tag>@sha256:<digest>`; the digest is the manifest reference.
+    tag = image_ref.split("@", 1)[1] if "@" in image_ref else image_ref
     scope = urllib.parse.urlencode({"scope": f"repository:{repo}:pull"})
     tok = http("GET", f"https://ghcr.io/token?{scope}", {"Authorization": _basic(owner, pat)}, None)
     token = _json_field(tok.body, "token") if tok.status == HTTPStatus.OK else None
@@ -206,7 +208,7 @@ def check_image(tfvars: Mapping[str, str], environ: Mapping[str, str], http: Htt
         return CheckResult(name, FAIL, f"GHCR token request failed (HTTP {tok.status})")
     manifest = http(
         "GET",
-        f"https://ghcr.io/v2/{repo}/manifests/{urllib.parse.quote(tag)}",
+        f"https://ghcr.io/v2/{repo}/manifests/{urllib.parse.quote(tag, safe=':')}",
         {"Authorization": f"Bearer {token}", "Accept": _MANIFEST_ACCEPT},
         None,
     )

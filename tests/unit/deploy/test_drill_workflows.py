@@ -129,7 +129,7 @@ def test_gate_result_reflects_apply_and_smoke_only() -> None:
 def test_gate_start_has_no_dependencies_and_explore_posts_nothing() -> None:
     jobs = _load("drill.yml")["jobs"]
 
-    assert "needs" not in jobs["gate-start"]
+    assert jobs["gate-start"]["needs"] == "drill-lock"
     assert str(jobs["gate-start"]["if"]) == "${{ inputs.mode == 'gate' }}"
     assert "inputs.mode == 'gate'" in str(jobs["gate-result"]["if"])
 
@@ -139,11 +139,7 @@ def test_destroy_is_dispatch_only() -> None:
     job = _load("drill-destroy.yml")["jobs"]["destroy"]
 
     assert set(triggers) == {"workflow_dispatch"}
-    assert job["with"] == {
-        "env": "drill",
-        "image_tag": "sha-0000000",
-        "destroy": True,
-    }
+    assert job["with"] == {"env": "drill", "destroy": True}
 
 
 def test_terraform_workflow_drill_only_inputs_are_gated() -> None:
@@ -181,3 +177,27 @@ def test_no_drill_workflow_uses_gated_drill_environment_for_teardown() -> None:
         text = (WORKFLOWS / name).read_text()
         code = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
         assert "environment: drill\n" not in code
+
+
+def test_restore_drill_uses_the_shared_terraform_jobs() -> None:
+    """T-D133: apply and destroy are terraform.yml calls; restore/verify/evidence stay local."""
+    jobs = _load("restore-drill.yml")["jobs"]
+
+    assert jobs["apply"]["uses"] == "./.github/workflows/terraform.yml"
+    assert jobs["apply"]["with"]["env"] == "drill"
+    assert jobs["apply"]["with"]["image_ref"] == "${{ needs.image.outputs.ref }}"
+    assert "destroy" not in jobs["apply"]["with"]
+    assert set(jobs["apply"]["needs"]) == {"drill-lock", "image"}
+    assert jobs["destroy"]["uses"] == "./.github/workflows/terraform.yml"
+    assert jobs["destroy"]["with"] == {"env": "drill", "destroy": True}
+    # Destroy always runs once apply was attempted, even after a failed restore.
+    assert "always()" in jobs["destroy"]["if"]
+    assert "needs.apply.result != 'skipped'" in jobs["destroy"]["if"]
+    assert set(jobs["destroy"]["needs"]) == {"apply", "restore-drill"}
+    # The restore job no longer runs Terraform itself (the gate stays on the apply job).
+    local = "\n".join(str(s.get("run", "")) for s in jobs["restore-drill"]["steps"])
+    assert "terraform " not in local
+    assert jobs["restore-drill"]["environment"] == "drill"
+    assert jobs["verify-destroy"]["needs"] == "destroy"
+    assert jobs["tailnet-cleanup"]["uses"] == "./.github/workflows/tailnet-cleanup.yml"
+    assert set(jobs["report"]["needs"]) >= {"restore-drill", "destroy", "verify-destroy"}

@@ -17,11 +17,11 @@ managed_dns_zone = false
 # Project that owns the DNS zone = PROD project (rising-dough). Records of BOTH envs are created there (ADR-0092).
 dns_zone_project_id = "53175dd0-b944-489b-b05d-3f55d65d79af"
 
-app_image_tag = "main"
+# ADR-0111: <tag>@sha256:<digest>; CI passes it on every apply.
+app_image_ref = "sha-0000000@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 github_owner  = "example-owner"
 
-operator_ssh_pubkey  = "ssh-ed25519 AAAA... operator@laptop"
-github_deploy_pubkey = "ssh-ed25519 AAAA... deploy@github-actions"
+operator_ssh_pubkey = "ssh-ed25519 AAAA... operator@laptop"
 
 # ghcr_pull_pat = "ghp_..."
 

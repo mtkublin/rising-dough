@@ -116,6 +116,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - Unit test coverage ≥ 90% enforced in CI (bar raised above the 80% minimum requested, because the codebase is functional and pure).
 - Integration tests cover: database layer, FX-rate resolver, forecast engine, planned→actual promotion, reconciliation flow.
 - End-to-end smoke tests (Playwright or `httpx` + Jinja fixtures) cover the critical user flows.
+- Tests run in parallel with `pytest-xdist` (`PYTEST_WORKERS`, default `auto`) and must pass in any order (`pytest-random-order`, opt-in). DB-backed tests copy a migrated template DB instead of migrating per test. The inner loop selects affected tests with `pytest-testmon`; every gate runs the full suite with coverage (ADR-0108).
 
 ### 3.3 Code Style
 
@@ -129,7 +130,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
+Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 
@@ -305,19 +306,18 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 
 ### 6.4 Deployment pipeline (new NFR)
 
-- GitHub Actions: `build.yml` (image + cosign) → `deploy.yml` (SSH to deploy user, auto-rollback on `/ready` probe failure).
-- Deploy user has `/usr/sbin/nologin` + `command=".../deploy-budget-planner"` restriction. No arbitrary SSH.
-- Immutable SHA-tagged images; cosign keyless via GitHub OIDC.
+- GitHub Actions: `build.yml` (image + cosign) → `terraform.yml` apply. Terraform declares the whole host state in instance metadata (compose, Caddy, Litestream config, registry auth, digest-pinned image ref, the host agent itself); a host agent (systemd timer, every 30 s) cosign-verifies the image, converges, probes `/ready` and publishes a status file. The apply job waits for that status and re-applies the previous ref on failure (ADR-0111).
+- No SSH deploy path: no deploy user, no forced command. CI never logs into the host (ADR-0111).
+- Immutable images pinned by digest (`<tag>@sha256:<digest>`); cosign keyless via GitHub OIDC, verified on the host.
 - Prod deploy requires explicit `prod` environment approval; drill apply requires approval of the `drill` environment's required reviewer (ADR-0101, T-D96). Teardown, sweeping and plan are ungated (`drill-teardown`, `drill-plan`).
-- Rollback is one SSH call or one `workflow_dispatch`.
+- Rollback is one `workflow_dispatch` (`rollback.yml`): an approved apply that swaps the current and previous image refs recorded in Terraform state.
 
 Release and environment policy (ADR-0099):
 
-- Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval) -> `deploy prod` -> smoke `/ready`, orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
+- Prod is released only by GitHub Actions from `main`: `ci` -> `build` (signed immutable image) -> `terraform apply prod` (environment `prod`, reviewer approval; the release itself, ADR-0111) -> wait for the host agent status (`/ready` included), orchestrated by `release.yml` (T-D89). Nothing builds, applies or deploys prod from a laptop or another branch.
 - Drill deploys run through one reusable drill pipeline (T-D90, T-D98), started only by `workflow_dispatch`: `mode=gate` (default; ephemeral, always torn down, posts commit status `drill-gate` on the built SHA, required by branch protection on every PR to `main`) or `mode=explore` (`ttl_minutes`, default 60, swept every 15 min). All drill workflows share the `drill` concurrency group.
 - Only exceptions: initial prod bring-up (2026-11-07), the local-only bootstrap stack (ADR-0096), a logged break-glass runbook, and a one-time prod DB seed copy (explicit user go). Enforced by credentials: prod-write secrets exist only in the GitHub `prod` environment (ADR-0100, T-D92).
 - The drill is tailnet-only (ADR-0101, T-D97): no public DNS record and no public 80/443; the app answers on its MagicDNS name `budget-planner-drill.<tailnet>.ts.net` with a certificate from the local tailscaled. The smoke job joins the tailnet (`tag:ci`, ACL `tag:ci -> tag:drill:443`) and probes that URL (environment variable `TAILNET_DNS_NAME`). `ci-drill` holds no DNS permission on the prod project.
-- Until T-D89/T-D90 land, the `deploy.yml` `workflow_run` flow above is superseded by this policy.
 
 ### 6.5 Durability (amends §3.7 for v3)
 
@@ -537,12 +537,12 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 - Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents), after a random-order run fixes order dependence.
 - Slow-test causes fixed at the source (hashing cost, per-test migrations, sleeps, browser start-up). Redundant-test candidates come from the quality audit (Track F).
-- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when templates, static files, migrations, SQL, dependencies, `conftest.py`, fixtures or CI config change), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
+- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when the diff touches anything testmon cannot see: any non-Python file outside `docs/` and Markdown — templates, static files, migrations, SQL, dependencies, Terraform, scripts, fixtures, CI config — or any `conftest.py`), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
 - CI caches for mypy (uv cache already on).
 
 ### 11.2 Constraints
 
-- Every gate runs the full suite with the 90% coverage gate: single-agent handoff, orchestrator batch CI, PRs to `main`, release.
+- The full suite with the 90% coverage gate runs at PRs to `main` and release (GitHub `ci.yml`). Locally the gate is the pre-commit hooks: the pytest hook runs the testmon-selected tests across the whole suite, or the full suite when a change is invisible to testmon. No local full `just ci` is required (ADR-0120).
 - `mypy --strict` stays whole-repo.
 - Prefer existing tools and plugins to custom selection logic.
 - Targets: GitHub `ci` job under 2 min; local `just ci` at least 3× faster; pre-commit on a small diff under 15 s.

@@ -30,7 +30,23 @@
     const url = li.dataset.url;
     if (url) { window.location.assign(url); return; }
     const action = li.dataset.action;
-    if (action) dialog.dispatchEvent(new CustomEvent("palette:action", { detail: { action }, bubbles: true }));
+    if (action) runAction(action);
+  };
+
+  // WHY: palette actions must work on every page, so they do not depend on a
+  // page-specific button; "new" loads the same overlay as the top-bar Add.
+  const ACTIONS = {
+    new: () => {
+      if (window.htmx) window.htmx.ajax("GET", "/add?when=happened", { target: "#modal-root", swap: "innerHTML" });
+    },
+    shortcuts: () => {
+      const dlg = document.getElementById("shortcuts-dialog");
+      if (dlg && !dlg.open) dlg.showModal();
+    },
+  };
+  const runAction = (action) => {
+    const fn = ACTIONS[action];
+    if (fn) fn();
   };
 
   input.addEventListener("input", () => {

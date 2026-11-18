@@ -44,14 +44,51 @@ def test_one_exact_litestream_tag_everywhere() -> None:
 
 def test_every_litestream_service_uses_the_pin() -> None:
     for f in IMAGE_FILES[:2]:
-        assert len(IMAGE_RE.findall(f.read_text())) == 2, f
+        # Prod template also runs the T-D144 litestream-probe service.
+        expected = 3 if f.name == "docker-compose.yml.tpl" else 2
+        assert len(IMAGE_RE.findall(f.read_text())) == expected, f
 
 
-def test_replicate_configs_encrypt_to_a_recipient_only() -> None:
+def test_replicate_configs_carry_recipient_and_identity() -> None:
+    # T-D136 / ADR-0114: calcPos decrypts the last WAL segment on every start,
+    # so replicate needs the identity as well as the recipient.
     for path in (PRODSIM_REPLICATE, PROD_REPLICATE):
         age = _replica(path)["age"]
-        assert "identities" not in age, path
         assert age["recipients"], path
+        assert len(age["identities"]) == 1, path
+        assert "LITESTREAM_AGE_IDENTITY" in age["identities"][0], path
+
+
+def test_litestream_services_use_the_entrypoint_and_mount_the_identity() -> None:
+    for f, key_src in (
+        (ROOT / "docker-compose.yml", "./deploy/litestream-age-DEV-ONLY.key"),
+        (
+            CLOUD_INIT / "compose" / "docker-compose.yml.tpl",
+            "/etc/budget-planner/litestream-age.key",
+        ),
+    ):
+        doc = yaml.safe_load(f.read_text().replace("%{~ if", "#").replace("%{~ endif }", "#"))
+        svc = doc["services"]["litestream"]
+        assert svc["entrypoint"] == ["/bin/sh", "/etc/litestream-entrypoint.sh"], f
+        assert svc["command"][0] == "replicate", f
+        mounts = svc["volumes"]
+        assert any(m.endswith(":/etc/litestream-entrypoint.sh:ro") for m in mounts), f
+        assert f"{key_src}:/run/litestream-age.key:ro" in mounts, f
+
+
+def test_host_agent_delivers_entrypoint_and_restarts_litestream_on_changes() -> None:
+    text = (CLOUD_INIT.parent / "modules" / "compute" / "user_data.tf").read_text()
+    for name in (
+        "litestream.yml",
+        "litestream-entrypoint.sh",
+        "litestream-age.key",
+        "litestream.env",
+    ):
+        m = re.search(
+            rf'path = "\$\{{local\.compose_dir\}}/{re.escape(name)}".*?restart = (\[[^\]]*\])', text
+        )
+        assert m is not None, name
+        assert m.group(1) == '["litestream"]', name
 
 
 def test_restore_configs_carry_an_identity() -> None:
@@ -68,9 +105,10 @@ def test_restore_from_prod_template_uses_identity_file() -> None:
     assert "lost" in text.lower()
 
 
-def test_cloud_init_writes_identity_at_0600() -> None:
-    text = (CLOUD_INIT / "bootstrap.yaml.tpl").read_text()
-    m = re.search(r"path: /etc/budget-planner/litestream-age\.key\n\s+permissions: '(\d+)'", text)
+def test_host_agent_writes_identity_at_0600() -> None:
+    # ADR-0111: the host agent writes it from bp-config (compute module).
+    text = (CLOUD_INIT.parent / "modules" / "compute" / "user_data.tf").read_text()
+    m = re.search(r'path = "\$\{local\.compose_dir\}/litestream-age\.key", +mode = "(\d+)"', text)
     assert m is not None
     assert m.group(1) == "0600"
 

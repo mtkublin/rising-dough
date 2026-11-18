@@ -113,3 +113,14 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
 | 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |
 | 0112 | [Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs](0112-frontend-stays-server-rendered-no-spa-framework.md) (relates to ADR-0107, ADR-0027, ADR-0080, ADR-0081) |
+| 0109 | [Prod Releases Triggered by GitHub Releases on `main`](0109-release-from-github-release-tags.md) (amends ADR-0099) |
+| 0110 | [One Prod Approval per Release](0110-single-prod-approval-per-release.md) (amends ADR-0099; relates to ADR-0100, ADR-0109) |
+| 0111 | [Terraform-Declared Host State, Pulled by a Host Agent](0111-terraform-declared-host-state.md) (supersedes ADR-0037 deploy step and ADR-0110; amends ADR-0099) |
+| 0113 | [CSP-Compatible Frontend — No Inline Script, Vendored Assets](0113-csp-compatible-frontend.md) (amends ADR-0036 `style-src`; relates to ADR-0027, ADR-0111) |
+| 0112 | [Prod-Gated Cleanup of Plaintext Litestream Objects](0112-prod-gated-litestream-plaintext-cleanup.md) (amends ADR-0078 §3; relates to ADR-0099, ADR-0100) |
+| 0114 | [Litestream Replicate Config Carries the Age Identity; One Forced New Generation](0114-litestream-replicate-identity-and-forced-generation.md) (amends ADR-0078 §3; relates to ADR-0111, ADR-0112) |
+| 0115 | [A Drill VM Is Exclusive; Every Drill Workflow Starts With a Drill Lock](0115-drill-vm-is-exclusive-drill-lock.md) (amends ADR-0099; relates to ADR-0101, ADR-0092) |
+| 0116 | [The Drill's Tailnet Name Is Unique Per Run](0116-drill-tailnet-name-unique-per-run.md) (amends ADR-0101; relates to ADR-0094, ADR-0099) |
+| 0117 | [One Source for Shared GitHub Workflow Logic](0117-dry-github-workflows.md) (relates to ADR-0099, ADR-0111, ADR-0115, ADR-0116) |
+| 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
+| 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |

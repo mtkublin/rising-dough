@@ -1,6 +1,8 @@
 #cloud-config
 ## NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
-## ADR-0035 §5: first-boot sequence (packages, users, templates, firewall, compose up).
+## ADR-0035 §5: first-boot sequence (packages, users, firewall, Tailscale, Docker).
+## ADR-0111: fixed bootstrap only. App files, image and config come from the
+## `bp-config` metadata key via the host agent (`bp-agent`), not from here.
 hostname: ${hostname}
 preserve_hostname: false
 fqdn: ${hostname}
@@ -89,15 +91,6 @@ users:
     uid: 10001
     shell: /usr/sbin/nologin
     lock_passwd: true
-  - name: deploy
-    uid: 10002
-    shell: /bin/bash
-    lock_passwd: true
-    # T-D115: deploy-budget-planner runs `docker compose`; the compose file is root:docker 0640.
-    # The forced command below is the boundary (docker group is root-equivalent).
-    groups: [docker]
-    ssh_authorized_keys:
-      - 'command="/usr/local/bin/deploy-budget-planner",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ${github_deploy_pubkey}'
   - name: operator
     # T-D87: Ubuntu ships a system group `operator` (gid 37); the default per-user group collides.
     no_user_group: true
@@ -110,6 +103,9 @@ users:
 %{~ endif }
     ssh_authorized_keys:
       - '${operator_ssh_pubkey}'
+%{~ if ci_ssh_pubkey != "" }
+      - '${ci_ssh_pubkey}'
+%{~ endif }
 
 write_files:
   - path: /etc/sysctl.d/99-swappiness.conf
@@ -118,41 +114,6 @@ write_files:
     content: |
       vm.swappiness = 10
 
-  - path: /etc/budget-planner/docker-compose.yml
-    permissions: '0640'
-    owner: root:docker
-    # T-D87: write_files runs in the init stage, before the `docker` group exists on some
-    # cloud-init versions; deferred entries are written in the final stage, before runcmd.
-    defer: true
-    content: |
-      ${indent(6, docker_compose_rendered)}
-
-  - path: /etc/budget-planner/Caddyfile
-    permissions: '0644'
-    owner: root:root
-    content: |
-      ${indent(6, caddyfile_rendered)}
-
-  - path: /etc/budget-planner/litestream.yml
-    permissions: '0644'
-    owner: root:root
-    content: |
-      ${indent(6, litestream_rendered)}
-
-  # T-D56 / ADR-0078 §3: restore-only config + age identity (ADR-0069 secret-file pattern).
-  # Lost identity = unrecoverable replica; the operator keeps the master copy in the password manager.
-  - path: /etc/budget-planner/litestream-restore.yml
-    permissions: '0644'
-    owner: root:root
-    content: |
-      ${indent(6, litestream_restore_rendered)}
-
-  - path: /etc/budget-planner/litestream-age.key
-    permissions: '0600'
-    owner: root:root
-    content: |
-      ${indent(6, age_identity)}
-
   # T-D67 / ADR-0094: single-use Tailscale auth key on tmpfs (/run), 0600 root.
   # Consumed and deleted by the `tailscale up` runcmd below (ADR-0069 secret-file pattern).
   - path: /run/tailscale-authkey
@@ -160,28 +121,6 @@ write_files:
     owner: root:root
     content: |
       ${tailscale_authkey}
-
-  - path: /etc/budget-planner/litestream.env
-    permissions: '0600'
-    owner: root:root
-    content: |
-      SCW_ACCESS_KEY=${scw_access_key}
-      SCW_SECRET_KEY=${scw_secret_key}
-
-  - path: /etc/logrotate.d/caddy-access
-    permissions: '0644'
-    owner: root:root
-    content: |
-      # T-D59 / ADR-0078 §5: 14 daily generations of the Caddy access log.
-      /var/log/caddy/access.log {
-          daily
-          rotate 14
-          compress
-          delaycompress
-          missingok
-          notifempty
-          copytruncate
-      }
 
   - path: /etc/docker/daemon.json
     permissions: '0644'
@@ -195,41 +134,74 @@ write_files:
         "userland-proxy": false
       }
 
-  - path: /root/.docker/config.json
-    permissions: '0600'
-    owner: root:root
-    content: |
-      {
-        "auths": {
-          "ghcr.io": {
-            "auth": "${ghcr_auth_b64}"
-          }
-        }
-      }
-
-  - path: /usr/local/bin/deploy-budget-planner
+  # ADR-0111: the fixed part of the host agent. The loader fetches the agent
+  # from instance metadata (privileged source port: root only) and runs it.
+  - path: /usr/local/sbin/bp-agent-loader
     permissions: '0755'
     owner: root:root
     content: |
-      ${indent(6, deploy_script_rendered)}
+      #!/bin/sh
+      # ADR-0111: fixed bootstrap. Changing this file needs a VM replace or a
+      # logged host edit; everything else comes from bp-agent / bp-config.
+      set -eu
+      umask 077
+      dir=/run/bp-agent
+      mkdir -p "$dir"
+      curl -fsS --max-time 20 --local-port 1-1023 -o "$dir/bp_agent.py.new" http://169.254.42.42/user_data/bp-agent
+      mv "$dir/bp_agent.py.new" "$dir/bp_agent.py"
+      exec /usr/bin/python3 -I "$dir/bp_agent.py"
 
-%{ if enable_restore_helper ~}
-  # T-D41a: drill-only. Read-only credential for the PROD replica + the helper
-  # the monthly restore-drill workflow runs over SSH.
-  - path: /etc/budget-planner/restore-source.env
-    permissions: '0600'
+  - path: /etc/systemd/system/bp-converge.service
+    permissions: '0644'
     owner: root:root
     content: |
-      RESTORE_ACCESS_KEY_ID=${restore_access_key}
-      RESTORE_SECRET_ACCESS_KEY=${restore_secret_key}
+      [Unit]
+      Description=Converge host to the Terraform-declared state (ADR-0111)
+      Wants=network-online.target
+      After=network-online.target docker.service bp-metadata-guard.service
+      Requires=docker.service
 
-  - path: /usr/local/bin/restore-from-prod
-    permissions: '0755'
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/bp-agent-loader
+      TimeoutStartSec=15min
+
+  - path: /etc/systemd/system/bp-converge.timer
+    permissions: '0644'
     owner: root:root
     content: |
-      ${indent(6, restore_script_rendered)}
+      [Unit]
+      Description=Run the host agent every 30 s (ADR-0111)
 
-%{ endif ~}
+      [Timer]
+      OnBootSec=30s
+      OnUnitInactiveSec=30s
+      AccuracySec=5s
+
+      [Install]
+      WantedBy=timers.target
+
+  # ADR-0111 §6: containers must not reach the metadata API (it serves every
+  # secret in user data; Docker grants NET_BIND_SERVICE, so a root container
+  # could use a privileged source port). DOCKER-USER filters container egress.
+  - path: /etc/systemd/system/bp-metadata-guard.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Block container access to the instance metadata API (ADR-0111)
+      After=docker.service
+      Requires=docker.service
+      PartOf=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'iptables -C DOCKER-USER -d 169.254.42.42/32 -j DROP 2>/dev/null || iptables -I DOCKER-USER -d 169.254.42.42/32 -j DROP'
+
+      [Install]
+      WantedBy=docker.service
+
   - path: /etc/apt/apt.conf.d/50unattended-upgrades
     permissions: '0644'
     owner: root:root
@@ -281,7 +253,12 @@ runcmd:
   - sh -c 'timeout 120 tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
   - systemctl enable --now unattended-upgrades
   - systemctl enable --now docker
-  - sh -c 'cd /etc/budget-planner && docker compose pull && docker compose up -d'
+  # ADR-0111: first convergence (writes app files, verifies + pulls the image,
+  # compose up), then every 30 s via the timer.
+  - systemctl daemon-reload
+  - systemctl enable --now bp-metadata-guard.service
+  - systemctl start bp-converge.service
+  - systemctl enable --now bp-converge.timer
 %{~ if tailnet_only }
   - sh -c 'for i in $(seq 1 60); do curl -fsS --resolve ${hostname}:443:127.0.0.1 https://${hostname}/ready && break; sleep 1; done'
 %{~ else }

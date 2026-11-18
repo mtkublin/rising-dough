@@ -231,6 +231,8 @@ def test_production_startup_succeeds_after_startup_migrate(tmp_path: Path) -> No
         db,
         env="production",
         cookie_secret=COOKIE_SECRET,
+        webauthn_rp_id="budget.example.test",
+        webauthn_origin="https://budget.example.test",
         trusted_hosts="testserver",
         admin_email=ADMIN_EMAIL,
         admin_initial_password=ADMIN_PASSWORD,

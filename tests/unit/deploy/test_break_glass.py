@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -24,7 +25,7 @@ def test_root_variable_defaults_empty_and_is_drill_only() -> None:
 
 def test_root_passes_list_to_compute_and_template() -> None:
     assert "break_glass_ssh_cidrs = var.break_glass_ssh_cidrs" in ROOT_MAIN
-    assert "break_glass_ssh_cidrs       = var.break_glass_ssh_cidrs" in USER_DATA
+    assert re.search(r"break_glass_ssh_cidrs\s+= var\.break_glass_ssh_cidrs\n", USER_DATA)
 
 
 def test_security_group_port_22_only_via_dynamic_break_glass() -> None:

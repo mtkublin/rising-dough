@@ -17,7 +17,7 @@
      aria-modal="true"
      aria-labelledby="add-entry-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over slide-over--add{% if active_tab == 'repeats' %} slide-over--repeats{% endif %}"
          tabindex="-1">
     {{ slide_over_header(title="New entry") }}

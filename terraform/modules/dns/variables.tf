@@ -28,6 +28,12 @@ variable "zone_project_id" {
   type        = string
 }
 
+variable "caa_issuers" {
+  description = "CA identifiers allowed to issue for the app hostname (CAA `issue` records). Default: Let's Encrypt plus Sectigo (the CAA identifier ZeroSSL uses), matching Caddy's default issuer chain. Empty list creates no CAA records."
+  type        = list(string)
+  default     = ["letsencrypt.org", "sectigo.com"]
+}
+
 variable "record_ttl_secs" {
   description = "DNS record TTL in seconds."
   type        = number

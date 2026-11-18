@@ -2,7 +2,7 @@
 
 The transactions slide-over wires a side-effect ``hx-get`` to the amount
 input (keystroke-triggered ``/transactions/_limit_preview`` fetch for the
-credit-limit badge). The pre-fix listener in ``base.html`` matched on the
+credit-limit badge). The pre-fix listener in ``app-init.js`` matched on the
 *closest* ``form[data-reset-on-submit]`` ancestor, so each keystroke's 2xx
 response tore down ``#modal-root``. The fix narrows the match to
 ``evt.target instanceof HTMLFormElement && data-reset-on-submit && verb ∈
@@ -31,11 +31,13 @@ from __future__ import annotations
 import re
 import sqlite3
 from datetime import date
+from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+import budget_planner
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -73,19 +75,27 @@ def seeded(_migrated: Settings) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
-def _extract_after_request_handler(html: str) -> str:
-    """Pull the ``htmx:afterRequest`` handler body out of ``base.html``.
+APP_INIT_JS = Path(budget_planner.__file__).parent / "web/static/js/app-init.js"
 
-    The handler lives inline in ``base.html`` next to the ``beforeSwap``
+
+def _load_app_init_source() -> str:
+    """Read the shipped ``js/app-init.js`` (ADR-0113: no inline scripts)."""
+    return APP_INIT_JS.read_text(encoding="utf-8")
+
+
+def _extract_after_request_handler(source: str) -> str:
+    """Pull the ``htmx:afterRequest`` handler body out of ``app-init.js``.
+
+    The handler lives in ``static/js/app-init.js`` next to the ``beforeSwap``
     422-shouldSwap branch. We slice from the ``afterRequest`` listener
     through the matching closing ``});`` so the subsequent re-execution
     harness only sees the one function body under test.
     """
     marker = 'addEventListener("htmx:afterRequest"'
-    start = html.index(marker)
+    start = source.index(marker)
     # Walk forward counting braces to find the matching close of the
     # listener function.
-    tail = html[start:]
+    tail = source[start:]
     depth = 0
     started = False
     for i, ch in enumerate(tail):
@@ -158,9 +168,9 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
 ) -> None:
     """Re-execute the ``htmx:afterRequest`` handler against two event shapes.
 
-    Instead of booting a browser, we lift the handler out of ``base.html``
-    and run it in Python against synthetic ``evt`` dicts matching the two
-    production shapes:
+    Instead of booting a browser, we lift the handler out of the shipped
+    ``static/js/app-init.js`` and run it in Python against synthetic ``evt``
+    dicts matching the two production shapes:
 
     1. Input-level side-effect ``hx-get`` (amount keystroke) — ``evt.target``
        is the ``<input>`` element. Must NOT reset / dismiss.
@@ -168,15 +178,18 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
        reset + dismiss.
 
     This stays faithful to the handler bytes shipped in production
-    because we extract them verbatim and only mock the DOM surface the
-    handler touches (``instanceof``, ``hasAttribute``, ``querySelectorAll``,
-    ``closest``, ``reset``, ``parentElement.innerHTML``).
+    because we extract them verbatim from the file /today loads and only
+    mock the DOM surface the handler touches (``instanceof``,
+    ``hasAttribute``, ``querySelectorAll``, ``closest``, ``reset``,
+    ``parentElement.innerHTML``).
     """
     base_html = client.get("/transactions/new").text  # has <head> + base scripts
     # The slide-over fragment response does not include <head>; grab the
     # home page which renders base.html wholesale.
     full = client.get("/today").text
-    handler_js = _extract_after_request_handler(full)
+    # ADR-0113: the bootstrap script is external, so /today must reference it.
+    assert "js/app-init.js" in full
+    handler_js = _extract_after_request_handler(_load_app_init_source())
     # Smoke: handler must reference the three T-124 invariants (otherwise
     # we are testing a stale fix).
     assert "HTMLFormElement" in handler_js, handler_js

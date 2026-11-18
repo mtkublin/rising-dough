@@ -6,13 +6,23 @@ these tests pin the wiring of the Terraform sources and the workflows.
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 TF = ROOT / "terraform"
 WORKFLOWS = ROOT / ".github" / "workflows"
+SCRIPTS_CI = ROOT / "scripts" / "ci"
 TAILSCALE_ACTION = re.compile(r"uses:\s*tailscale/github-action@([0-9a-f]{40})\b")
+
+
+_spec = importlib.util.spec_from_file_location("tf_env", SCRIPTS_CI / "tf_env.py")
+assert _spec is not None and _spec.loader is not None
+tf_env = importlib.util.module_from_spec(_spec)
+sys.modules["tf_env"] = tf_env
+_spec.loader.exec_module(tf_env)
 
 
 def _text(path: Path) -> str:
@@ -77,22 +87,35 @@ def test_ci_drill_has_no_dns_permission_on_prod() -> None:
 def test_drill_smoke_joins_tailnet_and_probes_magicdns_name() -> None:
     wf = _text(WORKFLOWS / "drill.yml")
     pin = TAILSCALE_ACTION.search(wf)
-    deploy_pin = TAILSCALE_ACTION.search(_text(WORKFLOWS / "deploy.yml"))
+    other_pin = TAILSCALE_ACTION.search(_text(WORKFLOWS / "restore-drill.yml"))
 
     assert pin is not None
-    assert deploy_pin is not None
-    assert pin.group(1) == deploy_pin.group(1)
+    assert other_pin is not None
+    assert pin.group(1) == other_pin.group(1)
     assert "tags: tag:ci" in wf
-    assert "budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}" in wf
+    assert "budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}" in wf
     assert "vars.DRILL_URL" not in _code(WORKFLOWS / "drill.yml")
 
 
 def test_terraform_workflow_passes_tailnet_dns_name_for_drill_only() -> None:
-    wf = _text(WORKFLOWS / "terraform.yml")
+    # T-D133: the mapping moved from terraform.yml env blocks to scripts/ci/tf_env.py.
+    entry = next(e for e in tf_env.ENTRIES if e.var == "tailnet_dns_name")
 
-    assert (
-        "TF_VAR_tailnet_dns_name: ${{ matrix.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}" in wf
-    )
-    assert (
-        "TF_VAR_tailnet_dns_name: ${{ inputs.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}" in wf
-    )
+    assert (entry.source, entry.name, entry.only_env) == ("var", "TAILNET_DNS_NAME", "drill")
+    values = tf_env.build_env("prod", {}, {"TAILNET_DNS_NAME": "x.ts.net"}, owner="o", run_id="1")
+    assert values["TF_VAR_tailnet_dns_name"] == ""
+
+
+def test_drill_tailnet_name_is_unique_per_run() -> None:
+    """T-D139 / ADR-0116: Let's Encrypt allows 5 certificates per exact name per week."""
+    drill = tf_env.build_env("drill", {}, {}, owner="o", run_id="4242")
+    prod = tf_env.build_env("prod", {}, {}, owner="o", run_id="4242")
+    assert drill["TF_VAR_drill_run_id"] == "4242"
+    assert prod["TF_VAR_drill_run_id"] == ""
+    # Both terraform.yml jobs export the inputs through the one action.
+    tf = _text(WORKFLOWS / "terraform.yml")
+    assert tf.count("uses: ./.github/actions/terraform-env") == 2
+    restore = _text(WORKFLOWS / "restore-drill.yml")
+    assert "DRILL_HOST: budget-planner-drill-${{ github.run_id }}." in restore
+    for name in ("drill.yml", "restore-drill.yml"):
+        assert "budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}" not in _text(WORKFLOWS / name)

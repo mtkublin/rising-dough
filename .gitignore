@@ -12,6 +12,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+# pytest-testmon selection data (ADR-0108 §3); per checkout, copied by `just worktree-init`.
+.testmondata*
 .mypy_cache/
 .ruff_cache/
 .coverage

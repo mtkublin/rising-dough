@@ -2,7 +2,7 @@
 
 ## Context
 
-Port 22 is closed on the Scaleway security group of both `drill` and `prod`. Operator and CI reach sshd only through the tailnet, using MagicDNS names `budget-planner-prod` and `budget-planner-drill`. The app stays public on 80/443; app users never need Tailscale.
+Port 22 is closed on the Scaleway security group of both `drill` and `prod`. Operator and CI reach sshd only through the tailnet, using MagicDNS names `budget-planner-prod` and `budget-planner-drill-<run id>` (the drill name is per run, see [`drill.md`](drill.md)). The app stays public on 80/443; app users never need Tailscale.
 
 ## Preconditions
 
@@ -23,7 +23,7 @@ The ACL is deliberately not in Terraform (tailnet-global; two env states would b
 
 ```sh
 ssh operator@budget-planner-prod
-ssh deploy@budget-planner-prod "rollback"   # restricted deploy user, see rollback.md
+# no deploy user: releases and rollbacks are Terraform applies (deploy.md, rollback.md)
 ```
 
 ### 3. Host keys over the tailnet
@@ -34,7 +34,7 @@ From a device on the tailnet:
 ssh-keyscan -t ed25519,ecdsa,rsa budget-planner-prod
 ```
 
-Store the output as the GitHub secret `DEPLOY_SSH_KNOWN_HOSTS`. The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. No drill pin secret exists; the drill host key is never pinned (T-D120).
+Verify the printed keys when you first connect (or pin them in your own `known_hosts`); no GitHub secret holds them any more, since no workflow SSHes into prod (ADR-0111). The peer is authenticated by its WireGuard node key and the ACL, so this scan is trustworthy. The drill host has fresh host keys on every run; `restore-drill.yml` scans them at runtime. No drill pin secret exists; the drill host key is never pinned (T-D120).
 
 ### 4. Rotating the OAuth client
 
@@ -48,7 +48,7 @@ Create a new client (scope Auth Keys: write, tag `tag:automation` only), update 
 ## Troubleshooting
 
 - **Name does not resolve**: MagicDNS off or Tailscale not running; use `tailscale ip -4 budget-planner-prod`.
-- **Drill node named `budget-planner-drill-1`**: a destroyed ephemeral node was not yet garbage-collected. Delete the stale machine in the admin console (or wait) and re-run.
+- **Drill node registered with a `-1` suffix** (`budget-planner-drill-<run id>-1`): a destroyed ephemeral node with the same name was not yet garbage-collected. Delete the stale machine in the admin console (or wait) and re-run.
 - **Node never joined** (first boot): the auth key lives 1 h and is single-use. Check `sudo tail /var/log/cloud-init-output.log` through break-glass below, then: drill, re-dispatch `drill.yml` on the branch (every drill apply replaces the server and tailnet key). Prod is not a pipeline action: break-glass with explicit user go, `terraform apply -replace=tailscale_tailnet_key.vm -replace=module.compute.scaleway_instance_server.app` (replaces the VM; data restores from Litestream).
 
 ## Break-glass (Tailscale unreachable)

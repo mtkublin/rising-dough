@@ -20,7 +20,6 @@ import pytest
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.db.migrate import apply_migrations
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
@@ -36,6 +35,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as txn_repo,
 )
+from tests.db_template import copy_template, db_path_of
 
 USER_ID = 1
 
@@ -51,9 +51,10 @@ def settings(db_path: Path) -> Settings:
 
 
 @pytest.fixture
-def conn(settings: Settings) -> Iterator[sqlite3.Connection]:
+def conn(settings: Settings, migrated_template: Path) -> Iterator[sqlite3.Connection]:
+    # T-CS02: copy the migrated template instead of running every migration.
+    copy_template(migrated_template, db_path_of(settings))
     c = get_connection(settings)
-    apply_migrations(c)
     try:
         yield c
     finally:

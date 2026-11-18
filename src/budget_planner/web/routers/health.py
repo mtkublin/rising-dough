@@ -4,7 +4,10 @@
 - ``GET /ready``  → 200 iff ``PRAGMA integrity_check`` on the configured
   SQLite file returns ``ok``; 503 otherwise.
 
-Both routes stay outside any auth middleware (ADR-0033 §5) so Caddy, the
+- ``GET /health/replication`` → 200 iff the newest Litestream replica object is
+  fresh (T-D144, ADR-0119); 503 when stale, missing or unreadable.
+
+All routes stay outside any auth middleware (ADR-0033 §5) so Caddy, the
 deploy pipeline, and the external uptime monitor can poll them without
 credentials.
 """
@@ -12,10 +15,13 @@ credentials.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
+from budget_planner.services import replication_health
 
 if TYPE_CHECKING:
     from budget_planner.config import Settings
@@ -71,3 +77,22 @@ def ready(request: Request) -> JSONResponse:
             content={"status": "not_ready", "detail": f"integrity_check: {first!r}"},
         )
     return JSONResponse(status_code=200, content={"status": "ready", "db": "ok"})
+
+
+@router.get("/health/replication", include_in_schema=False)
+def replication(request: Request) -> JSONResponse:
+    """Replication freshness for the external monitor (ADR-0119). No secrets in the body."""
+    cfg: Settings = request.app.state.settings
+    if not cfg.replication_status_file:
+        return JSONResponse(content=replication_health.disabled().body())
+    try:
+        raw = replication_health.read_status_text(cfg.replication_status_file)
+    except OSError as exc:
+        _logger.warning("replication_status_unreadable", exc_info=exc)
+        raw = "unreadable"  # not JSON: evaluate() answers "unreadable"
+    verdict = replication_health.evaluate(
+        raw,
+        now=datetime.now(UTC),
+        max_age=timedelta(hours=cfg.replication_max_age_hours),
+    )
+    return JSONResponse(status_code=200 if verdict.ok else 503, content=verdict.body())

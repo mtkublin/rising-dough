@@ -1,4 +1,4 @@
-# NOTE: rendered via cloud-init by Terraform. Edits must happen in the .tpl.
+# NOTE: rendered by Terraform into bp-config; the host agent writes it (ADR-0111). Edit the .tpl.
 # ADR-0032 §2: three services — app, litestream, caddy.
 # ADR-0034 §1: litestream sidecar is the only writer to object storage.
 # ADR-0036 §2: caddy image is a custom build pinned by digest.
@@ -7,7 +7,8 @@ name: budget-planner
 
 services:
   app:
-    image: ghcr.io/${github_owner}/budget-planner:${app_image_tag}
+    # ADR-0111: repo:tag@sha256:digest; the agent cosign-verifies it before pulling.
+    image: ${app_image}
     container_name: budget-planner-app
     restart: unless-stopped
     user: "10001:10001"
@@ -19,12 +20,18 @@ services:
       BUDGET_DATABASE_URL: "sqlite:////data/budget.db"
       BUDGET_COOKIE_SECRET: "${cookie_secret}"
       BUDGET_TRUSTED_HOSTS: "${trusted_hosts}"
+      # T-D135 / ADR-0067 §1: WebAuthn RP = the public browser hostname.
+      BUDGET_WEBAUTHN_RP_ID: "${hostname}"
+      BUDGET_WEBAUTHN_ORIGIN: "https://${hostname}"
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
       BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"
+      # T-D144 / ADR-0119: freshness file written by litestream-probe.
+      BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
       TZ: "Europe/Warsaw"
     volumes:
       - /data:/data:rw
+      - /var/lib/budget-planner/replication:/replication:ro
     networks:
       - edge
     expose:
@@ -80,6 +87,8 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream
     restart: unless-stopped
+    # T-D136 / ADR-0114: exports the age identity and forces one new generation per host.
+    entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:
       SCW_ACCESS_KEY: "${scw_access_key}"
@@ -87,9 +96,34 @@ services:
     volumes:
       - /data:/data:rw
       - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-entrypoint.sh:/etc/litestream-entrypoint.sh:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
       - edge
     stop_grace_period: 30s
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
+
+  # T-D144 / ADR-0119: lists the replica every 5 min and writes the freshness
+  # status file the app serves at /health/replication. /data is mounted
+  # read-only because `litestream generations` stats the DB file.
+  litestream-probe:
+    image: litestream/litestream:0.3.14
+    container_name: budget-planner-litestream-probe
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/litestream-replication-probe.sh"]
+    environment:
+      SCW_ACCESS_KEY: "${scw_access_key}"
+      SCW_SECRET_KEY: "${scw_secret_key}"
+    volumes:
+      - /data:/data:ro
+      - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-replication-probe.sh:/etc/litestream-replication-probe.sh:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
+      - /var/lib/budget-planner/replication:/status:rw
+    networks:
+      - edge
     depends_on:
       litestream-restore:
         condition: service_completed_successfully
@@ -109,6 +143,8 @@ services:
       - caddy-data:/data
       - caddy-config:/config
       - /var/log/caddy:/var/log/caddy
+      # ADR-0111: host agent status.json, served at /.well-known/bp-deploy-status.json.
+      - /var/lib/budget-planner/status:/srv/bp-status:ro
 %{~ if tailnet_only }
       # ADR-0101: certificate for the *.ts.net name comes from the host tailscaled.
       # The directory (not the socket file) is mounted so a tailscaled restart

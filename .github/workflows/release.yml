@@ -1,24 +1,35 @@
 # Prod release pipeline (ADR-0099) — the ONLY path to production.
 #
-#   ci -> build -> tf-apply-prod -> deploy-prod (smoke /ready inside deploy)
+#   ci -> build -> tf-apply-prod (approval; apply, then wait for the host)
 #
-# Runs on push to main. Terraform apply and deploy run in the GitHub
-# environment `prod` (required reviewers). The image tag produced by `build`
-# is passed to terraform (-var app_image_tag) and to deploy. No drill stage
-# here: drill is validated pre-merge (T-D90).
+# ADR-0109 (T-D125): runs when a GitHub release is published (tag vX.Y.Z),
+# not on push to main. Cut one with `gh release create vX.Y.Z --target main`.
+# The first job refuses any tag whose commit is not an ancestor of origin/main.
+# The merge that introduced this trigger was the last merge-triggered release.
+# ADR-0111: a release is ONE approved `terraform apply` (environment `prod`).
+# It sets the image ref `vX.Y.Z@sha256:<digest>` in the host's instance
+# metadata; the host agent cosign-verifies and converges, and the same job
+# waits for the host's status and rolls back to the previous ref on failure.
+# No SSH deploy job. No drill stage here: drill is validated pre-merge (T-D90).
 
 name: release
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Existing release tag vMAJOR.MINOR.PATCH to (re)run. Dispatch with
+          "Use workflow from" set to this same tag.
+        type: string
+        required: true
 
 permissions:
   contents: read
   packages: write
   id-token: write
-  deployments: write
   pull-requests: write
 
 concurrency:
@@ -26,28 +37,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  guard:
+    name: Tag is SemVer and on main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout (full history for the ancestry check)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          if [ "${REF_TYPE}" != "tag" ]; then
+            echo "::error::release runs from a v* tag, not ${GITHUB_REF}" >&2
+            exit 1
+          fi
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_TAG}" != "${REF_NAME}" ]; then
+            echo "::error::dispatch input tag '${INPUT_TAG}' must equal the ref '${REF_NAME}'" >&2
+            exit 1
+          fi
+          echo "tag=${REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Guard ref (ADR-0109)
+        run: python3 scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}"
+
   ci:
-    if: github.ref == 'refs/heads/main'
+    needs: guard
     uses: ./.github/workflows/ci.yml
     secrets: inherit  # pragma: allowlist secret
 
   build:
-    needs: ci
+    needs: [guard, ci]
     uses: ./.github/workflows/build.yml
     secrets: inherit  # pragma: allowlist secret
 
   tf-apply-prod:
-    needs: build
+    needs: [guard, build]
     uses: ./.github/workflows/terraform.yml
     with:
       env: prod
-      image_tag: ${{ needs.build.outputs.image-tag }}
-    secrets: inherit  # pragma: allowlist secret
-
-  deploy-prod:
-    needs: [build, tf-apply-prod]
-    uses: ./.github/workflows/deploy.yml
-    with:
-      env: prod
-      image_tag: ${{ needs.build.outputs.image-tag }}
+      image_ref: ${{ needs.guard.outputs.tag }}@${{ needs.build.outputs.image-digest }}
     secrets: inherit  # pragma: allowlist secret

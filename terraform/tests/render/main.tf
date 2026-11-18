@@ -35,6 +35,12 @@ variable "console_password_hash" {
   default     = ""
 }
 
+variable "ci_ssh_pub" {
+  description = "CI SSH public key rendered for the operator (T-D137)."
+  type        = string
+  default     = ""
+}
+
 variable "boot_log_upload" {
   description = "Render the drill-only boot log uploader (T-D86)."
   type        = bool
@@ -53,12 +59,16 @@ variable "expires_at" {
   default     = ""
 }
 
+locals {
+  dummy_digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
+}
+
 module "compute" {
   source = "../../modules/compute"
 
   name_prefix       = "render-check"
   scaleway_zone     = "pl-waw-2"
-  app_image_tag     = "render-check"
+  app_image_ref     = "sha-1234567@sha256:${local.dummy_digest}"
   hostname          = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"
   bucket_name       = "render-check-bucket"
   bucket_endpoint   = "https://s3.pl-waw.scw.cloud"
@@ -66,9 +76,10 @@ module "compute" {
   scw_access_key    = "SCWDUMMYACCESSKEY0000"
   scw_secret_key    = "00000000-dummy-0000-0000-000000000000" # pragma: allowlist secret
   operator_ssh_pub  = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAADUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMM operator-dummy"
-  deploy_ssh_pub    = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAADUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMM deploy-dummy"
+  ci_ssh_pub        = var.ci_ssh_pub
   ghcr_pull_pat     = "ghp_DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   github_owner      = "render-check-owner"
+  github_repo       = "render-check-repo"
   admin_email       = "admin@example.invalid"
   admin_password    = "dummy-admin-password" # pragma: allowlist secret
   cookie_secret     = "dummy-cookie-secret"  # pragma: allowlist secret
@@ -94,9 +105,20 @@ module "compute" {
   backup_max_age_days      = 37
 }
 
-output "cloud_init_is_sensitive" {
-  description = "Whether scaleway_instance_server.app.cloud_init is marked sensitive (T-D83)."
-  value       = module.compute.cloud_init_is_sensitive
+output "user_data_is_sensitive" {
+  description = "Whether scaleway_instance_server.app.user_data is marked sensitive (T-D83, ADR-0111)."
+  value       = module.compute.user_data_is_sensitive
+}
+
+output "host_config" {
+  description = "Rendered bp-config document (dummy secrets only; ADR-0111)."
+  value       = module.compute.host_config
+  sensitive   = true
+}
+
+output "host_config_generation" {
+  description = "Generation of the rendered bp-config (ADR-0111)."
+  value       = module.compute.host_config_generation
 }
 
 output "user_data" {
@@ -113,4 +135,10 @@ output "security_group_rules" {
 output "server_tags" {
   description = "Compute server tags (T-D90)."
   value       = module.compute.server_tags
+}
+
+output "all_rendered" {
+  description = "cloud-init plus every agent-managed file, concatenated (dummy secrets only; ADR-0111)."
+  value       = join("\n", concat([module.compute.user_data], [for f in jsondecode(module.compute.host_config).files : f.content]))
+  sensitive   = true
 }

@@ -45,3 +45,33 @@ output "tailscale_hostname" {
   description = "MagicDNS name of the VM on the tailnet (SSH target for CI and the operator; T-D67)."
   value       = local.tailscale_hostname
 }
+
+output "app_image_ref" {
+  description = "App image ref `<tag>@sha256:<digest>` the host is told to run (ADR-0111). CI reads it as the next apply's previous ref."
+  value       = var.app_image_ref
+}
+
+output "app_image_previous_ref" {
+  description = "Ref the host ran before the last apply (ADR-0111); the rollback target."
+  value       = var.app_image_previous_ref
+}
+
+output "host_config_generation" {
+  description = "Generation the host agent reports in /.well-known/bp-deploy-status.json once converged (ADR-0111)."
+  value       = module.compute.host_config_generation
+}
+
+output "host_image_ref" {
+  description = "Full image ref (repo:tag@digest) the host agent reports as running once converged (ADR-0111)."
+  value       = module.compute.app_image_ref
+}
+
+output "ci_ssh_authorized" {
+  description = "True when the CI SSH key is authorised on the host (drill only, T-D137). Boolean, not a secret; test hook."
+  value       = local.ci_ssh_pubkey_effective != ""
+}
+
+output "drill_run_id" {
+  description = "Drill only (T-D139, ADR-0116): numeric run id baked into the tailnet name; empty on prod. CI re-applies on an existing drill read it back so the host name does not change."
+  value       = var.drill_run_id
+}
