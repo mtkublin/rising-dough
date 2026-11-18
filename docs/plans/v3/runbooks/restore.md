@@ -1,12 +1,12 @@
 # Runbook — Restore from Litestream
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Reconstruct `/data/budget.db` from the Scaleway Object Storage replica.
 
 ## Context
 
-Litestream streams WAL segments to `s3://budget-planner-prod-pl-waw/db/` every 10 s and takes a daily full snapshot (ADR-0034 §3). Retention is 30 days of WAL + snapshots, giving a 30-day point-in-time recovery window. RPO target is < 15 s; RTO target is < 60 s for the restore itself, < 60 min end-to-end from a cold VM (ADR-0032 §9).
+Litestream streams WAL segments to `s3://budget-planner-prod-pl-waw/db/` every 10 s and takes a daily full snapshot (ADR-0034 §3). Retention is 30 days of WAL + snapshots, giving a 30-day point-in-time recovery window. That window has a gap from 2026-11-07 to 2026-11-18; see the incident record below. RPO target is < 15 s; RTO target is < 60 s for the restore itself, < 60 min end-to-end from a cold VM (ADR-0032 §9).
 
 This runbook is for restoring **into the current prod host** (DB corruption, accidental destructive write, bad migration). For restoring into a brand-new VM, use [`disaster-recovery.md`](disaster-recovery.md) instead — it wraps this restore inside a full re-provision.
 
@@ -14,7 +14,7 @@ The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a 
 
 ### Drill helper: `restore-from-prod`
 
-The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, rendered from `terraform/cloud-init/bin/restore-from-prod.tpl` and written by the host agent as a managed file in `bp-config` (ADR-0111, T-D41a). The workflow runs it as `ssh operator@budget-planner-drill 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` reports `"status":"ok"`.
+The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, rendered from `terraform/cloud-init/bin/restore-from-prod.tpl` and written by the host agent as a managed file in `bp-config` (ADR-0111, T-D41a). The workflow runs it as `ssh operator@budget-planner-drill-<run id> 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` reports `"status":"ok"`.
 
 - **Credential**: the key of the `restore-reader` IAM application (read-only on the prod project, listed in the prod bucket policy; ADR-0092; lives in `terraform/bootstrap/ci` since ADR-0104; rotate there under break-glass, see `key-rotation.md`, then update the secrets), passed as `TF_VAR_scw_access_key_restore` / `TF_VAR_scw_secret_key_restore` (workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`). The host agent writes it from `bp-config` to `/etc/budget-planner/restore-source.env` (0600, root). It is empty on prod and the helper does not exist there.
 - **Age identity (T-D56)**: the prod replica is age-encrypted (ADR-0078 §3). The helper reads the identity from `/etc/budget-planner/litestream-age.key` (0600, root; Terraform `litestream_age_identity`, which on the drill env must be the **prod** identity) and exports it to the restore container. It refuses to run if the file is missing. **A lost identity means the replica is unrecoverable.**
@@ -154,13 +154,21 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 3. Start Litestream, then app. Verify as above.
 4. Rotate the read-only credential and triage the Litestream bucket contents before attempting another restore.
 
+## Incident record: replication stall, 2026-11-07 to 2026-11-18 (T-D136)
+
+- **Symptom:** prod WAL replication stalled from 2026-11-07T17:52Z with `cannot determine replica position: lz4: bad magic number`. Litestream only logged and retried, so the container stayed "up".
+- **Cause:** the replicate config had age recipients but no identity, so the restart path could not read back the age-encrypted last segment (ADR-0114).
+- **RPO during the stall:** daily snapshots continued. The last snapshot before the fix was 2026-11-17 17:57Z, so RPO was at most about 24 h. Point-in-time recovery inside the stall window is not available.
+- **Fix:** release `v3.0.2` (ADR-0114, T-D136). On 2026-11-18T14:37Z the litestream entrypoint logged "forcing a new generation (one-time, ADR-0114)". Litestream opened generation `2901fbd3873a6696`, wrote a snapshot, and has written WAL segments every 10 to 60 s since, with no errors. A second start did not force again (the marker works).
+- **Verified:** on prod, 2026-11-18, by the operator. The restore drill has not yet been run against this generation (operator checklist step 1).
+
 ## Cut-over to an encrypted replica (T-D56, ADR-0078 §3, ADR-0112)
 
 Do this once, after the age-enabled config is live on a bucket that already holds plaintext objects.
 
 **What Litestream 0.3.14 does when age is enabled (read from `replica.go`, v0.3.14).** It does **not** start a new generation. The running generation continues, and only snapshots and WAL segments written *after* the restart are age ciphertext (each object starts with `age-encryption.org/v1`; file names stay `*.lz4`). So one generation can mix plaintext and encrypted objects, and a "plaintext generation" test is not reliable. The cleanup workflow classifies every object by its first bytes instead.
 
-**Restart safety (T-D136, ADR-0114).** On every start the replicator re-reads its last WAL segment (`calcPos`) and decrypts it only if the replicate config has `age.identities`. The replicate config now carries the identity, and the litestream entrypoint forces one new generation per host (marker `/data/.litestream-age-generation`), so every segment it reads back is ciphertext. **This cut-over depends on T-D136 being live on the host** (release after `v3.0.1`); until then a restart of `litestream` stalls replication (`cannot determine replica position`). Check `docker compose logs litestream --tail 50` after the release converges.
+**Restart safety (T-D136, ADR-0114).** On every start the replicator re-reads its last WAL segment (`calcPos`) and decrypts it only if the replicate config has `age.identities`. The replicate config now carries the identity, and the litestream entrypoint forces one new generation per host (marker `/data/.litestream-age-generation`), so every segment it reads back is ciphertext. **This cut-over depends on T-D136 being live on the host** (live on prod since release `v3.0.2`, 2026-11-18); before that a restart of `litestream` stalls replication (`cannot determine replica position`). Check `docker compose logs litestream --tail 50` after the release converges.
 
 1. **Encrypted generation exists.** Terraform was applied with `litestream_age_identity` / `litestream_age_recipient` (operator checklist); the host agent restarted `litestream`. Confirm on the host: `docker compose logs litestream | grep -i "snapshot written"`. With T-D136 the first start opens a new generation, so its snapshot is written right away; wait for it (a restore with the identity cannot use the older plaintext snapshots). Spot-check one new object: `aws s3api get-object --endpoint-url https://s3.pl-waw.scw.cloud --bucket budget-planner-prod-pl-waw --key <key> --range bytes=0-31 /dev/stdout | head -c 22` prints `age-encryption.org/v1`.
 2. **Restore drill green.** Dispatch `restore-drill.yml` (T-D40/T-D41) after that snapshot, with the prod identity on the drill host. The operator appends the entry to [`restore-log.md`](restore-log.md) with `Result: pass` and `integrity_check: ok`. Also run the negative check from the restore steps (restore without the identity must fail).

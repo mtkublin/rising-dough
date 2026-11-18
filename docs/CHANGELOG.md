@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-18 (T-D44 uptime monitoring closed)
+- **Docs/Ops(T-D44): UptimeRobot is the only uptime alarm; `uptime.yml` removed.** External monitor on `/health`, 5 min, test alert received. Accepted trade-off: no alert when host-agent convergence fails while `/health` is ok; release and rollback runs show that. Host-down covered by the external check. `disaster-recovery.md` and `operator-checklist.md` updated; T-D44 ✅.
+
+## 2026-11-18 (release v3.0.2 and v3 docs catch-up)
+- **Release: `v3.0.2` is live on prod** (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). Carries the T-D136 Litestream fix: the one-time generation reset ran at 2026-11-18T14:37Z and replication is writing again (replication had stalled from 2026-11-07; RPO at most ~24 h, incident record in `runbooks/restore.md`). T-D135 WebAuthn settings verified on prod.
+- **Ops: prod checks done 2026-11-18.** CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126, first scheduled run 2026-11-23 03:17 UTC); external UptimeRobot monitor set up (T-D44, still ◐); `/data/pre-seed-*` folders removed on prod (data-inventory U6); `DEPLOY_SSH_PRIVATE_KEY` copies deleted from `drill-plan` and `drill-teardown` (kept in `drill` only).
+- **Docs: drill host name is per run** (`budget-planner-drill-<run id>`, ADR-0116, T-D139). Runbooks updated; historical log entries unchanged. Operator checklist "State" and "Next" refreshed.
+## 2026-11-18 (PREP: drill readiness)
+- **Docs(T-D40): restore drill readiness review** in `phase-4-validation/T-D40-first-restore-drill.md`: host agent does not restart the stopped stack, the drill cannot write to the prod bucket, the age identity reaches `litestream restore`; restore-log entry template added. No script change.
+- **Feat(T-D135/T-D43): `scripts/drill/passkey_check.py`** (Playwright + CDP virtual authenticator; password via stdin only) with unit and e2e tests, and `phase-4-validation/DRILL-2-checklist.md` for the explore drill.
+
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
 - **Refactor(T-D133): DRY the GitHub workflows** (ADR-0117; code done, gate drill and restore drill proofs pending). `TF_VAR_*` mapping in one place (`scripts/ci/tf_env.py` + composite action `terraform-env`); `restore-drill.yml` apply and destroy run through `terraform.yml`; one reusable `tailnet-cleanup.yml`; `host_release.py resolve-ref`; one SHA pin per action (new `test_action_pins.py`, `test_tf_env.py`).
 - **Fix(T-D139): drill gate failed at smoke because of the Let's Encrypt limit (5 certificates per exact name per week)** (ADR-0116). The fixed drill name `budget-planner-drill.<tailnet>` hit `429 rateLimited` in tailscaled, so Caddy never completed a TLS handshake (TCP open, no ServerHello, `curl: (28)`). The drill now registers as `budget-planner-drill-<run id>` (`drill_run_id`, passed by `terraform.yml`, `drill.yml`, `restore-drill.yml`). Tests: tftest + `test_tailnet_only_drill.py`.
