@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-18 (PREP: drill readiness)
+- **Docs(T-D40): restore drill readiness review** in `phase-4-validation/T-D40-first-restore-drill.md`: host agent does not restart the stopped stack, the drill cannot write to the prod bucket, the age identity reaches `litestream restore`; restore-log entry template added. No script change.
+- **Feat(T-D135/T-D43): `scripts/drill/passkey_check.py`** (Playwright + CDP virtual authenticator; password via stdin only) with unit and e2e tests, and `phase-4-validation/DRILL-2-checklist.md` for the explore drill.
+
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
 - **Fix(T-D139): drill gate failed at smoke because of the Let's Encrypt limit (5 certificates per exact name per week)** (ADR-0116). The fixed drill name `budget-planner-drill.<tailnet>` hit `429 rateLimited` in tailscaled, so Caddy never completed a TLS handshake (TCP open, no ServerHello, `curl: (28)`). The drill now registers as `budget-planner-drill-<run id>` (`drill_run_id`, passed by `terraform.yml`, `drill.yml`, `restore-drill.yml`). Tests: tftest + `test_tailnet_only_drill.py`.
 - **Fix(T-D137): the CI key can SSH into the drill host, drill only** (ADR-0094, ADR-0111). New optional `ci_ssh_pubkey` Terraform variable, forced to empty unless `env = drill` (`ci_ssh_pubkey_effective`), added as a second `operator` authorized key in cloud-init; fed from the environment variable `CI_SSH_PUBKEY` in `restore-drill.yml` and the drill legs of `terraform.yml`. Prod renders and config unchanged. Tests: tftest (prod drops it even when set) and a static workflow test. Operator sets the variable on `drill` and `drill-plan`; drill proof pending (restore drill).
