@@ -195,6 +195,29 @@ jobs:
           echo "::error::${DRILL_SSH_HOST} never answered on port 22 over the tailnet" >&2
           exit 1
 
+      - name: Verify operator SSH login (T-D41)
+        # First-run lesson (run 44297154259): sshd answered on the tailnet but
+        # rejected the key. Compare the agent key with OPERATOR_SSH_PUBKEY (public
+        # fingerprints only, safe to print), then retry the login while cloud-init
+        # finishes writing authorized_keys. Prints the ssh -v tail on final failure.
+        timeout-minutes: 8
+        env:
+          OPERATOR_SSH_PUBKEY: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+        run: |
+          set -uo pipefail
+          echo "authorized key fingerprint: $(printf '%s\n' "${OPERATOR_SSH_PUBKEY}" | ssh-keygen -lf - 2>&1)"
+          echo "agent key fingerprints:"; ssh-add -l || true
+          for i in $(seq 1 12); do
+            if ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" true; then
+              echo "operator SSH login ok (attempt ${i})"
+              exit 0
+            fi
+            sleep 10
+          done
+          ssh -vv -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" true 2>&1 | tail -n 40 || true
+          echo "::error::operator SSH login to ${DRILL_SSH_HOST} failed" >&2
+          exit 1
+
       - name: Trigger restore on drill host
         # The helper lives at /usr/local/bin/restore-from-prod (written by the
         # host agent from bp-config, ADR-0111; cloud-init's runcmd runs the
@@ -334,8 +357,37 @@ jobs:
           Per ADR-0034 §5 this blocks the next monthly drill until closed.
           EOF
           )
+          # The issue call fails on unknown labels (first run: "label not found").
+          gh label create restore-drill --repo "${REPO}" --color 5319e7 --description "Automated restore drill" 2>/dev/null || true
+          gh label create incident --repo "${REPO}" --color d73a4a --description "Operational incident" 2>/dev/null || true
           gh issue create \
             --repo "${REPO}" \
             --title "${title}" \
             --body "${body}" \
             --label "restore-drill,incident"
+
+  # T-D124 (ADR-0101): destroying the VM leaves its tailnet node behind (offline);
+  # a stale node makes the next drill register as budget-planner-drill-1, so the
+  # tailnet wait and SSH hit the offline node (first-run lesson, run 44299998687).
+  # Runs even when the drill job failed; problems are warnings only.
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: restore-drill
+    if: ${{ always() && needs.restore-drill.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/tailnet_drill_cleanup.py
+
+      - name: Delete tag:drill nodes named budget-planner-drill[-n]
+        env:
+          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+        run: python3 scripts/tailnet_drill_cleanup.py
