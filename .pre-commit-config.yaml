@@ -91,7 +91,8 @@ repos:
     hooks:
       - id: pytest-fast
         name: pytest (fast subset)
-        entry: uv run pytest -q tests/unit tests/architecture -m "not integration and not e2e and not visual" --no-cov
+        # xdist workers from PYTEST_WORKERS (default auto; item agents use 2), ADR-0108 §1.
+        entry: bash -c 'uv run pytest -q -n "${PYTEST_WORKERS:-auto}" tests/unit tests/architecture -m "not integration and not e2e and not visual" --no-cov'
         language: system
         pass_filenames: false
         stages: [pre-commit]

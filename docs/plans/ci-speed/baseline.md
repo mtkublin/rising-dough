@@ -130,3 +130,10 @@ Same subset as above, alternating with the `main` runs:
 | branch #1 | 8.1 | 122.6 s | 111.9 s |
 | branch #2 | 5.9 | 114.6 s | 107.6 s |
 | **change vs `main` (mean)** | | **−32%** | **−32%** |
+
+GitHub `ci` job (pytest line in the log; the runner is noisy, so medians):
+
+| Commit | Job | pytest | Coverage |
+|---|---|---|---|
+| baseline: 5 runs (4 on `main` branches + `8d24a84` docs-only) | median 4:47 | 177 / 215 / 242 / 257 / 263 s, **median 242 s** | — |
+| `da8437d` (template DB) | 4:03 | **195.5 s** (−19% vs median, 1 sample) | 94.65% |

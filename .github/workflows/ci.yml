@@ -51,6 +51,9 @@ jobs:
         run: npm run css
 
       - name: Run full CI pipeline
+        env:
+          # ADR-0108 §1: one xdist worker per runner core.
+          PYTEST_WORKERS: auto
         run: just ci
 
       - name: Upload coverage report

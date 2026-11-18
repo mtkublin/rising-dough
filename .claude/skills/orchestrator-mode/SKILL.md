@@ -147,6 +147,9 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
   orchestrator runs it once per merge batch. Never use `--no-verify`. If the pre-commit
   pytest hook stalls because other agents are running pytest, wait until no other pytest is
   running (`pgrep -fl pytest`), then retry.
+- `export PYTEST_WORKERS=2` before running tests or committing: `just test` and the pre-commit
+  pytest hook run xdist with that many workers, so parallel agents don't each take every core
+  (ADR-0108 §1).
 - Handoff checklist: scoped checks green, mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
   reference the ADR(s) in the commit.
 - Commit format: `<type>(<ID>): <description>` (conventional commits).

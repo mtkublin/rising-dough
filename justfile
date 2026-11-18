@@ -107,8 +107,10 @@ typecheck:
     uv run mypy src tests
 
 # Full pytest suite with coverage. 90% gate wired here and in CI.
+# Parallel via xdist (ADR-0108 §1); cap workers with PYTEST_WORKERS (orchestrator
+# item agents use 2). PYTEST_WORKERS=0 runs serially.
 test:
-    uv run pytest
+    uv run pytest -n "${PYTEST_WORKERS:-auto}" --dist loadgroup
 
 # Everything CI runs. Keep deterministic — no network except frankfurter mocks.
 ci: lint typecheck test
