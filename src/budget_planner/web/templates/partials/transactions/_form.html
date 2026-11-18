@@ -13,8 +13,8 @@
 {% set txn_account = (accounts|selectattr('id', 'equalto', txn.account_id)|first) if txn else none %}
 <form id="txn-form"
       hx-post="{{ action }}"
-      hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-table tbody{% endif %}"
-      hx-swap="{% if txn %}outerHTML{% else %}afterbegin{% endif %}"
+      hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form txn-form"
       data-txn-form
       data-account-currencies='{{ ccy_by_account|tojson }}'

@@ -63,8 +63,36 @@ def test_add_slide_over_on_today_under_csp(live_server: tuple[str, Path], page: 
     expect(form.locator("input[name='category_id']")).not_to_have_value("")
     page.get_by_role("button", name="Cancel").click()
     expect(form).to_have_count(0)
-    # NOTE: submitting from /today is not asserted: the form targets
-    # `#txn-table tbody`, which only exists on /ledger (htmx:targetError, not a CSP issue).
+
+
+def test_add_from_today_submits_under_csp(live_server: tuple[str, Path], page: Page) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    form = _open_add_slide_over(page, base_url, "/today")
+    _pick(page, "category_id", "Groceries")
+    _pick(page, "account_id", "Checking")
+    form.locator("input[name='amount']").fill("12.34")
+    form.locator("input[name='description']").fill("today-added")
+    form.get_by_role("button", name="Add entry").click()
+    # Overlay closes and Today reloads: the 500.00 opening balance drops by 12.34.
+    expect(page.locator("#txn-form")).to_have_count(0)
+    expect(page.locator(".rd-netcard__rows")).to_contain_text("487.66")
+    page.goto(f"{base_url}/ledger?view=actual")
+    expect(page.get_by_text("today-added").first).to_be_visible()
+
+
+def test_add_from_today_invalid_amount_rerenders_form(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    form = _open_add_slide_over(page, base_url, "/today")
+    _pick(page, "category_id", "Groceries")
+    _pick(page, "account_id", "Checking")
+    form.locator("input[name='amount']").fill("0")
+    form.get_by_role("button", name="Add entry").click()
+    expect(page.locator("#txn-form")).to_have_count(1)
+    expect(page.locator("#txn-form")).to_contain_text("amount")
 
 
 def test_add_slide_over_on_ledger_under_csp(live_server: tuple[str, Path], page: Page) -> None:

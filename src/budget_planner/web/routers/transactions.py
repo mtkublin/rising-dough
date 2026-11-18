@@ -32,7 +32,7 @@ from budget_planner.services import (
     export as export_service,
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
 
@@ -308,6 +308,9 @@ def create_txn(  # noqa: PLR0917
         txn=row,
     )
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    # The form is hosted by every page's Add overlay, not just the ledger: no
+    # row insert; the ledger refetches on `ledger-stale`, other pages reload.
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
