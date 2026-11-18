@@ -434,6 +434,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 - DRILL-2 helper and checklist (2026-11-18): `scripts/drill/passkey_check.py`, `phase-4-validation/DRILL-2-checklist.md`.
+- 2026-11-18: second drill run found the leak check matched the admin's own users audit rows; scoped to non-users entries (T-D43-FIX2). The smoke user's email carries the marker, and the admin's `users` create/delete rows legitimately show it.
 - 2026-11-18: first drill run (44356288331) found the audit entity_type mismatch in the test; fixed (`entity_type` is `"transaction"`, singular). Steps 1–10 passed on that run.
 
 ### ✅ T-D44 [S] Uptime monitoring → T-D27
@@ -916,3 +917,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Tests: `tests/unit/services/test_replication_health.py`, `tests/integration/web/test_health_replication.py`, `tests/unit/deploy/test_replication_probe.py`.
 - Runbook: `restore.md` "Replication stall: detect and recover"; `disaster-recovery.md` uptime section points at the new monitor.
 - Done when: code merged and released (v3.0.3); `curl -fsS https://budget.rising-dough.eu/health/replication` returns 200 `status: ok` on prod (first look at the probe parsing); a stale file in a drill or scratch run returns 503; **user: add a second UptimeRobot monitor on `https://budget.rising-dough.eu/health/replication`, HTTP(s), 5 min, plain status-code monitor (no keyword), up = 2xx, same alert contact as `/health`**, and confirm it is green.
+
+### T-D145 [S] Audit attribution: domain rows written by non-admin users lack user_id → T-D54, T-D43
+- Found 2026-11-18 on drill 44356288331, audit ids 48-50: account, category and transaction create rows written by a non-admin user carry `user_id=NULL` and `actor_user_id=NULL`. The audit tail treats them as other-user, so it is safe, but attribution is missing. Investigate and fix; not a v3 blocker.
