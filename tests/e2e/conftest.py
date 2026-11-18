@@ -154,6 +154,26 @@ document.addEventListener('securitypolicyviolation', (e) => {
 """
 
 
+# T-D150: htmx raises ``htmx:targetError`` (and sends no request) when an
+# ``hx-target`` selector matches nothing. The event bubbles from the element,
+# so one document listener sees every one. ``sendError`` / ``responseError``
+# are deliberately not recorded: 422/429 are swapped on purpose
+# (``static/js/app-init.js``) and navigation aborts would add noise.
+_HTMX_TARGET_ERROR_JS = """
+document.addEventListener('htmx:targetError', (e) => {
+  const el = e.detail && e.detail.elt ? e.detail.elt : e.target;
+  const d = e.detail || {};
+  const who = el && el.tagName
+    ? `${el.tagName.toLowerCase()}#${el.id || ''}.${String(el.className || '').trim()}`
+    : 'unknown element';
+  window.__reportHtmxTargetError(
+    `htmx:targetError: hx-target ${JSON.stringify(d.target || null)} not found for ${who}` +
+    ` at ${location.pathname}`
+  );
+});
+"""
+
+
 @pytest.fixture
 def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     """A Playwright ``Page`` with the CSRF token wired into ``page.request``.
@@ -212,6 +232,13 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
 
     context.expose_function("__reportCspViolation", _record)
     context.add_init_script(_CSP_LISTENER_JS)
+    target_errors: list[str] = []
+
+    def _record_target_error(message: str) -> None:
+        target_errors.append(message)
+
+    context.expose_function("__reportHtmxTargetError", _record_target_error)
+    context.add_init_script(_HTMX_TARGET_ERROR_JS)
     page = context.new_page()
     page.on(
         "console",
@@ -225,6 +252,8 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
         yield page
         unique = sorted(set(violations))
         assert not unique, "CSP violations under the prod policy:\n" + "\n".join(unique)
+        missing = sorted(set(target_errors))
+        assert not missing, "htmx target errors (hx-target matches nothing):\n" + "\n".join(missing)
     finally:
         # Let in-flight HTMX requests finish before the routes are torn down.
         context.unroute_all(behavior="ignoreErrors")

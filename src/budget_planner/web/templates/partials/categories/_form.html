@@ -23,11 +23,12 @@
   "#6b4bb3",
   "#9b4bb3"
 ] %}
-<form hx-post="{{ action }}"
-      hx-target="{% if category %}#category-{{ category.id }}{% else %}table.ledger tbody{% endif %}"
-      hx-swap="{% if category %}outerHTML{% else %}beforeend{% endif %}"
+<form {% if not category %}id="category-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if category %}#category-{{ category.id }}{% else %}#category-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form cat-form"
-      data-cat-form>
+      data-cat-form
+      {% if not category %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Name</span>
     <input type="text"

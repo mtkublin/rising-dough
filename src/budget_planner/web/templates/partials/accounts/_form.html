@@ -7,9 +7,9 @@
    `account` present → edit; absent → create. Edit renders currency as
    immutable per ADR-0006. #}
 {% from "_partials/combobox.html" import combobox %}
-<form hx-post="{{ action }}"
-      hx-target="{% if account %}#account-{{ account.id }}{% else %}#accounts-grid{% endif %}"
-      hx-swap="{% if account %}outerHTML{% else %}beforeend{% endif %}"
+<form {% if not account %}id="account-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if account %}#account-{{ account.id }}{% else %}#account-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form account-form"
       data-account-form
       {% if not account %}data-reset-on-submit{% endif %}>
