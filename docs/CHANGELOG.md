@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D43-FIX smoke audit filter)
+- **Fix(T-D43): smoke audit filter uses entity_type "transaction".** First drill run 44356288331 failed step 11 only: the test filtered `entity_type == "transactions"` (plural), but the repository writes `"transaction"`. Steps 1–10, including cross-account isolation, passed. App code unchanged.
+
 ## 2026-11-18 (T-D41 restore-log automation)
 - **Feat(T-D41): restore-drill results post themselves.** `restore-drill.yml` captures the restore output (`tee`), reads the restored `audit_log` count, max id and max `changed_at` over SSH (`sqlite3 -readonly`), builds the entry with `scripts/ci/restore_log_entry.py` (validated fields only), writes it to the job summary and uploads it. A new `restore-log` job (`drill-teardown`, `issues: write`) comments it on the single open `restore-log` issue, creating issue and label when missing. Failed runs post `Result: fail`. Prod row counts are recorded as `n/a (prod not queried)`. `restore-log.md` keeps manual entries and the T-D56 gate format. T-D56: the gate is satisfied by the T-D40 entry. Unit tests in `tests/unit/deploy/test_restore_log_entry.py`.
 
