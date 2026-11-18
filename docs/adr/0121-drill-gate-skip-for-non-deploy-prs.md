@@ -14,17 +14,18 @@ The image copies only `pyproject.toml`, `uv.lock`, `src`, `migrations` and `depl
 
 ## Decision
 
-1. New workflow `.github/workflows/drill-gate-skip.yml` runs on `pull_request` to `main` (opened, synchronize, reopened, ready_for_review) with `statuses: write` and `contents: read` only.
+1. New workflow `.github/workflows/drill-gate-skip.yml` runs on `pull_request_target` to `main` (opened, synchronize, reopened, ready_for_review) with `statuses: write`, `contents: read` and `pull-requests: read` only. With `pull_request_target` the workflow file and the classifier both come from the base branch, so a PR cannot edit them to approve itself.
 2. It lists the PR's changed files through the GitHub API (paginated; renames contribute both old and new path) and feeds them to `scripts/ci/drill_gate_skip.py`.
 3. The classifier is an **allowlist** and fails closed. Every changed path must be: under `docs/`, `.claude/` or `tests/`; a top-level `LICENSE*`; or a `*.md` file outside `.github/`, `src/`, `terraform/`, `deploy/`, `scripts/` and `migrations/`. Everything else, including `.github/**`, `scripts/**`, `src/**`, `migrations/**`, `terraform/**`, `deploy/**`, `Dockerfile`, `.dockerignore`, `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml` and unknown paths, means `gate`. An empty diff, a path with `..` or an absolute path, and a file list at the API cap (3000) mean `gate`.
 4. On `skip` it posts `drill-gate` = `success` with description `skipped: no deploy-relevant changes (ADR-0121)` on the PR head SHA. On `gate` it posts nothing and logs the paths that need the real gate. It never posts `pending` or `failure`.
 
 ## Consequences and threat model
 
-- The workflow cannot approve edits to itself: `.github/**` and `scripts/**` are never skip-safe, so changing the workflow or the classifier always needs the real gate. The classifier is also checked out from the PR base commit, so a PR cannot loosen the rule that judges it.
+- The workflow cannot approve edits to itself: it runs from the base branch, and `.github/**` and `scripts/**` are never skip-safe, so such PRs always need the real gate.
+- `pull_request_target` is only safe if no PR code runs, so: the checkout is the base SHA with `persist-credentials: false`; the file list comes from `gh api --paginate`; the status goes on `pull_request.head.sha`; PR-controlled values (numbers, SHAs) reach scripts only through `env:`, never interpolated into `run:`; file names are read from files and stdin. Tests enforce this.
 - A real gate run (`drill.yml`, `mode=gate`) can always overwrite the status for a SHA, since the skip never posts a terminal failure that would stick.
-- Threat model: single-owner repository. The `pull_request` trigger gets a read-only token for forks and no secrets, and there are no outside contributors with write access. The workflow file itself is read from the PR merge ref; a PR that edits it is `gate` by rule 3, and a malicious owner-authored workflow edit is out of scope.
-- The first PR that adds the classifier runs without it on base, so the step fails and no status is posted (fail closed).
+- Threat model: single-owner repository with no outside contributors holding write access; a malicious change merged to `main` itself is out of scope.
+- The PR that first adds the workflow gets no run (the base has no workflow yet), so it needs a real gate.
 
 ## Alternatives rejected
 

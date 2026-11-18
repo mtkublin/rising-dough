@@ -6,18 +6,21 @@ name: Drill gate skip
 # (drill.yml, mode=gate) stays the only way to satisfy it. Never posts pending
 # or failure, so a real gate run can always overwrite the status.
 #
-# The classifier is checked out from the PR BASE commit, not the PR head, so a
-# PR cannot loosen its own allowlist. Edits to .github/** and scripts/** are
-# never skip-safe anyway. (The workflow file itself still comes from the PR
-# merge ref; the single-owner threat model is recorded in ADR-0121.)
+# Trigger is pull_request_target, so BOTH this workflow file and the classifier
+# come from the base branch: a PR cannot edit them to approve itself. Safe
+# pattern: no PR code is ever checked out or run (checkout is the base SHA), the
+# file list comes from the API, and PR-controlled values reach scripts only via
+# env. The PR that first adds this workflow gets no run (base lacks it) and
+# needs a real gate.
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   statuses: write
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

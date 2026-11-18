@@ -133,9 +133,9 @@ def _wf() -> dict[Any, Any]:
 def test_workflow_triggers_on_pull_request_to_main_only() -> None:
     wf = _wf()
     triggers = wf[True] if True in wf else wf["on"]
-    assert set(triggers) == {"pull_request"}
-    assert triggers["pull_request"]["branches"] == ["main"]
-    assert set(triggers["pull_request"]["types"]) == {
+    assert set(triggers) == {"pull_request_target"}
+    assert triggers["pull_request_target"]["branches"] == ["main"]
+    assert set(triggers["pull_request_target"]["types"]) == {
         "opened",
         "synchronize",
         "reopened",
@@ -145,9 +145,17 @@ def test_workflow_triggers_on_pull_request_to_main_only() -> None:
 
 def test_workflow_permissions_are_minimal() -> None:
     wf = _wf()
-    assert wf["permissions"] == {"statuses": "write", "contents": "read"}
+    assert wf["permissions"] == {
+        "statuses": "write",
+        "contents": "read",
+        "pull-requests": "read",
+    }
     for job in wf["jobs"].values():
-        assert "permissions" not in job or set(job["permissions"]) <= {"statuses", "contents"}
+        assert "permissions" not in job or set(job["permissions"]) <= {
+            "statuses",
+            "contents",
+            "pull-requests",
+        }
 
 
 def test_workflow_uses_exact_drill_gate_context() -> None:
@@ -178,3 +186,31 @@ def test_workflow_runs_classifier_from_base_not_pr_head() -> None:
     text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
     assert "scripts/ci/drill_gate_skip.py" in text
     assert "pull_request.base.sha" in text
+
+
+def test_workflow_never_checks_out_pr_code() -> None:
+    steps = [s for job in _wf()["jobs"].values() for s in job["steps"]]
+    checkouts = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
+    assert checkouts
+    for step in checkouts:
+        assert step["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
+        assert step["with"]["persist-credentials"] is False
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    assert "head.ref" not in text
+    assert "refs/pull" not in text
+    assert "merge" not in text.replace("merge ref", "")
+
+
+def test_run_blocks_do_not_interpolate_pr_context() -> None:
+    steps = [s for job in _wf()["jobs"].values() for s in job["steps"]]
+    for step in steps:
+        run = step.get("run", "")
+        assert "${{" not in run, run
+        for value in step.get("env", {}).values():
+            for expr in re.findall(r"\$\{\{\s*([^}]*?)\s*\}\}", str(value)):
+                if expr.startswith("github.event.pull_request."):
+                    assert expr in {
+                        "github.event.pull_request.number",
+                        "github.event.pull_request.head.sha",
+                        "github.event.pull_request.base.sha",
+                    }, expr

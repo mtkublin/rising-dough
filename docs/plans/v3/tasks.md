@@ -933,6 +933,6 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D147 [S] Auto-satisfy `drill-gate` for PRs that cannot affect the deploy → ADR-0121, ADR-0099, T-D98
 - Decision 2026-11-18: a full drill on docs-only PRs is overkill.
-- Change: `.github/workflows/drill-gate-skip.yml` (pull_request to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
+- Change: `.github/workflows/drill-gate-skip.yml` (pull_request_target to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
 - Tests: `tests/unit/deploy/test_drill_gate_skip.py` (classifier table, workflow context, permissions, no failure/pending, SHA pins).
 - Done when: merged, and a docs-only PR shows `drill-gate` success without a drill run while a `src/` PR still needs the real gate.
