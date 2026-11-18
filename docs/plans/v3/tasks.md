@@ -863,3 +863,24 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
   - `gh variable set CI_SSH_PUBKEY -e drill-plan -R mtkublin/rising-dough < ~/.ssh/rising_dough_deploy.pub` (so the PR plan matches the apply)
   - Do NOT set it on `prod` or `prod-plan`.
 - Done 2026-11-18 for the code; drill proof pending (restore drill: the `Verify operator SSH login` step passes). Takes effect on the next drill apply (cloud-init runs on first boot; existing drill hosts are disposable).
+
+### ✅ T-D138 [M] Explicit drill lock as the first step of every drill workflow → ADR-0115, ADR-0099, ADR-0101
+- Asked 2026-11-18: "very explicit behaviour, checking if no other drill instance exists or is being brought up. could be a first step in the drill actions".
+- Problem: (1) all drill workflows share concurrency group `drill`, which serialises RUNS only. A kept explore drill (`drill.yml mode=explore keep=true`) finishes its run after apply and smoke while the VM stays up until its `expires-at` tag, so the group is free; a gate or a `restore-drill.yml` dispatched in that window `-replace`s the explore VM (same drill Terraform state) and then destroys it, silently. (2) A concurrency group keeps at most one PENDING run: a third dispatch cancels the older pending run without notice (two orchestrators dispatch drills in parallel here).
+- Design (ADR-0115): job `drill-lock` is the first job of `drill.yml`, `restore-drill.yml`, `drill-destroy.yml` and `drill-sweeper.yml`; every other job `needs` it directly or transitively. It runs `scripts/ci/drill_lock.py` in environment `drill-teardown` (ungated; holds `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID`, `TS_CLEANUP_*`) with `actions: read`. Checks: (a) other drill-group workflow run active (GitHub API); (b) a Scaleway drill-project server named `budget-planner-drill*` exists (ground truth); (c) an online `tag:drill` node `budget-planner-drill[-n]` in the tailnet (cross-check, read-only). Race safety: the job runs inside the `drill` group, which the run already holds, so no other group member can create or replace a VM while it evaluates.
+- Behaviour:
+
+| Situation | Result |
+|-----------|--------|
+| no drill VM, no tailnet node, no other drill run | pass: "drill lock acquired: no drill VM, no other drill run" |
+| drill VM up, `expires-at` in the past (sweeper not yet run) | fail: "expired drill still up ... run drill-destroy.yml first" (never destroys by itself) |
+| drill VM up, not expired (or no usable tag) | fail: "drill VM <name> is up until <expires-at> (kept explore drill?); run drill-destroy.yml or wait" |
+| online `tag:drill` node | fail (same remedy) |
+| other drill-group run active | fail: workflow name, run id, URL |
+| `force=true` (`drill.yml`, `restore-drill.yml`; operator only) | skips (b)/(c) with a loud `::warning::`; (a) always applies |
+| `drill-destroy.yml`, `drill-sweeper.yml` | (a) only (they are how (b)/(c) are cleared) |
+| any API error or missing credential | fail closed with `::error::` (exit 2) |
+
+- Notes: runs that are `queued`/`pending` and were created after this run are waiting behind it in the group and are not holders (otherwise the first of two parallel dispatches would fail on the second); `in_progress` and `waiting` always count. `rollback.yml` now has `run-name: rollback (<env>)`; a `rollback (drill)` run counts, a prod rollback does not. A third dispatch still cancels an older pending run (GitHub behaviour); the lock cannot see a cancelled run, so dispatch drills one at a time. `rollback.yml env=drill` (needs a VM) is unchanged.
+- Tests: `tests/unit/deploy/test_drill_lock.py` (each table row, fail closed, workflow wiring: lock job first, every job needs it).
+- Done 2026-11-18 for the code. Drill proof pending (orchestrator): dispatch a kept explore drill, then a gate; the gate must fail at `drill-lock` naming the VM and expiry; `drill-destroy.yml`, then a gate passes.
