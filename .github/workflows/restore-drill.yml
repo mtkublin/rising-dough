@@ -79,11 +79,13 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
       # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
-      DRILL_HOST: budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
       TF_VAR_tailnet_dns_name: ${{ vars.TAILNET_DNS_NAME }}
+      # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
+      TF_VAR_drill_run_id: ${{ github.run_id }}
       # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
       # DRILL_HOST stays the public name for the HTTPS /ready probe.
-      DRILL_SSH_HOST: budget-planner-drill
+      DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

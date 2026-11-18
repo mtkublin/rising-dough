@@ -863,3 +863,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
   - `gh variable set CI_SSH_PUBKEY -e drill-plan -R mtkublin/rising-dough < ~/.ssh/rising_dough_deploy.pub` (so the PR plan matches the apply)
   - Do NOT set it on `prod` or `prod-plan`.
 - Done 2026-11-18 for the code; drill proof pending (restore drill: the `Verify operator SSH login` step passes). Takes effect on the next drill apply (cloud-init runs on first boot; existing drill hosts are disposable).
+
+### ◐ T-D139 [S] Drill gate fails at smoke: Let's Encrypt rate limit on the fixed drill name → ADR-0116, ADR-0101
+- Found 2026-11-18 (gate run 44304732854, explore drill 44308968526, GATE-FIX). Symptom: smoke `curl: (28)` on `/ready` for 10 min after the node joined the tailnet. Evidence over SSH on the explore drill: containers all up, Caddy listening on 443, Caddy log `external certificate manager ... local-tailscaled.sock/localapi/v0/cert/... context deadline exceeded`, tailscaled log `getCertPEM: 429 urn:ietf:params:acme:error:rateLimited: too many certificates (5) already issued for this exact set of identifiers in the last 168h0m0s, retry after 2026-11-19 12:00 UTC`. Not a T-D135 / T-D136 regression (hypotheses 1 to 4 ruled out: cloud-init, host agent, WebAuthn validator and the name were fine; the app was healthy).
+- Fix (ADR-0116): `drill_run_id` Terraform variable; the drill registers as `budget-planner-drill-<run id>`, so each drill orders a certificate for a new name. Workflows pass `github.run_id`.
+- Tests: `terraform/tests/render.tftest.hcl` (unique name, fixed name without id, non-digits rejected, rejected on prod), `tests/unit/deploy/test_tailnet_only_drill.py::test_drill_tailnet_name_is_unique_per_run`.
+- Gate proof: pending (see CHANGELOG).

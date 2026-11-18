@@ -164,6 +164,22 @@ variable "tailnet_dns_name" {
   }
 }
 
+variable "drill_run_id" {
+  description = "Drill only (T-D139, ADR-0116): numeric CI run id. When set, the drill registers on the tailnet as budget-planner-drill-<id> instead of budget-planner-drill, so every drill VM asks Let's Encrypt (via tailscaled) for a certificate for a name it has not used before. Empty keeps the fixed name. Must be empty on prod."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^[0-9]{0,20}$", var.drill_run_id))
+    error_message = "drill_run_id must be digits only (it becomes budget-planner-drill-<digits>, the pattern the tailnet cleanup deletes)."
+  }
+
+  validation {
+    condition     = var.env != "prod" || var.drill_run_id == ""
+    error_message = "drill_run_id must be empty on prod."
+  }
+}
+
 variable "app_image_ref" {
   description = "App image the host runs: `<tag>@sha256:<digest>` (ADR-0111). CI passes the build output; plans without a new image pass the current ref from state."
   type        = string
@@ -274,8 +290,10 @@ locals {
   name_prefix = "budget-planner-${var.env}"
   bucket_name = "${local.name_prefix}-${var.scaleway_region}"
 
-  tailscale_tag      = "tag:${var.env}"
-  tailscale_hostname = "budget-planner-${var.env}" # MagicDNS name used by CI and the operator
+  tailscale_tag = "tag:${var.env}"
+  # MagicDNS name used by CI and the operator. T-D139 / ADR-0116: a drill run id
+  # makes it unique per run (Let's Encrypt allows 5 certificates per exact name per week).
+  tailscale_hostname = var.env == "drill" && var.drill_run_id != "" ? "budget-planner-drill-${var.drill_run_id}" : "budget-planner-${var.env}"
 }
 
 # ----------------------------------------------------------------------------
