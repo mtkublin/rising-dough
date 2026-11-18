@@ -365,3 +365,29 @@ jobs:
             --title "${title}" \
             --body "${body}" \
             --label "restore-drill,incident"
+
+  # T-D124 (ADR-0101): destroying the VM leaves its tailnet node behind (offline);
+  # a stale node makes the next drill register as budget-planner-drill-1, so the
+  # tailnet wait and SSH hit the offline node (first-run lesson, run 44299998687).
+  # Runs even when the drill job failed; problems are warnings only.
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: restore-drill
+    if: ${{ always() && needs.restore-drill.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/tailnet_drill_cleanup.py
+
+      - name: Delete tag:drill nodes named budget-planner-drill[-n]
+        env:
+          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+        run: python3 scripts/tailnet_drill_cleanup.py
