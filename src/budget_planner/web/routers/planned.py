@@ -23,7 +23,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import export as export_service, planned as planned_service
 from budget_planner.web.deps import current_user_id, get_db
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/planned", tags=["planned"])
@@ -277,6 +277,9 @@ def create_planned(  # noqa: PLR0917
     )
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))
     trigger(html, "forecast-stale", "ledger-stale")
+    # The form is hosted by every page's overlay: no row insert; the ledger
+    # refetches on `ledger-stale`, other pages reload (T-D142).
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

@@ -9,9 +9,9 @@
    handle hole-tolerant indices after row removal. #}
 {% set is_formula = amount_source == "formula" %}
 {% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
-<form hx-post="{{ action }}"
-      hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}table.ledger tbody{% endif %}"
-      hx-swap="{% if rule %}outerHTML{% else %}beforeend{% endif %}"
+<form {% if not rule %}id="recurring-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}#recurring-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form recurring-form"
       data-recurring-form
       {% if not rule %}data-reset-on-submit{% endif %}>

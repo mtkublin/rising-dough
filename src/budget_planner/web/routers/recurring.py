@@ -31,7 +31,7 @@ from budget_planner.repositories import (
 from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
@@ -382,6 +382,8 @@ async def create_rule(
         effective_amount_minor=minor,
     )
     trigger(html, "forecast-stale", "ledger-stale")
+    # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

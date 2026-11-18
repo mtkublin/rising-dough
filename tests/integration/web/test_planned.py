@@ -245,3 +245,45 @@ def test_export_parquet(client: TestClient, ctx: dict[str, int]) -> None:
     assert r.status_code == 200
     tbl = pq.read_table(io.BytesIO(r.content))
     assert tbl.num_rows >= 1
+
+
+def _planned_data(ctx: dict[str, int]) -> dict[str, str | int]:
+    return {
+        "operation_date": "2026-11-01",
+        "category_id": ctx["cat"],
+        "account_id": ctx["acc"],
+        "amount": "12.34",
+    }
+
+
+def test_create_off_ledger_refreshes_page_without_swap(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    # T-D142: the form is opened from Today etc.; no table to swap into.
+    r = client.post(
+        "/planned",
+        data=_planned_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.post(
+        "/planned",
+        data=_planned_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=planned"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in r.headers
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_new_form_targets_itself_not_planned_table(client: TestClient) -> None:
+    r = client.get("/planned/new")
+    assert 'hx-target="#planned-form"' in r.text
+    assert "#planned-table" not in r.text

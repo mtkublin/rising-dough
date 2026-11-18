@@ -1,8 +1,8 @@
 {% from "_partials/combobox.html" import combobox %}
 {% set planned_account = (accounts|selectattr('id', 'equalto', planned.account_id)|first) if planned else none %}
-<form hx-post="{{ action }}"
-      hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-table tbody{% endif %}"
-      hx-swap="{% if planned %}outerHTML{% else %}afterbegin{% endif %}"
+<form {% if not planned %}id="planned-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form planned-form"
       data-planned-form
       {% if not planned %}data-reset-on-submit{% endif %}>
