@@ -7,17 +7,17 @@
 - Every PR needs a `drill-gate` on its head SHA (`protect-main` ruleset). PRs that only touch docs, tests, `.claude/` or markdown get it automatically from `drill-gate-skip.yml` (ADR-0121, T-D147); any other change needs a real gate drill.
 - Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitors set up (T-D44, T-D144; see Monitoring below); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod; T-D144 verified on prod in v3.0.3.
 - Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
+- T-D138 lock-conflict proof (2026-11-18): gate run 44383745599 (from `main`) failed at `drill lock` while kept explore drill 44381760469 was up, as designed; the explore drill was untouched.
 - Gate drill green on PR #25 (`drill-gate` run 44366621363 on 4a20548), merged as e993538. T-D133 is ✅.
 - T-D56 is ✅: dry run from `main`, run 44372136946, 83 encrypted objects, 0 plaintext to delete. No delete run is needed.
 - ADR-0097 (amended 2026-11-18): the orchestrator no longer runs a local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR CI cover it; only `tests/e2e` runs locally.
 - Next, in order:
-  1. **T-D138 lock-conflict check** (with the next explore drill). Keep an explore drill up, dispatch a gate, and confirm it fails at `drill-lock` naming the VM and expiry. Then `drill-destroy.yml`; the gate passes. Still ◐.
-  2. **Restore drill from `main` (T-D41).** Dispatch `restore-drill.yml` from `main` in the next drill window. Its entry must post to the `restore-log` issue. T-D41 stays ◐ until then.
-  3. **drill-gate on PR #26** (`fix/T-D146-head-health`, T-D146 HEAD on health routes). Green on the head SHA.
-  4. **Merge PR #26** once `drill-gate` is green on the head SHA (`protect-main` ruleset).
-  5. **v3.0.4 release** (`gh release create v3.0.4 -R mtkublin/rising-dough --target main`, then approve the `prod` apply). Bundled with other agents' fixes, including T-D146.
-  6. **Optional: switch the replication monitor back to HTTP(s) after v3.0.4.** Only if you want the plain status-code monitor. The Keyword monitor stays valid either way.
-  7. **v3 closeout.**
+  1. **Restore drill from `main` (T-D41).** Dispatch `restore-drill.yml` from `main` in the next drill window. Its entry must post to the `restore-log` issue. T-D41 stays ◐ until then.
+  2. **drill-gate on PR #26** (`fix/T-D146-head-health`, T-D146 HEAD on health routes). Green on the head SHA.
+  3. **Merge PR #26** once `drill-gate` is green on the head SHA (`protect-main` ruleset).
+  4. **v3.0.4 release** (`gh release create v3.0.4 -R mtkublin/rising-dough --target main`, then approve the `prod` apply). Bundled with other agents' fixes, including T-D146.
+  5. **Optional: switch the replication monitor back to HTTP(s) after v3.0.4.** Only if you want the plain status-code monitor. The Keyword monitor stays valid either way.
+  6. **v3 closeout.**
 
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
