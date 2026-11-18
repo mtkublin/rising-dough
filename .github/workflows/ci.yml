@@ -61,10 +61,19 @@ jobs:
           restore-keys: |
             mypy-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock') }}-
 
+      # T-CS08 TEMPORARY profiling: remove before merge.
+      - name: Runner info (T-CS08 temporary)
+        run: |
+          nproc
+          lscpu | grep -E "Model name|^CPU\(s\)|MHz" || true
+          free -m | head -2
+
       - name: Run full CI pipeline
         env:
           # ADR-0108 §1: one xdist worker per runner core.
           PYTEST_WORKERS: auto
+          # T-CS08 TEMPORARY profiling: remove before merge.
+          PYTEST_ADDOPTS: "--durations=25 --durations-min=0.5"
         run: just ci
 
       - name: Upload coverage report
