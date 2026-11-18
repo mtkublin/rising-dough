@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D41 restore drill from main)
+- **Docs(T-D41): restore drill from `main` recorded** (run 44387134093, pass, entry posted to restore-log issue #28; T-D41 ✅). The same run is the T-D138 positive leg: `drill lock` passed after the explore drill was destroyed.
+
 ## 2026-11-18 (T-D138 lock-conflict proof)
 - **Docs(T-D138): lock-conflict proof recorded** (run 44383745599, gate from `main` failed at `drill lock` while kept explore drill 44381760469 was up; T-D138 ✅).
 
