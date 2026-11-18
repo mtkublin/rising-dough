@@ -2,6 +2,9 @@
 
 ## 2026-11-18 (v3 remaining work — restore drill never run)
 - **Docs(T-D40, T-D41, T-D56): the restore path has never been proven.** `restore-log.md` has no entries and `restore-drill.yml` has never run, so T-D41 goes from ✅ to ◐. Plan: one watched `restore-drill.yml` dispatch after the first good release closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. It must happen before the first unattended cron run on 2026-12-01, and before any plaintext generation is deleted. Operator checklist "State" and "Next" refreshed. T-D130 marked done.
+- **Docs(T-D43): the smoke journey runs on a drill, never on prod** (user decision). On prod it would use the real admin account and leave data behind. `deploy.md` used the tailnet prod name, which would never have matched the WebAuthn RP ID; it now targets the drill.
+- **Docs(T-D135): WebAuthn RP settings never reach the host.** The compose template sets neither `BUDGET_WEBAUTHN_RP_ID` nor `BUDGET_WEBAUTHN_ORIGIN`, so the hosts most likely run the localhost defaults and passkeys fail on the real hostname. Task recorded; fix not started.
+- **Docs: T-D45 cost alert done** (operator, 2026-11-18). 11c: the GHCR package already gives the repo Admin access, so no linking step is needed.
 
 ## 2026-11-16 (T-D44 / T-D130 / v3 tail — uptime check, Dependabot off, status tidy-up)
 - **Fix(T-D132): the ADR-0036 nonce CSP is now sent on HTML responses.** The Caddyfile set it via a site-level request matcher, which never matched; it is now set in `reverse_proxy` with a `handle_response` response matcher (verified against real `caddy:2.8`). Reaches prod with the next release. Test `tests/unit/deploy/test_caddy_csp.py`.

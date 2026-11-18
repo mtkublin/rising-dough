@@ -8,8 +8,8 @@
 - Next, in order:
   1. Release `v3.0.1` after the T-D134 fix (the `v*` tags are immutable, step 11a, so `v3.0.0` cannot be re-cut), approve the apply, and finish 10a. Rollback target if it fails: `sha-89ac3c2`.
   2. First restore drill (T-D40), before 2026-12-01 03:00 UTC. `restore-drill.yml` has never run and the monthly cron would make that first run unattended. Dispatch it from `main` after step 1 and watch it. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Delete plaintext Litestream generations only after it is green (T-D56).
-  3. After the release: delete the dead deploy secrets (`github-settings.md`), 11c retention, re-run Observatory (T-D42, T-D132), T-D43 smoke, T-D45 cost alert, delete `/data/pre-seed-*` on prod.
-  4. On the next explore drill: repeat T-D33 (the `failed` state and reconvergence were not observed).
+  3. After the release: delete the dead deploy secrets (`github-settings.md`), 11c retention, re-run Observatory (T-D42, T-D132), delete `/data/pre-seed-*` on prod. T-D45 done 2026-11-18.
+  4. On the next explore drill: repeat T-D33 (the `failed` state and reconvergence were not observed), confirm T-D135 (passkeys with the localhost RP defaults), and after the T-D135 fix run the T-D43 smoke journey there. T-D43 never runs on prod (decision 2026-11-18).
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
@@ -121,7 +121,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 
 ### 11c. Enable GHCR image retention (T-D126)
 - [ ] **Where:** GitHub UI (package settings, Actions) and laptop.
-- After the first release: link package `budget-planner` to the repo (Actions role Write), dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
+- Package link: already in place (2026-11-18: the repo has Admin under package settings > Manage Actions access by default, which covers Write). After the first release: dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
 - **Done when:** a scheduled or `dry_run=false` run shows `mode: APPLY` and the next release still deploys.
 - Runbook: [`image-retention.md`](image-retention.md).
 

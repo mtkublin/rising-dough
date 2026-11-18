@@ -418,8 +418,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
 - File: `phase-4-validation/T-D42-security-scan.md`.
 
-### ◐ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02, T-D17
-- **Status: written, validated locally; prod run pending (human, after T-D27).**
+### ◐ T-D43 [S] Smoke journey (Playwright, drill) → T-D27, T-D02, T-D17, T-D135
+- **Status: written, validated locally; drill run pending.**
+- Re-scoped 2026-11-18 (user decision): the journey runs on a drill, never on prod. On prod it would sign in as the real admin, create users and data, and use up auth rate-limit budget. The drill runs the same image and host config, so it proves the same thing. Target: `https://budget-planner-drill.<tailnet>.ts.net` on a kept explore drill, signed in as the drill admin. The smoke user dies with the drill. Proposed: an opt-in job in `drill.yml` (the runner is already on the tailnet and the drill environment holds the admin password), so no human step is needed. Blocked by T-D135: the passkey step needs the WebAuthn RP settings on the host.
 - Journey (ADR-0061 end-to-end): admin logs in with the Terraform-captured password → rotates it via `/settings/password` → creates a second non-admin user via `/settings/users` and captures the one-shot auto-generated password → logs out → second user logs in → rotates password → registers a passkey → adds a transaction → sees it on `/ledger` → admin logs back in and asserts the second user's transaction is **not** visible from the admin's own `/ledger` (data isolation assertion) → verify `audit_log` row via the auth-gated `/debug/audit-tail` route.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
@@ -428,8 +429,9 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - ~~UptimeRobot (or Betterstack free)~~ Decision 2026-11-16 (user): a scheduled GitHub Actions workflow `uptime.yml` checks `/health` and the host agent status every 5 min; a failed run emails the operator and opens one issue, the next green run closes it. Test `tests/unit/deploy/test_uptime_workflow.py`. Described in `docs/plans/v3/runbooks/disaster-recovery.md`.
 - File: `phase-4-validation/T-D44-uptime-monitor.md`.
 
-### ◻ T-D45 [S] Cost alert
+### ✅ T-D45 [S] Cost alert
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
+- Done 2026-11-18 by the operator (Scaleway console).
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
 ### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
@@ -805,3 +807,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: keep the CSP at Caddy (ADR-0036 §3) and set it in `reverse_proxy { @html header Content-Type text/html*  handle_response @html { header Content-Security-Policy "..."  copy_response } }`. In `reverse_proxy` the named matcher is a response matcher; non-HTML responses are untouched. The nonce is the same `{vars.nonce}` that is sent upstream in `X-CSP-Nonce`. The policy string is unchanged.
 - Test: `tests/unit/deploy/test_caddy_csp.py` (CSP only under a `handle_response` response matcher, no site-level request-matcher CSP, no bogus `match` block, policy keeps the nonce); render tftest asserts the rendered Caddyfile has the response matcher. Real Caddy 2.8 proof in the commit notes (HTML gets the CSP with the nonce the upstream received; JSON does not).
 - Prod gets it with the next release (ADR-0111: Caddyfile via `bp-config`, host agent reloads Caddy). Then re-run Observatory (expect >= A+).
+
+### ◻ T-D135 [S] WebAuthn RP settings never reach the host → ADR-0067, ADR-0111
+- Found 2026-11-18 while re-scoping T-D43. `config.py` defaults to `webauthn_rp_id=localhost` and `webauthn_origin=http://localhost:8000`, and the comment there says production must set both. `terraform/cloud-init/compose/docker-compose.yml.tpl` sets neither `BUDGET_WEBAUTHN_RP_ID` nor `BUDGET_WEBAUTHN_ORIGIN`, and nothing in production config rejects the defaults. So prod and drill most likely serve `rp_id=localhost`, and passkey registration or sign-in from the real hostname fails in the browser. Password sign-in is unaffected. Confirm on the next explore drill (passkey registration from `/settings/security`) before the fix.
+- Fix: render both variables from the host's public hostname in the compose template (prod `budget.rising-dough.eu`, drill the tailnet name). In production, refuse to start when `webauthn_rp_id` is `localhost` or the origin is not `https://<rp_id>` (fail fast, like `cookie_secret`). Unit test for the validator; tftest that the rendered compose sets both. Reaches prod with the next release through the host agent (no VM replacement).

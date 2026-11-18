@@ -77,17 +77,17 @@ Before deploying a release whose CHANGELOG entry says **"rollback requires resto
 
 ## Post-deploy smoke journey
 
-Run after a green deploy (T-D43, human step; never in CI). One Playwright journey: admin sign-in (+ forced rotation), create a second user, forced rotation, virtual-authenticator passkey, add a transaction, data-isolation check on the admin `/ledger`, `/debug/audit-tail` audit check, then soft-delete the smoke user.
+Run on a kept explore drill (T-D43), never against prod (decision 2026-11-18): on prod it would use the real admin account and leave a smoke user and data behind. One Playwright journey: admin sign-in (+ forced rotation), create a second user, forced rotation, virtual-authenticator passkey, add a transaction, data-isolation check on the admin `/ledger`, `/debug/audit-tail` audit check, then soft-delete the smoke user.
 
 ```sh
-SMOKE_BASE_URL=https://budget-planner-prod \
-SMOKE_ADMIN_EMAIL=<admin-email> \
-SMOKE_ADMIN_PASSWORD=<terraform-captured-or-current-password> \
+SMOKE_BASE_URL=https://budget-planner-drill.<tailnet>.ts.net \
+SMOKE_ADMIN_EMAIL=<drill admin email> \
+SMOKE_ADMIN_PASSWORD=<drill admin password> \
 SMOKE_ADMIN_NEW_PASSWORD=<new admin password, 12+ chars> \
 uv run pytest -m smoke tests/smoke -v --no-cov
 ```
 
-Notes: the passkey step registers from Settings → Security (`/settings/security#passkeys`, ADR-0075); the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data; it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL`. Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
+Notes: the passkey step registers from Settings → Security (`/settings/security#passkeys`, ADR-0075); the test leaves one soft-deleted `smoke-<hex>@smoke.test` user and its data (gone with the drill); it falls back to `SMOKE_ADMIN_NEW_PASSWORD` if the admin was already rotated. `BUDGET_WEBAUTHN_RP_ID` / `BUDGET_WEBAUTHN_ORIGIN` on the server must match `SMOKE_BASE_URL` (not set on the hosts yet: T-D135). Details: [`../phase-4-validation/T-D43-smoke-journey.md`](../phase-4-validation/T-D43-smoke-journey.md).
 
 ## Memory check
 
