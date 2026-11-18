@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import export as export_service, planned as planned_service
+from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
@@ -246,6 +247,8 @@ def create_planned(  # noqa: PLR0917
         else:
             if accounts_repo.find_by_id(conn, user_id, dest_id) is None:
                 errors["dest_account_id"] = "unknown dest account"
+            elif (same := validate_distinct_accounts(account_id, dest_id)) is not None:
+                errors["dest_account_id"] = same
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)
@@ -340,6 +343,7 @@ def update_planned(  # noqa: PLR0917
     account_id: int = Form(...),
     amount: str = Form(...),
     description: str = Form(""),
+    dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -353,6 +357,14 @@ def update_planned(  # noqa: PLR0917
         errors["operation_date"] = "invalid date"
     if acc is None:
         errors["account_id"] = "unknown account"
+    # The submitted destination wins; otherwise the stored one still applies
+    # (editing the source onto the stored destination trips the CHECK).
+    submitted_dest = int(dest_account_id) if dest_account_id.strip().isdigit() else None
+    same = validate_distinct_accounts(
+        account_id, submitted_dest if submitted_dest is not None else pl.dest_account_id
+    )
+    if same is not None:
+        errors["dest_account_id"] = same
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)
