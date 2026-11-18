@@ -936,3 +936,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Tests: `tests/integration/web/test_health.py`, `tests/integration/web/test_health_replication.py` (HEAD status equals GET status, empty body, ok and failing cases).
 - 2026-11-18: fix in PR #26 (`fix/T-D146-head-health`, commit 1be10cf). Not on prod yet: the prod release is deferred to v3.0.4, bundled with other agents' fixes (user decision). prod: ships in v3.0.4.
 - Done when: merged and released; `curl -sI https://budget.rising-dough.eu/health/replication` returns 200 on prod and UptimeRobot monitors are green.
+
+### T-D147 [S] Auto-satisfy `drill-gate` for PRs that cannot affect the deploy → ADR-0121, ADR-0099, T-D98
+- Decision 2026-11-18: a full drill on docs-only PRs is overkill.
+- Change: `.github/workflows/drill-gate-skip.yml` (pull_request_target to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
+- Tests: `tests/unit/deploy/test_drill_gate_skip.py` (classifier table, workflow context, permissions, no failure/pending, SHA pins).
+- Done when: merged, and a docs-only PR shows `drill-gate` success without a drill run while a `src/` PR still needs the real gate.

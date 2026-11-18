@@ -4,7 +4,7 @@
 
 - Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.3@sha256:bef6512523df4c67727a5d443b01baf3384ad1d1793bad81e5ca5a9e563f4864` (release run 44369978294, apply 1 change / 0 destroy; `/ready` 200). It carries T-D144 (`/health/replication`). The replica is replicating into generation `2901fbd3873a6696` ([`restore.md`](restore.md), incident record). v3.0.2 was the previous prod release.
 - Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
-- Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
+- Every PR needs a `drill-gate` on its head SHA (`protect-main` ruleset). PRs that only touch docs, tests, `.claude/` or markdown get it automatically from `drill-gate-skip.yml` (ADR-0121, T-D147); any other change needs a real gate drill.
 - Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitors set up (T-D44, T-D144; see Monitoring below); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod; T-D144 verified on prod in v3.0.3.
 - Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
 - Gate drill green on PR #25 (`drill-gate` run 44366621363 on 4a20548), merged as e993538. T-D133 is ✅.

@@ -2,6 +2,8 @@
 
 ## 2026-11-18 (v3 closeout docs: v3.0.3 prod, T-D56, T-D133, T-D144)
 - **Docs(v3-closeout): record v3.0.3 on prod.** v3.0.3 is live (T-D144 `/health/replication` 200 on prod); T-D56 dry run from `main` found 0 plaintext objects, so no delete run; T-D133 gate proof green (run 44366621363); T-D144 second UptimeRobot monitor set as a Keyword monitor (HEAD issue fixed by T-D146, in PR #26, prod ships in v3.0.4). T-D41 and T-D138 stay ◐ with the remaining steps noted.
+## 2026-11-18 (T-D147 drill-gate skip)
+- **CI(T-D147): non-deploy PRs get `drill-gate` automatically.** New `drill-gate-skip.yml` plus `scripts/ci/drill_gate_skip.py` (allowlist, fail closed) post `drill-gate` success when every changed file is docs, tests, `.claude/`, LICENSE or markdown outside deploy dirs. Workflow and script edits always need the real gate. ADR-0121 (amends ADR-0099).
 
 ## 2026-11-18 (T-D146 HEAD on health routes)
 - **Fix(T-D146): `/health`, `/health/replication` and `/ready` answer HEAD like GET.** They returned 405 on HEAD, which the free UptimeRobot plan uses. Same status codes (including 503), empty body. ADR-0119 amended.
