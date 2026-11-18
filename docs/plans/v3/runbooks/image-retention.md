@@ -17,6 +17,9 @@ Assumption: prod's current and previous images are within the newest 20 `sha-*` 
 3. One manual real run: dispatch with `dry_run=false`; confirm prod still pulls (`deploy.md` smoke) and `cosign verify` of the kept `main` image still works.
 4. Enable the schedule: repo Settings > Secrets and variables > Actions > Variables: `IMAGE_RETENTION_ENABLED=true`. Remove it (or set anything else) to return to dry-run.
 
+## Dry-run log
+- 2026-11-18, run 44297239247 (`main`, `dry_run=true`): failed before printing a plan. `ghcr_retention.py` `main` -> `fetch_children` got `HTTP Error 404` from `https://ghcr.io/v2/<owner>/budget-planner/manifests/<digest>` for one of the kept versions (the token request itself succeeded). Likely a kept version whose digest is not served as a manifest with the requested `Accept` types, or a digest that was deleted but still listed. Fix: treat 404 as no children (or log the digest), then re-run the dry run. `IMAGE_RETENTION_ENABLED` stays unset.
+
 ## Verification
 Step summary shows `mode: APPLY` and `deleted <id>` lines; the package version count drops; a new release still builds and deploys.
 

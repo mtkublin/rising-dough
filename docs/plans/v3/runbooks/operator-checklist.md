@@ -128,6 +128,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 ### 11c. Enable GHCR image retention (T-D126)
 - [ ] **Where:** GitHub UI (package settings, Actions) and laptop.
 - Package link: already in place (2026-11-18: the repo has Admin under package settings > Manage Actions access by default, which covers Write). After the first release: dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
+- Dry run 2026-11-18 (run 44297239247, `main`): **FAILED, nothing planned.** `scripts/ghcr_retention.py` crashed with `HTTP Error 404` in `fetch_children` (registry manifest GET for a kept version's digest). Needs a fix (T-D126) before the dry run can be reviewed; do not set `IMAGE_RETENTION_ENABLED` yet.
 - **Done when:** a scheduled or `dry_run=false` run shows `mode: APPLY` and the next release still deploys.
 - Runbook: [`image-retention.md`](image-retention.md).
 
