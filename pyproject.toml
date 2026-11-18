@@ -43,6 +43,8 @@ dev = [
   "pandas-stubs>=2.2",
   "httpx2>=0.1",
   "sqlglot>=25.0",
+  "pytest-random-order>=1.1",
+  "pytest-testmon>=2.3",
 ]
 
 [build-system]

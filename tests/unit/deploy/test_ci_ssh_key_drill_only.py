@@ -40,9 +40,10 @@ def _referencing_jobs() -> list[tuple[str, str, dict[Any, Any]]]:
     return found
 
 
-def test_the_variable_is_referenced_by_the_drill_pipelines() -> None:
-    files = {name for name, _, _ in _referencing_jobs()}
-    assert {"terraform.yml", "restore-drill.yml"} <= files
+def test_no_workflow_reads_the_variable_directly_any_more() -> None:
+    # T-D133: terraform.yml and restore-drill.yml get it through scripts/ci/tf_env.py
+    # (`only_env="drill"`, checked in test_tf_env.py); no job may reference it itself.
+    assert _referencing_jobs() == []
 
 
 @pytest.mark.parametrize(("name", "job_id", "job"), _referencing_jobs())
@@ -56,10 +57,3 @@ def test_no_prod_job_references_the_ci_key(name: str, job_id: str, job: dict[Any
     assert guarded == len(REFERENCE.findall(text)) and guarded > 0, (
         f"{name}:{job_id}: shared job must guard each CI_SSH_PUBKEY use with env == 'drill'"
     )
-
-
-def test_restore_drill_job_is_fixed_to_the_drill_environment() -> None:
-    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "restore-drill.yml").read_text())
-    for job_id, job in wf["jobs"].items():
-        if REFERENCE.search(json.dumps(job)):
-            assert _environment_name(job) == "drill", job_id

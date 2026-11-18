@@ -116,6 +116,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - Unit test coverage ≥ 90% enforced in CI (bar raised above the 80% minimum requested, because the codebase is functional and pure).
 - Integration tests cover: database layer, FX-rate resolver, forecast engine, planned→actual promotion, reconciliation flow.
 - End-to-end smoke tests (Playwright or `httpx` + Jinja fixtures) cover the critical user flows.
+- Tests run in parallel with `pytest-xdist` (`PYTEST_WORKERS`, default `auto`) and must pass in any order (`pytest-random-order`, opt-in). DB-backed tests copy a migrated template DB instead of migrating per test. The inner loop selects affected tests with `pytest-testmon`; every gate runs the full suite with coverage (ADR-0108).
 
 ### 3.3 Code Style
 
@@ -129,7 +130,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
+Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 
@@ -537,12 +538,12 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 - Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents), after a random-order run fixes order dependence.
 - Slow-test causes fixed at the source (hashing cost, per-test migrations, sleeps, browser start-up). Redundant-test candidates come from the quality audit (Track F).
-- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when templates, static files, migrations, SQL, dependencies, `conftest.py`, fixtures or CI config change), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
+- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when the diff touches anything testmon cannot see: any non-Python file outside `docs/` and Markdown — templates, static files, migrations, SQL, dependencies, Terraform, scripts, fixtures, CI config — or any `conftest.py`), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
 - CI caches for mypy (uv cache already on).
 
 ### 11.2 Constraints
 
-- Every gate runs the full suite with the 90% coverage gate: single-agent handoff, orchestrator batch CI, PRs to `main`, release.
+- The full suite with the 90% coverage gate runs at PRs to `main` and release (GitHub `ci.yml`). Locally the gate is the pre-commit hooks: the pytest hook runs the testmon-selected tests across the whole suite, or the full suite when a change is invisible to testmon. No local full `just ci` is required (ADR-0120).
 - `mypy --strict` stays whole-repo.
 - Prefer existing tools and plugins to custom selection logic.
 - Targets: GitHub `ci` job under 2 min; local `just ci` at least 3× faster; pre-commit on a small diff under 15 s.

@@ -1,6 +1,6 @@
 # Runbook — Disaster Recovery
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Full re-provision from zero plus restore. Target end-to-end RTO: < 60 min (ADR-0032 §9).
 
@@ -12,9 +12,7 @@ The recovery path is: a prod `terraform apply` from the committed state (break-g
 
 This runbook also covers the "lost all admins" scenario (ADR-0061 §3): the DB is fine but no `is_admin = 1 AND deleted_at IS NULL` row exists. The admin-bootstrap routine re-promotes a user when provided a new email + initial password via Terraform.
 
-Uptime monitor (T-D44): `.github/workflows/uptime.yml`, every 5 minutes. It fails when `/health` is not 200 or the host agent status (`/.well-known/bp-deploy-status.json`, ADR-0111) reports `failed`. A failed scheduled run emails the operator (GitHub notification), and the workflow keeps one open issue titled "Prod uptime check failing" until the next green run closes it. No external account, no monitor id.
-
-Limits: GitHub can start scheduled runs several minutes late, and a GitHub outage hides a prod outage. Check by hand with `gh workflow run uptime.yml`.
+Uptime monitor (T-D44): an external monitor (UptimeRobot) watches https://budget.rising-dough.eu every 5 minutes on `/health`. It is the only uptime alarm; the GitHub `uptime.yml` workflow was removed on 2026-11-18 because GitHub throttles scheduled runs. A host that is down fails the external check. Host-agent convergence failures with `/health` still ok are not alerted; release and rollback runs show them. Check the monitor by hand at its dashboard, or with `curl -sf https://budget.rising-dough.eu/health`. Details: [`../phase-4-validation/T-D44-uptime-monitor.md`](../phase-4-validation/T-D44-uptime-monitor.md). A second UptimeRobot monitor (T-D144, ADR-0119) watches `https://budget.rising-dough.eu/health/replication` every 5 minutes; it is red when the newest replica object is older than 26 h. Triage and recovery: [`restore.md`](restore.md) section "Replication stall: detect and recover".
 
 ## Preconditions
 

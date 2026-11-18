@@ -71,6 +71,11 @@ output "ci_ssh_authorized" {
   value       = local.ci_ssh_pubkey_effective != ""
 }
 
+output "drill_run_id" {
+  description = "Drill only (T-D139, ADR-0116): numeric run id baked into the tailnet name; empty on prod. CI re-applies on an existing drill read it back so the host name does not change."
+  value       = var.drill_run_id
+}
+
 output "vm_spec_id" {
   description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D155, ADR-0121). Not a secret."
   value       = local.vm_spec_id

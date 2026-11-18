@@ -1,6 +1,6 @@
 # Runbook — Rollback
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Revert production to the previously running image tag.
 
@@ -35,6 +35,8 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
 3. The apply job prints `TF_VAR_app_image_ref` / `TF_VAR_app_image_previous_ref` and then waits for the host status. After a rollback the refs are swapped, so running `rollback.yml` again without a target rolls forward to the release you left.
 
 `env=drill` can be dispatched from any ref (the drill is usually torn down; a rollback there only makes sense on an explore drill with `keep=true`).
+
+A drill rollback keeps the drill's run id (T-D139, ADR-0116): `terraform.yml` reads `drill_run_id` from state, so the host name `budget-planner-drill-<id>` does not change. If state already holds a wrong id (a rollback before this fix renamed the host), repair with `gh workflow run rollback.yml -f env=drill -f drill_run_id=<id the node was created with>` (digits only, no target = roll forward). The input overrides the state value and is ignored for prod. The job fails if no id can be determined.
 
 ### Break-glass path
 

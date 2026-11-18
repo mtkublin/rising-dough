@@ -14,7 +14,7 @@
 #   4. runs PRAGMA integrity_check (aborts if not "ok"),
 #   5. chowns to the app uid 10001 (same as the compose litestream-restore service),
 #   6. starts litestream + app (the image entrypoint applies pending migrations,
-#      ADR-0071) and waits for /ready to report {"status":"ok"},
+#      ADR-0071) and waits for /ready to report {"status":"ready","db":"ok"},
 #   7. on EXIT (success or failure; T-D57, ADR-0078 section 4) deletes the moved-aside
 #      DB copies and the pre-migration backups under /data/backups, so a drill
 #      run leaves no extra *.db* files besides the live budget.db(-wal/-shm).
@@ -63,10 +63,14 @@ readonly DB_PATH="$${DATA_DIR}/budget.db"
 readonly APP_UID=10001
 readonly LITESTREAM_IMAGE='litestream/litestream:0.3.14'  # same pin as compose (T-D56)
 readonly AGE_KEY_FILE='${age_key_file}'
-readonly READY_URL='https://localhost/ready'
+# Caddy only serves a certificate for the host's real name (SNI), so probe by
+# that name pinned to loopback; TLS stays fully verified (no -k).
+readonly READY_HOST='${hostname}'
+readonly READY_URL="https://$${READY_HOST}/ready"
 readonly READY_RETRIES=24
 readonly READY_SLEEP_S=5
 MOVED_ASIDE_DIR=''
+RESTORE_CFG=''
 
 log() { printf '%s: %s\n' "$${PROGNAME}" "$${*}"; }
 die() { printf '%s: ERROR: %s\n' "$${PROGNAME}" "$${*}" >&2; exit 1; }
@@ -75,6 +79,9 @@ die() { printf '%s: ERROR: %s\n' "$${PROGNAME}" "$${*}" >&2; exit 1; }
 cleanup_copies() {
   local rc=$?
   set +e
+  # T-D40-FIX2: temp restore config removed here (EXIT), never via a RETURN
+  # trap: those persist after the function returns and fire in later functions.
+  [[ -z "$${RESTORE_CFG}" ]] || rm -f -- "$${RESTORE_CFG}"
   if [[ -n "$${MOVED_ASIDE_DIR}" && -d "$${MOVED_ASIDE_DIR}" ]]; then
     rm -rf -- "$${MOVED_ASIDE_DIR}"
     log "deleted moved-aside copies $${MOVED_ASIDE_DIR}"
@@ -134,16 +141,14 @@ move_local_db_aside() {
 }
 
 restore_from_prod() {
-  local cfg
   LITESTREAM_AGE_IDENTITY="$(grep -m1 '^AGE-SECRET-KEY-' "$${AGE_KEY_FILE}" || true)"
   [[ -n "$${LITESTREAM_AGE_IDENTITY}" ]] || die "no AGE-SECRET-KEY line in $${AGE_KEY_FILE}"
   export LITESTREAM_AGE_IDENTITY
-  cfg="$(mktemp /run/restore-source.XXXXXX.yml)"
-  trap 'rm -f -- "$${cfg}"' RETURN
+  RESTORE_CFG="$(mktemp /run/restore-source.XXXXXX.yml)"
   # Restore-only config: points at the PROD replica, read-only credential.
   # Never passed to `litestream replicate`. Credentials and the age identity
   # are expanded by litestream from the container environment, not stored here.
-  cat > "$${cfg}" <<'CFG'
+  cat > "$${RESTORE_CFG}" <<'CFG'
 dbs:
   - path: /data/budget.db
     replicas:
@@ -161,15 +166,31 @@ CFG
   log "restoring from s3://$${SOURCE_BUCKET}/${source_path} (read-only)"
   docker run --rm \
     -v "$${DATA_DIR}:$${DATA_DIR}:rw" \
-    -v "$${cfg}:/etc/litestream-restore.yml:ro" \
+    -v "$${RESTORE_CFG}:/etc/litestream-restore.yml:ro" \
     -e RESTORE_ACCESS_KEY_ID -e RESTORE_SECRET_ACCESS_KEY \
     -e LITESTREAM_AGE_IDENTITY \
     "$${LITESTREAM_IMAGE}" \
     restore -config /etc/litestream-restore.yml -o "$${DB_PATH}" "$${DB_PATH}"
 }
 
+# T-D40-FIX3: `litestream restore` builds the DB in budget.db.tmp, checkpoints the
+# replayed WAL into it, renames it to budget.db and leaves budget.db.tmp-wal (empty)
+# and budget.db.tmp-shm behind. They would trip the T-D57 "no extra DB copies" check.
+# A non-empty tmp-wal means the restored DB may lack committed pages: fail, never delete.
+remove_restore_tmp_sidecars() {
+  local wal="$${DB_PATH}.tmp-wal" shm="$${DB_PATH}.tmp-shm"
+  if [[ -s "$${wal}" ]]; then
+    die "$${wal} is not empty; restored DB may be incomplete; leaving stack stopped"
+  fi
+  if [[ -e "$${wal}" || -e "$${shm}" ]]; then
+    rm -f -- "$${wal}" "$${shm}"
+    log "removed litestream restore tmp sidecars ($${wal}, $${shm})"
+  fi
+}
+
 verify_and_chown() {
   local result
+  remove_restore_tmp_sidecars
   result="$(sqlite3 "$${DB_PATH}" 'PRAGMA integrity_check;')"
   log "integrity_check=$${result}"
   [[ "$${result}" == "ok" ]] || die "integrity_check failed; leaving stack stopped"
@@ -182,18 +203,24 @@ verify_and_chown() {
 start_stack_and_wait() {
   log "starting litestream + app (entrypoint applies pending migrations)"
   compose up -d litestream app
-  local i body status
+  local i body status db err
+  err="no attempt made"
   for i in $(seq 1 "$${READY_RETRIES}"); do
-    if body="$(curl -fsS --max-time 5 --resolve 'localhost:443:127.0.0.1' -k "$${READY_URL}" 2>/dev/null)"; then
-      status="$(jq -r .status <<<"$${body}")"
-      if [[ "$${status}" == "ok" ]]; then
-        log "ready.status=$${status} (attempt $${i})"
+    if body="$(curl -fsS --max-time 5 --resolve "$${READY_HOST}:443:127.0.0.1" "$${READY_URL}" 2>&1)"; then
+      status="$(jq -r '.status // empty' <<<"$${body}" 2>/dev/null || true)"
+      db="$(jq -r '.db // empty' <<<"$${body}" 2>/dev/null || true)"
+      if [[ "$${status}" == "ready" && "$${db}" == "ok" ]]; then
+        log "ready.status=$${status} ready.db=$${db} (attempt $${i})"
         return 0
       fi
+      err="unexpected body: $${body:0:200}"
+    else
+      err="curl: $${body:0:200}"
     fi
+    log "ready attempt $${i}/$${READY_RETRIES} failed: $${err}"
     sleep "$${READY_SLEEP_S}"
   done
-  die "/ready did not report ok within $((READY_RETRIES * READY_SLEEP_S))s"
+  die "/ready did not report status=ready db=ok within $((READY_RETRIES * READY_SLEEP_S))s (last: $${err})"
 }
 
 main() {

@@ -1,6 +1,6 @@
 # Runbook — Deploy
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Standard release of a new version to production (a published GitHub release).
 
@@ -80,7 +80,7 @@ Before deploying a release whose CHANGELOG entry says **"rollback requires resto
 Run on a kept explore drill (T-D43), never against prod (decision 2026-11-18): on prod it would use the real admin account and leave a smoke user and data behind. One Playwright journey: admin sign-in (+ forced rotation), create a second user, forced rotation, virtual-authenticator passkey, add a transaction, data-isolation check on the admin `/ledger`, `/debug/audit-tail` audit check, then soft-delete the smoke user.
 
 ```sh
-SMOKE_BASE_URL=https://budget-planner-drill.<tailnet>.ts.net \
+SMOKE_BASE_URL=https://budget-planner-drill-<run id>.<tailnet>.ts.net \
 SMOKE_ADMIN_EMAIL=<drill admin email> \
 SMOKE_ADMIN_PASSWORD=<drill admin password> \
 SMOKE_ADMIN_NEW_PASSWORD=<new admin password, 12+ chars> \

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,10 +11,13 @@ import pytest
 import yaml  # type: ignore[import-untyped]
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOWS = (
-    ROOT / ".github/workflows/terraform.yml",
-    ROOT / ".github/workflows/restore-drill.yml",
-)
+WORKFLOWS = (ROOT / ".github/workflows/terraform.yml",)
+_ENV_SCRIPT = ROOT / "scripts/ci/tf_env.py"
+_env_spec = importlib.util.spec_from_file_location("tf_env", _ENV_SCRIPT)
+assert _env_spec is not None and _env_spec.loader is not None
+tf_env = importlib.util.module_from_spec(_env_spec)
+sys.modules["tf_env"] = tf_env
+_env_spec.loader.exec_module(tf_env)
 _SCRIPT = ROOT / "terraform/scripts/check_tf_vars.py"
 _spec = importlib.util.spec_from_file_location("check_tf_vars", _SCRIPT)
 assert _spec is not None and _spec.loader is not None
@@ -54,14 +58,20 @@ def test_no_var_file_in_run_steps(path: Path) -> None:
 
 
 def test_terraform_jobs_found() -> None:
-    assert len(_terraform_jobs()) >= 3
+    assert len(_terraform_jobs()) >= 2
 
 
 @pytest.mark.parametrize(("wf", "name", "job"), _terraform_jobs())
 def test_every_required_variable_has_tf_var_env(wf: str, name: str, job: dict[str, Any]) -> None:
-    env = job.get("env", {})
+    # T-D133: the TF_VAR_* set comes from one mapping (scripts/ci/tf_env.py) exported by
+    # the terraform-env action; the image refs are step-level env set by the job itself.
+    env = {f"TF_VAR_{e.var}" for e in tf_env.ENTRIES} | set(job.get("env", {}))
+    for step in job.get("steps", []):
+        env |= set(step.get("env", {}))
     missing = [v for v in REQUIRED if f"TF_VAR_{v}" not in env]
     assert not missing, f"{wf}:{name} lacks TF_VAR_ for {missing}"
+    uses = [s.get("uses", "") for s in job.get("steps", [])]
+    assert "./.github/actions/terraform-env" in uses
     assert "check_tf_vars.py" in "\n".join(_run_steps(job))
 
 

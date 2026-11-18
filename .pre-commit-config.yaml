@@ -90,8 +90,10 @@ repos:
   - repo: local
     hooks:
       - id: pytest-fast
-        name: pytest (fast subset)
-        entry: uv run pytest -q tests/unit tests/architecture -m "not integration and not e2e and not visual" --no-cov
+        name: pytest (affected tests, testmon)
+        # The local gate (ADR-0120): testmon-selected tests across the whole
+        # suite, xdist workers from PYTEST_WORKERS. Recipe lives in the justfile.
+        entry: just test-fast
         language: system
         pass_filenames: false
         stages: [pre-commit]

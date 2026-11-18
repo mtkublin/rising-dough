@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # ``backup_max_age_days - 7``. The Terraform twin
     # is ``var.backup_max_age_days`` (bucket noncurrent expiry).
     backup_max_age_days: int = Field(default=37, ge=7, le=365)
+    # ADR-0119 / T-D144: status file written by the litestream-probe sidecar.
+    # Empty = replication freshness check disabled (dev, prod-sim).
+    replication_status_file: str = Field(default="")
+    # ADR-0119: newest replica object must be younger than this (24 h snapshot + margin).
+    replication_max_age_hours: int = Field(default=26, ge=2, le=720)
     # ADR-0067 §1: WebAuthn relying-party identity. Production must set
     # these to the deployed hostname and its ``https://`` origin; the
     # defaults only work for ``just dev`` on localhost.

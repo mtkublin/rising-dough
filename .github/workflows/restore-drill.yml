@@ -1,6 +1,7 @@
 # Monthly automated restore drill (T-D41, ADR-0034 §5).
 #
-# Provisions a disposable Scaleway drill environment via Terraform, restores
+# Provisions a disposable Scaleway drill environment through terraform.yml
+# (apply and destroy are the shared reusable jobs, T-D133), restores
 # `/data/budget.db` from the prod Litestream bucket (read-only credential
 # baked into the drill cloud-init), verifies integrity + readiness, then
 # tears the environment down ALWAYS (T-D66): success, failure or cancel. On
@@ -26,7 +27,7 @@
 #                                    module.app_drill; ADR-0104).
 #   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
 #   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56; a secret since ADR-0093).
-#   Plus every other TF_VAR_* input: see the env block and operator-checklist A5 (ADR-0093).
+#   Plus every other TF_VAR_* input: see scripts/ci/tf_env.py and operator-checklist A5 (ADR-0093).
 #
 # Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
 # applies to our CI supply chain as well).
@@ -85,80 +86,70 @@ jobs:
       - name: Acquire drill lock
         run: python3 scripts/ci/drill_lock.py
 
-  restore-drill:
+  # ADR-0111: the host runs a digest-pinned, cosign-verified image. Use the
+  # newest GitHub release (prod's line), or `main` before the first one.
+  image:
+    name: Resolve app image
     needs: drill-lock
-    name: Provision → restore → verify → destroy
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    environment: drill
-    env:
-      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
-      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
-      # T-D70 / ADR-0093: all Terraform inputs are TF_VAR_* from `drill`
-      # environment secrets (falling back to repo secrets); no tfvars in CI.
-      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      TF_VAR_env: drill
-      TF_VAR_scaleway_project_id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
-      TF_VAR_scaleway_organization_id: ${{ secrets.SCW_DEFAULT_ORG_ID }}
-      TF_VAR_admin_email: ${{ secrets.ADMIN_EMAIL }}
-      TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
-      TF_VAR_github_owner: ${{ github.repository_owner }}
-      TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
-      # T-D137: public CI key (drill environment variable) so the CI deploy key can SSH as operator.
-      TF_VAR_ci_ssh_pubkey: ${{ vars.CI_SSH_PUBKEY }}
-      TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
-      TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
-      TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
-      SCW_DEFAULT_REGION: pl-waw
-      SCW_DEFAULT_ZONE: pl-waw-2
-      TF_IN_AUTOMATION: "true"
-      TF_INPUT: "0"
-      # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
-      DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
-      TF_VAR_tailnet_dns_name: ${{ vars.TAILNET_DNS_NAME }}
-      # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
-      TF_VAR_drill_run_id: ${{ github.run_id }}
-      # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
-      # DRILL_HOST stays the public name for the HTTPS /ready probe.
-      DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
-      TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-      TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # T-D41a: read-only credential for the PROD replica bucket; rendered
-      # into the drill host's root-only restore-source.env by cloud-init.
-      TF_VAR_scw_access_key_restore: ${{ secrets.PROD_REPLICA_RO_ACCESS_KEY }}
-      TF_VAR_scw_secret_key_restore: ${{ secrets.PROD_REPLICA_RO_SECRET_KEY }}
-      # T-D103 / ADR-0104: drill Litestream identity from terraform/bootstrap/ci.
-      TF_VAR_app_application_id: ${{ secrets.APP_APPLICATION_ID }}
-      TF_VAR_app_scw_access_key: ${{ secrets.APP_SCW_ACCESS_KEY }}
-      TF_VAR_app_scw_secret_key: ${{ secrets.APP_SCW_SECRET_KEY }}
-      # T-D56: the drill restores the PROD replica, so it needs the PROD age
-      # identity (written 0600 to the drill host). Never the dev-only key.
-      TF_VAR_litestream_age_identity: ${{ secrets.LITESTREAM_AGE_IDENTITY }}
-      TF_VAR_litestream_age_recipient: ${{ secrets.LITESTREAM_AGE_RECIPIENT }}
-      # ADR-0111: placeholder; the Terraform steps set it from the "Resolve app
-      # image" output (newest release, digest-pinned) as step-level env.
-      TF_VAR_app_image_ref: ""
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      ref: ${{ steps.image.outputs.ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
-          terraform_version: "1.17.1"
-          terraform_wrapper: false
+          persist-credentials: false
+          sparse-checkout: scripts/ci/host_release.py
 
-      - name: Install Scaleway CLI
+      - name: Resolve app image
+        id: image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/budget-planner
         run: |
           set -euo pipefail
-          SCW_VERSION="2.34.0"
-          curl -fsSL -o /tmp/scw \
-            "https://github.com/scaleway/scaleway-cli/releases/download/v${SCW_VERSION}/scaleway-cli_${SCW_VERSION}_linux_amd64"
-          sudo install -m 0755 /tmp/scw /usr/local/bin/scw
-          scw version
+          TAG="$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // empty')"
+          TAG="${TAG:-main}"
+          echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
+          python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
+
+  # T-D133: apply is the shared terraform.yml job (environment `drill`, the one
+  # optional reviewer gate, none configured today; no replace and no expires-at tag, as before).
+  apply:
+    name: terraform apply (drill)
+    needs: [drill-lock, image]
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.image.outputs.ref }}
+    secrets: inherit  # pragma: allowlist secret
+
+  restore-drill:
+    name: Restore → verify
+    needs: apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: drill # holds DEPLOY_SSH_PRIVATE_KEY (only in `drill`); no reviewers configured today
+    permissions:
+      contents: read
+      actions: read # run start time for the restore-log entry (T-D41)
+    env:
+      # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
+      DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+      # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
+      # DRILL_HOST stays the public name for the HTTPS /ready probe.
+      DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Configure SSH agent
         uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
@@ -180,38 +171,6 @@ jobs:
           chmod 700 ~/.ssh
           : > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-
-      # ADR-0111: the host runs a digest-pinned, cosign-verified image. Use the
-      # newest GitHub release (prod's line), or `main` before the first one.
-      - name: Resolve app image
-        id: image
-        env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/budget-planner
-        run: |
-          set -euo pipefail
-          TAG="$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[0].tagName // empty')"
-          TAG="${TAG:-main}"
-          echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
-          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          echo "ref=${TAG}@${DIGEST}" | tee -a "$GITHUB_OUTPUT"
-
-      - name: Check required Terraform inputs
-        env:
-          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref }}
-        run: python3 terraform/scripts/check_tf_vars.py
-
-      - name: Terraform init (drill backend)
-        working-directory: terraform
-        run: terraform init -input=false -backend-config=envs/drill/backend.hcl
-
-      - name: Terraform apply (drill)
-        working-directory: terraform
-        env:
-          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref }}
-        run: |
-          terraform apply \
-            -input=false \
-            -auto-approve
 
       - name: Wait for drill host on the tailnet (T-D67)
         # The drill VM joins the tailnet from cloud-init (ephemeral node).
@@ -259,6 +218,20 @@ jobs:
           echo "::error::operator SSH login to ${DRILL_SSH_HOST} failed" >&2
           exit 1
 
+      # Readiness review: `cloud-init status --wait` alone does not prove the host
+      # agent converged. If its first convergence failed and is in back-off, a retry
+      # could run `compose up -d` mid-restore. Wait (bounded) until the agent reports
+      # this generation applied (state ok) and the expected image running.
+      - name: Wait for host agent status ok
+        timeout-minutes: 12
+        env:
+          GENERATION: ${{ needs.apply.outputs.host_config_generation }}
+          HOST_IMAGE_REF: ${{ needs.apply.outputs.host_image_ref }}
+        run: >-
+          python3 scripts/ci/host_release.py wait --timeout 600
+          --url "https://${DRILL_HOST}/.well-known/bp-deploy-status.json"
+          --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+
       - name: Trigger restore on drill host
         # The helper lives at /usr/local/bin/restore-from-prod (written by the
         # host agent from bp-config, ADR-0111; cloud-init's runcmd runs the
@@ -266,27 +239,42 @@ jobs:
         # (per ADR-0034 §5 + the drill terraform.tfvars) runs
         #   litestream restore -o /data/budget.db s3://budget-planner-prod-pl-waw/db
         # using a read-only IAM credential scoped to the prod bucket.
+        # T-D41: the output is kept in restore-output.log; only validated fields
+        # (generation, index range, source) reach the restore-log entry. The helper
+        # never prints secrets.
+        id: restore
         run: |
           set -euo pipefail
           ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
-            'sudo cloud-init status --wait >/dev/null; sudo /usr/local/bin/restore-from-prod'
+            'sudo cloud-init status --wait >/dev/null; sudo /usr/local/bin/restore-from-prod' \
+            2>&1 | tee restore-output.log
+          echo "restored_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
-      - name: Verify /ready reports ok
+      - name: Verify /ready reports ready, db ok
+        id: ready
         run: |
           set -euo pipefail
-          status="$(curl -fsS "https://${DRILL_HOST}/ready" | jq -r .status)"
-          echo "ready.status=${status}"
-          test "${status}" = "ok"
+          body="$(curl -fsS "https://${DRILL_HOST}/ready")"
+          status="$(jq -r .status <<<"${body}")"
+          db="$(jq -r .db <<<"${body}")"
+          echo "ready.status=${status} ready.db=${db}"
+          echo "ready_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "state=${status}-${db}" | tr -c "A-Za-z0-9_=\n-" "-" >> "$GITHUB_OUTPUT"
+          test "${status}" = "ready"
+          test "${db}" = "ok"
 
       - name: Verify PRAGMA integrity_check
+        id: integrity
         run: |
           set -euo pipefail
           result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             "sudo sqlite3 /data/budget.db 'PRAGMA integrity_check;'")"
           echo "integrity_check=${result}"
+          echo "value=$(printf '%s' "${result}" | tr -c 'A-Za-z0-9_-' '-' | cut -c1-40)" >> "$GITHUB_OUTPUT"
           test "${result}" = "ok"
 
       - name: Verify no extra DB copies remain (T-D57)
+        id: copies
         # ADR-0078 section 4: only the live budget.db (+ -wal/-shm) may be left under
         # /data; moved-aside and pre-migration copies are deleted by the helper.
         run: |
@@ -294,7 +282,64 @@ jobs:
           extra="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             "sudo find /data -name '*.db*' ! -path '/data/.budget.db-litestream*' ! -name budget.db ! -name budget.db-wal ! -name budget.db-shm")"
           echo "extra_db_copies=[${extra}]"
+          if [ -z "${extra}" ]; then echo "value=none" >> "$GITHUB_OUTPUT"; else echo "value=found" >> "$GITHUB_OUTPUT"; fi
           test -z "${extra}"
+
+      # T-D41: read-only stats of the restored DB for the restore-log entry. Never
+      # blocks the run; the sqlite3 -readonly flag keeps the restored file untouched.
+      - name: Collect restored audit_log stats (read-only)
+        id: audit
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          set -uo pipefail
+          out="$(timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" \
+            "sudo sqlite3 -readonly -separator '|' /data/budget.db 'SELECT count(*), max(id), max(changed_at) FROM audit_log;'" 2>/dev/null || true)"
+          echo "audit_log=${out}"
+          echo "stats=${out}" >> "$GITHUB_OUTPUT"
+
+      # T-D41: the entry for restore-log.md, built on success AND failure. It goes to the
+      # job summary and, through the `restore-log` job, to the restore-log issue.
+      - name: Build restore-log entry
+        id: entry
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          IMAGE_REF: ${{ needs.apply.outputs.host_image_ref }}
+          AUDIT_STATS: ${{ steps.audit.outputs.stats }}
+          INTEGRITY: ${{ steps.integrity.outputs.value }}
+          READY_STATE: ${{ steps.ready.outputs.state }}
+          READY_AT: ${{ steps.ready.outputs.ready_at }}
+          EXTRA_COPIES: ${{ steps.copies.outputs.value }}
+          RESTORED_AT: ${{ steps.restore.outputs.restored_at }}
+        run: |
+          set -uo pipefail
+          started="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .run_started_at 2>/dev/null || true)"
+          touch restore-output.log
+          result=fail
+          if [ "${JOB_STATUS}" = "success" ]; then result=pass; fi
+          python3 scripts/ci/restore_log_entry.py \
+            --result "${result}" --trigger "${EVENT_NAME}" --run-url "${RUN_URL}" \
+            --image-ref "${IMAGE_REF}" --restore-output restore-output.log \
+            --audit "${AUDIT_STATS}" --integrity "${INTEGRITY}" --ready "${READY_STATE}" \
+            --extra-copies "${EXTRA_COPIES}" --started-at "${started}" --ready-at "${READY_AT}" \
+            --restored-at "${RESTORED_AT}" > restore-log-entry.md
+          cat restore-log-entry.md
+          { echo "### Restore-log entry"; echo; cat restore-log-entry.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload restore-log entry
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: restore-log-entry
+          path: restore-log-entry.md
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Capture debugging evidence (best-effort)
         # T-D66: runs only on failure, BEFORE destroy. Never blocks destroy:
@@ -332,38 +377,65 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Terraform destroy (drill)
-        # T-D66: ALWAYS destroy, even after failure, partial apply, or
-        # cancellation. Re-runs init (idempotent) so it also works when an
-        # earlier step died before/during init.
-        id: destroy
-        if: always()
-        timeout-minutes: 20
-        working-directory: terraform
-        env:
-          # Destroy never renders user data; any valid ref works when the
-          # resolve step did not run (ADR-0111, host_release.PLACEHOLDER).
-          TF_VAR_app_image_ref: ${{ steps.image.outputs.ref || format('sha-0000000@sha256:{0}', '0000000000000000000000000000000000000000000000000000000000000000') }}
-        run: |
-          set -euo pipefail
-          terraform init -input=false -backend-config=envs/drill/backend.hcl
-          terraform destroy \
-            -input=false \
-            -auto-approve
+  # T-D66: ALWAYS destroy once apply was attempted, even after a failed restore,
+  # a partial apply or cancellation (shared terraform.yml, ungated drill-teardown).
+  destroy:
+    name: terraform destroy (drill)
+    needs: [apply, restore-drill]
+    if: ${{ always() && needs.apply.result != 'skipped' }}
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      destroy: true
+    secrets: inherit  # pragma: allowlist secret
 
-      - name: Verify drill environment destroyed
-        # Fails the job loudly if destroy failed or resources remain, so the
-        # failure issue fires and the operator knows something billable may
-        # remain.
-        id: verify-destroy
-        if: always()
+  # Fails the run loudly if destroy failed or resources remain, so the failure
+  # issue fires and the operator knows something billable may remain.
+  verify-destroy:
+    name: Verify drill environment destroyed
+    needs: destroy
+    if: ${{ always() && needs.destroy.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: drill-teardown # ungated; holds the drill state-backend credentials
+    permissions:
+      contents: read
+    env:
+      DESTROY_RESULT: ${{ needs.destroy.result }}
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+    defaults:
+      run:
         working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.17.1"
+          terraform_wrapper: false
+
+      - name: Verify drill state is empty
         run: |
           set -euo pipefail
-          if [ "${{ steps.destroy.outcome }}" != "success" ]; then
-            echo "::error::terraform destroy outcome=${{ steps.destroy.outcome }}; drill resources may still be billing"
+          if [ "${DESTROY_RESULT}" != "success" ]; then
+            echo "::error::terraform destroy result=${DESTROY_RESULT}; drill resources may still be billing"
             exit 1
           fi
+          terraform init -input=false -backend-config=envs/drill/backend.hcl
           remaining="$(terraform state list | grep -v '^data\.' || true)"
           if [ -n "${remaining}" ]; then
             echo "::error::resources remain in drill state after destroy:"
@@ -372,12 +444,38 @@ jobs:
           fi
           echo "drill state empty; destroy verified"
 
+  # T-D124 (ADR-0101), T-D133: one reusable workflow removes the node the destroyed
+  # VM leaves behind. Runs even when destroy failed (node may exist).
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: destroy
+    if: ${{ always() && needs.destroy.result != 'skipped' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tailnet-cleanup.yml
+    secrets: inherit  # pragma: allowlist secret
+
+  # Opens the failure issue when the drill itself or its teardown failed. A refusal
+  # by the drill lock (everything else skipped) opens none, as before.
+  report:
+    name: Open issue on failure
+    needs: [image, apply, restore-drill, destroy, verify-destroy]
+    if: >-
+      ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; reads vars.TAILNET_DNS_NAME
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+    steps:
       - name: Open issue on failure
-        if: failure() || cancelled()
         env:
           REPO: ${{ github.repository }}
-          DESTROY_OUTCOME: ${{ steps.destroy.outcome }}
-          VERIFY_OUTCOME: ${{ steps.verify-destroy.outcome }}
+          DESTROY_OUTCOME: ${{ needs.destroy.result }}
+          VERIFY_OUTCOME: ${{ needs.verify-destroy.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -407,28 +505,41 @@ jobs:
             --body "${body}" \
             --label "restore-drill,incident"
 
-  # T-D124 (ADR-0101): destroying the VM leaves its tailnet node behind (offline);
-  # a stale node makes the next drill register as budget-planner-drill-1, so the
-  # tailnet wait and SSH hit the offline node (first-run lesson, run 44299998687).
-  # Runs even when the drill job failed; problems are warnings only.
-  tailnet-cleanup:
-    name: remove drill tailnet node
+  # T-D41 (user decision 2026-11-18): main is protected, so the workflow cannot commit
+  # the entry. Every run that reached the restore job appends its entry as a comment on
+  # the single open `restore-log` issue (created with its label when missing). Failed
+  # runs post `Result: fail`; the failure issue below is unchanged.
+  restore-log:
+    name: Post restore-log entry
     needs: restore-drill
     if: ${{ always() && needs.restore-drill.result != 'skipped' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: drill-teardown # ungated; holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET
+    environment: drill-teardown # ungated; no secrets beyond the job token
     permissions:
       contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Download restore-log entry
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          persist-credentials: false
-          sparse-checkout: scripts/tailnet_drill_cleanup.py
+          name: restore-log-entry
 
-      - name: Delete tag:drill nodes named budget-planner-drill[-n]
-        env:
-          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
-          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
-        run: python3 scripts/tailnet_drill_cleanup.py
+      - name: Comment on the restore-log issue
+        if: ${{ steps.download.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          gh label create restore-log --repo "${REPO}" --color 0e8a16 --description "Restore drill results" 2>/dev/null || true
+          number="$(gh issue list --repo "${REPO}" --label restore-log --state open \
+            --json number,title --jq '[.[] | select(.title == "restore-log")][0].number // empty')"
+          if [ -z "${number}" ]; then
+            url="$(gh issue create --repo "${REPO}" --title restore-log --label restore-log \
+              --body "Append-only log of restore drill results, one comment per run (T-D41). Posted by restore-drill.yml; do not close. Format: docs/plans/v3/runbooks/restore-log.md.")"
+            number="${url##*/}"
+          fi
+          gh issue comment "${number}" --repo "${REPO}" --body-file restore-log-entry.md
