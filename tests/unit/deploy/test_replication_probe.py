@@ -13,10 +13,12 @@ COMPOSE_DIR = ROOT / "terraform" / "cloud-init" / "compose"
 SCRIPT = COMPOSE_DIR / "litestream-replication-probe.sh"
 IDENTITY = "AGE-SECRET-KEY-1TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST"
 
-TABLE = """name  generation        lag  start                 end
-s3    aaaaaaaaaaaaaaaa  -    2026-11-07T10:00:00Z  2026-11-07T17:52:00Z
-s3    a1b2c3d4  0s   2026-11-18T14:37:00Z  2026-11-18T15:10:30Z
-"""
+# Captured from `litestream generations` of litestream/litestream:0.3.14 (T-D144
+# local verification; generation id replaced). Columns: name generation lag start end.
+FIXTURE = Path(__file__).parent / "fixtures" / "litestream_generations_0.3.14.txt"
+REAL = FIXTURE.read_text()
+# Same real format, plus an older generation with a longer lag token.
+TABLE = REAL + "file  aaaaaaaaaaaaaaaa  3d2h  2026-11-07T10:00:00Z  2026-11-07T17:52:00Z\n"
 
 
 def _run(tmp_path: Path, stub_body: str) -> dict[str, object]:
@@ -41,8 +43,8 @@ def _run(tmp_path: Path, stub_body: str) -> dict[str, object]:
 
 def test_newest_end_over_all_generations(tmp_path: Path) -> None:
     doc = _run(tmp_path, f"cat <<'EOF'\n{TABLE}EOF")
-    assert doc["newest_object_at"] == "2026-11-18T15:10:30Z"
-    assert doc["generation"] == "a1b2c3d4"
+    assert doc["newest_object_at"] == "2026-11-18T16:08:05Z"
+    assert doc["generation"] == "00112233aabbccdd"
     assert doc["error"] is None
     assert str(doc["checked_at"]).endswith("Z")
 
@@ -51,6 +53,38 @@ def test_command_failure_is_reported_as_error(tmp_path: Path) -> None:
     doc = _run(tmp_path, "exit 1")
     assert doc["error"] == "generations_failed"
     assert doc["newest_object_at"] is None
+
+
+def test_list_error_on_stdout_with_exit_0_is_reported_as_error(tmp_path: Path) -> None:
+    # Real 0.3.14 behaviour: ERROR log line plus header on stdout, exit status 0.
+    body = (
+        'echo \'time=2026-11-18T16:09:50.184Z level=ERROR msg="cannot list generations" '
+        'db=/data/budget.db replica=file error=\\"permission denied\\"\'; '
+        "echo 'name  generation  lag  start  end'"
+    )
+    doc = _run(tmp_path, body)
+    assert doc["error"] == "generations_failed"
+
+
+def test_real_output_through_endpoint_logic(tmp_path: Path) -> None:
+    """Probe output (real format) feeds the /health/replication verdict."""
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    from budget_planner.services import replication_health as rh  # noqa: PLC0415
+
+    doc = _run(tmp_path, f"cat <<'EOF'\n{REAL}EOF")
+    newest = datetime(2026, 11, 18, 16, 8, 5, tzinfo=UTC)
+    assert doc["newest_object_at"] == "2026-11-18T16:08:05Z"
+    limit = timedelta(hours=26)
+
+    def verdict(hours: int) -> rh.ReplicationHealth:
+        now = newest + timedelta(hours=hours)
+        probe_doc = {**doc, "checked_at": (now - timedelta(minutes=1)).isoformat()}
+        return rh.evaluate(json.dumps(probe_doc), now=now, max_age=limit)
+
+    assert verdict(2).ok
+    stale = verdict(30)
+    assert (stale.ok, stale.status) == (False, "stale")
 
 
 def test_header_only_means_no_objects(tmp_path: Path) -> None:
