@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D43-FIX2 smoke audit leak check scope)
+- **Fix(T-D43): smoke audit leak check scoped to non-users rows.** Second drill run 44356288331 failed step 11 only: the marker check matched the smoke user's email in the admin's own `users` audit rows (create and delete). The check now covers non-`users` entries; the `password_hash` assertion is unchanged. App code unchanged. Follow-up T-D145: non-admin domain audit rows lack attribution (user_id NULL).
+
 ## 2026-11-18 (CLOSEOUT-DOCS pre-PR consistency sweep)
 - **Docs(CLOSEOUT-DOCS): pre-PR consistency sweep.** T-D133 restore-drill proof recorded (run 44351020259), T-D137/T-D138 back to ◐ (drill proof pending), stale "never run" and "still ◐" notes in T-D40/T-D41/T-D44/T-D56 superseded, restore runbook and operator checklist "Next" list refreshed (DRILL-2, gate, PR merge, v3.0.3, `/health/replication` monitor, restore drill and T-D56 dry run from `main`, closeout); ADR-0097 amended (no local full `just ci` before a PR).
 ## 2026-11-18 (T-D43-FIX smoke audit filter)
