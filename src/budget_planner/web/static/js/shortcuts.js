@@ -75,10 +75,8 @@
     if (e.key === "g") { pending = { prefix: "g", expiresAt: now + CHORD_MS }; return; }
     if (e.key === "n") {
       e.preventDefault();
-      // T-069 — `n` clicks the context-aware FAB. Fall back to the palette
-      // so pages that opt out of the FAB still have a quick-add affordance.
-      const fab = document.querySelector("[data-fab]");
-      if (fab) { fab.click(); } else { window.openCommandPalette?.(); }
+      // T-069 — `n` opens the palette as the quick-add affordance.
+      window.openCommandPalette?.();
       return;
     }
     if (e.key === "/") {
