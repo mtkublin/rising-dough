@@ -13,12 +13,12 @@
 {% set txn_account = (accounts|selectattr('id', 'equalto', txn.account_id)|first) if txn else none %}
 <form id="txn-form"
       hx-post="{{ action }}"
-      hx-target="{% if txn %}#txn-{{ txn.id }}{% else %}#txn-form{% endif %}"
+      hx-target="#txn-form"
       hx-swap="outerHTML"
       class="rd-form txn-form"
       data-txn-form
       data-account-currencies='{{ ccy_by_account|tojson }}'
-      {% if not txn %}data-reset-on-submit{% endif %}>
+      {% if txn %}data-close-overlay-on-success{% else %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,

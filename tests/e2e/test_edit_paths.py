@@ -143,10 +143,10 @@ def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page
     page.goto(_ledger(base_url, "planned"))
     assert page.evaluate("typeof window.htmx") == "object"
     page.locator("tr[id^='planned-p-']").get_by_role("button", name="Promote").first.click()
-    panel = page.locator("[role='dialog']")
+    panel = page.locator(_PANEL)
     expect(panel).to_be_visible()
     panel.get_by_role("button", name="Promote").click()
-    expect(page.locator("[role='dialog']")).to_have_count(0)
+    expect(page.locator(_PANEL)).to_have_count(0)
     page.goto(_ledger(base_url, "actual"))
     expect(page.get_by_text("edit-planned").first).to_be_visible()
 

@@ -504,3 +504,59 @@ def test_form_submits_even_when_over_limit(client: TestClient, visa_setup: dict[
         },
     )
     assert r.status_code == 200
+
+
+_ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
+_ON_LEDGER = {"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=actual"}
+
+
+def _update_data(seeded: dict[str, int], amount: str = "99.99") -> dict[str, str | int]:
+    return {
+        "operation_date": "2026-10-02",
+        "category_id": seeded["groc"],
+        "account_id": seeded["acc"],
+        "amount": amount,
+    }
+
+
+def test_edit_form_targets_itself_and_closes_on_success(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
+    r = client.get(f"/transactions/{txn_id}/edit")
+    assert 'hx-target="#txn-form"' in r.text
+    assert f"#txn-{txn_id}" not in r.text
+    assert "data-close-overlay-on-success" in r.text
+
+
+def test_update_off_ledger_refreshes_page_without_swap(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
+    r = client.post(f"/transactions/{txn_id}", data=_update_data(seeded), headers=_ON_TODAY)
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_update_on_ledger_does_not_refresh_page(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
+    r = client.post(f"/transactions/{txn_id}", data=_update_data(seeded), headers=_ON_LEDGER)
+    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in r.headers
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_update_invalid_amount_rerenders_form_in_place(
+    client: TestClient, seeded: dict[str, int], _migrated: Settings
+) -> None:
+    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
+    r = client.post(
+        f"/transactions/{txn_id}", data=_update_data(seeded, amount="0"), headers=_ON_TODAY
+    )
+    assert r.status_code == 422
+    assert 'id="txn-form"' in r.text
+    assert "amount" in r.text

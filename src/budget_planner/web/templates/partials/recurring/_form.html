@@ -9,12 +9,13 @@
    handle hole-tolerant indices after row removal. #}
 {% set is_formula = amount_source == "formula" %}
 {% set rule_account = (accounts|selectattr('id', 'equalto', rule.account_id)|first) if rule else none %}
-<form {% if not rule %}id="recurring-form" {% endif %}hx-post="{{ action }}"
-      hx-target="{% if rule %}#recurring-{{ rule.id }}{% else %}#recurring-form{% endif %}"
+<form id="recurring-form"
+      hx-post="{{ action }}"
+      hx-target="#recurring-form"
       hx-swap="outerHTML"
       class="rd-form recurring-form"
       data-recurring-form
-      {% if not rule %}data-reset-on-submit{% endif %}>
+      {% if rule %}data-close-overlay-on-success{% else %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
