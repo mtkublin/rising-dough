@@ -14,7 +14,7 @@
      aria-modal="true"
      aria-labelledby="rec-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over" tabindex="-1">
     <header class="slide-over__header rd-reconcile-header">
       <div>
@@ -24,7 +24,7 @@
       <button type="button"
               class="slide-over__close"
               aria-label="Close"
-              onclick="this.closest('#modal-root').innerHTML='';">
+              data-action="close-overlay">
         <span aria-hidden="true">×</span>
       </button>
     </header>
@@ -33,7 +33,7 @@
         <form hx-post="/accounts/{{ account.id }}/reconcile"
               hx-target="#account-{{ account.id }}"
               hx-swap="outerHTML"
-              hx-on::after-request="if(event.detail.successful){var r=document.querySelector('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}}"
+              data-close-overlay-on-success
               class="rd-form reconcile-form"
               data-reconcile-form
               data-currency="{{ account.currency }}"
@@ -129,9 +129,7 @@
           <footer class="rd-slideover-footer">
             <button type="button"
                     class="rd-btn rd-btn--ghost"
-                    onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
-              Cancel
-            </button>
+                    data-action="close-overlay">Cancel</button>
             <button type="submit" class="rd-btn rd-btn--primary" data-reconcile-submit>Record ↩</button>
           </footer>
         </form>
@@ -141,56 +139,3 @@
     </div>
   </aside>
 </div>
-<script>
-  // T-R39 — live Difference callout + Record button amount.
-  (function () {
-    function wire(form) {
-      if (!form || form.dataset.recWired === "1") return;
-      form.dataset.recWired = "1";
-      var ccy = form.dataset.currency || "";
-      var decimals = parseInt(form.dataset.decimals || "2", 10);
-      var scale = Math.pow(10, decimals);
-      var derivedMinor = parseInt(form.dataset.derived || "0", 10);
-      var limitMinor = form.dataset.byAvailable === "1" ? parseInt(form.dataset.limit || "0", 10) : null;
-      var usedEl = form.querySelector("[data-reconcile-used]");
-      var input = form.querySelector("[data-reconcile-actual]");
-      var delta = form.querySelector("[data-reconcile-delta]");
-      var amountEl = form.querySelector("[data-reconcile-delta-amount]");
-      var submitBtn = form.querySelector("[data-reconcile-submit]");
-      function parseMajor(v) {
-        if (!v) return null;
-        var s = v.toString().replace(",", ".").trim();
-        var n = parseFloat(s);
-        return Number.isFinite(n) ? n : null;
-      }
-      function fmt(n) {
-        return n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-      }
-      function sync() {
-        var val = parseMajor(input.value);
-        if (val === null) {
-          if (delta) delta.setAttribute("hidden", "");
-          if (submitBtn) submitBtn.textContent = "Record ↩";
-          return;
-        }
-        var target = limitMinor === null ? val : val - (limitMinor / scale);
-        if (usedEl && limitMinor !== null) usedEl.textContent = fmt(Math.max(limitMinor / scale - val, 0));
-        var deltaMajor = (Math.round(target * scale) - derivedMinor) / scale;
-        var sign = deltaMajor > 0 ? "+" : (deltaMajor < 0 ? "−" : "");
-        var absAmount = fmt(Math.abs(deltaMajor));
-        if (amountEl) amountEl.textContent = sign + absAmount + " " + ccy;
-        if (delta) delta.removeAttribute("hidden");
-        if (submitBtn) submitBtn.textContent = "Record " + (deltaMajor === 0 ? fmt(0) : sign + absAmount) + " ↩";
-      }
-      input.addEventListener("input", sync);
-      sync();
-    }
-    document.querySelectorAll("[data-reconcile-form]").forEach(wire);
-    document.addEventListener("htmx:afterSwap", function (evt) {
-      var root = evt.target;
-      if (!root) return;
-      if (root.matches && root.matches("[data-reconcile-form]")) { wire(root); return; }
-      if (root.querySelectorAll) root.querySelectorAll("[data-reconcile-form]").forEach(wire);
-    });
-  })();
-</script>

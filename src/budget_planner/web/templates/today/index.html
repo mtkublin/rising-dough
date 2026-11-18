@@ -118,7 +118,7 @@
                 class="rd-btn rd-btn--sm"
                 hx-post="/planned/batch/promote-due"
                 hx-swap="none"
-                hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/today/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}"
+                data-refresh-upcoming
                 hx-confirm="Promote every due planned + recurring entry?">Promote all due <kbd class="rd-kbd">⇧↵</kbd></button>
         <button type="button"
                 class="rd-btn rd-btn--sm rd-btn--ghost"

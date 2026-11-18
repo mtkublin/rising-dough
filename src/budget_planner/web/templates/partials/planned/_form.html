@@ -65,9 +65,7 @@
   <footer class="rd-slideover-footer">
     <button type="button"
             class="rd-btn rd-btn--ghost"
-            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
-      Cancel
-    </button>
+            data-action="close-overlay">Cancel</button>
     <button type="submit" class="rd-btn rd-btn--primary">{% if planned %}Save{% else %}Add entry{% endif %}</button>
   </footer>
 </form>
