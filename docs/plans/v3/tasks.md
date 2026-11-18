@@ -398,6 +398,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - File: `phase-4-validation/T-D40-first-restore-drill.md`. Reference: ADR-0034 §5.
 - Status 2026-11-18: never run. Prod went live without it, although the task file names it as a gate before go-live. `restore-log.md` has no entries, so no backup has ever been restored from the prod replica. RPO/RTO and the `restore-reader` credential are unproven.
 - Plan: after the first good release through the host agent (T-D129f), the operator dispatches `restore-drill.yml` from `main` and watches the run. That run is the first restore-log entry. It closes this task, the first-run gap in T-D41, and the T-D56 drill acceptance. It must also show that `restore-from-prod` (written before ADR-0111, T-D41a) still works on an agent-managed drill host: the agent must not restart or overwrite the restored stack mid-restore.
+- Readiness review and restore-log entry template (2026-11-18): `phase-4-validation/T-D40-first-restore-drill.md`.
 
 ### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
@@ -426,6 +427,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Journey (ADR-0061 end-to-end): admin logs in with the Terraform-captured password → rotates it via `/settings/password` → creates a second non-admin user via `/settings/users` and captures the one-shot auto-generated password → logs out → second user logs in → rotates password → registers a passkey → adds a transaction → sees it on `/ledger` → admin logs back in and asserts the second user's transaction is **not** visible from the admin's own `/ledger` (data isolation assertion) → verify `audit_log` row via the auth-gated `/debug/audit-tail` route.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
+- DRILL-2 helper and checklist (2026-11-18): `scripts/drill/passkey_check.py`, `phase-4-validation/DRILL-2-checklist.md`.
 
 ### ◐ T-D44 [S] Uptime monitoring → T-D27
 - ~~UptimeRobot (or Betterstack free)~~ Decision 2026-11-16 (user): a scheduled GitHub Actions workflow `uptime.yml` checks `/health` and the host agent status every 5 min; a failed run emails the operator and opens one issue, the next green run closes it. Test `tests/unit/deploy/test_uptime_workflow.py`. Described in `docs/plans/v3/runbooks/disaster-recovery.md`.

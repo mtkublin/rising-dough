@@ -57,3 +57,46 @@ cat docs/plans/v3/runbooks/restore-log.md | tail -3
 ```
 
 Expect: today's dated row with `ok` and matching counts.
+
+## Readiness review 2026-11-18
+
+Scope: can the first `restore-drill.yml` dispatch (from `main`) pass on an ADR-0111 agent-managed drill host, with the v3.0.2 Litestream changes (ADR-0114)? Static review only; nothing was dispatched.
+
+**Verdict: no blocking bug found; the first run is expected to pass.** No change to `restore-from-prod.tpl`.
+
+### 1. Host agent vs restore-from-prod
+- `bp_agent.converge()` returns early when `applied-generation == config generation` and `docker inspect {{.Config.Image}}` of the app container equals the desired ref. A stopped container still inspects with the same image, so a converged agent does nothing while `app` + `litestream` are stopped. It never brings compose up on its own in that state.
+- The agent writes only managed files under `/etc/budget-planner` and its state dirs. It never touches `/data`. `restore-from-prod` writes only under `/data` (and `/run`), so there is no file contention.
+- Residual risk (low): if the first convergence failed and the agent is in back-off, a retry could run `compose up -d` while the restore has the stack stopped. The workflow only waits for `cloud-init status --wait`. Mitigation, outside my ownership: before the restore step, wait until `/.well-known/bp-deploy-status.json` has `state: ok`. Check it by hand at the start of the run.
+
+### 2. Litestream marker and generation (ADR-0114) — can the drill write to the prod bucket?
+- **No path writes to prod.** The running `litestream replicate` reads `/etc/budget-planner/litestream.yml`, rendered with `var.bucket_name` (the drill's own bucket) and the drill write key (`litestream.env`). The prod bucket appears only in the throw-away config inside `restore-from-prod`, which is passed to `litestream restore` (read-only) with the read-only key; the script also refuses `source bucket == drill bucket` and `restore key == drill write key`. The one-shot `litestream-restore` compose service uses the drill-bucket config.
+- `move_local_db_aside` moves `budget.db*` and `.budget.db-litestream`. The marker `/data/.litestream-age-generation` does not match `budget.db*`, so it stays. After the restore, `litestream replicate` starts with the marker present (no forced regeneration) and no meta dir, so Litestream creates a fresh generation in the drill bucket anyway. A marker-less host would only `rm -rf` an already absent meta dir. There is no interaction that could target the prod path.
+- Note: the drill's `litestream.yml` uses the prod age recipient (same key pair as prod, by design), so the drill's own generations in its bucket are encrypted and decryptable with the prod identity.
+
+### 3. Age identity on the restore path
+- `restore_from_prod` reads the first `AGE-SECRET-KEY-` line from `/etc/budget-planner/litestream-age.key` (written from `litestream_age_identity`, which `restore-drill.yml` sets from the `LITESTREAM_AGE_IDENTITY` secret = the PROD identity), exports it, passes `-e LITESTREAM_AGE_IDENTITY` to the container, and the throw-away config has `age.identities: [${LITESTREAM_AGE_IDENTITY}]`. Preflight aborts when the key file is missing. So generation `2901fbd3873a6696` (encrypted) can be decrypted. The older plaintext generations are not read: `restore` picks the newest generation.
+- Verified by hand before the run: the `LITESTREAM_AGE_IDENTITY` and `LITESTREAM_AGE_RECIPIENT` secrets exist in the `restore-drill` environment and are the pair prod uses (do not print them).
+
+### 4. Other checks
+- `trap ... RETURN` in `restore_from_prod` fires once, at that function's return (tested in bash 5); no `set -u` unbound-variable fallout later.
+- T-D57 check in the workflow allows `/data/.budget.db-litestream*`; the moved-aside dir and pre-migration backups are removed by the EXIT trap.
+- Watch in the first run: duration (RTO), the `restoring from s3://...` and `integrity_check=ok` lines, and that the Verify steps pass.
+
+### Restore-log entry template (fill after the run, then append to `../runbooks/restore-log.md`, newest first)
+
+`scripts/ci/litestream_cleanup.py` accepts an entry as green only if it has a `## YYYY-MM-DD` heading, a `- **Result**: pass` line and a `- **integrity_check**: ok` line (case-insensitive, first token after the colon). The entry date must be on or after the day of the first encrypted snapshot of the newest encrypted generation.
+
+```
+## 2026-MM-DD
+- **Operator**: <handle or system-restore-drill>
+- **Env**: drill-scratch-vm
+- **Trigger**: manual-ad-hoc
+- **Duration**: <mm'ss"> (terraform apply -> green /ready)
+- **Audit rows (prod)**: <count>, max_id=<n>, max_created_at=<utc>
+- **Audit rows (restored)**: <count>, max_id=<n>
+- **integrity_check**: ok
+- **Recovery point**: latest (generation 2901fbd3873a6696 or newer; <utc of last restored WAL segment>)
+- **Result**: pass
+- **Notes**: workflow run <url>; prod row counts read-only from prod via the operator; deviations: <none>.
+```
