@@ -1,6 +1,6 @@
 # T-D43: Post-deploy smoke journey
 
-Status: written, validated locally; **production run pending** (human, after T-D27).
+Status: written, validated locally; **drill run pending**. Re-scoped 2026-11-18 (user decision): runs on a kept explore drill, never on prod. Blocked by T-D135 (WebAuthn RP settings not set on the host).
 
 ## Deliverables
 
@@ -27,5 +27,5 @@ Status: written, validated locally; **production run pending** (human, after T-D
 ## Acceptance
 
 - Local run against a scratch DB passes (done 2026-11-03, about 25 s; second run passes via the already-rotated fallback).
-- Production run passes; record date and SHA here: _pending_.
+- Drill run passes (explore drill, `SMOKE_BASE_URL=https://budget-planner-drill.<tailnet>.ts.net`, drill admin); record date, SHA and run id here: _pending_.
 - Stays within ADR-0072 rate limits (4 password sign-ins).

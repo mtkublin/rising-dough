@@ -103,6 +103,9 @@ users:
 %{~ endif }
     ssh_authorized_keys:
       - '${operator_ssh_pubkey}'
+%{~ if ci_ssh_pubkey != "" }
+      - '${ci_ssh_pubkey}'
+%{~ endif }
 
 write_files:
   - path: /etc/sysctl.d/99-swappiness.conf

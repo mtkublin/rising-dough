@@ -1,0 +1,66 @@
+# Delete the pre-encryption (plaintext) objects from the PROD Litestream replica
+# (T-D56 cut-over, ADR-0078 §3, ADR-0112). Dispatch only; `dry_run` defaults to true.
+#
+# Runs in the `prod` environment, so the required-reviewer approval is the click
+# that releases the job. Credential: the prod environment's APP_SCW_ACCESS_KEY /
+# APP_SCW_SECRET_KEY, the key Litestream itself replicates with (bucket policy:
+# list/get/put/delete on the prod bucket only; no new secret).
+#
+# Selection and every refusal rule live in scripts/ci/litestream_cleanup.py
+# (unit-tested). It refuses, deleting nothing, unless an encrypted snapshot exists,
+# no object has an unknown format, and restore-log.md holds a green entry dated on
+# or after the first encrypted snapshot. See runbooks/restore.md "Cut-over".
+
+name: litestream-plaintext-cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print the plan only; delete nothing.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: litestream-plaintext-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete plaintext replica objects (prod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: prod
+    env:
+      BUCKET: budget-planner-prod-pl-waw
+      ENDPOINT: https://s3.pl-waw.scw.cloud
+      REGION: pl-waw
+      AWS_ACCESS_KEY_ID: ${{ secrets.APP_SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.APP_SCW_SECRET_KEY }}
+      # Scaleway's S3 rejects the newer default CRC checksums.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Guard ref
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          [ "${REF}" = "refs/heads/main" ] || { echo "::error::prod cleanup runs only from main (got ${REF})" >&2; exit 1; }
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Plan and delete
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          flags=()
+          [ "${DRY_RUN}" = "false" ] && flags+=(--apply)
+          python3 scripts/ci/litestream_cleanup.py \
+            --bucket "${BUCKET}" --endpoint "${ENDPOINT}" --region "${REGION}" \
+            --restore-log docs/plans/v3/runbooks/restore-log.md "${flags[@]}" \
+            | tee -a "$GITHUB_STEP_SUMMARY"

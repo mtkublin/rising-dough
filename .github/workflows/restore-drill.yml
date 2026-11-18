@@ -37,7 +37,13 @@ on:
   schedule:
     # 03:00 UTC on the 1st of every month.
     - cron: "0 3 1 * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "OPERATOR ONLY. Skip the drill-VM and tailnet checks of the drill lock (T-D138). Can replace and destroy a running explore drill. The other-run check always applies."
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: drill # shared drill group with the pre-merge drill validation (ADR-0099)
@@ -49,7 +55,38 @@ permissions:
   packages: read
 
 jobs:
+  # T-D138 (ADR-0115): FIRST job. Fails the run when another drill run is active or
+  # (unless noted) a drill VM / online tag:drill node exists. Runs inside the `drill`
+  # concurrency group, so no other run can create a VM while it evaluates.
+  drill-lock:
+    name: drill lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds SCW_SECRET_KEY and TS_CLEANUP_*
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+      TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+      DRILL_LOCK_FORCE: ${{ inputs.force }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/ci/drill_lock.py
+            scripts/tailnet_drill_cleanup.py
+
+      - name: Acquire drill lock
+        run: python3 scripts/ci/drill_lock.py
+
   restore-drill:
+    needs: drill-lock
     name: Provision → restore → verify → destroy
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -69,6 +106,8 @@ jobs:
       TF_VAR_domain: ${{ secrets.APP_DOMAIN }}
       TF_VAR_github_owner: ${{ github.repository_owner }}
       TF_VAR_operator_ssh_pubkey: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+      # T-D137: public CI key (drill environment variable) so the CI deploy key can SSH as operator.
+      TF_VAR_ci_ssh_pubkey: ${{ vars.CI_SSH_PUBKEY }}
       TF_VAR_ghcr_pull_pat: ${{ secrets.GHCR_PULL_PAT }}
       TF_VAR_managed_dns_zone: ${{ secrets.MANAGED_DNS_ZONE || 'false' }}
       TF_VAR_bucket_admin_principals: ${{ secrets.BUCKET_ADMIN_PRINCIPALS || '[]' }}
@@ -77,11 +116,13 @@ jobs:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
       # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
-      DRILL_HOST: budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
       TF_VAR_tailnet_dns_name: ${{ vars.TAILNET_DNS_NAME }}
+      # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
+      TF_VAR_drill_run_id: ${{ github.run_id }}
       # T-D67 / ADR-0094: SSH goes over the tailnet (port 22 is closed publicly);
       # DRILL_HOST stays the public name for the HTTPS /ready probe.
-      DRILL_SSH_HOST: budget-planner-drill
+      DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
       TF_VAR_tailscale_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TF_VAR_tailscale_oauth_client_secret: ${{ secrets.TS_OAUTH_SECRET }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -193,6 +234,29 @@ jobs:
             sleep 10
           done
           echo "::error::${DRILL_SSH_HOST} never answered on port 22 over the tailnet" >&2
+          exit 1
+
+      - name: Verify operator SSH login (T-D41)
+        # First-run lesson (run 44297154259): sshd answered on the tailnet but
+        # rejected the key. Compare the agent key with OPERATOR_SSH_PUBKEY (public
+        # fingerprints only, safe to print), then retry the login while cloud-init
+        # finishes writing authorized_keys. Prints the ssh -v tail on final failure.
+        timeout-minutes: 8
+        env:
+          OPERATOR_SSH_PUBKEY: ${{ secrets.OPERATOR_SSH_PUBKEY }}
+        run: |
+          set -uo pipefail
+          echo "authorized key fingerprint: $(printf '%s\n' "${OPERATOR_SSH_PUBKEY}" | ssh-keygen -lf - 2>&1)"
+          echo "agent key fingerprints:"; ssh-add -l || true
+          for i in $(seq 1 12); do
+            if ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" true; then
+              echo "operator SSH login ok (attempt ${i})"
+              exit 0
+            fi
+            sleep 10
+          done
+          ssh -vv -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" true 2>&1 | tail -n 40 || true
+          echo "::error::operator SSH login to ${DRILL_SSH_HOST} failed" >&2
           exit 1
 
       - name: Trigger restore on drill host
@@ -334,8 +398,37 @@ jobs:
           Per ADR-0034 §5 this blocks the next monthly drill until closed.
           EOF
           )
+          # The issue call fails on unknown labels (first run: "label not found").
+          gh label create restore-drill --repo "${REPO}" --color 5319e7 --description "Automated restore drill" 2>/dev/null || true
+          gh label create incident --repo "${REPO}" --color d73a4a --description "Operational incident" 2>/dev/null || true
           gh issue create \
             --repo "${REPO}" \
             --title "${title}" \
             --body "${body}" \
             --label "restore-drill,incident"
+
+  # T-D124 (ADR-0101): destroying the VM leaves its tailnet node behind (offline);
+  # a stale node makes the next drill register as budget-planner-drill-1, so the
+  # tailnet wait and SSH hit the offline node (first-run lesson, run 44299998687).
+  # Runs even when the drill job failed; problems are warnings only.
+  tailnet-cleanup:
+    name: remove drill tailnet node
+    needs: restore-drill
+    if: ${{ always() && needs.restore-drill.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/tailnet_drill_cleanup.py
+
+      - name: Delete tag:drill nodes named budget-planner-drill[-n]
+        env:
+          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+        run: python3 scripts/tailnet_drill_cleanup.py

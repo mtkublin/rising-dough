@@ -674,6 +674,14 @@ run "host_config_pins_image_and_policy" {
 
   assert {
     condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "BUDGET_WEBAUTHN_RP_ID: \"render-check.example.invalid\"\n      BUDGET_WEBAUTHN_ORIGIN: \"https://render-check.example.invalid\""
+    )
+    error_message = "Compose must render the WebAuthn RP id and origin from the public hostname (T-D135, ADR-0067 §1)."
+  }
+
+  assert {
+    condition = strcontains(
       one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
       "handle /.well-known/bp-deploy-status.json"
     )
@@ -695,6 +703,33 @@ run "host_config_pins_image_and_policy" {
       contains([for f in jsondecode(nonsensitive(output.host_config)).files : f.path], p)
     ])
     error_message = "Secrets files and the drill restore helper must be agent-managed files."
+  }
+
+  # T-D136 / ADR-0114: replicate config carries the identity, the entrypoint is
+  # agent-managed, and a change to either restarts litestream.
+  assert {
+    condition = alltrue([
+      for needle in ["recipients:", "identities:", "- $${LITESTREAM_AGE_IDENTITY}"] :
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/litestream.yml")]), replace(needle, "$$", "$"))
+    ])
+    error_message = "Rendered litestream.yml must carry age recipients and the identity (T-D136)."
+  }
+
+  assert {
+    condition = alltrue([
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "entrypoint: [\"/bin/sh\", \"/etc/litestream-entrypoint.sh\"]"),
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "/etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro"),
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/litestream-entrypoint.sh")]), "rm -rf \"$META_DIR\""),
+    ])
+    error_message = "Compose must run the litestream entrypoint with the identity mounted (T-D136)."
+  }
+
+  assert {
+    condition = alltrue([
+      for f in jsondecode(nonsensitive(output.host_config)).files :
+      contains(f.restart, "litestream") if endswith(f.path, "/litestream-entrypoint.sh") || endswith(f.path, "/litestream.yml") || endswith(f.path, "/litestream-age.key")
+    ])
+    error_message = "Changes to the litestream config, entrypoint or identity must restart litestream (T-D136)."
   }
 }
 
@@ -755,4 +790,269 @@ run "image_ref_must_be_digest_pinned" {
   }
 
   expect_failures = [var.app_image_ref]
+}
+
+# T-D135: the drill is tailnet-only, so its WebAuthn RP is the tailnet name.
+run "drill_compose_sets_webauthn_rp_to_tailnet_name" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    tailnet_only = true
+  }
+
+  assert {
+    condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "BUDGET_WEBAUTHN_RP_ID: \"budget-planner-drill.tail0000.ts.net\"\n      BUDGET_WEBAUTHN_ORIGIN: \"https://budget-planner-drill.tail0000.ts.net\""
+    )
+    error_message = "Drill compose must render the WebAuthn RP from the tailnet hostname (T-D135)."
+  }
+}
+
+# T-D137: the CI key is authorised on drill hosts only (ADR-0094, ADR-0111).
+run "ci_ssh_key_not_rendered_by_default" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "ci-deploy")
+    error_message = "No CI key may render when ci_ssh_pub is empty (T-D137)."
+  }
+}
+
+run "ci_ssh_key_renders_as_second_operator_key" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    ci_ssh_pub = "ssh-ed25519 AAAACIKEY ci-deploy"
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "      - 'ssh-ed25519 AAAACIKEY ci-deploy'\n")
+    error_message = "A set CI key must be a second ssh_authorized_keys entry (T-D137)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAADUMMY")
+    error_message = "The operator's own key must stay authorised (T-D137)."
+  }
+}
+
+run "ci_ssh_key_dropped_on_prod_even_when_set" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "ssh-ed25519 AAAACIKEY ci-deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  assert {
+    condition     = output.ci_ssh_authorized == false
+    error_message = "Prod must never authorise the CI key, whatever ci_ssh_pubkey holds (T-D137)."
+  }
+}
+
+run "ci_ssh_key_authorised_on_drill" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail0000.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "ssh-ed25519 AAAACIKEY ci-deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.ci_ssh_authorized == true
+    error_message = "Drill must authorise the CI key when ci_ssh_pubkey is set (T-D137)."
+  }
+}
+
+run "ci_ssh_key_must_be_a_public_key" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail0000.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "not-a-public-key"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.ci_ssh_pubkey]
+}
+
+# T-D139 / ADR-0116: the drill's tailnet name (= TLS certificate name) is unique per
+# run, because Let's Encrypt allows 5 certificates per exact name per week.
+run "drill_run_id_makes_tailnet_name_unique" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = "44308968526"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.tailscale_hostname == "budget-planner-drill-44308968526"
+    error_message = "A drill run id must give the VM a per-run tailnet name (ADR-0116)."
+  }
+
+  assert {
+    condition     = output.fqdn == "budget-planner-drill-44308968526.tail1234.ts.net"
+    error_message = "The served hostname (Caddy, WebAuthn RP) must follow the per-run name."
+  }
+}
+
+run "drill_without_run_id_keeps_fixed_name" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = ""
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.tailscale_hostname == "budget-planner-drill"
+    error_message = "Without a run id the drill keeps the fixed tailnet name."
+  }
+}
+
+run "drill_run_id_rejects_non_digits" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = "abc"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_run_id]
+}
+
+run "drill_run_id_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    drill_run_id                  = "123"
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_run_id]
 }

@@ -20,6 +20,9 @@ services:
       BUDGET_DATABASE_URL: "sqlite:////data/budget.db"
       BUDGET_COOKIE_SECRET: "${cookie_secret}"
       BUDGET_TRUSTED_HOSTS: "${trusted_hosts}"
+      # T-D135 / ADR-0067 §1: WebAuthn RP = the public browser hostname.
+      BUDGET_WEBAUTHN_RP_ID: "${hostname}"
+      BUDGET_WEBAUTHN_ORIGIN: "https://${hostname}"
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
       BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"
@@ -81,6 +84,8 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream
     restart: unless-stopped
+    # T-D136 / ADR-0114: exports the age identity and forces one new generation per host.
+    entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:
       SCW_ACCESS_KEY: "${scw_access_key}"
@@ -88,6 +93,8 @@ services:
     volumes:
       - /data:/data:rw
       - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-entrypoint.sh:/etc/litestream-entrypoint.sh:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
       - edge
     stop_grace_period: 30s

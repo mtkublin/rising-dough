@@ -37,7 +37,14 @@ def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _settings(env: str = "test", **kwargs: Any) -> Settings:
-    return Settings(_env_file=None, env=env, cookie_secret="x" * 32, **kwargs)  # type: ignore[arg-type]
+    return Settings(
+        _env_file=None,
+        env=env,  # type: ignore[arg-type]
+        cookie_secret="x" * 32,
+        webauthn_rp_id="budget.example.test",
+        webauthn_origin="https://budget.example.test",
+        **kwargs,
+    )
 
 
 def _env_settings(env: str = "test") -> Settings:

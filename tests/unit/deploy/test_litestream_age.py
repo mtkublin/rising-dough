@@ -47,11 +47,46 @@ def test_every_litestream_service_uses_the_pin() -> None:
         assert len(IMAGE_RE.findall(f.read_text())) == 2, f
 
 
-def test_replicate_configs_encrypt_to_a_recipient_only() -> None:
+def test_replicate_configs_carry_recipient_and_identity() -> None:
+    # T-D136 / ADR-0114: calcPos decrypts the last WAL segment on every start,
+    # so replicate needs the identity as well as the recipient.
     for path in (PRODSIM_REPLICATE, PROD_REPLICATE):
         age = _replica(path)["age"]
-        assert "identities" not in age, path
         assert age["recipients"], path
+        assert len(age["identities"]) == 1, path
+        assert "LITESTREAM_AGE_IDENTITY" in age["identities"][0], path
+
+
+def test_litestream_services_use_the_entrypoint_and_mount_the_identity() -> None:
+    for f, key_src in (
+        (ROOT / "docker-compose.yml", "./deploy/litestream-age-DEV-ONLY.key"),
+        (
+            CLOUD_INIT / "compose" / "docker-compose.yml.tpl",
+            "/etc/budget-planner/litestream-age.key",
+        ),
+    ):
+        doc = yaml.safe_load(f.read_text().replace("%{~ if", "#").replace("%{~ endif }", "#"))
+        svc = doc["services"]["litestream"]
+        assert svc["entrypoint"] == ["/bin/sh", "/etc/litestream-entrypoint.sh"], f
+        assert svc["command"][0] == "replicate", f
+        mounts = svc["volumes"]
+        assert any(m.endswith(":/etc/litestream-entrypoint.sh:ro") for m in mounts), f
+        assert f"{key_src}:/run/litestream-age.key:ro" in mounts, f
+
+
+def test_host_agent_delivers_entrypoint_and_restarts_litestream_on_changes() -> None:
+    text = (CLOUD_INIT.parent / "modules" / "compute" / "user_data.tf").read_text()
+    for name in (
+        "litestream.yml",
+        "litestream-entrypoint.sh",
+        "litestream-age.key",
+        "litestream.env",
+    ):
+        m = re.search(
+            rf'path = "\$\{{local\.compose_dir\}}/{re.escape(name)}".*?restart = (\[[^\]]*\])', text
+        )
+        assert m is not None, name
+        assert m.group(1) == '["litestream"]', name
 
 
 def test_restore_configs_carry_an_identity() -> None:

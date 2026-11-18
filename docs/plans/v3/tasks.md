@@ -396,11 +396,15 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Provision `drill` env from scratch, restore from the prod bucket read-only credential, verify integrity + audit count.
 - Append dated row to `docs/plans/v3/runbooks/restore-log.md`.
 - File: `phase-4-validation/T-D40-first-restore-drill.md`. Reference: ADR-0034 §5.
+- Status 2026-11-18: never run. Prod went live without it, although the task file names it as a gate before go-live. `restore-log.md` has no entries, so no backup has ever been restored from the prod replica. RPO/RTO and the `restore-reader` credential are unproven.
+- Plan: after the first good release through the host agent (T-D129f), the operator dispatches `restore-drill.yml` from `main` and watches the run. That run is the first restore-log entry. It closes this task, the first-run gap in T-D41, and the T-D56 drill acceptance. It must also show that `restore-from-prod` (written before ADR-0111, T-D41a) still works on an agent-managed drill host: the agent must not restart or overwrite the restored stack mid-restore.
 
-### ✅ T-D41 [S] Monthly automated restore drill → T-D40
+### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.
 - On failure, opens an issue titled `restore-drill-failure-YYYY-MM`.
 - File: `phase-4-validation/T-D41-monthly-restore-drill.md`.
+- Status 2026-11-18 (was ✅): the workflow is written but has never run. GitHub lists no runs, and it was not on `main` for the 2026-11-01 cron. The first scheduled run is 2026-12-01 03:00 UTC and would be unattended. It picks the newest release, so a good release must exist before then.
+- Done when: one green run (the T-D40 manual dispatch counts) has appended its entry to `restore-log.md`.
 
 ### ✅ T-D41a [S] `restore-from-prod` drill host helper → T-D41, T-D19a
 - Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
@@ -409,23 +413,30 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ✅ T-D66 [S] Restore drill always destroys drill env → T-D41
 - `restore-drill.yml` runs `terraform destroy` `if: always()` (also after partial apply / cancel), preceded on failure by best-effort evidence capture uploaded as the `restore-drill-evidence` artifact, and followed by a verification step that fails the job loudly if destroy failed. Failure issue text updated. Operator decision 2026-11-06 (cost bound ~EUR 0.01/run). ADR-0034 §5 addendum.
 
-### ◻ T-D42 [S] Security scan + external audit → T-D27
+### ✅ T-D42 [S] Security scan + external audit → T-D27
 - `trivy image` on the deployed SHA, `testssl.sh` + `nikto` against the prod hostname, Mozilla Observatory check.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
-- File: `phase-4-validation/T-D42-security-scan.md`.
+- **Done 2026-11-18** on `v3.0.1`: Observatory **A+ (130)**, testssl **A+**, trivy 0 HIGH/CRITICAL (CI policy), F1 (CSP) closed. Details in `runbooks/security-audit-log.md`.
+- Residual, not blocking: nikto still cannot finish a pass (the host refuses TLS handshakes during the scan; F2, LOW). The CAA record (F4) is in `terraform/modules/dns` (Let's Encrypt + Sectigo for the ZeroSSL fallback, prod only) and reaches prod with the next approved apply; then re-check `dig CAA` and testssl.
+- File: `phase-4-validation/T-D42-security-scan.md` (never created; the audit log is the record).
 
-### ◐ T-D43 [S] Smoke journey (Playwright, production) → T-D27, T-D02, T-D17
-- **Status: written, validated locally; prod run pending (human, after T-D27).**
+### ◐ T-D43 [S] Smoke journey (Playwright, drill) → T-D27, T-D02, T-D17, T-D135
+- **Status: written, validated locally; drill run pending.**
+- Re-scoped 2026-11-18 (user decision): the journey runs on a drill, never on prod. On prod it would sign in as the real admin, create users and data, and use up auth rate-limit budget. The drill runs the same image and host config, so it proves the same thing. Target: `https://budget-planner-drill.<tailnet>.ts.net` on a kept explore drill, signed in as the drill admin. The smoke user dies with the drill. Proposed: an opt-in job in `drill.yml` (the runner is already on the tailnet and the drill environment holds the admin password), so no human step is needed. Blocked by T-D135: the passkey step needs the WebAuthn RP settings on the host.
 - Journey (ADR-0061 end-to-end): admin logs in with the Terraform-captured password → rotates it via `/settings/password` → creates a second non-admin user via `/settings/users` and captures the one-shot auto-generated password → logs out → second user logs in → rotates password → registers a passkey → adds a transaction → sees it on `/ledger` → admin logs back in and asserts the second user's transaction is **not** visible from the admin's own `/ledger` (data isolation assertion) → verify `audit_log` row via the auth-gated `/debug/audit-tail` route.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 
-### ✅ T-D44 [S] Uptime monitoring → T-D27
+### ◐ T-D44 [S] Uptime monitoring → T-D27
 - ~~UptimeRobot (or Betterstack free)~~ Decision 2026-11-16 (user): a scheduled GitHub Actions workflow `uptime.yml` checks `/health` and the host agent status every 5 min; a failed run emails the operator and opens one issue, the next green run closes it. Test `tests/unit/deploy/test_uptime_workflow.py`. Described in `docs/plans/v3/runbooks/disaster-recovery.md`.
+- Note 2026-11-18 (cadence): the workflow is on `main` since 2026-11-17 07:52 UTC; `gh run list` shows only 3 runs, all `schedule` and green (17:06, 23:49 UTC on 11-17; 04:44 on 11-18), roughly 5 to 7 hours apart instead of every 5 minutes (~330 expected). Not a config fault: cron `*/5 * * * *` and the `on:` block are valid, the workflow is `active`, the repo is public with recent pushes (so no 60-day auto-disable), and `concurrency: cancel-in-progress` cannot explain it (no cancelled or skipped runs are listed). Cause: GitHub schedule events are best effort and are delayed or dropped under load; `*/5` is the most contended cron and new or low-activity repos get the worst treatment. Effective detection latency is hours, so the check is not fit for purpose: status changed from done to partial (◐).
+  - Options: (1) external free monitor (UptimeRobot, Better Stack, Healthchecks.io) hitting `/health` every 1 to 5 min with email alerts: simplest, independent of GitHub outages (recommended; keep `uptime.yml` as a slow backup or drop it); (2) a different cron (off-peak minutes such as `7,22,37,52 * * * *`) only reduces drops, no guarantee; (3) Scaleway-side check (Cockpit/alert on a probe) adds platform cost and shares fate with the host; (4) host-side dead-man's switch pinging Healthchecks.io from `bp-converge`.
+  - Recommendation: option 1 (plus 4 if host-down detection is wanted). Needs a user decision and, per the change policy, a task/ADR update before any workflow change; none made here.
 - File: `phase-4-validation/T-D44-uptime-monitor.md`.
 
-### ◻ T-D45 [S] Cost alert
+### ✅ T-D45 [S] Cost alert
 - Scaleway cost alert set at 2× expected (PLN) and verified by temporarily cutting threshold to 0.01 PLN and confirming the email arrives.
+- Done 2026-11-18 by the operator (Scaleway console).
 - File: `phase-4-validation/T-D45-cost-alert.md`.
 
 ### ✅ T-D49 [S] Budget override form opens inline under its row (UI fix)
@@ -461,6 +472,8 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 ### ◐ T-D56 [S] Litestream replica encryption (age) + version alignment → T-D21, T-D23, T-D41a
 - **Status: code done; prod-sim + drill acceptance pending (needs Docker / drill env).** Verified: age is absent in Litestream 0.5.x (rejected since v0.5.1), so everything pins `litestream/litestream:0.3.14` (see ADR-0078 §3 addendum).
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
+- Order (2026-11-18): the restore drill in the cut-over is the T-D40 run, and no restore has been proven yet. Delete the plaintext generations only after that run is green against the encrypted replica.
+- 2026-11-18: `litestream-plaintext-cleanup.yml` (prod-gated, dry run by default, ADR-0112) and `scripts/ci/litestream_cleanup.py` written and unit-tested. Stays ◐ until the drill is green and the real cleanup has run with the operator's approval. Open: replicate config lacks `age.identities` (restart risk), see the task file.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 
 ### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
@@ -752,7 +765,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Proven 2026-11-17: cleanup OAuth client and `TS_CLEANUP_*` secrets set by the operator; explore drill 44039509630, then `drill-destroy.yml` 44041451732 logged `Removed tailnet node budget-planner-drill`, and the node was gone from the console.
 - Not chosen: `tailscale logout` from a shutdown hook on the VM (Scaleway destroy does not reliably shut down cleanly first).
 
-### ✅ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
+### ◐ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
 - No retention today: every release and every drill gate pushes a `sha-…` image (plus cosign signature artifacts) to `ghcr.io/mtkublin/budget-planner`, and GHCR keeps all versions forever. A private package counts against the GitHub Packages storage quota.
 - Plan: weekly `image-retention.yml` (cron + `workflow_dispatch` with `dry_run`, default true for the first runs) using `actions/delete-package-versions` (pinned by SHA):
   - keep: newest 20 `sha-…` versions, everything tagged `main` or `v*` (T-D125), and the images prod has as `current` and `previous` (read via the deploy `status` command, or covered by N);
@@ -762,6 +775,8 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Done 2026-11-16: `.github/workflows/image-retention.yml` + `scripts/ghcr_retention.py` (the action cannot express the signature/child-manifest rules; selection is unit-tested in `tests/unit/deploy/test_image_retention.py`). Scheduled runs dry-run until the repo variable `IMAGE_RETENTION_ENABLED` is `true`; dispatch deletes only with `dry_run=false`. Also kept: every version younger than 7 days and child manifests of kept indexes (provenance/SBOM make `build-push-action` push untagged children). Prod current/previous are assumed to be within the newest 20. Runbook: `runbooks/image-retention.md`.
 - Check first: `gh auth refresh -s read:packages`, then `gh api /users/mtkublin/packages/container/budget-planner` for visibility and version count.
 - Timing (user, 2026-11-16): after the first release.
+- 2026-11-18: first dry run (run 44297239247) FAILED: `ghcr_retention.py` `fetch_children` raised `HTTP Error 404` on a registry manifest GET, so no plan was produced. Open bug; retention stays disabled. Status changed from done to partial (◐) until a dry run succeeds.
+- 2026-11-18 fix (branch `wi/docs/v3-remaining/RET`): root cause was the `Accept` header. `fetch_children` asked only for index media types, and GHCR answers `404 MANIFEST_UNKNOWN` ("Accept header does not support OCI manifests") for a cosign `.sig` artifact, which is a plain OCI image manifest. The Accept header now lists all four manifest types; a remaining 404 means "children undetermined" and then no untagged version is deleted (other errors abort). Dry run 44299557709 on the branch is green: 59 kept, 0 to delete (everything is younger than 7 days or protected). Stays ◐: enabling `IMAGE_RETENTION_ENABLED` and the first real run are the user's decision.
 
 ### ✅ T-D125 [M] Release prod from GitHub releases on `main` → ADR-0109 (Accepted 2026-11-16)
 - Decouple merge from release: `release.yml` triggers on `release: published` (tag `vX.Y.Z`); the tag's commit must be an ancestor of `origin/main`. Image also tagged `v…`; rollback by version; tag ruleset on `v*` (operator only, immutable).
@@ -777,7 +792,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - `deploy.yml` runs prod in the reviewer-less environment `prod-deploy` (deploy secrets only; branches `main` + tags `v*`). The terraform apply in `prod` is the single approval; `deploy-prod` still needs the apply. `rollback.yml` stays on `prod`.
 - Touches `deploy.yml`, `release.yml` comment, `tests/unit/deploy/test_release_approval.py`, runbooks `github-settings.md`, `deploy.md`, `operator-checklist.md`.
 
-### T-D129 [L] Terraform-declared host state, pulled by a host agent → ADR-0111
+### ✅ T-D129 [L] Terraform-declared host state, pulled by a host agent → ADR-0111
 - Why: the first pipeline release (2026-11-16) showed the SSH deploy path never worked (ADR-0111 Context). Prod got `sha-89ac3c2` by logged break-glass.
 - ✅ a. Docs: ADR-0111, ADR-0037/0110 superseded notes, this task, CHANGELOG.
 - ✅ b. Agent `terraform/host/agent/bp_agent.py` (stdlib only): fetch config, generation check, pinned cosign install + verify, atomic file writes, compose pull/up, service restarts, local `/ready` probe, `status.json`, back-off. Unit tests for the pure parts (`tests/unit/deploy/test_bp_agent.py`).
@@ -786,9 +801,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - e. 2026-11-16 drills: explore run 43953729753 (`c10aba8`): first boot converged through the agent, status `ok`, `/ready` 200, cosign verified on the host. Break drill 43955571040 (T-D33 image, `/ready` 503): app `unhealthy`, agent held in `applying` waiting for `/ready` (the `failed` transition was not observed: operator tailnet dropped). `rollback.yml env=drill` 43959552086: in-place update (0 add, 1 change, 0 destroy) with refs swapped back to `c10aba8`; host convergence not checked (same reason). Drill destroyed (43960430008). Still open: the final `drill-gate` on the PR #14 head, which first needs the stale tailnet nodes `budget-planner-drill` and `budget-planner-drill-1` gone (T-D124 cleanup client, or remove by hand).
 - e. Drill (user go 2026-11-16): gate run proves first-boot convergence, cosign verify and the metadata size limit; an explore drill (`keep=true`) plus `rollback.yml env=drill` proves a live metadata update converging without reboot. Caddyfile is first validated by that boot (no local `caddy validate`).
 - f. 2026-11-18: migration script run by the operator (`bp-agent bootstrap installed; deploy path removed`; timer + guard active, `guard-ok`; loader 404 until the first apply, as expected). Release `v3.0.0` (run 44288680132) did not reach prod: first the `prod` environment allowed no tags (operator added the `v*` tag rule), then the prod-only ref guard failed (T-D134). Prod still on `sha-89ac3c2`; next release `v3.0.1`.
+- f. 2026-11-18: release `v3.0.1` (run 44294472551) is the first release through the host agent. In-place update (0 add, 1 change, 0 destroy); prod runs `v3.0.1@sha256:2246e6f…`; the status file reports `state: ok`; `/ready` is 200; the CSP header is sent (T-D132). The prod state now records a previous ref. The final `drill-gate` was green on PR #14 and PR #16. Never run on prod yet: the step "Roll back to the previous ref (prod)" (only runs when convergence fails). Watch the next release.
 - f. Prod migration (needs user go): runbook `runbooks/host-state-migration.md` + `terraform/host/migrate/adr-0111-install-agent.sh` (✅ written; one logged break-glass: install loader + timer + firewall rule, remove `deploy` user and key), then the first release through the new path. GitHub: delete `prod-deploy` environment and deploy secrets.
 
-### T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
+### ✅ T-D130 [S] Turn off Dependabot version-update PRs → (no ADR; tooling)
 - Decision 2026-11-16 (user): the weekly Dependabot PRs and branches (GitHub Actions, Docker base image) are noise for a single maintainer. Removed `.github/dependabot.yml` (its mention in `HANDOFF.md` is historical); open Dependabot PRs closed and their branches deleted. Dependabot security updates were already off.
 - What still catches vulnerable dependencies: `security.yml` (pip-audit, trivy fs + image) on every PR, and GitHub vulnerability alerts (no PRs). Action and base-image bumps are manual from now on.
 
@@ -820,3 +836,57 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
   4. Tag → digest resolution is inline in `rollback.yml` and `restore-drill.yml`; a `host_release.py resolve-ref` subcommand with tests.
   5. Action pins drift (`setup-uv`: floating `@v3` in `ci.yml`, v3.2.4 in `lock-check.yml`, v4.1.0 in `security.yml`; `setup-buildx-action` v3.10.0 vs v3.7.1) and Dependabot is off (T-D130); align them and add a test that each action has one pin and it is a SHA.
 - Done when: one gate drill and one restore drill are green on the change. Not part of the `v3.0.1` fix.
+
+### ✅ T-D135 [S] WebAuthn RP settings never reach the host → ADR-0067, ADR-0111
+- Found 2026-11-18 while re-scoping T-D43. `config.py` defaults to `webauthn_rp_id=localhost` and `webauthn_origin=http://localhost:8000`, and the comment there says production must set both. `terraform/cloud-init/compose/docker-compose.yml.tpl` sets neither `BUDGET_WEBAUTHN_RP_ID` nor `BUDGET_WEBAUTHN_ORIGIN`, and nothing in production config rejects the defaults. So prod and drill most likely serve `rp_id=localhost`, and passkey registration or sign-in from the real hostname fails in the browser. Password sign-in is unaffected. Confirm on the next explore drill (passkey registration from `/settings/security`) before the fix.
+- Fix: render both variables from the host's public hostname in the compose template (prod `budget.rising-dough.eu`, drill the tailnet name). In production, refuse to start when `webauthn_rp_id` is `localhost` or the origin is not `https://<rp_id>` (fail fast, like `cookie_secret`). Unit test for the validator; tftest that the rendered compose sets both. Reaches prod with the next release through the host agent (no VM replacement).
+- Done 2026-11-18: the compose template renders `BUDGET_WEBAUTHN_RP_ID=<hostname>` and `BUDGET_WEBAUTHN_ORIGIN=https://<hostname>` from the compute module's `hostname` (prod `budget.rising-dough.eu`, drill `budget-planner-drill.<tailnet>.ts.net`). `Settings._finalise` refuses production with `webauthn_rp_id=localhost` or an origin other than `https://<rp_id>`. Tests: `tests/unit/test_config.py` (validator), `terraform/tests/render.tftest.hcl` (rendered bp-config compose for prod and drill); production test fixtures now pass valid values. Reaches prod with the next release through the host agent (bp-config update, no VM replacement); an app image with the validator needs those env vars, which the same apply delivers.
+
+### ✅ T-D136 [S] Prod Litestream cannot restart once replicas are age-encrypted → ADR-0114, ADR-0078, ADR-0111
+- Found 2026-11-18 by the T-D56 cut-over work. Since release `v3.0.1` the replicate config has `age.recipients` only, so new snapshots and WAL segments in the prod bucket are age ciphertext (Litestream 0.3.14 keeps the running generation; file names stay `*.lz4`).
+- Root cause (verified against Litestream v0.3.14 source): `Replica.Sync` clears its position on any error and on process start, and when `r.Pos().Generation` differs from the DB generation it calls `Replica.calcPos`. `calcPos` reads the newest WAL segment of the generation and runs `age.Decrypt(rd, r.AgeIdentities...)` **only if `len(r.AgeIdentities) > 0`**, then `io.Copy(io.Discard, lz4.NewReader(rd))`. With no identity and a ciphertext last segment, the LZ4 reader fails on the age header; `Sync` returns `cannot determine replica position: ...`; the monitor loop only logs and retries, so replication stalls while the container stays "up". The converse also holds: once identities are set, a plaintext last segment makes `age.Decrypt` fail the same way.
+- Restart triggers: host reboot, a change to `litestream.yml` or `litestream.env` (the host agent runs `docker compose restart litestream`), any release that recreates the container (release `v3.0.2` carries T-D135's compose change).
+- Fix (ADR-0114): (1) the replicate config gets `age.identities: [${LITESTREAM_AGE_IDENTITY}]` beside the recipient (prod, drill, prod-sim); (2) the litestream service runs `litestream-entrypoint.sh` (a static file the host agent writes beside the other config, mounted read-only), which exports the identity from `litestream-age.key` and, once per host (marker `/data/.litestream-age-generation`), deletes Litestream's local meta dir `/data/.budget.db-litestream` so the next start opens a new generation, whose snapshot and segments are all ciphertext. `/data/budget.db` is never touched. Restore-only config unchanged.
+- Rollout: `bp-config` carries the new yml, entrypoint and compose; the agent writes files, `compose up -d` recreates litestream (first start: reset + marker), then `restart litestream` (second start: marker present, no reset). Exactly one new generation.
+- Tests: `tests/unit/deploy/test_litestream_age.py` (replicate configs carry identity + recipient, compose wiring, agent file entry), `tests/unit/deploy/test_litestream_entrypoint.py` (script behaviour with a stub `litestream`: one-time reset, marker, never touches the DB, missing identity refuses), render tftest (rendered config and bp-config entries on prod and drill).
+- Local proof 2026-11-18 (Litestream 0.3.14 image, file replica, same `calcPos` path as S3): recipient-only restart logged `cannot determine replica position: lz4: bad magic number` and stalled; identity added over a plaintext last segment logged `...parsing age header: unexpected intro`; with the new config and entrypoint both states recover with one new generation, a second restart keeps it, and `litestream restore` with the identity returns every row and `integrity_check` ok. The full prod-sim stack was not run.
+- Done 2026-11-18 for the code. Drill verification pending (DRILL-2): see T-D56 phase file. Cut-over of T-D56 depends on this task.
+
+### ✅ T-D137 [S] Let `restore-drill.yml` SSH into the drill host with the CI key (drill only) → ADR-0094, ADR-0111
+- Found 2026-11-18 (restore drill runs 44297154259 / 44302972922): `restore-drill.yml` loads the `drill` secret `DEPLOY_SSH_PRIVATE_KEY` (public fingerprint `SHA256:p4pENTdc...`) and SSHes as `operator`, but since ADR-0111 removed the `deploy` user, drill hosts authorise only `OPERATOR_SSH_PUBKEY` (the operator's personal key): `Permission denied (publickey)`.
+- Decision (user-approved in session 2026-11-18, "if it affects drill env only"): CI does NOT get the operator's private key. Drill hosts additionally authorise the CI key's PUBLIC key for `operator`. Prod never does. No new ADR: this is not a deploy path (ADR-0111 still has no SSH deploy; only the drill restore trigger/verify uses it) and ADR-0094 (tailnet-only SSH, operator user) is unchanged.
+- Change: root variable `ci_ssh_pubkey` (default `""`, validated as a single-line ssh-ed25519 public key). `main.tf` local `ci_ssh_pubkey_effective = var.env == "drill" ? var.ci_ssh_pubkey : ""` is the only value passed to the compute module (`ci_ssh_pub`), so prod cannot render it whatever the variable holds. `bootstrap.yaml.tpl` adds it as a second `ssh_authorized_keys` entry when non-empty. Output `ci_ssh_authorized` (boolean) is a test hook.
+- Workflows: `TF_VAR_ci_ssh_pubkey` from the environment VARIABLE `CI_SSH_PUBKEY` (public key, not a secret) in `restore-drill.yml` (job fixed to `drill`) and in `terraform.yml` plan/apply behind `<env> == 'drill' && vars.CI_SSH_PUBKEY || ''`. No prod job references it.
+- Tests: `terraform/tests/render.tftest.hcl` (no key by default, key renders as second entry, prod drops it even when set, drill authorises it, a non-public-key value is rejected); `tests/unit/deploy/test_ci_ssh_key_drill_only.py` (static: no prod job, every shared-job use guarded).
+- Operator step (user, public key, not run by an agent; fingerprint checked against `SHA256:p4pENTdc`):
+  - `gh variable set CI_SSH_PUBKEY -e drill -R mtkublin/rising-dough < ~/.ssh/rising_dough_deploy.pub`
+  - `gh variable set CI_SSH_PUBKEY -e drill-plan -R mtkublin/rising-dough < ~/.ssh/rising_dough_deploy.pub` (so the PR plan matches the apply)
+  - Do NOT set it on `prod` or `prod-plan`.
+- Done 2026-11-18 for the code; drill proof pending (restore drill: the `Verify operator SSH login` step passes). Takes effect on the next drill apply (cloud-init runs on first boot; existing drill hosts are disposable).
+
+### ✅ T-D138 [M] Explicit drill lock as the first step of every drill workflow → ADR-0115, ADR-0099, ADR-0101
+- Asked 2026-11-18: "very explicit behaviour, checking if no other drill instance exists or is being brought up. could be a first step in the drill actions".
+- Problem: (1) all drill workflows share concurrency group `drill`, which serialises RUNS only. A kept explore drill (`drill.yml mode=explore keep=true`) finishes its run after apply and smoke while the VM stays up until its `expires-at` tag, so the group is free; a gate or a `restore-drill.yml` dispatched in that window `-replace`s the explore VM (same drill Terraform state) and then destroys it, silently. (2) A concurrency group keeps at most one PENDING run: a third dispatch cancels the older pending run without notice (two orchestrators dispatch drills in parallel here).
+- Design (ADR-0115): job `drill-lock` is the first job of `drill.yml`, `restore-drill.yml`, `drill-destroy.yml` and `drill-sweeper.yml`; every other job `needs` it directly or transitively. It runs `scripts/ci/drill_lock.py` in environment `drill-teardown` (ungated; holds `SCW_SECRET_KEY`, `SCW_DEFAULT_PROJECT_ID`, `TS_CLEANUP_*`) with `actions: read`. Checks: (a) other drill-group workflow run active (GitHub API); (b) a Scaleway drill-project server named `budget-planner-drill*` exists (ground truth); (c) an online `tag:drill` node `budget-planner-drill[-n]` in the tailnet (cross-check, read-only). Race safety: the job runs inside the `drill` group, which the run already holds, so no other group member can create or replace a VM while it evaluates.
+- Behaviour:
+
+| Situation | Result |
+|-----------|--------|
+| no drill VM, no tailnet node, no other drill run | pass: "drill lock acquired: no drill VM, no other drill run" |
+| drill VM up, `expires-at` in the past (sweeper not yet run) | fail: "expired drill still up ... run drill-destroy.yml first" (never destroys by itself) |
+| drill VM up, not expired (or no usable tag) | fail: "drill VM <name> is up until <expires-at> (kept explore drill?); run drill-destroy.yml or wait" |
+| online `tag:drill` node | fail (same remedy) |
+| other drill-group run active | fail: workflow name, run id, URL |
+| `force=true` (`drill.yml`, `restore-drill.yml`; operator only) | skips (b)/(c) with a loud `::warning::`; (a) always applies |
+| `drill-destroy.yml`, `drill-sweeper.yml` | (a) only (they are how (b)/(c) are cleared) |
+| any API error or missing credential | fail closed with `::error::` (exit 2) |
+
+- Notes: runs that are `queued`/`pending` and were created after this run are waiting behind it in the group and are not holders (otherwise the first of two parallel dispatches would fail on the second); `in_progress` and `waiting` always count. `rollback.yml` now has `run-name: rollback (<env>)`; a `rollback (drill)` run counts, a prod rollback does not. A third dispatch still cancels an older pending run (GitHub behaviour); the lock cannot see a cancelled run, so dispatch drills one at a time. `rollback.yml env=drill` (needs a VM) is unchanged.
+- Tests: `tests/unit/deploy/test_drill_lock.py` (each table row, fail closed, workflow wiring: lock job first, every job needs it).
+- Done 2026-11-18 for the code. Drill proof pending (orchestrator): dispatch a kept explore drill, then a gate; the gate must fail at `drill-lock` naming the VM and expiry; `drill-destroy.yml`, then a gate passes.
+
+### ✅ T-D139 [S] Drill gate fails at smoke: Let's Encrypt rate limit on the fixed drill name → ADR-0116, ADR-0101
+- Found 2026-11-18 (gate run 44304732854, explore drill 44308968526, GATE-FIX). Symptom: smoke `curl: (28)` on `/ready` for 10 min after the node joined the tailnet. Evidence over SSH on the explore drill: containers all up, Caddy listening on 443, Caddy log `external certificate manager ... local-tailscaled.sock/localapi/v0/cert/... context deadline exceeded`, tailscaled log `getCertPEM: 429 urn:ietf:params:acme:error:rateLimited: too many certificates (5) already issued for this exact set of identifiers in the last 168h0m0s, retry after 2026-11-19 12:00 UTC`. Not a T-D135 / T-D136 regression (hypotheses 1 to 4 ruled out: cloud-init, host agent, WebAuthn validator and the name were fine; the app was healthy).
+- Fix (ADR-0116): `drill_run_id` Terraform variable; the drill registers as `budget-planner-drill-<run id>`, so each drill orders a certificate for a new name. Workflows pass `github.run_id`.
+- Tests: `terraform/tests/render.tftest.hcl` (unique name, fixed name without id, non-digits rejected, rejected on prod), `tests/unit/deploy/test_tailnet_only_drill.py::test_drill_tailnet_name_is_unique_per_run`.
+- Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.

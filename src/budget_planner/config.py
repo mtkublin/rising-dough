@@ -200,6 +200,22 @@ class Settings(BaseSettings):
                     stacklevel=2,
                 )
             object.__setattr__(self, "cookie_secret", _DEV_COOKIE_SECRET)
+
+        # T-D135: WebAuthn relying-party policy. The localhost defaults make
+        # passkeys fail in the browser on the real hostname, so production
+        # refuses to start with them (ADR-0067 §1).
+        if self.env == "production":
+            if self.webauthn_rp_id == "localhost":
+                raise ValueError(
+                    "webauthn_rp_id must not be 'localhost' in production — set "
+                    "BUDGET_WEBAUTHN_RP_ID to the public hostname (ADR-0067 §1)."
+                )
+            expected_origin = f"https://{self.webauthn_rp_id}"
+            if self.webauthn_origin != expected_origin:
+                raise ValueError(
+                    f"webauthn_origin must be {expected_origin!r} in production — set "
+                    "BUDGET_WEBAUTHN_ORIGIN to https://<BUDGET_WEBAUTHN_RP_ID> (ADR-0067 §1)."
+                )
         return self
 
 

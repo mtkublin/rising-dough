@@ -95,8 +95,24 @@ def test_workflow_joins_tailnet_before_first_ssh(name: str) -> None:
 def test_restore_drill_waits_for_tailnet_host_and_passes_oauth_vars() -> None:
     text = (WORKFLOWS / "restore-drill.yml").read_text()
 
-    assert "DRILL_SSH_HOST: budget-planner-drill" in text
+    assert "DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}" in text
     assert "TF_VAR_tailscale_oauth_client_id" in text
     wait = text.index("Wait for drill host on the tailnet")
     assert wait < text.index("Trigger restore on drill host")
     assert 'operator@"${DRILL_HOST}"' not in text  # SSH never targets the public name
+
+
+def test_restore_drill_verifies_operator_ssh_login_before_restore() -> None:
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    login = text.index("- name: Verify operator SSH login")
+    restore = text.index("- name: Trigger restore on drill host")
+    assert text.index("- name: Wait for drill host on the tailnet") < login < restore
+    assert "ssh-keygen -lf -" in text
+    assert "ssh-add -l" in text
+
+
+def test_restore_drill_failure_issue_creates_its_labels() -> None:
+    text = (WORKFLOWS / "restore-drill.yml").read_text()
+    for label in ("restore-drill", "incident"):
+        create = text.index(f"gh label create {label} ")
+        assert create < text.index("gh issue create")

@@ -20,6 +20,7 @@ DESTROY_PATHS = [
     ("drill.yml", "teardown"),
     ("drill-destroy.yml", "destroy"),
     ("drill-sweeper.yml", "destroy"),
+    ("restore-drill.yml", "restore-drill"),
 ]
 
 
