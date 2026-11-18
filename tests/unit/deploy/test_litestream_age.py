@@ -48,7 +48,7 @@ def test_every_litestream_service_uses_the_pin() -> None:
 
 
 def test_replicate_configs_carry_recipient_and_identity() -> None:
-    # T-D136 / ADR-0113: calcPos decrypts the last WAL segment on every start,
+    # T-D136 / ADR-0114: calcPos decrypts the last WAL segment on every start,
     # so replicate needs the identity as well as the recipient.
     for path in (PRODSIM_REPLICATE, PROD_REPLICATE):
         age = _replica(path)["age"]

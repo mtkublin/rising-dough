@@ -1,4 +1,4 @@
-# ADR-0113: Litestream Replicate Config Carries the Age Identity; One Forced New Generation
+# ADR-0114: Litestream Replicate Config Carries the Age Identity; One Forced New Generation
 
 - **Status**: Accepted
 - **Date**: 2026-11-18

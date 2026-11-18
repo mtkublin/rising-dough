@@ -115,7 +115,7 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-prodsim-litestream
     restart: on-failure
-    # T-D136 / ADR-0113: same entrypoint as prod (exports the identity, one-time new generation).
+    # T-D136 / ADR-0114: same entrypoint as prod (exports the identity, one-time new generation).
     entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:
