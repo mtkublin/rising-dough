@@ -45,7 +45,7 @@
   - `baseline.md` "after" column against every target in README.
 - **Acceptance**: targets met, or the gap explained with a follow-up task; ADR-0108 flipped to Accepted; `docs/CHANGELOG.md` entry.
 
-### ✅ T-CS07 [S] Pre-commit as the local gate → T-CS04 (ADR-0117)
+### ✅ T-CS07 [S] Pre-commit as the local gate → T-CS04 (ADR-0120)
 - **Deliverables**:
   - `just test-fast` (the pre-commit pytest hook): testmon selection over the whole default selection (unit, integration, web, architecture, e2e), xdist, no coverage; staged files on `_unseen-paths` run the full default selection.
   - Policy: no local full `just ci` required — `CLAUDE.md` handoff checklist, `orchestrator-mode` skill (item-agent checks and the batch-CI step), ADR-0097 / ADR-0108 status lines, `docs/requirements.md` §11.2.

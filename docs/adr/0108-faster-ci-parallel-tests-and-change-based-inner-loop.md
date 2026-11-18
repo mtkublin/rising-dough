@@ -1,6 +1,6 @@
 # ADR-0108: Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates
 
-- **Status**: Accepted (2026-11-18, T-CS06; results in `docs/plans/ci-speed/baseline.md`) — §4 amended by [ADR-0117](0117-pre-commit-is-the-local-gate.md): no local full `just ci` gate; PR CI is the full gate
+- **Status**: Accepted (2026-11-18, T-CS06; results in `docs/plans/ci-speed/baseline.md`) — §4 amended by [ADR-0120](0120-pre-commit-is-the-local-gate.md): no local full `just ci` gate; PR CI is the full gate
 - **Date**: 2026-11-16
 - **Amends**: [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) (item-agent "scoped checks" and the pre-commit pytest hook), [ADR-0018](0018-ci-single-matrix-row.md) (CI job steps and caches)
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0106](0106-ui-behaviour-test-harness.md)

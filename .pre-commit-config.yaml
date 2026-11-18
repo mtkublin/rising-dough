@@ -91,7 +91,7 @@ repos:
     hooks:
       - id: pytest-fast
         name: pytest (affected tests, testmon)
-        # The local gate (ADR-0117): testmon-selected tests across the whole
+        # The local gate (ADR-0120): testmon-selected tests across the whole
         # suite, xdist workers from PYTEST_WORKERS. Recipe lives in the justfile.
         entry: just test-fast
         language: system

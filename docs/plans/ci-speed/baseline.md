@@ -216,7 +216,7 @@ GitHub CI cache check on `f219ff6`:
 | first | miss, saved | 11.6 s | 103 s | 2:34 |
 | rerun, same commit | **hit** | **0.3 s** | 61 s | 1:32 |
 
-## T-CS07 results — pre-commit is the local gate (ADR-0117)
+## T-CS07 results — pre-commit is the local gate (ADR-0120)
 
 Hook runs (`pre-commit run pytest-fast --verbose` on a staged change, 8 cores):
 
@@ -225,7 +225,7 @@ Hook runs (`pre-commit run pytest-fast --verbose` on a staged change, 8 cores):
 | One function body in `services/ledger_totals.py` | 16: 4 unit + 12 integration (`test_ledger.py`, `test_transactions.py`) | 9.2 s |
 | A `conftest.py` | full default selection via the fallback: 2,249 | 68.8 s |
 | Docs only | none ("no tests ran") | 6.3 s |
-| The ADR-0117 commit itself (`justfile`, YAML, docs) | full default selection via the fallback | ~70 s |
+| The ADR-0120 commit itself (`justfile`, YAML, docs) | full default selection via the fallback | ~70 s |
 
 ## T-CS06 — results against the targets
 

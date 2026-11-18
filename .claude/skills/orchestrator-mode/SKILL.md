@@ -143,7 +143,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - Template/CSS/HTMX changes: run the `frontend-visual-audit` skill on the affected routes at
   1440 / 1024 / 375 before you finish.
 - Run `just worktree-init` once at the start (seeds testmon data from the main checkout).
-- Your checks are the pre-commit hooks (ADR-0117): on every commit they lint, run
+- Your checks are the pre-commit hooks (ADR-0120): on every commit they lint, run
   `mypy --strict` and run the tests affected by your change across the whole suite
   (testmon; the full suite when you touch a migration, SQL, dependency, `conftest.py` or
   other non-Python file). `just lint-changed <MAIN>` / `just test-changed <MAIN>` run the
@@ -197,7 +197,7 @@ early merges keep later conflicts small.
      agent into that worktree with the conflict context.
    - Resolving commits run the pre-commit hooks (affected tests included); then repeat
      step 2. The merge into `<MAIN>` is now clean.
-4. No batch `just ci` is required (ADR-0117): each item's commits already ran the affected
+4. No batch `just ci` is required (ADR-0120): each item's commits already ran the affected
    tests in the pre-commit hook, and the PR to `main` runs the full suite in GitHub CI. You
    may still run `just ci` on `<MAIN>` when a batch looks risky (several items touching the
    same area). If it fails, dispatch a fix agent. Do not fix it yourself.

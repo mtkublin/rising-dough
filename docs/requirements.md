@@ -542,7 +542,7 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 ### 11.2 Constraints
 
-- The full suite with the 90% coverage gate runs at PRs to `main` and release (GitHub `ci.yml`). Locally the gate is the pre-commit hooks: the pytest hook runs the testmon-selected tests across the whole suite, or the full suite when a change is invisible to testmon. No local full `just ci` is required (ADR-0117).
+- The full suite with the 90% coverage gate runs at PRs to `main` and release (GitHub `ci.yml`). Locally the gate is the pre-commit hooks: the pytest hook runs the testmon-selected tests across the whole suite, or the full suite when a change is invisible to testmon. No local full `just ci` is required (ADR-0120).
 - `mypy --strict` stays whole-repo.
 - Prefer existing tools and plugins to custom selection logic.
 - Targets: GitHub `ci` job under 2 min; local `just ci` at least 3× faster; pre-commit on a small diff under 15 s.

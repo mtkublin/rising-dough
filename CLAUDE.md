@@ -61,7 +61,7 @@ just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
 ```
 
-The pre-commit hooks are the local gate and `*-changed` run the same selection on demand; the full gate is PR CI (ADR-0117). `PYTEST_WORKERS=2` for parallel orchestrator item agents; `0` runs serially.
+The pre-commit hooks are the local gate and `*-changed` run the same selection on demand; the full gate is PR CI (ADR-0120). `PYTEST_WORKERS=2` for parallel orchestrator item agents; `0` runs serially.
 
 ## Multi-agent work
 
@@ -133,7 +133,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 Before marking a task done:
 
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
-2. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI ([ADR-0117](docs/adr/0117-pre-commit-is-the-local-gate.md)). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
+2. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 4. `docs/tasks.md` task line prefixed with `✅`.
 5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.

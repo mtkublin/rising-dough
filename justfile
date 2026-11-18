@@ -154,7 +154,7 @@ test-changed BASE="origin/main":
     exit "$status"
 
 # Fallback: staged files on _unseen-paths run the full default selection.
-# Pre-commit pytest hook, the local gate (ADR-0117): testmon-selected tests.
+# Pre-commit pytest hook, the local gate (ADR-0120): testmon-selected tests.
 test-fast:
     #!/usr/bin/env bash
     set -euo pipefail

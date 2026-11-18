@@ -1,4 +1,4 @@
-# ADR-0117: Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI
+# ADR-0120: Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI
 
 - **Status**: Accepted
 - **Date**: 2026-11-18
