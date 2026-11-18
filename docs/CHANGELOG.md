@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D40 first green restore drill)
+- **Ops(T-D40): first green restore drill, run 44351020259.** Encrypted generation `2901fbd3873a6696` restored from the prod replica in 19s, `integrity_check=ok`, `/ready` ready/ok, no extra DB copies, about 6 min to green `/ready`. First entry in `runbooks/restore-log.md`; T-D40 ✅. Audit row counts were not collected.
+
 ## 2026-11-18 (T-D144 replication stall alert)
 - **Feat(T-D144): `GET /health/replication` + a second UptimeRobot monitor (ADR-0119).** A `litestream-probe` compose service lists the replica every 5 min and writes a status file; the app answers 200 when the newest replica object is younger than 26 h, 503 otherwise (public, no secrets). Reaches prod with v3.0.3 through `bp-config`, no VM replace. Runbook `restore.md` has a new section "Replication stall: detect and recover". ADR-0112 note: no read-only key for the cleanup dry run; T-D56 closes without a delete run (0 plaintext objects, dry run 44328479375).
 ## 2026-11-18 (T-D40 restore drill tmp sidecar fix)

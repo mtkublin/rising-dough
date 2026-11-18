@@ -392,7 +392,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 
 ## Phase 4 — Validation & operations
 
-### ◻ T-D40 [S] First backup restore drill → T-D27
+### ✅ T-D40 [S] First backup restore drill → T-D27
 - Provision `drill` env from scratch, restore from the prod bucket read-only credential, verify integrity + audit count.
 - Append dated row to `docs/plans/v3/runbooks/restore-log.md`.
 - File: `phase-4-validation/T-D40-first-restore-drill.md`. Reference: ADR-0034 §5.
@@ -402,6 +402,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Run 44330551119 (2026-11-18) restored fine but failed the `/ready` probe in `restore-from-prod` (probed `localhost`, which Caddy has no cert for, and expected `status:"ok"` instead of `status:"ready"` + `db:"ok"`). Fixed (T-D40-FIX): probe by host name with verified TLS, check `ready`/`ok`, log failures. Still ◻ until a green re-run.
 - Run 44340976282 (2026-11-18): restore, integrity and ready all ok; failed on a RETURN-trap bug (`cfg: unbound variable` after `main` returned). Fixed (T-D40-FIX2): temp config cleaned by the EXIT trap. Still ◻ until a green re-run.
 - Run 44346338885 (2026-11-18): restore, ready and integrity green; the T-D57 check found `budget.db.tmp-wal`/`-shm` left by `litestream restore`. Fixed (T-D40-FIX3): the script removes them (fails if the tmp-wal is non-empty). Still ◻ until a green re-run.
+- **Done 2026-11-18**: run 44351020259 (https://github.com/mtkublin/rising-dough/actions/runs/44351020259, `docs/v3-remaining` at 9257b5b) is green: generation `2901fbd3873a6696` restored in 19s, `integrity_check=ok`, `/ready` ready/ok, no extra DB copies, about 6 min to green. First entry in `runbooks/restore-log.md`. Audit row counts were not collected (no count step yet; T-D41 adds it).
 
 ### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.

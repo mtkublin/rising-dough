@@ -1,5 +1,7 @@
 # T-D40 — First backup restore drill
 
+**Status: ✅ done 2026-11-18** (run 44351020259, below).
+
 > **Superseded by ADR-0099 (2026-11-07).** Drill applies for the restore drill run through `drill.yml` / `restore-drill.yml`, not a local `terraform apply -var-file=...`. Current procedure: [`runbooks/drill.md`](../runbooks/drill.md) and [`runbooks/restore.md`](../runbooks/restore.md). The text below is the original spec, kept as written.
 
 - **Phase**: 4 — Validation
@@ -114,3 +116,8 @@ Scope: can the first `restore-drill.yml` dispatch (from `main`) pass on an ADR-0
 ### Run 44346338885: restore, ready and integrity green; T-D57 check found tmp-wal/shm; fixed
 - Run 44346338885 (trunk 8f466a5): restore, ready and integrity green; the "Verify no extra DB copies remain (T-D57)" step found `/data/budget.db.tmp-wal` and `/data/budget.db.tmp-shm`. Cause: `litestream restore` builds the DB in `budget.db.tmp`, applies the WAL, renames it to `budget.db` ("renaming database from temporary location") and leaves the tmp sidecars. Docker repro (`litestream/litestream:0.3.14`, file replica): `budget.db` passes `integrity_check`, `budget.db.tmp-wal` is 0 bytes, `budget.db.tmp-shm` is 32 KiB. Fix (T-D40-FIX3): `remove_restore_tmp_sidecars` runs before the integrity check, logs the removal, and dies (keeping the files) if the tmp-wal is non-empty. The workflow's T-D57 check is unchanged. Tests: `tests/unit/deploy/test_restore_ready_check.py`.
 - **Next:** re-dispatch `restore-drill.yml` from `main` after this lands.
+
+### Run 44351020259: green (2026-11-18)
+- https://github.com/mtkublin/rising-dough/actions/runs/44351020259, dispatched from `docs/v3-remaining` at 9257b5b (all three fixes in). Generation `2901fbd3873a6696` (encrypted), snapshot index 0 plus WAL 0..3, restored at 2026-11-18T16:51:52Z in 19s; about 6 min from job start (16:46Z) to green `/ready` (16:52Z); app image v3.0.2.
+- `integrity_check=ok`, `/ready` status=ready db=ok, T-D57 no extra DB copies. Entry added to `runbooks/restore-log.md`.
+- Gap: audit row counts were not collected and prod counts cannot be read from CI. Later runs record the restored count, max id and max `changed_at` (T-D41).
