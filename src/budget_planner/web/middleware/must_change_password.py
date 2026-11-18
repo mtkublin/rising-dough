@@ -29,7 +29,9 @@ LOGOUT_PATH: Final = "/auth/logout"
 STATIC_PREFIX: Final = "/static/"
 
 #: Paths reachable while ``must_change_password`` is set (exact match).
-EXEMPT_PATHS: Final = frozenset({PASSWORD_PATH, LOGOUT_PATH, "/health", "/ready", "/healthz"})
+EXEMPT_PATHS: Final = frozenset(
+    {PASSWORD_PATH, LOGOUT_PATH, "/health", "/health/replication", "/ready", "/healthz"}
+)
 
 ERROR_CODE: Final = "password_change_required"
 _BODY: Final = {"error": ERROR_CODE, "location": PASSWORD_PATH}

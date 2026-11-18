@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D144 replication stall alert)
+- **Feat(T-D144): `GET /health/replication` + a second UptimeRobot monitor (ADR-0119).** A `litestream-probe` compose service lists the replica every 5 min and writes a status file; the app answers 200 when the newest replica object is younger than 26 h, 503 otherwise (public, no secrets). Reaches prod with v3.0.3 through `bp-config`, no VM replace. Runbook `restore.md` has a new section "Replication stall: detect and recover". ADR-0112 note: no read-only key for the cleanup dry run; T-D56 closes without a delete run (0 plaintext objects, dry run 44328479375).
+
 ## 2026-11-18 (T-D40 restore drill readiness fix)
 - **Fix(T-D40): `restore-from-prod` readiness probe.** Run 44330551119 restored correctly but failed on `/ready`: it probed `https://localhost` (Caddy has no certificate for that SNI) and expected `status:"ok"` while `/ready` returns `{"status":"ready","db":"ok"}`. Now probes the real host name pinned to 127.0.0.1 with verified TLS, requires `ready` + `db ok`, and logs each failed attempt. `restore.md` and the T-D40 file updated.
 
