@@ -31,7 +31,7 @@ The expiry is the server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_ex
 
 `restore-drill.yml` (monthly, or dispatch) runs: `drill-lock` -> `image` (newest release, `host_release.py resolve-ref`) -> `apply` (`terraform.yml`, env `drill`) -> `restore-drill` (env `drill`, the only environment with `DEPLOY_SSH_PRIVATE_KEY`: join tailnet, wait for SSH, verify operator login, wait for the host agent status `ok`, restore, verify `/ready`, integrity, no extra DB copies; evidence artifact on failure) -> `destroy` (`terraform.yml`, `drill-teardown`, `always()` once apply was attempted) -> `verify-destroy` (state empty), `tailnet-cleanup` (reusable `tailnet-cleanup.yml`) and `report` (opens the `restore-drill` issue when image, apply, restore, destroy or verify-destroy failed or was cancelled; a drill-lock refusal opens none). Results: every run that reached `restore-drill` writes a restore-log entry to its job summary and comments it on the open `restore-log` issue (`restore-log` job, `drill-teardown`, `issues: write`; T-D41). See [`restore-log.md`](restore-log.md).
 
-## Replacement rehearsal (T-D155, ADR-0122 §7)
+## Replacement rehearsal (T-D156, ADR-0122 §7)
 
 Run it before any release that replaces the prod VM (T-D143 first), on the commit you will release, and only with operator go. Check that no drill-group run is queued or running first.
 

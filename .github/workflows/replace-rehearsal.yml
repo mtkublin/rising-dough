@@ -1,4 +1,4 @@
-# Rehearse a prod VM replacement on the drill (T-D155, ADR-0122 §7).
+# Rehearse a prod VM replacement on the drill (T-D156, ADR-0122 §7).
 #
 # Replays the T-D143 release (Block Storage root -> l_ssd, which forces a new
 # Tailscale key and a new server) on one drill and fails on any gap:

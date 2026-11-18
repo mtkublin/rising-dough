@@ -918,7 +918,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Found 2026-11-18 (prod billing): a "Block Storage Volume" line (~€0.78/mo) next to the Flex IPv4. `scaleway_instance_server.app` has no `root_volume`, so the provider default (SBS) applies; ADR-0032 assumed the included 10 GB local SSD. Catalog check: `STARDUST1-S` and `DEV1-S` in `pl-waw-2` accept `l_ssd` (max 10 GB for Stardust).
 - Change: `root_volume { volume_type = "l_ssd", size_in_gb = 10 }` in `terraform/modules/compute/main.tf`; expose the root volume type/size as module outputs.
 - Tests: `terraform/tests/render.tftest.hcl` asserts `l_ssd` and 10 GB for prod and drill.
-- Blocked for prod on T-D155 (ADR-0122); the drill gate can run first.
+- Blocked for prod on T-D156 (ADR-0122); the drill gate can run first.
 - Proof: drill gate green (boot from `l_ssd`, smoke passes); then prod release with operator approval (VM replaced, IPs kept, DB restored by the compose Litestream restore step); after the next billing day no Block Storage line on prod.
 
 ### ◐ T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
@@ -933,7 +933,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D145 [S] Audit attribution: domain rows written by non-admin users lack user_id → T-D54, T-D43
 - Found 2026-11-18 on drill 44356288331, audit ids 48-50: account, category and transaction create rows written by a non-admin user carry `user_id=NULL` and `actor_user_id=NULL`. The audit tail treats them as other-user, so it is safe, but attribution is missing. Investigate and fix; not a v3 blocker.
 
-### T-D155 [M] Make a prod VM replacement safe unattended → ADR-0122, ADR-0071, ADR-0094, ADR-0111
+### T-D156 [M] Make a prod VM replacement safe unattended → ADR-0122, ADR-0071, ADR-0094, ADR-0111
 - Found 2026-11-18 (T-D143 review): a replacing prod apply would boot with a used, expired single-use Tailscale key (no SSH); a wrong or empty replica gives a silent empty DB (`-if-replica-exists`); nothing proves the data came back; the last writes before destroy are unproven; the 600 s release wait is untimed for a fresh Stardust boot. Cross-checked against `docs/v3-remaining` (2026-11-18): the generation risk is gone (v3.0.2, generation `2901fbd3873a6696`), and the restore itself is proven by run 44330551119 (through `restore-from-prod`, not the compose path). The rest is open on every branch.
 - Work items:
   - (a) `local.vm_spec` hash in the `tailscale_tailnet_key.vm` description (forces a new key with every replacement); prod mode for `tailnet-cleanup.yml` (remove offline `budget-planner-prod*` nodes except the new one) after a replacement converges.

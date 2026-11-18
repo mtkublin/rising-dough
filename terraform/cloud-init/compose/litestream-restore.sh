@@ -1,5 +1,5 @@
 #!/bin/sh
-# T-D155 / ADR-0122: entrypoint of the one-shot litestream-restore service.
+# T-D156 / ADR-0122: entrypoint of the one-shot litestream-restore service.
 # Written verbatim by the host agent (ADR-0111); no Terraform templating.
 #
 # Runs before app and litestream (compose depends_on). When the database is

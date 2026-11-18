@@ -28,7 +28,7 @@ def _env_name(job: dict[str, Any]) -> str:
 def test_release_has_exactly_one_prod_apply_and_no_deploy_job() -> None:
     jobs = _load("release.yml")["jobs"]
     prod_calls = {k for k, j in jobs.items() if j.get("with", {}).get("env") == "prod"}
-    # T-D155: the only other prod-env call is the tailnet cleanup, not an apply.
+    # T-D156: the only other prod-env call is the tailnet cleanup, not an apply.
     assert prod_calls == {"tf-apply-prod", "tailnet-cleanup-prod"}
     assert jobs["tf-apply-prod"]["uses"] == "./.github/workflows/terraform.yml"
     assert jobs["tailnet-cleanup-prod"]["uses"] == "./.github/workflows/tailnet-cleanup.yml"
@@ -67,7 +67,7 @@ def _step(steps: list[dict[str, Any]], name: str) -> dict[str, Any]:
 
 
 def test_vm_replacement_is_detected_before_apply_without_printing_the_plan() -> None:
-    """T-D155 / ADR-0122: the plan JSON holds secrets; only `replaced=` is printed."""
+    """T-D156 / ADR-0122: the plan JSON holds secrets; only `replaced=` is printed."""
     job = _load("terraform.yml")["jobs"]["apply"]
     names = [s["name"] for s in job["steps"]]
     detect = names.index("Detect VM replacement")

@@ -212,7 +212,7 @@ def test_writer_reports_each_commit_and_stops_when_the_app_is_gone(host: dict[st
         "writer stopped: app gone before 23",
     ]
     with sqlite3.connect(host["REHEARSAL_DB"]) as db:
-        assert db.execute("SELECT group_concat(seq) FROM t_d155_marker").fetchone() == ("21,22",)
+        assert db.execute("SELECT group_concat(seq) FROM t_d156_marker").fetchone() == ("21,22",)
 
 
 def test_unknown_command_is_an_error(host: dict[str, str]) -> None:

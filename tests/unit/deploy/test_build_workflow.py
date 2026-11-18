@@ -45,7 +45,7 @@ def test_release_chain_is_guard_ci_build_tf_apply() -> None:
     assert jobs["ci"]["needs"] == "guard"
     assert set(jobs["build"]["needs"]) == {"guard", "ci"}
     assert set(jobs["tf-apply-prod"]["needs"]) == {"guard", "build"}
-    # ADR-0111: the apply is the release; no SSH deploy job. T-D155: the tailnet
+    # ADR-0111: the apply is the release; no SSH deploy job. T-D156: the tailnet
     # cleanup after a VM replacement is not a deploy step.
     assert set(jobs) == {"guard", "ci", "build", "tf-apply-prod", "tailnet-cleanup-prod"}
 

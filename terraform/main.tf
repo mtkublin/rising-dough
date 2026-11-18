@@ -103,7 +103,7 @@ moved {
 # The tailnet ACL is NOT managed here (tailnet-global; see runbooks/tailscale-acl.hujson).
 # ----------------------------------------------------------------------------
 
-# T-D155 / ADR-0122: everything that forces a VM replacement. The key is
+# T-D156 / ADR-0122: everything that forces a VM replacement. The key is
 # single-use and expires after an hour, so a new VM needs a new key. Tailscale
 # keys cannot be updated in place: putting the spec hash in the description
 # replaces the key in the same plan that replaces the server. (The key cannot
@@ -134,7 +134,7 @@ resource "tailscale_tailnet_key" "vm" {
 module "compute" {
   source = "./modules/compute"
 
-  # T-D155 / ADR-0122: every replacement-forcing input comes from local.vm_spec.
+  # T-D156 / ADR-0122: every replacement-forcing input comes from local.vm_spec.
   instance_type       = local.vm_spec.instance_type
   image               = local.vm_spec.image
   scaleway_zone       = local.vm_spec.zone
@@ -191,7 +191,7 @@ module "compute" {
   litestream_age_identity  = var.litestream_age_identity
   litestream_age_recipient = var.litestream_age_recipient
 
-  # T-D155 / ADR-0122: the drill bucket starts empty; prod must restore or fail.
+  # T-D156 / ADR-0122: the drill bucket starts empty; prod must restore or fail.
   # The rehearsal (§7) turns it off on the drill once to prove the refusal.
   allow_empty_db = var.env == "drill" ? var.drill_allow_empty_db : var.allow_empty_db
 

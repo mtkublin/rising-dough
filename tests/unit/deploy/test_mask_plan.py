@@ -160,7 +160,7 @@ def test_unterminated_heredoc_redacts_to_eof() -> None:
 
 
 def test_heredoc_that_forces_replacement_closes_and_the_plan_continues() -> None:
-    """T-D155: `EOT # forces replacement` closed nothing, so the rest of the plan vanished."""
+    """T-D156: `EOT # forces replacement` closed nothing, so the rest of the plan vanished."""
     text = (
         "      ~ cloud_init = <<-EOT\n"
         "            tskey-auth-kSECRET-abc\n"

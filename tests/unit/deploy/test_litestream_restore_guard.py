@@ -1,4 +1,4 @@
-"""T-D155 / ADR-0122: litestream-restore.sh behaviour with a stub litestream."""
+"""T-D156 / ADR-0122: litestream-restore.sh behaviour with a stub litestream."""
 
 from __future__ import annotations
 

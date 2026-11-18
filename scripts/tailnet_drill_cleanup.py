@@ -1,4 +1,4 @@
-"""Remove leftover Tailscale node(s) after a VM is destroyed (T-D124, ADR-0101; T-D155, ADR-0122).
+"""Remove leftover Tailscale node(s) after a VM is destroyed (T-D124, ADR-0101; T-D156, ADR-0122).
 
 Destroying a VM leaves its tailnet node behind as offline. The next VM would then
 register as `<name>-1` (for the drill, the `*.ts.net` certificate name would not match).

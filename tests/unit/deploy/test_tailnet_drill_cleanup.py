@@ -61,7 +61,7 @@ def test_reusable_cleanup_workflow_runs_the_shared_script_ungated() -> None:
     loaded: dict[Any, Any] = yaml.safe_load((WORKFLOWS / "tailnet-cleanup.yml").read_text())
     job = loaded["jobs"]["cleanup"]
 
-    # T-D155: drill by default; prod mode uses its own ungated environment.
+    # T-D156: drill by default; prod mode uses its own ungated environment.
     assert job["environment"] == "${{ inputs.env == 'prod' && 'prod-tailnet' || 'drill-teardown' }}"
     inputs = loaded[True]["workflow_call"]["inputs"]  # PyYAML reads `on:` as True
     assert inputs["env"]["default"] == "drill"
@@ -183,7 +183,7 @@ def test_failed_delete_is_a_warning_not_an_error(
     assert "::warning::" in capsys.readouterr().out
 
 
-# --- prod mode (T-D155, ADR-0122) --------------------------------------------
+# --- prod mode (T-D156, ADR-0122) --------------------------------------------
 
 
 def _prod(

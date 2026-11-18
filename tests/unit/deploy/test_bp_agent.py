@@ -405,7 +405,7 @@ def test_cosign_install_requires_https(tmp_path: Path, monkeypatch: pytest.Monke
         agent.ensure_cosign(_policy("0" * 64, url="http://example.invalid/cosign"))
 
 
-# --- restore report (T-D155, ADR-0122) -------------------------------------
+# --- restore report (T-D156, ADR-0122) -------------------------------------
 
 GEN = "2901fbd3873a6696"  # pragma: allowlist secret
 

@@ -226,7 +226,7 @@ def test_resolve_ref_cli_reports_failure(capsys: pytest.CaptureFixture[str]) -> 
     assert "cannot inspect" in capsys.readouterr().err
 
 
-# --- VM replacement (T-D155, ADR-0122) --------------------------------------
+# --- VM replacement (T-D156, ADR-0122) --------------------------------------
 
 RESTORED = {
     "result": "restored",

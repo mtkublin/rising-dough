@@ -15,8 +15,8 @@ set -eu
 
 APP=budget-planner-app
 DB="${REHEARSAL_DB:-/data/budget.db}"
-PY_INIT='import sqlite3; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("CREATE TABLE IF NOT EXISTS t_d155_marker (seq INTEGER PRIMARY KEY, at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"); c.commit()'
-PY_INSERT='import sqlite3, sys; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("INSERT INTO t_d155_marker (seq) VALUES (?)", (int(sys.argv[1]),)); c.commit()'
+PY_INIT='import sqlite3; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("CREATE TABLE IF NOT EXISTS t_d156_marker (seq INTEGER PRIMARY KEY, at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"); c.commit()'
+PY_INSERT='import sqlite3, sys; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("INSERT INTO t_d156_marker (seq) VALUES (?)", (int(sys.argv[1]),)); c.commit()'
 
 insert() {
   docker exec "$APP" python -c "$PY_INSERT" "$1"
@@ -48,7 +48,7 @@ case "${1:-}" in
     echo "writer stopped: app gone before $seq"
     ;;
   stats)
-    sqlite3 -readonly -separator '|' "$DB" 'SELECT coalesce(max(seq), 0), count(*) FROM t_d155_marker;'
+    sqlite3 -readonly -separator '|' "$DB" 'SELECT coalesce(max(seq), 0), count(*) FROM t_d156_marker;'
     ;;
   *)
     echo "usage: $0 init | write N | writer FROM | stats" >&2
