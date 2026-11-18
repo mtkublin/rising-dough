@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-18 (T-D140 — prod CSP blocks HTMX and inline JS; decision recorded)
+- **Test(T-D140c, ADR-0113): e2e CSP guard.** Every e2e `page` now runs under the prod CSP parsed from `Caddyfile.tpl` (`tests/e2e/csp.py`, fixed test nonce sent as `X-CSP-Nonce`) and fails on any CSP violation (console + `securitypolicyviolation`). New `tests/e2e/test_csp_buttons.py` covers Add (Today, Ledger), Promote (Today) and Override (Plan > Budget). Found, not CSP: Add submitted from /today is a no-op (`hx-target="#txn-table tbody"` exists only on /ledger).
 - **Docs(T-D140, ADR-0113): CSP-compatible frontend decided.** Prod v3.0.1 breaks Add, Promote and Override because the ADR-0036 nonce CSP blocks the htmx CDN script, inline scripts, inline handlers and Google Fonts. Decision: keep strict `script-src`, vendor htmx, self-host fonts, move behaviour to static JS, `style-src 'unsafe-inline'` as a stopgap, and an e2e CSP guard. ADR-0036 gets a `style-src` addendum. Tasks T-D140a–d recorded; code not started.
 - **Fix(T-D140a, ADR-0113): base.html CSP-compatible.** htmx 2.0.11 vendored in `static/vendor/`, fonts self-hosted (latin + latin-ext woff2, OFL), `base.html` inline script moved to `static/js/app-init.js`, `htmx-config` meta (`allowEval: false`, no injected indicator style), Caddy `style-src 'self' 'unsafe-inline'` (no nonce).
 

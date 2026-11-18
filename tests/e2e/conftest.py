@@ -29,9 +29,10 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.e2e.csp import TEST_NONCE, prod_csp
 
 try:
-    from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+    from playwright.sync_api import Browser, Page, Playwright, Route, sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore[assignment]
 
@@ -143,6 +144,16 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
             proc.kill()
 
 
+_CSP_LISTENER_JS = """
+document.addEventListener('securitypolicyviolation', (e) => {
+  window.__reportCspViolation(
+    `event: ${e.violatedDirective} blocked ${e.blockedURI || 'inline'}` +
+    ` at ${e.sourceFile}:${e.lineNumber}`
+  );
+});
+"""
+
+
 @pytest.fixture
 def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     """A Playwright ``Page`` with the CSRF token wired into ``page.request``.
@@ -181,9 +192,40 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     assert any(c["name"] == SESSION_DEV_COOKIE_NAME for c in context.cookies()), (
         "browser did not store the session cookie (ADR-0070)"
     )
-    context.set_extra_http_headers({CSRF_HEADER_NAME: token})
+    # ADR-0113 / T-D140c: run under the real prod CSP. Dev has no Caddy, so
+    # send the nonce header and add the CSP to HTML responses ourselves.
+    context.set_extra_http_headers({CSRF_HEADER_NAME: token, "X-CSP-Nonce": TEST_NONCE})
+    csp = prod_csp()
+    violations: list[str] = []
+
+    def _add_csp(route: Route) -> None:
+        response = route.fetch(max_redirects=0)
+        headers = dict(response.headers)
+        if "text/html" in headers.get("content-type", ""):
+            headers["content-security-policy"] = csp
+        route.fulfill(response=response, headers=headers)
+
+    context.route(f"{base_url}/**", _add_csp)
+
+    def _record(message: str) -> None:
+        violations.append(message)
+
+    context.expose_function("__reportCspViolation", _record)
+    context.add_init_script(_CSP_LISTENER_JS)
     page = context.new_page()
+    page.on(
+        "console",
+        lambda m: (
+            violations.append(f"console: {m.text}")
+            if m.type == "error" and "Content Security Policy" in m.text
+            else None
+        ),
+    )
     try:
         yield page
+        unique = sorted(set(violations))
+        assert not unique, "CSP violations under the prod policy:\n" + "\n".join(unique)
     finally:
+        # Let in-flight HTMX requests finish before the routes are torn down.
+        context.unroute_all(behavior="ignoreErrors")
         context.close()
