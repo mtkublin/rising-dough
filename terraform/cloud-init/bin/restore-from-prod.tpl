@@ -70,6 +70,7 @@ readonly READY_URL="https://$${READY_HOST}/ready"
 readonly READY_RETRIES=24
 readonly READY_SLEEP_S=5
 MOVED_ASIDE_DIR=''
+RESTORE_CFG=''
 
 log() { printf '%s: %s\n' "$${PROGNAME}" "$${*}"; }
 die() { printf '%s: ERROR: %s\n' "$${PROGNAME}" "$${*}" >&2; exit 1; }
@@ -78,6 +79,9 @@ die() { printf '%s: ERROR: %s\n' "$${PROGNAME}" "$${*}" >&2; exit 1; }
 cleanup_copies() {
   local rc=$?
   set +e
+  # T-D40-FIX2: temp restore config removed here (EXIT), never via a RETURN
+  # trap: those persist after the function returns and fire in later functions.
+  [[ -z "$${RESTORE_CFG}" ]] || rm -f -- "$${RESTORE_CFG}"
   if [[ -n "$${MOVED_ASIDE_DIR}" && -d "$${MOVED_ASIDE_DIR}" ]]; then
     rm -rf -- "$${MOVED_ASIDE_DIR}"
     log "deleted moved-aside copies $${MOVED_ASIDE_DIR}"
@@ -137,16 +141,14 @@ move_local_db_aside() {
 }
 
 restore_from_prod() {
-  local cfg
   LITESTREAM_AGE_IDENTITY="$(grep -m1 '^AGE-SECRET-KEY-' "$${AGE_KEY_FILE}" || true)"
   [[ -n "$${LITESTREAM_AGE_IDENTITY}" ]] || die "no AGE-SECRET-KEY line in $${AGE_KEY_FILE}"
   export LITESTREAM_AGE_IDENTITY
-  cfg="$(mktemp /run/restore-source.XXXXXX.yml)"
-  trap 'rm -f -- "$${cfg}"' RETURN
+  RESTORE_CFG="$(mktemp /run/restore-source.XXXXXX.yml)"
   # Restore-only config: points at the PROD replica, read-only credential.
   # Never passed to `litestream replicate`. Credentials and the age identity
   # are expanded by litestream from the container environment, not stored here.
-  cat > "$${cfg}" <<'CFG'
+  cat > "$${RESTORE_CFG}" <<'CFG'
 dbs:
   - path: /data/budget.db
     replicas:
@@ -164,7 +166,7 @@ CFG
   log "restoring from s3://$${SOURCE_BUCKET}/${source_path} (read-only)"
   docker run --rm \
     -v "$${DATA_DIR}:$${DATA_DIR}:rw" \
-    -v "$${cfg}:/etc/litestream-restore.yml:ro" \
+    -v "$${RESTORE_CFG}:/etc/litestream-restore.yml:ro" \
     -e RESTORE_ACCESS_KEY_ID -e RESTORE_SECRET_ACCESS_KEY \
     -e LITESTREAM_AGE_IDENTITY \
     "$${LITESTREAM_IMAGE}" \

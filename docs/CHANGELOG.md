@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D40 restore drill RETURN-trap fix)
+- **Fix(T-D40): `restore-from-prod` RETURN-trap bug.** Run 44340976282 restored, passed integrity and `/ready`, then exited 1 with `cfg: unbound variable`: a `trap ... RETURN` set in `restore_from_prod` persisted and fired when `main` returned. The temp config is now a global removed by the `cleanup_copies` EXIT trap; no RETURN traps remain. Unit tests reproduce the old failure and prove the fix under bash 5.2 (Docker, skipped cleanly without it).
+
 ## 2026-11-18 (T-D40 restore drill readiness fix)
 - **Fix(T-D40): `restore-from-prod` readiness probe.** Run 44330551119 restored correctly but failed on `/ready`: it probed `https://localhost` (Caddy has no certificate for that SNI) and expected `status:"ok"` while `/ready` returns `{"status":"ready","db":"ok"}`. Now probes the real host name pinned to 127.0.0.1 with verified TLS, requires `ready` + `db ok`, and logs each failed attempt. `restore.md` and the T-D40 file updated.
 
