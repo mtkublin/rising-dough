@@ -53,6 +53,11 @@
     if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
     var slot = form.closest(SLOT);
     if (slot) closeSlot(slot, true);
+    if (!document.getElementById("plan-budget")) {
+      /* Plan -> Year cell popover: no budget region here; reload to show the saved cell. */
+      window.location.reload();
+      return;
+    }
     if (window.htmx) {
       window.htmx.ajax("GET", window.location.href, {
         target: "#plan-budget",
