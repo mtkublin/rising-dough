@@ -1,6 +1,6 @@
 # Runbook — Disaster Recovery
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Full re-provision from zero plus restore. Target end-to-end RTO: < 60 min (ADR-0032 §9).
 
@@ -12,9 +12,9 @@ The recovery path is: a prod `terraform apply` from the committed state (break-g
 
 This runbook also covers the "lost all admins" scenario (ADR-0061 §3): the DB is fine but no `is_admin = 1 AND deleted_at IS NULL` row exists. The admin-bootstrap routine re-promotes a user when provided a new email + initial password via Terraform.
 
-Uptime monitor (T-D44): `.github/workflows/uptime.yml`, every 5 minutes. It fails when `/health` is not 200 or the host agent status (`/.well-known/bp-deploy-status.json`, ADR-0111) reports `failed`. A failed scheduled run emails the operator (GitHub notification), and the workflow keeps one open issue titled "Prod uptime check failing" until the next green run closes it. No external account, no monitor id.
+Uptime monitor (T-D44): an external monitor (UptimeRobot) watches https://budget.rising-dough.eu. The operator set it up on 2026-11-18. It is the primary alarm, because GitHub throttles scheduled workflows. `.github/workflows/uptime.yml` also checks `/health` and the host agent status (`/.well-known/bp-deploy-status.json`, ADR-0111), and fails when `/health` is not 200 or the status reports `failed`. A failed scheduled run emails the operator, and the workflow keeps one open issue titled "Prod uptime check failing" until the next green run closes it. Monitor interval and alert settings: see [`../phase-4-validation/T-D44-uptime-monitor.md`](../phase-4-validation/T-D44-uptime-monitor.md).
 
-Limits: GitHub can start scheduled runs several minutes late, and a GitHub outage hides a prod outage. Check by hand with `gh workflow run uptime.yml`.
+Limits: GitHub can start scheduled runs hours late (observed 2026-11-17/18), and a GitHub outage hides a prod outage in `uptime.yml`. The external monitor does not depend on GitHub. Check by hand with `gh workflow run uptime.yml`.
 
 ## Preconditions
 
