@@ -64,7 +64,7 @@
                   hx-post="/recurring/{{ row.rule_id }}/skip-next"
                   hx-swap="none"
                   hx-trigger="click"
-                  hx-on::after-request="if(event.detail.successful){htmx.ajax('GET','/today/upcoming',{target:'#upcoming-root',swap:'innerHTML'});}"
+                  data-refresh-upcoming
                   hx-confirm="Skip this occurrence?">Skip</button>
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--ghost"

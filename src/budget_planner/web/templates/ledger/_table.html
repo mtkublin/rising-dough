@@ -389,29 +389,3 @@
     {% endif %}
   </div>
 </div>
-{% if view == "recurring" %}
-  <script>
-    (function () {
-      document.addEventListener('click', function (evt) {
-        var btn = evt.target.closest('[data-rec-chev]');
-        if (!btn) return;
-        var id = btn.getAttribute('data-rec-chev');
-        var row = document.getElementById('recurring-' + id);
-        var panel = document.getElementById('recurring-' + id + '-expand');
-        if (!panel) return;
-        var open = panel.hasAttribute('hidden');
-        if (open) {
-          panel.removeAttribute('hidden');
-          btn.textContent = '▾';
-          btn.setAttribute('aria-expanded', 'true');
-          if (row) row.classList.add('rd-rec-row--expanded');
-        } else {
-          panel.setAttribute('hidden', '');
-          btn.textContent = '▸';
-          btn.setAttribute('aria-expanded', 'false');
-          if (row) row.classList.remove('rd-rec-row--expanded');
-        }
-      });
-    })();
-  </script>
-{% endif %}

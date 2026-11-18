@@ -11,14 +11,14 @@
      aria-modal="true"
      aria-labelledby="recurring-promote-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over" tabindex="-1">
     <header class="slide-over__header">
       <h2 id="recurring-promote-title" class="slide-over__title">Promote recurring</h2>
       <button type="button"
               class="slide-over__close"
               aria-label="Close"
-              onclick="this.closest('.slide-over-root').parentElement.innerHTML='';">×</button>
+              data-action="close-overlay">×</button>
     </header>
     <div class="slide-over__body">
       {% if rule %}
