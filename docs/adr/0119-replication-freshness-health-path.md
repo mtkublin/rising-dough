@@ -38,6 +38,8 @@ Facts used for the decision:
 7. **Drill.** The drill runs the same templates and replicates into the drill bucket, so the path works there: 503 until the first snapshot exists (about a minute after start), then 200. The drill smoke only polls `/ready` and is unchanged, so no gate depends on this path. Drill, not prod, proves the probe parsing the first time (see Consequences).
 8. **Caddy / CSP / rate limit.** The path is a JSON response served by the app through the existing catch-all `reverse_proxy`. The CSP is only added to `text/html` responses, security headers apply as for `/health`. The Caddyfile has no rate limit, and the app limits only auth routes (ADR-0072), so a 5 min poll is not throttled.
 
+**Amendment 2026-11-18 (T-D146):** the routes answer `HEAD` as well as `GET` with the same status code and no body (the free UptimeRobot plan monitors with HEAD and cannot change the method). The same applies to `/health` and `/ready`.
+
 ## Consequences
 
 - A stall is visible within the threshold plus one monitor interval (about 26 h worst case, instead of 11 days). It is not a tight alarm: a stall that starts right after a snapshot, with an idle DB, shows up after about 26 h. A tighter rule (compare the DB WAL mtime with the newest object) was rejected for now: Litestream itself touches the WAL, so it would flap. Follow-up if the delay proves too long.

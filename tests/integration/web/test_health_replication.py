@@ -78,3 +78,35 @@ def test_probe_error_is_503(tmp_path: Path) -> None:
     _write(f, newest_age=timedelta(minutes=1), error="generations_failed")
     r = _client(tmp_path, str(f)).get("/health/replication")
     assert (r.status_code, r.json()["status"]) == (503, "probe_error")
+
+
+def test_head_matches_get_when_disabled(tmp_path: Path) -> None:
+    client = _client(tmp_path, "")
+    r = client.head("/health/replication")
+    assert r.status_code == client.get("/health/replication").status_code == 200
+    assert r.content == b""
+
+
+def test_head_matches_get_when_fresh(tmp_path: Path) -> None:
+    f = tmp_path / "status.json"
+    _write(f, newest_age=timedelta(hours=1))
+    client = _client(tmp_path, str(f))
+    r = client.head("/health/replication")
+    assert r.status_code == client.get("/health/replication").status_code == 200
+    assert r.content == b""
+
+
+def test_head_is_503_when_stale(tmp_path: Path) -> None:
+    f = tmp_path / "status.json"
+    _write(f, newest_age=timedelta(hours=30))
+    client = _client(tmp_path, str(f))
+    r = client.head("/health/replication")
+    assert r.status_code == client.get("/health/replication").status_code == 503
+    assert r.content == b""
+
+
+def test_head_is_503_when_status_file_missing(tmp_path: Path) -> None:
+    client = _client(tmp_path, str(tmp_path / "nope.json"))
+    r = client.head("/health/replication")
+    assert r.status_code == client.get("/health/replication").status_code == 503
+    assert r.content == b""

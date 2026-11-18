@@ -53,6 +53,11 @@
     if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
     var slot = form.closest(SLOT);
     if (slot) closeSlot(slot, true);
+    if (!document.getElementById("plan-budget")) {
+      /* Plan -> Year cell popover: no budget region here; reload to show the saved cell. */
+      window.location.reload();
+      return;
+    }
     if (window.htmx) {
       window.htmx.ajax("GET", window.location.href, {
         target: "#plan-budget",
@@ -81,4 +86,38 @@
     if (!open.length) return;
     closeSlot(open[0], true);
   });
+
+  /* Tier radios -> segmented chip state + hint text (formerly an inline script;
+   * month/year come from data-month-label / data-this-year on the form). */
+  function wireTierForm(form) {
+    if (form.__tierWired) return;
+    form.__tierWired = true;
+    var hintTail = form.querySelector("[data-override-hint-tail]");
+    var month = form.getAttribute("data-month-label") || "";
+    var year = form.getAttribute("data-this-year") || "";
+    function sync() {
+      var picked = form.querySelector("input[name='tier']:checked");
+      form.querySelectorAll(".rd-override__tiers .rd-segmented__item").forEach(function (item) {
+        var r = item.querySelector("input[name='tier']");
+        item.classList.toggle("rd-segmented__item--active", !!(r && r.checked));
+      });
+      if (!hintTail || !picked) return;
+      if (picked.value === "default") hintTail.textContent = "replaces the default";
+      else if (picked.value === "recurring") hintTail.textContent = "replaces default every " + month;
+      else hintTail.textContent = "wins over default for " + month + " " + year + " only";
+    }
+    form.querySelectorAll("input[name='tier']").forEach(function (t) {
+      t.addEventListener("change", sync);
+    });
+    sync();
+  }
+
+  function scanTierForms(root) {
+    if (!root || !root.querySelectorAll) return;
+    if (root.matches && root.matches("[data-override-form]")) wireTierForm(root);
+    root.querySelectorAll("[data-override-form]").forEach(wireTierForm);
+  }
+
+  document.addEventListener("htmx:load", function (evt) { scanTierForms(evt.target); });
+  scanTierForms(document);
 })();

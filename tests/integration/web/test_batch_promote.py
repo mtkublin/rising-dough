@@ -189,6 +189,19 @@ def test_planned_batch_undo_restores_state(
         },
     )
     assert undo.status_code == 204
+    conn = get_connection(_migrated)
+    try:
+        promoted = conn.execute(
+            "SELECT promoted_to_txn_id FROM planned_transactions WHERE id = ?",
+            (planned_ids[0],),
+        ).fetchone()
+        txn = conn.execute(
+            "SELECT deleted_at FROM transactions WHERE id = ?", (txn_ids[0],)
+        ).fetchone()
+    finally:
+        conn.close()
+    assert promoted["promoted_to_txn_id"] is None
+    assert txn["deleted_at"] is not None
 
 
 def test_batch_undo_invalid_ids_422(client: TestClient) -> None:

@@ -19,11 +19,21 @@ import os
 os.environ.setdefault("BUDGET_ENV", "test")
 
 # Imported after the env pin: ``tests.db_template`` pulls in the app config.
+import functools
 from pathlib import Path
 
+import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
 from tests.db_template import build_template, copy_template
+
+# T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
+# endpoint signature on that app's first request (~35% of ~87 ms CPU per app).
+# The analysis is a pure function of the endpoint callable, so cache it for the
+# test process. Production keeps FastAPI's own behaviour.
+fastapi_dependency_utils.get_typed_signature = functools.cache(
+    fastapi_dependency_utils.get_typed_signature
+)
 
 
 @pytest.fixture(scope="session")

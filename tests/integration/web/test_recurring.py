@@ -951,3 +951,122 @@ def test_update_clearing_end_date_round_trips(
         conn.close()
     assert updated is not None
     assert updated.end_date is None
+
+
+def _rule_data(ctx: dict[str, int]) -> dict[str, str | int]:
+    return {
+        "cadence": "monthly",
+        "start_date": "2026-02-01",
+        "category_id": ctx["cat"],
+        "account_id": ctx["acc"],
+        "default_amount": "500",
+    }
+
+
+def test_create_off_ledger_refreshes_page_without_swap(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    # T-D142: the form is opened from Today etc.; no table to swap into.
+    r = client.post(
+        "/recurring",
+        data=_rule_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.post(
+        "/recurring",
+        data=_rule_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=recurring"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in r.headers
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_new_form_targets_itself_not_ledger_table(client: TestClient) -> None:
+    r = client.get("/recurring/new")
+    assert 'hx-target="#recurring-form"' in r.text
+    assert "table.ledger" not in r.text
+
+
+_ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
+_ON_LEDGER = {"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=recurring"}
+
+
+def test_edit_form_targets_itself_and_closes_on_success(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    r = client.get(f"/recurring/{ctx['rule']}/edit")
+    assert 'hx-target="#recurring-form"' in r.text
+    assert f"#recurring-{ctx['rule']}" not in r.text
+    assert "data-close-overlay-on-success" in r.text
+
+
+def test_update_off_ledger_refreshes_and_on_ledger_does_not(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    url = f"/recurring/{ctx['rule']}"
+    off = client.post(url, data=_rule_data(ctx), headers=_ON_TODAY)
+    assert off.status_code == 200
+    assert off.headers["HX-Reswap"] == "none"
+    assert off.headers["HX-Refresh"] == "true"
+    on = client.post(url, data=_rule_data(ctx), headers=_ON_LEDGER)
+    assert on.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in on.headers
+
+
+def test_promote_and_override_forms_target_their_own_panel(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    for path in (f"/recurring/{ctx['rule']}/promote", f"/recurring/{ctx['rule']}/overrides/new"):
+        r = client.get(path)
+        assert 'hx-target="closest .slide-over-root"' in r.text
+        assert "data-close-overlay-on-success" in r.text
+        assert f"#recurring-{ctx['rule']}" not in r.text
+
+
+def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    off = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_ON_TODAY)
+    assert off.status_code == 200
+    assert off.headers["HX-Reswap"] == "none"
+    assert off.headers["HX-Refresh"] == "true"
+    on = client.post(f"/recurring/{ctx['rule']}/promote", data={}, headers=_ON_LEDGER)
+    assert on.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in on.headers
+
+
+def test_override_success_off_ledger_refreshes_and_on_ledger_does_not(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    form = {"year": "2026", "month": "5", "amount": "12.00"}
+    off = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_TODAY)
+    assert off.status_code == 200
+    assert off.headers["HX-Reswap"] == "none"
+    assert off.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in off.headers["HX-Trigger"]
+    on = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
+    assert on.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in on.headers
+
+
+def test_override_errors_rerender_form_with_message(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    for form, text in (
+        ({"year": "2026", "month": "13", "amount": "5"}, "invalid year or month"),
+        ({"year": "2026", "month": "5", "amount": "abc"}, "invalid amount"),
+        ({"year": "2026", "month": "5", "amount": "-1"}, "must be positive"),
+    ):
+        r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
+        assert r.status_code == 422
+        assert "slide-over-root" in r.text
+        assert text in r.text

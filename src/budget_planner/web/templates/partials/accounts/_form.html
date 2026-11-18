@@ -7,9 +7,9 @@
    `account` present → edit; absent → create. Edit renders currency as
    immutable per ADR-0006. #}
 {% from "_partials/combobox.html" import combobox %}
-<form hx-post="{{ action }}"
-      hx-target="{% if account %}#account-{{ account.id }}{% else %}#accounts-grid{% endif %}"
-      hx-swap="{% if account %}outerHTML{% else %}beforeend{% endif %}"
+<form {% if not account %}id="account-form" {% endif %}hx-post="{{ action }}"
+      hx-target="{% if account %}#account-{{ account.id }}{% else %}#account-form{% endif %}"
+      hx-swap="outerHTML"
       class="rd-form account-form"
       data-account-form
       {% if not account %}data-reset-on-submit{% endif %}>
@@ -101,71 +101,8 @@
     <button type="button"
             class="rd-btn rd-btn--ghost"
             data-slideover-cancel
-            onclick="var r=this.closest('.slide-over-root');if(r&&r.parentElement){r.parentElement.innerHTML='';}">
-      Cancel
-    </button>
+            data-action="close-overlay">Cancel</button>
     <button type="submit"
             class="rd-btn rd-btn--primary">{% if account %}Save ↩{% else %}Create account ↩{% endif %}</button>
   </footer>
 </form>
-<script>
-  // T-123 — Credit-limit field lockstep + T-R65 currency-suffix sync.
-  // Idempotent: `[data-account-form]` scoped; wires once per form.
-  (function () {
-    function syncLimit(cb, field, limitInput) {
-      if (cb.checked) {
-        field.removeAttribute("hidden");
-        field.removeAttribute("aria-hidden");
-        field.style.display = "";
-        if (limitInput) limitInput.disabled = false;
-      } else {
-        field.setAttribute("hidden", "");
-        field.setAttribute("aria-hidden", "true");
-        field.style.display = "none";
-        if (limitInput) limitInput.disabled = true;
-      }
-    }
-    function syncSuffixes(form) {
-      // Currency source: hidden combobox value (create) or disabled input (edit).
-      var hidden = form.querySelector("input[type='hidden'][name='currency']");
-      var disabledInput = form.querySelector("input[name='currency']:disabled, input[type='text'][disabled][aria-describedby='rd-currency-help']");
-      var ccy = (hidden && hidden.value) || (disabledInput && disabledInput.value) || "";
-      form.querySelectorAll("[data-currency-suffix]").forEach(function (el) {
-        el.setAttribute("data-suffix", ccy);
-      });
-    }
-    function wire(form) {
-      if (!form || form.dataset.limitWired === "1") return;
-      var cb = form.querySelector("[data-toggle-limit]");
-      var field = form.querySelector("[data-limit-field]");
-      var limitInput = field && field.querySelector("input[name='credit_limit']");
-      if (cb && field) {
-        cb.addEventListener("change", function () { syncLimit(cb, field, limitInput); });
-        syncLimit(cb, field, limitInput);
-      }
-      // Suffix sync on combobox pick (hidden input changes).
-      var hidden = form.querySelector("input[type='hidden'][name='currency']");
-      if (hidden) {
-        // Combobox mutates .value directly, so poll on visible-input input.
-        var visible = form.querySelector("input[role='combobox']");
-        if (visible) {
-          visible.addEventListener("input", function () { syncSuffixes(form); });
-          visible.addEventListener("change", function () { syncSuffixes(form); });
-          visible.addEventListener("blur", function () { syncSuffixes(form); });
-        }
-      }
-      syncSuffixes(form);
-      form.dataset.limitWired = "1";
-    }
-    function wireAll() {
-      document.querySelectorAll("[data-account-form]").forEach(wire);
-    }
-    wireAll();
-    document.addEventListener("htmx:afterSwap", function (evt) {
-      var root = evt.target;
-      if (!root) return;
-      if (root.matches && root.matches("[data-account-form]")) { wire(root); return; }
-      if (root.querySelectorAll) root.querySelectorAll("[data-account-form]").forEach(wire);
-    });
-  })();
-</script>

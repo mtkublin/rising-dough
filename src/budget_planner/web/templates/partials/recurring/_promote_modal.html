@@ -4,29 +4,29 @@
    with the rule's `next_due` (or the override's `date_override` when
    present), amount with the override's `amount_override` fallback to
    `rule.default_amount`, and description with the override's text fallback.
-   Submit targets `#recurring-{id}` so the row partial re-renders in place
-   with the advanced `next_due`. #}
+   Submit targets its own slide-over root (T-D151): a 422 re-renders the modal
+   in place; success skips the swap and closes it. #}
 <div class="slide-over-root"
      role="dialog"
      aria-modal="true"
      aria-labelledby="recurring-promote-title"
      data-slideover
-     onclick="if(event.target===this){this.parentElement.innerHTML='';}">
+     data-close-on-backdrop>
   <aside class="slide-over" tabindex="-1">
     <header class="slide-over__header">
       <h2 id="recurring-promote-title" class="slide-over__title">Promote recurring</h2>
       <button type="button"
               class="slide-over__close"
               aria-label="Close"
-              onclick="this.closest('.slide-over-root').parentElement.innerHTML='';">×</button>
+              data-action="close-overlay">×</button>
     </header>
     <div class="slide-over__body">
       {% if rule %}
         <form hx-post="/recurring/{{ rule.id }}/promote"
-              hx-target="#recurring-{{ rule.id }}"
+              hx-target="closest .slide-over-root"
               hx-swap="outerHTML"
               class="form-stack"
-              data-reset-on-submit>
+              data-close-overlay-on-success>
           {% if override and override.state.value == "overridden" %}
             <p class="form-note" role="status">Override applied for this occurrence.</p>
           {% endif %}

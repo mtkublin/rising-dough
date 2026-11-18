@@ -1,6 +1,6 @@
 # ADR-0099: Release and Environment Policy
 
-- **Status**: Accepted
+- **Status**: Accepted; required merge checks amended by [ADR-0121](0121-path-filtered-workflows-are-not-required-checks.md) (path-filtered Terraform checks are not required)
 - **Date**: 2026-11-07
 - **Relates to**: ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098; forward-references ADR-0100 (CI credentials, written by T-D92)
 
@@ -68,3 +68,7 @@ Supersedes the `*-deploy` push and `pull_request` triggers of decision 3 (and th
 ## Amendment 2026-11-16 (T-D125): prod releases come from GitHub releases
 
 Superseded by [ADR-0109](0109-release-from-github-release-tags.md) for the release trigger: `release.yml` runs when a GitHub release (tag `vMAJOR.MINOR.PATCH`, commit on `main`) is published, not on every push to `main`. The "prod only from `main`" ref guards now read "`main`, or a `v*` tag whose commit is an ancestor of `main`". The `prod` environment approval, the PR gate and the credentials model are unchanged.
+
+## Amendment 2026-11-18 (T-D147): non-deploy PRs skip the real gate
+
+Amended by [ADR-0121](0121-drill-gate-skip-for-non-deploy-prs.md): a PR whose changed files are all on a non-deploy allowlist gets `drill-gate` set to success by `drill-gate-skip.yml` without a drill VM. Every other PR still needs the real gate run.

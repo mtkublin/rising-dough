@@ -1692,3 +1692,15 @@ details.snapshots[open] > summary::before { transform: rotate(90deg); }
 .forecast-table-wrap {
   overflow-x: auto;
 }
+
+/* htmx indicator rules (htmx-config includeIndicatorStyles=false: the injected
+ * <style> element is not CSP-friendly, ADR-0113). Same as htmx defaults. */
+.htmx-indicator {
+  opacity: 0;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+  transition: opacity 200ms ease-in;
+}

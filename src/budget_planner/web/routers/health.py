@@ -31,13 +31,13 @@ router = APIRouter(tags=["health"])
 _logger = logging.getLogger(__name__)
 
 
-@router.get("/health", include_in_schema=False)
+@router.api_route("/health", methods=["GET", "HEAD"], include_in_schema=False)
 def health(request: Request) -> dict[str, str]:
     """Process liveness. Deliberately cheap — no DB, no logging."""
     return {"status": "ok", "version": request.app.version}
 
 
-@router.get("/ready", include_in_schema=False)
+@router.api_route("/ready", methods=["GET", "HEAD"], include_in_schema=False)
 def ready(request: Request) -> JSONResponse:
     """Readiness probe. 200 iff the DB passes ``PRAGMA integrity_check``.
 
@@ -79,7 +79,7 @@ def ready(request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content={"status": "ready", "db": "ok"})
 
 
-@router.get("/health/replication", include_in_schema=False)
+@router.api_route("/health/replication", methods=["GET", "HEAD"], include_in_schema=False)
 def replication(request: Request) -> JSONResponse:
     """Replication freshness for the external monitor (ADR-0119). No secrets in the body."""
     cfg: Settings = request.app.state.settings

@@ -54,7 +54,7 @@ Unused since ADR-0111, deleted 2026-11-18 (user-approved; no workflow read them,
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 
 - [ ] Require a pull request before merging; dismiss stale approvals; no bypass for admins (so break-glass changes also land via PR afterwards).
-- [ ] Require status checks, branch up to date: `ci`, **`drill-gate`** (commit status posted by `drill.yml` mode=gate on the exact head SHA, T-D98; add it by name once it has been posted at least once), `fmt + validate + lint` and `plan (drill)` / `plan (prod)` from the Terraform workflow, `uv lock --check`.
+- [x] Require status checks (ruleset `protect-main`): `just ci (Python 3.12, ubuntu-latest)`, **`drill-gate`** (commit status posted by `drill.yml` mode=gate on the exact head SHA, T-D98; add it by name once it has been posted at least once), `uv lock --check`, `pip-audit (uv.lock)`, `trivy fs (repo)`, `trivy image (rising-dough:scan)`. **Not** `fmt + validate + lint` / `plan (drill)` / `plan (prod)`: `terraform.yml` is path-filtered, so a PR without Terraform changes never posts them and stays blocked. Removed 2026-11-18 ([ADR-0121](../../../adr/0121-path-filtered-workflows-are-not-required-checks.md)); the drill gate covers fmt/validate and the drill apply, and the release plans prod before the approved apply.
 - [ ] "Require branches to be up to date before merging" is optional: `drill-gate` is already tied to the head SHA, so a new push (including merging `main` into the branch) needs a fresh gate run anyway.
 - [ ] Require linked conversation resolution; block force pushes and deletions.
 - [ ] Restrict who can push to matching branches (operator only).

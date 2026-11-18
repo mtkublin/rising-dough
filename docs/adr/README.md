@@ -115,6 +115,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0109 | [Prod Releases Triggered by GitHub Releases on `main`](0109-release-from-github-release-tags.md) (amends ADR-0099) |
 | 0110 | [One Prod Approval per Release](0110-single-prod-approval-per-release.md) (amends ADR-0099; relates to ADR-0100, ADR-0109) |
 | 0111 | [Terraform-Declared Host State, Pulled by a Host Agent](0111-terraform-declared-host-state.md) (supersedes ADR-0037 deploy step and ADR-0110; amends ADR-0099) |
+| 0113 | [CSP-Compatible Frontend — No Inline Script, Vendored Assets](0113-csp-compatible-frontend.md) (amends ADR-0036 `style-src`; relates to ADR-0027, ADR-0111) |
 | 0112 | [Prod-Gated Cleanup of Plaintext Litestream Objects](0112-prod-gated-litestream-plaintext-cleanup.md) (amends ADR-0078 §3; relates to ADR-0099, ADR-0100) |
 | 0114 | [Litestream Replicate Config Carries the Age Identity; One Forced New Generation](0114-litestream-replicate-identity-and-forced-generation.md) (amends ADR-0078 §3; relates to ADR-0111, ADR-0112) |
 | 0115 | [A Drill VM Is Exclusive; Every Drill Workflow Starts With a Drill Lock](0115-drill-vm-is-exclusive-drill-lock.md) (amends ADR-0099; relates to ADR-0101, ADR-0092) |
@@ -123,4 +124,6 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0118 | [The VM Root Volume Is Local SSD, Declared Explicitly](0118-local-ssd-root-volume.md) (amends ADR-0032; relates to ADR-0035, ADR-0084, ADR-0099, ADR-0111, ADR-0114) |
 | 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
+| 0121 | [Drill-Gate Skip for Non-Deploy PRs](0121-drill-gate-skip-for-non-deploy-prs.md) (amends ADR-0099; relates to ADR-0115) |
+| 0121 | [Path-Filtered Workflows Are Not Required Checks](0121-path-filtered-workflows-are-not-required-checks.md) (amends ADR-0099; relates to ADR-0115, ADR-0120) |
 | 0122 | [A Prod VM Replacement Is Safe Unattended](0122-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
