@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="htmx-config"
+          content='{"includeIndicatorStyles": false, "allowEval": false}'>
     <meta name="csrf-token"
           content="{{ csrf_token if csrf_token is string else '' }}">
     <title>{% block title %}Rising Dough{% endblock %}</title>
     <link rel="icon"
           type="image/svg+xml"
           href="{{ url_for('static', path='favicon.svg') }}?v=fav1">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
           href="{{ url_for('static', path='fonts.css') }}?v=rd1">
     <link rel="stylesheet"
@@ -23,11 +23,13 @@
           href="{{ url_for('static', path='rising-dough.css') }}?v=rd7">
     <link rel="stylesheet"
           href="{{ url_for('static', path='auth.css') }}?v=auth1">
-    <script src="https://unpkg.com/htmx.org@2"></script>
+    <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}"></script>
     <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="rd min-h-screen" hx-ext="csrf">
+  <body class="rd min-h-screen"
+        hx-ext="csrf"
+        data-today-local="{{ today_local() }}">
     <a class="skip-link sr-only focus:not-sr-only" href="#main">Skip to content</a>
     <div class="rd-shell">
       <aside class="rd-rail">
@@ -71,71 +73,7 @@
     <script src="{{ url_for('static', path='js/kebab.js') }}?v=kebab" defer></script>
     <script src="{{ url_for('static', path='js/bulk-select.js') }}?v=rd1" defer></script>
     <script src="{{ url_for('static', path='js/rising-dough.js') }}?v=rd1" defer></script>
-    <script>
-      window.__TODAY_LOCAL__ = "{{ today_local() }}";
-      document.body.addEventListener("htmx:beforeSwap", function (evt) {
-        if (evt.detail.xhr && (evt.detail.xhr.status === 422 || evt.detail.xhr.status === 429)) {
-          // 429: throttled form re-render (T-D18a, ADR-0072)
-          evt.detail.shouldSwap = true;
-          evt.detail.isError = false;
-        }
-      });
-      document.body.addEventListener("htmx:afterRequest", function (evt) {
-        var detail = evt.detail || {};
-        var xhr = detail.xhr;
-        if (!xhr || xhr.status < 200 || xhr.status >= 300) return;
-        var form = evt.target;
-        if (!(form instanceof HTMLFormElement)) return;
-        if (!form.hasAttribute("data-reset-on-submit")) return;
-        var verb = (detail.requestConfig && detail.requestConfig.verb) || "";
-        if (["post", "put", "delete"].indexOf(verb.toLowerCase()) === -1) return;
-        form.reset();
-        form.querySelectorAll("input[data-default-today]").forEach(function (i) {
-          i.value = window.__TODAY_LOCAL__ || "";
-        });
-        form.querySelectorAll("[data-combobox-input]").forEach(function (i) {
-          i.value = i.dataset.initialLabel || "";
-        });
-        form.querySelectorAll("[data-combobox-value]").forEach(function (i) {
-          i.value = "";
-        });
-        var slide = form.closest(".slide-over-root");
-        if (slide && slide.parentElement) {
-          slide.parentElement.innerHTML = "";
-        }
-      });
-      /* Toast handler via HX-Trigger. */
-      document.body.addEventListener("toast", function (e) {
-        var d = e.detail || {};
-        var root = document.getElementById("toast-root");
-        if (!root) return;
-        var el = document.createElement("div");
-        el.className = "rd-toast rd-toast--" + (d.kind || "info");
-        el.innerHTML = '<span>' + (d.message || "") + '</span>';
-        if (d.undo_href) {
-          var btn = document.createElement("button");
-          btn.className = "rd-toast__undo";
-          btn.textContent = "Undo";
-          btn.addEventListener("click", function () {
-            htmx.ajax("POST", d.undo_href, { target: "body", swap: "none" });
-            el.remove();
-          });
-          el.appendChild(btn);
-        }
-        root.appendChild(el);
-        setTimeout(function () { el.remove(); }, 4000);
-      });
-      /* View Transitions default. */
-      if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        document.body.addEventListener("htmx:beforeSwap", function (evt) {
-          if (!evt.detail || !evt.detail.xhr) return;
-          var swap = evt.detail.target && evt.detail.target.getAttribute && evt.detail.target.getAttribute("hx-swap") || "";
-          if (swap.indexOf("transition:true") !== -1) {
-            evt.detail.doSwap = function (f) { document.startViewTransition(f); };
-          }
-        });
-      }
-    </script>
+    <script src="{{ url_for('static', path='js/app-init.js') }}?v=init1" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>
