@@ -34,7 +34,12 @@ write_status() { # $1=newest|"" $2=generation|"" $3=error|""
 }
 
 probe_once() {
-  if ! out="$(litestream generations -config "$CONFIG" "${PROBE_DB:-/data/budget.db}" 2>/dev/null)"; then
+  # Verified against litestream/litestream:0.3.14: a failed listing (permission,
+  # credentials, bucket) logs `level=ERROR msg="cannot list generations"` on
+  # STDOUT and still exits 0 with only the header. So both streams are read and
+  # any level=ERROR line counts as a failure.
+  if ! out="$(litestream generations -config "$CONFIG" "${PROBE_DB:-/data/budget.db}" 2>&1)" \
+    || printf '%s\n' "$out" | grep -q 'level=ERROR'; then
     write_status "" "" "generations_failed"
     return 0
   fi
