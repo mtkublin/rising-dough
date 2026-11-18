@@ -116,6 +116,48 @@ def test_create_valid_persists_and_triggers(
     assert row[1] == "Test"
 
 
+def _create_data(seeded: dict[str, int]) -> dict[str, str | int]:
+    return {
+        "operation_date": "2026-10-20",
+        "category_id": seeded["groc"],
+        "account_id": seeded["acc"],
+        "amount": "12.34",
+    }
+
+
+def test_create_off_ledger_refreshes_page_without_swap(
+    client: TestClient, seeded: dict[str, int]
+) -> None:
+    # T-D141: the Add overlay is opened from Today etc.; no table to swap into.
+    r = client.post(
+        "/transactions",
+        data=_create_data(seeded),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+
+
+def test_create_on_ledger_does_not_refresh_page(client: TestClient, seeded: dict[str, int]) -> None:
+    r = client.post(
+        "/transactions",
+        data=_create_data(seeded),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=actual"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in r.headers
+
+
+def test_new_form_targets_itself_not_ledger_table(
+    client: TestClient, seeded: dict[str, int]
+) -> None:
+    r = client.get("/transactions/new")
+    assert 'hx-target="#txn-form"' in r.text
+    assert "#txn-table" not in r.text
+
+
 def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.post(
         "/transactions",
