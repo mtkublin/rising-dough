@@ -122,3 +122,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0117 | [One Source for Shared GitHub Workflow Logic](0117-dry-github-workflows.md) (relates to ADR-0099, ADR-0111, ADR-0115, ADR-0116) |
 | 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
+| 0121 | [Path-Filtered Workflows Are Not Required Checks](0121-path-filtered-workflows-are-not-required-checks.md) (amends ADR-0099; relates to ADR-0115, ADR-0120) |

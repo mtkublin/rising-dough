@@ -1,6 +1,6 @@
 # ADR-0099: Release and Environment Policy
 
-- **Status**: Accepted
+- **Status**: Accepted; required merge checks amended by [ADR-0121](0121-path-filtered-workflows-are-not-required-checks.md) (path-filtered Terraform checks are not required)
 - **Date**: 2026-11-07
 - **Relates to**: ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098; forward-references ADR-0100 (CI credentials, written by T-D92)
 
