@@ -62,7 +62,7 @@ Expect: today's dated row with `ok` and matching counts.
 
 Scope: can the first `restore-drill.yml` dispatch (from `main`) pass on an ADR-0111 agent-managed drill host, with the v3.0.2 Litestream changes (ADR-0114)? Static review only; nothing was dispatched.
 
-**Verdict: no blocking bug found; the first run is expected to pass.** No change to `restore-from-prod.tpl`.
+**Verdict (superseded by run 44330551119 below): no blocking bug found by static review.** The first run then failed on the readiness probe.
 
 ### 1. Host agent vs restore-from-prod
 - `bp_agent.converge()` returns early when `applied-generation == config generation` and `docker inspect {{.Config.Image}}` of the app container equals the desired ref. A stopped container still inspects with the same image, so a converged agent does nothing while `app` + `litestream` are stopped. It never brings compose up on its own in that state.
@@ -100,3 +100,10 @@ Scope: can the first `restore-drill.yml` dispatch (from `main`) pass on an ADR-0
 - **Result**: pass
 - **Notes**: workflow run <url>; prod row counts read-only from prod via the operator; deviations: <none>.
 ```
+
+### Run 44330551119: failed, cause, fix
+- **Result:** the restore itself worked. Generation `2901fbd3873a6696` restored (snapshot plus WAL 0..2), `integrity_check=ok`, litestream and app started, migrations `applied: []`. The app was healthy throughout (`GET /ready 200` from inside the container every 30 s). Yet `start_stack_and_wait` ended with `ERROR: /ready did not report ok within 120s`, with no `ready.status=` line.
+- **Cause 1, wrong TLS name.** The probe used `https://localhost/ready` with `--resolve localhost:443:127.0.0.1 -k`. Caddy defines a site only for the host name, so SNI `localhost` has no certificate and the handshake failed (`-k` skips verification, not the missing certificate).
+- **Cause 2, wrong expected status.** The script required `.status == "ok"`, but `/ready` returns `{"status":"ready","db":"ok"}` (`web/routers/health.py`). It would have failed even with a working handshake.
+- **Fix (T-D40-FIX).** `restore-from-prod.tpl` now probes `https://<hostname>/ready` with `--resolve <hostname>:443:127.0.0.1` and normal TLS verification, so the Caddy proxy path is proven too. The `hostname` template variable is passed from `modules/compute/user_data.tf`. It requires `status == "ready"` and `db == "ok"`, and logs the curl error or the (truncated) body on every failed attempt, so the next failure is diagnosable. Tests: `tests/unit/deploy/test_restore_ready_check.py`.
+- **Next:** re-dispatch `restore-drill.yml` from `main` after this lands. The workflow's own verify step is fixed separately.

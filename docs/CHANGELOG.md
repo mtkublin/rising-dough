@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D40 restore drill readiness fix)
+- **Fix(T-D40): `restore-from-prod` readiness probe.** Run 44330551119 restored correctly but failed on `/ready`: it probed `https://localhost` (Caddy has no certificate for that SNI) and expected `status:"ok"` while `/ready` returns `{"status":"ready","db":"ok"}`. Now probes the real host name pinned to 127.0.0.1 with verified TLS, requires `ready` + `db ok`, and logs each failed attempt. `restore.md` and the T-D40 file updated.
+
 ## 2026-11-18 (T-D44 uptime monitoring closed)
 - **Docs/Ops(T-D44): UptimeRobot is the only uptime alarm; `uptime.yml` removed.** External monitor on `/health`, 5 min, test alert received. Accepted trade-off: no alert when host-agent convergence fails while `/health` is ok; release and rollback runs show that. Host-down covered by the external check. `disaster-recovery.md` and `operator-checklist.md` updated; T-D44 ✅.
 
