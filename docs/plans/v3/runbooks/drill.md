@@ -27,6 +27,10 @@ Every PR to `main` needs a passing `drill-gate` status on its head SHA (branch p
 
 The expiry is the server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_expires_at`). `drill-sweeper.yml` runs every 15 min, lists servers of the drill project via the Scaleway API and destroys the drill when the tag is expired, or when a server has no tag and is older than 8 h. It is a no-op if nothing is up. Re-dispatching `drill.yml` extends the TTL (new apply, new tag).
 
+## Restore drill job layout (T-D133, ADR-0117)
+
+`restore-drill.yml` (monthly, or dispatch) runs: `drill-lock` -> `image` (newest release, `host_release.py resolve-ref`) -> `apply` (`terraform.yml`, env `drill`) -> `restore-drill` (env `drill`, the only environment with `DEPLOY_SSH_PRIVATE_KEY`: join tailnet, wait for SSH, verify operator login, wait for the host agent status `ok`, restore, verify `/ready`, integrity, no extra DB copies; evidence artifact on failure) -> `destroy` (`terraform.yml`, `drill-teardown`, `always()` once apply was attempted) -> `verify-destroy` (state empty), `tailnet-cleanup` (reusable `tailnet-cleanup.yml`) and `report` (opens the `restore-drill` issue when image, apply, restore, destroy or verify-destroy failed or was cancelled; a drill-lock refusal opens none).
+
 ## Drill lock (T-D138)
 
 Every drill workflow (`drill.yml`, `restore-drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) starts with job `drill-lock` (ADR-0115); nothing else runs unless it passes. It fails with an explicit `::error::` when:

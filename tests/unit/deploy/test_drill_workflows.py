@@ -197,7 +197,7 @@ def test_restore_drill_uses_the_shared_terraform_jobs() -> None:
     # The restore job no longer runs Terraform itself (the gate stays on the apply job).
     local = "\n".join(str(s.get("run", "")) for s in jobs["restore-drill"]["steps"])
     assert "terraform " not in local
-    assert jobs["restore-drill"]["environment"] == "drill-teardown"
+    assert jobs["restore-drill"]["environment"] == "drill"
     assert jobs["verify-destroy"]["needs"] == "destroy"
     assert jobs["tailnet-cleanup"]["uses"] == "./.github/workflows/tailnet-cleanup.yml"
     assert set(jobs["report"]["needs"]) >= {"restore-drill", "destroy", "verify-destroy"}

@@ -9,7 +9,7 @@
 - [ ] **No `prod-deploy`** (ADR-0111, T-D129): the SSH deploy job is gone; a release is the approved `prod` apply. The environment was never created (checked 2026-11-16); if it exists, delete it. Once T-D129 is on `main`, delete the deploy secrets from `prod` (`DEPLOY_SSH_PRIVATE_KEY`, `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, variable `PROD_URL`).
 - [ ] **`prod-plan`** (ungated, used by PR plan leg and `key-expiry.yml`): no reviewers; deployment branches: all branches. It must hold only the **read-only** `ci-plan` key (ADR-0100). Never put write credentials or Litestream/age identities that decrypt prod data here beyond what the plan needs.
 - [ ] **`drill`** (apply; reviewer OPTIONAL since T-D98): drill.yml now starts only from a manual `workflow_dispatch`, which is already a human action. For a single-maintainer repository we recommend **no required reviewers** (the approval would only be you approving yourself). If you add Required reviewers (a second maintainer exists), every drill apply waits for approval. Deployment branches and tags: selected `main` plus the branches you dispatch gates from (or all branches, since only dispatch can start the drill and branch protection governs merges). Used only by the `apply` job of `terraform.yml` for drill and by `restore-drill.yml`.
-- [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2).
+- [ ] **`drill-teardown`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by every drill destroy path (`drill-sweeper.yml` scan + destroy, `drill-destroy.yml`, the `teardown` job of `drill.yml`) and by the drill `smoke` job, the restore drill's `drill-lock`, `verify-destroy` and `report` jobs and the reusable `tailnet-cleanup.yml`, so teardown never waits for approval. Holds the same drill secrets and variables as `drill` (section 2) except `DEPLOY_SSH_PRIVATE_KEY`, which lives only in `drill` (the restore drill's `restore-drill` job runs there).
 - [ ] **`drill-plan`** (ungated, ADR-0101): no reviewers; deployment branches: all branches. Used by the drill leg of the PR plan in `terraform.yml` (mirrors `prod-plan`). Same drill secrets as `drill`.
 - Private repositories: **Required reviewers on environments need GitHub Pro/Team** (or an org plan); on the free plan the setting is unavailable. Not needed with the recommended no-reviewer setup.
 - Only relevant if reviewers are configured on `drill`: a run waiting for approval holds the `drill` concurrency group, so the sweeper and `drill-destroy.yml` queue behind it. Approve or cancel pending drill runs promptly.
@@ -38,7 +38,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` | prod app key | prod app key | drill app key | Litestream identity; prod values read once from prod state, then from `bootstrap/ci` after a rotation (`key-rotation.md`) |
 | `RESTORE_READER_APPLICATION_ID` | x | x | | `bootstrap/ci` output `restore_reader_application_id`; prod only |
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
-| `DEPLOY_SSH_PRIVATE_KEY` | | | x | `restore-drill.yml` only (operator SSH over the tailnet); delete from `prod` (ADR-0111) |
+| `DEPLOY_SSH_PRIVATE_KEY` | | | `drill` only | `restore-drill.yml` job `restore-drill` only (operator SSH over the tailnet; runs in env `drill`, T-D133); not in `prod`, `drill-teardown`, `drill-plan` (ADR-0111) |
 
 | Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
@@ -74,7 +74,7 @@ Two OAuth clients. `budget-planner-automation` is used by every environment; `bu
 | Client | Scope | Tag assigned to the client | Goes to |
 |---|---|---|---|
 | `budget-planner-automation` | `auth_keys` write | `tag:automation` | `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` in `prod`, `prod-plan`, `drill`, `drill-teardown`, `drill-plan` |
-| `budget-planner-drill-cleanup` (T-D124) | `devices:core` write | `tag:drill` only | `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (used by the `tailnet-cleanup` jobs of `drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) and `drill` (keep in sync) |
+| `budget-planner-drill-cleanup` (T-D124) | `devices:core` write | `tag:drill` only | `TS_CLEANUP_CLIENT_ID` / `TS_CLEANUP_SECRET` in `drill-teardown` (used by the reusable `tailnet-cleanup.yml` (T-D133) called from `drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`, `restore-drill.yml`; formerly the `tailnet-cleanup` jobs of `drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) and `drill` (keep in sync) |
 
 - The client is assigned only `tag:automation` (not the machine tags directly). In the ACL (`tailscale-acl.hujson`), `tagOwners` lists `tag:automation` as owner of `tag:prod`, `tag:drill` and `tag:ci`; that is what lets the client mint auth keys for those tags (Terraform `tailscale_tailnet_key`, the workflows' `tailscale/github-action` with `tags: tag:ci`).
 - Rotate yearly; see [`tailscale-ssh.md`](tailscale-ssh.md).
