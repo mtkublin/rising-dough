@@ -4,6 +4,8 @@
 - **Ops: dead ADR-0111 secrets and variables deleted** (user-approved): `DEPLOY_SSH_PUBKEY` (prod, drill, drill-plan, drill-teardown), `DEPLOY_SSH_KNOWN_HOSTS`/`PROD_HOST`/`DEPLOY_SSH_PRIVATE_KEY` (prod), `DRILL_HOST` and `DRILL_URL` (3 drill envs), `PROD_URL` (prod). `DEPLOY_SSH_PRIVATE_KEY` kept in drill envs.
 - **Ops(T-D126): image-retention dry run failed** (run 44297239247): `ghcr_retention.py` 404 in `fetch_children`. T-D126 back to ◐; retention not enabled.
 - **Docs(T-D44): uptime cadence investigated.** Only 3 scheduled runs in ~28h: GitHub throttles `*/5` schedules. T-D44 back to ◐; external monitor recommended.
+## 2026-11-18 (T-D56 cut-over tooling)
+- **Feat(T-D56): prod-gated plaintext cleanup of the Litestream replica** (ADR-0112). New `litestream-plaintext-cleanup.yml` (dispatch only, `dry_run` default true, env `prod`) and `scripts/ci/litestream_cleanup.py`. It classifies objects by header (Litestream 0.3.14 keeps the same generation when age is enabled, so generations are mixed) and refuses without an encrypted snapshot and a green restore-log entry. Cut-over steps in `restore.md`. Not run yet. Open risk recorded on T-D56: the replicate config has no `age.identities`.
 
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.

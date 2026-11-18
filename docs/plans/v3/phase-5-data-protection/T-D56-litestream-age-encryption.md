@@ -4,7 +4,7 @@
 - **Parallel-safe**: no
 - **Depends on**: T-D21, T-D23, T-D41a
 - **Blocks**: T-D57
-- **References**: [ADR-0078](../../../adr/0078-v3-data-protection-quick-wins.md) §3, [ADR-0034](../../../adr/0034-v3-sqlite-replication-litestream.md)
+- **References**: [ADR-0078](../../../adr/0078-v3-data-protection-quick-wins.md) §3, [ADR-0112](../../../adr/0112-prod-gated-litestream-plaintext-cleanup.md), [ADR-0034](../../../adr/0034-v3-sqlite-replication-litestream.md)
 
 ## Context
 
@@ -31,3 +31,11 @@ The replica relies on provider SSE only: anyone with the bucket credential resto
 just test-prod-stack
 gh workflow run restore-drill.yml   # drill env
 ```
+
+## Status (2026-11-18): code done, cut-over pending (◐)
+
+- **Done**: version pin 0.3.14, replica config, identity path, restore helper, runbook, and the prod-gated cleanup workflow `litestream-plaintext-cleanup.yml` + `scripts/ci/litestream_cleanup.py` (ADR-0112). Cut-over steps: [`restore.md`](../runbooks/restore.md#cut-over-to-an-encrypted-replica-t-d56-adr-0078-3-adr-0112).
+- **Prod state (from code, not observed)**: prod Litestream has run the age config since the v3.0.1 release through the host agent (2026-11-18). Litestream 0.3.14 does **not** open a new generation when age is enabled (`replica.go`): the current generation continues, new snapshots and WAL segments are ciphertext, older objects stay plaintext. So the bucket most likely holds a mixed generation plus older plaintext generations. Unconfirmed until someone lists the bucket (the cleanup dry run does exactly that).
+- **Open risk (Terraform, not yet changed)**: the replicate config has `age.recipients` only. On restart Litestream re-reads its last WAL segment with `age.identities` unset, which fails once that segment is ciphertext. Needs: identities in the replicate config (`LITESTREAM_AGE_IDENTITY` in `litestream.env`) and a forced new generation at cut-over so no plaintext segment is ever read with identities set. Confirm in the prod logs first.
+- **Local prod-sim acceptance**: not run (Docker daemon not available to the agent). Still to do on a machine with Docker: `just test-prod-stack`, objects start with the age header, restore with identity passes `integrity_check`, restore without it fails.
+- **Remaining**: restore drill green against the encrypted replica (T-D40), then cleanup dry run, review, apply (needs the operator's approval click).

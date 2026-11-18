@@ -23,6 +23,7 @@ release published (tag vX.Y.Z)
 | `drill.yml` | dispatch only (`mode=gate`\|`explore`) | drill only; gate posts commit status `drill-gate`; env `drill` reviewers optional; smoke + teardown in `drill-teardown` |
 | `drill-sweeper.yml` | cron every 15 min, dispatch | destroys expired/orphan drills |
 | `drill-destroy.yml` | dispatch | manual teardown |
+| `litestream-plaintext-cleanup.yml` | dispatch (`dry_run`, default true) | env `prod` (approval); deletes plaintext Litestream objects from the prod replica after a green restore drill; logic in `scripts/ci/litestream_cleanup.py` (T-D56, ADR-0112) |
 | `restore-drill.yml` | monthly schedule, dispatch | concurrency group `drill` |
 | `uptime.yml` | cron every 5 min, dispatch | T-D44: prod `/health` + host agent status; opens one issue on failure, closes it on recovery; no secrets |
 

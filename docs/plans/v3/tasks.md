@@ -471,6 +471,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - **Status: code done; prod-sim + drill acceptance pending (needs Docker / drill env).** Verified: age is absent in Litestream 0.5.x (rejected since v0.5.1), so everything pins `litestream/litestream:0.3.14` (see ADR-0078 §3 addendum).
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
 - Order (2026-11-18): the restore drill in the cut-over is the T-D40 run, and no restore has been proven yet. Delete the plaintext generations only after that run is green against the encrypted replica.
+- 2026-11-18: `litestream-plaintext-cleanup.yml` (prod-gated, dry run by default, ADR-0112) and `scripts/ci/litestream_cleanup.py` written and unit-tested. Stays ◐ until the drill is green and the real cleanup has run with the operator's approval. Open: replicate config lacks `age.identities` (restart risk), see the task file.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 
 ### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a
