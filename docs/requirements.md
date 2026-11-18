@@ -32,7 +32,7 @@ A web application for personal budget planning and fortune (net-worth) tracking 
     - Current balance (derived from `opening_balance + Σ signed transactions`).
     - Transaction count, average inflow/outflow, last activity date.
 - **F2.4** Manual balance snapshots (user clicks "take snapshot") stored in `account_snapshots` as a pure audit record (does not alter the derived balance).
-- **F2.5** Reconciliation flow: user enters the true current balance from their bank; the system computes the delta and auto-inserts an adjustment transaction under the seeded "Reconciliation" category so the derived balance matches reality. The reconcile dialog is a slide-over with a visible close affordance per [ADR-0030](adr/0030-shared-form-interaction-primitives.md). **Liability accounts with a credit limit (T-D52, [ADR-0011](adr/0011-derived-balance-snapshots-reconciliation.md) amendment):** the dialog asks for the **available credit** the bank app shows (not the owed balance); the system derives the target balance as `used = credit_limit − available` (stored balance `−used`) and books the signed adjustment as usual. `available` must be in `0..credit_limit` (an over-limit or negative value is rejected with 422; overpayment/credit balance is not representable by the Available display). Liability accounts without a limit and all asset accounts keep entering the balance.
+- **F2.5** Reconciliation flow: user enters the true current balance from their bank; the system computes the delta and auto-inserts an adjustment transaction under the seeded "Reconciliation" category so the derived balance matches reality. The reconcile dialog is a slide-over with a visible close affordance per [ADR-0030](adr/0030-shared-form-interaction-primitives.md). **Liability accounts with a credit limit (T-D52, [ADR-0011](adr/0011-derived-balance-snapshots-reconciliation.md) amendment):** the dialog asks for the **available credit** the bank app shows (not the owed balance); the system derives the target balance as `used = credit_limit − available` (stored balance `−used`) and books the signed adjustment as usual. `available` must be in `0..credit_limit` (an over-limit or negative value is rejected with 422; overpayment/credit balance is not representable by the Available display). Liability accounts without a limit and all asset accounts keep entering the balance. **Planned change (§12, S1.10, [ADR-0125](adr/0125-sourdough-starter-rules.md) §7):** a zero-delta reconcile will record an `account_snapshots` row (`source = 'reconcile'`) instead of failing.
 - **F2.6** The Accounts tab shows, under each account's Balance, the signed **net of planned (not-yet-paid) payments** in the current fiscal period `[period_start, next income anchor)` (end-of-month only when no anchor / no next income) and the projected end-of-period balance (`balance + net`), in the account's currency. Net covers all categories (budgeted and unbudgeted), unpromoted planned rows including overdue ones, and unpromoted recurring occurrences (expanded from `max(next_due, period_start)`); transfers count `-` on source and `+` on destination. Hidden when net is 0; liability accounts show it too. The hero shows a "Planned" total over base-currency accounts only. See [ADR-0089](adr/0089-accounts-planned-net-per-account.md).
 
 ### 2.3 Planned Transactions and Recurring Rules (separate surfaces — [ADR-0038](adr/0038-recurring-standalone-lifecycle.md))
@@ -550,19 +550,47 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 ---
 
-## 12. Savings Goals + Sourdough Starter (idea, added 2026-11-17)
+## 12. Savings Goals + Sourdough Starter (added 2026-11-17; scoped 2026-11-18)
 
-**Status: idea, not scheduled.** Nothing here is in scope until ADRs are written and this section is promoted to a scope section. Notes and open questions: `docs/plans/gamification/`.
+Two features in two releases: savings goals first (useful on their own), then a sourdough-starter layer that rewards good money habits. Plan: `docs/plans/gamification/` (T-GS00..). Decisions: [ADR-0124](adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack). Designer brief: `docs/design/gamification-brief.md`.
 
-### 12.1 Idea
+### 12.1 Savings goals (release 1, ADR-0124)
 
-- **Savings goals:** target amount, deadline, linked account(s), progress, and a projection to the deadline. The app has no goal mechanism yet.
-- **Sourdough starter:** a Tamagotchi-style character fed by one-time setup milestones (first account, first recurring payment, …), regular-logging and reconciliation habits, and goal progress. It goes dormant when neglected and never dies.
+- **G1.1** Two goal kinds, strictly per user: **envelope** (progress = Σ allocations) and **net worth** (progress = `services.fortune` `net_base`). Fields: name, target amount, currency (default base; immutable), deadline, colour (category presets), optional note, manual sort order. Kind is immutable.
+- **G1.2** Deadline optional for envelopes; **required** for net-worth goals and at most today + 60 months.
+- **G1.3** Envelope **allocations** earmark part of a real asset account's balance; balances do not change. Dated event ledger (allocate +, release −), editable and soft-deletable with audit. One goal may draw from several accounts and currencies; liability accounts rejected (422).
+- **G1.4** `free = balance − Σ allocations` per account. An allocate that would make `free < 0` is rejected (422); a release beyond the goal's allocation on that account is rejected.
+- **G1.5** Spending below the allocations is **flagged, never auto-changed**: the account shows "over-allocated by X", affected goals show **unbacked**.
+- **G1.6** Progress converts to the goal currency at the latest cached FX rate.
+- **G1.7** Projection: net worth reads the fortune forecast (F5.2) at the deadline month (projected vs target, on track / behind, monthly gap). Envelope with deadline: required per month = remaining ÷ months left, on track if the trailing 90-day net allocation pace meets it. Envelope without deadline: ETA from that pace, or "no recent saving".
+- **G1.8** **Reached** is derived and reversible. The first reach is persisted (`first_reached_at`). **Archive** hides a goal; for an envelope it releases the remaining allocations (audited). Target, deadline, name, colour and note are editable (audited). No limit on goal count.
+- **G1.9** UI: **Plan → Goals** tab (list, detail, new/edit, allocate, release, archive); `/today` goals card (top 3 by order); `/accounts` shows allocated / free and the over-allocated flag.
+- **G1.10** "Can I afford it?" (ADR-0056 §3) additionally **warns** when the amount exceeds the total free balance of asset accounts (base currency). Left-per-day is unchanged.
+- **G1.11** Balances, budget, forecast and analytics are not affected by allocations.
 
-### 12.2 Constraints (when scheduled)
+### 12.2 Sourdough starter (release 2, ADR-0125)
 
-- After the §10 redesign ships. Goals first, starter second.
-- Reward consistency, accurate reconciliation and goal progress, never transaction volume or spending.
-- Starter state is derived from data at render time (no offline background jobs, per v4 §7.2). Only unlocked milestones are persisted.
-- Animation on the server-rendered stack (ADR-0112): CSS, SVG and the Web Animations API, no SPA framework.
-- Goal amounts and names are encrypted columns under §7.2. Goals, milestones and the starter preference are per user. The starter can be hidden.
+- **S1.1** A starter whose **health (0–100)** is derived at render time from fading feed events plus state signals: saving week (25 / 14 d), check-in day (4 / 7 d), accurate reconcile within 1 % (10 / 30 d), all accounts reconciled within 30 d (state, 15), nothing overdue with 3-day grace (state, 15), fiscal period within total budget (30 / 30 d), fiscal-period net-worth growth at equal FX (20 / 30 d), setup milestones (10 / 14 d), achievements (30 / 30 d), goal reached (40 first, 20 later / 30 d), welcome (30 / 14 d). Starting tuning; constants in one module.
+- **S1.2** States: dormant (no event for 14 days), sleepy < 25, bubbly 25–49, rising 50–79, overflowing ≥ 80. No death, no negative events; any event ends dormancy.
+- **S1.3** Check-in: a day counts if it has a user ledger entry with that operation date or a "nothing to log" check-in for it, recorded at any time (points follow the fade). Check-ins can be undone.
+- **S1.4** Within-budget uses the period **total** and a write-once **baseline**: a budget raise after the period started does not count (`spent ≤ min(baseline, final total)`).
+- **S1.5** 14 one-time milestones, persisted (deleting the source row does not revoke them): first account, own category, ledger entry, recurring rule, planned payment, budget, reconciliation, goal, allocation, passkey; first goal reached, first period within budget, first no-spend check-in, four consecutive healthy weeks.
+- **S1.6** Existing users at launch: already-satisfied milestones unlock retroactively with original dates and 0 points, plus one welcome feed.
+- **S1.7** **Bakery shelf**: one loaf per goal ever reached (goal colour), kept when the goal is archived.
+- **S1.8** UI: `/today` starter card (state, name, recent feeds, check-in); rail badge on every page linking to the starter detail (milestones, feeds); the badge animates on any feed; milestones toast; routine feeds do not toast.
+- **S1.9** Preferences: "Show the starter" (default on; hides card, badge and toasts; goals and the shelf stay; state keeps computing) and the starter's name.
+- **S1.10** Amends F2.5: a reconcile with zero delta records an `account_snapshots` row (`source = 'reconcile'`) and says "Already in sync" instead of failing.
+
+### 12.3 Non-functional and constraints
+
+- After the §10 redesign ships; order against v4 is open. The schema is v4-ready either way: `goals.name`, `goals.target_amount`, `goals.note`, `goal_allocations.amount` and `budget_period_baselines.total_amount` are encrypted columns under §7.2, with `goals.name_bidx` as a blind index. If they land before v4 Phase 3 they join T-E08 / T-E09 / T-E12.
+- No background jobs: all state is derived at render from data, except persisted milestones, check-ins, budget baselines, starter UI bookkeeping and first-reach timestamps.
+- UI is built only from the designer handoff extending `docs/design/rising-dough-frontend/` (ADR-0126). Backend tasks are not gated on it; UI tasks are.
+- Animation: CSS, inline SVG and the Web Animations API; `transform` / `opacity` only; `prefers-reduced-motion` respected; no Lottie, Rive, GIF or video; §10.2 budgets hold.
+- The starter compute on every full page stays within the §10.2 render budgets and the v4 p95 budget.
+
+### 12.4 Non-goals
+
+- Shared or household goals; recurring or automatic allocations; goals linked to whole accounts; tagging transactions to goals.
+- Starter levels or growing jars, leaderboards, social sharing, push or e-mail notifications, sound.
+- Resetting the starter or its milestones.

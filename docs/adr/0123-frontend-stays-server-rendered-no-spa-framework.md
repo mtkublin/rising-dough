@@ -1,7 +1,8 @@
-# ADR-0112: Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs
+# ADR-0123: Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs
 
 - **Status**: Accepted
 - **Date**: 2026-11-17
+- **Renumbered**: 2026-11-18, from ADR-0112 (number collided with main's ADR-0112 when the branch was merged).
 - **Relates to**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) (the redesign builds on this stack), [ADR-0027](0027-frontend-toolchain-hardening.md) (frontend toolchain), [ADR-0080](0080-v4-envelope-encryption-key-hierarchy-and-sessions.md), [ADR-0081](0081-v4-field-level-encryption-scope-and-query-model.md) (server-side decryption), requirements §10.2 (budgets), §12 (savings goals + sourdough starter idea)
 
 ## Context

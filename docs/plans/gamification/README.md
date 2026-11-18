@@ -1,66 +1,81 @@
 # Savings goals + sourdough starter (gamification)
 
-> **Status**: idea, not scheduled. No feature ADR, no tasks yet. Captured 2026-11-17.
-> **Stack decision**: [ADR-0112](../../adr/0112-frontend-stays-server-rendered-no-spa-framework.md) (no SPA framework; animation via CSS/SVG/Web Animations API).
-> **Requirements**: [`docs/requirements.md` §12](../../requirements.md#12-savings-goals--sourdough-starter-idea-added-2026-11-17).
-> **Next step**: grill the open questions below, then write the ADRs and `tasks.md`.
+> **What**: savings goals (envelope allocations and net-worth goals), then a sourdough starter that rewards good money habits, with a bakery shelf of reached goals.
+> **Requirements**: [`docs/requirements.md` §12](../../requirements.md#12-savings-goals--sourdough-starter-added-2026-11-17-scoped-2026-11-18).
+> **Decisions**: [ADR-0124](../../adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](../../adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](../../adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0123](../../adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack, no SPA).
+> **Designer brief**: [`docs/design/gamification-brief.md`](../../design/gamification-brief.md) (shared with the designer as a page).
+> **Tasks**: [`tasks.md`](tasks.md) (T-GS00…T-GS21).
+> **Status**: scoped 2026-11-18. Not started. Brief sent to the designer.
 
-## Idea
-
-A sourdough-starter character, Tamagotchi-style, that the user "feeds" by:
-
-- completing one-time setup milestones (first account, first recurring payment, …);
-- keeping good habits (logging regularly, reconciling);
-- saving towards goals. The app has no goal-setting mechanism yet.
-
-It fits the product: the app is called *Rising Dough* and the redesign is sourdough-themed (§10). A starter has to be fed regularly or it goes flat, which is the habit we want users to build.
-
-## When
-
-After the sourdough redesign (§10) ships. §10.4 rules out new features during the migration. The character's art comes from the redesign's design system.
+## Sequencing
 
 ```
-redesign ─ (v4 Phase 2) ─ savings goals ─ starter
+redesign released (T-UR17) ─┬─ R1 goals backend ── R1 goals UI ── R1 release ─┬─ R2 starter backend ── R2 starter UI ── R2 release
+                            │                         ▲                         │                           ▲
+designer: brief ─ drop 1 (goals) ─────────────────────┘   drop 2 (starter) ──────┴───────────────────────────┘
+v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 ```
 
-The timing against v4 Phase 2 is open (see the constraints below).
+- Code starts after the redesign is released (§10.4 freezes features during the migration).
+- The order against v4 is open. If goals land before v4 Phase 3, the goal columns are added to T-E08 / T-E09 / T-E12 (task T-GS03 records that in the v4 plan).
+- Backend tasks are not gated on the designer. UI tasks wait for the accepted handoff drop (ADR-0126 §7).
 
-## Shape: two features, goals first
+## Phases
 
-1. **Savings goals.** This is useful as a finance feature on its own: target amount, deadline, linked account(s), progress, and a projection to the deadline.
-2. **Starter.** A layer on top that reacts to goal progress and a few habit signals.
+| Phase | Tasks | What | Gate |
+|---|---|---|---|
+| 0 — Entry | T-GS00 | preconditions, branch, handoff drop status | redesign released |
+| 1 — Goals backend | T-GS01..T-GS05 | schema, domain, services, afford warning, routes + contract tests | contract tests green |
+| 2 — Goals UI | T-GS06..T-GS08 | Goals tab and dialogs, Accounts + Today additions | handoff drop 1 accepted |
+| 3 — R1 release | T-GS09 | validation, release | `drill-gate` green |
+| 4 — Starter backend | T-GS10..T-GS15 | tables, pure scoring, milestones, baseline, zero-delta reconcile, check-in + badge routes | contract tests green |
+| 5 — Starter UI | T-GS16..T-GS19 | starter card, badge + detail, shelf, preferences, motion | handoff drop 2 accepted |
+| 6 — R2 release | T-GS20..T-GS21 | tuning hooks, validation, release | `drill-gate` green |
 
-Without goals, the starter can only react to setup milestones and logins, so the novelty wears off quickly. Ship goals first.
+## Design summary
 
-## Design principles
+### Goals (ADR-0124)
 
-- **Reward the right behaviour.** "Log payments often" invites fake or split entries. Reward consistency (activity on N distinct days a week), reconciliations that match the real balance, and goal progress. Never reward more spending or more transactions.
-- **No death, no guilt.** Punishment backfires with money: people who feel bad about their finances stop opening the app. A neglected starter goes *dormant* (flat, sleepy jar) and revives after one feed.
-- **One-time milestones vs ongoing health.** Setup milestones fire once. The ongoing loop is saving and logging regularly, so the starter is never "complete" after the first week.
-- **Opt-out.** A preference to hide the starter. Goals stay.
+- **Kinds**: `envelope` (earmark money in real asset accounts, many goals per account, many accounts per goal) and `net_worth` (the existing fortune `net_base`).
+- **Allocations**: dated event ledger, + allocate / − release, soft delete + audit. Rejected if they would make an account's free balance negative. Later shortfalls are flagged ("over-allocated", "unbacked"), never auto-shrunk.
+- **Currency**: goal currency, latest FX.
+- **Projection**: net worth from the fortune forecast at the deadline (≤ 60 months); envelopes from required pace and the trailing 90-day pace / ETA.
+- **Lifecycle**: reached is derived (first reach persisted); archive releases remaining allocations; no recurring allocations.
+- **Placement**: Plan → Goals tab, Today card, allocated/free on Accounts, afford warning over free balance.
 
-## Architecture notes
+### Starter (ADR-0125)
 
-- **Derived, not stored.** The starter's state is computed by a pure function, e.g. `starter_state(goals, activity, milestones, today) -> StarterState`, in line with ADR-0021 (functional-first). This means no backfill for existing users, no drift, and soft-deletes and corrections show up automatically.
-- **Only unlocked milestones are persisted** (enum + timestamp, plaintext), so deleting the first account does not revoke the milestone. Soft delete + audit log per ADR-0019.
-- **v4 encryption constrains the design (ADR-0080, ADR-0081).** Amounts are encrypted, and aggregates run in Python on decrypted rows while a session is live. So there is no background job computing hunger or goal progress while the user is offline: everything is computed at render time from plaintext dates and timestamps, plus amounts decrypted in-session. Goal target amounts and names join the encrypted-column list in §7.2. Design the goals schema for this from day one, whether it lands before or after v4 Phase 2.
-- **Multi-user (ADR-0061):** goals, milestones and the starter preference are per user.
-- **Multi-currency (ADR-0006):** a goal has its own currency. Progress across accounts in other currencies converts at historical FX rates, the same way the existing aggregates do.
-- **Art and motion.** Starter states (dormant, bubbly, rising, overflowing) are drawn by the designer within the sourdough design system. Animation follows ADR-0112: CSS state classes, HTMX swap/settle classes, View Transitions, SVG + Web Animations API. Animate only transform and opacity, and respect `prefers-reduced-motion`. Stay inside the §10.2 JS/CSS budgets. A Lottie/Rive runtime needs a lazy-loaded, per-page budget exception recorded in the starter ADR.
+- **Health** 0–100 from fading feed events + state signals, computed at render. Starting tuning in `domain/starter_tuning.py`.
+- **Signals**: saving week, check-in day (entry or "nothing to log"), accurate reconcile, all accounts in sync, nothing overdue, within total budget (baseline-protected), net-worth growth at equal FX, milestones, goal reached, welcome.
+- **States**: dormant / sleepy / bubbly / rising / overflowing. No death.
+- **Persisted**: milestones, check-ins, budget baselines, starter UI bookkeeping. Everything else is derived.
+- **Feedback**: `HX-Trigger: starter-changed` → badge refetch → `data-fed` animation; milestone toasts only.
+- **Opt-out**: hide toggle, user-named starter.
 
-## Open questions
+### Encryption (v4, §7.2)
 
-1. What exactly counts as a "feed"? List the milestones and habit signals, with their weights.
-2. How fast does the starter decay, and what thresholds trigger dormancy?
-3. Goals: one account per goal, several accounts, or a virtual envelope within an account?
-4. Goal progress: account-balance delta since the goal was created, or explicit contributions (transfers tagged to the goal)?
-5. Multi-currency goals: does the goal currency have to match the linked accounts?
-6. Is there a level or progression system (bread types, jar sizes), or just a health state?
-7. Where does the starter appear: `/today` only, or in the global chrome?
-8. Timing against v4 Phase 2: build goals before it (and encrypt them at Phase 2) or after it?
+| Table | Encrypted | Plaintext |
+|---|---|---|
+| `goals` | `name`, `target_amount`, `note` (+ `name_bidx` blind index) | ids, `kind`, `currency`, `color`, `deadline`, `sort_order`, `first_reached_at`, `archived_at`, timestamps |
+| `goal_allocations` | `amount` | ids, FKs, `op_date`, timestamps |
+| `budget_period_baselines` | `total_amount` | ids, `year`, `month`, timestamps |
+| `starter_milestones`, `starter_checkins`, `starter_state` | — | all (enums, dates, timestamps) |
+| `account_snapshots.source` | — | enum |
+| preferences `show_starter`, `starter_name` | `value` (as all preferences) | key |
 
-## Docs to write when scheduled
+## Guardrails
 
-- ADR: savings goals data model (schema, progress semantics, encryption columns, FX).
-- ADR: starter rules (feed signals, decay, milestones, derived-state function, opt-out).
-- `docs/requirements.md` §12 promoted from idea to scope; `tasks.md` in this folder.
+- **Docs first** (CLAUDE.md): any change to a rule here goes through ADR-0124/0125 (amend or supersede) before code.
+- **UI from the handoff only** (ADR-0126, ADR-0107). Never invent markup or art; missing states go back to the designer.
+- **Contract tests first** for every new route; the redesign's per-surface loop for every new screen.
+- **Never reward spending or volume.** Any new signal must be reviewed against ADR-0125's principles in an ADR amendment.
+- **Prod DB hands off.** Scratch DBs or `data/demo.sqlite` only. The demo builder (`data/scripts/build_demo_db.py`) gets goals and allocations so demos have data (T-GS05).
+- **Frontend validation**: `frontend-visual-audit` at 1440 / 1024 / 375 on every touched route, both themes.
+- **Release** only through the ADR-0099 pipeline; each release needs a green `drill-gate`.
+- **Orchestrator mode** (ADR-0066) is optional for Phases 1 and 4 (`[P]` tasks are conflict-free).
+
+## Open items (not blocking)
+
+- Weights and thresholds are a starting tuning; T-GS21 records the first review after a month of R2 use.
+- Order against v4: decide when the redesign ships.
+- Designer deliverables and timing: tracked in T-GS00 and T-GS16.
