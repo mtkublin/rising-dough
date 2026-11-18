@@ -25,6 +25,7 @@ The image copies only `pyproject.toml`, `uv.lock`, `src`, `migrations` and `depl
 - `pull_request_target` is only safe if no PR code runs, so: the checkout is the base SHA with `persist-credentials: false`; the file list comes from `gh api --paginate`; the status goes on `pull_request.head.sha`; PR-controlled values (numbers, SHAs) reach scripts only through `env:`, never interpolated into `run:`; file names are read from files and stdin. Tests enforce this.
 - A real gate run (`drill.yml`, `mode=gate`) can always overwrite the status for a SHA, since the skip never posts a terminal failure that would stick.
 - Threat model: single-owner repository with no outside contributors holding write access; a malicious change merged to `main` itself is out of scope.
+- Amendment 2026-11-18 (T-D147-FIX2): the checkout ref is `github.event.pull_request.base.ref` (current tip of `main`), not `base.sha`. A PR opened before this workflow or the classifier existed recorded an older base SHA, so the checkout lacked `scripts/ci/drill_gate_skip.py` and the job failed (PR #29, run 44396176171). The tip of `main` is still trusted base-branch code; no PR code is checked out, so the threat model is unchanged. If the classifier is missing anyway, the step logs "classifier not on base; real gate required", verdict `gate`, posts no status and exits 0.
 - The PR that first adds the workflow gets no run (the base has no workflow yet), so it needs a real gate.
 
 ## Alternatives rejected

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D147-FIX2 skip workflow base tip)
+- **CI(T-D147): `drill-gate-skip` checks out `base.ref` (tip of `main`) instead of `base.sha`**, so PRs opened before the classifier landed no longer fail with a missing `drill_gate_skip.py` (PR #29, run 44396176171). Missing classifier now yields verdict `gate`, exit 0, no status. ADR-0121 amended.
+
 ## 2026-11-18 (T-D41 restore drill from main)
 - **Docs(T-D41): restore drill from `main` recorded** (run 44387134093, pass, entry posted to restore-log issue #28; T-D41 ✅). The same run is the T-D138 positive leg: `drill lock` passed after the explore drill was destroyed.
 
