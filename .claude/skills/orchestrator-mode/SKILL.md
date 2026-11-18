@@ -22,8 +22,8 @@ and reports. See [ADR-0066](../../../docs/adr/0066-orchestrator-mode-skill.md).
   into item branches when resolving conflicts (§5).
 - Edit conflict hunks during a merge. Only the `<<<<<<<`/`>>>>>>>` regions, and only
   to reconcile both sides. Semantic conflicts go back to a subagent (§5).
-- Run verification that does not change source: `just ci`, `just test`, `just lint`,
-  `just typecheck`.
+- Run verification that does not change source: `just test`, `just lint`,
+  `just typecheck`. No local full `just ci` per batch (ADR-0097 amendment, 2026-11-18).
 - Remove merged worktrees and delete merged item branches.
 - Update `TaskCreate`/`TaskUpdate` progress tracking.
 
@@ -34,7 +34,7 @@ and reports. See [ADR-0066](../../../docs/adr/0066-orchestrator-mode-skill.md).
   `ruff --fix`, scripts that write files).
 - `git commit` of anything other than a merge commit. No `git rebase`,
   `git cherry-pick`, `git reset --hard`, or force-push on shared branches.
-- "Quick fixes" after a merge. If a check fails on the main work branch, dispatch
+- "Quick fixes" after a merge. If CI fails on the main work branch, dispatch
   a fix agent.
 - Pushing, opening PRs, or touching `main` unless the user asks.
 - Anything that touches `data/budget.sqlite` (see CLAUDE.md "Databases").
@@ -197,10 +197,13 @@ early merges keep later conflicts small.
      agent into that worktree with the conflict context.
    - Resolving commits run the pre-commit hooks (affected tests included); then repeat
      step 2. The merge into `<MAIN>` is now clean.
-4. No batch `just ci` is required (ADR-0120): each item's commits already ran the affected
-   tests in the pre-commit hook, and the PR to `main` runs the full suite in GitHub CI. You
-   may still run `just ci` on `<MAIN>` when a batch looks risky (several items touching the
-   same area). If it fails, dispatch a fix agent. Do not fix it yourself.
+4. No local full `just ci` per batch or per PR (ADR-0120, ADR-0097 amendment 2026-11-18):
+   each item's commits already ran the affected tests in the pre-commit hook, and GitHub
+   `ci.yml` on the PR plus the gate drill's `just ci` job run the full suite. You may still
+   run `just ci` on `<MAIN>` when a batch looks risky (several items touching the same area).
+   Before opening or updating a PR, if the batch touched e2e-relevant code, run
+   `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser).
+   If CI fails, dispatch a fix agent. Do not fix it yourself.
 5. **Prune at once:**
 
    ```sh
@@ -213,7 +216,7 @@ early merges keep later conflicts small.
 
 ## 6. Finish
 
-- All items merged, `just ci` green on `<MAIN>`, no stray worktrees or branches.
+- All items merged, GitHub CI green on `<MAIN>`, no stray worktrees or branches.
 - Report to the user: items done (id, merge sha, model used), CI result, frontend audit summaries
   from agents, deferred or blocked items, follow-ups.
 - Do not push or open a PR unless asked.

@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-18
-- **Amends**: [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) §4 (gates table), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) §§1, 2, 5, 7 (item-agent checks, batch CI, single-agent handoff, fast-subset hook)
+- **Amends**: [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) §4 (gates table), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) §§1, 2, 5, 7 (item-agent checks, batch CI, single-agent handoff, fast-subset hook); compatible with and extends the ADR-0097 amendment of 2026-11-18 (orchestrator pre-PR checks) to single-agent work
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0027](0027-frontend-toolchain-hardening.md)
 
 ## Context
@@ -23,7 +23,7 @@
    - Single-agent work: hand off when the commit hooks are green. `just ci` stays available and may be run by choice.
    - Orchestrator: no batch `just ci` on the main work branch. Item agents' checks are the commit hooks; `just lint-changed` / `just test-changed` against the main work branch are available for checking before a commit. Terraform checks still run by hand when Terraform changes (no hook covers them).
 4. **The full gate is GitHub CI on the PR to `main`** (`ci.yml`: lint, `mypy --strict`, full suite, 90% coverage) plus the `drill-gate` status (ADR-0099). Unchanged.
-5. **e2e stays out of GitHub CI** for now (installing Chromium costs about 30–60 s against the 2-minute job target). Affected e2e tests run on commit through testmon, which tracks the uvicorn subprocess.
+5. **e2e stays out of GitHub CI** for now (installing Chromium costs about 30–60 s against the 2-minute job target). Affected e2e tests run on commit through testmon, which tracks the uvicorn subprocess. The ADR-0097 amendment of 2026-11-18 (written in parallel) also stays: before opening or updating a PR whose changes touched e2e-relevant code, run `uv run pytest tests/e2e -q --no-cov` locally.
 6. Unchanged: never `--no-verify`; the `frontend-visual-audit` skill for template / CSS / HTMX changes; the prod-DB rules.
 
 ## Consequences

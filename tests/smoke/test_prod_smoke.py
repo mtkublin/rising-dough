@@ -273,10 +273,16 @@ def test_post_deploy_journey(browser: Browser, smoke_env: dict[str, str]) -> Non
         assert resp.ok, f"/debug/audit-tail -> {resp.status}"
         entries = resp.json()["entries"]
         other = [
-            e for e in entries if e["entity_type"] == "transactions" and e["new"] == "[other-user]"
+            e for e in entries if e["entity_type"] == "transaction" and e["new"] == "[other-user]"
         ]
         assert other, "second user's transaction audit row missing or payload not scoped"
-        assert marker not in json.dumps(entries), "other user's payload leaked via audit tail"
+        # The smoke user's own `users` rows (create/delete by the admin) carry the email,
+        # which contains the marker. The admin manages that user and may see it, so only
+        # non-`users` entries are checked for leaks.
+        non_user_entries = [e for e in entries if e["entity_type"] != "users"]
+        assert marker not in json.dumps(non_user_entries), (
+            "other user's payload leaked via audit tail"
+        )
         assert "password_hash" not in resp.text()
 
         # 12. Cleanup: soft-delete the smoke user.

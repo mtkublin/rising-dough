@@ -1,12 +1,12 @@
 # Runbook — Restore from Litestream
 
-> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill`. Every host placeholder below means that name.
+> **SSH access (ADR-0094):** port 22 is closed to the internet. Join the tailnet (Tailscale app on your machine, see [`tailscale-ssh.md`](tailscale-ssh.md)) and use the MagicDNS names `budget-planner-prod` / `budget-planner-drill-<run id>`. Every host placeholder below means that name.
 
 Reconstruct `/data/budget.db` from the Scaleway Object Storage replica.
 
 ## Context
 
-Litestream streams WAL segments to `s3://budget-planner-prod-pl-waw/db/` every 10 s and takes a daily full snapshot (ADR-0034 §3). Retention is 30 days of WAL + snapshots, giving a 30-day point-in-time recovery window. RPO target is < 15 s; RTO target is < 60 s for the restore itself, < 60 min end-to-end from a cold VM (ADR-0032 §9).
+Litestream streams WAL segments to `s3://budget-planner-prod-pl-waw/db/` every 10 s and takes a daily full snapshot (ADR-0034 §3). Retention is 30 days of WAL + snapshots, giving a 30-day point-in-time recovery window. That window has a gap from 2026-11-07 to 2026-11-18; see the incident record below. RPO target is < 15 s; RTO target is < 60 s for the restore itself, < 60 min end-to-end from a cold VM (ADR-0032 §9).
 
 This runbook is for restoring **into the current prod host** (DB corruption, accidental destructive write, bad migration). For restoring into a brand-new VM, use [`disaster-recovery.md`](disaster-recovery.md) instead — it wraps this restore inside a full re-provision.
 
@@ -14,7 +14,7 @@ The monthly automated drill (`.github/workflows/restore-drill.yml`) exercises a 
 
 ### Drill helper: `restore-from-prod`
 
-The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, rendered from `terraform/cloud-init/bin/restore-from-prod.tpl` and written by the host agent as a managed file in `bp-config` (ADR-0111, T-D41a). The workflow runs it as `ssh operator@budget-planner-drill 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` reports `"status":"ok"`.
+The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`, rendered from `terraform/cloud-init/bin/restore-from-prod.tpl` and written by the host agent as a managed file in `bp-config` (ADR-0111, T-D41a). The workflow runs it as `ssh operator@budget-planner-drill-<run id> 'sudo /usr/local/bin/restore-from-prod'`. It stops `app` + `litestream`, moves the local DB (and `-wal`, `-shm`, Litestream meta dir) to `/data/pre-restore-<ts>/`, restores the latest state of `s3://budget-planner-prod-<region>/db` into `/data/budget.db`, checks `PRAGMA integrity_check`, chowns to uid 10001, runs `docker compose up -d litestream app` and waits until `/ready` over the host name (pinned to loopback, TLS verified) reports `"status":"ready"` and `"db":"ok"`.
 
 - **Credential**: the key of the `restore-reader` IAM application (read-only on the prod project, listed in the prod bucket policy; ADR-0092; lives in `terraform/bootstrap/ci` since ADR-0104; rotate there under break-glass, see `key-rotation.md`, then update the secrets), passed as `TF_VAR_scw_access_key_restore` / `TF_VAR_scw_secret_key_restore` (workflow secrets `PROD_REPLICA_RO_ACCESS_KEY` / `PROD_REPLICA_RO_SECRET_KEY`). The host agent writes it from `bp-config` to `/etc/budget-planner/restore-source.env` (0600, root). It is empty on prod and the helper does not exist there.
 - **Age identity (T-D56)**: the prod replica is age-encrypted (ADR-0078 §3). The helper reads the identity from `/etc/budget-planner/litestream-age.key` (0600, root; Terraform `litestream_age_identity`, which on the drill env must be the **prod** identity) and exports it to the restore container. It refuses to run if the file is missing. **A lost identity means the replica is unrecoverable.**
@@ -72,6 +72,10 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
      restore -config /etc/litestream.yml -o /data/budget.db /data/budget.db
    ```
    Point-in-time: add `-timestamp 2026-11-15T08:00:00Z` before the final path argument. To prove the encryption, the same command with `LITESTREAM_AGE_IDENTITY` unset must fail.
+   `litestream restore` leaves `/data/budget.db.tmp-wal` (empty) and `/data/budget.db.tmp-shm` behind. Remove them, but only if the WAL is empty; a non-empty tmp-wal means the restore is incomplete, so stop and investigate:
+   ```sh
+   sudo test ! -s /data/budget.db.tmp-wal && sudo rm -f /data/budget.db.tmp-wal /data/budget.db.tmp-shm
+   ```
 7. Fix ownership and permissions back to the `app` uid:
    ```sh
    sudo chown "$(id -u app):$(id -g app)" /data/budget.db
@@ -154,16 +158,75 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 3. Start Litestream, then app. Verify as above.
 4. Rotate the read-only credential and triage the Litestream bucket contents before attempting another restore.
 
+## Incident record: replication stall, 2026-11-07 to 2026-11-18 (T-D136)
+
+- **Symptom:** prod WAL replication stalled from 2026-11-07T17:52Z with `cannot determine replica position: lz4: bad magic number`. Litestream only logged and retried, so the container stayed "up".
+- **Cause:** the replicate config had age recipients but no identity, so the restart path could not read back the age-encrypted last segment (ADR-0114).
+- **RPO during the stall:** daily snapshots continued. The last snapshot before the fix was 2026-11-17 17:57Z, so RPO was at most about 24 h. Point-in-time recovery inside the stall window is not available.
+- **Fix:** release `v3.0.2` (ADR-0114, T-D136). On 2026-11-18T14:37Z the litestream entrypoint logged "forcing a new generation (one-time, ADR-0114)". Litestream opened generation `2901fbd3873a6696`, wrote a snapshot, and has written WAL segments every 10 to 60 s since, with no errors. A second start did not force again (the marker works).
+- **Verified:** on prod, 2026-11-18, by the operator. The restore drill ran green against this generation on 2026-11-18 (run 44351020259, first `restore-log.md` entry).
+
+## Replication stall: detect and recover (T-D144, ADR-0119, ADR-0114)
+
+The external monitor on `https://budget.rising-dough.eu/health/replication` (UptimeRobot, 5 min) goes red when the newest object in the prod replica is older than 26 h, or the probe stopped reporting. `/health` and `/ready` do not notice a stall. All commands below are single lines from the operator laptop.
+
+**1. Detect and confirm**
+
+```sh
+curl -sS -w '\nHTTP %{http_code}\n' https://budget.rising-dough.eu/health/replication
+ssh operator@budget-planner-prod "cat /var/lib/budget-planner/replication/status.json"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream --since 1h 2>&1 | grep -E 'cannot determine|wal segment written|write wal segment|snapshot written|error' | tail -30"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream-probe --since 30m 2>&1 | tail -10"
+```
+
+Reading the answers: `status: stale` with the litestream log full of `cannot determine replica position` is the 2026-11 incident. `probe_stale` / `probe_error` means the probe itself or its listing fails (check the probe log, credentials, bucket reachability) and says nothing yet about Litestream. `no_objects` after a fresh start: wait 2 minutes, a new generation writes its snapshot right away. Healthy logs show `wal segment written` / `write wal segment` lines within a minute of a DB write.
+
+**2. Safe manual backup first (before any recovery step)**
+
+`/data` is owned by uid 10001 (mode 0700), so the operator cannot write there without sudo. Run the SQLite online backup inside the app container, which owns `/data`. `/data/backups` is the directory the pre-migration backups use; the command creates it if missing.
+
+```sh
+ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import os,sqlite3,datetime as d; t=d.datetime.now(d.UTC).strftime('%Y%m%dT%H%M%SZ'); os.makedirs('/data/backups',exist_ok=True); p='/data/backups/budget.db.manual-'+t; s=sqlite3.connect('/data/budget.db'); b=sqlite3.connect(p); s.backup(b); b.close(); s.close(); print(p, sqlite3.connect(p).execute('PRAGMA integrity_check').fetchone()[0])\""
+# Expect: /data/backups/budget.db.manual-<ts> ok
+```
+
+The backup is a consistent copy even while the app writes (SQLite backup API). It is outside the automatic pruning (`prune_backups` only matches `*.pre-migrate-*`), so delete it once the incident is closed, within the 37-day copy ceiling of ADR-0078 §4: `ssh operator@budget-planner-prod "docker exec budget-planner-app rm /data/backups/budget.db.manual-<ts>"`. If the app container is down, use `sudo`: `ssh operator@budget-planner-prod "sudo sqlite3 /data/budget.db \".backup '/data/backups/budget.db.manual-<ts>'\""` (then `sudo chown 10001:10001` the file).
+
+**3. Force a new generation (the usual cure for a position error)**
+
+Removing the marker makes the entrypoint (ADR-0114) delete Litestream's meta dir on the next start, so Litestream opens a new generation with a fresh snapshot. The SQLite DB and WAL are not touched.
+
+```sh
+ssh operator@budget-planner-prod "sudo rm -f /data/.litestream-age-generation && cd /etc/budget-planner && sudo docker compose restart litestream"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream --since 2m 2>&1 | grep -E 'forcing a new generation|snapshot written|wal segment|error|cannot determine'"
+# Expect: "forcing a new generation (one-time, ADR-0114)", then a snapshot and WAL segment lines, no errors.
+ssh operator@budget-planner-prod "docker restart budget-planner-litestream-probe"
+curl -sS https://budget.rising-dough.eu/health/replication
+# Expect within about a minute: HTTP 200, "status":"ok", a new "generation".
+```
+
+The host agent does not undo this (it acts only when `bp-config` changes). The old generation stays in the bucket until retention (720 h) removes it.
+
+**4. Escalate to a restore when**
+
+- the new generation does not appear, or Litestream keeps logging errors other than the position error (403 / credential / bucket errors: fix the cause first, see Troubleshooting);
+- the manual backup in step 2 fails `integrity_check`, or `/ready` is red (the live DB is the problem, not the replica): follow [Procedure](#procedure) with the backup variant above;
+- the stall lasted longer than the data you can lose: the last good snapshot is the recovery point (point-in-time inside the stall window is not available).
+
+Afterwards run the drill (`restore-drill.yml`) against the new generation and log it in [`restore-log.md`](restore-log.md).
+
+**After a release that changes the probe (v3.0.3):** run the first `curl` above once. 200 `ok` proves the probe parsing; 503 `probe_error` with the probe log is the signal to fix the parser (ADR-0119, Consequences).
+
 ## Cut-over to an encrypted replica (T-D56, ADR-0078 §3, ADR-0112)
 
 Do this once, after the age-enabled config is live on a bucket that already holds plaintext objects.
 
 **What Litestream 0.3.14 does when age is enabled (read from `replica.go`, v0.3.14).** It does **not** start a new generation. The running generation continues, and only snapshots and WAL segments written *after* the restart are age ciphertext (each object starts with `age-encryption.org/v1`; file names stay `*.lz4`). So one generation can mix plaintext and encrypted objects, and a "plaintext generation" test is not reliable. The cleanup workflow classifies every object by its first bytes instead.
 
-**Restart safety (T-D136, ADR-0114).** On every start the replicator re-reads its last WAL segment (`calcPos`) and decrypts it only if the replicate config has `age.identities`. The replicate config now carries the identity, and the litestream entrypoint forces one new generation per host (marker `/data/.litestream-age-generation`), so every segment it reads back is ciphertext. **This cut-over depends on T-D136 being live on the host** (release after `v3.0.1`); until then a restart of `litestream` stalls replication (`cannot determine replica position`). Check `docker compose logs litestream --tail 50` after the release converges.
+**Restart safety (T-D136, ADR-0114).** On every start the replicator re-reads its last WAL segment (`calcPos`) and decrypts it only if the replicate config has `age.identities`. The replicate config now carries the identity, and the litestream entrypoint forces one new generation per host (marker `/data/.litestream-age-generation`), so every segment it reads back is ciphertext. **This cut-over depends on T-D136 being live on the host** (live on prod since release `v3.0.2`, 2026-11-18); before that a restart of `litestream` stalls replication (`cannot determine replica position`). Check `docker compose logs litestream --tail 50` after the release converges.
 
 1. **Encrypted generation exists.** Terraform was applied with `litestream_age_identity` / `litestream_age_recipient` (operator checklist); the host agent restarted `litestream`. Confirm on the host: `docker compose logs litestream | grep -i "snapshot written"`. With T-D136 the first start opens a new generation, so its snapshot is written right away; wait for it (a restore with the identity cannot use the older plaintext snapshots). Spot-check one new object: `aws s3api get-object --endpoint-url https://s3.pl-waw.scw.cloud --bucket budget-planner-prod-pl-waw --key <key> --range bytes=0-31 /dev/stdout | head -c 22` prints `age-encryption.org/v1`.
-2. **Restore drill green.** Dispatch `restore-drill.yml` (T-D40/T-D41) after that snapshot, with the prod identity on the drill host. The operator appends the entry to [`restore-log.md`](restore-log.md) with `Result: pass` and `integrity_check: ok`. Also run the negative check from the restore steps (restore without the identity must fail).
+2. **Restore drill green.** Done 2026-11-18 (run 44351020259, generation `2901fbd3873a6696`). For a later drill, dispatch `restore-drill.yml` (T-D40/T-D41) after that snapshot, with the prod identity on the drill host. The operator appends the entry to [`restore-log.md`](restore-log.md) with `Result: pass` and `integrity_check: ok`. Also run the negative check from the restore steps (restore without the identity must fail).
 3. **Dry run.** Dispatch `litestream-plaintext-cleanup.yml` from `main` with `dry_run=true` (default) and approve the `prod` environment. Read the step summary: counts, the plaintext keys to delete, and any `REFUSED` line. It refuses (exit 2, nothing deleted) when there is no encrypted snapshot, an object has an unknown format, a plaintext object is still needed by a restore (wait for the next snapshot), or `restore-log.md` has no green entry dated on or after the day of the first encrypted snapshot.
 4. **Review.** Every key to delete must be an old snapshot or WAL segment with an index below the newest encrypted snapshot of its generation, or part of a wholly plaintext older generation.
 5. **Delete.** Dispatch again with `dry_run=false`, approve `prod`. Only the listed plaintext objects are deleted. The bucket is versioned: the plaintext copies stay as noncurrent versions for the lifecycle window (7 d; 30 d retention + 7 d = 37 d ceiling, T-D57), which is also the undo window.

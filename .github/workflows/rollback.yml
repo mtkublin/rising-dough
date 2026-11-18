@@ -34,6 +34,13 @@ on:
         type: string
         required: false
         default: ""
+      drill_run_id:
+        description: >-
+          drill only, operator repair (T-D139): digits-only drill run id to use instead of the one
+          recorded in Terraform state (empty = state). Ignored for prod.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -59,6 +66,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Validate drill_run_id (digits only)
+        env:
+          RAW_RUN_ID: ${{ inputs.drill_run_id }}
+        run: |
+          if [ -n "${RAW_RUN_ID}" ] && ! printf '%s' "${RAW_RUN_ID}" | grep -Eq '^[0-9]{1,20}$'; then
+            echo "::error::drill_run_id must be digits only"; exit 1
+          fi
+
       - name: Ref guard (ADR-0099, ADR-0109)
         if: ${{ inputs.env == 'prod' }}
         run: python3 scripts/ci/ref_guard.py ref --ref "${GITHUB_REF}"
@@ -78,8 +93,7 @@ jobs:
           fi
           TAG="$(python3 scripts/ci/ref_guard.py rollback-target "${RAW_TARGET}")"
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
-          DIGEST="$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{json .Manifest.Digest}}' | tr -d '"')"
-          echo "ref=${TAG}@${DIGEST}" | tee -a "$GITHUB_OUTPUT"
+          python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
 
   apply:
     name: rollback ${{ inputs.env }}
@@ -93,4 +107,8 @@ jobs:
       env: ${{ inputs.env }}
       image_ref: ${{ needs.target.outputs.ref }}
       rollback: true
+      # T-D139 / ADR-0116: the drill VM exists already; keep its run id (state, or the
+      # operator override). Never this run's id. Prod: both are ignored.
+      reuse_drill_run_id: ${{ inputs.env == 'drill' }}
+      drill_run_id: ${{ inputs.env == 'drill' && inputs.drill_run_id || '' }}
     secrets: inherit  # pragma: allowlist secret

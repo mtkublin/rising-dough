@@ -1,20 +1,23 @@
 # v3 go-live operator checklist (as of 2026-11-18)
 
-## State as of 2026-11-18 (after release `v3.0.1`)
+## State as of 2026-11-18 (evening)
 
-- Prod is live at https://budget.rising-dough.eu on `v3.0.1@sha256:2246e6f…`. This is the first release through the host agent (ADR-0111, run 44294472551, in-place update). The status file reports `ok`, and the CSP header is sent. `v3.0.0` failed before reaching prod (T-D134) and stays failed, because tags are immutable.
-- Steps 1-11, 10a, 11a and 11b are done. T-D45 done. T-D43 runs on a drill only (decision 2026-11-18).
+- Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.2@sha256:4243782f3e8941e07971681a02b3ed6f68b5951972570a1bc90656134f498c4b` (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). v3.0.2 carries the T-D136 Litestream fix and the T-D135 WebAuthn settings. The replica had stalled from 2026-11-07; it has been replicating into a new generation since 2026-11-18 ([`restore.md`](restore.md), incident record).
 - Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
 - Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
+- Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitor set up and closed (T-D44); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod.
+- Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
+- ADR-0097 (amended 2026-11-18): the orchestrator no longer runs a local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR CI cover it; only `tests/e2e` runs locally.
 - Next, in order:
-  1. Delete the dead secrets and variables (`github-settings.md`, "Unused since ADR-0111"). Keep `DEPLOY_SSH_PRIVATE_KEY` in `drill`.
-  2. Re-run Mozilla Observatory, record the result in `security-audit-log.md` (T-D42; was B for F1, the missing CSP). Optional: nikto rerun, CAA record.
-  3. 11c: `image-retention` dry run, review, then `IMAGE_RETENTION_ENABLED=true`.
-  4. First restore drill (T-D40), watched, before the 2026-12-01 03:00 UTC cron. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Its cloud-init wait and digest lookup changed in T-D129 and have never run. Delete the plaintext Litestream generations only after it is green (T-D56).
-  5. Confirm the `uptime.yml` runs are green and see `ok` (T-D44).
-  6. Kept explore drill: confirm T-D135 (passkeys under the localhost RP defaults), fix it, then run the T-D43 smoke journey there and repeat T-D33.
-  7. T-D133 (DRY the workflows), after step 4 so the restore path has a baseline.
-  8. Prod, user-run: remove the empty pre-seed folders (the earlier `rmdir` glob was expanded without root): `ssh operator@budget-planner-prod "sudo sh -c 'ls -ld /data/pre-seed-* 2>/dev/null && rmdir -v /data/pre-seed-*' || echo none-left"`.
+  1. **DRILL-2 (done 2026-11-18, explore drill 44356288331; results in the checklist).** Run 44356288331. Checks: passkey registration (T-D135), smoke journey (T-D43), rollback test (T-D33), Litestream restart (T-D136), `/health/replication` (T-D144). Record a check only after it passes. Checklist: [`DRILL-2-checklist.md`](../phase-4-validation/DRILL-2-checklist.md).
+  2. **Gate drill (pending).** `drill-gate` green on the PR head SHA. It proves T-D133. It also proves T-D138 (the drill lock): with the kept drill still up, the gate must fail at `drill-lock`; after `drill-destroy.yml`, it passes.
+  3. **PR merge.** Merge to `main` once `drill-gate` is green on the head SHA (`protect-main` ruleset).
+  4. **v3.0.3 release.** `gh release create v3.0.3 -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Carries T-D144.
+  5. **Verify `/health/replication` on prod, and the second UptimeRobot monitor.** Prod returns 200 with `status: ok`. Monitor `https://budget.rising-dough.eu/health/replication`: HTTP(s), 5 min, status code only (no keyword), up = 2xx, same alert contact as `/health`. Confirm it is green.
+  6. **Restore drill from `main` (T-D41).** Dispatch `restore-drill.yml` from `main`; its entry must post to the `restore-log` issue. T-D41 stays ◐ until then.
+  7. **T-D56 cleanup dry run from `main`.** Dispatch `litestream-plaintext-cleanup.yml` in dry-run mode from `main`; it should pass the restore-log check. Delete plaintext generations only after that, with approval.
+  8. **v3 closeout.**
+
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
@@ -32,7 +35,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Enable MagicDNS and HTTPS Certificates.
 - ACL: `tag:ci -> tag:drill:443`, plus your own devices -> `tag:drill:443` (see [`tailscale-acl.hujson`](tailscale-acl.hujson)).
 - OAuth client: single-client model, `tag:automation` owns `tag:prod`, `tag:drill`, `tag:ci`.
-- Remove any stale `budget-planner-drill` node (T-D107).
+- Remove any stale `budget-planner-drill*` node (T-D107; names carry the run id since T-D139).
 - **Done when:** the ACL is saved, HTTPS certs show enabled, the OAuth client exists, and no stale drill node is listed.
 - Runbook: [`tailscale-ssh.md`](tailscale-ssh.md).
 
@@ -128,6 +131,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 ### 11c. Enable GHCR image retention (T-D126)
 - [ ] **Where:** GitHub UI (package settings, Actions) and laptop.
 - Package link: already in place (2026-11-18: the repo has Admin under package settings > Manage Actions access by default, which covers Write). After the first release: dispatch `image-retention` once with `dry_run=true`, review, then set repo variable `IMAGE_RETENTION_ENABLED=true`.
+- 2026-11-18: `IMAGE_RETENTION_ENABLED=true` set by the operator. The first real scheduled run is Monday 2026-11-23 03:17 UTC; the checkbox stays open until that run is seen.
 - Dry run 2026-11-18 (run 44297239247, `main`): **FAILED, nothing planned.** `scripts/ghcr_retention.py` crashed with `HTTP Error 404` in `fetch_children` (registry manifest GET for a kept version's digest). Needs a fix (T-D126) before the dry run can be reviewed; do not set `IMAGE_RETENTION_ENABLED` yet.
 - **Done when:** a scheduled or `dry_run=false` run shows `mode: APPLY` and the next release still deploys.
 - Runbook: [`image-retention.md`](image-retention.md).
