@@ -256,3 +256,32 @@ GitHub `ci` job with xdist (4 workers):
 | Pre-commit hook on a small diff < 15 s | 30 s (unit-only subset, serial) | 6–9 s (affected tests across the whole suite) | **Met** |
 | `just test-changed` on a one-module diff < 30 s | — | 6–7 s | **Met** |
 | Coverage gate unchanged, 90%, full suite | 94.65% | 94.65% (serial, xdist 4, xdist 8, CI) | **Met** |
+
+## T-CS08 — runner profile (2026-11-18)
+
+Four attempts of the same commit (`71f13d0`, temporary `--durations=25` + `lscpu` step):
+
+| Attempt | Runner CPU (4 vCPU) | pytest | Job |
+|---|---|---|---|
+| 1 | AMD EPYC 9V45 | 68.0 s | 1:45 |
+| 2 | AMD EPYC 7763 | 102.5 s | 2:18 |
+| 3 | Intel Xeon 6975P-C | 77.8 s | 1:51 |
+| 4 | Intel Xeon Platinum 8573C | 99.3 s | 2:17 |
+| **median** | | **88.6 s** | **2:04** |
+
+- The spread is the runner CPU model GitHub assigns, not the tests: the same commit takes 68–102 s.
+- Other steps are small: setup + upload ~20 s, lint ~12 s, mypy 0.6 s (cache hit).
+- No single slow test: the slowest is 3.4 s and the top 25 sum to ~17 s across 4 workers.
+- `--dist loadgroup` equals `--dist load` here: no test has an `xdist_group` marker.
+
+Where the local test time goes (`--durations=0`, 4 workers, 242 s of test time):
+
+| Area | setup | call |
+|---|---|---|
+| `tests/integration/web` (755 tests) | 83.5 s | 45.4 s |
+| `tests/e2e` | 47.3 s | 22.6 s |
+| `tests/unit/deploy` | 0.0 s | 16.4 s |
+
+Web test setup has a median of 110 ms. Timed step by step, almost all of it is the first request on a fresh app (the CSRF client's priming `GET /healthz`, 139 ms wall). App construction (0.6 ms), the DB copy (1.5 ms), the login seed (3.9 ms) and the lifespan (3.4 ms) are small. FastAPI 0.161 builds every route's state lazily on a new app's first request (`effective_candidates` → `_populate_api_route_state` → dependency analysis): about 87 ms of CPU per app.
+
+`fastapi.dependencies.utils.get_typed_signature` is a pure function of the endpoint callable. Caching it in the test process cuts that cost to 57 ms per app (−35%). The rest is per-app route state, and caching it would mean patching deeper FastAPI internals.
