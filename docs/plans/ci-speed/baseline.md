@@ -208,3 +208,51 @@ All green (2,249 passed each), including the e2e suite, with other agents loadin
 - uv cache: already on (`astral-sh/setup-uv` `enable-cache: true`, keyed on `uv.lock`).
 - Playwright browsers: CI installs none (e2e skips there), so no cache.
 - Local check of the incremental cache: warm `mypy src tests` 0.8 s; an injected type error in `services/ledger_totals.py` is still reported against the warm cache.
+
+GitHub CI cache check on `f219ff6`:
+
+| Run | mypy cache | mypy | pytest | Job |
+|---|---|---|---|---|
+| first | miss, saved | 11.6 s | 103 s | 2:34 |
+| rerun, same commit | **hit** | **0.3 s** | 61 s | 1:32 |
+
+## T-CS07 results — pre-commit is the local gate (ADR-0117)
+
+Hook runs (`pre-commit run pytest-fast --verbose` on a staged change, 8 cores):
+
+| Staged change | Hook ran | Time |
+|---|---|---|
+| One function body in `services/ledger_totals.py` | 16: 4 unit + 12 integration (`test_ledger.py`, `test_transactions.py`) | 9.2 s |
+| A `conftest.py` | full default selection via the fallback: 2,249 | 68.8 s |
+| Docs only | none ("no tests ran") | 6.3 s |
+| The ADR-0117 commit itself (`justfile`, YAML, docs) | full default selection via the fallback | ~70 s |
+
+## T-CS06 — results against the targets
+
+Local `just ci`, back-to-back, pristine `main` vs the branch (shared venv, `UV_NO_SYNC=1`; the `main` runs report 0% coverage because the venv imports `src` from the branch worktree, so they traced nothing — their coverage overhead is lower than a real run's, which makes the ratio conservative):
+
+| Run | Load avg at start | Wall | CPU (user + sys) |
+|---|---|---|---|
+| main #1 | 17.4 | 401.7 s | 389.7 s |
+| branch #1 | 5.1 | 107.6 s | 553.5 s |
+| main #2 | 26.7 | 311.0 s | 310.2 s |
+| branch #2 | 2.1 | 84.7 s | 486.5 s |
+| **mean** | | **356 s → 96 s (3.7×)** | |
+
+GitHub `ci` job with xdist (4 workers):
+
+| Commit | Job | pytest |
+|---|---|---|
+| `1f7a073` | 1:56 | 70.8 s |
+| `f219ff6` | 2:34 | 103.1 s |
+| `f219ff6` rerun | 1:32 | 60.9 s |
+| `d7e7047` | 2:38 | 117.9 s |
+| **median** | **2:15** | **87 s** |
+
+| Target (README) | Baseline | After | Status |
+|---|---|---|---|
+| GitHub `ci` job under 2 min | median 4:47 (pytest median 242 s) | median 2:15 (1:32–2:38; pytest 61–118 s) | **Not met reliably** — 2 of 4 runs under 2:00. Gap: runner-to-runner pytest variance (61–118 s on the same commit). Follow-up T-CS08. |
+| Local full `just ci` ≥ 3× faster | 356 s | 96 s | **Met: 3.7×** |
+| Pre-commit hook on a small diff < 15 s | 30 s (unit-only subset, serial) | 6–9 s (affected tests across the whole suite) | **Met** |
+| `just test-changed` on a one-module diff < 30 s | — | 6–7 s | **Met** |
+| Coverage gate unchanged, 90%, full suite | 94.65% | 94.65% (serial, xdist 4, xdist 8, CI) | **Met** |
