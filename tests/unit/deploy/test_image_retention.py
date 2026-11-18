@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import sys
+import urllib.error
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -21,6 +24,7 @@ sys.modules["ghcr_retention"] = ret
 _spec.loader.exec_module(ret)
 
 NOW = datetime(2026, 12, 1, tzinfo=UTC)
+_TOK = "tok"
 
 
 def _wf() -> dict[Any, Any]:
@@ -116,3 +120,74 @@ def test_parse_versions_reads_tags_and_digest() -> None:
 def test_format_plan_marks_dry_run() -> None:
     plan = ret.select([_v(1, 30)], {}, NOW)
     assert "DRY RUN" in ret.format_plan(plan, apply=False)
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("https://ghcr.io/x", code, "err", None, io.BytesIO(b"{}"))  # type: ignore[arg-type]
+
+
+def test_fetch_children_accepts_oci_manifest_types(monkeypatch: Any) -> None:
+    seen: dict[str, str] = {}
+
+    def fake_urlopen(req: Any, timeout: int) -> Any:
+        seen["accept"] = req.get_header("Accept")
+        return io.BytesIO(json.dumps({"layers": []}).encode())
+
+    monkeypatch.setattr(ret.urllib.request, "urlopen", fake_urlopen)
+    assert ret.fetch_children("o", "gh", "sha256:a", token=_TOK) == []
+    assert "application/vnd.oci.image.manifest.v1+json" in seen["accept"]
+    assert "application/vnd.oci.image.index.v1+json" in seen["accept"]
+
+
+def test_fetch_children_404_returns_none_other_errors_raise(monkeypatch: Any) -> None:
+    def raise_404(req: Any, timeout: int) -> Any:
+        raise _http_error(404)
+
+    monkeypatch.setattr(ret.urllib.request, "urlopen", raise_404)
+    assert ret.fetch_children("o", "gh", "sha256:a", token=_TOK) is None
+
+    def raise_500(req: Any, timeout: int) -> Any:
+        raise _http_error(500)
+
+    monkeypatch.setattr(ret.urllib.request, "urlopen", raise_500)
+    try:
+        ret.fetch_children("o", "gh", "sha256:a", token=_TOK)
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 500
+    else:
+        raise AssertionError("expected HTTPError")
+
+
+def test_unknown_children_keep_untagged_but_still_delete_old_sha() -> None:
+    kept = _v(1, 30, "v1.0.0", "sha-1111111")
+    untagged = _v(2, 30)
+    old_sha = _v(3, 30, "sha-3333333")
+    plan = ret.select(
+        [kept, untagged, old_sha], {}, NOW, keep_sha=0, unknown_children={kept.digest}
+    )
+    assert _deleted(plan) == {3}
+    assert "undetermined" in {v.id: why for v, why in plan.keep}[2]
+
+
+def test_protected_images_and_their_signatures_survive_unknown_children() -> None:
+    release = _v(1, 60, "v3.0.1", "3.0.1", "sha-4532791")
+    rollback = _v(2, 60, "sha-89ac3c2")
+    child = _v(3, 60)
+    sig = _v(4, 60, f"sha256-{rollback.digest.split(':')[1]}.sig")
+    plan = ret.select(
+        [release, rollback, child, sig],
+        {},
+        NOW,
+        keep_sha=1,
+        unknown_children={release.digest, rollback.digest},
+    )
+    # rollback is the single newest-sha slot only by tie order; release is a v* tag.
+    assert _deleted(plan) <= {2, 4}
+    assert 1 not in _deleted(plan) and 3 not in _deleted(plan)
+
+
+def test_rollback_image_kept_when_within_newest_sha_slots() -> None:
+    rollback = _v(1, 60, "sha-89ac3c2")
+    sig = _v(2, 60, f"sha256-{rollback.digest.split(':')[1]}.sig")
+    plan = ret.select([rollback, sig], {}, NOW, keep_sha=1, unknown_children={rollback.digest})
+    assert _deleted(plan) == set()
