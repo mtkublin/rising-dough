@@ -954,7 +954,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - [x] T-D140a: vendor htmx at a pinned 2.x in `static/vendor/`; self-host fonts (`fonts.css`, `font-display: swap`) and drop Google Fonts links; move the `base.html` inline script to static JS; `<meta name="htmx-config">` with `includeIndicatorStyles: false` and `allowEval: false`; Caddy `style-src 'self' 'unsafe-inline'` (no nonce) with a unit test.
 - [x] T-D140b: move the inline `<script>` blocks and the `onclick` / `hx-on` handlers in partials to delegated static JS (`data-*` attributes, works for HTMX-swapped content).
 - [x] T-D140c: e2e CSP guard. The fixture parses the prod CSP from `terraform/cloud-init/compose/Caddyfile.tpl` (no drift) and fails tests on any browser CSP violation.
-- [ ] T-D140d (follow-up, not in this fix): replace `style="..."` attributes (27 templates) with classes, then drop `'unsafe-inline'` from `style-src`.
+- [ ] T-D140d (follow-up, not in this fix): replace `style="..."` attributes (27 templates) with classes, then drop `'unsafe-inline'` from `style-src`. Deferred 2026-11-18 (user decision) to the redesign migration (ADR-0107); tracked in `docs/plans/ui-redesign/`.
 
 ### ✅ T-D141 [S] Add transaction from Today never submits → ADR-0113
 - Problem: submitting the Add transaction slide-over from `/today` (and `/plan`, `/accounts`, any page except `/ledger`) does nothing. Found by the T-D140c e2e test; pre-existing, not a CSP issue.
