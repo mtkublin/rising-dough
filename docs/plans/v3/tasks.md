@@ -382,6 +382,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - 2026-11-16 partial run: see T-D129e (bad image detected as unhealthy, rollback applied in place; `failed` state and reconvergence not observed). Repeat on the next explore drill.
 - Re-scoped 2026-11-16 (ADR-0111): there is no deploy pipeline any more. On a kept explore drill, apply an image from a throwaway branch whose `/ready` returns 503; the host agent must report `failed` (`ready_timeout`), and `rollback.yml env=drill` must converge back. The automatic rollback step in `terraform.yml` is prod-only (the apply runner is not on the tailnet), so the drill proves detection and the rollback workflow, not that step.
 - File: `phase-3-deployment/T-D33-rollback-test.md`.
+- 2026-11-18 (T-D139-FIX): `rollback.yml env=drill` must keep the drill hostname (reuses the run id recorded in state); verify on the drill that the hostname is unchanged after the rollback.
 
 ### ✅ T-D34 [S] Manual rollback workflow (`rollback.yml`) → T-D31
 - `.github/workflows/rollback.yml` with `workflow_dispatch`: SSHes `deploy@<host> "rollback"`.
@@ -906,6 +907,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix (ADR-0116): `drill_run_id` Terraform variable; the drill registers as `budget-planner-drill-<run id>`, so each drill orders a certificate for a new name. Workflows pass `github.run_id`.
 - Tests: `terraform/tests/render.tftest.hcl` (unique name, fixed name without id, non-digits rejected, rejected on prod), `tests/unit/deploy/test_tailnet_only_drill.py::test_drill_tailnet_name_is_unique_per_run`.
 - Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.
+- Follow-up 2026-11-18 (T-D139-FIX): `rollback.yml env=drill` set `drill_run_id` to its own run id and renamed the live drill host (44356288331 to 44360554182; Caddy lost its certificate). Fixed: re-applies on an existing drill reuse the id from state (`terraform output drill_run_id`), with an optional `drill_run_id` rollback input as repair override; fails if none. Tests: `tests/unit/deploy/test_drill_run_id.py`. Proof still needed: `rollback.yml env=drill` on the live explore drill keeps `budget-planner-drill-44356288331`.
 
 ### T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
 - Found 2026-11-18: the 2026-11-07 to 2026-11-18 stall (T-D136) went unnoticed for 11 days because `/health` and `/ready` do not look at the replica.
