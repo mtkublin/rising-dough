@@ -33,8 +33,8 @@ def _post_txn(
     assert resp.ok, resp.text()
 
 
-def _seed(base_url: str, page: Page) -> tuple[str, str]:
-    """Create an account, two categories and rows; return (alpha_id, beta_id)."""
+def _seed_base(base_url: str, page: Page) -> tuple[str, str, str]:
+    """Create an account and two categories; return (account, alpha, beta) ids."""
     assert page.request.post(
         f"{base_url}/accounts",
         form={"name": "Checking", "currency": "PLN", "opening_balance": "0.00"},
@@ -50,6 +50,13 @@ def _seed(base_url: str, page: Page) -> tuple[str, str]:
     for name in ("Alpha", "Beta"):
         row = page.locator("[id^='category-']", has_text=name).first
         ids[name] = strip_id_prefix(row.get_attribute("id"), "category-")
+    return acct, ids["Alpha"], ids["Beta"]
+
+
+def _seed(base_url: str, page: Page) -> tuple[str, str]:
+    """Seed Alpha/Beta transactions; return (alpha_id, beta_id)."""
+    acct, alpha, beta = _seed_base(base_url, page)
+    ids = {"Alpha": alpha, "Beta": beta}
     for i in range(_ROWS_A):
         _post_txn(
             page, base_url, day="2026-01-15", cat=ids["Alpha"], acct=acct,
@@ -105,4 +112,64 @@ def test_pagination_keeps_filters(live_server: tuple[str, Path], page: Page) -> 
     page.get_by_role("button", name="Older").click()
     expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_A - _PAGE_SIZE)
     expect(page.locator("#txn-table")).not_to_contain_text("beta banana")
+    _assert_no_include_warning(messages)
+
+
+_VIEW_ROWS = {
+    "planned": ("tr[id^='planned-p-']", "&date_from=2026-02-01&date_to=2026-02-28"),
+    "recurring": ("tr[id^='recurring-']", ""),
+}
+
+
+def _seed_planned_and_recurring(base_url: str, page: Page) -> str:
+    """Seed one planned entry and one rule per category; return Beta's id."""
+    acct, alpha, beta = _seed_base(base_url, page)
+    for cat, word in ((alpha, "alpha apple"), (beta, "beta banana")):
+        assert page.request.post(
+            f"{base_url}/planned",
+            form={
+                "operation_date": "2026-02-10",
+                "category_id": cat,
+                "account_id": acct,
+                "amount": "5.00",
+                "description": word,
+            },
+        ).ok
+        assert page.request.post(
+            f"{base_url}/recurring",
+            form={
+                "cadence": "monthly",
+                "start_date": "2026-01-15",
+                "category_id": cat,
+                "account_id": acct,
+                "default_amount": "9.00",
+                "default_description": word,
+            },
+        ).ok
+    return beta
+
+
+@pytest.mark.parametrize("view", ["planned", "recurring"])
+def test_other_views_keep_filter_on_refetch_and_search(
+    live_server: tuple[str, Path], page: Page, view: str
+) -> None:
+    base_url, _ = live_server
+    messages: list[str] = []
+    page.on("console", lambda m: messages.append(m.text))
+    beta = _seed_planned_and_recurring(base_url, page)
+    selector, extra = _VIEW_ROWS[view]
+    page.goto(f"{base_url}/ledger?view={view}{extra}")
+    rows = page.locator(selector)
+    expect(rows).to_have_count(2)
+    page.locator("select[name=category_id]").select_option(beta)
+    expect(rows).to_have_count(1)
+    page.wait_for_load_state("networkidle")
+    with page.expect_response(lambda r: "/ledger/table" in r.url):
+        page.evaluate("htmx.trigger(document.body, 'ledger-stale')")
+    expect(rows).to_have_count(1)
+    expect(page.locator("#ledger-table")).to_contain_text("banana")
+    with page.expect_response(lambda r: "q=a" in r.url):
+        page.locator("input[name=q]").fill("a")
+    expect(rows).to_have_count(1)
+    expect(page.locator("#ledger-table")).not_to_contain_text("apple")
     _assert_no_include_warning(messages)
