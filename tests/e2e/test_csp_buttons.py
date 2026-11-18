@@ -152,3 +152,61 @@ def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: 
     # Slot closes and the budget region re-renders with the override applied.
     expect(slot.locator("input[name='amount']")).to_have_count(0)
     expect(page.locator("#plan-budget")).to_contain_text("321.00")
+
+
+def _open_today_form(page: Page, base_url: str, button: str, form_selector: str) -> Locator:
+    page.goto(f"{base_url}/today")
+    assert page.evaluate("typeof window.htmx") == "object"
+    page.get_by_role("button", name=button).click()
+    form = page.locator(form_selector)
+    expect(form).to_be_visible()
+    return form
+
+
+def test_add_planned_from_today_submits_under_csp(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    form = _open_today_form(page, base_url, "+ Planned", ".planned-form")
+    _pick(page, "category_id", "Groceries")
+    _pick(page, "account_id", "Checking")
+    soon = datetime.now(tz=UTC).date() + timedelta(days=2)
+    form.locator("input[name='operation_date']").fill(soon.isoformat())
+    form.locator("input[name='amount']").fill("25.00")
+    form.locator("input[name='description']").fill("today-planned")
+    form.get_by_role("button", name="Add entry").click()
+    expect(page.locator(".planned-form")).to_have_count(0)
+    expect(page.locator("#upcoming-root").get_by_text("today-planned").first).to_be_visible()
+    page.goto(f"{base_url}/ledger?view=planned")
+    expect(page.get_by_text("today-planned").first).to_be_visible()
+
+
+def test_add_planned_from_today_invalid_amount_rerenders_form(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    form = _open_today_form(page, base_url, "+ Planned", ".planned-form")
+    _pick(page, "category_id", "Groceries")
+    _pick(page, "account_id", "Checking")
+    form.locator("input[name='amount']").fill("0")
+    form.get_by_role("button", name="Add entry").click()
+    expect(page.locator(".planned-form")).to_have_count(1)
+    expect(page.locator(".planned-form")).to_contain_text("amount")
+
+
+def test_add_recurring_from_today_submits_under_csp(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    _seed(base_url, page)
+    form = _open_today_form(page, base_url, "+ Recurring", ".recurring-form")
+    _pick(page, "category_id", "Groceries")
+    _pick(page, "account_id", "Checking")
+    form.locator("input[name='default_amount']").fill("40.00")
+    form.locator("input[name='default_description']").fill("today-rule")
+    form.get_by_role("button", name="Add rule").click()
+    expect(page.locator(".recurring-form")).to_have_count(0)
+    page.goto(f"{base_url}/ledger?view=recurring")
+    expect(page.get_by_text("today-rule").first).to_be_visible()

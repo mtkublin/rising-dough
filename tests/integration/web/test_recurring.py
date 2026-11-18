@@ -951,3 +951,46 @@ def test_update_clearing_end_date_round_trips(
         conn.close()
     assert updated is not None
     assert updated.end_date is None
+
+
+def _rule_data(ctx: dict[str, int]) -> dict[str, str | int]:
+    return {
+        "cadence": "monthly",
+        "start_date": "2026-02-01",
+        "category_id": ctx["cat"],
+        "account_id": ctx["acc"],
+        "default_amount": "500",
+    }
+
+
+def test_create_off_ledger_refreshes_page_without_swap(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    # T-D142: the form is opened from Today etc.; no table to swap into.
+    r = client.post(
+        "/recurring",
+        data=_rule_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/today"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert r.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[str, int]) -> None:
+    r = client.post(
+        "/recurring",
+        data=_rule_data(ctx),
+        headers={"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=recurring"},
+    )
+    assert r.status_code == 200
+    assert r.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in r.headers
+    assert "ledger-stale" in r.headers["HX-Trigger"]
+
+
+def test_new_form_targets_itself_not_ledger_table(client: TestClient) -> None:
+    r = client.get("/recurring/new")
+    assert 'hx-target="#recurring-form"' in r.text
+    assert "table.ledger" not in r.text
