@@ -120,4 +120,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0115 | [A Drill VM Is Exclusive; Every Drill Workflow Starts With a Drill Lock](0115-drill-vm-is-exclusive-drill-lock.md) (amends ADR-0099; relates to ADR-0101, ADR-0092) |
 | 0116 | [The Drill's Tailnet Name Is Unique Per Run](0116-drill-tailnet-name-unique-per-run.md) (amends ADR-0101; relates to ADR-0094, ADR-0099) |
 | 0118 | [The VM Root Volume Is Local SSD, Declared Explicitly](0118-local-ssd-root-volume.md) (amends ADR-0032; relates to ADR-0035, ADR-0084, ADR-0099, ADR-0111, ADR-0114) |
-| 0119 | [A Prod VM Replacement Is Safe Unattended](0119-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
+| 0121 | [A Prod VM Replacement Is Safe Unattended](0121-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |

@@ -72,6 +72,6 @@ output "ci_ssh_authorized" {
 }
 
 output "vm_spec_id" {
-  description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D144, ADR-0119). Not a secret."
+  description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D155, ADR-0121). Not a secret."
   value       = local.vm_spec_id
 }

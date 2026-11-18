@@ -74,7 +74,7 @@ locals {
       { path = "${local.compose_dir}/litestream.yml", mode = "0644", content = local.litestream_rendered, restart = ["litestream"] },
       # T-D56 / ADR-0078 §3: restore-only config + age identity (ADR-0069 secret-file pattern).
       { path = "${local.compose_dir}/litestream-restore.yml", mode = "0644", content = local.litestream_restore_rendered, restart = [] },
-      # T-D144 / ADR-0119: restore entrypoint (empty-DB guard, restore report).
+      # T-D155 / ADR-0121: restore entrypoint (empty-DB guard, restore report).
       { path = "${local.compose_dir}/litestream-restore.sh", mode = "0755", content = file("${path.module}/../../cloud-init/compose/litestream-restore.sh"), restart = [] },
       { path = "${local.compose_dir}/litestream-age.key", mode = "0600", content = "${trimspace(var.litestream_age_identity)}\n", restart = ["litestream"] },
       # T-D136 / ADR-0114: replicate entrypoint (identity export, one-time new generation).

@@ -49,7 +49,7 @@ services:
       litestream:
         condition: service_started
 
-  # ADR-0071 §3 / ADR-0119: one-shot restore-before-start. No-op when
+  # ADR-0071 §3 / ADR-0121: one-shot restore-before-start. No-op when
   # /data/budget.db exists; fails when it is missing and the replica is empty
   # (unless allow_empty_db). Writes /data/restore-report.json. Litestream runs
   # as root, so the script hands the files back to the app uid (10001).

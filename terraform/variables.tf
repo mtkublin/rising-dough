@@ -421,7 +421,7 @@ variable "restore_reader_application_id" {
   }
 }
 
-# T-D144 / ADR-0119: a prod boot with no database and an empty replica fails
+# T-D155 / ADR-0121: a prod boot with no database and an empty replica fails
 # unless this is set for one reviewed apply (first-ever boot, deliberate fresh
 # start). The drill always allows it (its bucket starts empty).
 variable "allow_empty_db" {
