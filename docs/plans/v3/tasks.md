@@ -433,6 +433,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Lives in `tests/smoke/test_prod_smoke.py` and is run manually post-deploy, not in CI.
 - File: `phase-4-validation/T-D43-smoke-journey.md`.
 - DRILL-2 helper and checklist (2026-11-18): `scripts/drill/passkey_check.py`, `phase-4-validation/DRILL-2-checklist.md`.
+- 2026-11-18: first drill run (44356288331) found the audit entity_type mismatch in the test; fixed (`entity_type` is `"transaction"`, singular). Steps 1–10 passed on that run.
 
 ### ✅ T-D44 [S] Uptime monitoring → T-D27
 - Done 2026-11-18 (user decision): UptimeRobot (external, 5 min, `/health`, test alert received) is the only uptime alarm. `uptime.yml` and its test removed. Host-down detection covered by the external check. See `phase-4-validation/T-D44-uptime-monitor.md`.
