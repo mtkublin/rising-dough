@@ -36,8 +36,10 @@ The expiry is the server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_ex
 Run it before any release that replaces the prod VM (T-D143 first), on the commit you will release, and only with operator go. Check that no drill-group run is queued or running first.
 
 ```sh
-gh workflow run replace-rehearsal.yml --ref <branch>
+gh workflow run replace-rehearsal.yml --ref main
 ```
+
+GitHub dispatches only workflows that exist on `main`; a new or changed rehearsal therefore runs after its PR merges.
 
 About 40 minutes on one drill (DEV1-S): refuse an empty replica, seed on Block Storage, replace with `l_ssd` while a writer commits a row per second, then verify on the new host. It tears down and cleans the tailnet in all cases. The run summary shows the seeded generation, the writer's last committed row, the restored rows and the lost-row count (must be 0).
 

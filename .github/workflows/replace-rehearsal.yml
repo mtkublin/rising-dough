@@ -15,7 +15,7 @@
 #   teardown       always, then the drill tailnet cleanup
 #
 # Dispatch only, with explicit operator go (CLAUDE.md):
-#   gh workflow run replace-rehearsal.yml --ref <branch>
+#   gh workflow run replace-rehearsal.yml --ref main   (dispatch needs the file on main)
 # Concurrency group `drill` (queued, never cancelled); drill-lock is the first job
 # (ADR-0115). It does not post the `drill-gate` status. ~40 min.
 #

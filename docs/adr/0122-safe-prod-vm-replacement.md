@@ -39,7 +39,7 @@ ADR-0118 (T-D143) replaces the prod VM on its next apply. So far prod has only b
 - A prod VM replacement (ADR-0118, or any future type or image change) is one approved release. It fails closed instead of coming up empty or unreachable.
 - The drill sets `allow_empty_db = true`. Its gate still passes on an empty bucket, and the restore drill keeps using `restore-from-prod`.
 - `bp-deploy-status.json` gains a small `restore` object. It is public like the rest of the file, so it carries no counts.
-- T-D143 is blocked on T-D156 for prod, and its release on a green `replace-rehearsal.yml` run on the PR head.
+- T-D143 is blocked on T-D156 for prod, and its release on a green `replace-rehearsal.yml` run on the release commit. GitHub dispatches only workflows present on `main`, so the rehearsal runs after the merge and before the release is cut (merging does not release, ADR-0099).
 - Rejected:
   - Reusable or long-lived Tailscale keys: a leaked key would join any machine as `tag:prod`.
   - Removing `-if-replica-exists`: it breaks the drill and a first-ever boot.
