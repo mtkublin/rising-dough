@@ -115,6 +115,74 @@ test:
 # Everything CI runs. Keep deterministic — no network except frankfurter mocks.
 ci: lint typecheck test
 
+# --- change-based inner loop (ADR-0108 §3) -----------------------------------
+# Not a gate: merges and PRs still need the full `just ci` (ADR-0108 §4).
+# BASE is the branch's parent: origin/main for feature branches, the main work
+# branch for orchestrator item branches.
+
+# pre-commit hooks over the files changed since the merge-base with BASE.
+lint-changed BASE="origin/main":
+    SKIP=pytest-fast uv run pre-commit run --from-ref "$(git merge-base HEAD {{BASE}})" --to-ref HEAD
+
+# The one fallback list (ADR-0108 §3): reads paths on stdin, prints those
+# testmon cannot see — every non-Python file except docs and Markdown
+# (templates, static, SQL and migrations, dependencies, Terraform, scripts, CI
+# config, test fixtures), plus any conftest.py.
+_unseen-paths:
+    @awk '/(^|\/)conftest\.py$/ { print; next } /^docs\// || /\.(py|md)$/ || /^$/ { next } { print }'
+
+# No coverage: testmon does not record under it. Full suite instead when the
+# diff against BASE touches a path testmon cannot see.
+# Tests affected by changes since the last testmon run (pytest-testmon).
+test-changed BASE="origin/main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    base="$(git merge-base HEAD {{BASE}})"
+    unseen="$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u | just _unseen-paths)"
+    workers="${PYTEST_WORKERS:-auto}"
+    if [ -n "$unseen" ]; then
+      echo "[test-changed] change testmon cannot see vs {{BASE}}; running the full suite:"
+      printf '%s\n' "$unseen" | sed 's/^/  /'
+      exec uv run pytest -n "$workers" --no-cov --testmon-noselect
+    fi
+    set +e
+    uv run pytest -n "$workers" --no-cov --testmon-forceselect
+    status=$?
+    set -e
+    # 5 = nothing selected: no affected tests is a pass.
+    if [ "$status" -eq 5 ]; then echo "[test-changed] no affected tests"; exit 0; fi
+    exit "$status"
+
+# Same fallback rule over the staged files.
+# Pre-commit pytest hook: fast subset (ADR-0097 §7), testmon-selected.
+test-fast:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    unseen="$(git diff --cached --name-only | just _unseen-paths)"
+    mode="--testmon-forceselect"
+    [ -z "$unseen" ] || mode="--testmon-noselect"
+    set +e
+    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov "$mode" \
+      tests/unit tests/architecture -m "not integration and not e2e and not visual"
+    status=$?
+    set -e
+    [ "$status" -eq 5 ] && exit 0
+    exit "$status"
+
+# Stale data only adds tests, never drops them.
+# Seed a new worktree's .testmondata from the main checkout.
+worktree-init:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    main="$(cd "$(git rev-parse --git-common-dir)/.." && pwd)"
+    if [ "$main" = "$(pwd)" ]; then echo "[worktree-init] already in the main checkout"; exit 0; fi
+    if [ -f "$main/.testmondata" ]; then
+      cp "$main/.testmondata" .testmondata
+      echo "[worktree-init] copied .testmondata from $main"
+    else
+      echo "[worktree-init] no .testmondata in $main; the first test-changed runs everything"
+    fi
+
 # --- database --------------------------------------------------------------
 
 # Apply all pending SQL migrations. Implemented in Phase 1 (T-010).

@@ -536,7 +536,7 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 - Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents), after a random-order run fixes order dependence.
 - Slow-test causes fixed at the source (hashing cost, per-test migrations, sleeps, browser start-up). Redundant-test candidates come from the quality audit (Track F).
-- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when templates, static files, migrations, SQL, dependencies, `conftest.py`, fixtures or CI config change), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
+- Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when the diff touches anything testmon cannot see: any non-Python file outside `docs/` and Markdown — templates, static files, migrations, SQL, dependencies, Terraform, scripts, fixtures, CI config — or any `conftest.py`), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
 - CI caches for mypy (uv cache already on).
 
 ### 11.2 Constraints
