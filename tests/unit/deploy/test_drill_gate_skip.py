@@ -185,7 +185,8 @@ def test_workflow_actions_are_sha_pinned() -> None:
 def test_workflow_runs_classifier_from_base_not_pr_head() -> None:
     text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
     assert "scripts/ci/drill_gate_skip.py" in text
-    assert "pull_request.base.sha" in text
+    assert "pull_request.base.ref" in text
+    assert "pull_request.base.sha" not in text
 
 
 def test_workflow_never_checks_out_pr_code() -> None:
@@ -193,7 +194,7 @@ def test_workflow_never_checks_out_pr_code() -> None:
     checkouts = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
     assert checkouts
     for step in checkouts:
-        assert step["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
+        assert step["with"]["ref"] == "${{ github.event.pull_request.base.ref }}"
         assert step["with"]["persist-credentials"] is False
     text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
     assert "head.ref" not in text
@@ -212,5 +213,31 @@ def test_run_blocks_do_not_interpolate_pr_context() -> None:
                     assert expr in {
                         "github.event.pull_request.number",
                         "github.event.pull_request.head.sha",
-                        "github.event.pull_request.base.sha",
                     }, expr
+
+
+def test_missing_classifier_yields_gate_and_exits_zero(tmp_path: Path) -> None:
+    steps = [s for job in _wf()["jobs"].values() for s in job["steps"]]
+    classify = next(s for s in steps if s.get("id") == "classify")
+    out = tmp_path / "out.txt"
+    summary = tmp_path / "summary.md"
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "RUNNER_TEMP": str(tmp_path),
+        "GITHUB_OUTPUT": str(out),
+        "GITHUB_STEP_SUMMARY": str(summary),
+        "GH_TOKEN": "x",
+        "REPO": "o/r",
+        "PR": "1",
+    }
+    proc = subprocess.run(  # noqa: S603
+        ["/bin/bash", "-c", classify["run"]],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "verdict=gate" in out.read_text()
+    assert "classifier not on base; real gate required" in summary.read_text()

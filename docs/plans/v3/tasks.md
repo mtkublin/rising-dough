@@ -950,6 +950,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Change: `.github/workflows/drill-gate-skip.yml` (pull_request_target to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
 - Tests: `tests/unit/deploy/test_drill_gate_skip.py` (classifier table, workflow context, permissions, no failure/pending, SHA pins).
 - Done when: merged, and a docs-only PR shows `drill-gate` success without a drill run while a `src/` PR still needs the real gate.
+- 2026-11-18: first real skip worked on PR #30 (run 44397753231); PR #29 exposed the stale-base-SHA bug; fixed in T-D147-FIX2
 
 ### ✅ T-D140 [M] Prod CSP blocks HTMX and inline JS → ADR-0113, ADR-0036
 - Problem (prod v3.0.1, 2026-11-18): Caddy sends the ADR-0036 nonce CSP on HTML responses (T-D132), so the browser blocks the htmx CDN script (`unpkg.com`), every inline `<script>` in `base.html` and about ten partials, about 25 inline `onclick=` / `hx-on::` handlers, and the Google Fonts stylesheet. Result: Add (Today, Ledger), Promote (Today) and Override (Plan/Budget) are dead buttons in prod. Dev has no Caddy, so no CSP, so dev works.
