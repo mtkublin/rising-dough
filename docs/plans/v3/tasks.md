@@ -409,7 +409,8 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - On failure, opens an issue titled `restore-drill-failure-YYYY-MM`.
 - File: `phase-4-validation/T-D41-monthly-restore-drill.md`.
 - Status 2026-11-18 (was ✅): the workflow is written but has never run. GitHub lists no runs, and it was not on `main` for the 2026-11-01 cron. The first scheduled run is 2026-12-01 03:00 UTC and would be unattended. It picks the newest release, so a good release must exist before then.
-- Done when: one green run (the T-D40 manual dispatch counts) has appended its entry to `restore-log.md`.
+- Done when: the first scheduled or dispatched run posts its entry to the `restore-log` issue.
+- 2026-11-18 (T-D41-LOG): user decision, no commit from CI (`main` is protected). `restore-drill.yml` writes the entry to the job summary and posts it as a comment on the single `restore-log` issue on every run, failures included (`restore-log` job, `scripts/ci/restore_log_entry.py`). It also collects the restored `audit_log` count, max id and max `changed_at` over SSH, read-only. Prod counts are recorded as `n/a (prod not queried)`. Not yet proven by a run.
 
 ### ✅ T-D41a [S] `restore-from-prod` drill host helper → T-D41, T-D19a
 - Adds the missing `/usr/local/bin/restore-from-prod` called by `restore-drill.yml`: `terraform/cloud-init/bin/restore-from-prod.tpl`, installed on the `drill` env only (via `user_data.tf` + `bootstrap.yaml.tpl`). Stops app + litestream, moves the local DB aside, `litestream restore`s from the prod replica with a read-only credential (`scw_access_key_restore` / `scw_secret_key_restore`), runs `integrity_check`, chowns to uid 10001, restarts the stack (entrypoint migrates, ADR-0071) and waits for `/ready`.
@@ -482,6 +483,7 @@ Owner: app + `terraform/`. Down-payment on the v4 data-protection plan (`docs/pl
 - One exact Litestream tag for prod + prod-sim (today `0.3` vs `0.5.x`), chosen for verified age support. Replicas encrypted to an operator-held age identity (0600 on host). Cut-over: new generation → restore drill → delete plaintext generations.
 - Order (2026-11-18): the restore drill in the cut-over is the T-D40 run, and no restore has been proven yet. Delete the plaintext generations only after that run is green against the encrypted replica.
 - 2026-11-18: `litestream-plaintext-cleanup.yml` (prod-gated, dry run by default, ADR-0112) and `scripts/ci/litestream_cleanup.py` written and unit-tested. Stays ◐ until the drill is green and the real cleanup has run with the operator's approval. Open: replicate config lacks `age.identities` (restart risk), see the task file.
+- 2026-11-18: the drill gate of the cleanup (a green `restore-log.md` entry on or after the first encrypted snapshot day) is satisfied by the T-D40 entry (run 44351020259). Re-run the cleanup dry run once this lands on `main`; it should pass the restore-log check.
 - File: `phase-5-data-protection/T-D56-litestream-age-encryption.md`. Reference: ADR-0078 §3.
 
 ### ✅ T-D57 [S] Maximum copy age 37 days → T-D56, T-D19a

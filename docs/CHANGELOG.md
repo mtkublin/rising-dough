@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D41 restore-log automation)
+- **Feat(T-D41): restore-drill results post themselves.** `restore-drill.yml` captures the restore output (`tee`), reads the restored `audit_log` count, max id and max `changed_at` over SSH (`sqlite3 -readonly`), builds the entry with `scripts/ci/restore_log_entry.py` (validated fields only), writes it to the job summary and uploads it. A new `restore-log` job (`drill-teardown`, `issues: write`) comments it on the single open `restore-log` issue, creating issue and label when missing. Failed runs post `Result: fail`. Prod row counts are recorded as `n/a (prod not queried)`. `restore-log.md` keeps manual entries and the T-D56 gate format. T-D56: the gate is satisfied by the T-D40 entry. Unit tests in `tests/unit/deploy/test_restore_log_entry.py`.
+
 ## 2026-11-18 (T-D40 first green restore drill)
 - **Ops(T-D40): first green restore drill, run 44351020259.** Encrypted generation `2901fbd3873a6696` restored from the prod replica in 19s, `integrity_check=ok`, `/ready` ready/ok, no extra DB copies, about 6 min to green `/ready`. First entry in `runbooks/restore-log.md`; T-D40 ✅. Audit row counts were not collected.
 
