@@ -40,11 +40,11 @@
     <div class="slide-over__body">
       {% if rule %}
         <form hx-post="/recurring/{{ rule.id }}/overrides"
-              hx-target="#recurring-{{ rule.id }}"
+              hx-target="closest .slide-over-root"
               hx-swap="outerHTML"
               class="rd-override rd-override--standalone"
               data-recurring-override-form
-              data-reset-on-submit>
+              data-close-overlay-on-success>
           <div class="rd-override__head">
             <div class="rd-override__title">{{ rule.default_description or rule.cadence.value|capitalize }}</div>
             <nav class="rd-period-nav rd-override__period"

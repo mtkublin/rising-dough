@@ -382,11 +382,10 @@ def update_planned(  # noqa: PLR0917
             description=description,
         ),
     )
-    updated = planned_repo.find_by_id(conn, user_id, planned_id)
-    assert updated is not None and acc is not None
-    cat = categories_repo.find_by_id(conn, user_id, updated.category_id)
-    html = render(request, "partials/planned/_row.html", view=_from_persisted(updated, acc, cat))
+    # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
+    html = Response()
     trigger(html, "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 
@@ -527,11 +526,9 @@ def promote_submit(  # noqa: PLR0917
             errors={"promotion": str(exc)},
             status_code=422,
         )
-    cat = categories_repo.find_by_id(conn, user_id, pl.category_id)
-    pl2 = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
-    assert pl2 is not None
-    html = render(request, "partials/planned/_row.html", view=_from_persisted(pl2, acc, cat))
+    html = Response()
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

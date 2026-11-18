@@ -416,11 +416,11 @@ def update_txn(  # noqa: PLR0917
             dest_account_id=dest_id_val,
         ),
     )
-    updated = transactions_repo.find_by_id(conn, user_id, txn_id)
-    assert updated is not None
-    row = _hydrate_rows(conn, user_id, [updated])[0]
-    html = render(request, "partials/transactions/_row.html", txn=row)
+    # The edit form is hosted by every page (T-D151): no row swap; the ledger
+    # refetches on `ledger-stale`, other pages reload.
+    html = Response()
     trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    refresh_unless_on(request, html, "/ledger")
     return html
 
 

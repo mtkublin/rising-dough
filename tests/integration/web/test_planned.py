@@ -287,3 +287,72 @@ def test_new_form_targets_itself_not_planned_table(client: TestClient) -> None:
     r = client.get("/planned/new")
     assert 'hx-target="#planned-form"' in r.text
     assert "#planned-table" not in r.text
+
+
+_ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
+_ON_LEDGER = {"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?view=planned"}
+
+
+def test_edit_form_targets_itself_and_closes_on_success(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    r = client.get(f"/planned/{ctx['pl']}/edit")
+    assert 'hx-target="#planned-form"' in r.text
+    assert "#planned-p-" not in r.text
+    assert "data-close-overlay-on-success" in r.text
+
+
+def test_update_off_ledger_refreshes_and_on_ledger_does_not(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    url = f"/planned/{ctx['pl']}"
+    off = client.post(url, data=_planned_data(ctx), headers=_ON_TODAY)
+    assert off.status_code == 200
+    assert off.headers["HX-Reswap"] == "none"
+    assert off.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in off.headers["HX-Trigger"]
+    on = client.post(url, data=_planned_data(ctx), headers=_ON_LEDGER)
+    assert on.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in on.headers
+
+
+def test_update_invalid_amount_rerenders_form_in_place(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    data = {**_planned_data(ctx), "amount": "0"}
+    r = client.post(f"/planned/{ctx['pl']}", data=data, headers=_ON_TODAY)
+    assert r.status_code == 422
+    assert 'id="planned-form"' in r.text
+
+
+def test_promote_modal_is_slide_over_that_closes_on_success(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    r = client.get(f"/planned/{ctx['pl']}/promote")
+    assert "slide-over-root" in r.text
+    assert 'hx-target="closest .slide-over-root"' in r.text
+    assert "data-close-overlay-on-success" in r.text
+    assert "fixed inset-0" not in r.text
+
+
+def test_promote_off_ledger_refreshes_page(client: TestClient, ctx: dict[str, int]) -> None:
+    form = {"operation_date": "2026-10-15", "amount": "500.00"}
+    off = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_TODAY)
+    assert off.status_code == 200
+    assert off.headers["HX-Reswap"] == "none"
+    assert off.headers["HX-Refresh"] == "true"
+    assert "ledger-stale" in off.headers["HX-Trigger"]
+
+
+def test_promote_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[str, int]) -> None:
+    form = {"operation_date": "2026-10-15", "amount": "500.00"}
+    on = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
+    assert on.headers["HX-Reswap"] == "none"
+    assert "HX-Refresh" not in on.headers
+
+
+def test_promote_invalid_amount_rerenders_modal(client: TestClient, ctx: dict[str, int]) -> None:
+    form = {"operation_date": "2026-10-15", "amount": "0"}
+    r = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
+    assert r.status_code == 422
+    assert "slide-over-root" in r.text

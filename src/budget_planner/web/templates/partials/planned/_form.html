@@ -1,11 +1,12 @@
 {% from "_partials/combobox.html" import combobox %}
 {% set planned_account = (accounts|selectattr('id', 'equalto', planned.account_id)|first) if planned else none %}
-<form {% if not planned %}id="planned-form" {% endif %}hx-post="{{ action }}"
-      hx-target="{% if planned %}#planned-p-{{ planned.id }}{% else %}#planned-form{% endif %}"
+<form id="planned-form"
+      hx-post="{{ action }}"
+      hx-target="#planned-form"
       hx-swap="outerHTML"
       class="rd-form planned-form"
       data-planned-form
-      {% if not planned %}data-reset-on-submit{% endif %}>
+      {% if planned %}data-close-overlay-on-success{% else %}data-reset-on-submit{% endif %}>
   <label class="rd-field">
     <span class="rd-field__label">Category</span>
     {{ combobox(name="category_id", items=categories,
