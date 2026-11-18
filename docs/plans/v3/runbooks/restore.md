@@ -154,11 +154,19 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 3. Start Litestream, then app. Verify as above.
 4. Rotate the read-only credential and triage the Litestream bucket contents before attempting another restore.
 
-## Cut-over to an encrypted replica (T-D56, ADR-0078 §3)
+## Cut-over to an encrypted replica (T-D56, ADR-0078 §3, ADR-0112)
 
-Do this once, when first deploying the age-enabled config to a bucket that already holds plaintext generations.
+Do this once, after the age-enabled config is live on a bucket that already holds plaintext objects.
 
-1. Generate the identity (`age-keygen -o litestream-age.key`), store it in the password manager, set `TF_VAR_litestream_age_identity` / `TF_VAR_litestream_age_recipient` (see the operator checklist) and apply Terraform. The host agent writes the new `litestream.yml` and the key from `bp-config` within ~30 s and restarts `litestream` itself (ADR-0111; check `docker compose logs litestream --tail 20` on the host). It starts a **new generation** whose objects are age ciphertext.
-2. Confirm: `aws s3 cp s3://<bucket>/db/... - | head -c 32` starts with `age-encryption.org/v1` for objects of the new generation.
-3. Run the restore drill (`gh workflow run restore-drill.yml`, T-D41) with the prod identity and confirm it is green and logged in [`restore-log.md`](restore-log.md).
-4. Only then delete the unencrypted generations (`litestream generations -config /etc/budget-planner/litestream.yml s3://...` to list, then remove the old generation prefixes under `db/generations/<id>/` with the bucket tooling). Bucket versioning keeps noncurrent copies for 7 days (T-D57 lifecycle; 30 d retention + 7 d = 37 d ceiling).
+**What Litestream 0.3.14 does when age is enabled (read from `replica.go`, v0.3.14).** It does **not** start a new generation. The running generation continues, and only snapshots and WAL segments written *after* the restart are age ciphertext (each object starts with `age-encryption.org/v1`; file names stay `*.lz4`). So one generation can mix plaintext and encrypted objects, and a "plaintext generation" test is not reliable. The cleanup workflow classifies every object by its first bytes instead.
+
+**Known risk, verify before relying on it.** On every start the replicator re-reads its last WAL segment (`calcPos`). It decrypts that segment only if the *replicate* config has `age.identities`; ours has recipients only. After the first encrypted segment exists, the next `litestream` restart would therefore fail to compute its position and stall replication (log: `cannot determine replica position`). Check `docker compose logs litestream --tail 50` on the prod host after any restart. The fix is a Terraform change (identities in the replicate config plus a forced new generation at cut-over) and is tracked on T-D56.
+
+1. **Encrypted generation exists.** Terraform was applied with `litestream_age_identity` / `litestream_age_recipient` (operator checklist); the host agent restarted `litestream`. Confirm on the host: `docker compose logs litestream | grep -i "snapshot written"`. Wait for the first **encrypted snapshot** (`snapshot-interval` is 24 h; a restore with the identity cannot use the older plaintext snapshot). Spot-check one new object: `aws s3api get-object --endpoint-url https://s3.pl-waw.scw.cloud --bucket budget-planner-prod-pl-waw --key <key> --range bytes=0-31 /dev/stdout | head -c 22` prints `age-encryption.org/v1`.
+2. **Restore drill green.** Dispatch `restore-drill.yml` (T-D40/T-D41) after that snapshot, with the prod identity on the drill host. The operator appends the entry to [`restore-log.md`](restore-log.md) with `Result: pass` and `integrity_check: ok`. Also run the negative check from the restore steps (restore without the identity must fail).
+3. **Dry run.** Dispatch `litestream-plaintext-cleanup.yml` from `main` with `dry_run=true` (default) and approve the `prod` environment. Read the step summary: counts, the plaintext keys to delete, and any `REFUSED` line. It refuses (exit 2, nothing deleted) when there is no encrypted snapshot, an object has an unknown format, a plaintext object is still needed by a restore (wait for the next snapshot), or `restore-log.md` has no green entry dated on or after the day of the first encrypted snapshot.
+4. **Review.** Every key to delete must be an old snapshot or WAL segment with an index below the newest encrypted snapshot of its generation, or part of a wholly plaintext older generation.
+5. **Delete.** Dispatch again with `dry_run=false`, approve `prod`. Only the listed plaintext objects are deleted. The bucket is versioned: the plaintext copies stay as noncurrent versions for the lifecycle window (7 d; 30 d retention + 7 d = 37 d ceiling, T-D57), which is also the undo window.
+6. **Verify.** Re-run the dry run: it must list zero objects to delete. Mark T-D56 done in `docs/plans/v3/tasks.md`.
+
+Credential used by the workflow: the `prod` environment's `APP_SCW_ACCESS_KEY` / `APP_SCW_SECRET_KEY` (the key Litestream replicates with; list/get/put/delete on the prod bucket only). No new secret.

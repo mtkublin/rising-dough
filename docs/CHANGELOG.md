@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D56 cut-over tooling)
+- **Feat(T-D56): prod-gated plaintext cleanup of the Litestream replica** (ADR-0112). New `litestream-plaintext-cleanup.yml` (dispatch only, `dry_run` default true, env `prod`) and `scripts/ci/litestream_cleanup.py`. It classifies objects by header (Litestream 0.3.14 keeps the same generation when age is enabled, so generations are mixed) and refuses without an encrypted snapshot and a green restore-log entry. Cut-over steps in `restore.md`. Not run yet. Open risk recorded on T-D56: the replicate config has no `age.identities`.
+
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
 - **Docs:** `github-settings.md` says to keep `DEPLOY_SSH_PRIVATE_KEY` in `drill` (`restore-drill.yml` uses it). `deploy.md` says where to find the drill admin password. Operator checklist "Next" replaced.
