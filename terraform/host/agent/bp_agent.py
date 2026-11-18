@@ -12,7 +12,9 @@ then reads ``bp-config`` (one JSON document rendered by Terraform), and:
 3. writes the managed files atomically, runs ``docker compose pull`` +
    ``up -d`` and restarts services whose mounted files changed;
 4. probes ``/ready`` through Caddy and writes ``status.json``, which Caddy
-   serves at ``/.well-known/bp-deploy-status.json`` for the CI monitor.
+   serves at ``/.well-known/bp-deploy-status.json`` for the CI monitor. The
+   status carries ``restore``: how this host's database came to be, from the
+   report ``litestream-restore`` writes (T-D155, ADR-0121).
 
 A failed generation is retried with exponential back-off. The agent never
 changes the desired state; CI decides (re-apply with the previous ref).
@@ -49,6 +51,10 @@ APPLIED_FILE = STATE_DIR / "applied-generation"
 FAILURE_FILE = STATE_DIR / "failure.json"
 DOCKER_CONFIG_DIR = STATE_DIR / "docker"
 COSIGN_DIR = Path("/usr/local/lib/bp-agent")
+# Written by litestream-restore.sh on the /data bind mount (T-D155, ADR-0121).
+RESTORE_REPORT_FILE = Path("/data/restore-report.json")
+RESTORE_RESULTS = frozenset({"restored", "empty", "skipped-db-present"})
+RESTORE_FIELD_MAX = 64
 
 BACKOFF_BASE_S = 30
 BACKOFF_MAX_S = 900
@@ -187,8 +193,36 @@ def services_to_restart(changed: Sequence[ManagedFile]) -> tuple[str, ...]:
     return tuple(sorted({svc for f in changed for svc in f.restart}))
 
 
+def parse_restore_report(raw: bytes | None) -> dict[str, str] | None:
+    """The public ``restore`` object: only result, generation and time, or None.
+
+    None when the report is missing or malformed, so CI can never read a value
+    the restore script did not write.
+    """
+    if raw is None:
+        return None
+    try:
+        doc = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(doc, dict):
+        return None
+    fields = {k: doc.get(k) for k in ("result", "generation", "at")}
+    if fields["result"] not in RESTORE_RESULTS or not all(
+        isinstance(v, str) and len(v) <= RESTORE_FIELD_MAX for v in fields.values()
+    ):
+        return None
+    return {k: str(v) for k, v in fields.items()}
+
+
 def build_status(
-    cfg: Config | None, state: str, running_ref: str, error: str, now: float
+    cfg: Config | None,
+    state: str,
+    running_ref: str,
+    error: str,
+    now: float,
+    *,
+    restore: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     """status.json body. No secrets and no paths: Caddy serves it publicly."""
     return {
@@ -199,6 +233,7 @@ def build_status(
         "previous_ref": cfg.previous_ref if cfg else "",
         "running_ref": running_ref,
         "error": error,
+        "restore": dict(restore) if restore is not None else None,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
     }
 
@@ -274,6 +309,13 @@ def read_failure() -> Failure | None:
         doc = json.loads(FAILURE_FILE.read_text())
         return Failure(doc["generation"], int(doc["attempts"]), float(doc["next_attempt_at"]))
     except (FileNotFoundError, KeyError, ValueError):
+        return None
+
+
+def read_restore_report() -> dict[str, str] | None:
+    try:
+        return parse_restore_report(RESTORE_REPORT_FILE.read_bytes())
+    except OSError:
         return None
 
 
@@ -393,12 +435,16 @@ def converge(
         current = running_ref(runner, cfg.app_container)
         if is_converged(cfg, read_text(APPLIED_FILE), current):
             if not STATUS_FILE.exists():
-                write_status(build_status(cfg, "ok", current, "", now()))
+                write_status(
+                    build_status(cfg, "ok", current, "", now(), restore=read_restore_report())
+                )
             return 0
         failure = read_failure()
         if in_backoff(cfg, failure, now()):
             return 0
-        write_status(build_status(cfg, "applying", current, "", now()))
+        write_status(
+            build_status(cfg, "applying", current, "", now(), restore=read_restore_report())
+        )
         apply(cfg, runner, sleep)
     except Exception as exc:  # every failure must end in a failed status
         err = exc if isinstance(exc, AgentError) else AgentError("internal", repr(exc))
@@ -413,12 +459,22 @@ def converge(
                 running_ref(runner, cfg.app_container) if cfg else "",
                 err.code,
                 now(),
+                restore=read_restore_report(),
             )
         )
         return 1
     write_atomic(APPLIED_FILE, cfg.generation.encode(), 0o644)
     FAILURE_FILE.unlink(missing_ok=True)
-    write_status(build_status(cfg, "ok", running_ref(runner, cfg.app_container), "", now()))
+    write_status(
+        build_status(
+            cfg,
+            "ok",
+            running_ref(runner, cfg.app_container),
+            "",
+            now(),
+            restore=read_restore_report(),
+        )
+    )
     print(f"bp-agent: applied generation {cfg.generation[:12]} ({cfg.image_ref})")
     return 0
 

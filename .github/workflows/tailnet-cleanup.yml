@@ -1,28 +1,43 @@
-# Reusable: remove the drill's leftover tailnet nodes (T-D124, ADR-0101, T-D133).
+# Reusable: remove a destroyed VM's leftover tailnet nodes (T-D124, ADR-0101, T-D133;
+# prod mode T-D155, ADR-0121).
 #
 # Destroying the VM leaves its tailnet node behind (offline); a stale node makes
-# the next drill register as budget-planner-drill-1 and the certificate name no
-# longer matches. Called by drill.yml, drill-destroy.yml, drill-sweeper.yml and
-# restore-drill.yml after their destroy, with `if: always()` so it also runs
-# when the destroy failed (the node may exist). Problems are warnings only.
+# the next VM register as <name>-1 (for the drill the certificate name no longer
+# matches). Problems are warnings only.
 #
-# Runs in the ungated environment `drill-teardown`, which holds
-# TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET (callers pass `secrets: inherit`).
+# env: drill (default). Called by drill.yml, drill-destroy.yml, drill-sweeper.yml
+# and restore-drill.yml after their destroy, with `if: always()` so it also runs
+# when the destroy failed (the node may exist). Runs in the ungated environment
+# `drill-teardown`.
+# env: prod. Called by release.yml after a release that replaced the VM. Deletes
+# only offline prod nodes and renames the new one to the plain name. Runs in the
+# ungated environment `prod-tailnet` (main and v* tags only), which holds the
+# tag:prod-only cleanup client.
+#
+# Both environments hold TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET (callers pass
+# `secrets: inherit`).
 
 name: tailnet-cleanup
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      env:
+        description: drill (default) or prod
+        type: string
+        required: false
+        default: drill
 
 permissions:
   contents: read
 
 jobs:
   cleanup:
-    name: remove drill tailnet node
+    name: remove ${{ inputs.env }} tailnet node
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: drill-teardown # ungated; holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET
+    # Ungated; each holds TS_CLEANUP_CLIENT_ID / TS_CLEANUP_SECRET for its own tag.
+    environment: ${{ inputs.env == 'prod' && 'prod-tailnet' || 'drill-teardown' }}
     permissions:
       contents: read
     steps:
@@ -32,8 +47,9 @@ jobs:
           persist-credentials: false
           sparse-checkout: scripts/tailnet_drill_cleanup.py
 
-      - name: Delete tag:drill nodes named budget-planner-drill[-n]
+      - name: Delete the old budget-planner-${{ inputs.env }}[-n] nodes
         env:
           TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
           TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
-        run: python3 scripts/tailnet_drill_cleanup.py
+          CLEANUP_ENV: ${{ inputs.env == 'prod' && 'prod' || 'drill' }}
+        run: python3 scripts/tailnet_drill_cleanup.py --env "${CLEANUP_ENV}"

@@ -127,6 +127,7 @@ def host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
     monkeypatch.setattr(agent, "APPLIED_FILE", state / "applied-generation")
     monkeypatch.setattr(agent, "FAILURE_FILE", state / "failure.json")
     monkeypatch.setattr(agent, "DOCKER_CONFIG_DIR", state / "docker")
+    monkeypatch.setattr(agent, "RESTORE_REPORT_FILE", tmp_path / "data" / "restore-report.json")
     monkeypatch.setattr(agent, "ensure_cosign", lambda _policy: tmp_path / "cosign")
     monkeypatch.setattr(os, "chown", lambda *_a, **_k: None)
 
@@ -251,6 +252,7 @@ def test_fresh_host_verifies_writes_composes_and_reports_ok(
         "previous_ref": OLD_REF,
         "running_ref": REF,
         "error": "",
+        "restore": None,
         "updated_at": "",
     }
 
@@ -401,3 +403,61 @@ def test_cosign_install_requires_https(tmp_path: Path, monkeypatch: pytest.Monke
 
     with pytest.raises(agent.AgentError, match="https"):
         agent.ensure_cosign(_policy("0" * 64, url="http://example.invalid/cosign"))
+
+
+# --- restore report (T-D155, ADR-0121) -------------------------------------
+
+GEN = "2901fbd3873a6696"  # pragma: allowlist secret
+
+
+def test_parse_restore_report_keeps_only_the_public_fields() -> None:
+    raw = json.dumps(
+        {"result": "restored", "generation": GEN, "at": "2026-11-18T10:00:00Z", "extra": "x"}
+    ).encode()
+
+    assert agent.parse_restore_report(raw) == {
+        "result": "restored",
+        "generation": GEN,
+        "at": "2026-11-18T10:00:00Z",
+    }
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        b"",
+        b"not json",
+        b"[]",
+        b'{"result": "maybe", "generation": "", "at": "t"}',
+        b'{"result": "restored", "generation": 5, "at": "t"}',
+        b'{"result": "restored", "at": "t"}',
+        json.dumps({"result": "restored", "generation": "a" * 65, "at": "t"}).encode(),
+    ],
+)
+def test_parse_restore_report_rejects_anything_else(raw: bytes | None) -> None:
+    assert agent.parse_restore_report(raw) is None
+
+
+def test_status_publishes_the_restore_report(tmp_path: Path, host: Callable[..., int]) -> None:
+    report = tmp_path / "data" / "restore-report.json"
+    report.parent.mkdir()
+    report.write_text(f'{{"result":"restored","generation":"{GEN}","at":"t"}}\n')
+
+    assert host(_doc(tmp_path), FakeRunner()) == 0
+
+    assert _status(tmp_path)["restore"] == {"result": "restored", "generation": GEN, "at": "t"}
+
+
+def test_failed_status_still_carries_the_restore_report(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    report = tmp_path / "data" / "restore-report.json"
+    report.parent.mkdir()
+    report.write_text('{"result":"empty","generation":"","at":"t"}')
+
+    assert host(_doc(tmp_path), FakeRunner(ready_ok=False)) == 1
+
+    status = _status(tmp_path)
+    assert status["state"] == "failed"
+    assert status["restore"] == {"result": "empty", "generation": "", "at": "t"}

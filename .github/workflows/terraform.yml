@@ -67,6 +67,9 @@ on:
       host_image_ref:
         description: ADR-0111 - full image ref (repo:tag@digest) the host should run (empty for destroy).
         value: ${{ jobs.apply.outputs.host_image_ref }}
+      server_replaced:
+        description: T-D155 / ADR-0121 - "true" when this apply replaced the app server (fresh host, restored DB).
+        value: ${{ jobs.apply.outputs.server_replaced }}
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -293,7 +296,8 @@ jobs:
     needs: fmt-validate
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # T-D155: plan + apply + up to 1800 s host wait when the VM is replaced.
+    timeout-minutes: 50
     # ADR-0099 / ADR-0101: `prod` and `drill` have required reviewers (approval
     # gate before apply). A drill destroy must never wait for approval (sweeper
     # cron, drill-destroy, end-of-pipeline teardown), so it runs in the ungated
@@ -331,6 +335,7 @@ jobs:
     outputs:
       host_config_generation: ${{ steps.host.outputs.generation }}
       host_image_ref: ${{ steps.host.outputs.image_ref }}
+      server_replaced: ${{ steps.replace.outputs.replaced }}
 
     steps:
       - name: Checkout
@@ -431,6 +436,15 @@ jobs:
           for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
           terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
 
+      # T-D155 / ADR-0121: a replaced server is a fresh host that restores the
+      # database. The plan JSON holds secrets: it goes straight into the script,
+      # which prints only `replaced=true|false`.
+      - name: Detect VM replacement
+        id: replace
+        run: |
+          set -euo pipefail
+          terraform show -json plan.bin | python3 ../scripts/ci/host_release.py replaced | tee -a "$GITHUB_OUTPUT"
+
       - name: terraform apply (${{ inputs.env }})
         run: |
           set -o pipefail
@@ -457,12 +471,19 @@ jobs:
           STATUS_URL: ${{ steps.host.outputs.url }}
           GENERATION: ${{ steps.host.outputs.generation }}
           HOST_IMAGE_REF: ${{ steps.host.outputs.image_ref }}
-        run: python3 ../scripts/ci/host_release.py wait --url "${STATUS_URL}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+          SERVER_REPLACED: ${{ steps.replace.outputs.replaced }}
+        run: |
+          set -euo pipefail
+          # T-D155 / ADR-0121: a fresh host boots, installs Docker and restores
+          # the database; it must report restore.result == "restored".
+          args=()
+          if [ "${SERVER_REPLACED}" = "true" ]; then args+=(--timeout 1800 --require-restore); fi
+          python3 ../scripts/ci/host_release.py wait --url "${STATUS_URL}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}" "${args[@]}"
 
       # ADR-0111: automatic rollback inside the already approved job: re-apply
       # with the refs swapped, wait for the host, and keep the job failed.
       - name: Roll back to the previous ref (prod)
-        if: ${{ failure() && steps.converge.outcome == 'failure' && steps.refs.outputs.previous != '' }}
+        if: ${{ failure() && steps.converge.outcome == 'failure' && steps.refs.outputs.previous != '' && steps.replace.outputs.replaced != 'true' }}
         env:
           STATUS_URL: ${{ steps.host.outputs.url }}
           # Swapped: the previous ref runs again, the failed one is recorded as previous.
@@ -477,4 +498,12 @@ jobs:
             --generation "$(terraform output -raw host_config_generation)" \
             --ref "$(terraform output -raw host_image_ref)"
           echo "::error::release rolled back to ${TF_VAR_app_image_ref}"
+          exit 1
+
+      # T-D155 / ADR-0121: swapping the image cannot fix a failed first boot or
+      # restore on a replaced VM; no automatic rollback.
+      - name: Replaced VM did not converge (prod)
+        if: ${{ failure() && steps.converge.outcome == 'failure' && steps.replace.outputs.replaced == 'true' }}
+        run: |
+          echo "::error::the replaced prod VM did not converge or did not restore the database; no automatic rollback. Follow docs/plans/v3/runbooks/disaster-recovery.md and deploy.md (Releases that replace the VM)."
           exit 1

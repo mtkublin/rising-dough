@@ -1,6 +1,7 @@
 # Prod release pipeline (ADR-0099) — the ONLY path to production.
 #
 #   ci -> build -> tf-apply-prod (approval; apply, then wait for the host)
+#      -> tailnet-cleanup-prod (only when the apply replaced the VM, T-D155)
 #
 # ADR-0109 (T-D125): runs when a GitHub release is published (tag vX.Y.Z),
 # not on push to main. Cut one with `gh release create vX.Y.Z --target main`.
@@ -89,4 +90,18 @@ jobs:
     with:
       env: prod
       image_ref: ${{ needs.guard.outputs.tag }}@${{ needs.build.outputs.image-digest }}
+    secrets: inherit  # pragma: allowlist secret
+
+  # T-D155 / ADR-0121: a release that replaced the VM leaves the old prod node
+  # offline and the new one named budget-planner-prod-1. Runs only after the
+  # host converged (and restored); warnings only.
+  tailnet-cleanup-prod:
+    name: remove the replaced prod tailnet node
+    needs: tf-apply-prod
+    if: ${{ needs.tf-apply-prod.outputs.server_replaced == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tailnet-cleanup.yml
+    with:
+      env: prod
     secrets: inherit  # pragma: allowlist secret

@@ -19,9 +19,16 @@ Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
       digest with `docker buildx imagetools inspect` and print `ref=TAG@DIGEST`
       for $GITHUB_OUTPUT (T-D133). The caller logs in to the registry first.
   wait --url URL --generation GEN --ref FULL_REF [--timeout S] [--interval S]
+       [--require-restore]
       Poll the agent status (/.well-known/bp-deploy-status.json) until it
       reports GEN applied and FULL_REF running; fail fast when the agent
-      reports GEN failed.
+      reports GEN failed. With --require-restore (a release that replaced the
+      VM, T-D155 / ADR-0121) the status must also report
+      `restore.result == "restored"`; any other value once converged fails.
+  replaced
+      Read `terraform show -json` plan output on stdin and print
+      `replaced=true|false`: true when the plan deletes and recreates the app
+      server (T-D155). The plan JSON holds secrets: nothing of it is printed.
 """
 
 from __future__ import annotations
@@ -40,6 +47,10 @@ REF = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[0-9a-f]{64}$")
 # Valid ref for plans that are never applied (PR plan, -destroy) when state
 # holds none; never reaches a host.
 PLACEHOLDER = "sha-0000000@sha256:" + "0" * 64
+
+# T-D155 / ADR-0121: the resource whose replacement means a fresh host + restore.
+SERVER_ADDRESS = "module.compute.scaleway_instance_server.app"
+RESTORED = "restored"
 
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
@@ -131,10 +142,17 @@ def inspect_digest(image_tag: str) -> str:
     return proc.stdout
 
 
-def converged(status: Mapping[str, object] | None, generation: str, ref: str) -> bool:
+def converged(
+    status: Mapping[str, object] | None,
+    generation: str,
+    ref: str,
+    *,
+    require_restore: bool = False,
+) -> bool:
     """True when the agent reports `generation` applied and `ref` running.
 
-    Raises ReleaseError when the agent reports this generation failed.
+    Raises ReleaseError when the agent reports this generation failed, or, with
+    `require_restore`, when it converged without restoring the database.
     """
     if status is None or status.get("generation") != generation:
         return False
@@ -142,7 +160,42 @@ def converged(status: Mapping[str, object] | None, generation: str, ref: str) ->
         raise ReleaseError(
             f"host failed to apply generation {generation[:12]}: {status.get('error')}"
         )
-    return status.get("state") == "ok" and status.get("running_ref") == ref
+    done = status.get("state") == "ok" and status.get("running_ref") == ref
+    if done and require_restore:
+        restore = status.get("restore")
+        result = restore.get("result") if isinstance(restore, Mapping) else None
+        if result != RESTORED:
+            raise ReleaseError(
+                f"VM replaced but the host did not restore the database: restore={restore}"
+            )
+    return done
+
+
+def server_replaced(plan: Mapping[str, object]) -> bool:
+    """True when the plan deletes and recreates SERVER_ADDRESS (`terraform show -json`)."""
+    changes = plan.get("resource_changes")
+    if not isinstance(changes, list):
+        raise ReleaseError("plan JSON has no resource_changes list")
+    for change in changes:
+        if not isinstance(change, Mapping) or change.get("address") != SERVER_ADDRESS:
+            continue
+        detail = change.get("change")
+        actions = detail.get("actions") if isinstance(detail, Mapping) else None
+        if not isinstance(actions, list):
+            raise ReleaseError(f"{SERVER_ADDRESS}: plan has no actions list")
+        return "delete" in actions and "create" in actions
+    return False
+
+
+def read_plan(text: str) -> Mapping[str, object]:
+    """Parse plan JSON without ever echoing it (it holds secrets)."""
+    try:
+        plan = json.loads(text)
+    except ValueError:
+        raise ReleaseError("stdin is not plan JSON (terraform show -json)") from None
+    if not isinstance(plan, dict):
+        raise ReleaseError("plan JSON is not an object")
+    return plan
 
 
 def wait_converged(
@@ -153,6 +206,7 @@ def wait_converged(
     *,
     timeout: float,
     interval: float,
+    require_restore: bool = False,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
 ) -> Mapping[str, object]:
@@ -160,7 +214,7 @@ def wait_converged(
     last: Mapping[str, object] | None = None
     while True:
         last = fetch(url)
-        if converged(last, generation, ref):
+        if converged(last, generation, ref, require_restore=require_restore):
             return last if last is not None else {}
         if clock() >= deadline:
             raise ReleaseError(f"host did not converge within {timeout:.0f}s; last status: {last}")
@@ -184,6 +238,7 @@ def main(
     argv: Sequence[str] | None = None,
     fetch: Fetch = fetch_status,
     inspect: Inspect = inspect_digest,
+    stdin: Callable[[], str] = sys.stdin.read,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -203,6 +258,8 @@ def main(
     wait.add_argument("--ref", required=True)
     wait.add_argument("--timeout", type=float, default=600)
     wait.add_argument("--interval", type=float, default=10)
+    wait.add_argument("--require-restore", action="store_true")
+    sub.add_parser("replaced")
     args = parser.parse_args(argv)
     try:
         if args.cmd == "refs":
@@ -217,6 +274,9 @@ def main(
             sys.stdout.write(resolved.output_lines())
         elif args.cmd == "resolve-ref":
             sys.stdout.write(f"ref={resolve_ref(args.image, args.tag, inspect)}\n")
+        elif args.cmd == "replaced":
+            replaced = server_replaced(read_plan(stdin()))
+            sys.stdout.write(f"replaced={'true' if replaced else 'false'}\n")
         else:
             status = wait_converged(
                 fetch,
@@ -225,6 +285,7 @@ def main(
                 args.ref,
                 timeout=args.timeout,
                 interval=args.interval,
+                require_restore=args.require_restore,
             )
             print(f"converged: {dict(status)}")
     except ReleaseError as exc:
