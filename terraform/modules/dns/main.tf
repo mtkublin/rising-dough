@@ -20,6 +20,34 @@ resource "scaleway_domain_record" "a" {
   ttl        = var.record_ttl_secs
 }
 
+# T-D42 / audit F4: restrict which CAs may issue for the app hostname. Caddy
+# (no `acme_ca`/`issuer` override in the Caddyfile) uses its default issuers,
+# Let's Encrypt first with ZeroSSL as fallback; ZeroSSL issues through Sectigo,
+# whose CAA identifier is `sectigo.com`. Both must be listed or a fallback
+# issuance would be refused. Scoped to the app hostname (not the zone apex) so
+# other names in the zone are unaffected. No wildcards (`issuewild ";"`).
+resource "scaleway_domain_record" "caa_issue" {
+  for_each = var.managed_zone ? toset(var.caa_issuers) : toset([])
+
+  dns_zone   = var.domain
+  project_id = var.zone_project_id # ADR-0092
+  name       = var.subdomain
+  type       = "CAA"
+  data       = "0 issue \"${each.value}\""
+  ttl        = var.record_ttl_secs
+}
+
+resource "scaleway_domain_record" "caa_issuewild" {
+  count = var.managed_zone && length(var.caa_issuers) > 0 ? 1 : 0
+
+  dns_zone   = var.domain
+  project_id = var.zone_project_id # ADR-0092
+  name       = var.subdomain
+  type       = "CAA"
+  data       = "0 issuewild \";\""
+  ttl        = var.record_ttl_secs
+}
+
 resource "scaleway_domain_record" "aaaa" {
   count = var.managed_zone ? 1 : 0 # plan-time known; the address itself is not
 

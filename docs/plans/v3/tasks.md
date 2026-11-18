@@ -413,10 +413,12 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 ### ✅ T-D66 [S] Restore drill always destroys drill env → T-D41
 - `restore-drill.yml` runs `terraform destroy` `if: always()` (also after partial apply / cancel), preceded on failure by best-effort evidence capture uploaded as the `restore-drill-evidence` artifact, and followed by a verification step that fails the job loudly if destroy failed. Failure issue text updated. Operator decision 2026-11-06 (cost bound ~EUR 0.01/run). ADR-0034 §5 addendum.
 
-### ◻ T-D42 [S] Security scan + external audit → T-D27
+### ✅ T-D42 [S] Security scan + external audit → T-D27
 - `trivy image` on the deployed SHA, `testssl.sh` + `nikto` against the prod hostname, Mozilla Observatory check.
 - Targets: Observatory ≥ A+, testssl grade A, no HIGH/CRITICAL from trivy.
-- File: `phase-4-validation/T-D42-security-scan.md`.
+- **Done 2026-11-18** on `v3.0.1`: Observatory **A+ (130)**, testssl **A+**, trivy 0 HIGH/CRITICAL (CI policy), F1 (CSP) closed. Details in `runbooks/security-audit-log.md`.
+- Residual, not blocking: nikto still cannot finish a pass (the host refuses TLS handshakes during the scan; F2, LOW). The CAA record (F4) is in `terraform/modules/dns` (Let's Encrypt + Sectigo for the ZeroSSL fallback, prod only) and reaches prod with the next approved apply; then re-check `dig CAA` and testssl.
+- File: `phase-4-validation/T-D42-security-scan.md` (never created; the audit log is the record).
 
 ### ◐ T-D43 [S] Smoke journey (Playwright, drill) → T-D27, T-D02, T-D17, T-D135
 - **Status: written, validated locally; drill run pending.**
