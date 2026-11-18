@@ -16,7 +16,11 @@ def test_base_has_no_external_assets_or_inline_script(client: TestClient) -> Non
     soup = BeautifulSoup(r.text, "html.parser")
     # Scope: scripts owned by base.html (direct children of head/body). Inline
     # scripts inside page partials are covered by T-D140b / the e2e CSP guard.
-    base_scripts = [s for s in soup.find_all("script") if s.parent.name in ("head", "body")]
+    base_scripts = [
+        s
+        for s in soup.find_all("script")
+        if s.parent is not None and s.parent.name in ("head", "body")
+    ]
     assert base_scripts
     for script in base_scripts:
         src = str(script.get("src") or "")
