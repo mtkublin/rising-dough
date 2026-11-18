@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D44 uptime monitoring closed)
+- **Docs/Ops(T-D44): UptimeRobot is the only uptime alarm; `uptime.yml` removed.** External monitor on `/health`, 5 min, test alert received. Accepted trade-off: no alert when host-agent convergence fails while `/health` is ok; release and rollback runs show that. Host-down covered by the external check. `disaster-recovery.md` and `operator-checklist.md` updated; T-D44 ✅.
+
 ## 2026-11-18 (release v3.0.2 and v3 docs catch-up)
 - **Release: `v3.0.2` is live on prod** (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). Carries the T-D136 Litestream fix: the one-time generation reset ran at 2026-11-18T14:37Z and replication is writing again (replication had stalled from 2026-11-07; RPO at most ~24 h, incident record in `runbooks/restore.md`). T-D135 WebAuthn settings verified on prod.
 - **Ops: prod checks done 2026-11-18.** CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126, first scheduled run 2026-11-23 03:17 UTC); external UptimeRobot monitor set up (T-D44, still ◐); `/data/pre-seed-*` folders removed on prod (data-inventory U6); `DEPLOY_SSH_PRIVATE_KEY` copies deleted from `drill-plan` and `drill-teardown` (kept in `drill` only).
