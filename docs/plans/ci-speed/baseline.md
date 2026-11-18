@@ -137,3 +137,55 @@ GitHub `ci` job (pytest line in the log; the runner is noisy, so medians):
 |---|---|---|---|
 | baseline: 5 runs (4 on `main` branches + `8d24a84` docs-only) | median 4:47 | 177 / 215 / 242 / 257 / 263 s, **median 242 s** | — |
 | `da8437d` (template DB) | 4:03 | **195.5 s** (−19% vs median, 1 sample) | 94.65% |
+
+GitHub `ci` job on `1f7a073` (4 xdist workers on the 4-vCPU public-repo runner):
+
+| Commit | Job | pytest | Coverage |
+|---|---|---|---|
+| `1f7a073` (template DB + xdist) | **1:56** | **70.8 s** (−71% vs median 242 s) | 94.65% |
+
+### Five consecutive `just ci` runs, `-n auto` + random order (first attempt)
+
+Seeds 1111 and 2222 green. Seed 3333 failed one e2e test (`test_passkey_journey.py::test_stale_session_reauths_with_passkey`, Playwright 30 s navigation timeout) at **load average 123**, while the T-CS04 testmon spike ran in parallel in another worktree. Attempt discarded as not representative; repeated below on a quieter machine.
+
+## T-CS04 results — change-based inner loop
+
+### Spike: pytest-testmon 2.3 with our plugins
+
+| Question | Result |
+|---|---|
+| xdist | Works: selection and data writes are correct with `-n 2` / `-n 4`. |
+| pytest-cov | Testmon stops recording under coverage, so the inner loop runs `--no-cov`. Gates keep coverage. |
+| `-m` in `addopts` | Testmon turns selection off when `-m` is given; `--testmon-forceselect` keeps both. |
+| Jinja templates | Seen: compiled templates carry the template filename, so testmon fingerprints them and reruns the tests that render a changed template. The fallback still covers templates (static files, CSS and any path not traced). |
+| Subprocesses (uvicorn in e2e) | Tracked by default. |
+| Chosen mode | Parallel (`-n $PYTEST_WORKERS`), coverage off. |
+
+### Recipes
+
+- `just lint-changed [BASE]` — `pre-commit run --from-ref $(git merge-base HEAD BASE) --to-ref HEAD`, pytest hook skipped. 2.5 s on a docs + justfile diff.
+- `just test-changed [BASE]` — testmon selection; full suite when the diff against BASE (committed, staged, unstaged and untracked) has a path testmon cannot see. The one fallback list is `_unseen-paths` in the `justfile`: every non-Python file outside `docs/` and Markdown, plus any `conftest.py`.
+- `just test-fast` — the pre-commit pytest hook: ADR-0097 §7 fast subset through testmon; staged files on the fallback list run the whole subset.
+- `just worktree-init` — copies `.testmondata` from the main checkout (`.testmondata*` gitignored).
+
+`just` takes recipe arguments by position: `just test-changed main`, not `BASE=main`.
+
+### Selection scenarios (recorded run log, `just test-changed HEAD` on `358c493`)
+
+| Scenario | Selected | Time |
+|---|---|---|
+| No change after a full run | 0 ("no tests ran") | 5–6 s |
+| One function body in `services/ledger_totals.py` | 16: its 4 unit tests + 11 `integration/web/test_ledger.py` + 1 `test_transactions.py` (the routes that call it) | 7 s |
+| Template `ledger/_table.html` | Full suite via the fallback (2,249) | 78 s |
+| After reverting that template | 51 tests that render it (testmon sees the template) | 13 s |
+| Docs-only change | 0 | 5 s |
+| `services/income.py::next_anchor_date`, exercised by exactly one integration test | 50: 49 unit + `integration/web/test_budget_left_daily_spend.py::test_left_daily_spend_card_renders_number_and_caption` | 6 s |
+
+### Pre-commit pytest hook
+
+| Run | Wall |
+|---|---|
+| First run, no `.testmondata` (whole fast subset, 4 workers) | 14.9 s |
+| No affected tests | 2.9 s |
+
+Target "pre-commit hook on a small diff under 15 s" and "`just test-changed` on a one-module diff under 30 s": met (3–7 s).

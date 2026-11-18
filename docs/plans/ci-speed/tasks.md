@@ -10,7 +10,7 @@
 - **Acceptance**: every test over 1 s has a cause and a proposed fix or a reason to keep it.
 - **Validation**: numbers reproducible within ±10% on a second run.
 
-### ◻ T-CS02 [S] Fix slow-test causes → T-CS01
+### ✅ T-CS02 [S] Fix slow-test causes → T-CS01
 - **Deliverables**: fixes from the T-CS01 list, for example a test-only low-cost password-hasher setting (production default unchanged and asserted by a test), a migrated template DB copied per test instead of migrating each time, removed real sleeps, session-scoped browser where safe.
 - **Acceptance**: the full suite passes unchanged in what it asserts; coverage ≥ 90%; serial suite time reduced, recorded in `baseline.md`.
 - **Validation**: `just ci`
@@ -24,7 +24,7 @@
 - **Acceptance**: full suite green 5 times in a row with `-n auto` and random order; coverage report identical in total to the serial run (±0.1%); no port or file collisions.
 - **Validation**: `for i in 1 2 3 4 5; do just ci || break; done`
 
-### ◻ T-CS04 [P] Change-based inner loop → T-CS03
+### ✅ T-CS04 [P] Change-based inner loop → T-CS03
 - **Deliverables**:
   - Spike: `pytest-testmon` with our plugins (xdist, pytest-cov, pytest-asyncio, Playwright). Result and the chosen mode (parallel or serial, coverage off) in `baseline.md`.
   - `just lint-changed BASE=<ref>`: `pre-commit run --from-ref "$(git merge-base HEAD "$BASE")" --to-ref HEAD`.
