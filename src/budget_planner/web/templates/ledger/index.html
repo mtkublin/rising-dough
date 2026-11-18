@@ -21,7 +21,8 @@
       <kbd class="rd-kbd">[</kbd> <kbd class="rd-kbd">]</kbd> switch tab
     </span>
   </div>
-  <form class="rd-chips rd-ledger-chips"
+  <form id="ledger-filters"
+        class="rd-chips rd-ledger-chips"
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
         hx-swap="outerHTML"
@@ -83,6 +84,7 @@
              hx-get="/ledger/table?view={{ view }}"
              hx-target="#ledger-table"
              hx-swap="outerHTML"
+             hx-include="#ledger-filters"
              hx-trigger="input changed delay:400ms"
              hx-push-url="false">
       <kbd class="rd-kbd">/</kbd>

@@ -21,7 +21,8 @@
      hx-get="/ledger/table?view={{ view }}"
      hx-trigger="ledger-stale from:body"
      hx-swap="outerHTML"
-     hx-include="form.filter-chips">
+     hx-include="#ledger-filters"
+     hx-disinherit="hx-include">
   <div id="{{ table_id }}" data-ledger-table data-view="{{ view }}">
     <div class="ledger-scroll">
       <table class="ledger">
@@ -374,6 +375,7 @@
           <button type="button"
                   class="rd-btn rd-btn--sm"
                   hx-get="/ledger/table?view={{ view }}&page={{ page - 1 }}"
+                  hx-include="#ledger-filters"
                   hx-target="#ledger-table"
                   hx-swap="outerHTML">← Newer</button>
         {% endif %}
@@ -382,6 +384,7 @@
           <button type="button"
                   class="rd-btn rd-btn--sm"
                   hx-get="/ledger/table?view={{ view }}&page={{ page + 1 }}"
+                  hx-include="#ledger-filters"
                   hx-target="#ledger-table"
                   hx-swap="outerHTML">Older →</button>
         {% endif %}

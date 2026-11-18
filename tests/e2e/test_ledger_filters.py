@@ -81,6 +81,7 @@ def _assert_no_include_warning(messages: list[str]) -> None:
 
 def test_filter_survives_ledger_stale_refetch(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=False)
+    page.wait_for_load_state("networkidle")
     with page.expect_response(lambda r: "/ledger/table" in r.url):
         page.evaluate("htmx.trigger(document.body, 'ledger-stale')")
     expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_B)
