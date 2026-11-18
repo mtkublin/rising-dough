@@ -17,7 +17,9 @@ import pytest
 
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD
 
-pytestmark = pytest.mark.e2e
+# `_browser` (conftest) skips these when no Chromium is installed, like the other e2e
+# tests; the script itself runs in a subprocess and would otherwise fail on launch.
+pytestmark = [pytest.mark.e2e, pytest.mark.usefixtures("_browser")]
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "drill" / "passkey_check.py"
 TIMEOUT_SECONDS = 120
