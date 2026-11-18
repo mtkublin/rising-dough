@@ -26,9 +26,12 @@ services:
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
       BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"
+      # T-D144 / ADR-0119: freshness file written by litestream-probe.
+      BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
       TZ: "Europe/Warsaw"
     volumes:
       - /data:/data:rw
+      - /var/lib/budget-planner/replication:/replication:ro
     networks:
       - edge
     expose:
@@ -98,6 +101,29 @@ services:
     networks:
       - edge
     stop_grace_period: 30s
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
+
+  # T-D144 / ADR-0119: lists the replica every 5 min and writes the freshness
+  # status file the app serves at /health/replication. /data is mounted
+  # read-only because `litestream generations` stats the DB file.
+  litestream-probe:
+    image: litestream/litestream:0.3.14
+    container_name: budget-planner-litestream-probe
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/litestream-replication-probe.sh"]
+    environment:
+      SCW_ACCESS_KEY: "${scw_access_key}"
+      SCW_SECRET_KEY: "${scw_secret_key}"
+    volumes:
+      - /data:/data:ro
+      - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-replication-probe.sh:/etc/litestream-replication-probe.sh:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
+      - /var/lib/budget-planner/replication:/status:rw
+    networks:
+      - edge
     depends_on:
       litestream-restore:
         condition: service_completed_successfully

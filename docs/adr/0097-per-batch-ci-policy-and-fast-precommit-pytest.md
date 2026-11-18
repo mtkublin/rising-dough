@@ -1,6 +1,6 @@
 # ADR-0097: Per-Batch CI in Orchestrator Mode; Fast Pre-commit Pytest
 
-- **Status**: Accepted
+- **Status**: Accepted (amended 2026-11-18, see the Amendment section)
 - **Date**: 2026-11-06
 - **Amends**: ADR-0066 (orchestrator mode)
 - **Relates to**: ADR-0027
@@ -24,3 +24,11 @@ In orchestrator mode every change was tested three times: full `just ci` in the 
 - Hook runtime: 1508 tests, 205 s (under contention) before; 974 tests, 31 s after.
 - Full suite unchanged: `pyproject.toml` addopts (`--cov-fail-under=90`, `-m "not visual and not smoke"`), `just test`/`just ci` and `ci.yml` still run `tests/integration` and the 90% gate.
 - Integration regressions are caught at the batch `just ci` or GitHub CI, not at commit time.
+
+## Amendment 2026-11-18: no local full `just ci` before a PR (orchestrator mode)
+
+- **User decision, 2026-11-18.** The orchestrator no longer runs a separate local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR's CI cover it.
+- Only `tests/e2e` runs locally. GitHub runners have no Playwright browser and skip those tests, so the local run is the only place they execute.
+- Rule 2 (batch `just ci` on the main work branch) is replaced for the pre-PR step by the note above. Items 1, 3 and 6 are unchanged.
+- Rule 5 (single-agent work keeps `just ci` green before handoff) is not changed by this note. The `CLAUDE.md` handoff checklist still says that.
+- Other `docs/` text that still describes a local per-batch full `just ci` (for example the `docs/adr/0108` orchestrator row and the `docs/plans/ui-redesign` and `docs/plans/ui-test-harness` READMEs) is read through this amendment.

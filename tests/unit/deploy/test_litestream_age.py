@@ -44,7 +44,9 @@ def test_one_exact_litestream_tag_everywhere() -> None:
 
 def test_every_litestream_service_uses_the_pin() -> None:
     for f in IMAGE_FILES[:2]:
-        assert len(IMAGE_RE.findall(f.read_text())) == 2, f
+        # Prod template also runs the T-D144 litestream-probe service.
+        expected = 3 if f.name == "docker-compose.yml.tpl" else 2
+        assert len(IMAGE_RE.findall(f.read_text())) == expected, f
 
 
 def test_replicate_configs_carry_recipient_and_identity() -> None:
