@@ -210,3 +210,68 @@ def test_add_recurring_from_today_submits_under_csp(
     expect(page.locator(".recurring-form")).to_have_count(0)
     page.goto(f"{base_url}/ledger?view=recurring")
     expect(page.get_by_text("today-rule").first).to_be_visible()
+
+
+def _open_new_account_form(page: Page, base_url: str) -> Locator:
+    page.goto(f"{base_url}/accounts")
+    assert page.evaluate("typeof window.htmx") == "object"
+    page.get_by_role("button", name="+ New account").click()
+    form = page.locator(".account-form")
+    expect(form).to_be_visible()
+    return form
+
+
+def test_create_account_from_accounts_submits_under_csp(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    # T-D150: the create form targeted a non-existent #accounts-grid.
+    base_url, _ = live_server
+    form = _open_new_account_form(page, base_url)
+    form.locator("input[name='name']").fill("Travel wallet")
+    _pick(page, "currency", "EUR")
+    form.get_by_role("button", name="Create account").click()
+    expect(page.locator(".account-form")).to_have_count(0)
+    expect(page.locator("table.rd-table--accounts")).to_contain_text("Travel wallet")
+
+
+def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], page: Page) -> None:
+    base_url, _ = live_server
+    form = _open_new_account_form(page, base_url)
+    # ``required`` blocks an empty name in the browser; whitespace passes it.
+    form.locator("input[name='name']").fill("   ")
+    _pick(page, "currency", "EUR")
+    form.get_by_role("button", name="Create account").click()
+    expect(page.locator(".account-form")).to_have_count(1)
+    expect(page.locator(".account-form")).to_contain_text("name required")
+
+
+@pytest.mark.parametrize("entry", ["/settings?tab=categories", "/categories"])
+def test_create_category_submits_under_csp(
+    live_server: tuple[str, Path], page: Page, entry: str
+) -> None:
+    # T-D150: the create form targeted ``table.ledger tbody``. ``/categories``
+    # redirects to the Settings tab, the only page that hosts the form.
+    base_url, _ = live_server
+    page.goto(f"{base_url}{entry}")
+    assert page.evaluate("typeof window.htmx") == "object"
+    page.get_by_role("button", name="+ New category").click()
+    form = page.locator(".cat-form")
+    expect(form).to_be_visible()
+    form.locator("input[name='name']").fill("Pets")
+    form.get_by_role("button", name="Create category").click()
+    expect(page.locator(".cat-form")).to_have_count(0)
+    expect(page.locator("#panel-categories")).to_contain_text("Pets")
+
+
+def test_create_category_blank_name_rerenders_form(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    base_url, _ = live_server
+    page.goto(f"{base_url}/settings?tab=categories")
+    page.get_by_role("button", name="+ New category").click()
+    form = page.locator(".cat-form")
+    # ``required`` blocks an empty submit in the browser; whitespace passes it.
+    form.locator("input[name='name']").fill("   ")
+    form.get_by_role("button", name="Create category").click()
+    expect(page.locator(".cat-form")).to_have_count(1)
+    expect(page.locator(".cat-form")).to_contain_text("name required")
