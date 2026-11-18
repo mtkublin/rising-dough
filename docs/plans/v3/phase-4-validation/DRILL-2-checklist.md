@@ -4,6 +4,20 @@ Goals: (1) passkey registration + sign-in on a real host (T-D135), (2) T-D43 smo
 
 Never run any of this against prod. No password is ever put in argv, a chat or a log: it is piped.
 
+## Result 2026-11-18
+
+Explore drill run 44356288331 (host `budget-planner-drill-44356288331`, image `sha-bd4c4c3`). Recorded in `tasks.md`.
+
+- **T-D135 passkey (PASS):** `scripts/drill/passkey_check.py` passed: password sign-in, forced rotation, passkey registered, signed out, passkey sign-in.
+- **T-D136 Litestream restart (PASS):** `docker restart budget-planner-litestream` gave no ADR-0114 forcing line and no errors, same generation `6ce9a8950d6d4780`. After a DB write, WAL segments 00000004 and 00000005 were written to s3 in that generation.
+- **T-D43 smoke (PASS on run 3):** runs 1 and 2 failed on test bugs (T-D43-FIX, T-D43-FIX2). Run 3 passed (1 passed, 11.85 s) on `sha-bd4c4c3`. Follow-up T-D145.
+- **T-D33 rollback (PASS both ways):** rollback run 44360554182 (`target=v3.0.2`) converged to v3.0.2, app healthy, but renamed the host (T-D139-FIX). Repair run 44362948854 rolled forward to `sha-bd4c4c3` with the name restored. Runs 44364434084 (rollback, no target, no id) and 44365282708 (roll forward) kept `budget-planner-drill-44356288331`.
+- **T-D139-FIX (PROVEN):** runs 44362948854, 44364434084, 44365282708.
+- **T-D144 `/health/replication` (PASS on drill):** 200 `status: ok` on the real S3 replica, generation `6ce9a8950d6d4780`, age 126 s, still 200 after every rollback. Prod verify and the second monitor follow v3.0.3.
+- **Teardown:** `drill-destroy.yml` run 44365679103 dispatched (orchestrator confirms the result).
+
+Not covered by these results: the `failed` (`ready_timeout`) state on a break image (T-D33 detection, T-D129e), and the T-D138 negative case (gate fails at `drill-lock` while the kept drill is up).
+
 ## Prerequisites
 
 - No other drill is up (ADR-0115 drill lock). `gh run list -R mtkublin/rising-dough -w drill.yml -L 3` and `-w restore-drill.yml -L 3`: nothing `queued` or `in_progress`.
