@@ -609,6 +609,11 @@ run "prod_instance_type_is_stardust" {
     condition     = module.compute.server_type == "STARDUST1-S"
     error_message = "prod must stay on STARDUST1-S (ADR-0032)."
   }
+
+  assert {
+    condition     = module.compute.root_volume_type == "l_ssd" && module.compute.root_volume_size_gb == 10
+    error_message = "prod must boot from a 10 GB local SSD, not Block Storage (T-D143, ADR-0118)."
+  }
 }
 
 run "drill_instance_type_defaults_to_dev1_s" {
@@ -637,6 +642,11 @@ run "drill_instance_type_defaults_to_dev1_s" {
   assert {
     condition     = module.compute.server_type == "DEV1-S"
     error_message = "drill must default to DEV1-S (T-D123: STARDUST1-S quota is 1 per org)."
+  }
+
+  assert {
+    condition     = module.compute.root_volume_type == "l_ssd" && module.compute.root_volume_size_gb == 10
+    error_message = "drill must boot from a 10 GB local SSD, not Block Storage (T-D143, ADR-0118)."
   }
 }
 
