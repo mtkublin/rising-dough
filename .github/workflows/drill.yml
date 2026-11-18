@@ -204,11 +204,11 @@ jobs:
     timeout-minutes: 15
     environment:
       name: drill-teardown # ungated: the apply job already waited for approval
-      url: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      url: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
     permissions: {}
     env:
       # ADR-0101: the drill has no public DNS or ports; probe its MagicDNS name over the tailnet.
-      TARGET_URL: https://budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}
+      TARGET_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
       TAILNET_DNS_NAME: ${{ vars.TAILNET_DNS_NAME }}
     steps:
       - name: Connect to tailnet (tag:ci, ACL tag:ci -> tag:drill:443)

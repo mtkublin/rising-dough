@@ -182,6 +182,8 @@ jobs:
       TF_VAR_bucket_plan_principals: ${{ secrets.BUCKET_PLAN_PRINCIPALS || '[]' }}
       # T-D97 / ADR-0101: tailnet MagicDNS suffix (environment variable, not a secret); drill only.
       TF_VAR_tailnet_dns_name: ${{ matrix.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}
+      # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
+      TF_VAR_drill_run_id: ${{ matrix.env == 'drill' && github.run_id || '' }}
       TF_VAR_scw_access_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
       TF_VAR_scw_secret_key_restore: ${{ matrix.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
       # T-D103 / ADR-0104: IAM identities from terraform/bootstrap/ci (per-env values).
@@ -347,6 +349,8 @@ jobs:
       TF_VAR_bucket_plan_principals: ${{ secrets.BUCKET_PLAN_PRINCIPALS || '[]' }}
       # T-D97 / ADR-0101: tailnet MagicDNS suffix (environment variable, not a secret); drill only.
       TF_VAR_tailnet_dns_name: ${{ inputs.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}
+      # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
+      TF_VAR_drill_run_id: ${{ inputs.env == 'drill' && github.run_id || '' }}
       TF_VAR_scw_access_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_ACCESS_KEY || '' }}
       TF_VAR_scw_secret_key_restore: ${{ inputs.env == 'drill' && secrets.PROD_REPLICA_RO_SECRET_KEY || '' }}
       # T-D103 / ADR-0104: IAM identities from terraform/bootstrap/ci (per-env values).

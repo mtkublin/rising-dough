@@ -935,3 +935,124 @@ run "ci_ssh_key_must_be_a_public_key" {
 
   expect_failures = [var.ci_ssh_pubkey]
 }
+
+# T-D139 / ADR-0116: the drill's tailnet name (= TLS certificate name) is unique per
+# run, because Let's Encrypt allows 5 certificates per exact name per week.
+run "drill_run_id_makes_tailnet_name_unique" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = "44308968526"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.tailscale_hostname == "budget-planner-drill-44308968526"
+    error_message = "A drill run id must give the VM a per-run tailnet name (ADR-0116)."
+  }
+
+  assert {
+    condition     = output.fqdn == "budget-planner-drill-44308968526.tail1234.ts.net"
+    error_message = "The served hostname (Caddy, WebAuthn RP) must follow the per-run name."
+  }
+}
+
+run "drill_without_run_id_keeps_fixed_name" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = ""
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.tailscale_hostname == "budget-planner-drill"
+    error_message = "Without a run id the drill keeps the fixed tailnet name."
+  }
+}
+
+run "drill_run_id_rejects_non_digits" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    drill_run_id                  = "abc"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_run_id]
+}
+
+run "drill_run_id_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    drill_run_id                  = "123"
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.drill_run_id]
+}

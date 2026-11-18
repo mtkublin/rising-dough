@@ -95,7 +95,7 @@ def test_workflow_joins_tailnet_before_first_ssh(name: str) -> None:
 def test_restore_drill_waits_for_tailnet_host_and_passes_oauth_vars() -> None:
     text = (WORKFLOWS / "restore-drill.yml").read_text()
 
-    assert "DRILL_SSH_HOST: budget-planner-drill" in text
+    assert "DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}" in text
     assert "TF_VAR_tailscale_oauth_client_id" in text
     wait = text.index("Wait for drill host on the tailnet")
     assert wait < text.index("Trigger restore on drill host")

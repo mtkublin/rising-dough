@@ -83,7 +83,7 @@ def test_drill_smoke_joins_tailnet_and_probes_magicdns_name() -> None:
     assert other_pin is not None
     assert pin.group(1) == other_pin.group(1)
     assert "tags: tag:ci" in wf
-    assert "budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}" in wf
+    assert "budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}" in wf
     assert "vars.DRILL_URL" not in _code(WORKFLOWS / "drill.yml")
 
 
@@ -96,3 +96,15 @@ def test_terraform_workflow_passes_tailnet_dns_name_for_drill_only() -> None:
     assert (
         "TF_VAR_tailnet_dns_name: ${{ inputs.env == 'drill' && vars.TAILNET_DNS_NAME || '' }}" in wf
     )
+
+
+def test_drill_tailnet_name_is_unique_per_run() -> None:
+    """T-D139 / ADR-0116: Let's Encrypt allows 5 certificates per exact name per week."""
+    tf = _text(WORKFLOWS / "terraform.yml")
+    assert "TF_VAR_drill_run_id: ${{ matrix.env == 'drill' && github.run_id || '' }}" in tf
+    assert "TF_VAR_drill_run_id: ${{ inputs.env == 'drill' && github.run_id || '' }}" in tf
+    restore = _text(WORKFLOWS / "restore-drill.yml")
+    assert "TF_VAR_drill_run_id: ${{ github.run_id }}" in restore
+    assert "DRILL_HOST: budget-planner-drill-${{ github.run_id }}." in restore
+    for name in ("drill.yml", "restore-drill.yml"):
+        assert "budget-planner-drill.${{ vars.TAILNET_DNS_NAME }}" not in _text(WORKFLOWS / name)
