@@ -5,7 +5,7 @@
 
 ---
 
-### ◻ T-CS01 [S] Measure and profile
+### ✅ T-CS01 [S] Measure and profile
 - **Deliverables**: `docs/plans/ci-speed/baseline.md` with wall times for the GitHub `ci` job (per step, last 5 green runs), local `just ci`, `just test`, the pre-commit hook, `mypy`; `pytest --durations=50` output; the top slow tests grouped by cause (hashing, migrations, sleeps, browser start-up, other).
 - **Acceptance**: every test over 1 s has a cause and a proposed fix or a reason to keep it.
 - **Validation**: numbers reproducible within ±10% on a second run.

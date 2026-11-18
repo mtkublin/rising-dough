@@ -17,3 +17,22 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("BUDGET_ENV", "test")
+
+# Imported after the env pin: ``tests.db_template`` pulls in the app config.
+from pathlib import Path
+
+import pytest
+
+from tests.db_template import build_template, copy_template
+
+
+@pytest.fixture(scope="session")
+def migrated_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """One fully migrated DB per pytest process (T-CS02); copy, never open it."""
+    return build_template(tmp_path_factory.mktemp("template") / "migrated.sqlite")
+
+
+@pytest.fixture
+def migrated_db(migrated_template: Path, tmp_path: Path) -> Path:
+    """Path to this test's own copy of the migrated template (``tmp_path/db.sqlite``)."""
+    return copy_template(migrated_template, tmp_path / "db.sqlite")

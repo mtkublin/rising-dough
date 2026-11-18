@@ -34,10 +34,99 @@ Run-to-run spread is wide (3:13–4:50 for the same step), so before/after compa
 
 **Observation:** pytest is ~95% of the step. mypy without a cache is only ~6.5 s, so the mypy cache (T-CS05) has a small ceiling.
 
+Note: the GitHub run skips 37 more tests than a local run (53 vs 16): the e2e suite skips itself because CI does not install Chromium. Local and CI test counts differ for that reason only.
+
 ## Local (8 cores, shared machine)
 
-_Pending — serial profile with `--durations=60`._
+Serial, full default selection (`uv run pytest`, coverage on), pristine `main` @ `da05e10`:
+
+| Run | Load avg (start → end) | Wall | CPU (user + sys) | Result |
+|---|---|---|---|---|
+| 1, `--durations=60` | ~27 (15-min) | 916 s | 683 s | 2,245 passed, 16 skipped |
+| 2, `--durations=0` + fixture timer | 17.5 → 6.9 | 735 s | — | 2,245 passed, 16 skipped |
+
+Docker Desktop was switched off part-way through the session, so local figures are compared only back-to-back, never across runs at different times.
+
+### Reproducible subset (A/B reference for T-CS02…)
+
+`pytest --no-cov tests/unit tests/integration tests/architecture`, run alternately against pristine `main` and the branch:
+
+| Run | Load avg at start | Wall | CPU (user + sys) |
+|---|---|---|---|
+| main #1 | 15.7 | 173.2 s | 158.9 s |
+| main #2 | 5.0 | 175.1 s | 160.7 s |
+
+Spread between the two `main` runs: 1% wall, 1% CPU — within the ±10% reproducibility bar.
+
+## Where the time goes (run 2)
+
+By directory and phase, top entries:
+
+| Directory | Phase | Total | Tests |
+|---|---|---|---|
+| `integration/web` | setup | 345 s | 677 |
+| `integration/web` | call | 119 s | 386 |
+| `e2e` | setup | 82 s | 15 |
+| `unit/services` | setup | 38 s | 427 |
+| `e2e` | call | 26 s | 15 |
+| `integration/startup` | call | 18 s | 17 |
+| `integration/auth` | setup | 15 s | 43 |
+| `unit/deploy` | call | 12 s | 51 |
+
+Fixture setup (inclusive; nested fixtures double-count):
+
+| Fixture | Calls | Mean | Total |
+|---|---|---|---|
+| `client` (web) | 524 | 392 ms | 205 s |
+| `_migrated` (web) | 642 | 127 ms | 82 s |
+| `live_server` (e2e) | 15 | 4.9 s | 73 s |
+| `conn` (unit/integration) | 731 | 94 ms | 69 s |
+| `anon_client` (web) | 70 | 476 ms | 33 s |
+
+Breakdown of one web `client` setup on an idle-ish machine (micro-benchmark, mean of 10):
+
+| Piece | Time |
+|---|---|
+| `apply_migrations` on a fresh file | ~100–130 ms |
+| Copying a migrated file instead | ~1 ms |
+| `create_app` | <1 ms |
+| TestClient enter (lifespan) | ~2 ms |
+| **First request on a new app** (priming `GET /healthz`) | **~70–100 ms** |
+| Later requests on the same app | ~4 ms (404), ~17 ms (`/ledger`) |
+
+The first-request cost is FastAPI 0.161 building per-route dependency state (`_populate_api_route_state` → `get_dependant`) for ~560 routes, once per app instance. A shared Jinja environment does not change it.
 
 ## Slow tests by cause
 
-_Pending._
+115 test phases took ≥ 1 s in run 2. Run 2 overlapped with other local runs for a while (the `integration/web/test_accessibility.py` setups at 2–3 s fall in that window), so the table groups by cause rather than by exact duration.
+
+| Cause | Where | Typical cost | Decision |
+|---|---|---|---|
+| Every migration applied per test | ~1,500 DB-backed tests (`integration/web`, `unit/services`, `unit/repositories`, `integration` `conn`) | 100–130 ms each | **Fix (T-CS02):** migrate a template once per process, copy per test |
+| FastAPI per-app route state | every new app, ~650 web tests | 70–100 ms each | **Follow-up candidate.** Only fixable by sharing one app across tests (weakens isolation) or patching FastAPI internals (against the "tools' own mechanisms" guardrail). xdist divides it by worker count. |
+| Web fixture setup under contention | `integration/web/test_accessibility.py`, `test_accounts.py` | 1–3 s in run 2 | Not a cost of its own: same `client` fixture as above, inflated by load. Re-check after T-CS02. |
+| uvicorn subprocess + browser context per test | 15 `e2e` tests | ~4.9 s setup | Keep for now: real-server journeys are the point. Not run in GitHub CI (no Chromium). Revisit with xdist groups in T-CS03. |
+| Real subprocess / signal handling | `integration/startup/*`, `integration/web/test_graceful_shutdown.py`, `unit/deploy/test_prod_db_seed.py` | 1–4 s | Keep: the process boundary is what they test. |
+| Whole-repo static scan | `architecture/test_user_id_filter.py` | ~1.5 s | Keep: one test. |
+| Large-page parsing | `integration/web/test_accessibility.py` calls (BeautifulSoup over full pages) | 1–4 s in run 2 | Re-check without load after T-CS02. |
+| Parquet export | `integration/web/test_planned.py::test_export_parquet` | ~7 s first call (pyarrow import) | Keep: one-off import cost per process. |
+
+No real `sleep`-driven tests over 1 s were found. Password hashing is already at bcrypt cost 4 in tests.
+
+## Findings for later tasks
+
+- **Order dependence (T-CS03):** `integration/web/test_no_values_in_logs.py::test_ledger_search_sentinel_absent_from_logs` fails when `tests/unit` runs before it (reproduced on pristine `main`). A unit test leaves logging / structlog configured so the app's log lines don't reach the test's handler. It passes in the default `testpaths` order, which is why CI is green.
+
+## T-CS02 results
+
+### Migrated template DB copied per test
+
+`tests/db_template.py` + `migrated_template` / `migrated_db` fixtures in `tests/conftest.py`; the four per-test migration fixtures now copy the template. `tests/unit/db/test_db_template.py` proves a copy equals a fresh migration (schema, seed rows with timestamps masked, `schema_migrations` checksums, WAL mode), that tests never share a copy, and that a second fixture in the same test never wipes the first one's rows.
+
+Same subset as above, alternating with the `main` runs:
+
+| Run | Load avg at start | Wall | CPU (user + sys) |
+|---|---|---|---|
+| branch #1 | 8.1 | 122.6 s | 111.9 s |
+| branch #2 | 5.9 | 114.6 s | 107.6 s |
+| **change vs `main` (mean)** | | **−32%** | **−32%** |
