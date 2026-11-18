@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D143: local SSD root)
+- **Docs(T-D143): ADR-0118 proposed** — prod VM boots from a Block Storage volume (provider default, ~€0.78/mo) instead of the included 10 GB local SSD that ADR-0032 assumed. Plan: declare `root_volume` `l_ssd` 10 GB; drill gate, then a prod release (VM replaced, IPs kept, DB from Litestream).
+
 ## 2026-11-18 (OPS: GitHub-side v3 closeout)
 - **Fix(T-D139): drill gate failed at smoke because of the Let's Encrypt limit (5 certificates per exact name per week)** (ADR-0116). The fixed drill name `budget-planner-drill.<tailnet>` hit `429 rateLimited` in tailscaled, so Caddy never completed a TLS handshake (TCP open, no ServerHello, `curl: (28)`). The drill now registers as `budget-planner-drill-<run id>` (`drill_run_id`, passed by `terraform.yml`, `drill.yml`, `restore-drill.yml`). Tests: tftest + `test_tailnet_only_drill.py`.
 - **Fix(T-D137): the CI key can SSH into the drill host, drill only** (ADR-0094, ADR-0111). New optional `ci_ssh_pubkey` Terraform variable, forced to empty unless `env = drill` (`ci_ssh_pubkey_effective`), added as a second `operator` authorized key in cloud-init; fed from the environment variable `CI_SSH_PUBKEY` in `restore-drill.yml` and the drill legs of `terraform.yml`. Prod renders and config unchanged. Tests: tftest (prod drops it even when set) and a static workflow test. Operator sets the variable on `drill` and `drill-plan`; drill proof pending (restore drill).

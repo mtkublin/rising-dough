@@ -890,3 +890,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix (ADR-0116): `drill_run_id` Terraform variable; the drill registers as `budget-planner-drill-<run id>`, so each drill orders a certificate for a new name. Workflows pass `github.run_id`.
 - Tests: `terraform/tests/render.tftest.hcl` (unique name, fixed name without id, non-digits rejected, rejected on prod), `tests/unit/deploy/test_tailnet_only_drill.py::test_drill_tailnet_name_is_unique_per_run`.
 - Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.
+
+### T-D143 [S] Boot the VM from local SSD, not Block Storage → ADR-0118, ADR-0032
+- Found 2026-11-18 (prod billing): a "Block Storage Volume" line (~€0.78/mo) next to the Flex IPv4. `scaleway_instance_server.app` has no `root_volume`, so the provider default (SBS) applies; ADR-0032 assumed the included 10 GB local SSD. Catalog check: `STARDUST1-S` and `DEV1-S` in `pl-waw-2` accept `l_ssd` (max 10 GB for Stardust).
+- Change: `root_volume { volume_type = "l_ssd", size_in_gb = 10 }` in `terraform/modules/compute/main.tf`; expose the root volume type/size as module outputs.
+- Tests: `terraform/tests/render.tftest.hcl` asserts `l_ssd` and 10 GB for prod and drill.
+- Proof: drill gate green (boot from `l_ssd`, smoke passes); then prod release with operator approval (VM replaced, IPs kept, DB restored by the compose Litestream restore step); after the next billing day no Block Storage line on prod.
