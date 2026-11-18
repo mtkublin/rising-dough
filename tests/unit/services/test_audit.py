@@ -23,6 +23,7 @@ def test_create_sets_prev_null(conn: sqlite3.Connection) -> None:
             operation="create",
             prev=None,
             new={"a": 1},
+            user_id=None,
         )
     rows = audit_repo.list_entries(conn, "transaction", 1)
     assert len(rows) == 1
@@ -39,6 +40,7 @@ def test_update_populates_both(conn: sqlite3.Connection) -> None:
             operation="update",
             prev={"name": "old"},
             new={"name": "new"},
+            user_id=None,
         )
     rows = audit_repo.list_entries(conn, "account", 2)
     assert rows[0].prev_json is not None
@@ -54,6 +56,7 @@ def test_delete_sets_new_null(conn: sqlite3.Connection) -> None:
             operation="delete",
             prev={"name": "gone"},
             new=None,
+            user_id=None,
         )
     rows = audit_repo.list_entries(conn, "account", 3)
     assert rows[0].new_json is None
@@ -69,6 +72,7 @@ def test_undelete_sets_prev_null(conn: sqlite3.Connection) -> None:
             operation="undelete",
             prev=None,
             new={"name": "restored"},
+            user_id=None,
         )
     rows = audit_repo.list_entries(conn, "account", 4)
     assert rows[0].prev_json is None
@@ -102,6 +106,7 @@ def test_shape_violations_raise(
             operation=operation,  # type: ignore[arg-type]
             prev=prev,
             new=new,
+            user_id=None,
         )
 
 
@@ -114,6 +119,7 @@ def test_unknown_operation_raises(conn: sqlite3.Connection) -> None:
             operation="purge",  # type: ignore[arg-type]
             prev=None,
             new={"a": 1},
+            user_id=None,
         )
 
 
@@ -130,6 +136,7 @@ def test_dataclass_prev_serialised(conn: sqlite3.Connection) -> None:
             operation="create",
             prev=None,
             new=_D(name="z"),
+            user_id=None,
         )
     row = audit_repo.list_entries(conn, "x", 1)[0]
     assert json.loads(row.new_json or "{}") == {"name": "z"}
@@ -145,6 +152,7 @@ def test_rollback_leaves_no_audit_row(conn: sqlite3.Connection) -> None:
                 operation="create",
                 prev=None,
                 new={"a": 1},
+                user_id=None,
             )
             raise RuntimeError("boom")
     except RuntimeError:

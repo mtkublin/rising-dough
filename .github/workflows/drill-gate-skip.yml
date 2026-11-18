@@ -8,7 +8,7 @@ name: Drill gate skip
 #
 # Trigger is pull_request_target, so BOTH this workflow file and the classifier
 # come from the base branch: a PR cannot edit them to approve itself. Safe
-# pattern: no PR code is ever checked out or run (checkout is the base SHA), the
+# pattern: no PR code is ever checked out or run (checkout is the base branch), the
 # file list comes from the API, and PR-controlled values reach scripts only via
 # env. The PR that first adds this workflow gets no run (base lacks it) and
 # needs a real gate.
@@ -35,7 +35,12 @@ jobs:
       - name: Checkout base (classifier source)
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          # base.ref (the current tip of `main`), NOT base.sha: base.sha is the
+          # commit the PR was opened against, so a PR older than this workflow
+          # or the classifier checks out a tree without scripts/ci/drill_gate_skip.py
+          # and fails (PR #29, run 44396176171). Still trusted base-branch code;
+          # no PR code is ever checked out.
+          ref: ${{ github.event.pull_request.base.ref }}
           persist-credentials: false
 
       - name: Classify changed files
@@ -46,6 +51,13 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          # Defense in depth: no classifier on the base branch means the real
+          # gate is required. Post no status and do not fail the job.
+          if [ ! -f scripts/ci/drill_gate_skip.py ]; then
+            echo "verdict=gate" >> "$GITHUB_OUTPUT"
+            echo "classifier not on base; real gate required" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           # Paginated file list; a rename contributes both old and new path.
           gh api --paginate "repos/${REPO}/pulls/${PR}/files" \
             --jq '.[] | .filename, (.previous_filename // empty)' > "${RUNNER_TEMP}/changed.txt"

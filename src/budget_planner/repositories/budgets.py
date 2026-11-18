@@ -124,6 +124,7 @@ def set_default(conn: sqlite3.Connection, user_id: int, data: NewBudgetDefault) 
         operation="update" if prev is not None else "create",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -148,6 +149,7 @@ def clear_default(conn: sqlite3.Connection, user_id: int, category_id: int) -> N
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -218,6 +220,7 @@ def set_recurring(
         operation="update" if prev is not None else "create",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -242,6 +245,7 @@ def clear_recurring(conn: sqlite3.Connection, user_id: int, category_id: int, mo
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -321,6 +325,7 @@ def set_one_off(
         operation="update" if prev is not None else "create",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -351,6 +356,7 @@ def clear_one_off(
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
