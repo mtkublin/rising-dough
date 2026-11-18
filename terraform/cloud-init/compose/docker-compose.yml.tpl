@@ -84,7 +84,7 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream
     restart: unless-stopped
-    # T-D136 / ADR-0113: exports the age identity and forces one new generation per host.
+    # T-D136 / ADR-0114: exports the age identity and forces one new generation per host.
     entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:

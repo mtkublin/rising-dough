@@ -705,7 +705,7 @@ run "host_config_pins_image_and_policy" {
     error_message = "Secrets files and the drill restore helper must be agent-managed files."
   }
 
-  # T-D136 / ADR-0113: replicate config carries the identity, the entrypoint is
+  # T-D136 / ADR-0114: replicate config carries the identity, the entrypoint is
   # agent-managed, and a change to either restarts litestream.
   assert {
     condition = alltrue([

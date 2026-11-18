@@ -1,5 +1,5 @@
 #!/bin/sh
-# T-D136 / ADR-0113: entrypoint of the litestream service (replicate).
+# T-D136 / ADR-0114: entrypoint of the litestream service (replicate).
 # Written verbatim by the host agent (ADR-0111); no Terraform templating.
 #
 # 1. Export the age identity so litestream.yml can read it. Litestream 0.3.14
@@ -28,7 +28,7 @@ fi
 export LITESTREAM_AGE_IDENTITY
 
 if [ "${1:-}" = "replicate" ] && [ ! -e "$MARKER" ]; then
-  echo "litestream-entrypoint: forcing a new generation (one-time, ADR-0113)"
+  echo "litestream-entrypoint: forcing a new generation (one-time, ADR-0114)"
   rm -rf "$META_DIR"
   date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER"
 fi
