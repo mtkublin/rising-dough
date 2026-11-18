@@ -138,6 +138,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: drill # holds DEPLOY_SSH_PRIVATE_KEY (only in `drill`); no reviewers configured today
+    permissions:
+      contents: read
+      actions: read # run start time for the restore-log entry (T-D41)
     env:
       # ADR-0101: tailnet-only drill; probe the MagicDNS name (runner is on the tailnet).
       DRILL_HOST: budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
@@ -236,30 +239,42 @@ jobs:
         # (per ADR-0034 §5 + the drill terraform.tfvars) runs
         #   litestream restore -o /data/budget.db s3://budget-planner-prod-pl-waw/db
         # using a read-only IAM credential scoped to the prod bucket.
+        # T-D41: the output is kept in restore-output.log; only validated fields
+        # (generation, index range, source) reach the restore-log entry. The helper
+        # never prints secrets.
+        id: restore
         run: |
           set -euo pipefail
           ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
-            'sudo cloud-init status --wait >/dev/null; sudo /usr/local/bin/restore-from-prod'
+            'sudo cloud-init status --wait >/dev/null; sudo /usr/local/bin/restore-from-prod' \
+            2>&1 | tee restore-output.log
+          echo "restored_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Verify /ready reports ready, db ok
+        id: ready
         run: |
           set -euo pipefail
           body="$(curl -fsS "https://${DRILL_HOST}/ready")"
           status="$(jq -r .status <<<"${body}")"
           db="$(jq -r .db <<<"${body}")"
           echo "ready.status=${status} ready.db=${db}"
+          echo "ready_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "state=${status}-${db}" | tr -c "A-Za-z0-9_=\n-" "-" >> "$GITHUB_OUTPUT"
           test "${status}" = "ready"
           test "${db}" = "ok"
 
       - name: Verify PRAGMA integrity_check
+        id: integrity
         run: |
           set -euo pipefail
           result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             "sudo sqlite3 /data/budget.db 'PRAGMA integrity_check;'")"
           echo "integrity_check=${result}"
+          echo "value=$(printf '%s' "${result}" | tr -c 'A-Za-z0-9_-' '-' | cut -c1-40)" >> "$GITHUB_OUTPUT"
           test "${result}" = "ok"
 
       - name: Verify no extra DB copies remain (T-D57)
+        id: copies
         # ADR-0078 section 4: only the live budget.db (+ -wal/-shm) may be left under
         # /data; moved-aside and pre-migration copies are deleted by the helper.
         run: |
@@ -267,7 +282,64 @@ jobs:
           extra="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
             "sudo find /data -name '*.db*' ! -path '/data/.budget.db-litestream*' ! -name budget.db ! -name budget.db-wal ! -name budget.db-shm")"
           echo "extra_db_copies=[${extra}]"
+          if [ -z "${extra}" ]; then echo "value=none" >> "$GITHUB_OUTPUT"; else echo "value=found" >> "$GITHUB_OUTPUT"; fi
           test -z "${extra}"
+
+      # T-D41: read-only stats of the restored DB for the restore-log entry. Never
+      # blocks the run; the sqlite3 -readonly flag keeps the restored file untouched.
+      - name: Collect restored audit_log stats (read-only)
+        id: audit
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          set -uo pipefail
+          out="$(timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=10 operator@"${DRILL_SSH_HOST}" \
+            "sudo sqlite3 -readonly -separator '|' /data/budget.db 'SELECT count(*), max(id), max(changed_at) FROM audit_log;'" 2>/dev/null || true)"
+          echo "audit_log=${out}"
+          echo "stats=${out}" >> "$GITHUB_OUTPUT"
+
+      # T-D41: the entry for restore-log.md, built on success AND failure. It goes to the
+      # job summary and, through the `restore-log` job, to the restore-log issue.
+      - name: Build restore-log entry
+        id: entry
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          IMAGE_REF: ${{ needs.apply.outputs.host_image_ref }}
+          AUDIT_STATS: ${{ steps.audit.outputs.stats }}
+          INTEGRITY: ${{ steps.integrity.outputs.value }}
+          READY_STATE: ${{ steps.ready.outputs.state }}
+          READY_AT: ${{ steps.ready.outputs.ready_at }}
+          EXTRA_COPIES: ${{ steps.copies.outputs.value }}
+          RESTORED_AT: ${{ steps.restore.outputs.restored_at }}
+        run: |
+          set -uo pipefail
+          started="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .run_started_at 2>/dev/null || true)"
+          touch restore-output.log
+          result=fail
+          if [ "${JOB_STATUS}" = "success" ]; then result=pass; fi
+          python3 scripts/ci/restore_log_entry.py \
+            --result "${result}" --trigger "${EVENT_NAME}" --run-url "${RUN_URL}" \
+            --image-ref "${IMAGE_REF}" --restore-output restore-output.log \
+            --audit "${AUDIT_STATS}" --integrity "${INTEGRITY}" --ready "${READY_STATE}" \
+            --extra-copies "${EXTRA_COPIES}" --started-at "${started}" --ready-at "${READY_AT}" \
+            --restored-at "${RESTORED_AT}" > restore-log-entry.md
+          cat restore-log-entry.md
+          { echo "### Restore-log entry"; echo; cat restore-log-entry.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload restore-log entry
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: restore-log-entry
+          path: restore-log-entry.md
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Capture debugging evidence (best-effort)
         # T-D66: runs only on failure, BEFORE destroy. Never blocks destroy:
@@ -432,3 +504,42 @@ jobs:
             --title "${title}" \
             --body "${body}" \
             --label "restore-drill,incident"
+
+  # T-D41 (user decision 2026-11-18): main is protected, so the workflow cannot commit
+  # the entry. Every run that reached the restore job appends its entry as a comment on
+  # the single open `restore-log` issue (created with its label when missing). Failed
+  # runs post `Result: fail`; the failure issue below is unchanged.
+  restore-log:
+    name: Post restore-log entry
+    needs: restore-drill
+    if: ${{ always() && needs.restore-drill.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: drill-teardown # ungated; no secrets beyond the job token
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Download restore-log entry
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: restore-log-entry
+
+      - name: Comment on the restore-log issue
+        if: ${{ steps.download.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          gh label create restore-log --repo "${REPO}" --color 0e8a16 --description "Restore drill results" 2>/dev/null || true
+          number="$(gh issue list --repo "${REPO}" --label restore-log --state open \
+            --json number,title --jq '[.[] | select(.title == "restore-log")][0].number // empty')"
+          if [ -z "${number}" ]; then
+            url="$(gh issue create --repo "${REPO}" --title restore-log --label restore-log \
+              --body "Append-only log of restore drill results, one comment per run (T-D41). Posted by restore-drill.yml; do not close. Format: docs/plans/v3/runbooks/restore-log.md.")"
+            number="${url##*/}"
+          fi
+          gh issue comment "${number}" --repo "${REPO}" --body-file restore-log-entry.md
