@@ -1,0 +1,81 @@
+name: Drill gate skip
+
+# ADR-0121 (amends ADR-0099, T-D147): a PR whose changed files are all on the
+# non-deploy allowlist gets the required `drill-gate` commit status set to
+# success without a drill VM. Anything else posts nothing; the real gate
+# (drill.yml, mode=gate) stays the only way to satisfy it. Never posts pending
+# or failure, so a real gate run can always overwrite the status.
+#
+# The classifier is checked out from the PR BASE commit, not the PR head, so a
+# PR cannot loosen its own allowlist. Edits to .github/** and scripts/** are
+# never skip-safe anyway. (The workflow file itself still comes from the PR
+# merge ref; the single-owner threat model is recorded in ADR-0121.)
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  statuses: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  skip-gate:
+    name: drill-gate skip check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout base (classifier source)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Classify changed files
+        id: classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Paginated file list; a rename contributes both old and new path.
+          gh api --paginate "repos/${REPO}/pulls/${PR}/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > "${RUNNER_TEMP}/changed.txt"
+          count=$(wc -l < "${RUNNER_TEMP}/changed.txt")
+          result="${RUNNER_TEMP}/result.txt"
+          # The API lists at most 3000 files; treat a list that big as truncated.
+          if [ "${count}" -ge 3000 ]; then
+            echo gate > "${result}"
+          else
+            python3 scripts/ci/drill_gate_skip.py < "${RUNNER_TEMP}/changed.txt" > "${result}"
+          fi
+          verdict=$(head -n 1 "${result}")
+          echo "verdict=${verdict}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### drill-gate skip check"
+            echo "- verdict: ${verdict}"
+            echo "- files: ${count}"
+            if [ "${verdict}" = "gate" ]; then
+              echo "- needs the real gate (deploy-relevant paths):"
+              tail -n +2 "${result}" | sed 's/^/  - `/; s/$/`/'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post drill-gate success (skipped)
+        if: ${{ steps.classify.outputs.verdict == 'skip' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/statuses/${SHA}" \
+            -f state=success -f context=drill-gate \
+            -f description="skipped: no deploy-relevant changes (ADR-0121)" \
+            -f target_url="${RUN_URL}"

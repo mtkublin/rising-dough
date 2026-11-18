@@ -4,7 +4,7 @@
 
 - Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.2@sha256:4243782f3e8941e07971681a02b3ed6f68b5951972570a1bc90656134f498c4b` (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). v3.0.2 carries the T-D136 Litestream fix and the T-D135 WebAuthn settings. The replica had stalled from 2026-11-07; it has been replicating into a new generation since 2026-11-18 ([`restore.md`](restore.md), incident record).
 - Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
-- Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
+- Every PR needs a `drill-gate` on its head SHA (`protect-main` ruleset). PRs that only touch docs, tests, `.claude/` or markdown get it automatically from `drill-gate-skip.yml` (ADR-0121, T-D147); any other change needs a real gate drill.
 - Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitor set up and closed (T-D44); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod.
 - Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
 - ADR-0097 (amended 2026-11-18): the orchestrator no longer runs a local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR CI cover it; only `tests/e2e` runs locally.

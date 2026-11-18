@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D147 drill-gate skip)
+- **CI(T-D147): non-deploy PRs get `drill-gate` automatically.** New `drill-gate-skip.yml` plus `scripts/ci/drill_gate_skip.py` (allowlist, fail closed) post `drill-gate` success when every changed file is docs, tests, `.claude/`, LICENSE or markdown outside deploy dirs. Workflow and script edits always need the real gate. ADR-0121 (amends ADR-0099).
+
 ## 2026-11-18 (T-D146 HEAD on health routes)
 - **Fix(T-D146): `/health`, `/health/replication` and `/ready` answer HEAD like GET.** They returned 405 on HEAD, which the free UptimeRobot plan uses. Same status codes (including 503), empty body. ADR-0119 amended.
 

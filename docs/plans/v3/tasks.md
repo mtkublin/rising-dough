@@ -930,3 +930,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Change: the three routes use `api_route(..., methods=["GET", "HEAD"])` (precedent: `today.py`). HEAD returns the same status as GET, including 503 on stale replication and on not-ready, with an empty body. Auth, CSRF, must-change-password and cache-control middleware do not filter by GET only, and the app rate limit covers auth routes only (ADR-0072), so no middleware change.
 - Tests: `tests/integration/web/test_health.py`, `tests/integration/web/test_health_replication.py` (HEAD status equals GET status, empty body, ok and failing cases).
 - Done when: merged and released; `curl -sI https://budget.rising-dough.eu/health/replication` returns 200 on prod and UptimeRobot monitors are green.
+
+### T-D147 [S] Auto-satisfy `drill-gate` for PRs that cannot affect the deploy → ADR-0121, ADR-0099, T-D98
+- Decision 2026-11-18: a full drill on docs-only PRs is overkill.
+- Change: `.github/workflows/drill-gate-skip.yml` (pull_request to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
+- Tests: `tests/unit/deploy/test_drill_gate_skip.py` (classifier table, workflow context, permissions, no failure/pending, SHA pins).
+- Done when: merged, and a docs-only PR shows `drill-gate` success without a drill run while a `src/` PR still needs the real gate.
