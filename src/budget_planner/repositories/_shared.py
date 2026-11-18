@@ -18,7 +18,7 @@ import json
 import sqlite3
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, is_dataclass, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -42,6 +42,11 @@ def _dumps(value: Any) -> str | None:
     if is_dataclass(value) and not isinstance(value, type):
         value = asdict(value)
     return json.dumps(value, default=str, sort_keys=True)
+
+
+def attributed_ctx(request_ctx: RequestCtx, user_id: int | None) -> RequestCtx:
+    """Return ``request_ctx`` with ``user_id`` set to the row owner (T-D145)."""
+    return request_ctx if user_id is None else replace(request_ctx, user_id=user_id)
 
 
 def write_audit(
@@ -145,6 +150,7 @@ def mutate[T](
     operation: str,
     prev: Any | None,
     action: Callable[[sqlite3.Connection], tuple[int, T]],
+    user_id: int | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> T:
     """Run ``action`` inside a transaction and emit a paired audit row.
@@ -157,6 +163,11 @@ def mutate[T](
     audit row carries the inbound request's forensic metadata (T-D14).
     Defaults to :meth:`RequestCtx.empty` — callers that have not yet
     threaded a real context behave exactly as before.
+
+    ``user_id`` is mandatory (T-D145, ADR-0122): the owner of the mutated row.
+    Domain repositories only ever mutate the caller's own rows, so it is
+    recorded as both ``audit_log.user_id`` and ``actor_user_id``. Pass ``None``
+    only for global, ownerless tables (``fx_rates``).
     """
     with transaction(conn):
         new_id, new_value = action(conn)
@@ -167,7 +178,8 @@ def mutate[T](
             operation=operation,
             prev=prev,
             new=new_value,
-            request_ctx=request_ctx,
+            request_ctx=attributed_ctx(request_ctx, user_id),
+            actor_user_id=user_id,
         )
         return new_value
 

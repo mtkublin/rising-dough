@@ -73,6 +73,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
         operation="create",
         prev=None,
         action=_action,
+        user_id=user_id,
     )
 
 

@@ -493,6 +493,7 @@ def promote_recurring(
             operation="update",
             prev=rule,
             new=updated_rule,
+            user_id=user_id,
         )
     return txn
 
@@ -562,6 +563,7 @@ def skip_and_advance(
             operation="update",
             prev=rule,
             new=updated_rule,
+            user_id=user_id,
         )
     return new_next_due
 

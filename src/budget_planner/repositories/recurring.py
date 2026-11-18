@@ -262,6 +262,7 @@ def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) 
         operation="create",
         prev=None,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -335,6 +336,7 @@ def update_rule(
         operation="update",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -362,6 +364,7 @@ def soft_delete_rule(conn: sqlite3.Connection, user_id: int, rule_id: int) -> No
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -491,6 +494,7 @@ def upsert_override(
         operation="update" if prev is not None else "create",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -527,6 +531,7 @@ def delete_override(
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 

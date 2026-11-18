@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D145 audit attribution)
+- **Fix(T-D145, ADR-0122): domain audit rows record owner and actor.** `mutate` and `services.audit.write_audit` take a mandatory `user_id`; every domain write now stores `user_id = actor_user_id = owner` (was NULL for both, so `audit_tail` showed a user's own rows as `[other-user]`). Migration `0016_audit_backfill_owner` backfills `user_id` on existing rows from the entity owner (`actor_user_id` stays NULL). Tests: `tests/integration/test_audit_attribution.py`, `tests/integration/web/test_audit_attribution_web.py`.
+
 ## 2026-11-18 (T-D41 restore drill from main)
 - **Docs(T-D41): restore drill from `main` recorded** (run 44387134093, pass, entry posted to restore-log issue #28; T-D41 ✅). The same run is the T-D138 positive leg: `drill lock` passed after the explore drill was destroyed.
 
