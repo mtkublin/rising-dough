@@ -812,3 +812,126 @@ run "drill_compose_sets_webauthn_rp_to_tailnet_name" {
     error_message = "Drill compose must render the WebAuthn RP from the tailnet hostname (T-D135)."
   }
 }
+
+# T-D137: the CI key is authorised on drill hosts only (ADR-0094, ADR-0111).
+run "ci_ssh_key_not_rendered_by_default" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !strcontains(nonsensitive(output.user_data), "ci-deploy")
+    error_message = "No CI key may render when ci_ssh_pub is empty (T-D137)."
+  }
+}
+
+run "ci_ssh_key_renders_as_second_operator_key" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    ci_ssh_pub = "ssh-ed25519 AAAACIKEY ci-deploy"
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "      - 'ssh-ed25519 AAAACIKEY ci-deploy'\n")
+    error_message = "A set CI key must be a second ssh_authorized_keys entry (T-D137)."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAADUMMY")
+    error_message = "The operator's own key must stay authorised (T-D137)."
+  }
+}
+
+run "ci_ssh_key_dropped_on_prod_even_when_set" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "ssh-ed25519 AAAACIKEY ci-deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  assert {
+    condition     = output.ci_ssh_authorized == false
+    error_message = "Prod must never authorise the CI key, whatever ci_ssh_pubkey holds (T-D137)."
+  }
+}
+
+run "ci_ssh_key_authorised_on_drill" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail0000.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "ssh-ed25519 AAAACIKEY ci-deploy"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = output.ci_ssh_authorized == true
+    error_message = "Drill must authorise the CI key when ci_ssh_pubkey is set (T-D137)."
+  }
+}
+
+run "ci_ssh_key_must_be_a_public_key" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail0000.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    ci_ssh_pubkey                 = "not-a-public-key"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.ci_ssh_pubkey]
+}

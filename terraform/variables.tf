@@ -186,6 +186,17 @@ variable "operator_ssh_pubkey" {
   sensitive   = true
 }
 
+variable "ci_ssh_pubkey" {
+  description = "Drill-only (T-D137, ADR-0094, ADR-0111): public half of the CI SSH key (`restore-drill.yml`), added to the 'operator' user's authorized keys. Never rendered unless env = drill (main.tf local `ci_ssh_pubkey_effective`), whatever the value. Empty = not authorised."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.ci_ssh_pubkey == "" || can(regex("^ssh-ed25519 [A-Za-z0-9+/=]+( [A-Za-z0-9@._-]+)?$", var.ci_ssh_pubkey))
+    error_message = "ci_ssh_pubkey must be empty or a single-line ssh-ed25519 public key."
+  }
+}
+
 variable "ghcr_pull_pat" {
   description = "GHCR read-only PAT used by cloud-init to pull the private container image on first boot."
   type        = string

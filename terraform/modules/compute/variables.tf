@@ -101,6 +101,12 @@ variable "operator_ssh_pub" {
   sensitive   = true
 }
 
+variable "ci_ssh_pub" {
+  description = "Drill-only (T-D137): CI SSH public key added to the operator's authorized keys. Empty on prod (the root module forces it)."
+  type        = string
+  default     = ""
+}
+
 variable "ghcr_pull_pat" {
   description = "GHCR read-only PAT."
   type        = string

@@ -67,6 +67,10 @@ module "storage" {
 # T-D69 / ADR-0092: the long-lived restore-reader principal is read-only on the
 # prod bucket. It lives in terraform/bootstrap/ci (ADR-0104); prod only.
 locals {
+  # T-D137: the CI key is authorised on drill hosts only. Structural: on any
+  # other env the value collapses to "" before it reaches the compute module.
+  ci_ssh_pubkey_effective = var.env == "drill" ? var.ci_ssh_pubkey : ""
+
   bucket_readonly_principals = distinct(concat(
     var.bucket_readonly_principals,
     var.restore_reader_application_id == "" ? [] : ["application_id:${var.restore_reader_application_id}"],
@@ -126,6 +130,7 @@ module "compute" {
   scw_access_key         = var.app_scw_access_key
   scw_secret_key         = var.app_scw_secret_key
   operator_ssh_pub       = var.operator_ssh_pubkey
+  ci_ssh_pub             = local.ci_ssh_pubkey_effective
   ghcr_pull_pat          = var.ghcr_pull_pat
   github_owner           = var.github_owner
   github_repo            = var.github_repo
