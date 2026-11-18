@@ -1,0 +1,216 @@
+"""T-D147 / ADR-0121: drill-gate skip classifier and workflow shape. No network."""
+
+from __future__ import annotations
+
+import importlib.util
+import re
+import subprocess
+import sys
+from pathlib import Path
+from types import ModuleType
+from typing import Any
+
+import pytest
+import yaml  # type: ignore[import-untyped]
+
+ROOT = Path(__file__).resolve().parents[3]
+SCRIPT = ROOT / "scripts" / "ci" / "drill_gate_skip.py"
+WORKFLOWS = ROOT / ".github" / "workflows"
+SKIP_WORKFLOW = "drill-gate-skip.yml"
+
+
+def _load() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("drill_gate_skip", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+skip = _load()
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [
+        ["docs/adr/0121-x.md"],
+        ["docs/plans/v3/tasks.md", "docs/CHANGELOG.md"],
+        ["docs/diagram.png"],
+        ["README.md"],
+        ["CLAUDE.md", "docs/requirements.md"],
+        ["notes/idea.md"],
+        [".claude/skills/x/SKILL.md", ".claude/settings.json"],
+        ["tests/unit/deploy/test_x.py"],
+        ["tests/conftest.py", "tests/fixtures/data.json"],
+        ["LICENSE", "LICENSE.txt"],
+    ],
+)
+def test_non_deploy_changes_skip(paths: list[str]) -> None:
+    verdict, offenders = skip.classify(paths)
+    assert verdict == "skip"
+    assert offenders == []
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/budget_planner/README.md",
+        "src/budget_planner/main.py",
+        "migrations/0001_init.sql",
+        "migrations/notes.md",
+        "terraform/README.md",
+        "terraform/main.tf",
+        "deploy/docker-entrypoint.sh",
+        "deploy/README.md",
+        "scripts/ci/ref_guard.py",
+        "scripts/README.md",
+        ".github/workflows/ci.yml",
+        ".github/workflows/drill-gate-skip.yml",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        "Dockerfile",
+        ".dockerignore",
+        "pyproject.toml",
+        "uv.lock",
+        "justfile",
+        ".pre-commit-config.yaml",
+        "unknown.bin",
+        "Docs/readme.txt",
+        "docs/../src/x.py",
+        "/etc/passwd",
+        "licensefile",
+    ],
+)
+def test_deploy_relevant_paths_gate(path: str) -> None:
+    verdict, offenders = skip.classify([path])
+    assert verdict == "gate"
+    assert offenders == [path]
+
+
+def test_mixed_docs_and_src_gates_and_lists_only_offenders() -> None:
+    verdict, offenders = skip.classify(["docs/a.md", "src/x.py", "tests/t.py"])
+    assert verdict == "gate"
+    assert offenders == ["src/x.py"]
+
+
+def test_empty_diff_fails_closed() -> None:
+    assert skip.classify([]) == ("gate", [])
+    assert skip.classify(["", "  "]) == ("gate", [])
+
+
+def test_rename_from_docs_to_src_gates() -> None:
+    verdict, offenders = skip.classify(["docs/old.md", "src/new.md"])
+    assert verdict == "gate"
+    assert offenders == ["src/new.md"]
+
+
+def test_rename_from_src_to_docs_gates() -> None:
+    verdict, offenders = skip.classify(["src/old.py", "docs/new.md"])
+    assert verdict == "gate"
+    assert offenders == ["src/old.py"]
+
+
+def test_cli_prints_verdict_then_offenders() -> None:
+    def run(stdin: str) -> list[str]:
+        out = subprocess.run(  # noqa: S603
+            [sys.executable, str(SCRIPT)], input=stdin, capture_output=True, text=True, check=True
+        )
+        return out.stdout.splitlines()
+
+    assert run("docs/a.md\n") == ["skip"]
+    assert run("docs/a.md\nsrc/x.py\n") == ["gate", "src/x.py"]
+    assert run("") == ["gate"]
+
+
+# --- workflow shape ---------------------------------------------------------
+
+
+def _wf() -> dict[Any, Any]:
+    loaded: dict[Any, Any] = yaml.safe_load((WORKFLOWS / SKIP_WORKFLOW).read_text())
+    return loaded
+
+
+def test_workflow_triggers_on_pull_request_to_main_only() -> None:
+    wf = _wf()
+    triggers = wf[True] if True in wf else wf["on"]
+    assert set(triggers) == {"pull_request_target"}
+    assert triggers["pull_request_target"]["branches"] == ["main"]
+    assert set(triggers["pull_request_target"]["types"]) == {
+        "opened",
+        "synchronize",
+        "reopened",
+        "ready_for_review",
+    }
+
+
+def test_workflow_permissions_are_minimal() -> None:
+    wf = _wf()
+    assert wf["permissions"] == {
+        "statuses": "write",
+        "contents": "read",
+        "pull-requests": "read",
+    }
+    for job in wf["jobs"].values():
+        assert "permissions" not in job or set(job["permissions"]) <= {
+            "statuses",
+            "contents",
+            "pull-requests",
+        }
+
+
+def test_workflow_uses_exact_drill_gate_context() -> None:
+    drill = (WORKFLOWS / "drill.yml").read_text()
+    contexts = set(re.findall(r"context=(\S+)", drill))
+    assert contexts == {"drill-gate"}
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    assert set(re.findall(r"context=(\S+)", text)) == contexts
+    assert "state=success" in text
+    assert "skipped: no deploy-relevant changes (ADR-0121)" in text
+
+
+def test_workflow_never_posts_failure_or_pending() -> None:
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    states = set(re.findall(r"state=(\S+)", text))
+    assert states == {"success"}
+
+
+def test_workflow_actions_are_sha_pinned() -> None:
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    refs = re.findall(r"^\s*-?\s*uses:\s*(\S+)", text, flags=re.M)
+    assert refs
+    for ref in refs:
+        assert re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", ref), ref
+
+
+def test_workflow_runs_classifier_from_base_not_pr_head() -> None:
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    assert "scripts/ci/drill_gate_skip.py" in text
+    assert "pull_request.base.sha" in text
+
+
+def test_workflow_never_checks_out_pr_code() -> None:
+    steps = [s for job in _wf()["jobs"].values() for s in job["steps"]]
+    checkouts = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
+    assert checkouts
+    for step in checkouts:
+        assert step["with"]["ref"] == "${{ github.event.pull_request.base.sha }}"
+        assert step["with"]["persist-credentials"] is False
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    assert "head.ref" not in text
+    assert "refs/pull" not in text
+    assert "merge" not in text.replace("merge ref", "")
+
+
+def test_run_blocks_do_not_interpolate_pr_context() -> None:
+    steps = [s for job in _wf()["jobs"].values() for s in job["steps"]]
+    for step in steps:
+        run = step.get("run", "")
+        assert "${{" not in run, run
+        for value in step.get("env", {}).values():
+            for expr in re.findall(r"\$\{\{\s*([^}]*?)\s*\}\}", str(value)):
+                if expr.startswith("github.event.pull_request."):
+                    assert expr in {
+                        "github.event.pull_request.number",
+                        "github.event.pull_request.head.sha",
+                        "github.event.pull_request.base.sha",
+                    }, expr

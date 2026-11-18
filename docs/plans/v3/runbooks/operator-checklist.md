@@ -1,26 +1,32 @@
 # v3 go-live operator checklist (as of 2026-11-18)
 
-## State as of 2026-11-18 (evening)
+## State as of 2026-11-18 (late evening)
 
-- Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.2@sha256:4243782f3e8941e07971681a02b3ed6f68b5951972570a1bc90656134f498c4b` (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). v3.0.2 carries the T-D136 Litestream fix and the T-D135 WebAuthn settings. The replica had stalled from 2026-11-07; it has been replicating into a new generation since 2026-11-18 ([`restore.md`](restore.md), incident record).
+- Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.3@sha256:bef6512523df4c67727a5d443b01baf3384ad1d1793bad81e5ca5a9e563f4864` (release run 44369978294, apply 1 change / 0 destroy; `/ready` 200). It carries T-D144 (`/health/replication`). The replica is replicating into generation `2901fbd3873a6696` ([`restore.md`](restore.md), incident record). v3.0.2 was the previous prod release.
 - Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
-- Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
-- Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitor set up and closed (T-D44); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod.
+- Every PR needs a `drill-gate` on its head SHA (`protect-main` ruleset). PRs that only touch docs, tests, `.claude/` or markdown get it automatically from `drill-gate-skip.yml` (ADR-0121, T-D147); any other change needs a real gate drill.
+- Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitors set up (T-D44, T-D144; see Monitoring below); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod; T-D144 verified on prod in v3.0.3.
 - Restore drill (T-D40) green 2026-11-18: run 44351020259, generation `2901fbd3873a6696`, first entry in [`restore-log.md`](restore-log.md).
+- Restore drill from `main` (T-D41) green 2026-11-18: run 44387134093, generation `2901fbd3873a6696`, pass, first automated entry posted to the `restore-log` issue ([#28](https://github.com/mtkublin/rising-dough/issues/28)). T-D41 is ✅. T-D138 positive leg (lock passes after destroy) observed in the same run.
+- T-D138 lock-conflict proof (2026-11-18): gate run 44383745599 (from `main`) failed at `drill lock` while kept explore drill 44381760469 was up, as designed; the explore drill was untouched.
+- Gate drill green on PR #25 (`drill-gate` run 44366621363 on 4a20548), merged as e993538. T-D133 is ✅.
+- T-D56 is ✅: dry run from `main`, run 44372136946, 83 encrypted objects, 0 plaintext to delete. No delete run is needed.
 - ADR-0097 (amended 2026-11-18): the orchestrator no longer runs a local full `just ci` before a PR. The gate drill's `ci / just ci` job and the PR CI cover it; only `tests/e2e` runs locally.
 - Next, in order:
-  1. **DRILL-2 (done 2026-11-18, explore drill 44356288331; results in the checklist).** Run 44356288331. Checks: passkey registration (T-D135), smoke journey (T-D43), rollback test (T-D33), Litestream restart (T-D136), `/health/replication` (T-D144). Record a check only after it passes. Checklist: [`DRILL-2-checklist.md`](../phase-4-validation/DRILL-2-checklist.md).
-  2. **Gate drill (pending).** `drill-gate` green on the PR head SHA. It proves T-D133. It also proves T-D138 (the drill lock): with the kept drill still up, the gate must fail at `drill-lock`; after `drill-destroy.yml`, it passes.
-  3. **PR merge.** Merge to `main` once `drill-gate` is green on the head SHA (`protect-main` ruleset).
-  4. **v3.0.3 release.** `gh release create v3.0.3 -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Carries T-D144.
-  5. **Verify `/health/replication` on prod, and the second UptimeRobot monitor.** Prod returns 200 with `status: ok`. Monitor `https://budget.rising-dough.eu/health/replication`: HTTP(s), 5 min, status code only (no keyword), up = 2xx, same alert contact as `/health`. Confirm it is green.
-  6. **Restore drill from `main` (T-D41).** Dispatch `restore-drill.yml` from `main`; its entry must post to the `restore-log` issue. T-D41 stays ◐ until then.
-  7. **T-D56 cleanup dry run from `main`.** Dispatch `litestream-plaintext-cleanup.yml` in dry-run mode from `main`; it should pass the restore-log check. Delete plaintext generations only after that, with approval.
-  8. **v3 closeout.**
+  1. **drill-gate on PR #26** (`fix/T-D146-head-health`, T-D146 HEAD on health routes). Green on the head SHA.
+  2. **Merge PR #26** once `drill-gate` is green on the head SHA (`protect-main` ruleset).
+  3. **v3.0.4 release** (`gh release create v3.0.4 -R mtkublin/rising-dough --target main`, then approve the `prod` apply). Bundled with other agents' fixes, including T-D146.
+  4. **Optional: switch the replication monitor back to HTTP(s) after v3.0.4.** Only if you want the plain status-code monitor. The Keyword monitor stays valid either way.
+  5. **v3 closeout.**
 
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
+
+## Monitoring
+
+- **`/health` monitor (T-D44):** UptimeRobot, HTTP(s), `https://budget.rising-dough.eu/health`, 5 min. It is the uptime alarm.
+- **`/health/replication` monitor (T-D144, ADR-0119):** UptimeRobot, **Keyword** type, `https://budget.rising-dough.eu/health/replication`, keyword `"status":"ok"`, alert when it does not exist, 5 min. It goes red when the replica is stale (status 503 or a missing keyword). It is a Keyword monitor because the free plan probes with HEAD, and the route returned 405 on HEAD until T-D146 (v3.0.4). Triage: [`restore.md`](restore.md), section "Replication stall: detect and recover".
 
 ## Checklist
 

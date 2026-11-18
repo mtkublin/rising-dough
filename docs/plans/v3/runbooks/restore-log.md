@@ -6,7 +6,7 @@ Order: newest at top. Never edit a previous entry — if a drill log needs a cor
 
 Drill cadence is monthly per ADR-0034 §5.
 
-**How entries get here (T-D41).** `main` is protected, so the workflow cannot commit. Every `restore-drill.yml` run that reached the restore job (pass or fail) writes its filled entry to the job summary and appends it as a comment on the single open issue titled `restore-log` (label `restore-log`; the workflow creates both when missing). Failed runs post `Result: fail`, and the `restore-drill-failure-YYYY-MM` issue is unchanged. The issue is the log for automated runs; this file keeps the manual entries (T-D40 and any ad-hoc drill), which the operator copies in by hand when a run should count for the T-D56 gate below.
+**How entries get here (T-D41).** `main` is protected, so the workflow cannot commit. Every `restore-drill.yml` run that reached the restore job (pass or fail) writes its filled entry to the job summary and appends it as a comment on the single open issue titled `restore-log` (label `restore-log`; the workflow creates both when missing). Failed runs post `Result: fail`, and the `restore-drill-failure-YYYY-MM` issue is unchanged. The issue ([#28](https://github.com/mtkublin/rising-dough/issues/28)) is the log for automated runs, and future entries live there; this file keeps the manual entries (T-D40 and any ad-hoc drill), which the operator copies in by hand when a run should count for the T-D56 gate below.
 
 `scripts/ci/litestream_cleanup.py` (T-D56 gate) reads only this file. It accepts an entry with a `## YYYY-MM-DD` heading, a `- **Result**: pass` line and a `- **integrity_check**: ok` line. To let an automated run satisfy the gate, copy its comment here.
 
@@ -30,6 +30,19 @@ The automated entry differs from the template in two fields: `Duration` runs fro
 ```
 
 <!-- Entries below this line. -->
+
+## 2026-11-18
+- **Operator**: system-restore-drill
+- **Env**: drill-scratch-vm
+- **Trigger**: manual-ad-hoc (dispatched from `main`, T-D41 proof; automated post on issue #28)
+- **Duration**: 5m26s (run start -> green /ready)
+- **Source**: s3://budget-planner-prod-pl-waw/db, generation 2901fbd3873a6696, snapshot index 0, WAL index 0..10, restored at 2026-11-18T20:09:55Z
+- **Audit rows (prod)**: n/a (prod not queried)
+- **Audit rows (restored)**: 293, max_id=293, max_changed_at=2026-11-18T11:58:26.101Z
+- **integrity_check**: ok
+- **Recovery point**: latest
+- **Result**: pass
+- **Notes**: workflow run https://github.com/mtkublin/rising-dough/actions/runs/44387134093, dispatched from `main` at b018739. All jobs green; "Open issue on failure" skipped. Entry also posted as a comment on the `restore-log` issue ([#28](https://github.com/mtkublin/rising-dough/issues/28)). App image ghcr.io/mtkublin/budget-planner:v3.0.3@sha256:bef6512523df4c67727a5d443b01baf3384ad1d1793bad81e5ca5a9e563f4864, /ready ready-ok. T-D57: no extra DB copies. The same run is the T-D138 positive leg (drill lock passed after the explore drill was destroyed).
 
 ## 2026-11-18
 - **Operator**: system-restore-drill, dispatched by the orchestrator with operator approval
