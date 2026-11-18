@@ -1,6 +1,6 @@
 # ADR-0097: Per-Batch CI in Orchestrator Mode; Fast Pre-commit Pytest
 
-- **Status**: Accepted (amended 2026-11-18, see the Amendment section)
+- **Status**: Accepted (amended 2026-11-18, see the Amendment section); further amended by [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (item-agent checks are `just lint-changed` + `just test-changed`; the pre-commit pytest hook runs through testmon with xdist) and by [ADR-0120](0120-pre-commit-is-the-local-gate.md) (§§1, 2, 5, 7: no local full `just ci` anywhere, single-agent included; the hook runs affected tests across the whole suite)
 - **Date**: 2026-11-06
 - **Amends**: ADR-0066 (orchestrator mode)
 - **Relates to**: ADR-0027

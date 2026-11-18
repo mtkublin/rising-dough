@@ -142,12 +142,19 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - Server binds 127.0.0.1 only. No secrets committed.
 - Template/CSS/HTMX changes: run the `frontend-visual-audit` skill on the affected routes at
   1440 / 1024 / 375 before you finish.
-- Run only checks scoped to your area (the relevant test files or dirs, linters, terraform
-  checks) plus the pre-commit hooks on commit. Do NOT run full `just ci` (ADR-0097); GitHub
-  CI and the gate drill cover it (amended 2026-11-18). Never use `--no-verify`. If the pre-commit
+- Run `just worktree-init` once at the start (seeds testmon data from the main checkout).
+- Your checks are the pre-commit hooks (ADR-0120): on every commit they lint, run
+  `mypy --strict` and run the tests affected by your change across the whole suite
+  (testmon; the full suite when you touch a migration, SQL, dependency, `conftest.py` or
+  other non-Python file). `just lint-changed <MAIN>` / `just test-changed <MAIN>` run the
+  same selection before a commit (arguments are positional). Run terraform checks by hand
+  if you touched Terraform. Do NOT run full `just ci`; PR CI runs the full suite. Never use `--no-verify`. If the pre-commit
   pytest hook stalls because other agents are running pytest, wait until no other pytest is
   running (`pgrep -fl pytest`), then retry.
-- Handoff checklist: scoped checks green, mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
+- `export PYTEST_WORKERS=2` before running tests or committing: `just test` and the pre-commit
+  pytest hook run xdist with that many workers, so parallel agents don't each take every core
+  (ADR-0108 §1).
+- Handoff checklist: commit hooks green, mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
   reference the ADR(s) in the commit.
 - Commit format: `<type>(<ID>): <description>` (conventional commits).
 - You run autonomously (auto mode). Do not stop to ask for confirmation. Prod-DB access is the
@@ -156,7 +163,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 ## Report back (final message)
 - branch name + final commit sha
 - files changed (short list)
-- scoped check results (commands + pass/fail); frontend audit summary if applicable
+- commit hook results (affected tests run, pass/fail) and any manual checks (terraform); frontend audit summary if applicable
 - anything left undone, assumptions you made, or changes you needed in files you do not own
 ```
 
@@ -165,7 +172,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 Merge each item as soon as it finishes. Do not wait for the whole wave, because
 early merges keep later conflicts small.
 
-1. Check the report: scoped checks green, docs updated, scope respected
+1. Check the report: commit hooks green, docs updated, scope respected
    (`git diff --stat <MAIN>...wi/<MAIN>/<ID>`). If something is missing, `SendMessage`
    the same agent to finish it (it keeps its context). Do not fix it yourself.
 2. In the main checkout, on `<MAIN>`:
@@ -186,13 +193,15 @@ early merges keep later conflicts small.
      resolve the hunks yourself in the item worktree, `git add`, `git commit --no-edit`.
    - Semantic conflicts (both sides changed the same logic, or the result needs new
      code): `SendMessage` the owning agent: "Merge `<MAIN>` into your branch and resolve
-     the conflicts, then rerun your scoped checks." If that agent has exited, dispatch a fresh
+     the conflicts and commit (the hooks rerun the affected tests)." If that agent has exited, dispatch a fresh
      agent into that worktree with the conflict context.
-   - After resolving, rerun the scoped checks in the item worktree (or have the agent do it),
-     then repeat step 2. The merge into `<MAIN>` is now clean.
-4. No local full `just ci` per batch or per PR (ADR-0097 amendment, 2026-11-18). GitHub
-   `ci.yml` on push and PR, plus the gate drill's `just ci` job, is the check. Before opening
-   or updating a PR, if the batch touched e2e-relevant code, run
+   - Resolving commits run the pre-commit hooks (affected tests included); then repeat
+     step 2. The merge into `<MAIN>` is now clean.
+4. No local full `just ci` per batch or per PR (ADR-0120, ADR-0097 amendment 2026-11-18):
+   each item's commits already ran the affected tests in the pre-commit hook, and GitHub
+   `ci.yml` on the PR plus the gate drill's `just ci` job run the full suite. You may still
+   run `just ci` on `<MAIN>` when a batch looks risky (several items touching the same area).
+   Before opening or updating a PR, if the batch touched e2e-relevant code, run
    `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser).
    If CI fails, dispatch a fix agent. Do not fix it yourself.
 5. **Prune at once:**

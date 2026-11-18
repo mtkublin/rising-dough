@@ -1,6 +1,6 @@
 # ADR-0108: Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-18, T-CS06; results in `docs/plans/ci-speed/baseline.md`) — §4 amended by [ADR-0120](0120-pre-commit-is-the-local-gate.md): no local full `just ci` gate; PR CI is the full gate
 - **Date**: 2026-11-16
 - **Amends**: [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) (item-agent "scoped checks" and the pre-commit pytest hook), [ADR-0018](0018-ci-single-matrix-row.md) (CI job steps and caches)
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0106](0106-ui-behaviour-test-harness.md)
@@ -35,7 +35,7 @@ The base ref is the merge-base of `HEAD` and the branch's parent: `origin/main` 
 - **Lint and format:** `pre-commit run --from-ref "$(git merge-base HEAD "$BASE")" --to-ref HEAD`, exposed as `just lint-changed`. No custom file selection.
 - **Type checking:** `mypy --strict` stays whole-repo, because checking only changed files misses errors in their callers. Speed comes from the incremental cache: `.mypy_cache` is persisted in CI (`actions/cache`) and reused locally.
 - **Tests:** `pytest-testmon` selects the tests affected by the changed code, from its record of which code each test runs. Exposed as `just test-changed`. It is not a gate (§4).
-- **Fallback to the full suite.** `just test-changed` runs the full suite when the diff touches anything testmon cannot see: templates, static files, `migrations/`, SQL, `pyproject.toml`, `uv.lock`, any `conftest.py`, `tests/fixtures/`, or CI config. This list lives in one place in the `justfile`.
+- **Fallback to the full suite.** `just test-changed` runs the full suite when the diff touches anything testmon cannot see: templates, static files, `migrations/`, SQL, `pyproject.toml`, `uv.lock`, any `conftest.py`, `tests/fixtures/`, or CI config. This list lives in one place in the `justfile`. *Implemented (T-CS04) as the general rule "any non-Python file outside `docs/` and Markdown, plus any `conftest.py`": the deploy tests also read Terraform, shell and cloud-init files that a named list would miss.*
 - **Testmon data per worktree.** A new worktree has no testmon data and would run everything. `just worktree-init` copies `.testmondata` from the main checkout at creation; stale entries only cause extra tests to run, never fewer. No shared live data file between concurrent agents.
 - If the spike (T-CS04) shows testmon is incompatible with xdist or the coverage plugin in our setup, the inner loop runs the selected tests serially and without coverage; the selected set is small.
 
