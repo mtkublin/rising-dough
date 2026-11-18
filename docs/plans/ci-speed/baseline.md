@@ -189,3 +189,22 @@ Seeds 1111 and 2222 green. Seed 3333 failed one e2e test (`test_passkey_journey.
 | No affected tests | 2.9 s |
 
 Target "pre-commit hook on a small diff under 15 s" and "`just test-changed` on a one-module diff under 30 s": met (3–7 s).
+
+### Five consecutive `just ci` runs, xdist auto + random order (acceptance, T-CS03)
+
+| Run | Seed | Load avg at start | pytest | Coverage |
+|---|---|---|---|---|
+| 1 | 7777 | 7.2 | 75.4 s | 94.65% |
+| 2 | 15554 | 13.5 | 84.2 s | 94.65% |
+| 3 | 23331 | 29.9 | 84.6 s | 94.65% |
+| 4 | 31108 | 41.5 | 83.8 s | 94.65% |
+| 5 | 38885 | 40.6 | 79.4 s | 94.65% |
+
+All green (2,249 passed each), including the e2e suite, with other agents loading the machine.
+
+## T-CS05 results — CI caches
+
+- `actions/cache@v4` for `.mypy_cache`: key `mypy-<os>-py3.12-<hash uv.lock>-<hash src/**/*.py, tests/**/*.py, pyproject.toml>`, restore-key `mypy-<os>-py3.12-<hash uv.lock>-` (newest cache for the same dependencies).
+- uv cache: already on (`astral-sh/setup-uv` `enable-cache: true`, keyed on `uv.lock`).
+- Playwright browsers: CI installs none (e2e skips there), so no cache.
+- Local check of the incremental cache: warm `mypy src tests` 0.8 s; an injected type error in `services/ledger_totals.py` is still reported against the warm cache.

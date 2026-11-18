@@ -50,6 +50,17 @@ jobs:
       - name: Build Tailwind CSS (verifies the pre-commit tailwind-check contract)
         run: npm run css
 
+      # ADR-0108 §3 / T-CS05: mypy stays whole-repo; the incremental cache
+      # makes reruns cheap. Exact key = deps + every checked file; the
+      # restore-key falls back to the newest cache for the same deps.
+      - name: Cache mypy
+        uses: actions/cache@v4
+        with:
+          path: .mypy_cache
+          key: mypy-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock') }}-${{ hashFiles('src/**/*.py', 'tests/**/*.py', 'pyproject.toml') }}
+          restore-keys: |
+            mypy-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock') }}-
+
       - name: Run full CI pipeline
         env:
           # ADR-0108 §1: one xdist worker per runner core.

@@ -15,7 +15,7 @@
 - **Acceptance**: the full suite passes unchanged in what it asserts; coverage ≥ 90%; serial suite time reduced, recorded in `baseline.md`.
 - **Validation**: `just ci`
 
-### ◻ T-CS03 [S] Parallel tests with xdist → T-CS02
+### ✅ T-CS03 [S] Parallel tests with xdist → T-CS02
 - **Deliverables**:
   - A random-order run (`pytest-randomly` or equivalent) over the full suite; every order dependence fixed.
   - `-n $PYTEST_WORKERS --dist loadgroup` in `just test` / `just ci` and in `ci.yml` (`PYTEST_WORKERS=auto` default); `xdist_group` or `worker_id`-derived ports for `tests/e2e/` and `tests/visual/` session resources.
