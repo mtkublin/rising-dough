@@ -704,6 +704,33 @@ run "host_config_pins_image_and_policy" {
     ])
     error_message = "Secrets files and the drill restore helper must be agent-managed files."
   }
+
+  # T-D136 / ADR-0113: replicate config carries the identity, the entrypoint is
+  # agent-managed, and a change to either restarts litestream.
+  assert {
+    condition = alltrue([
+      for needle in ["recipients:", "identities:", "- $${LITESTREAM_AGE_IDENTITY}"] :
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/litestream.yml")]), replace(needle, "$$", "$"))
+    ])
+    error_message = "Rendered litestream.yml must carry age recipients and the identity (T-D136)."
+  }
+
+  assert {
+    condition = alltrue([
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "entrypoint: [\"/bin/sh\", \"/etc/litestream-entrypoint.sh\"]"),
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "/etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro"),
+      strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/litestream-entrypoint.sh")]), "rm -rf \"$META_DIR\""),
+    ])
+    error_message = "Compose must run the litestream entrypoint with the identity mounted (T-D136)."
+  }
+
+  assert {
+    condition = alltrue([
+      for f in jsondecode(nonsensitive(output.host_config)).files :
+      contains(f.restart, "litestream") if endswith(f.path, "/litestream-entrypoint.sh") || endswith(f.path, "/litestream.yml") || endswith(f.path, "/litestream-age.key")
+    ])
+    error_message = "Changes to the litestream config, entrypoint or identity must restart litestream (T-D136)."
+  }
 }
 
 run "cloud_init_is_fixed_bootstrap_only" {

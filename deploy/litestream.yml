@@ -28,6 +28,10 @@ dbs:
         retention-check-interval: 1h
         snapshot-interval: 1h
         sync-interval: 10s
+        # T-D136 / ADR-0113: replicate also needs the identity (calcPos decrypts
+        # the last WAL segment on start); the entrypoint exports it.
         age:
           recipients:
             - age1cuvksp9v0x0wwlfhtmu84j94h4vmr3gw75tv9t7rl7esferfaq0qtgdj74
+          identities:
+            - ${LITESTREAM_AGE_IDENTITY}

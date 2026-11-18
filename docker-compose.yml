@@ -115,6 +115,8 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-prodsim-litestream
     restart: on-failure
+    # T-D136 / ADR-0113: same entrypoint as prod (exports the identity, one-time new generation).
+    entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:
       # Litestream reads AWS_* when talking to any S3-compatible target.
@@ -124,6 +126,8 @@ services:
     volumes:
       - data:/data:rw
       - ./deploy/litestream.yml:/etc/litestream.yml:ro
+      - ./terraform/cloud-init/compose/litestream-entrypoint.sh:/etc/litestream-entrypoint.sh:ro
+      - ./deploy/litestream-age-DEV-ONLY.key:/run/litestream-age.key:ro
     networks:
       - edge
     stop_grace_period: 30s

@@ -84,6 +84,8 @@ services:
     image: litestream/litestream:0.3.14
     container_name: budget-planner-litestream
     restart: unless-stopped
+    # T-D136 / ADR-0113: exports the age identity and forces one new generation per host.
+    entrypoint: ["/bin/sh", "/etc/litestream-entrypoint.sh"]
     command: ["replicate", "-config", "/etc/litestream.yml"]
     environment:
       SCW_ACCESS_KEY: "${scw_access_key}"
@@ -91,6 +93,8 @@ services:
     volumes:
       - /data:/data:rw
       - /etc/budget-planner/litestream.yml:/etc/litestream.yml:ro
+      - /etc/budget-planner/litestream-entrypoint.sh:/etc/litestream-entrypoint.sh:ro
+      - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
       - edge
     stop_grace_period: 30s
