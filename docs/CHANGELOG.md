@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-18 (release v3.0.1 — first release through the host agent)
+- **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
+- **Docs:** `github-settings.md` says to keep `DEPLOY_SSH_PRIVATE_KEY` in `drill` (`restore-drill.yml` uses it). `deploy.md` says where to find the drill admin password. Operator checklist "Next" replaced.
+
 ## 2026-11-18 (v3 remaining work — restore drill never run)
 - **Docs(T-D40, T-D41, T-D56): the restore path has never been proven.** `restore-log.md` has no entries and `restore-drill.yml` has never run, so T-D41 goes from ✅ to ◐. Plan: one watched `restore-drill.yml` dispatch after the first good release closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. It must happen before the first unattended cron run on 2026-12-01, and before any plaintext generation is deleted. Operator checklist "State" and "Next" refreshed. T-D130 marked done.
 - **Docs(T-D43): the smoke journey runs on a drill, never on prod** (user decision). On prod it would use the real admin account and leave data behind. `deploy.md` used the tailnet prod name, which would never have matched the WebAuthn RP ID; it now targets the drill.

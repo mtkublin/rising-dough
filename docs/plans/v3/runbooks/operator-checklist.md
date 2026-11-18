@@ -1,15 +1,20 @@
 # v3 go-live operator checklist (as of 2026-11-18)
 
-## State as of 2026-11-18
+## State as of 2026-11-18 (after release `v3.0.1`)
 
-- Prod is live at https://budget.rising-dough.eu and runs `sha-89ac3c2`, moved there by a logged break-glass after the first pipeline release's SSH deploy failed (T-D127, ADR-0111 Context).
-- v3 and the follow-ups (T-D124..T-D132) are on `main` (PR #2, PR #14). T-D124 drill tailnet cleanup proven 2026-11-17.
-- Steps 1-11, 11a and 11b are done. Step 10a: the agent bootstrap is installed on prod (2026-11-18). Release `v3.0.0` stopped in the apply job's "Guard env / ref" step, before any `terraform init`/`apply`, so prod is unchanged. Fixed by T-D134 (PR #16, merged 2026-11-18).
+- Prod is live at https://budget.rising-dough.eu on `v3.0.1@sha256:2246e6f…`. This is the first release through the host agent (ADR-0111, run 44294472551, in-place update). The status file reports `ok`, and the CSP header is sent. `v3.0.0` failed before reaching prod (T-D134) and stays failed, because tags are immutable.
+- Steps 1-11, 10a, 11a and 11b are done. T-D45 done. T-D43 runs on a drill only (decision 2026-11-18).
+- Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
+- Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
 - Next, in order:
-  1. Release `v3.0.1` after the T-D134 fix (the `v*` tags are immutable, step 11a, so `v3.0.0` cannot be re-cut), approve the apply, and finish 10a. Rollback target if it fails: `sha-89ac3c2`.
-  2. First restore drill (T-D40), before 2026-12-01 03:00 UTC. `restore-drill.yml` has never run and the monthly cron would make that first run unattended. Dispatch it from `main` after step 1 and watch it. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Delete plaintext Litestream generations only after it is green (T-D56).
-  3. After the release: delete the dead deploy secrets (`github-settings.md`), 11c retention, re-run Observatory (T-D42, T-D132), delete `/data/pre-seed-*` on prod. T-D45 done 2026-11-18.
-  4. On the next explore drill: repeat T-D33 (the `failed` state and reconvergence were not observed), confirm T-D135 (passkeys with the localhost RP defaults), and after the T-D135 fix run the T-D43 smoke journey there. T-D43 never runs on prod (decision 2026-11-18).
+  1. Delete the dead secrets and variables (`github-settings.md`, "Unused since ADR-0111"). Keep `DEPLOY_SSH_PRIVATE_KEY` in `drill`.
+  2. Re-run Mozilla Observatory, record the result in `security-audit-log.md` (T-D42; was B for F1, the missing CSP). Optional: nikto rerun, CAA record.
+  3. 11c: `image-retention` dry run, review, then `IMAGE_RETENTION_ENABLED=true`.
+  4. First restore drill (T-D40), watched, before the 2026-12-01 03:00 UTC cron. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Its cloud-init wait and digest lookup changed in T-D129 and have never run. Delete the plaintext Litestream generations only after it is green (T-D56).
+  5. Confirm the `uptime.yml` runs are green and see `ok` (T-D44).
+  6. Kept explore drill: confirm T-D135 (passkeys under the localhost RP defaults), fix it, then run the T-D43 smoke journey there and repeat T-D33.
+  7. T-D133 (DRY the workflows), after step 4 so the restore path has a baseline.
+  8. Prod, user-run: remove the empty pre-seed folders (the earlier `rmdir` glob was expanded without root): `ssh operator@budget-planner-prod "sudo sh -c 'ls -ld /data/pre-seed-* 2>/dev/null && rmdir -v /data/pre-seed-*' || echo none-left"`.
 - ADR-0099 is in force: no laptop applies against prod, except break-glass ([`break-glass.md`](break-glass.md)) and the bootstrap stacks.
 
 Never write secrets, key ids or passwords into the repo, a PR or a chat while doing these steps.
@@ -102,7 +107,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - Runbooks: [`deploy.md`](deploy.md), [`rollback.md`](rollback.md) if it goes wrong.
 
 ### 10a. Migrate prod to the host agent (ADR-0111, T-D129f)
-- [ ] **Where:** your workstation (tailnet) + GitHub UI, after T-D129 is on `main` and before the next release.
+- [x] Done 2026-11-18: release `v3.0.1` converged, status `ok`. **Where:** your workstation (tailnet) + GitHub UI, after T-D129 is on `main` and before the next release.
 - ~~Create the `prod-deploy` environment (ADR-0110)~~: superseded; the release is the approved apply, there is no deploy job.
 - 2026-11-18: bootstrap installed (script run, timer and guard active). Release `v3.0.0` blocked before prod (T-D134); finish with `v3.0.1`.
 - Follow [`host-state-migration.md`](host-state-migration.md): install the agent bootstrap on the prod VM (one script, logged), cut the release, then delete `prod-deploy` and the deploy secrets.

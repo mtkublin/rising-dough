@@ -48,7 +48,7 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 
 Repo-level variable (T-D126): `IMAGE_RETENTION_ENABLED` (`true` lets the scheduled `image-retention.yml` delete; unset = dry run). The `budget-planner` package must be linked to the repo with Actions access role Write ([`image-retention.md`](image-retention.md)). Otherwise none. `GITHUB_TOKEN` is automatic; Trivy SARIF uploads to Code Scanning use it (T-D120).
 
-Unused since ADR-0111 (delete once T-D129 is on `main`): `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `DEPLOY_SSH_PRIVATE_KEY` in `prod`, `DRILL_HOST` (all drill envs), variables `PROD_URL` and `DRILL_URL`. `rollback.yml` is an apply through `terraform.yml` and reads the same secrets as a release.
+Unused since ADR-0111 (delete once T-D129 is on `main`): `DEPLOY_SSH_PUBKEY` (all envs), `DEPLOY_SSH_KNOWN_HOSTS`, `PROD_HOST`, `DEPLOY_SSH_PRIVATE_KEY` in `prod`, `DRILL_HOST` (all drill envs), variables `PROD_URL` (prod) and `DRILL_URL` (drill envs). **Keep `DEPLOY_SSH_PRIVATE_KEY` in `drill`**: `restore-drill.yml` still uses it. `rollback.yml` is an apply through `terraform.yml` and reads the same secrets as a release.
 
 ## 3. Branch protection on `main` (Settings > Branches / Rules)
 
