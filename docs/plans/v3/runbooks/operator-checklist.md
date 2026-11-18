@@ -5,12 +5,12 @@
 - Prod is live at https://budget.rising-dough.eu on `ghcr.io/mtkublin/budget-planner:v3.0.2@sha256:4243782f3e8941e07971681a02b3ed6f68b5951972570a1bc90656134f498c4b` (PR #17 merged as `da05e10`, release run 44323941710 green, prod apply approved). v3.0.2 carries the T-D136 Litestream fix and the T-D135 WebAuthn settings. The replica had stalled from 2026-11-07; it has been replicating into a new generation since 2026-11-18 ([`restore.md`](restore.md), incident record).
 - Releases: `gh release create vX.Y.Z -R mtkublin/rising-dough --target main`, then approve the `prod` apply. Never run on prod yet: the automatic roll back to the previous ref. Watch the next release.
 - Every PR, docs-only included, needs a `drill-gate` on its head SHA (`protect-main` ruleset).
-- Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitor set up (T-D44, still ◐); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod.
+- Done 2026-11-18 since `v3.0.1`: the dead ADR-0111 secrets and variables deleted (`github-settings.md`; `DEPLOY_SSH_PRIVATE_KEY` now only in `drill`); CAA live on prod DNS (T-D42, F4 closed); `IMAGE_RETENTION_ENABLED=true` (T-D126); external UptimeRobot monitor set up and closed (T-D44); the `/data/pre-seed-*` folders removed on prod (data-inventory U6); T-D135 and T-D136 verified on prod.
 - Next, in order:
   1. First restore drill (T-D40), watched, before the 2026-12-01 03:00 UTC cron. It closes T-D40, the first-run gap in T-D41, and the T-D56 drill acceptance. Its cloud-init wait and digest lookup changed in T-D129 and have never run.
   2. T-D56 cleanup dry run ([`restore.md`](restore.md), "Cut-over to an encrypted replica") after step 1 is green. Delete the plaintext Litestream generations only after that (T-D56).
   3. Watch the first real scheduled image-retention run, Monday 2026-11-23 03:17 UTC (T-D126). It must show `mode: APPLY`, and the next release must still deploy.
-  4. T-D44: confirm the UptimeRobot check interval and that alert e-mails arrive (a test down/up if safe). Decide with the user whether `uptime.yml` stays as a backup.
+  4. T-D44 (closed 2026-11-18): the UptimeRobot monitor is the only uptime alarm; `uptime.yml` is removed. No action left.
   5. Kept explore drill (DRILL-2): register a passkey on the drill from `/settings/security` (T-D135), run the T-D43 smoke journey there, then repeat the T-D33 rollback test.
   6. T-D133 (DRY the workflows), after step 1, so the restore path has a baseline.
   7. v3 closeout.

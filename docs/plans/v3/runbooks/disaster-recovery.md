@@ -12,9 +12,7 @@ The recovery path is: a prod `terraform apply` from the committed state (break-g
 
 This runbook also covers the "lost all admins" scenario (ADR-0061 §3): the DB is fine but no `is_admin = 1 AND deleted_at IS NULL` row exists. The admin-bootstrap routine re-promotes a user when provided a new email + initial password via Terraform.
 
-Uptime monitor (T-D44): an external monitor (UptimeRobot) watches https://budget.rising-dough.eu. The operator set it up on 2026-11-18. It is the primary alarm, because GitHub throttles scheduled workflows. `.github/workflows/uptime.yml` also checks `/health` and the host agent status (`/.well-known/bp-deploy-status.json`, ADR-0111), and fails when `/health` is not 200 or the status reports `failed`. A failed scheduled run emails the operator, and the workflow keeps one open issue titled "Prod uptime check failing" until the next green run closes it. Monitor interval and alert settings: see [`../phase-4-validation/T-D44-uptime-monitor.md`](../phase-4-validation/T-D44-uptime-monitor.md).
-
-Limits: GitHub can start scheduled runs hours late (observed 2026-11-17/18), and a GitHub outage hides a prod outage in `uptime.yml`. The external monitor does not depend on GitHub. Check by hand with `gh workflow run uptime.yml`.
+Uptime monitor (T-D44): an external monitor (UptimeRobot) watches https://budget.rising-dough.eu every 5 minutes on `/health`. It is the only uptime alarm; the GitHub `uptime.yml` workflow was removed on 2026-11-18 because GitHub throttles scheduled runs. A host that is down fails the external check. Host-agent convergence failures with `/health` still ok are not alerted; release and rollback runs show them. Check the monitor by hand at its dashboard, or with `curl -sf https://budget.rising-dough.eu/health`. Details: [`../phase-4-validation/T-D44-uptime-monitor.md`](../phase-4-validation/T-D44-uptime-monitor.md).
 
 ## Preconditions
 
