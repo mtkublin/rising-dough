@@ -153,19 +153,23 @@ test-changed BASE="origin/main":
     if [ "$status" -eq 5 ]; then echo "[test-changed] no affected tests"; exit 0; fi
     exit "$status"
 
-# Same fallback rule over the staged files.
-# Pre-commit pytest hook: fast subset (ADR-0097 §7), testmon-selected.
+# Fallback: staged files on _unseen-paths run the full default selection.
+# Pre-commit pytest hook, the local gate (ADR-0117): testmon-selected tests.
 test-fast:
     #!/usr/bin/env bash
     set -euo pipefail
     unseen="$(git diff --cached --name-only | just _unseen-paths)"
     mode="--testmon-forceselect"
-    [ -z "$unseen" ] || mode="--testmon-noselect"
+    if [ -n "$unseen" ]; then
+      echo "[test-fast] staged change testmon cannot see; running the full suite:"
+      printf '%s\n' "$unseen" | sed 's/^/  /'
+      mode="--testmon-noselect"
+    fi
     set +e
-    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov "$mode" \
-      tests/unit tests/architecture -m "not integration and not e2e and not visual"
+    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov "$mode"
     status=$?
     set -e
+    # 5 = nothing selected: no affected tests is a pass.
     [ "$status" -eq 5 ] && exit 0
     exit "$status"
 

@@ -38,9 +38,16 @@
 - **Deliverables**: `actions/cache` for `.mypy_cache` keyed on `uv.lock` + `src/**` hash with a restore-key fallback; check the uv cache stays enabled; Playwright browser cache if CI installs browsers.
 - **Acceptance**: second run on an unchanged tree shows a cache hit and a shorter `mypy` step; a type error in a changed file is still reported.
 
-### ◻ T-CS06 [S] Docs, policy and measurement → T-CS04, T-CS05
+### ◻ T-CS06 [S] Docs, policy and measurement → T-CS04, T-CS05, T-CS07
 - **Deliverables**:
   - ADR-0097 marked "Amended by ADR-0108"; `orchestrator-mode` skill and agent briefs: item agents run `just lint-changed` + `just test-changed` against `BASE` instead of hand-picked scoped checks; batch CI unchanged.
   - `CLAUDE.md` developer commands updated (`just lint-changed`, `just test-changed`, `just worktree-init`, `PYTEST_WORKERS`); `docs/requirements.md` §3 tooling lines.
   - `baseline.md` "after" column against every target in README.
 - **Acceptance**: targets met, or the gap explained with a follow-up task; ADR-0108 flipped to Accepted; `docs/CHANGELOG.md` entry.
+
+### ◻ T-CS07 [S] Pre-commit as the local gate → T-CS04 (ADR-0117)
+- **Deliverables**:
+  - `just test-fast` (the pre-commit pytest hook): testmon selection over the whole default selection (unit, integration, web, architecture, e2e), xdist, no coverage; staged files on `_unseen-paths` run the full default selection.
+  - Policy: no local full `just ci` required — `CLAUDE.md` handoff checklist, `orchestrator-mode` skill (item-agent checks and the batch-CI step), ADR-0097 / ADR-0108 status lines, `docs/requirements.md` §11.2.
+- **Acceptance**: a one-module service change selects its unit **and** integration tests at commit; a migration / `conftest.py` / dependency change runs the full default selection at commit; a docs-only commit runs no tests.
+- **Validation**: recorded hook runs in `baseline.md`.

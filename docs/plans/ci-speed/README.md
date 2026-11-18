@@ -2,7 +2,7 @@
 
 > **What**: cut CI and local check time with parallel tests, slow-test fixes, and change-based checks in the inner loop, while every gate keeps running the full suite.
 > **Decision**: [ADR-0108](../../adr/0108-faster-ci-parallel-tests-and-change-based-inner-loop.md). Requirements: [`docs/requirements.md` §11](../../requirements.md#11-faster-ci-added-2026-11-16).
-> **Tasks**: [`tasks.md`](tasks.md) (T-CS01…T-CS06).
+> **Tasks**: [`tasks.md`](tasks.md) (T-CS01…T-CS07). Local gate policy: [ADR-0117](../../adr/0117-pre-commit-is-the-local-gate.md).
 
 ## When
 
@@ -36,7 +36,7 @@ T-CS01 re-measures these, plus local `just ci`, the pre-commit hook and a typica
 
 ## Guardrails
 
-- **Gates stay full** (ADR-0108 §4). Change-based selection is never the only check before a merge to a shared branch or a PR to `main`.
+- **The full gate is PR CI** (ADR-0117, amending ADR-0108 §4). Locally, the pre-commit hooks are the gate: affected tests across the whole suite, the full suite for changes testmon cannot see.
 - **Tools' own mechanisms first** (pre-commit `--from-ref`, mypy cache, testmon, xdist). Custom code is limited to the fallback path list and recipe glue in the `justfile`.
 - **No behaviour changes in `src/`.** Test speed-ups that need a production-code hook (for example a configurable hasher cost) go through settings that default to production values, with a test proving the default.
 - **Prod DB hands off.** Profiling and test runs use the existing temp DBs only.
