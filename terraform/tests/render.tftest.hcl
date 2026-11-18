@@ -674,6 +674,14 @@ run "host_config_pins_image_and_policy" {
 
   assert {
     condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "BUDGET_WEBAUTHN_RP_ID: \"render-check.example.invalid\"\n      BUDGET_WEBAUTHN_ORIGIN: \"https://render-check.example.invalid\""
+    )
+    error_message = "Compose must render the WebAuthn RP id and origin from the public hostname (T-D135, ADR-0067 §1)."
+  }
+
+  assert {
+    condition = strcontains(
       one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
       "handle /.well-known/bp-deploy-status.json"
     )
@@ -755,4 +763,25 @@ run "image_ref_must_be_digest_pinned" {
   }
 
   expect_failures = [var.app_image_ref]
+}
+
+# T-D135: the drill is tailnet-only, so its WebAuthn RP is the tailnet name.
+run "drill_compose_sets_webauthn_rp_to_tailnet_name" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    tailnet_only = true
+  }
+
+  assert {
+    condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "BUDGET_WEBAUTHN_RP_ID: \"budget-planner-drill.tail0000.ts.net\"\n      BUDGET_WEBAUTHN_ORIGIN: \"https://budget-planner-drill.tail0000.ts.net\""
+    )
+    error_message = "Drill compose must render the WebAuthn RP from the tailnet hostname (T-D135)."
+  }
 }

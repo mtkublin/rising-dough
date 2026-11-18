@@ -204,6 +204,8 @@ def test_production_env_sets_secure_flag(tmp_path: Path) -> None:
         _env_file=None,
         env="production",
         cookie_secret="x" * 32,
+        webauthn_rp_id="budget.example.test",
+        webauthn_origin="https://budget.example.test",
         database_url=f"sqlite:///{db.as_posix()}",
         # T-D19: production refuses to boot without an admin (ADR-0061 §3).
         admin_email="admin@prodsim.test",

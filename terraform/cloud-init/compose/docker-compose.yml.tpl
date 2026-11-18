@@ -20,6 +20,9 @@ services:
       BUDGET_DATABASE_URL: "sqlite:////data/budget.db"
       BUDGET_COOKIE_SECRET: "${cookie_secret}"
       BUDGET_TRUSTED_HOSTS: "${trusted_hosts}"
+      # T-D135 / ADR-0067 §1: WebAuthn RP = the public browser hostname.
+      BUDGET_WEBAUTHN_RP_ID: "${hostname}"
+      BUDGET_WEBAUTHN_ORIGIN: "https://${hostname}"
       BUDGET_PLANNER_ADMIN_EMAIL: "${admin_email}"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "${admin_initial_password}"
       BUDGET_BACKUP_MAX_AGE_DAYS: "${backup_max_age_days}"

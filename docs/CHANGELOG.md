@@ -6,6 +6,8 @@
 - **Docs(T-D44): uptime cadence investigated.** Only 3 scheduled runs in ~28h: GitHub throttles `*/5` schedules. T-D44 back to ◐; external monitor recommended.
 ## 2026-11-18 (T-D56 cut-over tooling)
 - **Feat(T-D56): prod-gated plaintext cleanup of the Litestream replica** (ADR-0112). New `litestream-plaintext-cleanup.yml` (dispatch only, `dry_run` default true, env `prod`) and `scripts/ci/litestream_cleanup.py`. It classifies objects by header (Litestream 0.3.14 keeps the same generation when age is enabled, so generations are mixed) and refuses without an encrypted snapshot and a green restore-log entry. Cut-over steps in `restore.md`. Not run yet. Open risk recorded on T-D56: the replicate config has no `age.identities`.
+## 2026-11-18 (T-D135 — WebAuthn RP settings reach the host)
+- **Fix(T-D135): passkeys can work on the real hostnames.** The compose template now sets `BUDGET_WEBAUTHN_RP_ID` (the public hostname) and `BUDGET_WEBAUTHN_ORIGIN` (`https://<hostname>`) for prod and drill. `Settings` refuses to start in production with the localhost default or a mismatched origin (ADR-0067 §1). Tests in `test_config.py` and `render.tftest.hcl`. Reaches prod with the next release through the host agent (ADR-0111).
 
 ## 2026-11-18 (release v3.0.1 — first release through the host agent)
 - **Release(T-D129f): `v3.0.1` is live on prod** (run 44294472551). One approved `terraform apply`, in-place update (0 add, 1 change, 0 destroy). The host agent converged: status `ok`, `/ready` 200, CSP header sent (T-D132). The prod state records a previous ref for automatic rollback. T-D129 and checklist 10a done. The prod-only rollback step has never run yet.
