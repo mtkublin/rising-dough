@@ -28,3 +28,7 @@ CLAUDE.md allows prod changes only through GitHub Actions with approval (ADR-009
 - The restore-log gate is date-based (entries carry a date, not a time), so a drill on the same day as the first encrypted snapshot counts.
 - The script needs the `aws` CLI (preinstalled on `ubuntu-latest`) and checksum settings that Scaleway accepts (`when_required`).
 - Plaintext copies persist for up to 7 days after the delete, inside the 37-day ceiling of ADR-0078 §4.
+
+## Note 2026-11-18: no read-only key for the dry run; T-D56 closes without a delete run
+
+A read-only S3 key for the cleanup dry run was considered and rejected by the user. The dry run is already protected by `--apply` (off by default) and the refusal gate, and the dry run (run 44328479375) found 0 plaintext objects in the prod bucket (the one-time new generation of ADR-0114 left only ciphertext in use, and the older generations hold nothing that is still plaintext and needed). So T-D56 closes without a delete run; the workflow and script stay for any future plaintext finding.

@@ -10,15 +10,13 @@ import pytest
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.db.migrate import apply_migrations
+from tests.db_template import sqlite_url
 
 
 @pytest.fixture
-def conn(tmp_path: Path) -> Iterator[sqlite3.Connection]:
-    url = f"sqlite:///{(tmp_path / 'db.sqlite').as_posix()}"
-    settings = Settings(_env_file=None, database_url=url)
+def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
+    settings = Settings(_env_file=None, database_url=sqlite_url(migrated_db))
     c = get_connection(settings)
-    apply_migrations(c)
     try:
         yield c
     finally:

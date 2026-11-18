@@ -71,7 +71,7 @@ On first start the app runs `bootstrap_admin` against the seeded DB:
 
 ## Cleanup
 
-After verification only: `ssh operator@<host> sudo rm -rf /data/pre-seed-<ts>`
+After verification only: `ssh operator@<host> sudo rm -rf /data/pre-seed-<ts>` (done on prod 2026-11-18, see [`data-inventory.md`](data-inventory.md) U6).
 (the script prints the exact path). The local snapshot is removed automatically on
 exit; `/tmp/seed.db` on the VM is moved into place or deleted. Record the seed in
 `restore-log.md` if desired.

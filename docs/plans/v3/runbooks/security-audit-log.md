@@ -139,7 +139,7 @@ Tool: trivy 0.69.3. Image: `ghcr.io/mtkublin/budget-planner:v3.0.1`, pulled dire
 | F1 CSP missing | **Closed** | CSP served (T-D132, v3.0.1); Observatory B/75 to A+/130. |
 | F2 nikto incomplete | **Open (LOW)** | Error limit no longer the blocker; the host refuses TLS handshakes during nikto, so the run is cut by the 45 min limit. Follow-up below. |
 | F3 unfixed Debian CVEs | Open, accepted (LOW) | ADR-0103; no fix available. Re-scan after each base-image bump. |
-| F4 no CAA record | **Fix in repo, pending release** | `terraform/modules/dns` now manages CAA for the app hostname (prod only, ADR-0101): `0 issue "letsencrypt.org"`, `0 issue "sectigo.com"`, `0 issuewild ";"`. Caddy has no `acme_ca`/`issuer` override, so its defaults apply: Let's Encrypt, then ZeroSSL as fallback; ZeroSSL issues through Sectigo (CAA identifier `sectigo.com`), so it must be listed or a fallback issuance would be refused. Reaches prod with the next approved `terraform apply`. Re-run testssl (`DNS CAA RR`) after that. |
+| F4 no CAA record | **Fixed; live on prod DNS 2026-11-18** | `terraform/modules/dns` now manages CAA for the app hostname (prod only, ADR-0101): `0 issue "letsencrypt.org"`, `0 issue "sectigo.com"`, `0 issuewild ";"`. Caddy has no `acme_ca`/`issuer` override, so its defaults apply: Let's Encrypt, then ZeroSSL as fallback; ZeroSSL issues through Sectigo (CAA identifier `sectigo.com`), so it must be listed or a fallback issuance would be refused. Live on prod DNS since 2026-11-18 (`0 issue "letsencrypt.org"`, `0 issue "sectigo.com"`, `0 issuewild ";"`). Re-run testssl (`DNS CAA RR`) to confirm the scan now sees it. |
 
 ### New findings
 
@@ -147,5 +147,5 @@ None at MEDIUM or above. No HIGH/CRITICAL needs a code fix.
 
 ### Follow-ups
 
-- After the next release: check `dig CAA budget.rising-dough.eu` and that the next Caddy renewal still succeeds (renewals start about 30 days before 2027-02-05).
+- 2026-11-18: CAA is live on prod DNS (F4 closed). Still to do: re-run testssl to confirm `DNS CAA RR`, and check that the next Caddy renewal still succeeds (renewals start about 30 days before 2027-02-05).
 - Optional (F2): re-run nikto against a drill with the connection limit relaxed, or find out which layer drops handshakes (UFW `limit`, Caddy rate limit, Scaleway security group). Not blocking.

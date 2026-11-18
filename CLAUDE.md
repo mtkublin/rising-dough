@@ -48,15 +48,20 @@ Always read the relevant ADR before changing an area it covers.
 ```sh
 just install      # uv sync + install pre-commit hooks
 just dev          # run FastAPI with hot reload on 127.0.0.1:8000
-just test         # pytest with coverage; fails under 90%
+just test         # pytest with coverage, xdist (PYTEST_WORKERS, default auto); fails under 90%
 just lint         # ruff + sqlfluff + djlint
 just format       # ruff format + ruff --fix
 just typecheck    # mypy --strict
-just ci           # everything CI runs
+just ci           # everything CI runs (full suite + coverage; optional locally, PR CI runs it)
+just lint-changed main   # pre-commit over files changed since merge-base (inner loop)
+just test-changed main   # testmon-selected tests; full suite on non-Python changes (inner loop)
+just worktree-init       # seed a new worktree's .testmondata from the main checkout
 just db-reset     # recreate the dev DB
 just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
 ```
+
+The pre-commit hooks are the local gate and `*-changed` run the same selection on demand; the full gate is PR CI (ADR-0120). `PYTEST_WORKERS=2` for parallel orchestrator item agents; `0` runs serially.
 
 ## Multi-agent work
 
@@ -128,7 +133,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 Before marking a task done:
 
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
-2. Code + tests committed; `just ci` green (single-agent work). In orchestrator mode item agents run scoped checks only and the orchestrator runs full `just ci` once per merge batch on the main work branch ([ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md)). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
+2. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). Before opening or updating a PR whose changes touched e2e-relevant code, run `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser; [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendment 2026-11-18). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
 3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 4. `docs/tasks.md` task line prefixed with `✅`.
 5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
