@@ -924,3 +924,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 
 ### T-D145 [S] Audit attribution: domain rows written by non-admin users lack user_id → T-D54, T-D43
 - Found 2026-11-18 on drill 44356288331, audit ids 48-50: account, category and transaction create rows written by a non-admin user carry `user_id=NULL` and `actor_user_id=NULL`. The audit tail treats them as other-user, so it is safe, but attribution is missing. Investigate and fix; not a v3 blocker.
+
+### T-D146 [S] `/health`, `/health/replication` and `/ready` answer HEAD like GET → T-D144, ADR-0033, ADR-0119
+- Found 2026-11-18 on prod v3.0.3: `HEAD` on all monitored paths returned 405 while `GET` returned 200. The free UptimeRobot plan monitors with HEAD and cannot change the method, so the monitors would report down.
+- Change: the three routes use `api_route(..., methods=["GET", "HEAD"])` (precedent: `today.py`). HEAD returns the same status as GET, including 503 on stale replication and on not-ready, with an empty body. Auth, CSRF, must-change-password and cache-control middleware do not filter by GET only, and the app rate limit covers auth routes only (ADR-0072), so no middleware change.
+- Tests: `tests/integration/web/test_health.py`, `tests/integration/web/test_health_replication.py` (HEAD status equals GET status, empty body, ok and failing cases).
+- Done when: merged and released; `curl -sI https://budget.rising-dough.eu/health/replication` returns 200 on prod and UptimeRobot monitors are green.

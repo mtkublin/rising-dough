@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-18 (T-D146 HEAD on health routes)
+- **Fix(T-D146): `/health`, `/health/replication` and `/ready` answer HEAD like GET.** They returned 405 on HEAD, which the free UptimeRobot plan uses. Same status codes (including 503), empty body. ADR-0119 amended.
+
 ## 2026-11-18 (DRILL-2 explore drill results; ADR-0097 amendment mirrored)
 - **Docs(DRILL-2): explore drill results recorded** (run 44356288331, sha-bd4c4c3). Proven: T-D135 passkey, T-D136 Litestream restart, T-D43 smoke (run 3), T-D33 rollback both ways, T-D137 SSH verify step, T-D139-FIX run id reuse. T-D144 proven on drill (prod verify after v3.0.3, ◐). T-D138 negative case still open. Teardown run 44365679103 dispatched. ADR-0097 amendment mirrored into `CLAUDE.md` and the orchestrator-mode skill.
 
