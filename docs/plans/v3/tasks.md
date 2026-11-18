@@ -399,6 +399,7 @@ Owner: `.github/workflows/`. All tasks block Phase 4.
 - Status 2026-11-18: never run. Prod went live without it, although the task file names it as a gate before go-live. `restore-log.md` has no entries, so no backup has ever been restored from the prod replica. RPO/RTO and the `restore-reader` credential are unproven.
 - Plan: after the first good release through the host agent (T-D129f), the operator dispatches `restore-drill.yml` from `main` and watches the run. That run is the first restore-log entry. It closes this task, the first-run gap in T-D41, and the T-D56 drill acceptance. It must also show that `restore-from-prod` (written before ADR-0111, T-D41a) still works on an agent-managed drill host: the agent must not restart or overwrite the restored stack mid-restore.
 - Readiness review and restore-log entry template (2026-11-18): `phase-4-validation/T-D40-first-restore-drill.md`.
+- Run 44330551119 (2026-11-18) restored fine but failed the `/ready` probe in `restore-from-prod` (probed `localhost`, which Caddy has no cert for, and expected `status:"ok"` instead of `status:"ready"` + `db:"ok"`). Fixed (T-D40-FIX): probe by host name with verified TLS, check `ready`/`ok`, log failures. Still ◻ until a green re-run.
 
 ### ◐ T-D41 [S] Monthly automated restore drill → T-D40
 - `.github/workflows/restore-drill.yml` scheduled monthly: `terraform apply drill` → restore → verify → `terraform destroy`.

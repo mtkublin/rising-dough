@@ -52,6 +52,7 @@ locals {
   restore_script_rendered = var.enable_restore_helper ? templatefile("${path.module}/../../cloud-init/bin/restore-from-prod.tpl", {
     compose_dir      = local.compose_dir
     restore_env_file = "${local.compose_dir}/restore-source.env"
+    hostname         = var.hostname
     source_bucket    = var.restore_source_bucket
     source_path      = "db"
     source_endpoint  = var.bucket_endpoint
