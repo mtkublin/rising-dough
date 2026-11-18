@@ -900,3 +900,11 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix (ADR-0116): `drill_run_id` Terraform variable; the drill registers as `budget-planner-drill-<run id>`, so each drill orders a certificate for a new name. Workflows pass `github.run_id`.
 - Tests: `terraform/tests/render.tftest.hcl` (unique name, fixed name without id, non-digits rejected, rejected on prod), `tests/unit/deploy/test_tailnet_only_drill.py::test_drill_tailnet_name_is_unique_per_run`.
 - Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.
+
+### T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
+- Found 2026-11-18: the 2026-11-07 to 2026-11-18 stall (T-D136) went unnoticed for 11 days because `/health` and `/ready` do not look at the replica.
+- Design (ADR-0119): a `litestream-probe` compose service lists the replica every 5 min (`litestream generations`) and writes `status.json` (newest object time, generation, checked_at; no secrets). The app serves `GET /health/replication`: 200 when the newest object is younger than 26 h (`BUDGET_REPLICATION_MAX_AGE_HOURS`) and the probe is fresh, 503 otherwise. Public, no auth. Delivered through `bp-config` and the compose file: no VM replacement.
+- Code: `services/replication_health.py` (pure), `web/routers/health.py`, `config.py` (2 settings), auth / must-change-password exempt sets, `docker-compose.yml.tpl`, `litestream-replication-probe.sh`, `user_data.tf` managed file.
+- Tests: `tests/unit/services/test_replication_health.py`, `tests/integration/web/test_health_replication.py`, `tests/unit/deploy/test_replication_probe.py`.
+- Runbook: `restore.md` "Replication stall: detect and recover"; `disaster-recovery.md` uptime section points at the new monitor.
+- Done when: code merged and released (v3.0.3); `curl -fsS https://budget.rising-dough.eu/health/replication` returns 200 `status: ok` on prod (first look at the probe parsing); a stale file in a drill or scratch run returns 503; **user: add a second UptimeRobot monitor on `https://budget.rising-dough.eu/health/replication`, HTTP(s), 5 min, plain status-code monitor (no keyword), up = 2xx, same alert contact as `/health`**, and confirm it is green.

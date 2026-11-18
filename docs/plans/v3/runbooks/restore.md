@@ -162,6 +162,57 @@ The pre-restore DB files were preserved in step 4. If the restore itself turned 
 - **Fix:** release `v3.0.2` (ADR-0114, T-D136). On 2026-11-18T14:37Z the litestream entrypoint logged "forcing a new generation (one-time, ADR-0114)". Litestream opened generation `2901fbd3873a6696`, wrote a snapshot, and has written WAL segments every 10 to 60 s since, with no errors. A second start did not force again (the marker works).
 - **Verified:** on prod, 2026-11-18, by the operator. The restore drill has not yet been run against this generation (operator checklist step 1).
 
+## Replication stall: detect and recover (T-D144, ADR-0119, ADR-0114)
+
+The external monitor on `https://budget.rising-dough.eu/health/replication` (UptimeRobot, 5 min) goes red when the newest object in the prod replica is older than 26 h, or the probe stopped reporting. `/health` and `/ready` do not notice a stall. All commands below are single lines from the operator laptop.
+
+**1. Detect and confirm**
+
+```sh
+curl -sS -w '\nHTTP %{http_code}\n' https://budget.rising-dough.eu/health/replication
+ssh operator@budget-planner-prod "cat /var/lib/budget-planner/replication/status.json"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream --since 1h 2>&1 | grep -E 'cannot determine|wal segment written|write wal segment|snapshot written|error' | tail -30"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream-probe --since 30m 2>&1 | tail -10"
+```
+
+Reading the answers: `status: stale` with the litestream log full of `cannot determine replica position` is the 2026-11 incident. `probe_stale` / `probe_error` means the probe itself or its listing fails (check the probe log, credentials, bucket reachability) and says nothing yet about Litestream. `no_objects` after a fresh start: wait 2 minutes, a new generation writes its snapshot right away. Healthy logs show `wal segment written` / `write wal segment` lines within a minute of a DB write.
+
+**2. Safe manual backup first (before any recovery step)**
+
+`/data` is owned by uid 10001 (mode 0700), so the operator cannot write there without sudo. Run the SQLite online backup inside the app container, which owns `/data`. `/data/backups` is the directory the pre-migration backups use; the command creates it if missing.
+
+```sh
+ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import os,sqlite3,datetime as d; t=d.datetime.now(d.UTC).strftime('%Y%m%dT%H%M%SZ'); os.makedirs('/data/backups',exist_ok=True); p='/data/backups/budget.db.manual-'+t; s=sqlite3.connect('/data/budget.db'); b=sqlite3.connect(p); s.backup(b); b.close(); s.close(); print(p, sqlite3.connect(p).execute('PRAGMA integrity_check').fetchone()[0])\""
+# Expect: /data/backups/budget.db.manual-<ts> ok
+```
+
+The backup is a consistent copy even while the app writes (SQLite backup API). It is outside the automatic pruning (`prune_backups` only matches `*.pre-migrate-*`), so delete it once the incident is closed, within the 37-day copy ceiling of ADR-0078 §4: `ssh operator@budget-planner-prod "docker exec budget-planner-app rm /data/backups/budget.db.manual-<ts>"`. If the app container is down, use `sudo`: `ssh operator@budget-planner-prod "sudo sqlite3 /data/budget.db \".backup '/data/backups/budget.db.manual-<ts>'\""` (then `sudo chown 10001:10001` the file).
+
+**3. Force a new generation (the usual cure for a position error)**
+
+Removing the marker makes the entrypoint (ADR-0114) delete Litestream's meta dir on the next start, so Litestream opens a new generation with a fresh snapshot. The SQLite DB and WAL are not touched.
+
+```sh
+ssh operator@budget-planner-prod "sudo rm -f /data/.litestream-age-generation && cd /etc/budget-planner && sudo docker compose restart litestream"
+ssh operator@budget-planner-prod "docker logs budget-planner-litestream --since 2m 2>&1 | grep -E 'forcing a new generation|snapshot written|wal segment|error|cannot determine'"
+# Expect: "forcing a new generation (one-time, ADR-0114)", then a snapshot and WAL segment lines, no errors.
+ssh operator@budget-planner-prod "docker restart budget-planner-litestream-probe"
+curl -sS https://budget.rising-dough.eu/health/replication
+# Expect within about a minute: HTTP 200, "status":"ok", a new "generation".
+```
+
+The host agent does not undo this (it acts only when `bp-config` changes). The old generation stays in the bucket until retention (720 h) removes it.
+
+**4. Escalate to a restore when**
+
+- the new generation does not appear, or Litestream keeps logging errors other than the position error (403 / credential / bucket errors: fix the cause first, see Troubleshooting);
+- the manual backup in step 2 fails `integrity_check`, or `/ready` is red (the live DB is the problem, not the replica): follow [Procedure](#procedure) with the backup variant above;
+- the stall lasted longer than the data you can lose: the last good snapshot is the recovery point (point-in-time inside the stall window is not available).
+
+Afterwards run the drill (`restore-drill.yml`) against the new generation and log it in [`restore-log.md`](restore-log.md).
+
+**After a release that changes the probe (v3.0.3):** run the first `curl` above once. 200 `ok` proves the probe parsing; 503 `probe_error` with the probe log is the signal to fix the parser (ADR-0119, Consequences).
+
 ## Cut-over to an encrypted replica (T-D56, ADR-0078 §3, ADR-0112)
 
 Do this once, after the age-enabled config is live on a bucket that already holds plaintext objects.
