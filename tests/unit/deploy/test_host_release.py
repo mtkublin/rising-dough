@@ -309,15 +309,114 @@ def test_server_address_matches_terraform() -> None:
     assert 'resource "scaleway_instance_server" "app"' in compute
 
 
-def test_replaced_cli_prints_only_the_output_line(capsys: pytest.CaptureFixture[str]) -> None:
-    plan = _plan((SERVER, ["delete", "create"]))
+OLD_ID = "pl-waw-2/0e39bbe5-f2e5-4991-9740-1c3c8022b232"
+
+
+def _with_prior(plan: dict[str, object], server_id: object = OLD_ID) -> dict[str, object]:
+    server = {
+        "address": SERVER,
+        "values": {
+            "id": server_id,
+            "user_data": {"bp-config": "TOPSECRET"},
+        },  # pragma: allowlist secret
+    }
+    child = {"address": "module.compute", "resources": [server]}
+    return {**plan, "prior_state": {"values": {"root_module": {"child_modules": [child]}}}}
+
+
+def test_replaced_cli_prints_only_the_output_lines(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = _with_prior(_plan((SERVER, ["delete", "create"])))
     plan["variables"] = {"cookie_secret": {"value": "TOPSECRET"}}  # pragma: allowlist secret
     rc = hr.main(["replaced"], stdin=lambda: json.dumps(plan))
 
     out = capsys.readouterr()
     assert rc == 0
-    assert out.out == "replaced=true\n"
+    # T-D157: the drain target, and nothing else of the plan.
+    assert out.out == f"replaced=true\nserver_id={OLD_ID}\n"
     assert "TOPSECRET" not in out.out + out.err
+
+
+def test_replaced_cli_in_place_prints_no_server_id(capsys: pytest.CaptureFixture[str]) -> None:
+    rc = hr.main(["replaced"], stdin=lambda: json.dumps(_plan((SERVER, ["update"]))))
+
+    assert rc == 0
+    assert capsys.readouterr().out == "replaced=false\n"
+
+
+@pytest.mark.parametrize("bad", ["not-an-id", "pl-waw-2/../x", 5, None])
+def test_prior_server_id_must_be_zone_and_uuid(bad: object) -> None:
+    with pytest.raises(hr.ReleaseError, match="zone"):
+        hr.prior_server_id(_with_prior(_plan(), bad))
+
+
+def test_prior_server_id_missing_is_refused() -> None:
+    with pytest.raises(hr.ReleaseError, match="prior_state"):
+        hr.prior_server_id(_plan())
+    empty: dict[str, object] = {"prior_state": {"values": {"root_module": {"resources": []}}}}
+    with pytest.raises(hr.ReleaseError, match="not in the prior state"):
+        hr.prior_server_id(empty)
+
+
+# --- drain (T-D157, ADR-0127 amendment) --------------------------------------
+
+REQ = "44513330068-1"
+
+
+def _drained(**over: object) -> dict[str, object]:
+    return {"state": "drained", "drain": {"request": REQ, "at": "t"}} | over
+
+
+def test_drained_needs_the_same_request() -> None:
+    assert hr.drained(_drained(), REQ)
+    assert not hr.drained(None, REQ)
+    assert not hr.drained(_status(), REQ)
+    assert not hr.drained(_drained(drain={"request": "other"}), REQ)
+    assert not hr.drained(_drained(drain=None), REQ)
+
+
+def test_drain_failure_fails_fast_but_other_failures_wait() -> None:
+    with pytest.raises(hr.ReleaseError, match="drain_litestream"):
+        hr.drained(_status(state="failed", error="drain_litestream"), REQ)
+    # A failed config generation is not a drain verdict.
+    assert not hr.drained(_status(state="failed", error="compose"), REQ)
+
+
+def test_wait_drained_polls_then_times_out() -> None:
+    clock = _Clock()
+    answers: list[Mapping[str, object] | None] = [_status(), _drained()]
+    assert (
+        hr.wait_drained(
+            lambda _u: answers.pop(0),
+            "https://h/s",
+            REQ,
+            timeout=60,
+            interval=5,
+            clock=clock,
+            sleep=clock.sleep,
+        )["state"]
+        == "drained"
+    )
+    with pytest.raises(hr.ReleaseError, match="did not drain"):
+        hr.wait_drained(
+            lambda _u: _status(),
+            "https://h/s",
+            REQ,
+            timeout=10,
+            interval=5,
+            clock=clock,
+            sleep=clock.sleep,
+        )
+
+
+def test_wait_drained_rejects_bad_request_ids() -> None:
+    with pytest.raises(hr.ReleaseError, match="request id"):
+        hr.wait_drained(lambda _u: None, "https://h/s", "a b;rm", timeout=1, interval=1)
+
+
+def test_wait_drained_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    args = ["wait-drained", "--url", "https://h/s", "--request", REQ]
+    assert hr.main(args, fetch=lambda _u: _drained()) == 0
+    assert "drained" in capsys.readouterr().out
 
 
 def test_replaced_cli_never_echoes_bad_input(capsys: pytest.CaptureFixture[str]) -> None:

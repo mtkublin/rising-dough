@@ -1039,7 +1039,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Found 2026-11-19 by `replace-rehearsal.yml` (run 44513330068): a replacement lost the last committed row. Destroying the VM does not stop the app and Litestream cleanly.
 - Design (ADR-0127 amendment): when the plan replaces the server, `terraform.yml` sets the `bp-drain` metadata key on the current server (Scaleway API, request id = run id + attempt) and waits for the agent to report `drained`, then applies. On a failed drain, or a failed apply with the old server still there, it deletes the key and fails. The agent stops `app`, waits 30 s with `litestream` running, writes the `drained` marker and publishes `state: "drained"`. With the key gone it re-applies (`compose up`) and clears the marker.
 - Work items:
-  - (a) Terraform output `server_id` (non-secret).
+  - (a) `host_release.py replaced` also prints `server_id=<zone>/<uuid>` from the plan's prior state (an output would be missing from state on the first release).
   - (b) `bp_agent.py`: `bp-drain` read (404 = none), drain step, marker, `drained` status, undrain re-apply.
   - (c) `scripts/ci/scw_user_data.py` (set/delete one key, stdlib, no secrets printed) and `host_release.py wait-drained`.
   - (d) `terraform.yml` steps: drain request, wait-drained, undrain on failure (`if: failure()`), for both envs when `replaced == true`.

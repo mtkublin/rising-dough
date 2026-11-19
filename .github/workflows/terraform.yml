@@ -306,8 +306,9 @@ jobs:
     needs: fmt-validate
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # T-D156: plan + apply + up to 1800 s host wait when the VM is replaced.
-    timeout-minutes: 50
+    # T-D156: plan + apply + up to 1800 s host wait when the VM is replaced;
+    # T-D157: plus up to 300 s for the drain.
+    timeout-minutes: 55
     # ADR-0099 / ADR-0101: `prod` and `drill` have required reviewers (approval
     # gate before apply). A drill destroy must never wait for approval (sweeper
     # cron, drill-destroy, end-of-pipeline teardown), so it runs in the ungated
@@ -458,10 +459,43 @@ jobs:
           set -euo pipefail
           terraform show -json plan.bin | python3 ../scripts/ci/host_release.py replaced | tee -a "$GITHUB_OUTPUT"
 
+      # T-D157 / ADR-0127 amendment: drain the old host before it is destroyed,
+      # so no committed write is lost. The drill's status is tailnet-only.
+      - name: Join the tailnet for the drill drain (tag:ci)
+        if: ${{ steps.replace.outputs.replaced == 'true' && inputs.env == 'drill' }}
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # Sets the transient `bp-drain` key on the current server (Scaleway API,
+      # this job's credentials) and waits for the agent to report `drained`.
+      - name: Drain the old host (VM replacement)
+        id: drain
+        if: ${{ steps.replace.outputs.replaced == 'true' }}
+        env:
+          SERVER_ID: ${{ steps.replace.outputs.server_id }}
+          DRAIN_REQUEST: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          url="https://$(terraform output -raw fqdn)/.well-known/bp-deploy-status.json"
+          python3 ../scripts/ci/scw_user_data.py set --server "${SERVER_ID}" --value "${DRAIN_REQUEST}"
+          python3 ../scripts/ci/host_release.py wait-drained --url "${url}" --request "${DRAIN_REQUEST}"
+
       - name: terraform apply (${{ inputs.env }})
+        id: apply
         run: |
           set -o pipefail
           terraform apply -no-color -input=false plan.bin | python3 scripts/mask_plan.py
+
+      # T-D157: a failed drain, or an apply that failed while the old server
+      # still exists, must not leave the old host drained (DELETE; 404 = gone).
+      - name: Undrain the old host (drain or apply failed)
+        if: ${{ failure() && (steps.drain.outcome == 'success' || steps.drain.outcome == 'failure') && steps.apply.outcome != 'success' }}
+        env:
+          SERVER_ID: ${{ steps.replace.outputs.server_id }}
+        run: python3 ../scripts/ci/scw_user_data.py delete --server "${SERVER_ID}"
 
       - name: Record host state outputs (ADR-0111)
         id: host
