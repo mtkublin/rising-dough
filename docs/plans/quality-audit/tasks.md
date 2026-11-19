@@ -9,7 +9,7 @@
 
 ## Phase 0 — Preconditions
 
-### T-Q01 [S] Pin the audit commit and set up the environment
+### ✅ T-Q01 [S] Pin the audit commit and set up the environment
 - Blocked on v3 shipping (v3 Phase 4 ✅, prod cut over) and on the faster-CI effort (`docs/plans/ci-speed/`, T-CS06 ✅, ADR-0108), so the audit reviews the new test and CI setup.
 - `AUDIT_SHA` recorded; worktree and branch `audit/quality`; scratch DB `/tmp/audit.sqlite` copied from `data/demo.sqlite`.
 - `findings.md` header filled in: SHA, date, tool versions, LOC per package.
