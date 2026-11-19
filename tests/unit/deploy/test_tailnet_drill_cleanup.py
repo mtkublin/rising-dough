@@ -21,6 +21,7 @@ DESTROY_PATHS = [
     ("drill-destroy.yml", "destroy"),
     ("drill-sweeper.yml", "destroy"),
     ("restore-drill.yml", "destroy"),
+    ("replace-rehearsal.yml", "teardown"),
 ]
 
 
@@ -57,16 +58,21 @@ def test_destroy_path_has_cleanup_after_destroy(name: str, destroy_job: str) -> 
 
 
 def test_reusable_cleanup_workflow_runs_the_shared_script_ungated() -> None:
-    loaded: dict[str, Any] = yaml.safe_load((WORKFLOWS / "tailnet-cleanup.yml").read_text())
+    loaded: dict[Any, Any] = yaml.safe_load((WORKFLOWS / "tailnet-cleanup.yml").read_text())
     job = loaded["jobs"]["cleanup"]
 
-    assert job["environment"] == "drill-teardown"
+    # T-D156: drill by default; prod mode uses its own ungated environment.
+    assert job["environment"] == "${{ inputs.env == 'prod' && 'prod-tailnet' || 'drill-teardown' }}"
+    inputs = loaded[True]["workflow_call"]["inputs"]  # PyYAML reads `on:` as True
+    assert inputs["env"]["default"] == "drill"
     assert job["permissions"] == {"contents": "read"}
     runs = "\n".join(str(s.get("run", "")) for s in job["steps"])
-    assert "scripts/tailnet_drill_cleanup.py" in runs
+    assert 'scripts/tailnet_drill_cleanup.py --env "${CLEANUP_ENV}"' in runs
     env = {k: v for s in job["steps"] for k, v in (s.get("env") or {}).items()}
     assert env["TS_CLEANUP_CLIENT_ID"] == "${{ secrets.TS_CLEANUP_CLIENT_ID }}"
     assert env["TS_CLEANUP_SECRET"] == "${{ secrets.TS_CLEANUP_SECRET }}"  # noqa: S105
+    # Anything but "prod" falls back to the drill mode.
+    assert env["CLEANUP_ENV"] == "${{ inputs.env == 'prod' && 'prod' || 'drill' }}"
     uses = [str(s["uses"]) for s in job["steps"] if "uses" in s]
     assert all("@" in u and len(u.split("@")[1].split()[0]) == 40 for u in uses)
 
@@ -175,3 +181,239 @@ def test_failed_delete_is_a_warning_not_an_error(
 
     assert cleanup.main({"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}) == 0
     assert "::warning::" in capsys.readouterr().out
+
+
+# --- prod mode (T-D156, ADR-0127) --------------------------------------------
+
+
+def _prod(
+    dev_id: str, name: str, online: bool | None, tags: list[str] | None = None
+) -> dict[str, Any]:
+    device: dict[str, Any] = {
+        "id": dev_id,
+        "hostname": "budget-planner-prod",
+        "name": f"{name}.tail1234.ts.net",
+        "tags": ["tag:prod"] if tags is None else tags,
+    }
+    if online is not None:
+        device["connectedToControl"] = online
+    return device
+
+
+OLD = _prod("old", "budget-planner-prod", online=False)
+NEW = _prod("new", "budget-planner-prod-1", online=True)
+
+
+def test_prod_selects_only_offline_tag_prod_nodes() -> None:
+    devices = [
+        OLD,
+        NEW,
+        _prod("unknown", "budget-planner-prod-2", online=None),  # no field: keep
+        _prod("drill", "budget-planner-prod-3", online=False, tags=["tag:drill"]),
+        {
+            "id": "lap",
+            "name": "laptop.tail1234.ts.net",
+            "hostname": "laptop",
+            "tags": ["tag:prod"],
+            "connectedToControl": False,
+        },
+    ]
+
+    assert [d["id"] for d in cleanup.select_stale_prod_devices(devices)] == ["old"]
+    assert cleanup.select_drill_devices(devices) == []
+
+
+def test_prod_rename_target_is_the_single_online_node_with_a_suffix() -> None:
+    assert cleanup.prod_rename_target([OLD, NEW]) is NEW
+    assert cleanup.prod_rename_target([_prod("n", "budget-planner-prod", online=True)]) is None
+    assert (
+        cleanup.prod_rename_target([NEW, _prod("n2", "budget-planner-prod-2", online=True)]) is None
+    )
+    assert cleanup.prod_rename_target([OLD]) is None
+
+
+def _fake_api(
+    devices: list[dict[str, Any]], calls: list[tuple[str, str, Any]], fail: str = ""
+) -> Any:
+    def fake(method: str, url: str, **kwargs: Any) -> Any:
+        calls.append((method, url, kwargs.get("json_body")))
+        if url.endswith("/oauth/token"):
+            return {"access_token": "SECRET-TOKEN"}
+        if method == "GET":
+            return {"devices": devices}
+        if method == fail:
+            raise urllib.error.URLError("boom")
+        return {}
+
+    return fake
+
+
+def test_prod_deletes_old_node_then_renames_new_one(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    monkeypatch.setattr(cleanup, "_request", _fake_api([OLD, NEW], calls))
+
+    env = {"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}
+    assert cleanup.main(env, ["--env", "prod"]) == 0
+
+    writes = [(m, u, b) for m, u, b in calls if m in {"DELETE", "POST"} and "oauth" not in u]
+    assert writes == [
+        ("DELETE", f"{cleanup.API}/device/old", None),
+        ("POST", f"{cleanup.API}/device/new/name", {"name": "budget-planner-prod"}),
+    ]
+    out = capsys.readouterr().out
+    assert "SECRET-TOKEN" not in out
+    assert "::warning::" not in out
+
+
+def test_prod_never_deletes_an_online_node(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    plain = _prod("live", "budget-planner-prod", online=True)
+    monkeypatch.setattr(cleanup, "_request", _fake_api([plain], calls))
+
+    assert cleanup.cleanup("id", "sec", "prod") == 0
+    assert [m for m, _u, _b in calls if m in {"DELETE", "POST"} and "oauth" not in _u] == []
+
+
+def test_prod_does_not_rename_while_the_old_node_remains(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    monkeypatch.setattr(cleanup, "_request", _fake_api([OLD, NEW], calls, fail="DELETE"))
+
+    assert (
+        cleanup.main({"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}, ["--env", "prod"])
+        == 0
+    )
+    assert not any(u.endswith("/name") for _m, u, _b in calls)
+    assert "Not renaming" in capsys.readouterr().out
+
+
+def test_prod_rename_failure_is_a_warning(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    monkeypatch.setattr(cleanup, "_request", _fake_api([OLD, NEW], calls, fail="POST"))
+
+    assert (
+        cleanup.main({"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}, ["--env", "prod"])
+        == 0
+    )
+    assert "::warning::Could not rename" in capsys.readouterr().out
+
+
+def test_prod_without_secrets_warns(capsys: pytest.CaptureFixture[str]) -> None:
+    assert cleanup.main({}, ["--env", "prod"]) == 0
+    out = capsys.readouterr().out
+    assert "::warning::" in out
+    assert "prod" in out
+
+
+# --- drill rehearsal of a replacement (ADR-0127 §7) --------------------------
+
+RUN_NAME = "budget-planner-drill-4242"
+CREDS = {"TS_CLEANUP_CLIENT_ID": "id", "TS_CLEANUP_SECRET": "sec"}
+
+
+def _drill(dev_id: str, name: str, online: bool) -> dict[str, Any]:
+    return {
+        "id": dev_id,
+        "hostname": RUN_NAME,
+        "name": f"{name}.tail1234.ts.net",
+        "tags": ["tag:drill"],
+        "connectedToControl": online,
+    }
+
+
+def test_replaced_drill_deletes_old_renames_new_and_settles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    devices = [
+        _drill("old", RUN_NAME, online=False),
+        _drill("new", f"{RUN_NAME}-1", online=True),
+        # Another run's drill must never match.
+        {**_drill("other", "budget-planner-drill-42421", online=False), "hostname": "x"},
+    ]
+    monkeypatch.setattr(cleanup, "_request", _fake_api(devices, calls))
+
+    rc = cleanup.main(CREDS, ["--env", "drill", "--replaced-name", RUN_NAME, "--require"])
+
+    assert rc == 0
+    writes = [(m, u, b) for m, u, b in calls if m in {"DELETE", "POST"} and "oauth" not in u]
+    assert writes == [
+        ("DELETE", f"{cleanup.API}/device/old", None),
+        ("POST", f"{cleanup.API}/device/new/name", {"name": RUN_NAME}),
+    ]
+
+
+@pytest.mark.parametrize(
+    "devices",
+    [
+        [],  # new VM not joined yet
+        [_drill("old", RUN_NAME, online=True), _drill("new", f"{RUN_NAME}-1", online=True)],
+    ],
+)
+def test_require_fails_until_settled(monkeypatch: pytest.MonkeyPatch, devices: list[Any]) -> None:
+    monkeypatch.setattr(cleanup, "_request", _fake_api(devices, []))
+
+    assert cleanup.main(CREDS, ["--replaced-name", RUN_NAME, "--require"]) == 1
+    assert cleanup.main(CREDS, ["--replaced-name", RUN_NAME]) == 0
+
+
+def test_require_settled_when_plain_name_already_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    monkeypatch.setattr(cleanup, "_request", _fake_api([_drill("n", RUN_NAME, True)], calls))
+
+    assert cleanup.main(CREDS, ["--replaced-name", RUN_NAME, "--require"]) == 0
+    assert not [m for m, _u, _b in calls if m in {"DELETE", "POST"} and "oauth" not in _u]
+
+
+def test_require_fails_on_rename_error_and_without_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    devices = [_drill("old", RUN_NAME, False), _drill("new", f"{RUN_NAME}-1", True)]
+    monkeypatch.setattr(cleanup, "_request", _fake_api(devices, [], fail="POST"))
+
+    assert cleanup.main(CREDS, ["--replaced-name", RUN_NAME, "--require"]) == 1
+    assert cleanup.main({}, ["--replaced-name", RUN_NAME, "--require"]) == 1
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["--env", "prod", "--replaced-name", RUN_NAME], ["--replaced-name", "budget-planner-prod"]],
+)
+def test_replaced_name_is_drill_only(argv: list[str]) -> None:
+    with pytest.raises(SystemExit):
+        cleanup.main(CREDS, argv)
+
+
+AFTER = "2026-11-18T20:00:00Z"
+
+
+def test_old_node_alone_never_counts_as_settled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review finding: old node still online, new VM not registered yet."""
+    old = {**_drill("old", RUN_NAME, online=True), "created": "2026-11-18T19:00:00Z"}
+    monkeypatch.setattr(cleanup, "_request", _fake_api([old], []))
+
+    argv = ["--replaced-name", RUN_NAME, "--require", "--created-after", AFTER]
+    assert cleanup.main(CREDS, argv) == 1
+
+
+def test_new_node_created_after_settles(monkeypatch: pytest.MonkeyPatch) -> None:
+    old = {**_drill("old", RUN_NAME, online=False), "created": "2026-11-18T19:00:00Z"}
+    new = {**_drill("new", f"{RUN_NAME}-1", online=True), "created": "2026-11-18T20:05:00Z"}
+    monkeypatch.setattr(cleanup, "_request", _fake_api([old, new], []))
+
+    argv = ["--replaced-name", RUN_NAME, "--require", "--created-after", AFTER]
+    assert cleanup.main(CREDS, argv) == 0
+
+
+@pytest.mark.parametrize("created", [None, "not a date", 5])
+def test_unknown_creation_time_is_not_settled(
+    monkeypatch: pytest.MonkeyPatch, created: object
+) -> None:
+    node = {**_drill("n", RUN_NAME, online=True), "created": created}
+    monkeypatch.setattr(cleanup, "_request", _fake_api([node], []))
+
+    argv = ["--replaced-name", RUN_NAME, "--require", "--created-after", AFTER]
+    assert cleanup.main(CREDS, argv) == 1

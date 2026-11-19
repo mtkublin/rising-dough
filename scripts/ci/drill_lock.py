@@ -51,6 +51,7 @@ DRILL_WORKFLOWS = frozenset(
         "drill-destroy.yml",
         "drill-sweeper.yml",
         "rollback.yml",
+        "replace-rehearsal.yml",
     }
 )
 # GitHub run statuses that mean "bringing up or running".

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -223,3 +224,106 @@ def test_resolve_ref_cli_reports_failure(capsys: pytest.CaptureFixture[str]) -> 
 
     assert rc == 1
     assert "cannot inspect" in capsys.readouterr().err
+
+
+# --- VM replacement (T-D156, ADR-0127) --------------------------------------
+
+RESTORED = {
+    "result": "restored",
+    "generation": "2901fbd3873a6696",  # pragma: allowlist secret
+    "at": "t",
+}
+
+
+def test_require_restore_needs_a_restored_report() -> None:
+    assert hr.converged(_status(restore=RESTORED), "g2", FULL_A, require_restore=True)
+    # Not converged yet: no verdict on the restore.
+    assert not hr.converged(
+        _status(state="applying", restore=None), "g2", FULL_A, require_restore=True
+    )
+
+
+@pytest.mark.parametrize(
+    "restore",
+    [None, {"result": "empty"}, {"result": "skipped-db-present"}, "restored", {}],
+)
+def test_require_restore_fails_fast_when_converged_without_restore(restore: object) -> None:
+    with pytest.raises(hr.ReleaseError, match="did not restore"):
+        hr.converged(_status(restore=restore), "g2", FULL_A, require_restore=True)
+
+
+def test_without_require_restore_the_report_is_ignored() -> None:
+    assert hr.converged(_status(restore={"result": "empty"}), "g2", FULL_A)
+
+
+def test_wait_cli_passes_require_restore(capsys: pytest.CaptureFixture[str]) -> None:
+    args = ["wait", "--url", "https://h/s", "--generation", "g2", "--ref", FULL_A]
+
+    assert hr.main([*args, "--require-restore"], fetch=lambda _u: _status()) == 1
+    assert "did not restore" in capsys.readouterr().err
+    assert hr.main([*args, "--require-restore"], fetch=lambda _u: _status(restore=RESTORED)) == 0
+
+
+def _plan(*changes: tuple[str, list[str]]) -> dict[str, object]:
+    return {
+        "resource_changes": [
+            {"address": addr, "change": {"actions": actions}} for addr, actions in changes
+        ]
+    }
+
+
+SERVER = "module.compute.scaleway_instance_server.app"
+
+
+@pytest.mark.parametrize(
+    ("actions", "expected"),
+    [
+        (["delete", "create"], True),
+        (["create", "delete"], True),  # create_before_destroy
+        (["update"], False),
+        (["no-op"], False),
+        (["create"], False),  # first-ever apply
+        (["delete"], False),  # destroy
+    ],
+)
+def test_server_replaced(actions: list[str], expected: bool) -> None:
+    plan = _plan(("tailscale_tailnet_key.vm", ["delete", "create"]), (SERVER, actions))
+    assert hr.server_replaced(plan) is expected
+
+
+def test_server_replaced_false_when_server_absent_and_other_resources_replaced() -> None:
+    assert hr.server_replaced(_plan(("tailscale_tailnet_key.vm", ["delete", "create"]))) is False
+
+
+def test_server_replaced_rejects_malformed_plans() -> None:
+    with pytest.raises(hr.ReleaseError, match="resource_changes"):
+        hr.server_replaced({})
+    with pytest.raises(hr.ReleaseError, match="actions"):
+        hr.server_replaced({"resource_changes": [{"address": SERVER, "change": {}}]})
+
+
+def test_server_address_matches_terraform() -> None:
+    assert hr.SERVER_ADDRESS == SERVER
+    assert 'module "compute"' in (ROOT / "terraform" / "main.tf").read_text()
+    compute = (ROOT / "terraform" / "modules" / "compute" / "main.tf").read_text()
+    assert 'resource "scaleway_instance_server" "app"' in compute
+
+
+def test_replaced_cli_prints_only_the_output_line(capsys: pytest.CaptureFixture[str]) -> None:
+    plan = _plan((SERVER, ["delete", "create"]))
+    plan["variables"] = {"cookie_secret": {"value": "TOPSECRET"}}  # pragma: allowlist secret
+    rc = hr.main(["replaced"], stdin=lambda: json.dumps(plan))
+
+    out = capsys.readouterr()
+    assert rc == 0
+    assert out.out == "replaced=true\n"
+    assert "TOPSECRET" not in out.out + out.err
+
+
+def test_replaced_cli_never_echoes_bad_input(capsys: pytest.CaptureFixture[str]) -> None:
+    rc = hr.main(["replaced"], stdin=lambda: "not json TOPSECRET")
+
+    out = capsys.readouterr()
+    assert rc == 1
+    assert "TOPSECRET" not in out.out + out.err
+    assert "::error::" in out.err

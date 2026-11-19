@@ -103,8 +103,27 @@ moved {
 # The tailnet ACL is NOT managed here (tailnet-global; see runbooks/tailscale-acl.hujson).
 # ----------------------------------------------------------------------------
 
+# T-D156 / ADR-0127: everything that forces a VM replacement. The key is
+# single-use and expires after an hour, so a new VM needs a new key. Tailscale
+# keys cannot be updated in place: putting the spec hash in the description
+# replaces the key in the same plan that replaces the server. (The key cannot
+# reference the server: the server's user_data carries the key.)
+locals {
+  vm_spec = {
+    # T-D123: STARDUST1-S quota is 1 per organisation (prod). Drill uses another type.
+    instance_type = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
+    image         = "ubuntu_noble"
+    zone          = var.scaleway_zone
+    # ADR-0127 §7: the replacement rehearsal boots the drill on Block Storage
+    # (as prod before T-D143) and then moves it to l_ssd. Prod is always l_ssd.
+    root_volume_type    = var.env == "prod" ? "l_ssd" : var.drill_root_volume_type
+    root_volume_size_gb = 10
+  }
+  vm_spec_id = substr(sha256(jsonencode(local.vm_spec)), 0, 12)
+}
+
 resource "tailscale_tailnet_key" "vm" {
-  description   = "budget-planner-${var.env} first boot"
+  description   = "budget-planner-${var.env} first boot vm ${local.vm_spec_id}"
   reusable      = false
   ephemeral     = var.env == "drill"
   preauthorized = true
@@ -115,11 +134,14 @@ resource "tailscale_tailnet_key" "vm" {
 module "compute" {
   source = "./modules/compute"
 
-  # T-D123: STARDUST1-S quota is 1 per organisation (prod). Drill uses another type.
-  instance_type = var.env == "prod" ? "STARDUST1-S" : var.drill_instance_type
+  # T-D156 / ADR-0127: every replacement-forcing input comes from local.vm_spec.
+  instance_type       = local.vm_spec.instance_type
+  image               = local.vm_spec.image
+  scaleway_zone       = local.vm_spec.zone
+  root_volume_type    = local.vm_spec.root_volume_type
+  root_volume_size_gb = local.vm_spec.root_volume_size_gb
 
-  name_prefix   = local.name_prefix
-  scaleway_zone = var.scaleway_zone
+  name_prefix = local.name_prefix
   # ADR-0111: tag@digest; CI passes the previous ref read from state.
   app_image_ref          = var.app_image_ref
   app_image_previous_ref = var.app_image_previous_ref
@@ -168,6 +190,10 @@ module "compute" {
   # T-D56: Litestream replica age encryption (ADR-0078 §3).
   litestream_age_identity  = var.litestream_age_identity
   litestream_age_recipient = var.litestream_age_recipient
+
+  # T-D156 / ADR-0127: the drill bucket starts empty; prod must restore or fail.
+  # The rehearsal (§7) turns it off on the drill once to prove the refusal.
+  allow_empty_db = var.env == "drill" ? var.drill_allow_empty_db : var.allow_empty_db
 
   # T-D57: single knob; also drives the app container env.
   backup_max_age_days = var.backup_max_age_days

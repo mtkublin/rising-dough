@@ -67,6 +67,13 @@ resource "scaleway_instance_server" "app" {
     scaleway_instance_ip.ipv6.id,
   ]
 
+  # ADR-0118 (T-D143): boot from the local SSD included in the instance price.
+  # Without this block the provider defaults to a billed Block Storage volume.
+  root_volume {
+    volume_type = var.root_volume_type
+    size_in_gb  = var.root_volume_size_gb
+  }
+
   # ADR-0111: cloud-init, bp-agent and bp-config metadata keys, updated in place.
   # cloud-init itself runs once (first boot); the agent converges to bp-config
   # on every change. T-D83 / ADR-0098: the provider schema does not mark

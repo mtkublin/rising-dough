@@ -64,3 +64,18 @@ output "server_type" {
   description = "Scaleway instance type of the VM (T-D123)."
   value       = scaleway_instance_server.app.type
 }
+
+output "root_volume_type" {
+  description = "Root volume type of the VM (T-D143, ADR-0118; test hook)."
+  value       = scaleway_instance_server.app.root_volume[0].volume_type
+}
+
+output "root_volume_size_gb" {
+  description = "Root volume size in GB (T-D143, ADR-0118; test hook)."
+  value       = scaleway_instance_server.app.root_volume[0].size_in_gb
+}
+
+output "allow_empty_db" {
+  description = "Whether litestream-restore may start an empty database (T-D156, ADR-0127; test hook, not a secret)."
+  value       = var.allow_empty_db
+}

@@ -200,8 +200,6 @@ Owner: application code. All tasks block Phase 2.
 ### ✅ T-VIS4 [P] /plan budget period bar clipped at 375px → T-VIS3
 - `.rd-period-bar` (Plan · Budget only) used `auto 1fr auto` columns, so the right column (per-day figure, committed meta, T-FIX1 "not counted" line) sized to its max-content and overflowed at 375px (5 overflowing elements). Columns are now `auto minmax(0,1fr) minmax(0,auto)` with `min-width: 0` and wrapping text; at <=640px the bar stacks into one column. `rising-dough.css` cache-bust `rd4` → `rd5`.
 
-
-
 ### ✅ T-FIX3 [P] Forecast must not re-project promoted recurring occurrences
 - Early promotion (salary 11-07 promoted 11-06) left the 11-07 occurrence in the forecast window, so current-row Income showed 29,517 instead of ~700 and EOM double-counted. Forecast flows + daily events now expand from `max(next_due, today+1)` by canonical date. Reference: ADR-0087 (amends ADR-0043); requirements F5.5.
 
@@ -237,7 +235,6 @@ Owner: application code. All tasks block Phase 2.
 ## Phase 2 — Infrastructure (Terraform + cloud-init) — Scaleway
 
 Owner: `terraform/` directory. All tasks block Phase 3.
-
 
 ### ✅ T-D47 [S] Move Security + Password into Settings → Security tab → T-D02b, T-D18, T-D17
 - Nav rail drops the "Security" and "Password" links (keeps email + Sign out; mobile gets a Sign out button). New Settings tab `/settings/security` (all users) with Password, Passkeys, Sessions sections. `GET /auth/sessions` and `GET /auth/register` → 303 to the tab; `GET /settings/password` → 303 unless `must_change_password` (standalone forced page, middleware exempt list unchanged). Template/CSS consolidated (`settings-security.css`). Reference: ADR-0075.
@@ -920,6 +917,13 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.
 - Follow-up 2026-11-18 (T-D139-FIX): `rollback.yml env=drill` set `drill_run_id` to its own run id and renamed the live drill host (44356288331 to 44360554182; Caddy lost its certificate). Fixed: re-applies on an existing drill reuse the id from state (`terraform output drill_run_id`), with an optional `drill_run_id` rollback input as repair override; fails if none. Tests: `tests/unit/deploy/test_drill_run_id.py`. Proof 2026-11-18 (DRILL-2): repair run 44362948854, rollback run 44364434084 (no target, no id: log `state: 44356288331`) and roll-forward run 44365282708 all kept `budget-planner-drill-44356288331`.
 
+### T-D143 [S] Boot the VM from local SSD, not Block Storage → ADR-0118, ADR-0032
+- Found 2026-11-18 (prod billing): a "Block Storage Volume" line (~€0.78/mo) next to the Flex IPv4. `scaleway_instance_server.app` has no `root_volume`, so the provider default (SBS) applies; ADR-0032 assumed the included 10 GB local SSD. Catalog check: `STARDUST1-S` and `DEV1-S` in `pl-waw-2` accept `l_ssd` (max 10 GB for Stardust).
+- Change: `root_volume { volume_type = "l_ssd", size_in_gb = 10 }` in `terraform/modules/compute/main.tf`; expose the root volume type/size as module outputs.
+- Tests: `terraform/tests/render.tftest.hcl` asserts `l_ssd` and 10 GB for prod and drill.
+- Blocked for prod on T-D156 (ADR-0127); the drill gate can run first.
+- Proof: drill gate green (boot from `l_ssd`, smoke passes); then prod release with operator approval (VM replaced, IPs kept, DB restored by the compose Litestream restore step); after the next billing day no Block Storage line on prod.
+
 ### ✅ T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
 - Found 2026-11-18: the 2026-11-07 to 2026-11-18 stall (T-D136) went unnoticed for 11 days because `/health` and `/ready` do not look at the replica.
 - Design (ADR-0119): a `litestream-probe` compose service lists the replica every 5 min (`litestream generations`) and writes `status.json` (newest object time, generation, checked_at; no secrets). The app serves `GET /health/replication`: 200 when the newest object is younger than 26 h (`BUDGET_REPLICATION_MAX_AGE_HOURS`) and the probe is fresh, 503 otherwise. Public, no auth. Delivered through `bp-config` and the compose file: no VM replacement.
@@ -1007,9 +1011,24 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Fix: a pure rule `services.account_pair.validate_distinct_accounts(account_id, dest_account_id)` returns an error message (or `None`); the routers call it with the other field validation and re-render the form with `errors["dest_account_id"]` and 422, nothing written. Update paths check against the submitted destination, falling back to the stored one when the field is empty (editing the source onto the stored destination).
 - Done when: unit tests cover the rule; integration tests show 422, the error text in the re-rendered form and no DB write for create and update (planned and transactions); e2e (`tests/e2e/test_planned_validation.py`, prod CSP) shows the error inside the open slide-over on `/today`.
 
-
 ### ✅ T-D155 [S] Budget override tier toggle stuck on "This month only" on /plan/year → ADR-0113
 - Problem: in the Override form opened from a /plan Year cell, clicking "Every <Mon>" or "New default" checks the hidden radio but the segmented control keeps "This month only" highlighted and the hint text never changes. Found on an explore drill.
 - Cause: T-D140 moved the inline tier-sync script into `static/js/budget-override.js`, but that file was loaded only by a `<script>` at the bottom of `plan/_budget_tab.html`. The Year cell popover (`new_override_form`, inline and modal variants) never loaded it.
 - Fix: `budget-override.js` is loaded from `base.html` (`defer`, `?v=t155`) and removed from the budget tab. Its slot / opener handlers are scoped to `[data-override-*]`. The inline-save refetch of `#plan-budget` now runs only when that region exists; on the Year tab the page reloads so the saved cell shows. Audit of other partial-only scripts: `passkeys.js` (auth layout + security settings) and `users-admin.js` (users list) are loaded by the only pages that use them; no others.
 - Done when: e2e (`tests/e2e/test_override_tier_toggle.py`, prod CSP) shows the active chip and hint change on the Year popover and the Budget tab inline form, and a recurring override saved from the Year popover appears in the cell.
+
+### T-D156 [M] Make a prod VM replacement safe unattended → ADR-0127, ADR-0071, ADR-0094, ADR-0111
+- Found 2026-11-18 (T-D143 review): a replacing prod apply would boot with a used, expired single-use Tailscale key (no SSH); a wrong or empty replica gives a silent empty DB (`-if-replica-exists`); nothing proves the data came back; the last writes before destroy are unproven; the 600 s release wait is untimed for a fresh Stardust boot. Cross-checked against `docs/v3-remaining` (2026-11-18): the generation risk is gone (v3.0.2, generation `2901fbd3873a6696`), and the restore itself is proven by run 44330551119 (through `restore-from-prod`, not the compose path). The rest is open on every branch.
+- Work items:
+  - (a) `local.vm_spec` hash in the `tailscale_tailnet_key.vm` description (forces a new key with every replacement); prod mode for `tailnet-cleanup.yml` (remove offline `budget-planner-prod*` nodes except the new one) after a replacement converges.
+  - (b) `allow_empty_db` variable (default false, true on drill); `litestream-restore` fails when the DB is missing, there is no generation and the flag is false; writes `/data/restore-report.json`.
+  - (c) Host agent publishes `restore` in `bp-deploy-status.json`; `terraform.yml` detects a server replacement from the plan JSON, requires `restore.result == "restored"`, waits 1800 s, and skips the image rollback.
+  - (d) `litestream` stop grace 30 s (already set); drill proof of the shutdown flush (write a row, destroy through Terraform, restore, row present). If it fails: `drain` flag in `bp-config` (ADR-0127 §4 fallback).
+  - (e) `restore.md` / `deploy.md`: record row counts before and compare after a replacing release.
+  - (f) `replace-rehearsal.yml` (ADR-0127 §7): one drill runs the fail-closed check, a seed on a Block Storage root, the `l_ssd` replacement with a writer running, and the verify (restore report, generation, no lost committed rows, integrity, tailnet cleanup + rename). Adds drill-only `drill_root_volume_type` / `drill_allow_empty_db`. Also fixes `mask_plan.py` swallowing the rest of a plan after a heredoc that forces replacement (`EOT # forces replacement`).
+- Tests: render tftest (`vm_spec_id` changes with the spec and ends the key description; `allow_empty_db` false on prod, true on drill); unit tests for the restore guard script (`test_litestream_restore_guard.py`), the agent status field and the plan-replacement detection in `host_release.py`.
+- Proof: drill gate green; after the merge, a green `replace-rehearsal.yml` run from `main` on the release commit, before the release is cut (covers the flush proof (d) and the empty-bucket refusal); the restore-drill run still green.
+- Depends on: `docs/v3-remaining` merged (T-D40-FIX, ADR-0117 workflow layout). Merged into the branch 2026-11-18.
+- Progress 2026-11-18: done on `docs/t-d143-l-ssd-root`: (a) Terraform part (key description), (b) guard script + `allow_empty_db` + report, (d) grace already 30 s, (e) runbooks.
+- Progress 2026-11-18 (after the merge): (a) prod mode of `tailnet-cleanup.yml` / `scripts/tailnet_drill_cleanup.py --env prod` (offline `tag:prod` `budget-planner-prod[-n]` only, then rename the online node), called by `release.yml` job `tailnet-cleanup-prod` when `server_replaced`; (c) agent `restore` status field, `host_release.py replaced` + `wait --require-restore`, `terraform.yml` replacement path (1800 s wait, no image rollback, job timeout 50 min). Operator steps done 2026-11-18: `prod-tailnet` environment (no reviewers, `main` + `v*`) and the `budget-planner-prod-cleanup` OAuth client, both secrets set (`github-settings.md` §1, §4). Open: drill proofs (d) and the empty-bucket drill.
+- Local proof 2026-11-18 against the real Litestream v0.3.14 (built from source; file replica, age-encrypted): empty replica fails by default and starts `empty` with the flag; a replicated DB is restored after removal (4/4 rows, report `restored` + generation); a rerun keeps the report; a wrong identity (`no identity matched`) and an unreadable replica (`cannot fetch generations`) fail even with the flag. Finding on the way: `litestream generations` stats the DB first and fails when it is missing, so the guard keys on `restore`'s own `no matching backups found` instead.

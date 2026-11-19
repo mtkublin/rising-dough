@@ -31,6 +31,25 @@ The expiry is the server tag `expires-at=<RFC3339 UTC>` (Terraform var `drill_ex
 
 `restore-drill.yml` (monthly, or dispatch) runs: `drill-lock` -> `image` (newest release, `host_release.py resolve-ref`) -> `apply` (`terraform.yml`, env `drill`) -> `restore-drill` (env `drill`, the only environment with `DEPLOY_SSH_PRIVATE_KEY`: join tailnet, wait for SSH, verify operator login, wait for the host agent status `ok`, restore, verify `/ready`, integrity, no extra DB copies; evidence artifact on failure) -> `destroy` (`terraform.yml`, `drill-teardown`, `always()` once apply was attempted) -> `verify-destroy` (state empty), `tailnet-cleanup` (reusable `tailnet-cleanup.yml`) and `report` (opens the `restore-drill` issue when image, apply, restore, destroy or verify-destroy failed or was cancelled; a drill-lock refusal opens none). Results: every run that reached `restore-drill` writes a restore-log entry to its job summary and comments it on the open `restore-log` issue (`restore-log` job, `drill-teardown`, `issues: write`; T-D41). See [`restore-log.md`](restore-log.md).
 
+## Replacement rehearsal (T-D156, ADR-0127 §7)
+
+Run it before any release that replaces the prod VM (T-D143 first), on the commit you will release, and only with operator go. Check that no drill-group run is queued or running first.
+
+```sh
+gh workflow run replace-rehearsal.yml --ref main
+```
+
+GitHub dispatches only workflows that exist on `main`; a new or changed rehearsal therefore runs after its PR merges.
+
+About 40 minutes on one drill (DEV1-S): refuse an empty replica, seed on Block Storage, replace with `l_ssd` while a writer commits a row per second, then verify on the new host. It tears down and cleans the tailnet in all cases. The run summary shows the seeded generation, the writer's last committed row, the restored rows and the lost-row count (must be 0).
+
+If it fails:
+- `check-empty`: the restore guard let an empty replica through or never ran. Do not release.
+- `seed` "server_replaced": an in-place change was planned as a replacement, or the reverse in `verify`. The release would wait or roll back wrongly.
+- `verify` "tailnet settled": the cleanup did not see the old node offline or could not rename. Prod would warn only; fix before relying on it.
+- `verify` "lost committed rows": the shutdown flush does not hold. Implement the ADR-0127 §4 drain fallback before the release.
+- `verify` restore report or `--require-restore`: the replaced host did not restore the seeded generation. Do not release.
+
 ## Drill lock (T-D138)
 
 Every drill workflow (`drill.yml`, `restore-drill.yml`, `drill-destroy.yml`, `drill-sweeper.yml`) starts with job `drill-lock` (ADR-0115); nothing else runs unless it passes. It fails with an explicit `::error::` when:

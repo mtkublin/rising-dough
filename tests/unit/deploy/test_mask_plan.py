@@ -157,3 +157,26 @@ def test_unterminated_heredoc_redacts_to_eof() -> None:
     out = _run("  + cloud_init = <<-EOT\n    a\n    b\n")
     assert out.endswith("(redacted by mask_plan.py: 2 lines)\n")
     assert "    a" not in out
+
+
+def test_heredoc_that_forces_replacement_closes_and_the_plan_continues() -> None:
+    """T-D156: `EOT # forces replacement` closed nothing, so the rest of the plan vanished."""
+    text = (
+        "      ~ cloud_init = <<-EOT\n"
+        "            tskey-auth-kSECRET-abc\n"
+        "        EOT # forces replacement\n"
+        '      ~ root_volume { volume_type = "sbs_volume" -> "l_ssd" # forces replacement }\n'
+        "Plan: 2 to add, 0 to change, 2 to destroy.\n"
+    )
+    out = _run(text)
+    assert "tskey" not in out
+    assert "(redacted by mask_plan.py: 1 lines)" in out
+    assert "        EOT # forces replacement\n" in out
+    assert "volume_type" in out
+    assert out.endswith("Plan: 2 to add, 0 to change, 2 to destroy.\n")
+
+
+def test_other_text_after_the_delimiter_does_not_close() -> None:
+    out = _run("  + cloud_init = <<-EOT\n    EOT leaked-secret\n    body\n")
+    assert "leaked-secret" not in out
+    assert out.endswith("(redacted by mask_plan.py: 2 lines)\n")
