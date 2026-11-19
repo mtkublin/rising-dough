@@ -47,7 +47,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### ✅ T-Q07 [P] Track D — security → `tracks/D-security.md`
 - Done by the security-reviewer agent. Route-by-route authz/IDOR table. CSRF, CSP, headers, XSS and SQLi checks done. Scanner results triaged.
 
-### T-Q08 [P] Track E — frontend → `tracks/E-frontend.md`
+### ✅ T-Q08 [P] Track E — frontend → `tracks/E-frontend.md`
 - HTMX emitter/listener matrix; template-logic list; CSRF/CSP handling; kept behaviour JS (`htmx-csrf.js`, `passkeys.js`). Any runtime claim backed by a `frontend-visual-audit` run (1440 / 1024 / 375).
 - Markup, CSS, token and presentational-JS findings are out of scope: the Sourdough redesign replaces them (ADR-0107, implementation_plan Track E note).
 
