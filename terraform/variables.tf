@@ -421,7 +421,7 @@ variable "restore_reader_application_id" {
   }
 }
 
-# T-D156 / ADR-0122: a prod boot with no database and an empty replica fails
+# T-D156 / ADR-0127: a prod boot with no database and an empty replica fails
 # unless this is set for one reviewed apply (first-ever boot, deliberate fresh
 # start). The drill allows it unless drill_allow_empty_db is false (its bucket
 # starts empty).
@@ -431,15 +431,15 @@ variable "allow_empty_db" {
   default     = false
 }
 
-# ADR-0122 §7: drill-only knobs of replace-rehearsal.yml. Prod ignores both.
+# ADR-0127 §7: drill-only knobs of replace-rehearsal.yml. Prod ignores both.
 variable "drill_allow_empty_db" {
-  description = "Drill only (ADR-0122 §7): false proves the restore guard refuses an empty replica. Prod uses allow_empty_db."
+  description = "Drill only (ADR-0127 §7): false proves the restore guard refuses an empty replica. Prod uses allow_empty_db."
   type        = bool
   default     = true
 }
 
 variable "drill_root_volume_type" {
-  description = "Drill only (ADR-0122 §7): root volume type. sbs_volume (Block Storage, prod before T-D143) lets the rehearsal replay the move to l_ssd. Prod is always l_ssd."
+  description = "Drill only (ADR-0127 §7): root volume type. sbs_volume (Block Storage, prod before T-D143) lets the rehearsal replay the move to l_ssd. Prod is always l_ssd."
   type        = string
   default     = "l_ssd"
 

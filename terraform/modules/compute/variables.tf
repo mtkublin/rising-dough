@@ -245,7 +245,7 @@ variable "tailnet_only" {
 }
 
 variable "allow_empty_db" {
-  description = "ADR-0122: let litestream-restore start an empty database when /data/budget.db is missing and the replica has no generation. false fails the boot instead (prod); true on the drill."
+  description = "ADR-0127: let litestream-restore start an empty database when /data/budget.db is missing and the replica has no generation. false fails the boot instead (prod); true on the drill."
   type        = bool
   default     = false
 }

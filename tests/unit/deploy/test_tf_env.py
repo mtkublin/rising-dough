@@ -118,6 +118,6 @@ def test_terraform_jobs_export_inputs_through_the_action_before_use() -> None:
         assert not any(
             k.startswith("TF_VAR_") and k != "TF_VAR_app_image_ref"
             for k in wf["jobs"][job_id]["env"]
-            # Workflow inputs, not secrets (T-D90; ADR-0122 §7 rehearsal knobs).
+            # Workflow inputs, not secrets (T-D90; ADR-0127 §7 rehearsal knobs).
             if not k.endswith(("_expires_at", "_upload", "_root_volume_type", "_allow_empty_db"))
         )

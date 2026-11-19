@@ -1,4 +1,4 @@
-# ADR-0122: A Prod VM Replacement Is Safe Unattended
+# ADR-0127: A Prod VM Replacement Is Safe Unattended
 
 - **Status**: Proposed
 - **Date**: 2026-11-18

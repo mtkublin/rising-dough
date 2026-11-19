@@ -1,4 +1,4 @@
-"""ADR-0122 §7: replace-rehearsal.yml replays the T-D143 replacement on the drill. No network."""
+"""ADR-0127 §7: replace-rehearsal.yml replays the T-D143 replacement on the drill. No network."""
 
 from __future__ import annotations
 

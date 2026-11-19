@@ -1,5 +1,5 @@
 # Reusable: remove a destroyed VM's leftover tailnet nodes (T-D124, ADR-0101, T-D133;
-# prod mode T-D156, ADR-0122).
+# prod mode T-D156, ADR-0127).
 #
 # Destroying the VM leaves its tailnet node behind (offline); a stale node makes
 # the next VM register as <name>-1 (for the drill the certificate name no longer

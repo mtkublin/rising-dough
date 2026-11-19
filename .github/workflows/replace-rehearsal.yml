@@ -1,4 +1,4 @@
-# Rehearse a prod VM replacement on the drill (T-D156, ADR-0122 §7).
+# Rehearse a prod VM replacement on the drill (T-D156, ADR-0127 §7).
 #
 # Replays the T-D143 release (Block Storage root -> l_ssd, which forces a new
 # Tailscale key and a new server) on one drill and fails on any gap:
@@ -442,7 +442,7 @@ jobs:
           count="${stats##*|}"
           echo "restored marker rows: max=${max} count=${count}; writer's last committed: ${WRITER_LAST}"
           {
-            echo "### Replacement rehearsal (ADR-0122 §7)"
+            echo "### Replacement rehearsal (ADR-0127 §7)"
             echo "- seeded generation: \`${SEED_GENERATION}\`"
             echo "- writer's last committed row: ${WRITER_LAST}"
             echo "- restored rows: max ${max}, count ${count}"
@@ -450,7 +450,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "${count}" -eq "${max}"
           if [ "${max}" -lt "${WRITER_LAST}" ]; then
-            echo "::error::$(( WRITER_LAST - max )) committed row(s) lost in the replacement; ADR-0122 §4 drain fallback needed" >&2
+            echo "::error::$(( WRITER_LAST - max )) committed row(s) lost in the replacement; ADR-0127 §4 drain fallback needed" >&2
             exit 1
           fi
 

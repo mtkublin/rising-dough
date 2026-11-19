@@ -25,7 +25,7 @@ release published (tag vX.Y.Z)
 | `drill-destroy.yml` | dispatch | manual teardown |
 | `litestream-plaintext-cleanup.yml` | dispatch (`dry_run`, default true) | env `prod` (approval); deletes plaintext Litestream objects from the prod replica after a green restore drill; logic in `scripts/ci/litestream_cleanup.py` (T-D56, ADR-0112) |
 | `restore-drill.yml` | monthly schedule, dispatch | concurrency group `drill`; apply and destroy are `terraform.yml` calls (T-D133) |
-| `replace-rehearsal.yml` | dispatch only | T-D156 / ADR-0122 §7: replays the prod VM replacement on one drill (empty-replica refusal, seed on Block Storage, `l_ssd` replacement under writes, verify restore + flush + tailnet rename); concurrency group `drill`, drill lock first, always torn down |
+| `replace-rehearsal.yml` | dispatch only | T-D156 / ADR-0127 §7: replays the prod VM replacement on one drill (empty-replica refusal, seed on Block Storage, `l_ssd` replacement under writes, verify restore + flush + tailnet rename); concurrency group `drill`, drill lock first, always torn down |
 | `tailnet-cleanup.yml` | workflow_call (`env`: drill default, prod) | removes the drill's leftover tailnet node; called by every drill workflow after destroy (T-D133, ADR-0117). `env: prod` (T-D156): offline `tag:prod` nodes only + rename, from `release.yml` after a VM replacement, env `prod-tailnet` |
 | `uptime.yml` | cron every 5 min, dispatch | T-D44: prod `/health` + host agent status; opens one issue on failure, closes it on recovery; no secrets |
 

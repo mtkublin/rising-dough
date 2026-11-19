@@ -134,11 +134,11 @@ Scaleway gives `scaleway_iam_api_key.app` a 1-year expiry (T-D74, ADR-0092). Ter
 - `bp-config` and `bp-agent` changes are applied live: the provider rewrites the metadata in place and the agent converges within ~30 s. No reboot, no SSH.
 - The `cloud-init` key still runs once. A change there (users, Tailscale, firewall, the agent loader and timer) plans as an in-place update but does nothing on the running VM until the server is replaced (`-replace=module.compute.scaleway_instance_server.app`). That is not a pipeline action: explicit user go, under [`break-glass.md`](break-glass.md). It recreates the VM; data restores from Litestream (see `disaster-recovery.md`).
 
-## Releases that replace the VM (T-D156, ADR-0122)
+## Releases that replace the VM (T-D156, ADR-0127)
 
 A plan that replaces `module.compute.scaleway_instance_server.app` (instance type, image, zone or root volume change, e.g. ADR-0118) recreates the host and restores the database from Litestream. Read the plan; the replacement also shows a new `tailscale_tailnet_key.vm` (its description carries the VM spec hash).
 
-Before cutting the release: a green `replace-rehearsal.yml` run on the release commit (`drill.md`, "Replacement rehearsal"; ADR-0122 §7).
+Before cutting the release: a green `replace-rehearsal.yml` run on the release commit (`drill.md`, "Replacement rehearsal"; ADR-0127 §7).
 
 Before approving the prod apply:
 

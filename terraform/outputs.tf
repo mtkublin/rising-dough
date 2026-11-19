@@ -77,6 +77,6 @@ output "drill_run_id" {
 }
 
 output "vm_spec_id" {
-  description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D156, ADR-0122). Not a secret."
+  description = "Hash of the replacement-forcing VM inputs; part of the Tailscale key description so a new VM gets a new key (T-D156, ADR-0127). Not a secret."
   value       = local.vm_spec_id
 }

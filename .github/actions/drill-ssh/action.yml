@@ -1,7 +1,7 @@
 name: Drill SSH over the tailnet
 description: >-
   Join the tailnet as tag:ci, record the drill host's keys and wait for operator
-  SSH (T-D67, ADR-0094; shared by replace-rehearsal.yml, ADR-0122 §7). Same steps
+  SSH (T-D67, ADR-0094; shared by replace-rehearsal.yml, ADR-0127 §7). Same steps
   as restore-drill.yml's restore job. Later steps run `ssh operator@<host>`.
 
 inputs:

@@ -60,7 +60,7 @@ variable "expires_at" {
 }
 
 variable "allow_empty_db" {
-  description = "Render the restore service with the empty-DB guard relaxed (T-D156, ADR-0122)."
+  description = "Render the restore service with the empty-DB guard relaxed (T-D156, ADR-0127)."
   type        = bool
   default     = false
 }

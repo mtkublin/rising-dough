@@ -1,4 +1,4 @@
-"""Remove leftover Tailscale node(s) after a VM is destroyed (T-D124, ADR-0101; T-D156, ADR-0122).
+"""Remove leftover Tailscale node(s) after a VM is destroyed (T-D124, ADR-0101; T-D156, ADR-0127).
 
 Destroying a VM leaves its tailnet node behind as offline. The next VM would then
 register as `<name>-1` (for the drill, the `*.ts.net` certificate name would not match).
@@ -245,7 +245,7 @@ def main(env: Mapping[str, str] | None = None, argv: Sequence[str] | None = None
     parser.add_argument(
         "--replaced-name",
         default="",
-        help="drill only (ADR-0122 §7): treat this drill name like prod after a VM replacement",
+        help="drill only (ADR-0127 §7): treat this drill name like prod after a VM replacement",
     )
     parser.add_argument(
         "--created-after",

@@ -1,5 +1,5 @@
 #!/bin/sh
-# ADR-0122 §7 (replace-rehearsal.yml): marker rows on the drill host. Runs as root
+# ADR-0127 §7 (replace-rehearsal.yml): marker rows on the drill host. Runs as root
 # over SSH (`ssh operator@host 'sudo sh -s -- <cmd> ...' < this file`). Rows are
 # written through the app container, as the app writes them, so a write counts
 # only while the app is running.

@@ -126,4 +126,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
 | 0121 | [Drill-Gate Skip for Non-Deploy PRs](0121-drill-gate-skip-for-non-deploy-prs.md) (amends ADR-0099; relates to ADR-0115) |
 | 0121 | [Path-Filtered Workflows Are Not Required Checks](0121-path-filtered-workflows-are-not-required-checks.md) (amends ADR-0099; relates to ADR-0115, ADR-0120) |
-| 0122 | [A Prod VM Replacement Is Safe Unattended](0122-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
+| 0127 | [A Prod VM Replacement Is Safe Unattended](0127-safe-prod-vm-replacement.md) (amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
