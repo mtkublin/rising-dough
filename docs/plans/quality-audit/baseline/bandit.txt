@@ -1,0 +1,685 @@
+# bandit -r src -ll (medium+)  and full -r src summary
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.12.13
+[tester]	WARNING	nosec encountered (B104), but no failed test on file src/budget_planner/config.py:165
+[tester]	WARNING	nosec encountered (B104), but no failed test on file src/budget_planner/config.py:165
+Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:01
+Run started:2026-11-19 13:27:11.922762+00:00
+
+Test results:
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/accounts.py:46:12
+45	) -> Account | None:
+46	    sql = f"SELECT {_COLUMNS} FROM accounts WHERE id = ? AND user_id = ?"
+47	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/accounts.py:60:12
+59	) -> Account | None:
+60	    sql = f"SELECT {_COLUMNS} FROM accounts WHERE name = ? AND user_id = ?"
+61	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/accounts.py:73:12
+72	) -> list[Account]:
+73	    sql = f"SELECT {_COLUMNS} FROM accounts WHERE user_id = ?"
+74	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/accounts.py:126:18
+125	            c.execute(
+126	                f"UPDATE accounts SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+127	                (*changes.values(), account_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/audit.py:36:10
+35	    rows = conn.execute(
+36	        f"SELECT {_COLUMNS} FROM audit_log "
+37	        "WHERE entity_type = ? AND entity_id = ? "
+38	        "ORDER BY changed_at ASC, id ASC",
+39	        (entity_type, entity_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/audit.py:46:10
+45	    rows = conn.execute(
+46	        f"SELECT {_COLUMNS} FROM audit_log ORDER BY id DESC LIMIT ?",
+47	        (limit,),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/auth_users.py:46:10
+45	    row = conn.execute(
+46	        f"SELECT {_COLUMNS} FROM users WHERE lower(email) = ? AND deleted_at IS NULL",
+47	        (normalized,),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/auth_users.py:55:10
+54	    row = conn.execute(
+55	        f"SELECT {_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL",
+56	        (user_id,),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:78:12
+77	) -> BudgetDefault | None:
+78	    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE category_id = ? AND user_id = ?"
+79	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:88:12
+87	) -> list[BudgetDefault]:
+88	    sql = f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE user_id = ?"
+89	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:116:14
+115	        row = c.execute(
+116	            f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE id = ? AND user_id = ?",
+117	            (new_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:168:10
+167	    sql = (
+168	        f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides "
+169	        "WHERE category_id = ? AND month = ? AND user_id = ?"
+170	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:180:12
+179	) -> list[BudgetRecurringOverride]:
+180	    sql = f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides WHERE user_id = ?"
+181	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:211:14
+210	        row = c.execute(
+211	            f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides "
+212	            "WHERE id = ? AND user_id = ?",
+213	            (new_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:265:10
+264	    sql = (
+265	        f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides "
+266	        "WHERE category_id = ? AND year = ? AND month = ? AND user_id = ?"
+267	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:281:12
+280	) -> list[BudgetOneOffOverride]:
+281	    sql = f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE user_id = ?"
+282	    params: list[object] = [user_id]
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/budgets.py:317:14
+316	        row = c.execute(
+317	            f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE id = ? AND user_id = ?",
+318	            (new_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/categories.py:42:12
+41	) -> Category | None:
+42	    sql = f"SELECT {_COLUMNS} FROM categories WHERE id = ? AND user_id = ?"
+43	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/categories.py:54:10
+53	    sql = (
+54	        f"SELECT {_COLUMNS} FROM categories "
+55	        "WHERE user_id = ? AND deleted_at IS NOT NULL "
+56	        "AND deleted_at > datetime('now', ?) "
+57	        "ORDER BY deleted_at DESC "
+58	        "LIMIT ?"
+59	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/categories.py:71:12
+70	) -> Category | None:
+71	    sql = f"SELECT {_COLUMNS} FROM categories WHERE name = ? AND user_id = ?"
+72	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/categories.py:84:12
+83	) -> list[Category]:
+84	    sql = f"SELECT {_COLUMNS} FROM categories WHERE user_id = ?"
+85	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/categories.py:124:18
+123	            c.execute(
+124	                f"UPDATE categories SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+125	                (*changes.values(), category_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/fx.py:33:10
+32	    row = conn.execute(
+33	        f"SELECT {_COLUMNS} FROM fx_rates WHERE date = ? AND from_ccy = ? AND to_ccy = ?",
+34	        (rate_date.isoformat(), from_ccy, to_ccy),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/fx.py:46:12
+45	) -> FxRate | None:
+46	    sql = f"SELECT {_COLUMNS} FROM fx_rates WHERE from_ccy = ? AND to_ccy = ?"
+47	    params: list[object] = [from_ccy, to_ccy]
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/fx.py:64:10
+63	    rows = conn.execute(
+64	        f"SELECT {_COLUMNS} FROM fx_rates ORDER BY fetched_at DESC, date DESC, id DESC LIMIT ?",
+65	        (int(limit),),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/fx.py:94:26
+93	            new_id = existing.id
+94	        row = c.execute(f"SELECT {_COLUMNS} FROM fx_rates WHERE id = ?", (new_id,)).fetchone()
+95	        return new_id, _row_to_rate(row)
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/planned.py:61:12
+60	) -> PlannedTransaction | None:
+61	    sql = f"SELECT {_COLUMNS} FROM planned_transactions WHERE id = ? AND user_id = ?"
+62	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/planned.py:115:10
+114	    sql = (
+115	        f"SELECT {cols} FROM planned_transactions p "
+116	        "JOIN categories c ON c.id = p.category_id AND c.user_id = p.user_id"
+117	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/planned.py:205:18
+204	            c.execute(
+205	                f"UPDATE planned_transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+206	                (*changes.values(), planned_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/planned.py:252:10
+251	    sql = (
+252	        f"SELECT {_COLUMNS} FROM planned_transactions "
+253	        "WHERE user_id = ? AND deleted_at IS NOT NULL "
+254	        "AND deleted_at > datetime('now', ?) "
+255	        "ORDER BY deleted_at DESC "
+256	        "LIMIT ?"
+257	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/preferences.py:37:10
+36	    row = conn.execute(
+37	        f"SELECT {_COLS} FROM user_preferences WHERE user_id = ? AND key = ?",
+38	        (user_id, key),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/preferences.py:53:14
+52	        row = conn.execute(
+53	            f"SELECT {_COLS} FROM user_preferences WHERE user_id = ? AND key = ?",
+54	            (user_id, key),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:177:12
+176	) -> RecurringRule | None:
+177	    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules WHERE id = ? AND user_id = ?"
+178	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:191:12
+190	) -> list[RecurringRule]:
+191	    sql = f"SELECT {_RULE_COLUMNS} FROM recurring_rules WHERE user_id = ?"
+192	    if active_only:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:326:18
+325	            c.execute(
+326	                f"UPDATE recurring_rules SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+327	                (*changes.values(), rule_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:388:10
+387	    sql = (
+388	        f"SELECT {cols} FROM recurring_rule_overrides o "
+389	        "JOIN recurring_rules r ON r.id = o.rule_id "
+390	        "WHERE o.rule_id = ? AND r.user_id = ?"
+391	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:433:10
+432	    existing = conn.execute(
+433	        f"SELECT {cols} FROM recurring_rule_overrides o "
+434	        "JOIN recurring_rules r ON r.id = o.rule_id "
+435	        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+436	        (data.rule_id, data.occurrence_date.isoformat(), user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:484:14
+483	        row = conn.execute(
+484	            f"SELECT {cols} FROM recurring_rule_overrides o "
+485	            "JOIN recurring_rules r ON r.id = o.rule_id "
+486	            "WHERE o.id = ? AND r.user_id = ?",
+487	            (new_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/recurring.py:509:10
+508	    existing = conn.execute(
+509	        f"SELECT {cols} FROM recurring_rule_overrides o "
+510	        "JOIN recurring_rules r ON r.id = o.rule_id "
+511	        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+512	        (rule_id, occurrence_date.isoformat(), user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/sessions.py:138:14
+137	        conn.execute(
+138	            f"INSERT INTO sessions ({_COLUMNS}) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)",
+139	            (
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/sessions.py:175:10
+174	    rows = conn.execute(
+175	        f"SELECT {_COLUMNS} FROM sessions "
+176	        "WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? "
+177	        "ORDER BY last_seen_at DESC, created_at DESC",
+178	        (user_id, _iso(_now(now))),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/sessions.py:280:29
+279	            return None
+280	        row = conn.execute(f"SELECT {_COLUMNS} FROM sessions WHERE id = ?", (new_id,)).fetchone()
+281	    return IssuedSession(session=_hydrate(row), token=new_token)
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/snapshots.py:38:10
+37	    rows = conn.execute(
+38	        f"SELECT {cols} FROM account_snapshots s "
+39	        "JOIN accounts a ON a.id = s.account_id "
+40	        "WHERE s.account_id = ? AND a.user_id = ? "
+41	        "ORDER BY s.taken_at ASC, s.id ASC",
+42	        (account_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/snapshots.py:63:14
+62	        row = c.execute(
+63	            f"SELECT {cols} FROM account_snapshots s "
+64	            "JOIN accounts a ON a.id = s.account_id "
+65	            "WHERE s.id = ? AND a.user_id = ?",
+66	            (new_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/transactions.py:62:12
+61	) -> Transaction | None:
+62	    sql = f"SELECT {_COLUMNS} FROM transactions WHERE id = ? AND user_id = ?"
+63	    if not include_deleted:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/transactions.py:123:10
+122	    sql = (
+123	        f"SELECT {cols} FROM transactions t "
+124	        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id"
+125	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/transactions.py:218:18
+217	            c.execute(
+218	                f"UPDATE transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
+219	                (*changes.values(), txn_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Low
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/transactions.py:264:10
+263	    sql = (
+264	        f"SELECT {_COLUMNS} FROM transactions "
+265	        "WHERE user_id = ? AND deleted_at IS NOT NULL "
+266	        "AND deleted_at > datetime('now', ?) "
+267	        "ORDER BY deleted_at DESC "
+268	        "LIMIT ?"
+269	    )
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/webauthn.py:88:10
+87	    row = conn.execute(
+88	        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?",
+89	        (row_id, user_id),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/webauthn.py:100:10
+99	    rows = conn.execute(
+100	        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE user_id = ?{live} ORDER BY id",
+101	        (user_id,),
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: src/budget_planner/repositories/webauthn.py:111:10
+110	    row = conn.execute(
+111	        f"SELECT {_COLUMNS} FROM webauthn_credentials "
+112	        "WHERE credential_id = ? AND deleted_at IS NULL",
+113	        (credential_id,),
+
+--------------------------------------------------
+>> Issue: [B704:markupsafe_markup_xss] Potential XSS with ``markupsafe.Markup`` detected. Do not use ``Markup`` on untrusted data.
+   Severity: Medium   Confidence: High
+   CWE: CWE-79 (https://cwe.mitre.org/data/definitions/79.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b704_markupsafe_markup_xss.html
+   Location: src/budget_planner/web/templating.py:124:11
+123	    # just capitalised. Safe to mark as Markup — content is derived not user.
+124	    return Markup(  # noqa: S704
+125	        f'<span class="pill {css}" aria-label="{label}">{label}</span>'
+126	    )
+127
+
+--------------------------------------------------
+>> Issue: [B704:markupsafe_markup_xss] Potential XSS with ``markupsafe.Markup`` detected. Do not use ``Markup`` on untrusted data.
+   Severity: Medium   Confidence: High
+   CWE: CWE-79 (https://cwe.mitre.org/data/definitions/79.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b704_markupsafe_markup_xss.html
+   Location: src/budget_planner/web/templating.py:161:11
+160	    style = f"background: color-mix(in oklab, {css_color} 16%, transparent); color: {css_color}"
+161	    return Markup(  # noqa: S704
+162	        f'<span class="pill cat-pill" style="{style}">{safe_name}</span>'
+163	    )
+164
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 18294
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 1
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 33
+		Medium: 53
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 23
+		Medium: 29
+		High: 34
+Files skipped (0):
+## all severities (-r src -q)
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: src/budget_planner/web/routers/recurring.py:708:4
+707	        )
+708	    assert c is not None and start is not None and minor is not None
+709	    # ADR-0063: if the user shortens the stop date so that the next pending
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: src/budget_planner/web/routers/recurring.py:1102:4
+1101	    updated = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
+1102	    assert updated is not None
+1103	    acc = accounts_repo.find_by_id(conn, user_id, updated.account_id, include_deleted=True)
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: src/budget_planner/web/routers/transactions.py:294:4
+293
+294	    assert op_date is not None and minor is not None
+295	    new_txn = transactions_repo.create(
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: src/budget_planner/web/routers/transactions.py:414:4
+413	        )
+414	    assert op_date is not None and minor is not None
+415	    dest_id_val = _parse_int(dest_account_id) if dest_account_id else None
+
+--------------------------------------------------
+>> Issue: [B704:markupsafe_markup_xss] Potential XSS with ``markupsafe.Markup`` detected. Do not use ``Markup`` on untrusted data.
+   Severity: Medium   Confidence: High
+   CWE: CWE-79 (https://cwe.mitre.org/data/definitions/79.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b704_markupsafe_markup_xss.html
+   Location: src/budget_planner/web/templating.py:124:11
+123	    # just capitalised. Safe to mark as Markup — content is derived not user.
+124	    return Markup(  # noqa: S704
+125	        f'<span class="pill {css}" aria-label="{label}">{label}</span>'
+126	    )
+127
+
+--------------------------------------------------
+>> Issue: [B704:markupsafe_markup_xss] Potential XSS with ``markupsafe.Markup`` detected. Do not use ``Markup`` on untrusted data.
+   Severity: Medium   Confidence: High
+   CWE: CWE-79 (https://cwe.mitre.org/data/definitions/79.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b704_markupsafe_markup_xss.html
+   Location: src/budget_planner/web/templating.py:161:11
+160	    style = f"background: color-mix(in oklab, {css_color} 16%, transparent); color: {css_color}"
+161	    return Markup(  # noqa: S704
+162	        f'<span class="pill cat-pill" style="{style}">{safe_name}</span>'
+163	    )
+164
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 18294
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 1
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 33
+		Medium: 53
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 23
+		Medium: 29
+		High: 34
+Files skipped (0):
+
+## Bandit counts by test id (all severities)
+   3 >> Issue: [B101
+  51 >> Issue: [B608
+   4 >> Issue: [B704

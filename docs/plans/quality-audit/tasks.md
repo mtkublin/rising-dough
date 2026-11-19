@@ -9,7 +9,7 @@
 
 ## Phase 0 — Preconditions
 
-### T-Q01 [S] Pin the audit commit and set up the environment
+### ✅ T-Q01 [S] Pin the audit commit and set up the environment
 - Blocked on v3 shipping (v3 Phase 4 ✅, prod cut over) and on the faster-CI effort (`docs/plans/ci-speed/`, T-CS06 ✅, ADR-0108), so the audit reviews the new test and CI setup.
 - `AUDIT_SHA` recorded; worktree and branch `audit/quality`; scratch DB `/tmp/audit.sqlite` copied from `data/demo.sqlite`.
 - `findings.md` header filled in: SHA, date, tool versions, LOC per package.
@@ -17,7 +17,7 @@
 
 ## Phase 1 — Automated baseline → T-Q01
 
-### T-Q02 [P] Static tool baseline
+### ✅ T-Q02 [P] Static tool baseline
 - Every tool in implementation_plan §2 has been run in report-only mode, with raw output in `baseline/<tool>.txt` and summaries in `baseline/README.md`.
 - No dependency or config changes committed (tools run through `uv run --with`).
 
