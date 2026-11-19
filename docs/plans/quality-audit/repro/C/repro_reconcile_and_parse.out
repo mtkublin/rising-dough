@@ -1,0 +1,38 @@
+== B1: reconcile(category=Groceries[expense]) when actual > derived ==
+derived before=368581 actual target=378581 stored amount=10000 after=358581
+MISMATCH: derive_balance != actual
+
+== B2: same with category=Salary[income] when actual < derived ==
+derived before=358581 actual target=353581 stored amount=5000 after=363581
+MISMATCH: derive_balance != actual
+
+== P1: parse_amount_str / to_minor_units edge inputs (PLN) ==
+'1e3'        -> Decimal=1E+3     minor=100000
+'1E-5'       -> Decimal=0.00001  minor=0
+'1e30'       -> parse accepted, to_minor_units raised InvalidOperation
+'NaN'        -> rejected (None)
+'Infinity'   -> rejected (None)
+'-0'         -> Decimal=-0       minor=0
+'0.00'       -> Decimal=0.00     minor=0
+'1_000'      -> Decimal=1000     minor=100000
+'١٢٣'        -> Decimal=123      minor=12300
+
+== P2: reconcile route parses with bare Decimal(): NaN / Infinity ==
+Decimal('NaN') -> to_minor_units raises ValueError (route catches only InvalidOperation around Decimal())
+Decimal('Infinity') -> to_minor_units raises InvalidOperation (route catches only InvalidOperation around Decimal())
+
+== P3: currency exponent table ==
+JPY: decimals=0  format_money(123456)=123,456 JPY
+KRW: decimals=0  format_money(123456)=123,456 KRW
+VND: decimals=2  format_money(123456)=1,234.56 VND
+CLP: decimals=2  format_money(123456)=1,234.56 CLP
+ISK: decimals=2  format_money(123456)=1,234.56 ISK
+UGX: decimals=2  format_money(123456)=1,234.56 UGX
+KWD: decimals=2  format_money(123456)=1,234.56 KWD
+BHD: decimals=2  format_money(123456)=1,234.56 BHD
+JOD: decimals=2  format_money(123456)=1,234.56 JOD
+HUF: decimals=2  format_money(123456)=1,234.56 HUF
+
+== P4: to_minor_units HALF_UP vs fx HALF_EVEN (x.5 case) ==
+to_minor_units(Decimal('0.125'),'PLN')... input is rejected at 3 digits by parse; FX path:
+2.5 -> HALF_UP 3 HALF_EVEN 2

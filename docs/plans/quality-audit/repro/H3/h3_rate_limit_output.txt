@@ -1,0 +1,36 @@
+== R1 20 parallel wrong-password logins, one ip+email, default limit 5/min
+status histogram: {429: 15, 401: 5} (exactly 5 x 401 expected if no TOCTOU)
+counter rows: [('login:60s:ip=127.0.0.1|email=v@x.test', 20)]
+
+== R2 case / whitespace email variants share one counter
+statuses for 7 variants from one IP: [401, 401, 401, 401, 401, 429, 429] (429 from the 6th = shared)
+distinct counter keys: 1
+
+== R3 X-Forwarded-For rotation: 30 wrong passwords against one account, then the right one
+statuses for 30 attempts with rotating XFF: {401: 30} (no 429 = per-account limit absent)
+then correct password from a 31st address -> 303
+same without XFF rotation (fixed XFF, 8 attempts) -> [401, 401, 401, 401, 401, 429, 429, 429]
+counter rows (login scope) after R3: 32
+
+== R4 which XFF entry is used / is the value validated?
+  key: login:60s:ip=1.2.3.4|email=victim@x.test|email=v@x.test
+  key: login:60s:ip=127.0.0.1|email=v@x.test
+  key: login:60s:ip=203.0.113.50|email=v@x.test
+  key: login:60s:ip=not-an-ip|email=v@x.test
+
+== R5 poison the victim's bucket from the attacker's own address by spoofing the victim's IP
+victim from the real address with the RIGHT password -> 429 (429 = locked out)
+victim from another address -> 303
+
+== R6 audit-log growth: every throttled attempt still writes an audit row
+auth_event audit rows after 15 attempts from one source (5 allowed + 10 throttled): 15
+
+== R8 unvalidated XFF value is stored as the session ip and shown on the Security page
+login with XFF payload -> 303
+sessions.ip stored: [('<img src=x onerror=alert(1)>"\'&',)]
+GET /settings/security -> 200 | raw payload in HTML: False | escaped form present: True
+audit_log.ip stored raw: [('<img src=x onerror=alert(1)>"\'&',)]
+
+== R7 session thief exhausts the victim's per-user step-up bucket
+thief wrong reauth attempts: [<HTTPStatus.UNAUTHORIZED: 401>, <HTTPStatus.UNAUTHORIZED: 401>, <HTTPStatus.UNAUTHORIZED: 401>, <HTTPStatus.UNAUTHORIZED: 401>, <HTTPStatus.UNAUTHORIZED: 401>, <HTTPStatus.TOO_MANY_REQUESTS: 429>]
+legit owner reauth with the right password right after -> 429 (429 = step-up blocked for the owner for the window)

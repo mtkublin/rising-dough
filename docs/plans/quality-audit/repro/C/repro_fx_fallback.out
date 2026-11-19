@@ -1,0 +1,17 @@
+== F1: Today fortune (web/today_data.py:129) ==
+EUR account native=-560115 base=-560115 (rate used = 1)
+fortune_base=3543969; same fortune if EUR were excluded = 4104084
+
+== F2: budget converters (services/budget.py:81,112) ==
+1000.00 EUR planned item -> base minor: 100000 (native 100000 passes through)
+
+== F3: Ledger planned strip is direction- and currency-blind, label hard-coded PLN ==
+strip: ('3', '1,800.00 PLN')
+planned rows: expense 500.00 EUR + expense 300.00 PLN + income 1000.00 PLN -> expected net (PLN-only, EUR unconverted) is not 1,800.00
+
+== F4: pages with an EUR account, no cached rate, API unreachable ==
+/today     -> HTTP 200
+/forecast  -> HTTP 500
+/budget    -> HTTP 200
+/plan      -> HTTP 200
+/accounts  -> HTTP 200
