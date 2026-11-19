@@ -1,0 +1,5 @@
+no FX rate EUR->PLN; committed uses native amount
+budget.base_amount_converter(100000 EUR-minor): returns 100000 (native amount, no error)
+today_data.collect_account_rows: rate=1 degrade; fortune_base=3543969
+forecast.forecast: RAISES FxUnavailableError (no caller catches it -> HTTP 500)
+[FAIL] one consistent degrade policy

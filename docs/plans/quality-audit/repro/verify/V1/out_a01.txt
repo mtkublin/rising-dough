@@ -1,0 +1,6 @@
+stored balance: 500000 JPY (whole yen)
+'5,000.00' (100x too small) present on /today: False | '500,000.00' present: False
+V1-Yen on /today: False
+/accounts card snippet: V1-Yen cash <path class="line" d="M0.00 23.00 L1.01 23.00 L2.02 23.00 L3
+/accounts has 5,000.00: False | 500,000.00: False
+card text: V1-Yen cash never 0 500,000 JPY Reconcile ⋮ Edit Delete Checking bank 01 Apr 84 3,685.81 PLN +27,943.61 planned → 31,629.42 Reconcile ⋮ Edit Delete Investments

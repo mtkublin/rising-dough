@@ -1,0 +1,7 @@
+combo GET /ledger                      -> 200 len=14742 leak=[]
+combo GET /ledger/table                -> 200 len=1073 leak=[]
+combo GET /transactions/export         -> 200 len=72 leak=[]
+combo GET /planned/export              -> 200 len=88 leak=[]
+combo GET /ledger/recently-deleted     -> 200 len=11031 leak=[]
+requests=2777 leaks=0 5xx=0
+control: V's own ledger contains sentinel: True

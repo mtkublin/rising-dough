@@ -1,0 +1,4 @@
+login ok: 303
+reauth -> 303 | rotated token differs: True
+slow in-flight response (arrives AFTER the rotation) sets session cookie to the OLD token: True
+next navigation with the cookie the browser now holds -> 302 /auth/login?next=%2Fauth%2Freauth (302 to login = signed out)

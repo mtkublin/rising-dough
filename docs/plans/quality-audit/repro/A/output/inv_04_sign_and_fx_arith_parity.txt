@@ -1,0 +1,13 @@
+
+=== 4a signed legs (amount=1000; transit src=1 dest=2) ===
+income balance: {1: 1000} ledger_totals(src): 1000 forecast: {1: 1000} account_planned: {1: 1000}
+[PASS] income: source leg identical in balance/forecast/account_planned
+expense balance: {1: -1000} ledger_totals(src): -1000 forecast: {1: -1000} account_planned: {1: -1000}
+[PASS] expense: source leg identical in balance/forecast/account_planned
+transit balance: {1: -1000, 2: 1000} ledger_totals(src): 0 forecast: {1: -1000, 2: 1000} account_planned: {1: -1000, 2: 1000}
+[PASS] transit: source leg identical in balance/forecast/account_planned
+adjustment balance: {1: 1000} ledger_totals(src): 1000 forecast: {} account_planned: {}
+[PASS] adjustment: balance counts, forecast/planned skip (by design, ADR-0011)
+
+=== 4b FX arithmetic copies ===
+[PASS] four FX arithmetic copies agree on 273 samples :: 0 divergences

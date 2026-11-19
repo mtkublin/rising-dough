@@ -1,0 +1,34 @@
+# sql-sites: execute( / executemany( / text( / literal SELECT|INSERT|UPDATE|DELETE in src outside repositories/ and db/migrate.py
+## files with hits: 9; total hits: 21
+   6 src/budget_planner/db/connection.py
+   4 src/budget_planner/services/accounts.py
+   4 src/budget_planner/web/routers/planned.py
+   2 src/budget_planner/web/routers/recurring.py
+   1 src/budget_planner/db/startup_migrate.py
+   1 src/budget_planner/domain/enums.py
+   1 src/budget_planner/services/users.py
+   1 src/budget_planner/web/app.py
+   1 src/budget_planner/web/routers/health.py
+## detail
+src/budget_planner/db/connection.py:53: conn.execute("PRAGMA journal_mode = WAL;")
+src/budget_planner/db/connection.py:54: conn.execute("PRAGMA synchronous = NORMAL;")
+src/budget_planner/db/connection.py:55: conn.execute("PRAGMA wal_autocheckpoint = 0;")
+src/budget_planner/db/connection.py:56: conn.execute("PRAGMA busy_timeout = 5000;")
+src/budget_planner/db/connection.py:57: conn.execute("PRAGMA secure_delete = ON;")
+src/budget_planner/db/connection.py:74: conn.execute("PRAGMA foreign_keys = ON;")
+src/budget_planner/db/startup_migrate.py:98: conn.execute("VACUUM INTO ?", (str(dest),))
+src/budget_planner/domain/enums.py:40: UPDATE = "update"
+src/budget_planner/services/accounts.py:35: rows = conn.execute(
+src/budget_planner/services/accounts.py:37: SELECT s.account_id AS account_id, MAX(s.taken_at) AS taken_a
+src/budget_planner/services/accounts.py:63: rows = conn.execute(
+src/budget_planner/services/accounts.py:65: SELECT account_id, MAX(operation_date) AS d
+src/budget_planner/services/users.py:112: cols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+src/budget_planner/web/app.py:59: row = conn.execute("PRAGMA wal_autocheckpoint;").fetchone()
+src/budget_planner/web/routers/health.py:64: row = conn.execute("PRAGMA integrity_check;").fetchone()
+src/budget_planner/web/routers/planned.py:140: row = conn.execute(
+src/budget_planner/web/routers/planned.py:142: SELECT prev_json FROM audit_log
+src/budget_planner/web/routers/planned.py:155: conn.execute(
+src/budget_planner/web/routers/planned.py:156: "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
+src/budget_planner/web/routers/recurring.py:501: row = conn.execute(
+src/budget_planner/web/routers/recurring.py:503: SELECT prev_json FROM audit_log
+## reference: execute/executemany calls inside repositories/: 124

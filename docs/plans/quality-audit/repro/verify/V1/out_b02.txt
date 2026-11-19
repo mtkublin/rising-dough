@@ -1,0 +1,15 @@
+before /accounts 200
+{"event": "HTTP Request: GET https://testserver/today \"HTTP/1.1 200 OK\"", "level": "info", "timestamp": "2026-11-19T15:40:09.586754Z"}
+before /today 200
+{"event": "HTTP Request: POST https://testserver/transactions \"HTTP/1.1 200 OK\"", "level": "info", "timestamp": "2026-11-19T15:40:09.602595Z"}
+POST /transactions transit, empty dest -> 200
+persisted transit rows without destination: 1
+{"event": "unhandled ValueError on GET /accounts", "exc_info": ["<class 'ValueError'>", "ValueError('transit transaction missing dest_account_id')", "<traceback object at 0x121d7a940>"], "level": "error", "timestamp": "2026-11-19T15:40:09.644430Z"}
+{"event": "HTTP Request: GET https://testserver/accounts \"HTTP/1.1 500 Internal Server Error\"", "level": "info", "timestamp": "2026-11-19T15:40:09.648712Z"}
+after /accounts 500
+{"event": "unhandled ValueError on GET /today", "exc_info": ["<class 'ValueError'>", "ValueError('transit transaction missing dest_account_id')", "<traceback object at 0x121d73440>"], "level": "error", "timestamp": "2026-11-19T15:40:09.665925Z"}
+{"event": "HTTP Request: GET https://testserver/today \"HTTP/1.1 500 Internal Server Error\"", "level": "info", "timestamp": "2026-11-19T15:40:09.667171Z"}
+after /today 500
+{"event": "unhandled ValueError on GET /forecast", "exc_info": ["<class 'ValueError'>", "ValueError('transit transaction missing dest_account_id')", "<traceback object at 0x121d0f980>"], "level": "error", "timestamp": "2026-11-19T15:40:09.882603Z"}
+{"event": "HTTP Request: GET https://testserver/forecast \"HTTP/1.1 500 Internal Server Error\"", "level": "info", "timestamp": "2026-11-19T15:40:09.883873Z"}
+after /forecast 500

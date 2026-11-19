@@ -1,0 +1,23 @@
+/budget?month=13                     -> HTTP 500
+/budget?month=0                      -> HTTP 500
+/budget?year=0                       -> HTTP 500
+/budget?year=10000                   -> HTTP 500
+/budget?month=abc                    -> HTTP 500
+/budget?year=2026&month=2            -> HTTP 200
+/budget?year=2024&month=2            -> HTTP 200
+/today/afford?amount=nan             -> HTTP 500
+/today/afford?amount=inf             -> HTTP 500
+/today/afford?amount=1e999           -> HTTP 500
+/today/afford?amount=1.005           -> HTTP 200
+/today/afford?amount=0.01            -> HTTP 200
+/forecast?horizon=0                  -> HTTP 200
+/forecast?horizon=-5                 -> HTTP 200
+/forecast?horizon=100000             -> HTTP 200
+/ledger?date_from=2026-02-30         -> HTTP 200
+/ledger?page=0                       -> HTTP 200
+/ledger?page=-1                      -> HTTP 200
+/ledger?page_size=0                  -> HTTP 200
+/ledger?page_size=1000000            -> HTTP 200
+POST reconcile actual=NaN            -> HTTP 500
+POST reconcile actual=Infinity       -> HTTP 500
+POST reconcile actual=1e999          -> HTTP 500

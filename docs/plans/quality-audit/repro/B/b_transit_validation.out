@@ -1,0 +1,7 @@
+scratch db: /tmp/audit-B.sqlite
+(a) POST /transactions transit, no dest -> HTTP 200
+(a) derive_balance: ValueError: transit transaction missing dest_account_id
+(b) create expense -> HTTP 200 | balance: -500
+(b) POST /transactions/{id} -> transit, no dest -> HTTP 200
+(b) derive_balance: ValueError: transit transaction missing dest_account_id
+GET /accounts status afterwards: 500

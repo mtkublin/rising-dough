@@ -1,0 +1,71 @@
+# jscpd --min-lines 8 on web templates + static (excl. vendor, tailwind.css, fonts)
+Clone found (css)
+ - app.css [91:10 - 100:2] (10 lines, 63 tokens)
+   app.css [1289:21 - 1298:2]
+Clone found (css)
+ - auth.css [76:42 - 88:5] (13 lines, 107 tokens)
+   settings-security.css [19:44 - 31:5]
+Clone found (javascript)
+ - js/passkeys.js [118:35 - 128:27] (11 lines, 86 tokens)
+   js/passkeys.js [161:36 - 171:27]
+Clone found (javascript)
+ - js/passkeys.js [129:40 - 143:28] (15 lines, 108 tokens)
+   js/passkeys.js [172:41 - 186:28]
+Clone found (css)
+ - rising-dough.css [138:5 - 147:2] (10 lines, 54 tokens)
+   rising-dough.css [1083:2 - 1092:2]
+Clone found (css)
+ - rising-dough.css [147:21 - 156:24] (10 lines, 55 tokens)
+   rising-dough.css [1092:17 - 1101:24]
+Clone found (css)
+ - rising-dough.css [510:11 - 521:2] (12 lines, 66 tokens)
+   rising-dough.css [1027:9 - 1038:2]
+Clone found (markup)
+ - accounts/index.html [64:12 - 135:16] (72 lines, 717 tokens)
+   partials/accounts/_row.html [4:28 - 75:6]
+Clone found (markup)
+ - auth/_layout.html [9:40 - 22:16] (14 lines, 66 tokens)
+   base.html [10:29 - 23:16]
+Clone found (markup)
+ - partials/forecast/_chart.html [13:33 - 25:7] (13 lines, 139 tokens)
+   plan/_forecast_tab.html [40:22 - 56:9]
+Clone found (markup)
+ - partials/planned/_form.html [29:22 - 37:24] (9 lines, 54 tokens)
+   partials/transactions/_form.html [46:72 - 54:24]
+Clone found (markup)
+ - partials/planned/_form.html [44:71 - 53:20] (10 lines, 53 tokens)
+   partials/transactions/_form.html [61:59 - 70:20]
+Clone found (markup)
+ - partials/planned/_promote_inline_row.html [17:34 - 30:22] (14 lines, 110 tokens)
+   partials/recurring/_promote_inline_row.html [16:62 - 29:22]
+Clone found (markup)
+ - partials/planned/_promote_inline_row.html [41:26 - 56:18] (16 lines, 98 tokens)
+   partials/recurring/_promote_inline_row.html [40:36 - 55:18]
+Clone found (markup)
+ - partials/planned/_promote_modal.html [43:84 - 55:7] (13 lines, 67 tokens)
+   partials/recurring/_promote_modal.html [56:84 - 68:7]
+Clone found (markup)
+ - partials/recurring/_form.html [108:26 - 126:39] (19 lines, 126 tokens)
+   partials/recurring/_form.html [232:69 - 250:31]
+Clone found (markup)
+ - partials/recurring/_override_form.html [34:86 - 42:23] (9 lines, 50 tokens)
+   partials/recurring/_promote_modal.html [17:83 - 25:23]
+┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐
+│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ css        │ 7              │ 5068        │ 53453        │ 5            │ 55 (1.09%)       │ 345 (0.65%)       │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ javascript │ 19             │ 1673        │ 12095        │ 2            │ 26 (1.55%)       │ 194 (1.60%)       │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ markup     │ 103            │ 5999        │ 52415        │ 10           │ 189 (3.15%)      │ 1480 (2.82%)      │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ Total:     │ 129            │ 12740       │ 117963       │ 17           │ 270 (2.12%)      │ 2019 (1.71%)      │
+└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘
+Found 17 clones.
+time: 42.064ms
+npm notice
+npm notice New major version of npm available! 10.8.1 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
+exit=0

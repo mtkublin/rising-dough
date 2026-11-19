@@ -1,0 +1,6 @@
+account_snapshots                no user_id | columns: id,account_id,taken_at,balance,note
+auth_rate_limit                  no user_id | columns: id,key,bucket_start,count
+fx_rates                         no user_id | columns: id,date,from_ccy,to_ccy,rate,fetched_at
+recurring_rule_overrides         no user_id | columns: id,rule_id,occurrence_date,state,amount_override,description_override,date_override,created_at,promo
+schema_migrations                no user_id | columns: version,filename,applied_at,checksum
+users                            no user_id | columns: id,name,email,password_hash,is_admin,must_change_password,created_at,updated_at,deleted_at
