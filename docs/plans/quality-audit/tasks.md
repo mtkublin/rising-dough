@@ -64,7 +64,8 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 
 ## Phase 3 — Verify and consolidate → T-Q04…T-Q10, T-Q18
 
-### T-Q11 [S] Adversarial verification and consolidation
+### ✅ T-Q11 [S] Adversarial verification and consolidation
+- Done 2026-11-19: V1, V2, V3 folded into `findings.md` (77 Q-ids from 149 track findings). Track H4 (infra red team on a drill) is still pending; fold it into `findings.md` with a follow-up commit when it lands.
 - Every Critical and High finding, plus at least 20% of Mediums, independently re-verified. Dismissed findings listed with reasons.
 - Duplicates merged; severities calibrated; one best mitigation per finding; summary and histograms written.
 
