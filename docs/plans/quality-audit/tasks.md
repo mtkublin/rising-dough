@@ -26,7 +26,7 @@
 - Prod-DB safety check passed.
 - Go / no-go decision recorded in `baseline/README.md`.
 
-### T-Q03b [S] Mutmut baseline and triage → T-Q03a (if go)
+### ✅ T-Q03b [S] Mutmut baseline and triage → T-Q03a (if go)
 - `domain` and `services` baseline score per package in `baseline/mutmut.txt`.
 - Survivors sorted into real gap (→ track F finding), equivalent (→ `baseline/mutmut-equivalent.md`) or low value (→ exclusion proposal).
 
