@@ -922,6 +922,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Change: `root_volume { volume_type = "l_ssd", size_in_gb = 10 }` in `terraform/modules/compute/main.tf`; expose the root volume type/size as module outputs.
 - Tests: `terraform/tests/render.tftest.hcl` asserts `l_ssd` and 10 GB for prod and drill.
 - Blocked for prod on T-D156 (ADR-0127); the drill gate can run first.
+- 2026-11-19: release v3.0.6 (run 44539030541) failed safely at the drain: prod's agent predates T-D157 (no apply, prod stays on v3.0.5). Goes out in two releases under T-D158.
 - Proof: drill gate green (boot from `l_ssd`, smoke passes); then prod release with operator approval (VM replaced, IPs kept, DB restored by the compose Litestream restore step); after the next billing day no Block Storage line on prod.
 
 ### ✅ T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
@@ -1048,3 +1049,13 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Tests: agent unit tests (drain, repeated run, litestream down → failed, undrain re-apply, 404 = no drain); `scw_user_data.py` (request shape, 404 on delete tolerated, no token in output); `wait-drained`; workflow wiring (drain before apply, only when replaced, undrain on failure, credentials from env).
 - Proof: drill gate green on the PR; after the merge, `replace-rehearsal.yml` green from `main` (0 lost rows, writer ends with "app gone").
 - 2026-11-19 (closeout): PR #33 merged (9fb18cb), drill gate run 44527494555 green. `replace-rehearsal.yml` run 44531460867 from main green. Results: drain request `44531460867-1` set 13:23:37, `drained` 13:24:16 (39 s); writer ended "app gone before 78"; new host has 77 of 77 committed rows (0 lost); restore report `restored` with the seeded generation; `--require-restore` converged; `integrity_check` ok; old tailnet node removed and the new one renamed.
+
+### T-D158 [S] Ship the drain-capable agent before the first replacing release → ADR-0127 (amendment 2, 2026-11-19), ADR-0118, ADR-0111
+- Found 2026-11-19 by release v3.0.6 (run 44539030541): prod's agent predates T-D157 and ignored `bp-drain`; the job timed out after 300 s, the undrain deleted the key and no apply ran. The new agent only reaches metadata through the apply, which in that release was the replacement.
+- Work items:
+  - (a) `host_release.py drain-capable --url`: fails when the status has no `drain` field. `terraform.yml` runs it before `scw_user_data.py set`. The PR plan job also prints `replaced=` from the plan JSON (the masked text plan hid the server diff in run 44539030541), so a PR shows whether the release replaces the VM.
+  - (b) Prod root volume pinned to `sbs_volume` (`terraform/main.tf`, prod branch of `vm_spec`); render tests updated. Release A: in place, ships the agent.
+  - (c) After release A converges: prod back to `l_ssd` (ADR-0118). Release B: replaces the VM with a drain. Closes T-D143.
+  - (d) Runbook `deploy.md`: the capability precondition; the stuck-drain command fixed (`scw_user_data.py delete --server <zone/id>`, no `--key`); the "writes during the apply" note updated for the drain.
+- Tests: `drain-capable` (field present, `null` or a value → ok; missing → fails; no key set); workflow wiring (check before the set); render tests for both prod volume types.
+- Proof: drill gate green on each PR. Release A: status shows `"drain": null`, no replacement. Release B: `drained` logged, restore `restored`, `audit_log` counts from the old host match on the new one.

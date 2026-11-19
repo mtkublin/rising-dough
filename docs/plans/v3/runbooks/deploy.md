@@ -142,6 +142,7 @@ Before cutting the release: a green `replace-rehearsal.yml` run on the release c
 
 Before approving the prod apply:
 
+0. The host runs the drain-capable agent: `curl -fsS https://<host>/.well-known/bp-deploy-status.json | jq 'has("drain")'` prints `true`. If it prints `false`, release the agent in place first (ADR-0127 amendment 2, T-D158); the job checks this too and fails before the apply.
 1. Litestream is current: `docker compose logs --tail=50 litestream` shows recent `write wal segment` lines and no errors.
 2. Record the counts on the old host:
    `ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"`
@@ -153,7 +154,7 @@ The release job detects the replacement from the plan (`host_release.py replaced
 
 1. `curl -fsS https://<host>/.well-known/bp-deploy-status.json | jq .restore` reports `"result": "restored"` and a generation (the job checked this too). `empty` on prod means the replica was empty and `allow_empty_db` was set; stop and investigate.
 2. If the host never comes up, `litestream-restore` may have refused an empty replica ("refusing to start empty"). That is the guard working: check the bucket and credentials. Do not set `allow_empty_db` to get past it.
-3. Compare the counts from step 2 on the new host (`restore.md`, Verification). Writes made during the apply can be missing; anything older is a failed restore.
+3. Compare the counts from step 2 on the new host (`restore.md`, Verification). The job drained the old host first, so the counts must match; any missing row is a failed restore or a failed drain.
 4. If `tailnet-cleanup-prod` warned: remove the old offline `budget-planner-prod` node in the tailnet admin console, then rename the new node from `budget-planner-prod-1` to `budget-planner-prod`.
 5. If the job failed on a replacement, there is no automatic rollback: follow `disaster-recovery.md`.
-6. Stuck drain: if the job failed before the apply and the old host still shows `"state": "drained"`, the job's undrain step did not run or failed. Delete the key through the pipeline by re-running the release, or under `break-glass.md` with `python3 scripts/ci/scw_user_data.py delete --server <zone/id> --key bp-drain`. The agent restarts the app within one 30 s timer run.
+6. Stuck drain: if the job failed before the apply and the old host still shows `"state": "drained"`, the job's undrain step did not run or failed. Delete the key through the pipeline by re-running the release, or under `break-glass.md` with `python3 scripts/ci/scw_user_data.py delete --server <zone/id>` (it only ever touches `bp-drain`). The agent restarts the app within one 30 s timer run.

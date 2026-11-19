@@ -1,0 +1,4 @@
+fetch_remote raises: UnsupportedProtocol | Request URL is missing an 'http://' or 'https://' protocol. | is httpx.HTTPError: True
+requests that left the client: []
+get_rate -> FxUnavailableError (today_data.py then sets rate=Decimal('1')): no cached FX rate for USD->PLN on/before 2026-11-19
+with base_url get_rate -> 4.0 | requests: ['https://api.frankfurter.app/2026-11-19?from=USD&to=PLN']
