@@ -1,0 +1,13 @@
+
+=== 3a spent: EUR expense 100.00 EUR on 2026-11-10 (Groceries), rate 4.30 ===
+{'budget spent (base)': 43000, 'forecast._spent_so_far': 10000}
+[FAIL] budget spent == forecast spent
+
+=== 3b committed: rule 22 (cat 6, 2026-11-24, 1530) + linked planned row for same occurrence ===
+{'before link: budget': 1530, 'forecast': 1530}
+{'after link: budget': 1530, 'forecast': 3060}
+[FAIL] budget committed == forecast committed (after link)
+
+=== 3c overdue: unpromoted planned expense dated 2026-11-05 (< today), cat 7, 5000 ===
+{'budget committed(cat7, unbounded start)': 5000, 'overdue 11-05 event in forecast stream': False}
+[FAIL] forecast event stream contains the overdue item budget counts
