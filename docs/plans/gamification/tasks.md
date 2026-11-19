@@ -13,7 +13,6 @@
 - Decide and record the order against v4 (before or after v4 Phase 3) in README.md.
 - Work branch `feat/goals` from `main`.
 - Designer drop 1: delivered 2026-11-19 together with drop 2 (ADR-0129). Accept it: HTML validator + axe clean on the release-1 pages, both themes; record accepted here.
-- Decide the afford-warning figure: G1.10 (total free balance of asset accounts) or the handoff's "free money" (cash accounts after planned payments, minus goals). A change amends ADR-0124 and G1.10 (ADR-0129 §6).
 
 ## Phase 1 — Goals backend (release 1)
 
@@ -50,7 +49,7 @@
 - Handoff: `pages/accounts`, `pages/accounts-over-allocated`.
 
 ### ◻ T-GS08 [P] Today: goals card, afford warning variant → T-GS05
-- Handoff: `pages/today` (goals summary), `pages/today-no-goals`, `pages/today-afford-goals`.
+- Handoff: `pages/today` (goals summary), `pages/today-no-goals`, `pages/today-afford-goals`. The afford warning keeps the G1.10 figure (total free balance of asset accounts), not the handoff's "free money"; adjust the warning copy to match and record it in `docs/plans/ui-redesign/derived.md` (ADR-0129 §6).
 
 ## Phase 3 — Release 1
 

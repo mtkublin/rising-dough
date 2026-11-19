@@ -80,4 +80,3 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 - Weights and thresholds are tuned by simulation (ADR-0128); T-GS21 records the first review after a month of R2 use.
 - Order against v4: decide when the redesign ships.
 - Designer handoff delivered 2026-11-19; acceptance (validator + axe) tracked in T-GS00 (goals) and T-GS16 (starter).
-- Afford-warning figure: the handoff's "free money" (cash accounts after planned payments, minus goals) vs G1.10's total free balance of asset accounts. Decide at T-GS00 (ADR-0129 §6).
