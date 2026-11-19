@@ -20,3 +20,24 @@ Pre-commit fixers (`trailing-whitespace`, `end-of-file-fixer`, `mixed-line-endin
 Check at vendoring: Playwright Chromium opened all 99 HTML files from `file://` with 0 console errors, 0 failed requests and 0 requests outside the folder.
 
 **Operator:** after this is merged, delete the untracked copy `data/rising-dough-frontend/` from the main checkout. This folder is the only copy to use from now on.
+
+## `rising-dough-goals-starter/`
+
+| Field | Value |
+|---|---|
+| What | "Rising Dough · goals & starter handoff": savings goals (release 1) and Levi the starter + bakery shelf (release 2). 31 pages × dark and light, components, motion, copy deck, starter and loaf SVGs, tokens, CSS |
+| Source canvas | *Rising Dough · Goals & Starter* |
+| Brief | [`gamification-brief.md`](gamification-brief.md) |
+| Delivered | 2026-11-19 (one drop for both releases, ADR-0129) |
+| Vendored | 2026-11-19, copied unchanged from the untracked `data/rising-dough-goals-starter/docs/design/rising-dough-frontend/` (`.DS_Store` dropped) |
+| Contents | 95 files, 70 HTML, about 3.1 MB |
+| Checksums | [`rising-dough-goals-starter.sha256`](rising-dough-goals-starter.sha256), verify with `cd docs/design/rising-dough-goals-starter && shasum -a 256 -c ../rising-dough-goals-starter.sha256` |
+| Entry point | `rising-dough-goals-starter/index.html` (opens from disk, no server); handoff notes are in that page; `MOTION-SPEC.md`, `COPY-DECK.md` |
+| Status | Delivered, **not yet accepted**: validator + axe run at T-GS00 (goals pages) and T-GS16 (starter pages) |
+| Consumed by | `docs/plans/gamification/` (T-GS06..T-GS08, T-GS16..T-GS19) |
+
+A standalone site, not an overlay on `rising-dough-frontend/` (ADR-0129): its `css/base.css` mirrors the app chrome so pages stand alone, and the redesign handoff wins where they overlap. `css/guide.css`, the guide pages and `js/app.js` are reference only. Pages link Google Fonts; the app keeps its vendored fonts (ADR-0113).
+
+Check at vendoring: Playwright Chromium opened all 70 HTML files from `file://` with 0 console errors and 0 failed requests; the only requests outside the folder are to `fonts.googleapis.com` / `fonts.gstatic.com`.
+
+**Operator:** after this is merged, delete the untracked copy `data/rising-dough-goals-starter/` from the main checkout.

@@ -554,7 +554,7 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 ## 12. Savings Goals + Sourdough Starter (added 2026-11-17; scoped 2026-11-18)
 
-Two features in two releases: savings goals first (useful on their own), then a sourdough-starter layer that rewards good money habits. Plan: `docs/plans/gamification/` (T-GS00..). Decisions: [ADR-0124](adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack). Designer brief: `docs/design/gamification-brief.md`.
+Two features in two releases: savings goals first (useful on their own), then a sourdough-starter layer that rewards good money habits. Plan: `docs/plans/gamification/` (T-GS00..). Decisions: [ADR-0124](adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack). Designer brief: `docs/design/gamification-brief.md`. Designer handoff: `docs/design/rising-dough-goals-starter/` ([ADR-0129](adr/0129-goals-starter-handoff-vendored-standalone.md)).
 
 ### 12.1 Savings goals (release 1, ADR-0124)
 
@@ -579,15 +579,15 @@ Two features in two releases: savings goals first (useful on their own), then a 
 - **S1.5** 14 one-time milestones, persisted (deleting the source row does not revoke them): first account, own category, ledger entry, recurring rule, planned payment, budget, reconciliation, goal, allocation, passkey; first goal reached, first period within budget, first no-spend check-in, four consecutive healthy weeks.
 - **S1.6** Existing users at launch: already-satisfied milestones unlock retroactively with original dates and 0 points, plus one welcome feed.
 - **S1.7** **Bakery shelf**: one loaf per goal ever reached (goal colour), kept when the goal is archived.
-- **S1.8** UI: `/today` starter card (state, name, recent feeds, check-in); rail badge on every page linking to the starter detail (milestones, feeds); the badge animates on any feed; milestones toast; routine feeds do not toast.
-- **S1.9** Preferences: "Show the starter" (default on; hides card, badge and toasts; goals and the shelf stay; state keeps computing) and the starter's name.
+- **S1.8** UI: `/today` starter card (state, name, recent feeds, check-in); header badge on every page linking to the starter detail drawer (milestones, feeds; ADR-0129); the badge animates on any feed; milestones toast; routine feeds do not toast.
+- **S1.9** Preferences: "Show the starter" (default on; hides card, badge and toasts; goals and the shelf stay; state keeps computing) and the starter's name (default **Levi**, ADR-0129).
 - **S1.10** Amends F2.5: a reconcile with zero delta records an `account_snapshots` row (`source = 'reconcile'`) and says "Already in sync" instead of failing.
 
 ### 12.3 Non-functional and constraints
 
 - After the §10 redesign ships; order against v4 is open. The schema is v4-ready either way: `goals.name`, `goals.target_amount`, `goals.note`, `goal_allocations.amount` and `budget_period_baselines.amount` are encrypted columns under §7.2, with `goals.name_bidx` as a blind index. If they land before v4 Phase 3 they join T-E08 / T-E09 / T-E12.
 - No background jobs: all state is derived at render from data, except persisted milestones, check-ins, budget baselines, starter UI bookkeeping and first-reach timestamps.
-- UI is built only from the designer handoff extending `docs/design/rising-dough-frontend/` (ADR-0126). Backend tasks are not gated on it; UI tasks are.
+- UI is built only from the designer handoff (ADR-0126): goals and starter screens from `docs/design/rising-dough-goals-starter/` (delivered 2026-11-19, ADR-0129), shared chrome from `docs/design/rising-dough-frontend/`. Backend tasks are not gated on it; UI tasks are.
 - Animation: CSS, inline SVG and the Web Animations API; `transform` / `opacity` only; `prefers-reduced-motion` respected; no Lottie, Rive, GIF or video; §10.2 budgets hold.
 - The starter compute on every full page stays within the §10.2 render budgets and the v4 p95 budget.
 

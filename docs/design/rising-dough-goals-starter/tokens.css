@@ -1,0 +1,39 @@
+/* Rising Dough tokens (Sourdough). Base values mirror the design system; the goals/starter block is new. */
+@layer tokens {
+  :root {
+    color-scheme: dark;
+    --ground: #0d0d0b; --panel: #161613; --raised: #1d1d19; --backdrop: #050504;
+    --rule: #2a2a26; --rule-strong: #3a3a34;
+    --ink: #edede6; --ink-muted: #8a8a80; --ink-deep: #0d0d0b;
+    --bake: #ff5a1f; --crumb: #802908;
+    --now: #d7ff5c; --now-fill: #d7ff5c; --now-edge: #d7ff5c;
+    --past: #2a2a26; --over: #ff4f8b;
+    --font-display: "Unbounded", system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+    --radius-sm: 4px; --radius-lg: 28px; --radius-pill: 999px;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+    /* goals & starter (new) */
+    --starter-dough: #f4e4c1; --starter-light: #fbf2dd; --starter-crust: #e3c08a;
+    --starter-caramel: #d6a86a; --starter-crumb: #b07a45;
+    --starter-glass: #1a1a17; --starter-glass-hi: #3d3d38; --starter-wall: #55554e; --starter-wall-strong: #8a8a80;
+    --shelf-plank: #3d3d38; --shelf-leg: #2a2a26;
+    --starter-accent: #ff5a1f; --bar-save: #d7ff5c;
+  }
+  :root[data-theme="light"], [data-theme="light"] {
+    /* Rising Dough · Sourdough (light) */
+    color-scheme: light;
+    --ground: #ffffff; --panel: #faf7f3; --raised: #f3eee7; --backdrop: #3a3530;
+    --rule: #ece6de; --rule-strong: #d9cfc3;
+    --ink: #121010; --ink-muted: #635c55; --ink-deep: #121010;
+    --bake: #ffe9db; --crumb: #ec5815;
+    --now: #b33a0a; --now-fill: #ff5a1f; --now-edge: #c9400c;
+    --past: #ffdcc6; --over: #a3154d;
+    --bar-save: #ff5a1f;
+    /* starter, tuned for contrast on a white page */
+    --starter-dough: #efc27f; --starter-light: #f8dcae; --starter-crust: #c98b45;
+    --starter-caramel: #b0702f; --starter-crumb: #8a4f1f;
+    --starter-glass: #fcfaf7; --starter-glass-hi: #ece4d9; --starter-wall: #7a6d5f; --starter-wall-strong: #4f4740;
+    --starter-accent: #ff5a1f;
+    --shelf-plank: #d9cfc3; --shelf-leg: #ece6de;
+  }
+}

@@ -57,15 +57,16 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### ✅ T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
 - Vulture results checked by hand. Every Accepted ADR checked against the code (still true / drifted / should be superseded). Pre-commit vs `just ci` vs CI parity table.
 
-### T-Q18 [S] Track H — red team → T-Q07 → `tracks/H1-ci-supply-chain.md`, `H2-isolation.md`, `H3-auth.md`, `H4-infra.md`
+### ✅ T-Q18 [S] Track H — red team → T-Q07 → `tracks/H1-ci-supply-chain.md`, `H2-isolation.md`, `H3-auth.md`, `H4-infra.md`
 - Four agents per plan §3 Track H, white-box, with Track D's authz table and Questions as leads. H1–H3 in parallel locally on a seeded synthetic scratch DB; H4 on a fresh operator-triggered drill (`mode=explore`) after a recorded check that it holds no restored prod data.
+- Done 2026-11-19: H1, H2, H3 and H4 all complete. H4 ran on explore drill 44609305750 (Step 0: no restored prod data, drill DB empty); the drill was torn down after. Folded into `findings.md` by T-Q11 (H4-01 into Q-027, H4-03 into Q-012, H4-04 into Q-068, new Q-078 to Q-080).
 - Rules of engagement (plan §3.1) followed: never prod, no outward actions on the real repo or accounts, no DoS, stop and report on a Critical.
 - Every finding has a repro under `repro/H<n>/` (failing pytest or script with recorded output); suspicions without a repro are in Questions. Each file states which goals were attempted and which were not.
 
 ## Phase 3 — Verify and consolidate → T-Q04…T-Q10, T-Q18
 
 ### ✅ T-Q11 [S] Adversarial verification and consolidation
-- Done 2026-11-19: V1, V2, V3 folded into `findings.md` (77 Q-ids from 149 track findings). Track H4 (infra red team on a drill) is still pending; fold it into `findings.md` with a follow-up commit when it lands.
+- Done 2026-11-19: V1, V2, V3 folded into `findings.md` (77 Q-ids from 149 track findings). Track H4 (infra red team on drill 44609305750) folded in afterwards (follow-up commit, T-Q18): 80 Q-ids from 155 track findings, 0 Critical, 20 High, 41 Medium, 19 Low.
 - Every Critical and High finding, plus at least 20% of Mediums, independently re-verified. Dismissed findings listed with reasons.
 - Duplicates merged; severities calibrated; one best mitigation per finding; summary and histograms written.
 
@@ -98,9 +99,9 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 
 ## Remediation (T-Q2xx) (draft — pending T-Q12 operator review)
 
-Source: [findings.md](findings.md) (77 Q-ids, 0 Critical, 20 High, 41 Medium, 16 Low). Method: [implementation_plan.md](implementation_plan.md) §5, §7.3, §8, §9. Execution happens after T-Q12 and follows the normal handoff checklist (CLAUDE.md), one task at a time or in orchestrator mode.
+Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19 Low). Method: [implementation_plan.md](implementation_plan.md) §5, §7.3, §8, §9. Execution happens after T-Q12 and follows the normal handoff checklist (CLAUDE.md), one task at a time or in orchestrator mode.
 
-**Counts: 59 tasks, covering all 77 Q-ids.** Band 1 (before a second user) 5; band 2 (Highs biting current PLN data) 6; band 3 (other High money and security) 7; band 4 (test-gap Highs) 8; band 5 (guard allowlist burn-down) 6; band 6 (Medium) 20; band 7 (Low) 7. Every High Q-id has its own task or is the lead of a tightly coupled cluster (Q-007 epic with its aliases; Q-011 with Q-029; Q-002 and Q-010 are split in two because step 1 or one half is a quick hotfix and the rest is a refactor).
+**Counts: 59 tasks, covering all 80 Q-ids.** Band 1 (before a second user) 5; band 2 (Highs biting current PLN data) 6; band 3 (other High money and security) 7; band 4 (test-gap Highs) 8; band 5 (guard allowlist burn-down) 6; band 6 (Medium) 20; band 7 (Low) 7. Every High Q-id has its own task or is the lead of a tightly coupled cluster (Q-007 epic with its aliases; Q-011 with Q-029; Q-002 and Q-010 are split in two because step 1 or one half is a quick hotfix and the rest is a refactor).
 
 **Ordering rationale.** (1) Operator facts of 2026-11-19: one user now, more soon, so scoping and abuse-control items come first, Q-001 first of all (High now, Critical the day a second user exists). (2) Then the Highs that bite on current PLN-only data (Q-002, Q-003, Q-010 sign part, Q-004, Q-006), because they need no FX to produce a wrong number or a 500. (3) Then the latent High money and security work: the canonical FX converter (Q-007) and everything that hangs off it, the currency renderer, reconcile, and the ungated environments. (4) Then the test-gap Highs, which lock the fixes in; each fix task already writes its own failing test first, so band 4 adds the shared harness and the mutant-cluster work, not the first regression test. (5) Then the guard allowlist burn-down (guards from T-Q15 run in allowlist mode, see §7.3; prevention.md §2 lists the allowlists by class). (6) Medium, (7) Low.
 
@@ -139,14 +140,14 @@ Source: [findings.md](findings.md) (77 Q-ids, 0 Critical, 20 High, 41 Medium, 16
 - Operator question blocking it: none.
 
 ### T-Q203 [S] Authentication abuse controls: trusted proxy identity, bounded audit text, per-IP lockout
-- Findings: Q-027 (D-06, H3-01, H3-05, H3-07, H2-04).
+- Findings: Q-027 (D-06, H3-01, H3-05, H3-07, H2-04, H4-01).
 - Tags: `[before-2nd-user]`
 - Depends on: none.
-- Docs-first step: ADR (next free number) or ADR-0072 amendment recording that the rate-limit identity is the proxy-set client address and that attacker text written to `audit_log` is truncated and escaped; requirements §6.7 line. Re-check OQ-25 (does Caddy overwrite `X-Forwarded-For` and strip `X-CSP-Nonce`) with the pending track H4 first; if Caddy overwrites, the code part may shrink.
+- Docs-first step: ADR (next free number) or ADR-0072 amendment recording that the rate-limit identity is the proxy-set client address and that attacker text written to `audit_log` is truncated and escaped; requirements §6.7 line. OQ-25 is answered by H4: Caddy overwrites `X-Forwarded-For` and `X-CSP-Nonce`, so header rotation is not exploitable via Caddy; the remaining work is the real-IP chain (H4-01: host-networking or no-MASQUERADE for Caddy, Caddy `trusted_proxies`, `--forwarded-allow-ips` pinned to Caddy's address) plus the per-email cap and bounded audit text.
 - Acceptance: failing tests first from `repro/H3/h3_rate_limit.py` (spoofed leftmost `X-Forwarded-For` does not change the bucket) and `repro/H2/h2_07_login_lockout_and_audit_tail.py` (one user cannot lock out another behind the same IP; the audit row length is bounded); then `--forwarded-allow-ips` pinned to the proxy address in the `Dockerfile` and compose template, proxy overwrites `X-Forwarded-For`/`X-Real-IP`, bucket keyed on (IP, username) with a global IP ceiling, truncation of persisted text (`web/routers/auth.py:85-203`).
 - Allowlist entries removed: none expected (security-control class has no allowlist in v1 of the guards; confirm in prevention.md §2).
 - Effort: M.
-- Operator question blocking it: OQ-25 (Sev, H4 pending).
+- Operator question: OQ-25 answered by H4; OQ-30 (which MASQUERADE rule) shapes the fix.
 
 ### T-Q204 [S] One transaction for compound mutations, immediate write locks, admin edge cases
 - Findings: Q-025 (C-09, B-07), Q-063 (H2-05).
@@ -297,7 +298,7 @@ Source: [findings.md](findings.md) (77 Q-ids, 0 Critical, 20 High, 41 Medium, 16
 - Operator question blocking it: OQ-9 (transit direction category), OQ-4 answered.
 
 ### T-Q218 [S] Gate the CI environments that hold prod-grade secrets
-- Findings: Q-012 (H1-01, H1-06).
+- Findings: Q-012 (H1-01, H1-06, H4-03). Also drop `restore-source.env` and the prod age identity from explore drills (H4-03).
 - Tags: none (`ci-trust-boundary`; High).
 - Depends on: none.
 - Docs-first step: ADR (next free number; amends ADR-0099/0100): split by data sensitivity (new `prod-restore-read` environment with required reviewers and `main`-only branch policy for `restore-drill` only; drill and teardown environments keep no prod-read material); update the runbook. Re-check against current `terraform.yml`/`drill.yml` first (audit branch absorbed T-D158 changes).
@@ -445,7 +446,7 @@ Source: [findings.md](findings.md) (77 Q-ids, 0 Critical, 20 High, 41 Medium, 16
 - Operator question blocking it: OQ-29 (Sev, Medium to High).
 
 ### T-Q232 [S] Closing gate: all guard allowlists empty, guards strict
-- Findings: closes the loop for Q-001..Q-077 with a guard.
+- Findings: closes the loop for Q-001..Q-080 with a guard.
 - Tags: `[pre-v4-P3]` check (verify before v4 Phase 3).
 - Depends on: T-Q206, T-Q207, T-Q208, T-Q209, T-Q210, T-Q212, T-Q213, T-Q214, T-Q215, T-Q216, T-Q227, T-Q228, T-Q229, T-Q230, T-Q241, T-Q242, T-Q243, T-Q258.
 - Docs-first step: update `prevention.md` status and the CLAUDE.md "Code conventions" pointer if wording changes (operator reviews CLAUDE.md edits).
@@ -683,14 +684,14 @@ Source: [findings.md](findings.md) (77 Q-ids, 0 Critical, 20 High, 41 Medium, 16
 - Operator question blocking it: OQ-20.
 
 ### T-Q255 [P] Infra pinning and release-workflow hardening
-- Findings: Q-067 (D-11), Q-068 (D-10, H1-09, H1-10), Q-069 (H1-07, H1-08).
+- Findings: Q-067 (D-11), Q-068 (D-10, H1-09, H1-10, H4-04), Q-069 (H1-07, H1-08), Q-078 (H4-02), Q-079 (H4-05), Q-080 (H4-06).
 - Tags: none.
-- Depends on: T-Q218 and T-Q239 (settings), H4 drill result for D-11.
+- Depends on: T-Q218 and T-Q239 (settings), H4 drill result for D-11 (done, see Q-067).
 - Docs-first step: ADR-0101/0099 amendments (where the port control sits; pinning policy).
 - Acceptance: Caddy/Litestream/base image by `@sha256:` digest, `uv`, tailscale and cloud-init versions pinned; Actions repo settings (`sha_pinning_required`, `allowed_actions: selected`) set by the operator; `permissions: contents: read` default on `ci.yml` and the release `ci` job, `.security-allowlist.yml` read from `origin/main` and passed via `env:` with a validated pattern; drill ports bound to the tailnet address or filtered in `DOCKER-USER`. Terraform changes go through the pipeline only; no prod apply from a laptop.
 - Allowlist entries removed: per prevention.md §2 allowlist for `dependency` and `ci-trust-boundary`.
 - Effort: S.
-- Operator question blocking it: OQ-24 (Tailscale ACL parity), H4 pending.
+- Operator question blocking it: OQ-24 (Tailscale ACL parity), OQ-32.
 
 ### T-Q256 [P] Frontend duplication: card utilisation and passkey JS
 - Findings: Q-070 (E-06, E-09), Q-071 (E-10).
