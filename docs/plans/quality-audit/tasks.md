@@ -41,7 +41,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### T-Q05 [P] Track B — layering and architecture → `tracks/B-layering.md`
 - Every SQL site outside `repositories/`, every `PLC0415` and `PLR0917` suppression, and every file over 800 lines has been classified.
 
-### T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
+### ✅ T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
 - Every clock call site and every broad `except` / fallback in money paths has been classified. Query counts per route recorded.
 
 ### T-Q07 [P] Track D — security → `tracks/D-security.md`
