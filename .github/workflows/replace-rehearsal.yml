@@ -313,8 +313,10 @@ jobs:
       # the replaced host must have it.
       - name: Insert one row per second until the old host is gone
         id: write
+        # GitHub runs `run:` with `bash -eo pipefail`; +e so the expected exit
+        # 255 (host gone) reaches the check below instead of ending the step.
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
           timeout 1500 ssh -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
             operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- writer 21' < scripts/ci/rehearsal_marker.sh | tee writer.log
           rc="${PIPESTATUS[0]}"
