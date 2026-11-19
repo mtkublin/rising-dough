@@ -1,0 +1,6 @@
+existing, wrong pw       median   311.2 ms  status 401  body-hash 82cd1cf1 len 3158
+unknown email            median   353.1 ms  status 401  body-hash aafffd48 len 3163
+passkey-only user        median   336.4 ms  status 401  body-hash c6cb5199 len 3158
+soft-deleted user        median   311.2 ms  status 401  body-hash 08736f04 len 3161
+existing, 100-byte pw    median     7.5 ms  status 401  body-hash 82cd1cf1 len 3158
+unknown, 100-byte pw     median     8.1 ms  status 401  body-hash aafffd48 len 3163

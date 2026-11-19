@@ -1,0 +1,8 @@
+
+=== Run A: demo (PLN only) ===
+{'budget.spent': 42717, 'analytics.spend': 42717, 'ledger.total': 42717}
+[PASS] budget == ledger == analytics
+
+=== Run B: + 100.00 EUR grocery (expect 43000 minor PLN extra) ===
+{'budget.spent': 85717, 'analytics.spend': 52717, 'ledger.total': 85717}
+[FAIL] budget == ledger == analytics

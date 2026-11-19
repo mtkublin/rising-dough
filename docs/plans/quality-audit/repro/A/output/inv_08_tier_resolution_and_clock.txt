@@ -1,0 +1,25 @@
+
+=== 8a tier resolution parity (2026, incl. one-off = 0) ===
+[PASS] resolve_budget == yearly_grid on all cells :: []
+
+=== 8b 'today' under a UTC host at 23:30 UTC (= 00:30 Warsaw next day) ===
+{'router-style (display tz)': datetime.date(2026, 11, 20), 'date.today()-style (host UTC)': datetime.date(2026, 11, 19)}
+[FAIL] both notions of today agree
+display-tz 'today' sites: 8
+host-clock date.today() sites: 16
+db/migrate.py:155
+repositories/recurring.py:227
+services/balance.py:210
+services/budget.py:69
+services/planned.py:86
+web/routers/accounts.py:46
+web/routers/budget.py:81
+web/routers/forecast.py:48
+web/routers/ledger.py:292
+web/routers/planned.py:80
+web/routers/recurring.py:338
+web/routers/recurring.py:353
+web/routers/recurring.py:435
+web/routers/recurring.py:580
+web/routers/recurring.py:694
+web/today_data.py:123
