@@ -28,3 +28,9 @@
 - Adding a required root variable now fails the architecture test until a `TF_VAR_` entry is added to every terraform job.
 - `prod-plan` duplicates prod values; they are not more sensitive than what `prod` already holds. Rotate in both places.
 - Secrets are masked in logs, so values such as the domain print as `***` in CI output.
+
+## Amendment 2026-11-19 (T-D159): non-secret flags are variables
+
+- **Found:** release v3.0.8 (run 44559131362) replaced the prod VM, but `release.yml` skipped `tailnet-cleanup-prod`: `Skip output 'server_replaced' since it may contain secret.` `MANAGED_DNS_ZONE` was a secret with the value `true` on prod. GitHub masks every occurrence of a secret's value, so every `true` in the logs became `***` and job outputs equal to `true` were dropped.
+- **Decision:** a non-secret scalar input whose value is a common token (booleans `true`/`false`, small numbers, common words) is a GitHub environment **variable**, not a secret. `MANAGED_DNS_ZONE` becomes a variable on `prod` and `prod-plan` (`scripts/ci/tf_env.py` source `var`, default `false` when unset, as on the drill envs). Decision 5 still holds for the value format. The old secret is deleted from `prod` and `prod-plan` after the change is on `main`.
+- **Guard:** `tests/unit/deploy/test_tf_env.py` fails when an entry with a `true`/`false` default reads a secret.
