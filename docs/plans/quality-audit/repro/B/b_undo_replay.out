@@ -1,0 +1,11 @@
+scratch db: /tmp/audit-B.sqlite
+promote-due status 204
+S1 next_due  before promote : 2026-11-10
+S1 next_due  after promote  : 2026-12-10
+S1 next_due  after undo     : 2026-12-10 | live promoted txns: 0
+S1 REPRODUCED (txn undone, rule stays advanced): True
+S2 active after promote: False | after undo: False
+S2 REPRODUCED (rule stays inactive after undo): True
+S3 promoted_to_txn_id after undo: None
+S3 audit rows before/after undo: 2 2
+S3 REPRODUCED (audit bypass): True

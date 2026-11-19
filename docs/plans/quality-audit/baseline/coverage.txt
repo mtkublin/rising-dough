@@ -1,0 +1,124 @@
+Name                                                        Stmts   Miss Branch BrPart   Cover   Missing
+--------------------------------------------------------------------------------------------------------
+src/budget_planner/__init__.py                                  0      0      0      0 100.00%
+src/budget_planner/adapters/__init__.py                         0      0      0      0 100.00%
+src/budget_planner/adapters/export/__init__.py                  0      0      0      0 100.00%
+src/budget_planner/adapters/fx/__init__.py                      0      0      0      0 100.00%
+src/budget_planner/cli/__init__.py                              0      0      0      0 100.00%
+src/budget_planner/cli/set_password.py                         85      0     16      0 100.00%
+src/budget_planner/config.py                                  113      0     30      0 100.00%
+src/budget_planner/db/__init__.py                               0      0      0      0 100.00%
+src/budget_planner/db/connection.py                            23      0      2      0 100.00%
+src/budget_planner/db/migrate.py                              145     15     50      3  89.74%   210-212, 231-246, 251-253, 335, 341-342
+src/budget_planner/db/retention.py                             20      0      0      0 100.00%
+src/budget_planner/db/seed.py                                  16      0      4      0 100.00%
+src/budget_planner/db/startup_migrate.py                       61      0      2      0 100.00%
+src/budget_planner/domain/__init__.py                          14      0      0      0 100.00%
+src/budget_planner/domain/accounts.py                          58      0     10      0 100.00%
+src/budget_planner/domain/audit.py                             15      0      0      0 100.00%
+src/budget_planner/domain/budgets.py                           48      0      0      0 100.00%
+src/budget_planner/domain/categories.py                        48      0     12      0 100.00%
+src/budget_planner/domain/enums.py                             19      0      0      0 100.00%
+src/budget_planner/domain/errors.py                            15      0      0      0 100.00%
+src/budget_planner/domain/fx.py                                18      0      0      0 100.00%
+src/budget_planner/domain/money.py                             35      0      6      0 100.00%
+src/budget_planner/domain/planned.py                           49      0      0      0 100.00%
+src/budget_planner/domain/preferences.py                       18      0      0      0 100.00%
+src/budget_planner/domain/recurring.py                        108      0      8      0 100.00%
+src/budget_planner/domain/request_ctx.py                       12      0      0      0 100.00%
+src/budget_planner/domain/snapshots.py                         15      0      0      0 100.00%
+src/budget_planner/domain/system_categories.py                  5      0      0      0 100.00%
+src/budget_planner/domain/transactions.py                      54      0      0      0 100.00%
+src/budget_planner/logging.py                                  59      1     14      2  95.89%   41, 72->74
+src/budget_planner/repositories/__init__.py                     0      0      0      0 100.00%
+src/budget_planner/repositories/_shared.py                     70      0     22      0 100.00%
+src/budget_planner/repositories/accounts.py                    68      0     16      0 100.00%
+src/budget_planner/repositories/audit.py                       15      0      0      0 100.00%
+src/budget_planner/repositories/auth_users.py                  24      1      2      1  92.31%   44
+src/budget_planner/repositories/budgets.py                    118      0     26      0 100.00%
+src/budget_planner/repositories/categories.py                  71      3     14      0  96.47%   53-61
+src/budget_planner/repositories/fx.py                          37      2      4      0  95.12%   63-67
+src/budget_planner/repositories/planned.py                    121      3     34      0  98.06%   251-259
+src/budget_planner/repositories/preferences.py                 19      0      0      0 100.00%
+src/budget_planner/repositories/rate_limit.py                  14      0      0      0 100.00%
+src/budget_planner/repositories/recurring.py                  139      2     38      2  97.74%   70, 450
+src/budget_planner/repositories/retention.py                   12      0      0      0 100.00%
+src/budget_planner/repositories/sessions.py                    96      0      6      0 100.00%
+src/budget_planner/repositories/snapshots.py                   23      1      2      1  92.00%   55
+src/budget_planner/repositories/transactions.py               122      3     38      0  98.12%   263-271
+src/budget_planner/repositories/users.py                      108      0      4      0 100.00%
+src/budget_planner/repositories/webauthn.py                    45      0      2      0 100.00%
+src/budget_planner/services/__init__.py                         0      0      0      0 100.00%
+src/budget_planner/services/_passwords.py                      34      0      8      0 100.00%
+src/budget_planner/services/_promotion.py                      19      1     10      1  93.10%   50
+src/budget_planner/services/account_pair.py                     6      0      2      0 100.00%
+src/budget_planner/services/account_planned.py                 68      0     16      0 100.00%
+src/budget_planner/services/accounts.py                        45      4     20      4  87.69%   48, 62, 75, 101
+src/budget_planner/services/analytics.py                       66      1      8      1  97.30%   140
+src/budget_planner/services/audit.py                           26      0     10      0 100.00%
+src/budget_planner/services/audit_tail.py                      32      0      8      0 100.00%
+src/budget_planner/services/auth.py                           143      0     26      1  99.41%   305->307
+src/budget_planner/services/balance.py                         92      2     32      2  96.77%   178, 209
+src/budget_planner/services/budget.py                         236      1     52      1  99.31%   495
+src/budget_planner/services/categories.py                      34      0     12      0 100.00%
+src/budget_planner/services/export.py                          61      0     12      0 100.00%
+src/budget_planner/services/forecast.py                       271      2     86      2  98.88%   422, 458
+src/budget_planner/services/fortune.py                         28      0      4      0 100.00%
+src/budget_planner/services/fx.py                              63      0     14      0 100.00%
+src/budget_planner/services/income.py                          35      2     20      3  90.91%   34, 39, 88->82
+src/budget_planner/services/ledger_totals.py                   25      0     12      0 100.00%
+src/budget_planner/services/password_change.py                 78      0     16      1  98.94%   157->159
+src/budget_planner/services/planned.py                         76      0      8      0 100.00%
+src/budget_planner/services/preferences.py                     41      0     14      0 100.00%
+src/budget_planner/services/rate_limit.py                      72      0     16      0 100.00%
+src/budget_planner/services/reauth.py                          67     18     12      3  70.89%   79-81, 115-117, 122-146, 161
+src/budget_planner/services/reconciliation.py                  47      4     20      1  89.55%   100-103
+src/budget_planner/services/recurring.py                      158      1     46      1  99.02%   298
+src/budget_planner/services/recurring_formula.py              199      5     76      3  97.09%   358->367, 418, 425->424, 539-540, 564-565
+src/budget_planner/services/replication_health.py              62      2     14      0  97.37%   60-61
+src/budget_planner/services/retention.py                       19      0      0      0 100.00%
+src/budget_planner/services/today.py                           43      2     10      2  92.45%   48, 70
+src/budget_planner/services/upcoming.py                        51      0     14      0 100.00%
+src/budget_planner/services/users.py                          204      0     44      0 100.00%
+src/budget_planner/web/__init__.py                              0      0      0      0 100.00%
+src/budget_planner/web/app.py                                 103     10     20      4  85.37%   88, 90, 96-99, 107, 120-123, 246->240
+src/budget_planner/web/auth_cookies.py                         97      5     16      1  94.69%   156-157, 162-163, 227
+src/budget_planner/web/charts.py                              260      1     50      1  99.35%   347
+src/budget_planner/web/deps.py                                 81      2     18      2  95.96%   33, 148
+src/budget_planner/web/errors.py                               57      0      8      0 100.00%
+src/budget_planner/web/htmx.py                                 20      0      4      0 100.00%
+src/budget_planner/web/ledger_types.py                         20      0      4      0 100.00%
+src/budget_planner/web/middleware/__init__.py                   0      0      0      0 100.00%
+src/budget_planner/web/middleware/admin.py                     18      0      2      0 100.00%
+src/budget_planner/web/middleware/auth.py                      91      0     20      0 100.00%
+src/budget_planner/web/middleware/cache_control.py             21      0      4      0 100.00%
+src/budget_planner/web/middleware/csrf.py                      59      1     12      0  98.59%   133
+src/budget_planner/web/middleware/must_change_password.py      45      0     10      0 100.00%
+src/budget_planner/web/middleware/request_id.py                18      0      0      0 100.00%
+src/budget_planner/web/middleware/security_headers.py          19      0      4      0 100.00%
+src/budget_planner/web/rendering.py                            24      0      2      0 100.00%
+src/budget_planner/web/retention_task.py                       22      0      0      0 100.00%
+src/budget_planner/web/routers/__init__.py                      0      0      0      0 100.00%
+src/budget_planner/web/routers/accounts.py                    108      2     12      0  98.33%   178-179
+src/budget_planner/web/routers/analytics.py                     7      0      0      0 100.00%
+src/budget_planner/web/routers/auth.py                        275     12     70      8  94.20%   221-225, 238, 246, 386, 452->454, 480, 652, 683, 700->702, 721
+src/budget_planner/web/routers/budget.py                      100      5     10      1  94.55%   187-188, 190, 193-194
+src/budget_planner/web/routers/categories.py                   79      2     12      0  97.80%   252-253
+src/budget_planner/web/routers/debug.py                        13      0      0      0 100.00%
+src/budget_planner/web/routers/dev_components.py               12      3      2      0  64.29%   25-27
+src/budget_planner/web/routers/forecast.py                     42      0      0      0 100.00%
+src/budget_planner/web/routers/health.py                       40      4      4      1  88.64%   65-67, 75
+src/budget_planner/web/routers/ledger.py                      182     25     50     15  82.76%   47-50, 58-59, 158, 164->177, 166, 168, 170, 172, 174, 176, 303-304, 359, 365, 368, 371, 372->354, 461-466
+src/budget_planner/web/routers/plan.py                        141     60     36      9  54.24%   87->96, 91-92, 94, 131-133, 145-171, 180-193, 195-222, 226->233, 227->226, 238-239, 286
+src/budget_planner/web/routers/planned.py                     137     21     22      2  84.28%   47, 83-89, 130-131, 150, 212-213, 426-432, 469-474
+src/budget_planner/web/routers/recurring.py                   440     62    136     23  83.51%   42, 167, 170, 173, 177, 196-197, 208-210, 215-217, 233-235, 298, 304-306, 321, 399-410, 438-444, 510, 517, 565, 571-572, 656-657, 671, 673, 675, 677, 912->911, 947, 948->950, 951, 989-1003, 1034->1037, 1040, 1050, 1065, 1099-1100
+src/budget_planner/web/routers/settings.py                     44      6     12      3  76.79%   46->45, 48, 77-86
+src/budget_planner/web/routers/settings_password.py            67      0     18      1  98.82%   160->167
+src/budget_planner/web/routers/settings_security.py            26      0      0      0 100.00%
+src/budget_planner/web/routers/settings_users.py              124      2     14      0  98.55%   260-261
+src/budget_planner/web/routers/today.py                        76     12      8      2  80.95%   66-67, 136, 204-224
+src/budget_planner/web/routers/transactions.py                141     11     26      3  91.62%   69-70, 138, 146, 178->180, 452-458
+src/budget_planner/web/templating.py                          106      1     28      1  98.51%   60
+src/budget_planner/web/today_data.py                           70     14     10      3  73.75%   99-103, 153-160, 167
+--------------------------------------------------------------------------------------------------------
+TOTAL                                                        7741    337   1648    115  94.70%

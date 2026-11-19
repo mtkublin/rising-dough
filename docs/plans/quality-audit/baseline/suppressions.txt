@@ -1,0 +1,229 @@
+# suppressions: grep for noqa | type: ignore | pragma: no cover | nosec (AUDIT_SHA 9fb18cb)
+## noqa counts by code (src)
+  37 PLC0415
+  32 PLR0917
+  18 DTZ011
+   6 PLR2004
+   6 PLR0911
+   5 S105
+   4 PLR0915
+   4 N818
+   3 PLR0912
+   3 E402
+   2 S704
+   2 PLW0603
+   2 B008
+   1 S104
+   1 ARG001
+## bare noqa (src)
+       0
+## type: ignore (src)
+       5
+## pragma: no cover (src)
+      27
+## nosec (src)
+       1
+## counts by file (src, all kinds)
+src/budget_planner/web/routers/recurring.py:17
+src/budget_planner/services/recurring.py:16
+src/budget_planner/services/recurring_formula.py:12
+src/budget_planner/web/routers/planned.py:9
+src/budget_planner/web/routers/auth.py:8
+src/budget_planner/web/routers/plan.py:6
+src/budget_planner/services/forecast.py:6
+src/budget_planner/web/routers/transactions.py:5
+src/budget_planner/web/app.py:5
+src/budget_planner/db/migrate.py:5
+src/budget_planner/web/routers/budget.py:4
+src/budget_planner/web/routers/accounts.py:4
+src/budget_planner/services/users.py:4
+src/budget_planner/domain/errors.py:4
+src/budget_planner/config.py:4
+src/budget_planner/web/routers/ledger.py:3
+src/budget_planner/web/deps.py:3
+src/budget_planner/services/budget.py:3
+src/budget_planner/web/templating.py:2
+src/budget_planner/web/routers/health.py:2
+src/budget_planner/web/routers/categories.py:2
+src/budget_planner/services/reauth.py:2
+src/budget_planner/services/planned.py:2
+src/budget_planner/services/balance.py:2
+src/budget_planner/services/auth.py:2
+src/budget_planner/logging.py:2
+src/budget_planner/db/seed.py:2
+src/budget_planner/web/today_data.py:1
+src/budget_planner/web/routers/today.py:1
+src/budget_planner/web/routers/settings_password.py:1
+src/budget_planner/web/routers/forecast.py:1
+src/budget_planner/web/middleware/must_change_password.py:1
+src/budget_planner/web/charts.py:1
+src/budget_planner/services/replication_health.py:1
+src/budget_planner/services/reconciliation.py:1
+src/budget_planner/services/rate_limit.py:1
+src/budget_planner/services/fx.py:1
+src/budget_planner/services/export.py:1
+src/budget_planner/services/_promotion.py:1
+src/budget_planner/repositories/webauthn.py:1
+src/budget_planner/repositories/recurring.py:1
+src/budget_planner/db/startup_migrate.py:1
+src/budget_planner/db/retention.py:1
+src/budget_planner/cli/set_password.py:1
+## tests/ totals
+noqa:       86
+type: *ignore:       60
+pragma: no cover:        4
+nosec:        0
+## full lines (src)
+src/budget_planner/logging.py:103:    global _CONFIGURED  # noqa: PLW0603 — module-level idempotence flag
+src/budget_planner/logging.py:129:    handler._bp_configured = True  # type: ignore[attr-defined]
+src/budget_planner/config.py:27:_DEV_COOKIE_SECRET: Final = "dev-only-cookie-secret-change-in-prod"  # noqa: S105 — dev defaul
+src/budget_planner/config.py:112:    admin_email: str | None = Field(  # type: ignore[pydantic-alias]
+src/budget_planner/config.py:116:    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]
+src/budget_planner/config.py:165:        if v in {"0.0.0.0", "::", "::0"}:  # noqa: S104 — reject, not emit  # nosec B104
+src/budget_planner/web/routers/auth.py:344:def login_password(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:392:async def login_passkey_finish(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:483:    except auth_service.PasskeyRegistrationError as exc:  # pragma: no cover — user is live
+src/budget_planner/web/routers/auth.py:494:async def register_passkey_finish(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:556:def revoke_session(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:632:def _reauth_success(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:669:def reauth_password(  # noqa: PLR0917
+src/budget_planner/web/routers/auth.py:729:async def reauth_passkey_finish(  # noqa: PLR0917
+src/budget_planner/web/routers/plan.py:68:def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for readability
+src/budget_planner/web/routers/plan.py:116:        import calendar as _cal  # noqa: PLC0415
+src/budget_planner/web/routers/plan.py:117:        import dataclasses as _dc  # noqa: PLC0415
+src/budget_planner/web/routers/plan.py:119:        from budget_planner.repositories import recurring as _rec_repo  # noqa: PLC0415
+src/budget_planner/web/routers/plan.py:120:        from budget_planner.services import preferences as _prefs  # noqa: PLC0415
+src/budget_planner/web/routers/plan.py:233:        import calendar as _cal  # noqa: PLC0415
+src/budget_planner/web/routers/forecast.py:48:    today = date.today()  # noqa: DTZ011
+src/budget_planner/web/routers/recurring.py:149:def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirroring transactions router
+src/budget_planner/web/routers/recurring.py:181:def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
+src/budget_planner/web/routers/recurring.py:338:        today=dt.date.today(),  # noqa: DTZ011 — date-only anchor
+src/budget_planner/web/routers/recurring.py:353:    today = dt.date.today()  # noqa: DTZ011
+src/budget_planner/web/routers/recurring.py:419:    import json  # noqa: PLC0415
+src/budget_planner/web/routers/recurring.py:435:    today = dt.date.today()  # noqa: DTZ011
+src/budget_planner/web/routers/recurring.py:482:    from budget_planner.repositories import (  # noqa: PLC0415
+src/budget_planner/web/routers/recurring.py:486:    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+src/budget_planner/web/routers/recurring.py:511:            import json  # noqa: PLC0415
+src/budget_planner/web/routers/recurring.py:580:    today = dt.date.today()  # noqa: DTZ011 — date-only anchor
+src/budget_planner/web/routers/recurring.py:633:async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
+src/budget_planner/web/routers/recurring.py:694:        today=dt.date.today(),  # noqa: DTZ011
+src/budget_planner/web/routers/recurring.py:810:def add_override(  # noqa: PLR0917, PLR0911
+src/budget_planner/web/routers/recurring.py:831:            default_year=year if 1900 <= year <= 9999 else rule.next_due.year,  # noqa: PLR2004
+src/budget_planner/web/routers/recurring.py:832:            default_month=month if 1 <= month <= 12 else rule.next_due.month,  # noqa: PLR2004
+src/budget_planner/web/routers/recurring.py:838:    if not (1900 <= year <= 9999 and 1 <= month <= 12):  # noqa: PLR2004
+src/budget_planner/web/routers/recurring.py:1016:def promote_submit(  # noqa: PLR0912, PLR0917
+src/budget_planner/web/routers/accounts.py:46:    return date.today()  # noqa: DTZ011 — intentional naive local date
+src/budget_planner/web/routers/accounts.py:186:def create_account(  # noqa: PLR0917
+src/budget_planner/web/routers/accounts.py:279:def update_account(  # noqa: PLR0917
+src/budget_planner/web/routers/accounts.py:445:def reconcile_submit(  # noqa: PLR0917
+src/budget_planner/web/routers/health.py:53:    from budget_planner.db.connection import get_connection  # noqa: PLC0415
+src/budget_planner/web/routers/health.py:57:    except Exception as exc:  # pragma: no cover — surface via the 503 shape
+src/budget_planner/web/routers/categories.py:79:def create_category(  # noqa: PLR0917
+src/budget_planner/web/routers/categories.py:150:def update_category(  # noqa: PLR0917
+src/budget_planner/web/routers/planned.py:70:    import json  # noqa: PLC0415
+src/budget_planner/web/routers/planned.py:80:    today = date.today()  # noqa: DTZ011
+src/budget_planner/web/routers/planned.py:123:    from budget_planner.repositories import transactions as transactions_repo  # noqa: PLC0415
+src/budget_planner/web/routers/planned.py:124:    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+src/budget_planner/web/routers/planned.py:151:            import json  # noqa: PLC0415
+src/budget_planner/web/routers/planned.py:184:    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
+src/budget_planner/web/routers/planned.py:220:def create_planned(  # noqa: PLR0917
+src/budget_planner/web/routers/planned.py:338:def update_planned(  # noqa: PLR0917
+src/budget_planner/web/routers/planned.py:484:def promote_submit(  # noqa: PLR0917
+src/budget_planner/web/routers/budget.py:81:    today = date.today()  # noqa: DTZ011
+src/budget_planner/web/routers/budget.py:235:def create_override(  # noqa: PLR0911, PLR0917
+src/budget_planner/web/routers/budget.py:348:def set_recurring(  # noqa: PLR0917
+src/budget_planner/web/routers/budget.py:403:def set_one_off(  # noqa: PLR0917
+src/budget_planner/web/routers/transactions.py:167:def limit_preview(  # noqa: PLR0917
+src/budget_planner/web/routers/transactions.py:195:    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
+src/budget_planner/web/routers/transactions.py:238:def create_txn(  # noqa: PLR0912, PLR0917
+src/budget_planner/web/routers/transactions.py:247:    settings: Settings = Depends(get_settings_dep),  # noqa: ARG001
+src/budget_planner/web/routers/transactions.py:358:def update_txn(  # noqa: PLR0917
+src/budget_planner/web/routers/ledger.py:292:    today = date.today()  # noqa: DTZ011 — naive date filter
+src/budget_planner/web/routers/ledger.py:338:        today_date=date.today(),  # noqa: DTZ011 — status chip math only
+src/budget_planner/web/routers/ledger.py:433:        today_date=date.today(),  # noqa: DTZ011
+src/budget_planner/web/routers/settings_password.py:122:def change_password(  # noqa: PLR0917
+src/budget_planner/web/routers/today.py:216:        from budget_planner.web.routers.recurring import (  # noqa: PLC0415
+src/budget_planner/web/middleware/must_change_password.py:27:PASSWORD_PATH: Final = "/settings/password"  # noqa: S105 — a URL path, not a secre
+src/budget_planner/web/today_data.py:123:        today = date.today()  # noqa: DTZ011 — ADR-0007: naive dates
+src/budget_planner/web/deps.py:88:class ReauthRequired(Exception):  # noqa: N818  # control-flow signal, handled in web.errors
+src/budget_planner/web/deps.py:155:    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008
+src/budget_planner/web/deps.py:156:    _user: CurrentUser = Depends(current_user),  # noqa: B008
+src/budget_planner/web/charts.py:144:def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for cohesion
+src/budget_planner/web/templating.py:124:    return Markup(  # noqa: S704
+src/budget_planner/web/templating.py:161:    return Markup(  # noqa: S704
+src/budget_planner/web/app.py:86:    global _SIGTERM_INSTALLED  # noqa: PLW0603 — module-level idempotence flag
+src/budget_planner/web/app.py:99:            previous(signum, frame)  # type: ignore[arg-type]
+src/budget_planner/web/app.py:124:            except sqlite3.Error:  # pragma: no cover — best-effort cleanup
+src/budget_planner/web/app.py:238:    import importlib  # noqa: PLC0415
+src/budget_planner/web/app.py:243:        except ImportError:  # pragma: no cover
+src/budget_planner/repositories/recurring.py:227:    today = dt.date.today()  # noqa: DTZ011 — date-only anchor; display tz applies at render
+src/budget_planner/repositories/webauthn.py:141:        if created is None:  # pragma: no cover — row was inserted in this tx
+src/budget_planner/cli/set_password.py:153:if __name__ == "__main__":  # pragma: no cover — exercised via main() in tests
+src/budget_planner/db/startup_migrate.py:197:if __name__ == "__main__":  # pragma: no cover — exercised via the entrypoin
+src/budget_planner/db/seed.py:59:def main() -> None:  # pragma: no cover - CLI shim exercised via `just seed`
+src/budget_planner/db/seed.py:71:if __name__ == "__main__":  # pragma: no cover
+src/budget_planner/db/retention.py:37:if __name__ == "__main__":  # pragma: no cover — exercised via the entrypoin
+src/budget_planner/db/migrate.py:155:    today = dt.date.today()  # noqa: DTZ011 — UTC vs local is irrelevant for a date-only anchor
+src/budget_planner/db/migrate.py:223:    import json  # noqa: PLC0415 — hook-local import keeps top-of-module imports lean
+src/budget_planner/db/migrate.py:233:            if data.get("schema_version") == 2:  # noqa: PLR2004 — explicit version pin
+src/budget_planner/db/migrate.py:354:def main() -> None:  # pragma: no cover - CLI shim exercised via `just migrate`
+src/budget_planner/db/migrate.py:366:if __name__ == "__main__":  # pragma: no cover
+src/budget_planner/domain/errors.py:24:    def __str__(self) -> str:  # pragma: no cover - repr helper
+src/budget_planner/domain/errors.py:35:    def __str__(self) -> str:  # pragma: no cover
+src/budget_planner/domain/errors.py:48:    def __str__(self) -> str:  # pragma: no cover
+src/budget_planner/domain/errors.py:58:    def __str__(self) -> str:  # pragma: no cover
+src/budget_planner/services/auth.py:253:            return False  # pragma: no cover — raced with another revoke
+src/budget_planner/services/auth.py:301:    if user is None:  # pragma: no cover — get_session already joins on live users
+src/budget_planner/services/forecast.py:155:        if dest_account_id is None:  # pragma: no cover - schema CHECK blocks i
+src/budget_planner/services/forecast.py:157:        if dest_account_id == account_id:  # pragma: no cover - schema CHECK blocks i
+src/budget_planner/services/forecast.py:433:def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/forecast.py:495:    from budget_planner.services import balance as balance_svc  # noqa: PLC0415
+src/budget_planner/services/forecast.py:530:def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/forecast.py:778:def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/recurring.py:145:    else:  # pragma: no cover - safety guard
+src/budget_planner/services/recurring.py:334:    if month == 12:  # noqa: PLR2004 — calendar literal
+src/budget_planner/services/recurring.py:384:    from budget_planner.repositories import (  # noqa: PLC0415
+src/budget_planner/services/recurring.py:389:    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+src/budget_planner/services/recurring.py:390:    from budget_planner.services import audit as audit_svc  # noqa: PLC0415
+src/budget_planner/services/recurring.py:391:    from budget_planner.services._promotion import (  # noqa: PLC0415
+src/budget_planner/services/recurring.py:408:    from budget_planner.services.recurring_formula import (  # noqa: PLC0415
+src/budget_planner/services/recurring.py:440:    if category is None:  # pragma: no cover - FK guarantees existence
+src/budget_planner/services/recurring.py:515:    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+src/budget_planner/services/recurring.py:516:    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+src/budget_planner/services/recurring.py:517:    from budget_planner.services import audit as audit_svc  # noqa: PLC0415
+src/budget_planner/services/recurring.py:603:    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+src/budget_planner/services/recurring.py:604:    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
+src/budget_planner/services/recurring.py:616:            from budget_planner.domain.enums import OverrideState  # noqa: PLC0415
+src/budget_planner/services/recurring.py:635:from budget_planner.services.recurring_formula import (  # noqa: E402
+src/budget_planner/services/recurring.py:641:def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/replication_health.py:69:def evaluate(  # noqa: PLR0911 - one early return per failure state
+src/budget_planner/services/users.py:41:DEV_ADMIN_PASSWORD: Final = "admin"  # noqa: S105 — documented dev default  # pragma: allowlist secre
+src/budget_planner/services/users.py:49:class BootstrapAdminMissingEnv(RuntimeError):  # noqa: N818 — name fixed by the T-D19 spec
+src/budget_planner/services/users.py:305:class UserNotFound(UserAdminError):  # noqa: N818 — reads as a status, maps to 404
+src/budget_planner/services/users.py:313:class UserConflict(UserAdminError):  # noqa: N818 — maps to 409
+src/budget_planner/services/reconciliation.py:62:def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
+src/budget_planner/services/planned.py:86:    today = dt.date.today()  # noqa: DTZ011 - naive date, routers inject when needed
+src/budget_planner/services/planned.py:165:    if category is None:  # pragma: no cover - FK guarantees existence
+src/budget_planner/services/budget.py:69:    ref = today if today is not None else dt.date.today()  # noqa: DTZ011 — ADR-0007
+src/budget_planner/services/budget.py:408:def _resolve_period_start(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/budget.py:454:def month_summary(  # noqa: PLR0915
+src/budget_planner/services/_promotion.py:53:        if src is None or dst is None:  # pragma: no cover - FK blocks i
+src/budget_planner/services/export.py:58:        if not isinstance(value, date):  # pragma: no cover - defensive
+src/budget_planner/services/recurring_formula.py:81:    return cleaned  # type: ignore[return-value]
+src/budget_planner/services/recurring_formula.py:125:    if month == 12:  # noqa: PLR2004
+src/budget_planner/services/recurring_formula.py:166:    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:167:    from budget_planner.services.recurring import (  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:213:    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:322:def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+src/budget_planner/services/recurring_formula.py:336:    from budget_planner.services.recurring import (  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:392:    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:432:from dataclasses import dataclass  # noqa: E402
+src/budget_planner/services/recurring_formula.py:433:from typing import Literal  # noqa: E402
+src/budget_planner/services/recurring_formula.py:475:    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
+src/budget_planner/services/recurring_formula.py:485:def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
+src/budget_planner/services/rate_limit.py:40:SCOPE_PASSWORD_CHANGE: Final = "password_change"  # noqa: S105  # scope name, not a secre
+src/budget_planner/services/fx.py:119:def convert(  # noqa: PLR0917
+src/budget_planner/services/balance.py:56:        if txn.dest_account_id is None:  # pragma: no cover - schema CHECK blocks i
+src/budget_planner/services/balance.py:210:    end = today if today is not None else dt.date.today()  # noqa: DTZ011
+src/budget_planner/services/reauth.py:45:METHOD_PASSWORD: Final = "password"  # noqa: S105  # method name, not a secre
+src/budget_planner/services/reauth.py:163:        if issued is None:  # pragma: no cover — raced with a revoke

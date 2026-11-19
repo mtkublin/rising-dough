@@ -1,0 +1,61 @@
+== anonymous
+GET /auth/login                                         200  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET /today (redirect)                                   302  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET /health                                             200  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET /nope (404 anon)                                    302  cache-control=None  missing=['content-security-policy', 'cache-control']
+POST /auth/login no csrf                                403  cache-control=None  missing=['content-security-policy', 'cache-control']
+POST /auth/login bad creds                              401  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET /static/app.css                                     200  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET /openapi.json anon                                  302  cache-control=None  missing=['content-security-policy', 'cache-control']
+== authenticated
+GET /today                                              200  cache-control='no-store'  missing=['content-security-policy']
+GET /nope (404 auth)                                    404  cache-control='no-store'  missing=['content-security-policy']
+GET /docs                                               200  cache-control='no-store'  missing=['content-security-policy']
+GET /openapi.json                                       200  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions no csrf                              403  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions empty form (422)                     422  cache-control='no-store'  missing=['content-security-policy']
+GET /transactions/abc/edit (422 path)                   422  cache-control='no-store'  missing=['content-security-policy']
+GET /transactions/99999999999999999999/edit             500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+GET /transactions/-1/edit                               404  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions amount=NaN                           422  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions amount=Infinity                      422  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions amount=1e400                         500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /transactions amount=9999999999999999999999        500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /transactions amount=-1                            422  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions date=0000-00-00                      422  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions date=9999-12-31                      200  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions category_id=99999999999999999999     500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /transactions description=100k chars               200  cache-control='no-store'  missing=['content-security-policy']
+POST /transactions description=NUL                      200  cache-control='no-store'  missing=['content-security-policy']
+GET /ledger?page=-5                                     200  cache-control='no-store'  missing=['content-security-policy']
+GET /ledger?page=999999999999999999999                  500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+GET /ledger?page_size=999999999                         200  cache-control='no-store'  missing=['content-security-policy']
+GET /ledger?date_from=garbage                           200  cache-control='no-store'  missing=['content-security-policy']
+GET /ledger?view=%27%3Cscript%3E                        200  cache-control='no-store'  missing=['content-security-policy']
+GET /forecast/view?horizon=abc                          200  cache-control='no-store'  missing=['content-security-policy']
+GET /budget/yearly?year=99999999                        200  cache-control='no-store'  missing=['content-security-policy']
+GET /budget?month=13                                    500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+GET /budget?year=0&month=0                              500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /budget/one-off/3/99999999/5                       500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /budget/one-off/3/2026/5 amount=1e400              500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /budget/defaults/3 amount=9e18                     500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /budget/income-anchor junk                         500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /recurring/batch/undo junk                         500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /recurring formula source ids junk                 500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /recurring/formula/preview junk                    422  cache-control='no-store'  missing=['content-security-policy']
+POST /categories color junk                             422  cache-control='no-store'  missing=['content-security-policy']
+POST /categories direction junk                         422  cache-control='no-store'  missing=['content-security-policy']
+POST /accounts currency junk                            422  cache-control='no-store'  missing=['content-security-policy']
+POST /accounts opening_balance=1e400                    500  cache-control=None  missing=['strict-transport-security', 'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy', 'content-security-policy'
+POST /accounts name 1MB                                 200  cache-control='no-store'  missing=['content-security-policy']
+POST json body csrf header only                         422  cache-control='no-store'  missing=['content-security-policy']
+GET /debug/audit-tail non-admin                         404  cache-control='no-store'  missing=['content-security-policy']
+GET /settings/users non-admin                           404  cache-control='no-store'  missing=['content-security-policy']
+GET /dev/components                                     200  cache-control='no-store'  missing=['content-security-policy']
+== session lifecycle
+POST /auth/logout                                       303  cache-control='no-store'  missing=['content-security-policy']
+  Clear-Site-Data: "cache", "storage" | set-cookie: ['__Host-session=""; expires=Thu, 19 Nov 2026 13:55:47 GMT; HttpOnly; Max-Age=0; Path=/; SameSite=lax; Secure']
+GET /today with revoked token                           302  cache-control=None  missing=['content-security-policy', 'cache-control']
+== duplicate-header / host header
+GET /today Host: evil.test                              302  cache-control=None  missing=['content-security-policy', 'cache-control']
+GET / X-Forwarded-Host: evil                            200  cache-control=None  missing=['content-security-policy', 'cache-control']

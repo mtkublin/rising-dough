@@ -1,0 +1,5 @@
+scratch db: /tmp/audit-B.sqlite
+(1) GET /plan?tab=budget&year=0&month=5 -> HTTP 500
+(2) rules: 100.00 PLN + 100.00 EUR monthly expense
+(2) 'Monthly out' strip shows: ('200', 'PLN')
+(2) REPRODUCED (EUR added to PLN unconverted): True

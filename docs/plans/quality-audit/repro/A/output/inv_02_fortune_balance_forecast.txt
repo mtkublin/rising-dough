@@ -1,0 +1,12 @@
+
+=== Run A: demo (PLN only) ===
+[PASS] derive_balance == SQL oracle for every account
+{"fortune.net_base (Today 'Net worth · all accounts' + Accounts hero)": 3443969, 'today_data.fortune_base (converted, unused by template)': 3443969, 'forecast day-0 total': 3443969}
+[PASS] fortune.net_base == today_data.fortune_base
+[PASS] today_data.fortune_base == forecast day-0
+
+=== Run B: + EUR account 1000.00 EUR (= 4300.00 PLN) ===
+[PASS] derive_balance == SQL oracle for every account
+{"fortune.net_base (Today 'Net worth · all accounts' + Accounts hero)": 3443969, 'today_data.fortune_base (converted, unused by template)': 3873969, 'forecast day-0 total': 3873969}
+[FAIL] fortune.net_base == today_data.fortune_base
+[PASS] today_data.fortune_base == forecast day-0
