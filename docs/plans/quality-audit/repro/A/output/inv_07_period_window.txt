@@ -1,0 +1,7 @@
+item on 2026-11-29: budget committed delta=5000, account_planned net delta=-5000
+[PASS] budget counts item on 2026-11-29
+[PASS] account_planned counts item on 2026-11-29
+item on 2026-11-30: budget committed delta=0, account_planned net delta=-5000
+[FAIL] budget counts item on 2026-11-30
+[PASS] account_planned counts item on 2026-11-30
+[FAIL] left-per-day divisor == days remaining incl. today..Nov 30 :: got 11, inclusive count 12

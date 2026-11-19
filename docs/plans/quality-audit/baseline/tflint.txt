@@ -1,0 +1,22 @@
+# tflint 0.66.0 (darwin_amd64 binary from GitHub release, run from scratchpad; bundled terraform ruleset 0.17.0, no plugins/init)
+## terraform
+exit=0
+## terraform/bootstrap
+exit=0
+## terraform/envs/prod
+exit=0
+## terraform/envs/drill
+exit=0
+## terraform/modules/bucket_policy
+exit=0
+## terraform/modules/compute
+exit=0
+## terraform/modules/dns
+exit=0
+## terraform/modules/storage
+exit=0
+## terraform/hos
+exit=0
+
+## Notes (T-Q02)
+tflint is not in Homebrew core; the v0.66.0 release binary was downloaded to the scratchpad and run with the bundled terraform ruleset, per directory, no plugin init. All directories clean (exit=0). CI pins v0.53.0 with --recursive --init (cloud plugin rules not exercised here).
