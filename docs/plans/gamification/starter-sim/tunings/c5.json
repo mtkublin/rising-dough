@@ -1,0 +1,5 @@
+{"hysteresis": 8, "reconcile_week_cap": 1, "budget_min_coverage": 0.5,
+ "state": {"in_sync": 8, "no_overdue": 8},
+ "w": {"saving_week": 10, "budget": 15, "networth": 12, "welcome": 10, "reconcile": 8, "checkin": 5},
+ "fade": {"welcome": 7},
+ "thr": {"bubbly": 25, "rising": 55, "overflowing": 85}}

@@ -45,9 +45,9 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 
 ### Starter (ADR-0125)
 
-- **Health** 0–100 from fading feed events + state signals, computed at render. Starting tuning in `domain/starter_tuning.py`.
+- **Health** 0–100 from fading feed events + state signals, computed at render. Tuning from simulation (ADR-0128) in `domain/starter_tuning.py`; simulator and scenarios in [`starter-sim/`](starter-sim/README.md).
 - **Signals**: saving week, check-in day (entry or "nothing to log"), accurate reconcile, all accounts in sync, nothing overdue, within total budget (baseline-protected), net-worth growth at equal FX, milestones, goal reached, welcome.
-- **States**: dormant / sleepy / bubbly / rising / overflowing. No death.
+- **States**: dormant / sleepy / bubbly / rising / overflowing (overflowing only while actively saving). Hysteresis, comeback bonus. No death.
 - **Persisted**: milestones, check-ins, budget baselines, starter UI bookkeeping. Everything else is derived.
 - **Feedback**: `HX-Trigger: starter-changed` → badge refetch → `data-fed` animation; milestone toasts only.
 - **Opt-out**: hide toggle, user-named starter.
@@ -58,7 +58,7 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 |---|---|---|
 | `goals` | `name`, `target_amount`, `note` (+ `name_bidx` blind index) | ids, `kind`, `currency`, `color`, `deadline`, `sort_order`, `first_reached_at`, `archived_at`, timestamps |
 | `goal_allocations` | `amount` | ids, FKs, `op_date`, timestamps |
-| `budget_period_baselines` | `total_amount` | ids, `year`, `month`, timestamps |
+| `budget_period_baselines` | `amount` | ids, `category_id`, `year`, `month`, timestamps |
 | `starter_milestones`, `starter_checkins`, `starter_state` | — | all (enums, dates, timestamps) |
 | `account_snapshots.source` | — | enum |
 | preferences `show_starter`, `starter_name` | `value` (as all preferences) | key |
@@ -76,6 +76,6 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 
 ## Open items (not blocking)
 
-- Weights and thresholds are a starting tuning; T-GS21 records the first review after a month of R2 use.
+- Weights and thresholds are tuned by simulation (ADR-0128); T-GS21 records the first review after a month of R2 use.
 - Order against v4: decide when the redesign ships.
 - Designer deliverables and timing: tracked in T-GS00 and T-GS16.

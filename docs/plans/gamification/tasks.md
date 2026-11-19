@@ -60,15 +60,16 @@
 ## Phase 4 — Starter backend (release 2)
 
 ### ◻ T-GS10 [S] Schema: starter tables, baselines, snapshot source → T-GS09
-- `starter_milestones`, `starter_checkins`, `starter_state`, `budget_period_baselines`, `account_snapshots.source` (default `'manual'`). ADR-0125 §4–§8, §11.
+- `starter_milestones`, `starter_checkins`, `starter_state`, `budget_period_baselines` (per category: `category_id`, encrypted `amount`; ADR-0128 §4–§5), `account_snapshots.source` (default `'manual'`). ADR-0125 §4–§8, §11.
 
 ### ◻ T-GS11 [P] Domain: pure scoring → T-GS10
-- `domain/starter_tuning.py` (all constants from ADR-0125 §2–§3).
+- `domain/starter_tuning.py` (all constants from ADR-0125 §2–§3 as amended by ADR-0128: weights, reconcile weekly cap, coverage share, nothing-to-log window, comeback bonus, hysteresis, overflowing gate).
 - `domain/starter.py`: event builders (saving week, check-in day, accurate reconcile, within budget, net-worth growth at equal FX, milestones, goal reached, welcome), state signals, `starter_view(...)`, healthy-week rule.
+- Scenario regression tests: port the 16 users and targets from `docs/plans/gamification/starter-sim/` onto the real `starter_view` (fixed seeds); all ADR-0128 results must hold.
 - Property tests: health stays in 0–100; fade is monotone; no input increases health through spending or transaction count beyond one per day; dormancy ignores state signals.
 
 ### ◻ T-GS12 [P] Budget baseline on write paths → T-GS10
-- Every budget write (default, recurring override, one-off override, year-grid cell) stores the pre-change total once for a started fiscal month (ADR-0125 §5). Existing budget contract tests unchanged.
+- Every budget write (default, recurring override, one-off override, year-grid cell) stores the category's pre-change resolved budget once per (category, started fiscal month); 0 when it had none (ADR-0128 §4). Cap rule tested per category: raise, decrease, new category budget, unused new budget. Existing budget contract tests unchanged.
 
 ### ◻ T-GS13 [P] Zero-delta reconcile records a snapshot → T-GS10
 - ADR-0125 §7 / S1.10: replace the user-facing `NoAdjustmentNeededError` path with a `source='reconcile'` snapshot and "Already in sync". Update the reconcile contract test deliberately (behaviour change backed by S1.10).
@@ -104,4 +105,4 @@
 - As T-GS09, plus visual audit on every page (the badge is global) and a reduced-motion pass. JS / CSS budgets re-measured.
 
 ### ◻ T-GS21 [S] Tuning review (one month after T-GS20)
-- Review real health curves on the demo DB and with the user. Retune `starter_tuning.py` constants. Record the outcome as an ADR-0125 amendment.
+- Review real health curves on the demo DB and with the user against the ADR-0128 simulation results. Retune `starter_tuning.py` constants; rerun the simulator and the scenario tests. Record the outcome as an ADR (amending ADR-0128).

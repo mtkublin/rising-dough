@@ -1,0 +1,16 @@
+# Predictions under ADR-0125 starting tuning (written before cycle 0)
+- s1 careful no goals: ~80+ avg -> overflowing most of the time (FAIL: target rising)
+- s2 careful+goals: pinned at 100 -> overflowing ~90% (FAIL)
+- s3 power: overflowing ~100% (pass)
+- s4 new clean: overflowing wk1-2 (setup+welcome), stays overflowing (FAIL rising-share ok, but too high)
+- s5 messy: bubbly/rising mix, rare dormant
+- s6 frugal: ~ same as s2 (pass relative, fail absolute like s2)
+- s7 existing: long overflowing burst at launch (history events + welcome) (FAIL <=3 days)
+- s8 holiday: in-sync holds, overdue goes false -> sleepy/bubbly while away; dormant on day 14
+- s9 dropout: within-budget loophole (nothing logged => spent 0 => "met") wakes it monthly (FAIL dormant share)
+- s10 struggler: rising (pass)
+- s11 monthly: bubbly with spikes; maybe too high from state signals
+- s12 goals only: rising
+- h1 many accounts: reconcile stacking -> overflowing (FAIL)
+- h2 weekend: ~ s2
+- h3 farmer: 100 (FAIL)

@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-18
+- **Amended by**: [ADR-0128](0128-starter-tuning-from-simulation.md) (2026-11-19): new weights, thresholds, reconcile cap, coverage and "nothing to log" rules, comeback bonus, hysteresis, overflowing gate, per-category baseline. The §2, §3, §5, §6 and §11 values below are the original starting tuning; ADR-0128 wins where they differ.
 - **Amends**: [ADR-0011](0011-derived-balance-snapshots-reconciliation.md) (a zero-delta reconcile records a snapshot instead of failing; F2.5)
 - **Relates to**: [ADR-0124](0124-savings-goals-envelopes-and-net-worth.md) (goals, allocations), [ADR-0123](0123-frontend-stays-server-rendered-no-spa-framework.md) (animation stack), [ADR-0126](0126-gamification-design-handoff.md) (art and UI source), [ADR-0019](0019-soft-delete-and-audit-log.md), [ADR-0021](0021-functional-style-no-oop.md), [ADR-0025](0025-user-preferences-and-income-anchor.md) (preferences), [ADR-0041](0041-budget-period-anchor-window.md) / [ADR-0064](0064-plan-default-fiscal-month.md) (fiscal period), [ADR-0061](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md), [ADR-0081](0081-v4-field-level-encryption-scope-and-query-model.md), requirements §12
 
