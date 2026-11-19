@@ -38,7 +38,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Concept map for every concept in plan §3 Track A, plus any new concept found, with implementations, behavioural differences and canonical home.
 - Differential-invariant candidates listed; each one executed on the scratch DB.
 
-### T-Q05 [P] Track B — layering and architecture → `tracks/B-layering.md`
+### ✅ T-Q05 [P] Track B — layering and architecture → `tracks/B-layering.md`
 - Every SQL site outside `repositories/`, every `PLC0415` and `PLR0917` suppression, and every file over 800 lines has been classified.
 
 ### ✅ T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
