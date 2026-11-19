@@ -1,0 +1,156 @@
+### Caddyfile
+cat: /etc/budget-planner/Caddyfile: Permission denied
+### ss -tlnp
+Netid State  Recv-Q Send-Q                          Local Address:Port  Peer Address:PortProcess
+udp   UNCONN 0      0                                     0.0.0.0:443        0.0.0.0:*    users:(("dockerd",pid=13213,fd=40))
+udp   UNCONN 0      0                                     0.0.0.0:41641      0.0.0.0:*    users:(("tailscaled",pid=14094,fd=21))
+udp   UNCONN 0      0                                  127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=12455,fd=16))
+udp   UNCONN 0      0                               127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=12455,fd=14))
+udp   UNCONN 0      0                          151.115.86.61%ens2:68         0.0.0.0:*    users:(("systemd-network",pid=12482,fd=23))
+udp   UNCONN 0      0                                        [::]:41641         [::]:*    users:(("tailscaled",pid=14094,fd=19))
+tcp   LISTEN 0      4096                                  0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=15854,fd=3),("systemd",pid=1,fd=242))
+tcp   LISTEN 0      4096                                  0.0.0.0:443        0.0.0.0:*    users:(("dockerd",pid=13213,fd=39))
+tcp   LISTEN 0      4096                                127.0.0.1:42007      0.0.0.0:*    users:(("containerd",pid=12861,fd=12))
+tcp   LISTEN 0      4096                               127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=12455,fd=17))
+tcp   LISTEN 0      4096                            127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=12455,fd=15))
+tcp   LISTEN 0      4096                100.116.84.107%tailscale0:47390      0.0.0.0:*    users:(("tailscaled",pid=14094,fd=23))
+tcp   LISTEN 0      4096                                     [::]:22            [::]:*    users:(("sshd",pid=15854,fd=4),("systemd",pid=1,fd=243))
+tcp   LISTEN 0      4096   [fd7a:115c:a1e0::5148:546c]%tailscale0:45129         [::]:*    users:(("tailscaled",pid=14094,fd=24))
+### ufw
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp on tailscale0       ALLOW IN    Anywhere
+443 on tailscale0          ALLOW IN    Anywhere
+22/tcp (v6) on tailscale0  ALLOW IN    Anywhere (v6)
+443 (v6) on tailscale0     ALLOW IN    Anywhere (v6)
+
+### iptables DOCKER-USER / nat DOCKER
+-N DOCKER-USER
+-A DOCKER-USER -d 169.254.42.42/32 -j DROP
+-N DOCKER
+-A DOCKER -p tcp -m tcp --dport 443 -j DNAT --to-destination 172.18.0.5:443
+-A DOCKER -p udp -m udp --dport 443 -j DNAT --to-destination 172.18.0.5:443
+### docker ps
+budget-planner-caddy | caddy:2.8 | 80/tcp, 2019/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:443->443/udp
+budget-planner-app | ghcr.io/mtkublin/budget-planner:sha-9ace5bb@sha256:b60773f451f4d55f88b5bc75ef80d7e8c54a8f14f66f37be7584940ba9945a1d | 8000/tcp
+budget-planner-litestream | litestream/litestream:0.3.14 |
+budget-planner-litestream-probe | litestream/litestream:0.3.14 |
+### image digests
+[caddy:2.8] [caddy@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f]
+
+Error response from daemon: No such image: ghcr.io/mtkublin/budget-planner:sha-9ace5bb
+[litestream/litestream:0.3.14] [litestream/litestream@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5]
+### networks
+NETWORK ID     NAME                  DRIVER    SCOPE
+e61aa478389c   bridge                bridge    local
+dfc87c4832cc   budget-planner_edge   bridge    local
+8109905dd28d   host                  host      local
+b3dc656f2da5   none                  null      local
+-- budget-planner_edge
+budget-planner-caddy 172.18.0.5/16
+budget-planner-litestream 172.18.0.3/16
+budget-planner-app 172.18.0.4/16
+budget-planner-litestream-probe 172.18.0.2/16
+
+### env names per container (values redacted)
+-- budget-planner-caddy
+PATH=…
+CADDY_VERSION=v2.8.4
+XDG_CONFIG_HOME=/config
+XDG_DATA_HOME=/data
+-- budget-planner-app
+BUDGET_TRUSTED_HOSTS=budget-planner-drill-44609305750.tail7fef0f.ts.net
+BUDGET_REPLICATION_STATUS_FILE=/replication/status.json
+BUDGET_COOKIE_SECRET=<REDACTED>
+TZ=…
+BUDGET_BACKUP_MAX_AGE_DAYS=37
+BUDGET_WEBAUTHN_ORIGIN=https://budget-planner-drill-44609305750.tail7fef0f.ts.net
+BUDGET_WEBAUTHN_RP_ID=budget-planner-drill-44609305750.tail7fef0f.ts.net
+BUDGET_ENV=production
+BUDGET_DATABASE_URL=<REDACTED>
+BUDGET_PLANNER_ADMIN_EMAIL=<admin>@gmail.com
+BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD=<REDACTED>
+PATH=…
+LANG=…
+GPG_KEY=…
+PYTHON_VERSION=…
+PYTHON_SHA256=b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c
+PYTHONPATH=…
+PYTHONUNBUFFERED=…
+PYTHONDONTWRITEBYTECODE=…
+-- budget-planner-litestream
+SCW_ACCESS_KEY=<REDACTED>
+SCW_SECRET_KEY=<REDACTED>
+PATH=…
+-- budget-planner-litestream-probe
+SCW_SECRET_KEY=<REDACTED>
+SCW_ACCESS_KEY=<REDACTED>
+PATH=…
+-- budget-planner-litestream-restore
+SCW_SECRET_KEY=<REDACTED>
+LITESTREAM_ALLOW_EMPTY_DB=true
+SCW_ACCESS_KEY=<REDACTED>
+PATH=…
+### docker history --no-trunc (secret-ish grep)
+<missing>                                                                 2 weeks ago      ENV GPG_KEY=<REDACTED>
+### docker logs secret grep (matches count only)
+budget-planner-caddy: 0
+budget-planner-app: 0
+budget-planner-litestream: 0
+budget-planner-litestream-probe: 0
+budget-planner-litestream-restore: 0
+### journal secret grep (count)
+0
+### app container -> metadata 169.254.42.42
+unreachable URLError <urlopen error timed out>
+### app container -> metadata via 8000/other
+budget-planner-caddy 2019 ConnectionRefusedError
+budget-planner-litestream 8080 ConnectionRefusedError
+budget-planner-litestream-probe 8080 ConnectionRefusedError
+### operator: read secrets?
+uid=10002(operator) gid=100(users) groups=100(users),27(sudo),1000(docker)
+passwordless sudo: yes
+### operator: metadata reachable w/o sudo?
+ALLOWED_ACTIONS=5
+ALLOWED_ACTIONS_0=poweroff
+ALLOWED_ACTIONS_1=terminate
+ALLOWED(rc=0)
+### file perms
+ls: cannot open directory '/etc/budget-planner': Permission denied
+ls: cannot open directory '/var/lib/budget-planner': Permission denied
+/var/lib/budget-planner:
+total 24
+drwx------  5 root root 4096 Nov 19 20:42 .
+drwxr-xr-x 48 root root 4096 Nov 19 20:38 ..
+-rw-r--r--  1 root root   64 Nov 19 20:42 applied-generation
+drwx------  2 root root 4096 Nov 19 20:38 docker
+drwxr-xr-x  2 root root 4096 Nov 19 20:46 replication
+drwx------  2 root root 4096 Nov 19 20:42 status
+
+/var/lib/budget-planner/status:
+total 12
+drwx------ 2 root root 4096 Nov 19 20:42 .
+drwx------ 5 root root 4096 Nov 19 20:42 ..
+-rw-r--r-- 1 root root  583 Nov 19 20:42 status.json
+### status.json
+{
+  "schema": 1,
+  "state": "ok",
+  "generation": "<hash-redacted>",
+  "desired_ref": "ghcr.io/mtkublin/budget-planner:sha-9ace5bb@sha256:b60773f451f4d55f88b5bc75ef80d7e8c54a8f14f66f37be7584940ba9945a1d",
+  "previous_ref": "",
+  "running_ref": "ghcr.io/mtkublin/budget-planner:sha-9ace5bb@sha256:b60773f451f4d55f88b5bc75ef80d7e8c54a8f14f66f37be7584940ba9945a1d",
+  "error": "",
+  "restore": {
+    "result": "empty",
+    "generation": "",
+    "at": "2026-11-19T20:41:11Z"
+  },
+  "drain": null,
+  "updated_at": "2026-11-19T20:42:04Z"
+}
