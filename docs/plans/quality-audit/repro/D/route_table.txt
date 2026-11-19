@@ -1,0 +1,114 @@
+GET | / | budget_planner/web/routers/today.py:35 |  | yes |  |
+GET | /accounts | budget_planner/web/routers/accounts.py:122 |  | yes | current_user_id,get_db,get_settings_dep | 129
+POST | /accounts | budget_planner/web/routers/accounts.py:185 |  | yes | current_user_id,get_db,get_settings_dep | 225,240
+GET | /accounts/last-checked | budget_planner/web/routers/accounts.py:133 |  | yes | current_user_id,get_db | 144
+GET | /accounts/new | budget_planner/web/routers/accounts.py:152 |  | yes |  |
+POST | /accounts/{account_id} | budget_planner/web/routers/accounts.py:278 | account_id | yes | current_user_id,get_db,get_settings_dep | 290,325,337,342
+POST | /accounts/{account_id}/delete | budget_planner/web/routers/accounts.py:348 | account_id | yes | current_user_id,get_db | 354
+GET | /accounts/{account_id}/edit | budget_planner/web/routers/accounts.py:250 | account_id | yes | current_user_id,get_db | 257
+GET | /accounts/{account_id}/reconcile | budget_planner/web/routers/accounts.py:410 | account_id | yes | current_user_id,get_db | 417,427,428,429,430
+POST | /accounts/{account_id}/reconcile | budget_planner/web/routers/accounts.py:444 | account_id | yes | current_user_id,get_db,get_settings_dep | 455,458,466,467,492,496,497,505
+POST | /accounts/{account_id}/snapshot | budget_planner/web/routers/accounts.py:366 | account_id | yes | current_user_id,get_db | 373,376,377
+GET | /add | budget_planner/web/routers/today.py:196 |  | yes | current_user_id,get_db | 210,211,221
+GET | /afford | budget_planner/web/routers/today.py:175 |  | yes | current_user_id,get_db,get_settings_dep | 183
+GET | /analytics | budget_planner/web/routers/analytics.py:22 |  | yes |  |
+GET | /auth/login | budget_planner/web/routers/auth.py:332 |  | no |  |
+POST | /auth/login | budget_planner/web/routers/auth.py:343 |  | no | get_db,get_request_ctx,get_settings_dep,login_rate_limit |
+POST | /auth/login/begin | budget_planner/web/routers/auth.py:380 |  | no | get_settings_dep |
+POST | /auth/login/finish | budget_planner/web/routers/auth.py:391 |  | no | get_db,get_request_ctx,get_settings_dep,passkey_login_rate_limit |
+POST | /auth/logout | budget_planner/web/routers/auth.py:442 |  | yes | current_user,get_db,get_request_ctx,get_settings_dep |
+POST | /auth/passkeys/{credential_id}/revoke | budget_planner/web/routers/auth.py:582 | credential_id | yes | current_user,get_db,get_request_ctx,require_recent_auth | 590
+GET | /auth/reauth | budget_planner/web/routers/auth.py:657 |  | yes | current_user,get_db |
+POST | /auth/reauth | budget_planner/web/routers/auth.py:668 |  | yes | current_user,get_db,get_request_ctx,get_settings_dep,reauth_rate_limit | 695
+POST | /auth/reauth/begin | budget_planner/web/routers/auth.py:712 |  | yes | current_user,get_db,get_settings_dep | 722,725
+POST | /auth/reauth/finish | budget_planner/web/routers/auth.py:728 |  | yes | current_user,get_db,get_request_ctx,get_settings_dep,reauth_rate_limit | 742,749
+GET | /auth/register | budget_planner/web/routers/auth.py:465 |  | yes | current_user |
+POST | /auth/register/begin | budget_planner/web/routers/auth.py:471 |  | yes | current_user,get_db,get_settings_dep,require_recent_auth | 482,485
+POST | /auth/register/finish | budget_planner/web/routers/auth.py:493 |  | yes | current_user,get_db,get_request_ctx,get_settings_dep,register_rate_limit,require_recent_auth | 506,520
+GET | /auth/sessions | budget_planner/web/routers/auth.py:549 |  | yes | current_user |
+POST | /auth/sessions/{handle}/revoke | budget_planner/web/routers/auth.py:555 | handle | yes | current_user,get_db,get_request_ctx,get_settings_dep | 572
+GET | /budget | budget_planner/web/routers/budget.py:296 |  | yes | current_user_id,get_db,get_settings_dep | 303
+GET | /budget-legacy | budget_planner/web/routers/plan.py:284 |  | yes |  |
+POST | /budget/defaults/{category_id} | budget_planner/web/routers/budget.py:326 | category_id | yes | current_user_id,get_db,get_settings_dep | 334,341
+GET | /budget/manage | budget_planner/web/routers/budget.py:306 |  | yes |  |
+POST | /budget/one-off/{category_id}/{year}/{month} | budget_planner/web/routers/budget.py:402 | category_id,year,month | yes | current_user_id,get_db,get_settings_dep | 412,421
+POST | /budget/preferences/income-anchor | budget_planner/web/routers/budget.py:375 |  | yes | get_db |
+POST | /budget/recurring/{category_id}/{month} | budget_planner/web/routers/budget.py:347 | category_id,month | yes | current_user_id,get_db,get_settings_dep | 356,365
+POST | /budget/rules/{category_id}/overrides | budget_planner/web/routers/budget.py:234 | category_id | yes | current_user_id,get_db,get_settings_dep | 246,256,271,281
+GET | /budget/rules/{category_id}/overrides/new | budget_planner/web/routers/budget.py:169 | category_id | yes | current_user_id,get_db,get_settings_dep | 182,206
+GET | /budget/yearly | budget_planner/web/routers/budget.py:143 |  | yes | current_user_id,get_db,get_settings_dep | 158
+GET | /categories | budget_planner/web/routers/categories.py:22 |  | yes |  |
+POST | /categories | budget_planner/web/routers/categories.py:78 |  | yes | current_user_id,get_db | 109
+GET | /categories/new | budget_planner/web/routers/categories.py:33 |  | yes |  |
+POST | /categories/{category_id} | budget_planner/web/routers/categories.py:149 | category_id | yes | current_user_id,get_db | 159,192,193
+POST | /categories/{category_id}/archive | budget_planner/web/routers/categories.py:240 | category_id | yes | current_user_id,get_db | 247
+POST | /categories/{category_id}/delete | budget_planner/web/routers/categories.py:200 | category_id | yes | current_user_id,get_db | 206,211
+GET | /categories/{category_id}/edit | budget_planner/web/routers/categories.py:121 | category_id | yes | current_user_id,get_db | 128
+POST | /categories/{category_id}/restore | budget_planner/web/routers/categories.py:264 | category_id | yes | current_user_id,get_db | 271
+GET | /debug/audit-tail | budget_planner/web/routers/debug.py:23 |  | yes | current_admin,get_db | 30
+GET | /dev/components | budget_planner/web/routers/dev_components.py:20 |  | yes | get_settings_dep |
+GET | /forecast | budget_planner/web/routers/forecast.py:64 |  | yes | current_user_id,get_db,get_settings_dep | 72
+GET | /forecast/view | budget_planner/web/routers/forecast.py:83 |  | yes | current_user_id,get_db,get_settings_dep | 91
+GET | /health | budget_planner/web/routers/health.py:34 |  | no |  |
+GET | /health/replication | budget_planner/web/routers/health.py:82 |  | no |  |
+GET | /ledger | budget_planner/web/routers/ledger.py:394 |  | yes | current_user_id,get_db | 403,405,407,414,427,428,432
+GET | /ledger/recently-deleted | budget_planner/web/routers/ledger.py:451 |  | yes | current_user_id,get_db | 461,462,463,464,465
+GET | /ledger/table | budget_planner/web/routers/ledger.py:440 |  | yes | current_user_id,get_db | 448
+GET | /plan | budget_planner/web/routers/plan.py:67 |  | yes | current_user_id,get_db,get_settings_dep | 80,137,145,148,187,202,240
+GET | /plan/analytics | budget_planner/web/routers/plan.py:254 |  | yes | current_user_id,get_db,get_settings_dep | 273
+GET | /planned | budget_planner/web/routers/planned.py:55 |  | yes |  |
+POST | /planned | budget_planner/web/routers/planned.py:219 |  | yes | current_user_id,get_db | 235,236,248,263,264,269
+POST | /planned/batch/promote-due | budget_planner/web/routers/planned.py:75 |  | yes | current_user_id,get_db | 82
+POST | /planned/batch/undo | budget_planner/web/routers/planned.py:111 |  | yes | current_user_id,get_db | 135
+GET | /planned/export | budget_planner/web/routers/planned.py:547 |  | yes | current_user_id,get_db | 555
+GET | /planned/new | budget_planner/web/routers/planned.py:189 |  | yes | current_user_id,get_db | 203,204
+GET | /planned/table | budget_planner/web/routers/planned.py:174 |  | yes | current_user_id,get_db | 186
+POST | /planned/{planned_id} | budget_planner/web/routers/planned.py:337 | planned_id | yes | current_user_id,get_db | 350,353,379,380,385
+POST | /planned/{planned_id}/delete | budget_planner/web/routers/planned.py:404 | planned_id | yes | current_user_id,get_db | 410,413
+GET | /planned/{planned_id}/edit | budget_planner/web/routers/planned.py:304 | planned_id | yes | current_user_id,get_db | 311,331,332
+GET | /planned/{planned_id}/promote | budget_planner/web/routers/planned.py:435 | planned_id | yes | current_user_id,get_db | 442,451
+POST | /planned/{planned_id}/promote | budget_planner/web/routers/planned.py:483 | planned_id | yes | current_user_id,get_db | 493,496,517
+GET | /planned/{planned_id}/promote/inline | budget_planner/web/routers/planned.py:461 | planned_id | yes | current_user_id,get_db | 469,472,473
+POST | /planned/{planned_id}/restore | budget_planner/web/routers/planned.py:419 | planned_id | yes | current_user_id,get_db | 427
+GET | /ready | budget_planner/web/routers/health.py:40 |  | no |  |
+GET | /recurring | budget_planner/web/routers/recurring.py:58 |  | yes |  |
+POST | /recurring | budget_planner/web/routers/recurring.py:268 |  | yes | current_user_id,get_db | 306,316,317,322,330,342,358
+POST | /recurring/batch/promote-due | budget_planner/web/routers/recurring.py:424 |  | yes | current_user_id,get_db | 437
+POST | /recurring/batch/undo | budget_planner/web/routers/recurring.py:469 |  | yes | current_user_id,get_db | 497,522
+POST | /recurring/formula/preview | budget_planner/web/routers/recurring.py:546 |  | yes | current_user_id,get_db | 581
+GET | /recurring/new | budget_planner/web/routers/recurring.py:119 |  | yes | current_user_id,get_db | 133,134,135
+POST | /recurring/{rule_id} | budget_planner/web/routers/recurring.py:632 | rule_id | yes | current_user_id,get_db | 639,658,659,678,686,698,730
+POST | /recurring/{rule_id}/deactivate | budget_planner/web/routers/recurring.py:752 | rule_id | yes | current_user_id,get_db | 758,761
+GET | /recurring/{rule_id}/edit | budget_planner/web/routers/recurring.py:592 | rule_id | yes | current_user_id,get_db | 599,623,624,625
+POST | /recurring/{rule_id}/overrides | budget_planner/web/routers/recurring.py:809 | rule_id | yes | current_user_id,get_db | 819,822,852
+GET | /recurring/{rule_id}/overrides/new | budget_planner/web/routers/recurring.py:770 | rule_id | yes | current_user_id,get_db | 782,795
+POST | /recurring/{rule_id}/overrides/{occurrence_date}/delete | budget_planner/web/routers/recurring.py:870 | rule_id,occurrence_date | yes | current_user_id,get_db | 878,884,885,886,887,892
+GET | /recurring/{rule_id}/promote | budget_planner/web/routers/recurring.py:966 | rule_id | yes | current_user_id,get_db | 973
+POST | /recurring/{rule_id}/promote | budget_planner/web/routers/recurring.py:1015 | rule_id | yes | current_user_id,get_db | 1025,1028,1053,1063,1072
+GET | /recurring/{rule_id}/promote/inline | budget_planner/web/routers/recurring.py:976 | rule_id | yes | current_user_id,get_db | 989,992,994,995,1002
+POST | /recurring/{rule_id}/skip-next | budget_planner/web/routers/recurring.py:1087 | rule_id | yes | current_user_id,get_db | 1094,1098,1101,1103,1104,1109,1112
+GET | /settings | budget_planner/web/routers/settings.py:51 |  | yes | current_user_id,get_db | 62,76,83,86
+GET | /settings/close | budget_planner/web/routers/settings.py:94 |  | yes |  |
+GET | /settings/password | budget_planner/web/routers/settings_password.py:108 |  | yes | current_user,get_db |
+POST | /settings/password | budget_planner/web/routers/settings_password.py:121 |  | yes | current_user,get_db,get_request_ctx,get_settings_dep,password_change_rate_limit | 142
+GET | /settings/security | budget_planner/web/routers/settings_security.py:63 |  | yes | current_user,get_db |
+GET | /settings/users | budget_planner/web/routers/settings_users.py:138 |  | yes | current_admin,get_db |
+POST | /settings/users | budget_planner/web/routers/settings_users.py:148 |  | yes | current_admin,get_db,get_request_ctx,require_recent_auth | 162
+POST | /settings/users/{user_id} | budget_planner/web/routers/settings_users.py:228 | user_id | yes | current_admin,get_db,get_request_ctx,require_recent_auth | 242,248,250
+POST | /settings/users/{user_id}/delete | budget_planner/web/routers/settings_users.py:289 | user_id | yes | current_admin,get_db,get_request_ctx,require_recent_auth | 299
+GET | /settings/users/{user_id}/edit | budget_planner/web/routers/settings_users.py:213 | user_id | yes | current_admin,get_db | 222,225
+POST | /settings/users/{user_id}/reset-password | budget_planner/web/routers/settings_users.py:267 | user_id | yes | current_admin,get_db,get_request_ctx,require_recent_auth | 281
+GET | /today | budget_planner/web/routers/today.py:41 |  | yes | current_user_id,get_db,get_settings_dep | 52,55,58,59,70,71,72
+GET | /today/afford | budget_planner/web/routers/today.py:144 |  | yes | current_user_id,get_db,get_settings_dep | 161
+GET | /today/upcoming | budget_planner/web/routers/today.py:96 |  | yes | current_user_id,get_db,get_settings_dep | 111,112,113
+GET | /transactions | budget_planner/web/routers/transactions.py:113 |  | yes |  |
+POST | /transactions | budget_planner/web/routers/transactions.py:237 |  | yes | current_user_id,get_db,get_settings_dep | 254,255,271,288,289,295,307
+GET | /transactions/_limit_preview | budget_planner/web/routers/transactions.py:166 |  | yes | current_user_id,get_db | 179
+GET | /transactions/export | budget_planner/web/routers/transactions.py:461 |  | yes | current_user_id,get_db | 469,470
+GET | /transactions/new | budget_planner/web/routers/transactions.py:200 |  | yes | current_user_id,get_db | 217,218
+GET | /transactions/table | budget_planner/web/routers/transactions.py:183 |  | yes | current_user_id,get_db | 197
+POST | /transactions/{txn_id} | budget_planner/web/routers/transactions.py:357 | txn_id | yes | current_user_id,get_db | 370,383,409,410,416
+POST | /transactions/{txn_id}/delete | budget_planner/web/routers/transactions.py:437 | txn_id | yes | current_user_id,get_db | 441
+GET | /transactions/{txn_id}/edit | budget_planner/web/routers/transactions.py:320 | txn_id | yes | current_user_id,get_db | 327,351,352
+POST | /transactions/{txn_id}/restore | budget_planner/web/routers/transactions.py:447 | txn_id | yes | current_user_id,get_db | 453
+113 api routes (+ /static mount)
