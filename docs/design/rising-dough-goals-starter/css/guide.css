@@ -1,0 +1,66 @@
+/* Guide, component catalogue and motion pages only. Not app CSS. */
+@layer components {
+  .gd { max-width: 1120px; margin: 0 auto; padding: 48px 24px 96px; display: flex; flex-direction: column; gap: 48px; }
+  .gd--wide { max-width: 1440px; }
+  .gd__lead { max-width: 68ch; font-size: 14px; line-height: 22px; }
+  .gd__section { display: flex; flex-direction: column; gap: 16px; }
+  .gd__table { width: 100%; font-size: 13px; line-height: 20px; text-align: left; }
+  .gd__table th { font-size: 11px; letter-spacing: .04em; color: var(--ink-muted); font-weight: 400; padding: 8px 12px 8px 0; text-transform: uppercase; }
+  .gd__table td { border-top: 1px solid var(--rule); padding: 10px 12px 10px 0; vertical-align: top; }
+  .gd__table a { text-decoration: underline; text-underline-offset: 3px; }
+  .gd__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .gd__tile { border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 12px; text-align: center; }
+  .gd__tile img { height: 120px; width: auto; }
+  .gd__tile--sm img { height: 48px; }
+  .gd__row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+  .gd__demo { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; }
+  .gd__frame { border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .gd__checklist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .gd__checklist li { display: grid; grid-template-columns: 26px 1fr; }
+  .gd__ok { color: var(--now); }
+  .gd__todo { color: var(--ink-muted); }
+  .gd__theme { display: flex; gap: 8px; }
+  code { font-family: var(--font-mono); font-size: .92em; background: var(--raised); padding: 1px 5px; border-radius: 3px; }
+  /* motion page: loop one-shots for review */
+  /* the one-shots, looped so they can be reviewed; same cells and keyframe shapes as starter-motion.css */
+  @keyframes gd-flash { 0% { opacity: 0; } 8% { opacity: .95; } 30%,100% { opacity: 0; } }
+  @keyframes gd-lid-cells { 0%,14% { opacity: 1; } 15%,100% { opacity: 0; } }
+  @keyframes gd-loaf-cells { 0%,9% { opacity: 0; } 10%,88% { opacity: 1; } 89%,100% { opacity: 0; } }
+  .gd-loop-fed .rd-starter[data-state] .sheen path, .gd-loop-fed--badge .rd-starter[data-state] .sheen path, .gd-loop-enter .rd-starter[data-state] .sheen path { animation: gd-flash 2.4s ease-out calc(var(--k) * 60ms) infinite; }
+  .gd-loop-wake .rd-starter .lid path { animation: gd-lid-cells 4s linear calc(var(--k) * 60ms) infinite; }
+  .gd-xfade { position: relative; }
+  .gd-xfade > * + * { position: absolute; inset: 0; }
+  .gd-xfade__a { animation: gd-xa 4s infinite; } .gd-xfade__b { animation: gd-xb 4s infinite; }
+  @keyframes gd-xa { 0%,30% { opacity: 1; } 42%,100% { opacity: 0; } }
+  @keyframes gd-xb { 0%,30% { opacity: 0; } 42%,100% { opacity: 1; } }
+  .gd-loop-loaf .rd-loaf__art path { animation: gd-loaf-cells 2.4s linear calc(var(--k, 0) * 100ms) infinite; }
+  @media (prefers-reduced-motion: reduce) { .gd-loop-fed *, .gd-loop-wake *, .gd-xfade *, .gd-loop-loaf *, .gd-loop-fed--badge * { animation: none !important; } .gd-xfade__a { opacity: 0; } }
+
+  .gd-loop-xfade { position: relative; }
+  .gd-loop-xfade > * + * { position: absolute; inset: 0; }
+  .gd-loop-xfade .gd-xa { animation: gd-sxa 4s ease infinite; } .gd-loop-xfade .gd-xb { animation: gd-sxb 4s ease infinite; }
+  @keyframes gd-sxa { 0%,42% { opacity: 1; } 50%,92% { opacity: 0; } 100% { opacity: 1; } }
+  @keyframes gd-sxb { 0%,42% { opacity: 0; } 50%,92% { opacity: 1; } 100% { opacity: 0; } }
+  .gd-loop-enter { animation: gd-enter 3s ease-out infinite; }
+  @keyframes gd-enter { 0% { opacity: 0; transform: translateY(8px); } 8%,85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+  .gd-show-tip .rd-loaf__tip { opacity: 1; }
+  .gd__dialog-demo { width: 360px; max-width: 100%; }
+  .gd__toggle { display: flex; gap: 8px; }
+  @media (prefers-reduced-motion: reduce) { .gd-loop-xfade *, .gd-loop-enter, .gd-loop-enter * { animation: none !important; } .gd-loop-xfade .gd-xb { opacity: 0; } }
+}
+@layer utilities {
+  .gd__swatch { display: inline-block; width: 40px; height: 20px; border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px var(--rule-strong); vertical-align: middle; }
+  .gd__swatch--starter-dough { background: var(--starter-dough); }
+  .gd__swatch--starter-light { background: var(--starter-light); }
+  .gd__swatch--starter-crust { background: var(--starter-crust); }
+  .gd__swatch--starter-caramel { background: var(--starter-caramel); }
+  .gd__swatch--starter-crumb { background: var(--starter-crumb); }
+  .gd__swatch--starter-glass { background: var(--starter-glass); }
+  .gd__swatch--starter-glass-hi { background: var(--starter-glass-hi); }
+  .gd__swatch--starter-wall { background: var(--starter-wall); }
+  .gd__swatch--starter-wall-strong { background: var(--starter-wall-strong); }
+  .gd__swatch--starter-accent { background: var(--starter-accent); }
+  .gd__swatch--shelf-plank { background: var(--shelf-plank); }
+  .gd__swatch--shelf-leg { background: var(--shelf-leg); }
+  .gd__swatch--bar-save { background: var(--bar-save); }
+}

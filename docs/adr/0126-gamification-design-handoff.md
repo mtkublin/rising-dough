@@ -1,6 +1,6 @@
 # ADR-0126: Goals and Starter UI Built From a Designer Handoff Extending the Redesign
 
-- **Status**: Accepted
+- **Status**: Accepted (amended by [ADR-0129](0129-goals-starter-handoff-vendored-standalone.md): the handoff arrived as one standalone drop, vendored at `docs/design/rising-dough-goals-starter/`)
 - **Date**: 2026-11-18
 - **Relates to**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) (handoff-only UI, extended here), [ADR-0123](0123-frontend-stays-server-rendered-no-spa-framework.md) (no SPA, animation via CSS/SVG/WAAPI), [ADR-0113](0113-csp-compatible-frontend.md) (no inline style or script), [ADR-0106](0106-ui-behaviour-test-harness.md) (harness, `--target=mockup`), [ADR-0124](0124-savings-goals-envelopes-and-net-worth.md), [ADR-0125](0125-sourdough-starter-rules.md), requirements §10.2, §12
 

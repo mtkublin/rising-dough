@@ -1,0 +1,29 @@
+/* Release 2 · rd-shelf and rd-loaf. Loaf colour comes from the goal's preset (data-color → --cat). */
+@layer components {
+  .rd-shelf { display: flex; flex-direction: column; }
+  .rd-shelf + .rd-shelf { margin-top: 16px; }
+  .rd-shelf__loaves { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 8px; padding: 0 12px; min-height: 64px; list-style: none; margin: 0; }
+  .rd-shelf__plank, .rd-shelf__leg {
+    height: 11px;
+    background: repeating-linear-gradient(90deg, var(--shelf-plank) 0 4px, transparent 4px 5px);
+    -webkit-mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 6px);
+            mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 6px);
+  }
+  .rd-shelf__plank { margin-top: 1px; }
+  .rd-shelf__legs { display: flex; justify-content: space-between; padding: 0 25px; }
+  .rd-shelf__leg { width: 9px; background: repeating-linear-gradient(90deg, var(--shelf-leg) 0 4px, transparent 4px 5px); }
+  .rd-shelf__empty { display: flex; align-items: flex-end; gap: 16px; padding: 0 12px; min-height: 64px; }
+  .rd-shelf__empty p { padding-bottom: 8px; }
+  .rd-shelf__ghost .loaf-body, .rd-shelf__ghost .loaf-score { fill: none; }
+  .rd-shelf__ghost .loaf-crust { fill: var(--starter-wall); }
+
+  .rd-loaf { position: relative; display: flex; align-items: flex-end; justify-content: center; min-width: 44px; height: 64px; padding: 0 2px; border: 0; border-radius: 12px; background: none; cursor: pointer; }
+  .rd-loaf__art { display: block; height: 48px; width: auto; }
+  .rd-loaf .loaf-body { fill: var(--cat); }
+  .rd-loaf .loaf-crust { fill: color-mix(in srgb, var(--cat) 70%, #0d0d0b); }
+  .rd-loaf .loaf-score { fill: color-mix(in srgb, var(--cat) 45%, #0d0d0b); }
+  .rd-loaf__tip { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--ink); color: var(--ground); border-radius: var(--radius-pill); padding: 6px 12px; font-size: 12px; font-weight: 500; pointer-events: none; opacity: 0; transition: opacity .15s; z-index: 2; }
+  .rd-loaf:hover .rd-loaf__tip, .rd-loaf:focus-visible .rd-loaf__tip { opacity: 1; }
+  .rd-toast__loaf { height: 30px; width: auto; }
+  @media (prefers-reduced-motion: reduce) { .rd-loaf__tip { transition: none; } }
+}

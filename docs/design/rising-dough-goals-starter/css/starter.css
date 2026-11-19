@@ -1,0 +1,64 @@
+/* Release 2 · rd-starter (Levi). Inline assets/starter/levi-<state>.svg inside .rd-starter; the server sets data-state.
+   Fills in the SVG are defaults so it renders on its own; these rules re-colour it from tokens for both themes. */
+@layer components {
+  .rd-starter { display: inline-block; line-height: 0; flex: none; }
+  .rd-starter__art, .rd-starter__badge-art { display: block; width: 100%; height: auto; overflow: visible; }
+  .rd-starter--card { width: 200px; }   /* 1 SVG unit = 1 px: the 5 × 6 cell grid lands on whole pixels */
+  .rd-starter--compact { width: 100px; }
+  .rd-starter--badge { width: 30px; }      /* 32 px slot · 3 px cells */
+  .rd-starter--badge-sm { width: 20px; }   /* 24 px slot · 2 px cells */
+  .rd-starter svg, .rd-loaf__art { shape-rendering: crispEdges; }
+
+  .rd-starter .c-dough { fill: var(--starter-dough); }
+  .rd-starter .c-light { fill: var(--starter-light); }
+  .rd-starter .c-crust { fill: var(--starter-crust); }
+  .rd-starter .c-caramel { fill: var(--starter-caramel); }
+  .rd-starter .c-crumb { fill: var(--starter-crumb); }
+  .rd-starter .c-ink { fill: var(--ink-deep); }
+  .rd-starter .c-bake { fill: var(--starter-accent); }
+  .rd-starter .c-glass { fill: var(--starter-glass); }
+  .rd-starter .c-glass-hi { fill: var(--starter-glass-hi); }
+  .rd-starter .c-wall { fill: var(--starter-wall); }
+  .rd-starter .c-wall-strong { fill: var(--starter-wall-strong); }
+
+  .rd-starter .pops rect { opacity: 0; }
+
+  /* badge button in the header */
+  .rd-badge-btn { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--rule); border-radius: var(--radius-pill); }
+  .rd-badge-btn:hover { background: var(--rule); }
+
+  /* Today summary row */
+  .rd-levi { display: flex; align-items: center; gap: 20px; min-width: 0; }
+  .rd-levi__text { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .rd-levi__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+  .rd-levi__state { font-size: 12px; }
+  .rd-levi__check { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .rd-levi__done { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1px solid var(--rule); border-radius: var(--radius-pill); font-size: 13px; color: var(--now); align-self: flex-start; }
+
+  /* drawer content */
+  .rd-drawer__body { position: relative; margin-top: -20px; background: var(--panel); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px; display: flex; flex-direction: column; gap: 28px; }
+  .rd-drawer__hero { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .rd-feeds, .rd-milestones { list-style: none; margin: 0; padding: 0; }
+  .rd-feed { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; border-top: 1px solid var(--rule); font-size: 13px; }
+  .rd-feed__plus { color: var(--now); margin-right: 8px; }
+  .rd-feed__when { font-size: 11px; letter-spacing: .04em; color: var(--ink-muted); white-space: nowrap; text-transform: uppercase; }
+  .rd-milestone { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 12px; align-items: center; min-height: 44px; border-top: 1px solid var(--rule); font-size: 13px; }
+  .rd-milestone__mark { color: var(--now); }
+  .rd-milestone--todo { color: var(--ink-muted); }
+  .rd-milestone--todo .rd-milestone__mark { color: var(--ink-muted); }
+  .rd-milestone__date { font-size: 11px; letter-spacing: .04em; color: var(--ink-muted); }
+
+  /* welcome */
+  .rd-welcome__copy { max-width: 380px; }
+}
+@layer components {
+  @media (max-width: 47.99rem) {
+    .rd-levi { flex-wrap: wrap; align-items: flex-start; gap: 16px; }
+    .rd-levi__text { flex: 1 1 200px; min-width: 0; }
+    .rd-levi__check .rd-btn { white-space: normal; height: auto; min-height: 44px; padding: 10px 18px; }
+  }
+}
+@layer utilities {
+  /* Settings → Preferences → Levi hidden: js/app.js sets data-starter="hidden" on <html> */
+  [data-starter="hidden"] [data-starter-only] { display: none !important; }
+}
