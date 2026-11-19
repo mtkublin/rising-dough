@@ -1,0 +1,13 @@
+== (a) A (same IP as V) burns V's login bucket with wrong passwords
+  attempt 1 wrong pw for v@x.test -> 401
+  attempt 2 wrong pw for v@x.test -> 401
+  attempt 3 wrong pw for v@x.test -> 401
+  attempt 4 wrong pw for v@x.test -> 401
+  attempt 5 wrong pw for v@x.test -> 401
+  attempt 6 wrong pw for v@x.test -> 429
+  attempt 7 wrong pw for v@x.test -> 429
+  V with the CORRECT password, same IP -> 429 Retry-After: 40
+  A's own login, same IP (other email bucket) -> 303
+== (b) admin audit-tail with V's rows
+  status 200 | V description in admin tail: False | V amount: False
+  sample: {"count":1,"entries":[{"id":1,"entity_type":"transaction","entity_id":2,"changed_at":"2026-11-19T15:19:20.435000+00:00","operation":"update","user_id":2,"prev":"[other-user]","new":"[other-user]"}]}
