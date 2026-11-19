@@ -1,0 +1,10 @@
+before: [(1, 'income_anchor_category_id', '3')] (owner cat=3, second cat=4)
+second user sets own category as anchor -> 422 category 4 not found or soft-deleted | prefs: [(1, 'income_anchor_category_id', '3')]
+second user CLEARS anchor            -> 200 | prefs: [] <== owner's preference deleted by another user
+GET /transactions/export?account_id=1                                      -> 200 leak=False
+GET /ledger/table?view=actual&account_id=1&category_id=3                   -> 200 leak=False
+GET /forecast/view?account_id=1                                            -> 200 leak=False
+GET /today/afford?account_id=1&amount=10                                   -> 200 leak=False
+GET /transactions/_limit_preview?account_id=1&amount=1&operation_date=2026 -> 200 leak=False
+GET /accounts/last-checked?account_id=1                                    -> 200 leak=False
+GET /ledger?account_id=1&q=OWNER                                           -> 200 leak=False

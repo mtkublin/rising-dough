@@ -1,0 +1,9 @@
+user1 ids: {'cat_inc': 5, 'cat_exp': 3, 'salary2': 23}
+prefs before: [(1, '5'), (2, '10'), (3, '15'), (4, '20')]
+user1 expense cat (oracle: direction leak)       id=3      -> 422 'category 3 direction=expense; income anchor requires direction=income'
+user1 nonexistent id                             id=99999  -> 422 'category 99999 not found or soft-deleted'
+A's OWN income cat (A cannot set own anchor)     id=15     -> 422 'category 15 not found or soft-deleted'
+V's income cat (not user 1's)                    id=10     -> 422 'category 10 not found or soft-deleted'
+user1 income cat #2 (SETS user 1's pref)         id=23     -> 200 'ok'
+prefs after set: [(1, '23'), (2, '10'), (3, '15'), (4, '20')]
+A clears ->  200 [(2, '10'), (3, '15'), (4, '20')]

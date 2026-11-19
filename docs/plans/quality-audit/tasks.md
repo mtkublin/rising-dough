@@ -9,7 +9,7 @@
 
 ## Phase 0 — Preconditions
 
-### T-Q01 [S] Pin the audit commit and set up the environment
+### ✅ T-Q01 [S] Pin the audit commit and set up the environment
 - Blocked on v3 shipping (v3 Phase 4 ✅, prod cut over) and on the faster-CI effort (`docs/plans/ci-speed/`, T-CS06 ✅, ADR-0108), so the audit reviews the new test and CI setup.
 - `AUDIT_SHA` recorded; worktree and branch `audit/quality`; scratch DB `/tmp/audit.sqlite` copied from `data/demo.sqlite`.
 - `findings.md` header filled in: SHA, date, tool versions, LOC per package.
@@ -17,16 +17,16 @@
 
 ## Phase 1 — Automated baseline → T-Q01
 
-### T-Q02 [P] Static tool baseline
+### ✅ T-Q02 [P] Static tool baseline
 - Every tool in implementation_plan §2 has been run in report-only mode, with raw output in `baseline/<tool>.txt` and summaries in `baseline/README.md`.
 - No dependency or config changes committed (tools run through `uv run --with`).
 
-### T-Q03a [P] Mutmut spike
+### ✅ T-Q03a [P] Mutmut spike
 - `domain` only, unit tests, `--no-cov`. Record mutant count, wall time, kill / survive / timeout counts and fixture breakage.
 - Prod-DB safety check passed.
 - Go / no-go decision recorded in `baseline/README.md`.
 
-### T-Q03b [S] Mutmut baseline and triage → T-Q03a (if go)
+### ✅ T-Q03b [S] Mutmut baseline and triage → T-Q03a (if go)
 - `domain` and `services` baseline score per package in `baseline/mutmut.txt`.
 - Survivors sorted into real gap (→ track F finding), equivalent (→ `baseline/mutmut-equivalent.md`) or low value (→ exclusion proposal).
 
@@ -34,27 +34,27 @@
 
 Each task writes only `tracks/<file>.md` and contains a coverage statement, findings in the §4 schema, and a questions list.
 
-### T-Q04 [P] Track A — duplicated domain logic → `tracks/A-duplication.md`
+### ✅ T-Q04 [P] Track A — duplicated domain logic → `tracks/A-duplication.md`
 - Concept map for every concept in plan §3 Track A, plus any new concept found, with implementations, behavioural differences and canonical home.
 - Differential-invariant candidates listed; each one executed on the scratch DB.
 
-### T-Q05 [P] Track B — layering and architecture → `tracks/B-layering.md`
+### ✅ T-Q05 [P] Track B — layering and architecture → `tracks/B-layering.md`
 - Every SQL site outside `repositories/`, every `PLC0415` and `PLR0917` suppression, and every file over 800 lines has been classified.
 
-### T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
+### ✅ T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
 - Every clock call site and every broad `except` / fallback in money paths has been classified. Query counts per route recorded.
 
-### T-Q07 [P] Track D — security → `tracks/D-security.md`
+### ✅ T-Q07 [P] Track D — security → `tracks/D-security.md`
 - Done by the security-reviewer agent. Route-by-route authz/IDOR table. CSRF, CSP, headers, XSS and SQLi checks done. Scanner results triaged.
 
-### T-Q08 [P] Track E — frontend → `tracks/E-frontend.md`
+### ✅ T-Q08 [P] Track E — frontend → `tracks/E-frontend.md`
 - HTMX emitter/listener matrix; template-logic list; CSRF/CSP handling; kept behaviour JS (`htmx-csrf.js`, `passkeys.js`). Any runtime claim backed by a `frontend-visual-audit` run (1440 / 1024 / 375).
 - Markup, CSS, token and presentational-JS findings are out of scope: the Sourdough redesign replaces them (ADR-0107, implementation_plan Track E note).
 
-### T-Q09 [P] Track F — tests → `tracks/F-tests.md`
+### ✅ T-Q09 [P] Track F — tests → `tracks/F-tests.md`
 - Mutmut real gaps carried in. Redundant-test candidates (coverage contexts + Mutmut) checked by hand. Over-mocking, weak assertions, fixture duplication, flakiness (randomised order run) and coverage gaps listed. Prod-DB path grep clean, or flagged as a finding.
 
-### T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
+### ✅ T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
 - Vulture results checked by hand. Every Accepted ADR checked against the code (still true / drifted / should be superseded). Pre-commit vs `just ci` vs CI parity table.
 
 ### T-Q18 [S] Track H — red team → T-Q07 → `tracks/H1-ci-supply-chain.md`, `H2-isolation.md`, `H3-auth.md`, `H4-infra.md`
