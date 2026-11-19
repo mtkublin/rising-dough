@@ -189,6 +189,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewTransaction) -> Tran
         operation="create",
         prev=None,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -227,6 +228,7 @@ def update(
         operation="update",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -250,6 +252,7 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> None:
         operation="delete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 
@@ -290,6 +293,7 @@ def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction
         operation="undelete",
         prev=prev,
         action=_action,
+        user_id=user_id,
     )
 
 

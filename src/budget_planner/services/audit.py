@@ -25,7 +25,10 @@ from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.repositories._shared import write_audit as _write_audit_row
+from budget_planner.repositories._shared import (
+    attributed_ctx,
+    write_audit as _write_audit_row,
+)
 
 # Module-level singleton for the default empty context — ruff B008 would
 # otherwise flag ``RequestCtx.empty()`` inline in parameter defaults.
@@ -74,6 +77,7 @@ def write_audit(
     operation: AuditOperation,
     prev: Mapping[str, Any] | Any | None,
     new: Mapping[str, Any] | Any | None,
+    user_id: int | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> None:
     """Validate shape then insert a single ``audit_log`` row.
@@ -84,6 +88,9 @@ def write_audit(
     :meth:`RequestCtx.empty` so existing callers that have not been
     plumbed through for T-D14 keep working — the four request-context
     columns land as NULL, matching the pre-migration-0013 shape.
+
+    ``user_id`` is mandatory (T-D145, ADR-0122): the row owner, recorded as
+    ``user_id`` and ``actor_user_id``; ``None`` only for ownerless entities.
     """
     _check_shape(operation, prev, new)
     _write_audit_row(
@@ -93,7 +100,8 @@ def write_audit(
         operation=cast(str, operation),
         prev=prev,
         new=new,
-        request_ctx=request_ctx,
+        request_ctx=attributed_ctx(request_ctx, user_id),
+        actor_user_id=user_id,
     )
 
 
