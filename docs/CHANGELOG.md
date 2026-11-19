@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-19 (T-D158: agent before replace)
+- **Feat(T-D158): drain capability check, prod pinned to `sbs_volume` (release A).** `host_release.py drain-capable` runs before `bp-drain` is set and fails when the status has no `drain` field; the PR plan job prints `replaced=` from the plan JSON. Prod's root volume stays on Block Storage so release A updates the VM in place and ships the drain-capable agent; release B moves it to `l_ssd`.
 - **Docs(T-D158): ADR-0127 amendment 2.** Release v3.0.6 (run 44539030541) failed safely at the drain: prod runs the pre-T-D157 agent, which ignores `bp-drain`. The undrain removed the key, no apply ran, prod stays on v3.0.5. Fix: a capability check before the drain, and T-D143 in two releases (A pins prod to `sbs_volume` and ships the agent in place; B moves prod to `l_ssd` with a drain). `deploy.md` stuck-drain command corrected.
 
 ## 2026-11-19 (gamification: starter tuning)

@@ -45,6 +45,8 @@ def test_drain_only_on_a_replacement_and_waits_for_the_agent() -> None:
     run = step["run"]
     # The old host's status (fqdn from state, before the apply).
     assert 'url="https://$(terraform output -raw fqdn)/.well-known/bp-deploy-status.json"' in run
+    # T-D158: the capability check runs before the key is set.
+    assert run.index("host_release.py drain-capable") < run.index("scw_user_data.py set")
     assert run.index("scw_user_data.py set") < run.index("host_release.py wait-drained")
     assert '--request "${DRAIN_REQUEST}"' in run
 
@@ -86,3 +88,14 @@ def test_drain_wait_matches_the_agent_settle() -> None:
     script = (ROOT / "scripts" / "ci" / "host_release.py").read_text()
     assert "DRAIN_SETTLE_S = 30" in agent
     assert 'drain.add_argument("--timeout", type=float, default=300)' in script
+
+
+def test_pr_plan_reports_a_replacement() -> None:
+    """T-D158: the PR plan states whether the release replaces the VM."""
+    loaded: dict[Any, Any] = yaml.safe_load(WORKFLOW.read_text())
+    steps: list[dict[str, Any]] = loaded["jobs"]["plan"]["steps"]
+    names = [s["name"] for s in steps]
+    detect = names.index("Detect VM replacement (plan)")
+    assert names.index("terraform plan (${{ matrix.env }})") < detect
+    assert "host_release.py replaced" in steps[detect]["run"]
+    assert "GITHUB_STEP_SUMMARY" in steps[detect]["run"]

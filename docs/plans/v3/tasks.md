@@ -1053,7 +1053,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 ### T-D158 [S] Ship the drain-capable agent before the first replacing release → ADR-0127 (amendment 2, 2026-11-19), ADR-0118, ADR-0111
 - Found 2026-11-19 by release v3.0.6 (run 44539030541): prod's agent predates T-D157 and ignored `bp-drain`; the job timed out after 300 s, the undrain deleted the key and no apply ran. The new agent only reaches metadata through the apply, which in that release was the replacement.
 - Work items:
-  - (a) `host_release.py drain-capable --url`: fails when the status has no `drain` field. `terraform.yml` runs it before `scw_user_data.py set`.
+  - (a) `host_release.py drain-capable --url`: fails when the status has no `drain` field. `terraform.yml` runs it before `scw_user_data.py set`. The PR plan job also prints `replaced=` from the plan JSON (the masked text plan hid the server diff in run 44539030541), so a PR shows whether the release replaces the VM.
   - (b) Prod root volume pinned to `sbs_volume` (`terraform/main.tf`, prod branch of `vm_spec`); render tests updated. Release A: in place, ships the agent.
   - (c) After release A converges: prod back to `l_ssd` (ADR-0118). Release B: replaces the VM with a drain. Closes T-D143.
   - (d) Runbook `deploy.md`: the capability precondition; the stuck-drain command fixed (`scw_user_data.py delete --server <zone/id>`, no `--key`); the "writes during the apply" note updated for the drain.

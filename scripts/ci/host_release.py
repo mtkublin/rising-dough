@@ -34,6 +34,10 @@ Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
   wait-drained --url URL --request ID [--timeout S] [--interval S]
       Poll the agent status until it reports `state == "drained"` for drain
       request ID (T-D157, ADR-0127 amendment); fail fast on a `drain_*` failure.
+  drain-capable --url URL [--timeout S] [--interval S]
+      Fail unless the agent status carries a `drain` field, which every
+      drain-capable agent publishes (`null` when idle). Run before the drain
+      request is set (T-D158, ADR-0127 amendment 2).
 """
 
 from __future__ import annotations
@@ -247,6 +251,35 @@ def drained(status: Mapping[str, object] | None, request: str) -> bool:
     )
 
 
+def drain_capable(status: Mapping[str, object]) -> None:
+    """Raise unless the agent publishes the `drain` field (T-D158)."""
+    if "drain" not in status:
+        raise ReleaseError(
+            "host agent cannot drain (status has no `drain` field); "
+            "release the agent in place first (ADR-0127 amendment 2)"
+        )
+
+
+def wait_status(
+    fetch: Fetch,
+    url: str,
+    *,
+    timeout: float,
+    interval: float,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Mapping[str, object]:
+    """The first status the host serves; raises when none comes within `timeout`."""
+    deadline = clock() + timeout
+    while True:
+        status = fetch(url)
+        if status is not None:
+            return status
+        if clock() >= deadline:
+            raise ReleaseError(f"no host status within {timeout:.0f}s")
+        sleep(interval)
+
+
 def wait_drained(
     fetch: Fetch,
     url: str,
@@ -317,12 +350,7 @@ def fetch_status(url: str) -> Mapping[str, object] | None:
     return body if isinstance(body, dict) else None
 
 
-def main(
-    argv: Sequence[str] | None = None,
-    fetch: Fetch = fetch_status,
-    inspect: Inspect = inspect_digest,
-    stdin: Callable[[], str] = sys.stdin.read,
-) -> int:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
     refs = sub.add_parser("refs")
@@ -348,7 +376,20 @@ def main(
     drain.add_argument("--request", required=True)
     drain.add_argument("--timeout", type=float, default=300)
     drain.add_argument("--interval", type=float, default=5)
-    args = parser.parse_args(argv)
+    capable = sub.add_parser("drain-capable")
+    capable.add_argument("--url", required=True)
+    capable.add_argument("--timeout", type=float, default=60)
+    capable.add_argument("--interval", type=float, default=5)
+    return parser
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    fetch: Fetch = fetch_status,
+    inspect: Inspect = inspect_digest,
+    stdin: Callable[[], str] = sys.stdin.read,
+) -> int:
+    args = _parser().parse_args(argv)
     try:
         if args.cmd == "refs":
             resolved = resolve_refs(
@@ -373,6 +414,10 @@ def main(
                 fetch, args.url, args.request, timeout=args.timeout, interval=args.interval
             )
             print(f"drained: {dict(status)}")
+        elif args.cmd == "drain-capable":
+            status = wait_status(fetch, args.url, timeout=args.timeout, interval=args.interval)
+            drain_capable(status)
+            print("host agent can drain")
         else:
             status = wait_converged(
                 fetch,
