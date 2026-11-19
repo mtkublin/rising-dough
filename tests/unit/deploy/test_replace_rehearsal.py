@@ -235,3 +235,12 @@ def test_writer_retries_a_failed_insert_while_the_app_runs(
         "committed 22",
         "writer stopped: app gone before 23",
     ]
+
+
+def test_writer_step_does_not_inherit_errexit() -> None:
+    """GitHub runs `run:` with `bash -eo pipefail`: without +e the expected exit 255
+    (old host gone) ends the step before the check (rehearsal run 44504615949)."""
+    step = next(s for s in _jobs()["writer"]["steps"] if s.get("id") == "write")
+    first = step["run"].lstrip().splitlines()[0]
+    assert first.startswith("set +e"), first
+    assert 'rc="${PIPESTATUS[0]}"' in step["run"]
