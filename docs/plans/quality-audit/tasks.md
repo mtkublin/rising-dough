@@ -17,7 +17,7 @@
 
 ## Phase 1 — Automated baseline → T-Q01
 
-### T-Q02 [P] Static tool baseline
+### ✅ T-Q02 [P] Static tool baseline
 - Every tool in implementation_plan §2 has been run in report-only mode, with raw output in `baseline/<tool>.txt` and summaries in `baseline/README.md`.
 - No dependency or config changes committed (tools run through `uv run --with`).
 
