@@ -44,7 +44,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### T-Q06 [P] Track C — correctness risks → `tracks/C-correctness.md`
 - Every clock call site and every broad `except` / fallback in money paths has been classified. Query counts per route recorded.
 
-### T-Q07 [P] Track D — security → `tracks/D-security.md`
+### ✅ T-Q07 [P] Track D — security → `tracks/D-security.md`
 - Done by the security-reviewer agent. Route-by-route authz/IDOR table. CSRF, CSP, headers, XSS and SQLi checks done. Scanner results triaged.
 
 ### T-Q08 [P] Track E — frontend → `tracks/E-frontend.md`
