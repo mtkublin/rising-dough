@@ -1058,4 +1058,5 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
   - (c) After release A converges: prod back to `l_ssd` (ADR-0118). Release B: replaces the VM with a drain. Closes T-D143.
   - (d) Runbook `deploy.md`: the capability precondition; the stuck-drain command fixed (`scw_user_data.py delete --server <zone/id>`, no `--key`); the "writes during the apply" note updated for the drain.
 - Tests: `drain-capable` (field present, `null` or a value → ok; missing → fails; no key set); workflow wiring (check before the set); render tests for both prod volume types.
+- 2026-11-19: (a) + (b) + (d) merged in PR #36 (d25be71); release A v3.0.7 (run 44553020124) green: in place (1 add, 1 change, 1 destroy = the tailnet key), converged on v3.0.7 with `"drain": null`. (c) on `feat/T-D158-prod-l-ssd`: prod back to `l_ssd`; release B is v3.0.8.
 - Proof: drill gate green on each PR. Release A: status shows `"drain": null`, no replacement. Release B: `drained` logged, restore `restored`, `audit_log` counts from the old host match on the new one.
