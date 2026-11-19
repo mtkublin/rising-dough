@@ -1,6 +1,6 @@
 # Savings Goals + Sourdough Starter — Tasks
 
-> Plan: [README.md](README.md). Decisions: [ADR-0124](../../adr/0124-savings-goals-envelopes-and-net-worth.md), [ADR-0125](../../adr/0125-sourdough-starter-rules.md), [ADR-0126](../../adr/0126-gamification-design-handoff.md). Requirements: §12 (G1.x, S1.x).
+> Plan: [README.md](README.md). Decisions: [ADR-0124](../../adr/0124-savings-goals-envelopes-and-net-worth.md), [ADR-0125](../../adr/0125-sourdough-starter-rules.md), [ADR-0126](../../adr/0126-gamification-design-handoff.md), [ADR-0129](../../adr/0129-goals-starter-handoff-vendored-standalone.md). Handoff: [`docs/design/rising-dough-goals-starter/`](../../design/rising-dough-goals-starter/index.html) (paths below are relative to it). Requirements: §12 (G1.x, S1.x).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-GSxx` depends on upstream task.
 > Acceptance = ADR referenced in the commit + tests (TDD, coverage gate 90 %) + pre-commit green + `✅` prefix here + dated `docs/CHANGELOG.md` line. Templates, CSS or HTMX swaps touched → `frontend-visual-audit` at 1440 / 1024 / 375, both themes, before ✅.
 
@@ -12,7 +12,8 @@
 - Redesign released (T-UR17 ✅).
 - Decide and record the order against v4 (before or after v4 Phase 3) in README.md.
 - Work branch `feat/goals` from `main`.
-- Designer drop 1 status recorded (requested / delivered / accepted).
+- Designer drop 1: delivered 2026-11-19 together with drop 2 (ADR-0129). Accept it: HTML validator + axe clean on the release-1 pages, both themes; record accepted here.
+- Decide the afford-warning figure: G1.10 (total free balance of asset accounts) or the handoff's "free money" (cash accounts after planned payments, minus goals). A change amends ADR-0124 and G1.10 (ADR-0129 §6).
 
 ## Phase 1 — Goals backend (release 1)
 
@@ -42,14 +43,14 @@
 ## Phase 2 — Goals UI (release 1, gated on handoff drop 1)
 
 ### ◻ T-GS06 [P] Plan → Goals tab, detail, dialogs → T-GS05
-- Handoff: `pages/plan/goals*`, goal detail, overlays `new-goal*`, `edit-goal*`, `allocate*`, `release*`, `archive-goal*`.
+- Handoff: `pages/plan-goals*`, goal detail `pages/goal-{vacation,networth,laptop,emergency}`, dialogs `pages/goal-new*`, `goal-edit`, `goal-allocate*`, `goal-release`, `goal-archive-*`; CSS `css/goals.css`, tokens block in `tokens.css`.
 - UI-map module first (`--target=mockup`), then the per-surface loop (`docs/plans/ui-redesign/README.md`).
 
 ### ◻ T-GS07 [P] Accounts: allocated / free, over-allocated → T-GS05
-- Handoff: accounts row states with allocation and over-allocation.
+- Handoff: `pages/accounts`, `pages/accounts-over-allocated`.
 
 ### ◻ T-GS08 [P] Today: goals card, afford warning variant → T-GS05
-- Handoff: `today` goals card states (0 / 1–3 goals), `today--afford-free` (name per handoff).
+- Handoff: `pages/today` (goals summary), `pages/today-no-goals`, `pages/today-afford-goals`.
 
 ## Phase 3 — Release 1
 
@@ -87,17 +88,17 @@
 ## Phase 5 — Starter UI (release 2, gated on handoff drop 2)
 
 ### ◻ T-GS16 [S] Accept designer drop 2 → T-GS00
-- Starter SVGs (5 states, card + badge, named layers), motion spec, loaf shapes, copy deck, default name. Validator + axe clean. Record deviations in `docs/plans/ui-redesign/derived.md`.
+- Delivered 2026-11-19 (ADR-0129): `assets/starter/*` (5 states, card + badge, named layers), `MOTION-SPEC.md` + `motion.html`, `assets/shelf/*` (4 loaf shapes), `COPY-DECK.md`, default name Levi. Accept: validator + axe clean on the release-2 pages, both themes. Record deviations in `docs/plans/ui-redesign/derived.md`.
 
 ### ◻ T-GS17 [P] Today starter card + check-in → T-GS15, T-GS16
-- State, name, state line, recent feeds, check-in control (today + earlier day), dormant variant, welcome moment.
+- State, name, state line, recent feeds, check-in control (today + earlier day), dormant variant, welcome moment. Handoff: `pages/today*` (`-covered`, `-dormant`, `-starter-hidden`, `-welcome`), `css/starter.css`.
 
 ### ◻ T-GS18 [P] Rail badge, starter detail, milestone toast → T-GS15, T-GS16
-- Badge in the base layout (desktop rail + phone bar per handoff), `data-state` / `data-fed`, detail overlay with milestones, toast in `#toast-root`.
-- Motion per spec: CSS keyframes + a small WAAPI module (ADR-0123); `transform` / `opacity` only; reduced-motion behaviour tested.
+- Badge in the header (desktop: left of `[ new entry ]`; phone: top header, left of settings; ADR-0129), `data-state` / `data-fed`, detail drawer with milestones (`pages/starter-drawer`), toast in `#toast-root` (`pages/today-milestone-toast`).
+- Motion per `MOTION-SPEC.md` / `css/starter-motion.css`: CSS keyframes + a small WAAPI module (ADR-0123); `transform` / `opacity` only; reduced-motion behaviour tested.
 
 ### ◻ T-GS19 [P] Bakery shelf + Preferences → T-GS15, T-GS16
-- Shelf on the Goals tab (loaf shape from goal id, `data-color` preset, focusable loaves, overflow state). Preferences toggle + name field.
+- Shelf on the Goals tab (loaf shape `crc32("rd:" + goal.id) % 4`, `data-color` preset, focusable loaves, overflow state; `css/shelf.css`, `pages/goals-loaf-baked`). Preferences toggle + name field (`pages/settings-preferences*`).
 
 ## Phase 6 — Release 2
 

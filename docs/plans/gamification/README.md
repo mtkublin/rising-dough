@@ -2,23 +2,24 @@
 
 > **What**: savings goals (envelope allocations and net-worth goals), then a sourdough starter that rewards good money habits, with a bakery shelf of reached goals.
 > **Requirements**: [`docs/requirements.md` §12](../../requirements.md#12-savings-goals--sourdough-starter-added-2026-11-17-scoped-2026-11-18).
-> **Decisions**: [ADR-0124](../../adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](../../adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](../../adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0123](../../adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack, no SPA).
+> **Decisions**: [ADR-0124](../../adr/0124-savings-goals-envelopes-and-net-worth.md) (goals), [ADR-0125](../../adr/0125-sourdough-starter-rules.md) (starter), [ADR-0126](../../adr/0126-gamification-design-handoff.md) (designer handoff), [ADR-0129](../../adr/0129-goals-starter-handoff-vendored-standalone.md) (handoff vendored standalone, one drop), [ADR-0123](../../adr/0123-frontend-stays-server-rendered-no-spa-framework.md) (stack, no SPA).
 > **Designer brief**: [`docs/design/gamification-brief.md`](../../design/gamification-brief.md) (shared with the designer as a page).
+> **Designer handoff**: [`docs/design/rising-dough-goals-starter/`](../../design/rising-dough-goals-starter/index.html) (both drops, delivered 2026-11-19; acceptance at T-GS00 / T-GS16).
 > **Tasks**: [`tasks.md`](tasks.md) (T-GS00…T-GS21).
-> **Status**: scoped 2026-11-18. Not started. Brief sent to the designer.
+> **Status**: scoped 2026-11-18. Not started. Designer handoff for both releases delivered and vendored 2026-11-19 (not yet accepted).
 
 ## Sequencing
 
 ```
 redesign released (T-UR17) ─┬─ R1 goals backend ── R1 goals UI ── R1 release ─┬─ R2 starter backend ── R2 starter UI ── R2 release
                             │                         ▲                         │                           ▲
-designer: brief ─ drop 1 (goals) ─────────────────────┘   drop 2 (starter) ──────┴───────────────────────────┘
+designer: brief ─ drops 1 + 2 delivered together 2026-11-19 (ADR-0129); accepted per release ───────────────────┘
 v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 ```
 
 - Code starts after the redesign is released (§10.4 freezes features during the migration).
 - The order against v4 is open. If goals land before v4 Phase 3, the goal columns are added to T-E08 / T-E09 / T-E12 (task T-GS03 records that in the v4 plan).
-- Backend tasks are not gated on the designer. UI tasks wait for the accepted handoff drop (ADR-0126 §7).
+- Backend tasks are not gated on the designer. UI tasks wait for the accepted handoff drop (ADR-0126 §7); both drops arrived as one folder, accepted per release (ADR-0129 §3).
 
 ## Phases
 
@@ -78,4 +79,5 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 
 - Weights and thresholds are tuned by simulation (ADR-0128); T-GS21 records the first review after a month of R2 use.
 - Order against v4: decide when the redesign ships.
-- Designer deliverables and timing: tracked in T-GS00 and T-GS16.
+- Designer handoff delivered 2026-11-19; acceptance (validator + axe) tracked in T-GS00 (goals) and T-GS16 (starter).
+- Afford-warning figure: the handoff's "free money" (cash accounts after planned payments, minus goals) vs G1.10's total free balance of asset accounts. Decide at T-GS00 (ADR-0129 §6).
