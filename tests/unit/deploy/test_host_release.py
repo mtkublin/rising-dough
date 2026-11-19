@@ -375,10 +375,14 @@ def test_drained_needs_the_same_request() -> None:
 
 
 def test_drain_failure_fails_fast_but_other_failures_wait() -> None:
+    mine = {"request": REQ, "at": ""}
     with pytest.raises(hr.ReleaseError, match="drain_litestream"):
-        hr.drained(_status(state="failed", error="drain_litestream"), REQ)
+        hr.drained(_status(state="failed", error="drain_litestream", drain=mine), REQ)
     # A failed config generation is not a drain verdict.
     assert not hr.drained(_status(state="failed", error="compose"), REQ)
+    # Review finding: a stale failure from another request keeps waiting.
+    old = {"request": "1-1", "at": ""}
+    assert not hr.drained(_status(state="failed", error="drain_litestream", drain=old), REQ)
 
 
 def test_wait_drained_polls_then_times_out() -> None:

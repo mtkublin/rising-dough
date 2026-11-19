@@ -556,6 +556,7 @@ def test_drain_fails_when_litestream_is_not_running(
     assert rc == 1
     status = _status(tmp_path)
     assert (status["state"], status["error"]) == ("failed", "drain_litestream")
+    assert status["drain"] == {"request": REQ, "at": ""}
     # No back-off for drain failures; the marker stays so the undrain re-applies.
     assert not (tmp_path / "state" / "failure.json").exists()
     assert (tmp_path / "state" / "drained").exists()
@@ -614,3 +615,14 @@ def test_fetch_optional_maps_404_to_none(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(agent, "fetch_metadata", broken)
     with pytest.raises(agent.AgentError, match="500"):
         agent.fetch_optional("bp-drain")
+
+
+def test_undrain_ignores_an_earlier_back_off(tmp_path: Path, host: Callable[..., int]) -> None:
+    """Review finding: a failure record for this generation must not keep the app down."""
+    host(_doc(tmp_path), FakeRunner(ready_ok=False))  # failed apply: back-off armed
+    assert (tmp_path / "state" / "failure.json").exists()
+    host(_doc(tmp_path), FakeRunner(running=REF), drain=REQ)
+    runner = FakeRunner(running=REF)
+
+    assert host(_doc(tmp_path), runner) == 0  # same `now`: still inside the back-off
+    assert "compose up" in runner.kinds()

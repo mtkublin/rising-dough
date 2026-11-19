@@ -491,8 +491,9 @@ jobs:
 
       # T-D157: a failed drain, or an apply that failed while the old server
       # still exists, must not leave the old host drained (DELETE; 404 = gone).
+      # cancelled(): an operator cancel or the job timeout must undrain too.
       - name: Undrain the old host (drain or apply failed)
-        if: ${{ failure() && (steps.drain.outcome == 'success' || steps.drain.outcome == 'failure') && steps.apply.outcome != 'success' }}
+        if: ${{ (failure() || cancelled()) && (steps.drain.outcome == 'success' || steps.drain.outcome == 'failure' || steps.drain.outcome == 'cancelled') && steps.apply.outcome != 'success' }}
         env:
           SERVER_ID: ${{ steps.replace.outputs.server_id }}
         run: python3 ../scripts/ci/scw_user_data.py delete --server "${SERVER_ID}"

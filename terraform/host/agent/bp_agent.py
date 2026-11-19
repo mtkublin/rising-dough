@@ -544,6 +544,7 @@ def converge(
     sleep: Callable[[float], None] = time.sleep,
 ) -> int:
     cfg: Config | None = None
+    request: str | None = None
     try:
         cfg = parse_config(fetch_metadata(CONFIG_KEY))
         request = parse_drain_request(fetch_optional(DRAIN_KEY))
@@ -558,7 +559,8 @@ def converge(
                 )
             return 0
         failure = read_failure()
-        if in_backoff(cfg, failure, now()):
+        # Undrain must not wait out an earlier apply's back-off (app is down).
+        if not DRAINED_FILE.exists() and in_backoff(cfg, failure, now()):
             return 0
         write_status(
             build_status(cfg, "applying", current, "", now(), restore=read_restore_report())
@@ -579,6 +581,10 @@ def converge(
                 err.code,
                 now(),
                 restore=read_restore_report(),
+                # CI matches a drain failure to its own request (wait-drained).
+                drain={"request": request, "at": ""}
+                if request and err.code.startswith("drain_")
+                else None,
             )
         )
         return 1

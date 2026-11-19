@@ -231,9 +231,15 @@ def drained(status: Mapping[str, object] | None, request: str) -> bool:
     """True when the agent reports drain `request` done; raises on a drain failure."""
     if status is None:
         return False
-    if status.get("state") == "failed" and str(status.get("error", "")).startswith("drain_"):
-        raise ReleaseError(f"host failed to drain: {status.get('error')}")
     drain = status.get("drain")
+    mine = isinstance(drain, Mapping) and drain.get("request") == request
+    # Only this request's failure counts: a stale one from an earlier run must not.
+    if (
+        mine
+        and status.get("state") == "failed"
+        and str(status.get("error", "")).startswith("drain_")
+    ):
+        raise ReleaseError(f"host failed to drain: {status.get('error')}")
     return (
         status.get("state") == DRAINED
         and isinstance(drain, Mapping)

@@ -65,7 +65,9 @@ def test_failed_drain_or_apply_undrains_the_old_host() -> None:
     step = steps[undrain]
 
     assert _index("terraform apply (${{ inputs.env }})") < undrain
-    assert "failure()" in step["if"]
+    # Review finding: a cancel or the job timeout must undrain too.
+    assert "(failure() || cancelled())" in step["if"]
+    assert "steps.drain.outcome == 'cancelled'" in step["if"]
     assert "steps.drain.outcome == 'success' || steps.drain.outcome == 'failure'" in step["if"]
     assert "steps.apply.outcome != 'success'" in step["if"]
     assert "scw_user_data.py delete" in step["run"]
