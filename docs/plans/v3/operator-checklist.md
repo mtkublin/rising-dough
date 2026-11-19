@@ -63,7 +63,7 @@
 | `GHCR_PULL_PAT` | repo | `ghcr_pull_pat` | yes | read-only GHCR PAT (A3) |
 | `LITESTREAM_AGE_IDENTITY` | repo | `litestream_age_identity` | yes | `age-keygen -o litestream-age.key` (whole file or the `AGE-SECRET-KEY-1...` line); same PROD identity for drill |
 | `LITESTREAM_AGE_RECIPIENT` | repo | `litestream_age_recipient` | no | `age-keygen -y litestream-age.key` (was a variable; now a secret) |
-| `MANAGED_DNS_ZONE` | drill / prod / prod-plan | `managed_dns_zone` | no | `true` or `false`, as in local tfvars (unset = `false`) |
+| `MANAGED_DNS_ZONE` | variable (not a secret, T-D159): prod / prod-plan | `managed_dns_zone` | no | `true` or `false`, as in local tfvars (unset = `false`). A secret `true` would mask every `true` in CI logs and outputs |
 | `BUCKET_ADMIN_PRINCIPALS` | drill / prod / prod-plan | `bucket_admin_principals` | no | HCL/JSON list string, e.g. `["user_id:<uuid>"]` (`scw iam user list`); unset = `[]` |
 | `BUCKET_READONLY_PRINCIPALS` | prod / prod-plan | `bucket_readonly_principals` | no | optional list string, e.g. `["application_id:<uuid>"]`; unset = `[]` |
 | `PROD_REPLICA_RO_ACCESS_KEY` | drill | `scw_access_key_restore` | yes | restore-reader key (`runbooks/key-rotation.md` part 2, ADR-0104) |

@@ -29,7 +29,6 @@ Same names in every environment, different values (ADR-0093). The three drill en
 | `OPERATOR_SSH_PUBKEY` | x | x | x | `DEPLOY_SSH_PUBKEY` is unused since ADR-0111; delete it everywhere |
 | `GHCR_PULL_PAT` | x | x | x | read:packages only |
 | `LITESTREAM_AGE_IDENTITY`, `LITESTREAM_AGE_RECIPIENT` | x | x | x | per-env age keypair |
-| `MANAGED_DNS_ZONE` (optional) | x | x | x | |
 | `BUCKET_ADMIN_PRINCIPALS`, `BUCKET_READONLY_PRINCIPALS` (optional) | x | x | x | |
 | `BUCKET_PLAN_PRINCIPALS` (ADR-0105: `["application_id:<ci-plan>"]`) | x | x | | |
 
@@ -41,8 +40,9 @@ ADR-0105: `BUCKET_ADMIN_PRINCIPALS` holds the operator **and** the env's apply i
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | prod client | prod client (plan reads only) | drill client | see section 4 |
 | `DEPLOY_SSH_PRIVATE_KEY` | | | `drill` only | `restore-drill.yml` job `restore-drill` only (operator SSH over the tailnet; runs in env `drill`, T-D133); not in `prod`, `drill-teardown`, `drill-plan` (ADR-0111) |
 
-| Variable | `prod` | `drill`, `drill-teardown`, `drill-plan` |
+| Variable | `prod`, `prod-plan` | `drill`, `drill-teardown`, `drill-plan` |
 |---|:-:|:-:|
+| `MANAGED_DNS_ZONE` (optional; `true` on prod, unset = `false`). A variable, not a secret (T-D159, ADR-0093 amendment): a secret `true` masks every `true` in the logs and drops job outputs equal to `true` (`server_replaced`). After T-D159 is on `main`, delete the old `MANAGED_DNS_ZONE` secret from `prod` and `prod-plan` | `true` | |
 | `TAILNET_DNS_NAME` (ADR-0101), e.g. `tail1234.ts.net` (admin console > DNS; not a secret) | | x |
 
 `drill.yml` no longer reads `DRILL_URL`: the drill has no public DNS (ADR-0101). It derives `https://budget-planner-drill-<run id>.${TAILNET_DNS_NAME}` and joins the tailnet as `tag:ci` for the smoke test.

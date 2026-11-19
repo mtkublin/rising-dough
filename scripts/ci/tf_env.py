@@ -58,7 +58,9 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("litestream_age_identity", "secret", "LITESTREAM_AGE_IDENTITY"),
     Entry("litestream_age_recipient", "secret", "LITESTREAM_AGE_RECIPIENT"),
     # Optional inputs; fall back to the variables.tf defaults when unset.
-    Entry("managed_dns_zone", "secret", "MANAGED_DNS_ZONE", default="false"),
+    # T-D159 / ADR-0093 amendment: a variable, not a secret. A secret `true` makes
+    # GitHub mask every `true` in the logs and drop job outputs equal to it.
+    Entry("managed_dns_zone", "var", "MANAGED_DNS_ZONE", default="false"),
     Entry("bucket_admin_principals", "secret", "BUCKET_ADMIN_PRINCIPALS", default="[]"),
     Entry("bucket_readonly_principals", "secret", "BUCKET_READONLY_PRINCIPALS", default="[]"),
     # ADR-0105: ci-plan may read the bucket configuration.

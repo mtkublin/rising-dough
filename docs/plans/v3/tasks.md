@@ -917,13 +917,14 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Gate proof 2026-11-18: run 44312318219 (head db163ad) green, smoke passed, teardown and tailnet node removal succeeded.
 - Follow-up 2026-11-18 (T-D139-FIX): `rollback.yml env=drill` set `drill_run_id` to its own run id and renamed the live drill host (44356288331 to 44360554182; Caddy lost its certificate). Fixed: re-applies on an existing drill reuse the id from state (`terraform output drill_run_id`), with an optional `drill_run_id` rollback input as repair override; fails if none. Tests: `tests/unit/deploy/test_drill_run_id.py`. Proof 2026-11-18 (DRILL-2): repair run 44362948854, rollback run 44364434084 (no target, no id: log `state: 44356288331`) and roll-forward run 44365282708 all kept `budget-planner-drill-44356288331`.
 
-### T-D143 [S] Boot the VM from local SSD, not Block Storage → ADR-0118, ADR-0032
+### ✅ T-D143 [S] Boot the VM from local SSD, not Block Storage → ADR-0118, ADR-0032
 - Found 2026-11-18 (prod billing): a "Block Storage Volume" line (~€0.78/mo) next to the Flex IPv4. `scaleway_instance_server.app` has no `root_volume`, so the provider default (SBS) applies; ADR-0032 assumed the included 10 GB local SSD. Catalog check: `STARDUST1-S` and `DEV1-S` in `pl-waw-2` accept `l_ssd` (max 10 GB for Stardust).
 - Change: `root_volume { volume_type = "l_ssd", size_in_gb = 10 }` in `terraform/modules/compute/main.tf`; expose the root volume type/size as module outputs.
 - Tests: `terraform/tests/render.tftest.hcl` asserts `l_ssd` and 10 GB for prod and drill.
 - Blocked for prod on T-D156 (ADR-0127); the drill gate can run first.
 - 2026-11-19: release v3.0.6 (run 44539030541) failed safely at the drain: prod's agent predates T-D157 (no apply, prod stays on v3.0.5). Goes out in two releases under T-D158.
 - Proof: drill gate green (boot from `l_ssd`, smoke passes); then prod release with operator approval (VM replaced, IPs kept, DB restored by the compose Litestream restore step); after the next billing day no Block Storage line on prod.
+- 2026-11-19 (closeout): released in v3.0.8 (run 44559131362, merge 9ace5bb, PR #37): prod VM replaced onto `l_ssd` with a drain (details under T-D158), restore `restored` (generation `2901fbd3873a6696`), 0 lost `audit_log` rows, ~4.5 min downtime. Follow-up (not blocking): after the next billing day, check that prod has no Block Storage line.
 
 ### ✅ T-D144 [M] Alert on stalled Litestream replication → ADR-0119, ADR-0114, T-D44
 - Found 2026-11-18: the 2026-11-07 to 2026-11-18 stall (T-D136) went unnoticed for 11 days because `/health` and `/ready` do not look at the replica.
@@ -1050,7 +1051,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Proof: drill gate green on the PR; after the merge, `replace-rehearsal.yml` green from `main` (0 lost rows, writer ends with "app gone").
 - 2026-11-19 (closeout): PR #33 merged (9fb18cb), drill gate run 44527494555 green. `replace-rehearsal.yml` run 44531460867 from main green. Results: drain request `44531460867-1` set 13:23:37, `drained` 13:24:16 (39 s); writer ended "app gone before 78"; new host has 77 of 77 committed rows (0 lost); restore report `restored` with the seeded generation; `--require-restore` converged; `integrity_check` ok; old tailnet node removed and the new one renamed.
 
-### T-D158 [S] Ship the drain-capable agent before the first replacing release → ADR-0127 (amendment 2, 2026-11-19), ADR-0118, ADR-0111
+### ✅ T-D158 [S] Ship the drain-capable agent before the first replacing release → ADR-0127 (amendment 2, 2026-11-19), ADR-0118, ADR-0111
 - Found 2026-11-19 by release v3.0.6 (run 44539030541): prod's agent predates T-D157 and ignored `bp-drain`; the job timed out after 300 s, the undrain deleted the key and no apply ran. The new agent only reaches metadata through the apply, which in that release was the replacement.
 - Work items:
   - (a) `host_release.py drain-capable --url`: fails when the status has no `drain` field. `terraform.yml` runs it before `scw_user_data.py set`. The PR plan job also prints `replaced=` from the plan JSON (the masked text plan hid the server diff in run 44539030541), so a PR shows whether the release replaces the VM.
@@ -1060,3 +1061,10 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Tests: `drain-capable` (field present, `null` or a value → ok; missing → fails; no key set); workflow wiring (check before the set); render tests for both prod volume types.
 - 2026-11-19: (a) + (b) + (d) merged in PR #36 (d25be71); release A v3.0.7 (run 44553020124) green: in place (1 add, 1 change, 1 destroy = the tailnet key), converged on v3.0.7 with `"drain": null`. (c) on `feat/T-D158-prod-l-ssd`: prod back to `l_ssd`; release B is v3.0.8.
 - Proof: drill gate green on each PR. Release A: status shows `"drain": null`, no replacement. Release B: `drained` logged, restore `restored`, `audit_log` counts from the old host match on the new one.
+- 2026-11-19 (closeout): release B v3.0.8 (run 44559131362, merge 9ace5bb, PR #37) replaced the prod VM onto `l_ssd`. Capability check "host agent can drain" 15:56:53Z; drain request `44559131362-1`, `drained` 15:57:43Z (~50 s); apply 2 added / 2 destroyed 15:58:11Z; restore `restored` (generation `2901fbd3873a6696`) 16:00:45Z; converged on v3.0.8 16:01:21Z; downtime ~4.5 min. `audit_log` before approval on the old host `(302, 302, '2026-11-19T13:18:27.471Z')`, identical on the new host: 0 lost rows. `tailnet-cleanup-prod` was skipped (masked `server_replaced` output, fixed by T-D159); the operator removed the old node and renamed the new one by hand. Closes T-D143.
+
+### T-D159 [S] Read MANAGED_DNS_ZONE as a variable, not a secret → ADR-0093 (amendment 2026-11-19), ADR-0127
+- Found 2026-11-19 by release v3.0.8 (run 44559131362): the prod VM was replaced, but `release.yml` skipped `tailnet-cleanup-prod` (`Skip output 'server_replaced' since it may contain secret.`). `scripts/ci/tf_env.py` read `MANAGED_DNS_ZONE` from secrets; on prod its value is `true`, so GitHub masked every `true` in the logs (`replaced=***`, `TF_VAR_drill_allow_empty_db: ***`) and dropped job outputs equal to `true`. The value is not secret.
+- Change: `tf_env.py` reads `MANAGED_DNS_ZONE` from the environment variables (`var`, default `false`). Operator: variable `MANAGED_DNS_ZONE=true` already added to `prod` and `prod-plan` (2026-11-19); drill envs have none (default `false`, as before). Runbooks `github-settings.md`, both operator checklists updated. Also fixed: the `audit_log` count and `integrity_check` commands in `deploy.md` / `restore.md` (run through `docker exec` read-only; `operator` cannot open the DB file; column `changed_at`), and the `ssh-keygen -R` note after a replacement.
+- Tests: `test_tf_env.py`: the variable is read from `vars` and ignored in secrets; no entry with a `true`/`false` default reads a secret.
+- Proof: drill gate green on the PR. After the merge: delete the `MANAGED_DNS_ZONE` secret from `prod` and `prod-plan`; the next replacing release runs `tailnet-cleanup-prod` (job output `server_replaced` not dropped).
