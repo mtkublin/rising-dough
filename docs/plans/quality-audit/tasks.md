@@ -34,7 +34,7 @@
 
 Each task writes only `tracks/<file>.md` and contains a coverage statement, findings in the §4 schema, and a questions list.
 
-### T-Q04 [P] Track A — duplicated domain logic → `tracks/A-duplication.md`
+### ✅ T-Q04 [P] Track A — duplicated domain logic → `tracks/A-duplication.md`
 - Concept map for every concept in plan §3 Track A, plus any new concept found, with implementations, behavioural differences and canonical home.
 - Differential-invariant candidates listed; each one executed on the scratch DB.
 

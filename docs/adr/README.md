@@ -129,6 +129,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0122 | [Domain Audit Rows Record Owner and Actor](0122-domain-audit-rows-record-owner-and-actor.md) (amends ADR-0019, ADR-0022, ADR-0061, ADR-0073; relates to ADR-0078) |
 | 0123 | [Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs](0123-frontend-stays-server-rendered-no-spa-framework.md) (renumbered from 0112; relates to ADR-0107, ADR-0027, ADR-0080, ADR-0081) |
 | 0124 | [Savings Goals — Envelope Allocations and Net-Worth Goals](0124-savings-goals-envelopes-and-net-worth.md) (relates to ADR-0006, ADR-0019, ADR-0042, ADR-0056, ADR-0061, ADR-0081, ADR-0125) |
-| 0125 | [The Sourdough Starter — Feed Signals, Health Score, Milestones, Shelf](0125-sourdough-starter-rules.md) (amends ADR-0011; relates to ADR-0124, ADR-0123, ADR-0041, ADR-0081) |
+| 0125 | [The Sourdough Starter — Feed Signals, Health Score, Milestones, Shelf](0125-sourdough-starter-rules.md) (amended by ADR-0128; amends ADR-0011; relates to ADR-0124, ADR-0123, ADR-0041, ADR-0081) |
 | 0126 | [Goals and Starter UI Built From a Designer Handoff Extending the Redesign](0126-gamification-design-handoff.md) (relates to ADR-0107, ADR-0123, ADR-0113, ADR-0106) |
+| 0128 | [Starter Tuning From Simulation](0128-starter-tuning-from-simulation.md) (amends ADR-0125; relates to ADR-0124, ADR-0014, ADR-0041) |
 | 0127 | [A Prod VM Replacement Is Safe Unattended](0127-safe-prod-vm-replacement.md) (amended 2026-11-19: drain before the replacing apply, T-D157; amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
