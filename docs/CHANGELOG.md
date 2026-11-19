@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-19 (T-D157: drain before replace)
+- **Docs(T-D157): ADR-0127 amended: drain the old host before a replacing apply.** The rehearsal from main (run 44513330068) proved restore, generation and tailnet rename, and lost 1 committed row (64 of 65): the destroy does not stop the app and Litestream cleanly. Decision 4's separate drain apply cannot work (`bp-config` is in the server's own `user_data`), so CI sets a transient `bp-drain` key through the Scaleway API in the same approved job and waits for `drained`. T-D143's release stays blocked.
+
 ## 2026-11-19 (T-D156-FIX: rehearsal writer)
 - **Fix(T-D156): replace-rehearsal writer step survives the expected SSH exit 255** (ADR-0127 §7). GitHub runs `run:` steps with `bash -eo pipefail`; the step's `set -uo pipefail` left `-e` on, so the pipeline's 255 (old host gone) ended the step before the check and `verify` was skipped (run 44504615949). Now `set +e`.
 

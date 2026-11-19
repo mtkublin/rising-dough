@@ -145,7 +145,7 @@ Before approving the prod apply:
 1. Litestream is current: `docker compose logs --tail=50 litestream` shows recent `write wal segment` lines and no errors.
 2. Record the counts on the old host:
    `ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"`
-3. Expect a few minutes of downtime. Tell users if anyone else is active.
+3. Expect a few minutes of downtime. Tell users if anyone else is active. The job drains the old host before it replaces it (T-D157, ADR-0127 amendment): `bp-drain` is set, the app stops, the status shows `"state": "drained"`, then the apply runs.
 
 After the apply:
 
@@ -156,3 +156,4 @@ The release job detects the replacement from the plan (`host_release.py replaced
 3. Compare the counts from step 2 on the new host (`restore.md`, Verification). Writes made during the apply can be missing; anything older is a failed restore.
 4. If `tailnet-cleanup-prod` warned: remove the old offline `budget-planner-prod` node in the tailnet admin console, then rename the new node from `budget-planner-prod-1` to `budget-planner-prod`.
 5. If the job failed on a replacement, there is no automatic rollback: follow `disaster-recovery.md`.
+6. Stuck drain: if the job failed before the apply and the old host still shows `"state": "drained"`, the job's undrain step did not run or failed. Delete the key through the pipeline by re-running the release, or under `break-glass.md` with `python3 scripts/ci/scw_user_data.py delete --server <zone/id> --key bp-drain`. The agent restarts the app within one 30 s timer run.

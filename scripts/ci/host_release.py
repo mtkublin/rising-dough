@@ -28,7 +28,12 @@ Subcommands (exit 0 = ok, 1 = refused / failed, message on stderr):
   replaced
       Read `terraform show -json` plan output on stdin and print
       `replaced=true|false`: true when the plan deletes and recreates the app
-      server (T-D156). The plan JSON holds secrets: nothing of it is printed.
+      server (T-D156). When true, also print `server_id=<zone>/<uuid>`, the
+      prior state's id of that server (the drain target, T-D157). The plan
+      JSON holds secrets: nothing else of it is printed.
+  wait-drained --url URL --request ID [--timeout S] [--interval S]
+      Poll the agent status until it reports `state == "drained"` for drain
+      request ID (T-D157, ADR-0127 amendment); fail fast on a `drain_*` failure.
 """
 
 from __future__ import annotations
@@ -51,6 +56,11 @@ PLACEHOLDER = "sha-0000000@sha256:" + "0" * 64
 # T-D156 / ADR-0127: the resource whose replacement means a fresh host + restore.
 SERVER_ADDRESS = "module.compute.scaleway_instance_server.app"
 RESTORED = "restored"
+DRAINED = "drained"
+SERVER_ID = re.compile(
+    r"^[a-z]{2}-[a-z]{3}-[0-9]/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+)
+DRAIN_REQUEST = re.compile(r"^[0-9A-Za-z._-]{1,64}$")
 
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
@@ -187,6 +197,79 @@ def server_replaced(plan: Mapping[str, object]) -> bool:
     return False
 
 
+def _list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _resources(module: Mapping[str, object]) -> list[Mapping[str, object]]:
+    found = [r for r in _list(module.get("resources")) if isinstance(r, Mapping)]
+    for child in _list(module.get("child_modules")):
+        if isinstance(child, Mapping):
+            found.extend(_resources(child))
+    return found
+
+
+def prior_server_id(plan: Mapping[str, object]) -> str:
+    """The prior state's id of SERVER_ADDRESS (`<zone>/<uuid>`); only that value is read."""
+    prior = plan.get("prior_state")
+    values = prior.get("values") if isinstance(prior, Mapping) else None
+    root = values.get("root_module") if isinstance(values, Mapping) else None
+    if not isinstance(root, Mapping):
+        raise ReleaseError("plan JSON has no prior_state root module")
+    for res in _resources(root):
+        if res.get("address") != SERVER_ADDRESS:
+            continue
+        attrs = res.get("values")
+        server_id = attrs.get("id") if isinstance(attrs, Mapping) else None
+        if isinstance(server_id, str) and SERVER_ID.match(server_id):
+            return server_id
+        raise ReleaseError(f"{SERVER_ADDRESS}: prior state id is not <zone>/<uuid>")
+    raise ReleaseError(f"{SERVER_ADDRESS} is not in the prior state")
+
+
+def drained(status: Mapping[str, object] | None, request: str) -> bool:
+    """True when the agent reports drain `request` done; raises on a drain failure."""
+    if status is None:
+        return False
+    drain = status.get("drain")
+    mine = isinstance(drain, Mapping) and drain.get("request") == request
+    # Only this request's failure counts: a stale one from an earlier run must not.
+    if (
+        mine
+        and status.get("state") == "failed"
+        and str(status.get("error", "")).startswith("drain_")
+    ):
+        raise ReleaseError(f"host failed to drain: {status.get('error')}")
+    return (
+        status.get("state") == DRAINED
+        and isinstance(drain, Mapping)
+        and drain.get("request") == request
+    )
+
+
+def wait_drained(
+    fetch: Fetch,
+    url: str,
+    request: str,
+    *,
+    timeout: float,
+    interval: float,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Mapping[str, object]:
+    if not DRAIN_REQUEST.match(request):
+        raise ReleaseError(f"drain request id is not valid: '{request}'")
+    deadline = clock() + timeout
+    while True:
+        last = fetch(url)
+        if drained(last, request):
+            return last if last is not None else {}
+        if clock() >= deadline:
+            raise ReleaseError(f"host did not drain within {timeout:.0f}s; last status: {last}")
+        print(f"waiting for drain: {dict(last) if last else 'no status yet'}", file=sys.stderr)
+        sleep(interval)
+
+
 def read_plan(text: str) -> Mapping[str, object]:
     """Parse plan JSON without ever echoing it (it holds secrets)."""
     try:
@@ -260,6 +343,11 @@ def main(
     wait.add_argument("--interval", type=float, default=10)
     wait.add_argument("--require-restore", action="store_true")
     sub.add_parser("replaced")
+    drain = sub.add_parser("wait-drained")
+    drain.add_argument("--url", required=True)
+    drain.add_argument("--request", required=True)
+    drain.add_argument("--timeout", type=float, default=300)
+    drain.add_argument("--interval", type=float, default=5)
     args = parser.parse_args(argv)
     try:
         if args.cmd == "refs":
@@ -275,8 +363,16 @@ def main(
         elif args.cmd == "resolve-ref":
             sys.stdout.write(f"ref={resolve_ref(args.image, args.tag, inspect)}\n")
         elif args.cmd == "replaced":
-            replaced = server_replaced(read_plan(stdin()))
+            plan = read_plan(stdin())
+            replaced = server_replaced(plan)
             sys.stdout.write(f"replaced={'true' if replaced else 'false'}\n")
+            if replaced:
+                sys.stdout.write(f"server_id={prior_server_id(plan)}\n")
+        elif args.cmd == "wait-drained":
+            status = wait_drained(
+                fetch, args.url, args.request, timeout=args.timeout, interval=args.interval
+            )
+            print(f"drained: {dict(status)}")
         else:
             status = wait_converged(
                 fetch,

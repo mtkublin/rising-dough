@@ -16,6 +16,14 @@ then reads ``bp-config`` (one JSON document rendered by Terraform), and:
    status carries ``restore``: how this host's database came to be, from the
    report ``litestream-restore`` writes (T-D156, ADR-0127).
 
+Drain (T-D157, ADR-0127 amendment): before a release replaces the VM, CI sets
+the metadata key ``bp-drain`` to a request id. While it is set the agent does
+not converge: it stops ``app`` (writes end; Caddy keeps serving the status),
+checks ``litestream`` runs before and after three sync intervals, and reports
+``state: "drained"``. The ``drained`` marker is written before the app stops;
+while it exists the converged shortcut is skipped, so once CI deletes the key
+the next run re-applies (``compose up``) and the app comes back.
+
 A failed generation is retried with exponential back-off. The agent never
 changes the desired state; CI decides (re-apply with the previous ref).
 
@@ -43,18 +51,25 @@ from pathlib import Path
 
 METADATA_HOST = "169.254.42.42"
 CONFIG_KEY = "bp-config"
+DRAIN_KEY = "bp-drain"
 SCHEMA = 1
 
 STATE_DIR = Path("/var/lib/budget-planner")
 STATUS_FILE = STATE_DIR / "status" / "status.json"
 APPLIED_FILE = STATE_DIR / "applied-generation"
 FAILURE_FILE = STATE_DIR / "failure.json"
+DRAINED_FILE = STATE_DIR / "drained"
 DOCKER_CONFIG_DIR = STATE_DIR / "docker"
 COSIGN_DIR = Path("/usr/local/lib/bp-agent")
 # Written by litestream-restore.sh on the /data bind mount (T-D156, ADR-0127).
 RESTORE_REPORT_FILE = Path("/data/restore-report.json")
 RESTORE_RESULTS = frozenset({"restored", "empty", "skipped-db-present"})
 RESTORE_FIELD_MAX = 64
+# T-D157: three Litestream sync intervals (litestream.yml: sync-interval 10s).
+DRAIN_SETTLE_S = 30
+DRAIN_REQUEST_MAX = 64
+DRAIN_REQUEST_CHARS = frozenset("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-")
+LITESTREAM_CONTAINER = "budget-planner-litestream"
 
 BACKOFF_BASE_S = 30
 BACKOFF_MAX_S = 900
@@ -62,6 +77,7 @@ READY_ATTEMPTS = 40
 READY_SLEEP_S = 3
 PRIVILEGED_PORT_TRIES = 20
 HTTP_OK = 200
+HTTP_NOT_FOUND = 404
 
 Runner = Callable[[Sequence[str], Mapping[str, str] | None], "subprocess.CompletedProcess[str]"]
 
@@ -215,6 +231,22 @@ def parse_restore_report(raw: bytes | None) -> dict[str, str] | None:
     return {k: str(v) for k, v in fields.items()}
 
 
+def parse_drain_request(raw: bytes | None) -> str | None:
+    """The ``bp-drain`` request id, or None when the key is absent or empty."""
+    if raw is None:
+        return None
+    request = raw.decode("utf-8", "replace").strip()
+    if not request:
+        return None
+    if len(request) > DRAIN_REQUEST_MAX or not set(request) <= DRAIN_REQUEST_CHARS:
+        raise AgentError("drain_request", "not a request id")
+    return request
+
+
+def utc(now: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+
+
 def build_status(
     cfg: Config | None,
     state: str,
@@ -223,6 +255,7 @@ def build_status(
     now: float,
     *,
     restore: Mapping[str, str] | None = None,
+    drain: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     """status.json body. No secrets and no paths: Caddy serves it publicly."""
     return {
@@ -234,7 +267,8 @@ def build_status(
         "running_ref": running_ref,
         "error": error,
         "restore": dict(restore) if restore is not None else None,
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "drain": dict(drain) if drain is not None else None,
+        "updated_at": utc(now),
     }
 
 
@@ -281,6 +315,16 @@ def fetch_metadata(key: str) -> bytes:
     raise AgentError("config_fetch", repr(last))
 
 
+def fetch_optional(key: str) -> bytes | None:
+    """GET a user-data key that may be absent: None on 404."""
+    try:
+        return fetch_metadata(key)
+    except AgentError as exc:
+        if str(exc).endswith(f"HTTP {HTTP_NOT_FOUND}"):
+            return None
+        raise
+
+
 def read_text(path: Path) -> str:
     try:
         return path.read_text().strip()
@@ -321,6 +365,19 @@ def read_restore_report() -> dict[str, str] | None:
 
 def write_status(body: Mapping[str, object]) -> None:
     write_atomic(STATUS_FILE, (json.dumps(body, indent=2) + "\n").encode(), 0o644)
+
+
+def container_running(runner: Runner, container: str) -> bool:
+    res = runner(["docker", "inspect", "--format", "{{.State.Running}}", container], None)
+    return res.returncode == 0 and res.stdout.strip() == "true"
+
+
+def read_status() -> dict[str, object]:
+    try:
+        doc = json.loads(STATUS_FILE.read_text())
+    except (OSError, ValueError):
+        return {}
+    return doc if isinstance(doc, dict) else {}
 
 
 def running_ref(runner: Runner, container: str) -> str:
@@ -424,23 +481,86 @@ def apply(cfg: Config, runner: Runner, sleep: Callable[[float], None]) -> None:
     probe_ready(runner, cfg, sleep)
 
 
+def drain(
+    cfg: Config,
+    request: str,
+    runner: Runner,
+    now: Callable[[], float],
+    sleep: Callable[[float], None],
+) -> int:
+    """Stop the app and let Litestream ship the last frames; report ``drained``."""
+    status = read_status()
+    done = status.get("drain")
+    if (
+        read_text(DRAINED_FILE) == request
+        and status.get("state") == "drained"
+        and isinstance(done, dict)
+        and done.get("request") == request
+    ):
+        return 0
+    # Marker first: a drain that fails after the stop must still re-apply later.
+    write_atomic(DRAINED_FILE, request.encode(), 0o644)
+    restore = read_restore_report()
+    current = running_ref(runner, cfg.app_container)
+    write_status(
+        build_status(
+            cfg,
+            "draining",
+            current,
+            "",
+            now(),
+            restore=restore,
+            drain={"request": request, "at": ""},
+        )
+    )
+    env = {"DOCKER_CONFIG": str(DOCKER_CONFIG_DIR)}
+    try:
+        compose(runner, cfg, env, "stop", "app")
+    except AgentError as exc:
+        raise AgentError("drain_stop", str(exc)) from exc
+    if not container_running(runner, LITESTREAM_CONTAINER):
+        raise AgentError("drain_litestream", "not running before the settle")
+    sleep(DRAIN_SETTLE_S)
+    if not container_running(runner, LITESTREAM_CONTAINER):
+        raise AgentError("drain_litestream", "stopped during the settle")
+    write_status(
+        build_status(
+            cfg,
+            "drained",
+            current,
+            "",
+            now(),
+            restore=restore,
+            drain={"request": request, "at": utc(now())},
+        )
+    )
+    print(f"bp-agent: drained for request {request}")
+    return 0
+
+
 def converge(
     runner: Runner = run,
     now: Callable[[], float] = time.time,
     sleep: Callable[[float], None] = time.sleep,
 ) -> int:
     cfg: Config | None = None
+    request: str | None = None
     try:
         cfg = parse_config(fetch_metadata(CONFIG_KEY))
+        request = parse_drain_request(fetch_optional(DRAIN_KEY))
+        if request is not None:
+            return drain(cfg, request, runner, now, sleep)
         current = running_ref(runner, cfg.app_container)
-        if is_converged(cfg, read_text(APPLIED_FILE), current):
+        # A drained host's stopped app still reports its image: re-apply.
+        if not DRAINED_FILE.exists() and is_converged(cfg, read_text(APPLIED_FILE), current):
             if not STATUS_FILE.exists():
                 write_status(
                     build_status(cfg, "ok", current, "", now(), restore=read_restore_report())
                 )
             return 0
         failure = read_failure()
-        if in_backoff(cfg, failure, now()):
+        # Undrain must not wait out an earlier apply's back-off (app is down).
+        if not DRAINED_FILE.exists() and in_backoff(cfg, failure, now()):
             return 0
         write_status(
             build_status(cfg, "applying", current, "", now(), restore=read_restore_report())
@@ -449,7 +569,8 @@ def converge(
     except Exception as exc:  # every failure must end in a failed status
         err = exc if isinstance(exc, AgentError) else AgentError("internal", repr(exc))
         print(f"bp-agent: {err}", file=sys.stderr)
-        if cfg is not None:
+        # A drain failure arms no back-off: the undrain re-apply must not wait.
+        if cfg is not None and not err.code.startswith("drain_"):
             failure = next_failure(cfg, read_failure(), now())
             write_atomic(FAILURE_FILE, json.dumps(dataclasses.asdict(failure)).encode(), 0o600)
         write_status(
@@ -460,11 +581,16 @@ def converge(
                 err.code,
                 now(),
                 restore=read_restore_report(),
+                # CI matches a drain failure to its own request (wait-drained).
+                drain={"request": request, "at": ""}
+                if request and err.code.startswith("drain_")
+                else None,
             )
         )
         return 1
     write_atomic(APPLIED_FILE, cfg.generation.encode(), 0o644)
     FAILURE_FILE.unlink(missing_ok=True)
+    DRAINED_FILE.unlink(missing_ok=True)
     write_status(
         build_status(
             cfg,

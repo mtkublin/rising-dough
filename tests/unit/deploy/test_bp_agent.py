@@ -84,10 +84,20 @@ def _doc(tmp: Path, **overrides: Any) -> dict[str, Any]:
 class FakeRunner:
     """Records commands; answers docker inspect, cosign, compose and curl."""
 
-    def __init__(self, running: str = "", verify_ok: bool = True, ready_ok: bool = True) -> None:
+    def __init__(
+        self,
+        running: str = "",
+        verify_ok: bool = True,
+        ready_ok: bool = True,
+        litestream: list[bool] | None = None,
+        stop_ok: bool = True,
+    ) -> None:
         self.running = running
         self.verify_ok = verify_ok
         self.ready_ok = ready_ok
+        # T-D157: answers to `docker inspect {{.State.Running}} litestream`, in order.
+        self.litestream = list(litestream) if litestream is not None else []
+        self.stop_ok = stop_ok
         self.calls: list[list[str]] = []
 
     def __call__(
@@ -96,8 +106,13 @@ class FakeRunner:
         args = list(cmd)
         self.calls.append(args)
         rc, out = 0, ""
-        if args[:2] == ["docker", "inspect"]:
+        if args[:2] == ["docker", "inspect"] and "{{.State.Running}}" in args:
+            up = self.litestream.pop(0) if self.litestream else True
+            out = "true\n" if up else "false\n"
+        elif args[:2] == ["docker", "inspect"]:
             rc, out = (0, self.running + "\n") if self.running else (1, "")
+        elif args[:3] == ["docker", "compose", "-f"] and "stop" in args:
+            rc = 0 if self.stop_ok else 1
         elif "verify" in args:
             rc = 0 if self.verify_ok else 1
         elif args[:3] == ["docker", "compose", "-f"] and args[3:4] and "up" in args:
@@ -126,13 +141,18 @@ def host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
     monkeypatch.setattr(agent, "STATUS_FILE", state / "status" / "status.json")
     monkeypatch.setattr(agent, "APPLIED_FILE", state / "applied-generation")
     monkeypatch.setattr(agent, "FAILURE_FILE", state / "failure.json")
+    monkeypatch.setattr(agent, "DRAINED_FILE", state / "drained")
     monkeypatch.setattr(agent, "DOCKER_CONFIG_DIR", state / "docker")
     monkeypatch.setattr(agent, "RESTORE_REPORT_FILE", tmp_path / "data" / "restore-report.json")
     monkeypatch.setattr(agent, "ensure_cosign", lambda _policy: tmp_path / "cosign")
     monkeypatch.setattr(os, "chown", lambda *_a, **_k: None)
 
-    def converge(doc: dict[str, Any], runner: FakeRunner, now: float = 1000.0) -> int:
+    def converge(
+        doc: dict[str, Any], runner: FakeRunner, now: float = 1000.0, drain: str | None = None
+    ) -> int:
         monkeypatch.setattr(agent, "fetch_metadata", lambda _key: json.dumps(doc).encode())
+        raw = drain.encode() if drain is not None else None
+        monkeypatch.setattr(agent, "fetch_optional", lambda _key: raw)
         rc: int = agent.converge(runner=runner, now=lambda: now, sleep=lambda _s: None)
         return rc
 
@@ -253,6 +273,7 @@ def test_fresh_host_verifies_writes_composes_and_reports_ok(
         "running_ref": REF,
         "error": "",
         "restore": None,
+        "drain": None,
         "updated_at": "",
     }
 
@@ -461,3 +482,147 @@ def test_failed_status_still_carries_the_restore_report(
     status = _status(tmp_path)
     assert status["state"] == "failed"
     assert status["restore"] == {"result": "empty", "generation": "", "at": "t"}
+
+
+# --- drain (T-D157, ADR-0127 amendment) ------------------------------------
+
+REQ = "44513330068-1"
+
+
+def _drained_host(tmp_path: Path, host: Callable[..., int]) -> FakeRunner:
+    host(_doc(tmp_path), FakeRunner())
+    runner = FakeRunner(running=REF)
+    assert host(_doc(tmp_path), runner, drain=REQ) == 0
+    return runner
+
+
+def test_drain_stops_only_the_app_and_reports_drained(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    runner = _drained_host(tmp_path, host)
+
+    stops = [c for c in runner.calls if c[:2] == ["docker", "compose"] and "stop" in c]
+    assert [c[4:] for c in stops] == [["stop", "app"]]
+    assert "compose up" not in runner.kinds() and "verify" not in runner.kinds()
+    checks = [c for c in runner.calls if "{{.State.Running}}" in c]
+    assert [c[-1] for c in checks] == ["budget-planner-litestream"] * 2
+    status = _status(tmp_path)
+    assert status["state"] == "drained"
+    assert status["drain"] == {"request": REQ, "at": "1970-01-01T00:16:40Z"}
+    assert status["generation"] == "gen-1"
+    assert (tmp_path / "state" / "drained").read_text() == REQ
+
+
+def test_drain_waits_three_sync_intervals(
+    tmp_path: Path, host: Callable[..., int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(_doc(tmp_path), FakeRunner())
+    slept: list[float] = []
+    monkeypatch.setattr(agent, "fetch_metadata", lambda _key: json.dumps(_doc(tmp_path)).encode())
+    monkeypatch.setattr(agent, "fetch_optional", lambda _key: REQ.encode())
+
+    agent.converge(runner=FakeRunner(running=REF), now=lambda: 1.0, sleep=slept.append)
+
+    assert slept == [agent.DRAIN_SETTLE_S] == [30]
+
+
+def test_repeated_drain_for_the_same_request_does_nothing(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    _drained_host(tmp_path, host)
+    runner = FakeRunner(running=REF)
+
+    assert host(_doc(tmp_path), runner, drain=REQ) == 0
+    assert runner.calls == []
+
+
+def test_new_request_drains_again(tmp_path: Path, host: Callable[..., int]) -> None:
+    _drained_host(tmp_path, host)
+    runner = FakeRunner(running=REF)
+
+    assert host(_doc(tmp_path), runner, drain="44513330068-2") == 0
+    assert "compose stop" in runner.kinds()
+    assert _status(tmp_path)["drain"]["request"] == "44513330068-2"
+
+
+@pytest.mark.parametrize(("litestream", "detail"), [([False], "before"), ([True, False], "during")])
+def test_drain_fails_when_litestream_is_not_running(
+    tmp_path: Path, host: Callable[..., int], litestream: list[bool], detail: str
+) -> None:
+    host(_doc(tmp_path), FakeRunner())
+
+    rc = host(_doc(tmp_path), FakeRunner(running=REF, litestream=litestream), drain=REQ)
+
+    assert rc == 1
+    status = _status(tmp_path)
+    assert (status["state"], status["error"]) == ("failed", "drain_litestream")
+    assert status["drain"] == {"request": REQ, "at": ""}
+    # No back-off for drain failures; the marker stays so the undrain re-applies.
+    assert not (tmp_path / "state" / "failure.json").exists()
+    assert (tmp_path / "state" / "drained").exists()
+
+
+def test_drain_fails_when_the_app_does_not_stop(tmp_path: Path, host: Callable[..., int]) -> None:
+    host(_doc(tmp_path), FakeRunner())
+
+    assert host(_doc(tmp_path), FakeRunner(running=REF, stop_ok=False), drain=REQ) == 1
+    assert _status(tmp_path)["error"] == "drain_stop"
+
+
+def test_undrain_reapplies_and_clears_the_marker(tmp_path: Path, host: Callable[..., int]) -> None:
+    _drained_host(tmp_path, host)
+    runner = FakeRunner(running=REF)  # a stopped container still reports its image
+
+    assert host(_doc(tmp_path), runner) == 0
+
+    assert "compose up" in runner.kinds() and "curl" in runner.kinds()
+    assert not (tmp_path / "state" / "drained").exists()
+    status = _status(tmp_path)
+    assert (status["state"], status["drain"]) == ("ok", None)
+
+
+def test_undrain_after_a_failed_drain_reapplies(tmp_path: Path, host: Callable[..., int]) -> None:
+    host(_doc(tmp_path), FakeRunner())
+    host(_doc(tmp_path), FakeRunner(running=REF, litestream=[True, False]), drain=REQ)
+    runner = FakeRunner(running=REF)
+
+    assert host(_doc(tmp_path), runner, now=1001.0) == 0
+    assert "compose up" in runner.kinds()
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"), [(None, None), (b"", None), (b" \n", None), (b"r-1\n", "r-1")]
+)
+def test_parse_drain_request(raw: bytes | None, expected: str | None) -> None:
+    assert agent.parse_drain_request(raw) == expected
+
+
+@pytest.mark.parametrize("raw", [b"a b", b"x;rm", b"a" * 65])
+def test_parse_drain_request_rejects_anything_else(raw: bytes) -> None:
+    with pytest.raises(agent.AgentError, match="drain_request"):
+        agent.parse_drain_request(raw)
+
+
+def test_fetch_optional_maps_404_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    def missing(_key: str) -> bytes:
+        raise agent.AgentError("config_fetch", "HTTP 404")
+
+    def broken(_key: str) -> bytes:
+        raise agent.AgentError("config_fetch", "HTTP 500")
+
+    monkeypatch.setattr(agent, "fetch_metadata", missing)
+    assert agent.fetch_optional("bp-drain") is None
+    monkeypatch.setattr(agent, "fetch_metadata", broken)
+    with pytest.raises(agent.AgentError, match="500"):
+        agent.fetch_optional("bp-drain")
+
+
+def test_undrain_ignores_an_earlier_back_off(tmp_path: Path, host: Callable[..., int]) -> None:
+    """Review finding: a failure record for this generation must not keep the app down."""
+    host(_doc(tmp_path), FakeRunner(ready_ok=False))  # failed apply: back-off armed
+    assert (tmp_path / "state" / "failure.json").exists()
+    host(_doc(tmp_path), FakeRunner(running=REF), drain=REQ)
+    runner = FakeRunner(running=REF)
+
+    assert host(_doc(tmp_path), runner) == 0  # same `now`: still inside the back-off
+    assert "compose up" in runner.kinds()
