@@ -14,39 +14,39 @@
 | LOC per package | Lines (files) under `src/budget_planner`: `domain` 1,283 (16); `services` 7,263 (32); `repositories` 3,563 (18); `web/routers` 6,114 (20); `web/templates` 6,022 (111); `web/static` 8,488 (44); `db` 752 (6); `adapters` 0 (3, empty); `cli` 155 (2). Package total (.py) 22,254 (120). `tests/` (.py) 39,158 (232). |
 | `just ci` at SHA | Green: ruff, mypy (352 files) clean; 2637 passed, 17 skipped in 423.00s (pytest), 8:52.96 wall for the whole `just ci` (`PYTEST_WORKERS=2`); coverage 94.70% (gate 90%). Raw output: `baseline/ci.txt`, per-module table: `baseline/coverage.txt` |
 | Scratch DB | `/tmp/audit.sqlite` (copied from `data/demo.sqlite`; migrations not needed) |
-| Status | Phase 3 consolidated, awaiting operator review (T-Q12). V1, V2, V3 verification folded in. Track H4 (infra, drill) pending |
+| Status | Phase 3 complete, awaiting operator review (T-Q12). V1, V2, V3 verification and Track H4 (infra red team on drill 44609305750) folded in |
 
 ## Summary
 
-**77 consolidated findings (Q-001 to Q-077) from 149 track findings** (148 merged into Q-ids, 1 dismissed as out of scope). Critical 0, High 20, Medium 41, Low 16. Verification: V1 (tracks A-C), V2 (D, E, G, H1, H3), V3 (F, H2) re-checked every Critical/High and at least 20 percent of Mediums; **0 findings rejected**, the 4 track-rated Criticals (A-01, B-01, C-01, G-01) were reclassified High because they are latent on current data. Track H4 (infrastructure, needs an operator-triggered clean drill) is **pending**: D-11 and the Caddy header questions wait on it.
+**80 consolidated findings (Q-001 to Q-080) from 155 track findings** (154 merged into Q-ids, 1 dismissed as out of scope). Critical 0, High 20, Medium 41, Low 19. Verification: V1 (tracks A-C), V2 (D, E, G, H1, H3), V3 (F, H2) re-checked every Critical/High and at least 20 percent of Mediums; **0 findings rejected**, the 4 track-rated Criticals (A-01, B-01, C-01, G-01) were reclassified High because they are latent on current data. Track H4 (infrastructure, white-box red team on a live explore drill, Step 0 confirmed no prod data) added 6 findings: 3 merged into existing Q-ids (H4-01 into Q-027, H4-03 into Q-012, H4-04 into Q-068) and 3 new Low Q-ids (Q-078 to Q-080). It also resolved the open Caddy question (Caddy overwrites a forged `X-Forwarded-For`, so Q-027 keeps Medium for a different reason: the real client IP is lost for everyone) and verified D-11 (Q-067) and D-12 (Q-066).
 
 **Nothing is Critical today.** Calibration used the operator facts of 2026-11-19: prod has only PLN accounts (no FX, no JPY/KRW/ISK), one active user (more soon), no reconciliation ever used an income/expense category, probably no recurring rule with a blank day-of-month starting after the 28th. Latent wrong-money is therefore High, and the two scoping defects (D-01/H2-01) are High but become Critical the day a second user exists. Items marked **Biting on current PLN data** are the ones that can produce a wrong number or a 500 today without any of those preconditions.
 
 ### Counts by severity and track (consolidated Q-ids by the track of their lead alias)
 
-| Severity | A | B | C | D | E | F | G | H1 | H2 | H3 | Total |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Critical | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| High | 5 | 2 | 2 | 1 | 0 | 8 | 1 | 1 | 0 | 0 | 20 |
-| Medium | 6 | 6 | 6 | 1 | 2 | 9 | 7 | 3 | 1 | 0 | 41 |
-| Low | 1 | 1 | 2 | 5 | 2 | 1 | 1 | 1 | 1 | 1 | 16 |
-| **Total** | 12 | 9 | 10 | 7 | 4 | 18 | 9 | 5 | 2 | 1 | 77 |
+| Severity | A | B | C | D | E | F | G | H1 | H2 | H3 | H4 | Total |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Critical | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| High | 5 | 2 | 2 | 1 | 0 | 8 | 1 | 1 | 0 | 0 | 0 | 20 |
+| Medium | 6 | 6 | 6 | 1 | 2 | 9 | 7 | 3 | 1 | 0 | 0 | 41 |
+| Low | 1 | 1 | 2 | 5 | 2 | 1 | 1 | 1 | 1 | 1 | 3 | 19 |
+| **Total** | 12 | 9 | 10 | 7 | 4 | 18 | 9 | 5 | 2 | 1 | 3 | 80 |
 
 Original track counts before consolidation (track-assigned severity, `Critical (cond.)` counted as Critical):
 
-| Severity | A | B | C | D | E | F | G | H1 | H2 | H3 | Total |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Critical | 1 | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 4 |
-| High | 7 | 2 | 6 | 1 | 3 | 13 | 0 | 2 | 1 | 0 | 35 |
-| Medium | 9 | 7 | 10 | 2 | 3 | 10 | 10 | 4 | 2 | 1 | 58 |
-| Low | 5 | 6 | 3 | 10 | 5 | 4 | 6 | 4 | 2 | 7 | 52 |
-| **Total** | 22 | 16 | 20 | 13 | 11 | 27 | 17 | 10 | 5 | 8 | 149 |
+| Severity | A | B | C | D | E | F | G | H1 | H2 | H3 | H4 | Total |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Critical | 1 | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 4 |
+| High | 7 | 2 | 6 | 1 | 3 | 13 | 0 | 2 | 1 | 0 | 0 | 35 |
+| Medium | 9 | 7 | 10 | 2 | 3 | 10 | 10 | 4 | 2 | 1 | 2 | 60 |
+| Low | 5 | 6 | 3 | 10 | 5 | 4 | 6 | 4 | 2 | 7 | 4 | 56 |
+| **Total** | 22 | 16 | 20 | 13 | 11 | 27 | 17 | 10 | 5 | 8 | 6 | 155 |
 
-Track H4 is pending and not counted. Tracks A-G are the plan tracks (duplication, layering, correctness, security, frontend, tests, drift); H1 CI/supply chain, H2 isolation, H3 auth.
+Tracks A-G are the plan tracks (duplication, layering, correctness, security, frontend, tests, drift); H1 CI/supply chain, H2 isolation, H3 auth, H4 infrastructure exposure (live drill). In the first table H4 counts only the Q-ids whose lead alias is an H4 finding (Q-078 to Q-080); H4-01, H4-03 and H4-04 sit under D/H3, H1 and D respectively.
 
 ### Dedupe statistics
 
-149 track findings: 148 mapped into 77 Q-ids (average 1.9 per Q-id), 1 dismissed. 42 Q-ids merge two or more track findings; the largest merges are Q-007 (5), Q-023 (5), Q-027 (5), Q-010 (4). Merge rule: one Q-id per concept and root cause. Deliberate non-merges: the currency exponent is split into the renderer (Q-011, High) and the exponent table (Q-029, Medium) because the location, fix and severity differ; mixed-currency native sums are split into services (Q-008), the ledger strips (Q-010) and net worth (Q-009), which share one converter (Q-007) but not a location.
+155 track findings: 154 mapped into 80 Q-ids (average 1.9 per Q-id), 1 dismissed. 42 Q-ids merge two or more track findings; the largest merges are Q-027 (6, now with H4-01), Q-007 (5), Q-023 (5), Q-010 (4); H4-03 grew Q-012 to 3 aliases and H4-04 grew Q-068 to 4. Merge rule: one Q-id per concept and root cause. Deliberate non-merges: the currency exponent is split into the renderer (Q-011, High) and the exponent table (Q-029, Medium) because the location, fix and severity differ; mixed-currency native sums are split into services (Q-008), the ledger strips (Q-010) and net worth (Q-009), which share one converter (Q-007) but not a location.
 
 ### Top 10 by risk
 
@@ -72,7 +72,7 @@ Ordered by: bites on current PLN data first, then scoping gaps that precede onbo
 | `duplicate-logic` | 12 | 6 | 0 |
 | `weak-assertion` | 11 | 5 | 1 |
 | `ci-trust-boundary` | 5 | 1 | 0 |
-| `security-control` | 5 | 0 | 0 |
+| `security-control` | 6 | 0 | 0 |
 | `scoping-gap` | 4 | 1 | 0 |
 | `layer-leak` | 4 | 1 | 0 |
 | `money-arith` | 4 | 2 | 0 |
@@ -90,7 +90,7 @@ Ordered by: bites on current PLN data first, then scoping gaps that precede onbo
 | `oversized-module` | 1 | 0 | 0 |
 | `import-cycle` | 1 | 0 | 0 |
 | `wide-signature` | 1 | 0 | 0 |
-| `infra-exposure` | 1 | 0 | 0 |
+| `infra-exposure` | 3 | 0 | 0 |
 | `silent-fallback` | 1 | 0 | 1 |
 
 New classes introduced in Phase 3 (plan section 5.2 allows this): `txn-boundary` (compound mutation or its guard read outside one transaction, Q-025) and `date-boundary` (date and schedule arithmetic at month ends and rule starts, Q-006). Used with their section 5.2 meaning otherwise; `clock` has 1 Q-id but 27 call sites.
@@ -114,7 +114,7 @@ Not High by calibration but in the same classes and recommended before Phase 3 b
 - Q-001 (High): Income-anchor endpoint is hard-wired to user 1: any user can set or clear the owner's anchor and probe the owner's categories, and no other user can set their own
 - Q-015 (High): Fixtures never contain a second user or a deleted/inactive row, so 40 money-path mutants (`user_id` or `conn` as `None`, `include_deleted`, `active_only`) survive
 - Q-025 (Medium): Compound mutations and their guard reads are not inside one transaction: double-submit can promote twice, concurrent writers fail with 'database is locked'
-- Q-027 (Medium): Authentication abuse controls: rate-limit identity is the unvalidated leftmost `X-Forwarded-For`, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another from the same IP
+- Q-027 (Medium): Authentication abuse controls: the real client IP is lost behind Docker NAT (every client is the gateway 172.18.0.1) so the per-IP login bucket is shared and `audit_log.ip` is useless, `--forwarded-allow-ips=*` trusts the header by name, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another
 - Q-028 (Medium): The recurring-rule save path skips the source-category validation that preview performs: foreign or nonexistent category ids and zero-amount formula rules are persisted
 - Q-034 (Medium): No `user_id`-leading indexes on the large multi-user tables; a session write on every request
 - Q-063 (Low): Admin edge cases: an absent `is_admin` field demotes the target; concurrent admin changes surface 'database is locked' as 500
@@ -146,16 +146,21 @@ Deduplicated from the Questions sections of all tracks and verification files. *
 | OQ-17 | Should `fx_rates.rate` have a CHECK (> 0), and is the provider response validated enough that one user's currency cannot poison the shared cache? (C Q-6, H2 Q3) |  | Q-007 |
 | OQ-18 | Is Europe/Warsaw the only supported display zone? (F Q-3) |  | Q-031 |
 | OQ-19 | What is `httpx2` in the dev group and who added it? (G Q2) | Sev | Q-043 Medium to Low if legitimate, incident if not |
-| OQ-20 | Are `/docs` and `/openapi.json` intended in prod? (G Q3) |  | Q-066 |
+| OQ-20 | Are `/docs` and `/openapi.json` intended in prod? (G Q3) H4: unauthenticated requests redirect to login, so only authenticated exposure remains (OQ-34). |  | Q-066 |
 | OQ-21 | Close `docs/plans/v2/tasks.md` (60 open rows) as superseded by ADR-0107? (G Q4) |  | Q-054 |
 | OQ-22 | Should CI run `pre-commit run --all-files`, or are bandit and detect-secrets excluded from CI on purpose (ADR-0120)? (G Q5) |  | Q-044 |
 | OQ-23 | Are ADR-0106 and ADR-0107 Accepted? Can the duplicate ADR numbers 0105 and 0121 stay grandfathered? (G Q6, Q7) |  | Q-051 |
 | OQ-24 | H1: are the values in `prod-plan` real prod secrets or placeholders (rotate after remediation)? Do drill gates restore prod data or only `restore-drill`? Who can write the GHCR package, and has a rollback ever run to a `sha-*` tag? Is a second reviewer or bot feasible, or is the self-approved merge accepted risk? Is the live Tailscale ACL identical to the runbook? (H1 Q1-Q9) | Sev | Q-012, Q-040, Q-041 |
-| OQ-25 | Does Caddy 2.8 overwrite a client-supplied `X-Forwarded-For` and strip `X-CSP-Nonce`? (H3 Q1, D, H2 Q2). Answered by H4 (pending). | Sev | Q-027 Medium to Low if it overwrites |
+| OQ-25 | Does Caddy 2.8 overwrite a client-supplied `X-Forwarded-For` and strip `X-CSP-Nonce`? (H3 Q1, D, H2 Q2). **Answered by H4 (2026-11-19, live drill): yes.** Caddy 2.8.4 overwrote forged `X-Forwarded-For` and `X-Real-IP` (stored `audit_log.ip` and `auth_rate_limit.key` carry the Docker gateway `172.18.0.1`, not the forged addresses) and replaced a forged `X-CSP-Nonce` with its own. Header rotation is therefore not exploitable through Caddy, but H4-01 found the real client IP is lost for everyone, so Q-027 stays Medium (reason changed). | Sev | Q-027 stays Medium |
 | OQ-26 | H3: do shipped pages send concurrent HTMX requests during re-auth (H3-04)? Is 300 s challenge replay acceptable? Should passkey removal end its sessions? Do the user's passkeys report counter 0? (H3 Q2-Q5) | Sev | Q-062 (H3-04 to Medium) |
 | OQ-27 | E: after `budget-stale` does /budget show stale totals until reload? Does the undo reload fire on a failed undo? (E Q2, Q3) |  | Q-038, Q-037 |
 | OQ-28 | F: root cause of the `test_landmarks_present[/today]` flake not found; the 49 newly visible uncovered statements after the coverage fix are untriaged. (F Q-1, Q-5) |  | Q-077, Q-014 |
 | OQ-29 | Should the test-isolation tripwire (F-20) be treated as High? Consequence would be writes to the prod DB. | Sev | Q-060 Medium to High |
+| OQ-30 | H4: which `MASQUERADE` rule rewrites the tailnet source to the bridge gateway `172.18.0.1` (the `ts-postrouting` mark masquerade versus the `LOCAL` hairpin rules on the `edge` bridge)? Needs `conntrack -E` or a capture on a throwaway drill. (H4 Q2) |  | Q-027 fix shape (host-network Caddy versus iptables change) |
+| OQ-31 | H4: is the age identity on the explore drill really the prod identity (the install script header says it must be)? Compare the public recipient with the prod recipient in a context allowed to touch prod config. Is the prod replica read key on the drill valid against prod? (H4 Q4, not tested on purpose) | Sev | Q-012: confirms High; if both are synthetic, drops to Medium |
+| OQ-32 | H4: what does tag:ci reach on the tailnet? The ACL source file is not in the repo; version and test it, including `tag:ci` to `tag:prod:22`. (H4 Q3, H1 Q9) |  | Q-012, Q-067 |
+| OQ-33 | H4: what does Caddy return when the app is down (502 page, headers, CSP)? Needs a controlled app stop on a throwaway drill. (H4 Q1) |  | Q-064 |
+| OQ-34 | H4: are `/docs` and `/openapi.json` served to an authenticated session in production? Unauthenticated callers get a 302 to `/auth/login` (verified live); authenticated exposure needs a login on a drill. (H4 Q5; refines OQ-20) |  | Q-066 |
 
 ## Register
 
@@ -174,7 +179,7 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 | Q-009 | High | Confirmed | A / `duplicate-logic` | Net worth is computed twice; the figure labelled 'all accounts' silently drops non-base accounts while forecast starts from the converted figure | `services/fortune.py:30-51` (base-currency accounts only), `web/today_data.py:105-143` (`collect_account_rows` converts; `fortune_base` unused by any template), ... | `services/fortune.compute_fortune(..., converter)` returns per-currency and converted totals using the Q-007 converter; render the converted net worth, ... |
 | Q-010 | High | Confirmed | A/B/C/E / `duplicate-logic` | Recurring and Planned strips on the ledger sum raw amounts across currencies and, for planned, across income and expense, under a hard-coded 'PLN' | `web/routers/ledger.py:343-376` (`_recurring_summary`), `:409-414` (`planned_total_minor`); `web/templates/ledger/index.html:93-114` (literal `PLN`, `/ 100.0`), ... | Move both strips (and the formula-source sums) into `services/ledger_totals.py:recurring_monthly_totals` / `planned_totals` using the Q-007 converter, signed by direction (`domain` sign helper, Q-036), ... |
 | Q-011 | High | Confirmed | A/C/E / `money-arith` | Money rendered with hard-coded `/ 100.0` and two decimals in 40+ templates, charts and services: zero-decimal currencies show 100x off | `web/templates/today/index.html:32,42,52-55,89-93,100`, `today/_afford_preview.html:3,5`, `today/_upcoming.html:43`, `ledger/_table.html:69`, `ledger/index.html:98-114`, ... | Route every amount through `money` / `money_num(currency)` (templates) and one `domain/money.py:minor_to_major(amount, currency)` (charts, services); replace `_MINOR_UNITS_PER_MAJOR`, ... |
-| Q-012 | High | Confirmed | H1 / `ci-trust-boundary` | Ungated, all-branch GitHub environments hold prod-grade secrets (prod age identity, prod replica read key, prod app key, Tailscale OAuth) and can mint a tailnet identity that reaches prod sshd | `.github/workflows/terraform.yml:41-56,204-215`, `drill.yml:60-107,207-218`, `restore-drill.yml`, `replace-rehearsal.yml`, `scripts/ci/tf_env.py:60-79`, ... | Split by data sensitivity: new `prod-restore-read` environment (prod restore-reader key plus prod age identity only) with required reviewers and `main`-only branch policy, used only by `restore-drill`, ... |
+| Q-012 | High | Confirmed | H1/H4 / `ci-trust-boundary` | Ungated, all-branch GitHub environments hold prod-grade secrets (prod age identity, prod replica read key, prod app key, Tailscale OAuth) and can mint a tailnet identity that reaches prod sshd | `.github/workflows/terraform.yml:41-56,204-215`, `drill.yml:60-107,207-218`, `restore-drill.yml`, `replace-rehearsal.yml`, `scripts/ci/tf_env.py:60-79`, ... | Split by data sensitivity: new `prod-restore-read` environment (prod restore-reader key plus prod age identity only) with required reviewers and `main`-only branch policy, used only by `restore-drill`, ... |
 | Q-013 | High | Confirmed | F / `missing-invariant-test` | None of Track A's 16 differential invariants exists as a test; 8 of the 10 failing ones will regress or stay open unguarded | `tests/integration/invariants/` (absent); seed in `repro/A/harness.py`; table in `tracks/F-tests.md` section for F-14 | Add `tests/integration/invariants/` with one file per Track A script, reusing the multi-currency seed from `repro/A/harness.py` as a conftest fixture (PLN + EUR + JPY, one cached rate, one archived category, ... |
 | Q-014 | High | Confirmed | F / `config-drift` | The coverage config excludes every line containing `...`, silently removing about 790 statements and 16 whole functions from the report | `pyproject.toml:194` (`"\\.\\.\\."` in `[tool.coverage.report] exclude_lines`); affected e.g. `services/balance.py:42`, `services/budget.py:603` (`yearly_grid`), ... | Delete the line or replace it with the anchored `"^\\s*\\.\\.\\.$"` in `pyproject.toml` `exclude_lines`; add tests for the 49 newly missed statements (listed in the repro file). |
 | Q-015 | High | Confirmed | F / `missing-invariant-test` | Fixtures never contain a second user or a deleted/inactive row, so 40 money-path mutants (`user_id` or `conn` as `None`, `include_deleted`, `active_only`) survive | `services/forecast.py:277`, `services/budget.py:308,451,501,548`, `services/recurring.py:496`, `services/balance.py:102,133` (rows 5, 7, 22, 30, 43, 51, 60, 78, 101, ... | Add a two-user fixture and a `world_with_tombstones` fixture to `tests/unit/services/conftest.py`; one parametrised test per money service function (balance, budget, forecast, analytics, recurring, planned, upcoming, ... |
@@ -189,7 +194,7 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 | Q-024 | Medium | Confirmed | B/C/H2 / `repo-bypass` | Batch undo endpoints bypass the repository layer, replay 'the latest audit row' of any operation, do not restore all state and write no audit entry | `web/routers/planned.py:112-181` (raw SELECT at `140`, raw UPDATE at `155`), `web/routers/recurring.py:470-545` (raw SELECT at `501`, ... | Delete the SQL from both routers |
 | Q-025 | Medium | Probable | B/C / `txn-boundary` | Compound mutations and their guard reads are not inside one transaction: double-submit can promote twice, concurrent writers fail with 'database is locked' | `repositories/_shared.py:113-143` (deferred `BEGIN`); `services/planned.py:149-193,221-224`; `services/recurring.py:356-500`; `services/reconciliation.py:62-120`, ... | `BEGIN IMMEDIATE` in `repositories/_shared.transaction` (waits on `busy_timeout`); move the guard reads inside, ... |
 | Q-026 | Medium | Confirmed | C / `scoping-gap` | Soft-deleting an account drops its balance from fortune and leaves live recurring rules and planned rows pointing at it (promotion still posts to it) | `web/routers/accounts.py:348-354`; `repositories/accounts.py:138-155`; `repositories/_shared.py:199-200`; `services/_promotion.py:41-60`, ... | New `services/accounts.archive_account()` that refuses (typed error, 409 with a message) when the balance is not zero or live rules/planned rows reference it, or deactivates them in the same transaction, ... |
-| Q-027 | Medium | Confirmed | D/H2/H3 / `security-control` | Authentication abuse controls: rate-limit identity is the unvalidated leftmost `X-Forwarded-For`, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another from the same IP | `Dockerfile:104-108` (`--proxy-headers --forwarded-allow-ips=*`); `web/routers/auth.py:85-143,146-203` (`_client_ip`, `login_rate_limit`, `reauth_rate_limit`), ... | Stop trusting the header by name: `--forwarded-allow-ips` set to the proxy's fixed address, proxy overwrites `X-Forwarded-For` and `X-Real-IP`, ... |
+| Q-027 | Medium | Confirmed | D/H2/H3/H4 / `security-control` | Authentication abuse controls: the real client IP is lost behind Docker NAT (every client is the gateway 172.18.0.1) so the per-IP login bucket is shared and `audit_log.ip` is useless, `--forwarded-allow-ips=*` trusts the header by name, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another | `Dockerfile:104-108` (`--proxy-headers --forwarded-allow-ips=*`); `web/routers/auth.py:85-143,146-203` (`_client_ip`, `login_rate_limit`, `reauth_rate_limit`), ... | Stop trusting the header by name: `--forwarded-allow-ips` set to the proxy's fixed address, proxy overwrites `X-Forwarded-For` and `X-Real-IP`, ... |
 | Q-028 | Medium | Confirmed | H2 / `missing-invariant-test` | The recurring-rule save path skips the source-category validation that preview performs: foreign or nonexistent category ids and zero-amount formula rules are persisted | `web/routers/recurring.py:181-230` (`_resolve_amount_inputs`, used by create `:268` and update `:632`), ... | Move `_invalid_source_ids` to a shared service function and call it (with the positive-amount rule) in `_resolve_amount_inputs`; extend the two-user formula test to the create/update paths. |
 | Q-029 | Medium | Confirmed | A/C / `money-arith` | Currency exponent table lists only JPY/KRW (and a few others): 21 accepted ISO codes are mis-scaled, including ISK which is FX-reachable | `domain/money.py:14-23` (`_CURRENCY_DECIMALS`), `:26-195` (accepted list, `currency_decimals`); `services/accounts.py:197-200` (accepts any 3-letter code) | Generate the exponent table from ISO 4217 (all codes) next to `ISO_4217_CURRENCIES`; unit test in `tests/unit/domain/test_money.py` that every offered code has an explicit entry, ... |
 | Q-030 | Medium | Confirmed | A / `duplicate-logic` | Forecast and budget disagree on which categories and overdue items count: archived categories reserve budget in the daily overlay, overdue planned items are dropped from the forecast stream | `services/forecast.py:581,447` (`directions_by_cat` built `include_deleted=True`), `:686`, `:254,262-283` (`event_start = today + 1`), ... | Decide the policy once (operator, OQ-6/OQ-18), then `services/categories.py:expense_category_ids(conn, user, *, ... |
@@ -228,9 +233,9 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 | Q-063 | Low | Confirmed | H2 / `htmx-contract` | Admin edge cases: an absent `is_admin` field demotes the target; concurrent admin changes surface 'database is locked' as 500 | `web/routers/settings_users.py:77-78,228-264`; `services/users.py:385-392`; `repositories/_shared.py:113-143` | Treat a missing `is_admin` as unchanged (or require an explicit hidden 0); `BEGIN IMMEDIATE` for admin mutations and map `OperationalError` to the 409 flow. |
 | Q-064 | Low | Confirmed | D / `security-control` | 500 responses skip the security-header and no-store middleware; exception text bypasses log redaction | `web/errors.py:117-125,155-156`; `web/app.py:187-199`; `logging.py:25-55,77-90` | One pure-ASGI middleware registered outermost for the baseline headers and no-store, plus a test that forces a 500 and asserts all headers, ... |
 | Q-065 | Low | Confirmed | D/E / `security-control` | CSP exists only at the proxy; the app trusts a client-supplied nonce and carries dead nonce and `csrf_token` stubs | `web/middleware/security_headers.py:41-78`; `terraform/cloud-init/compose/Caddyfile.tpl:49-54`; `deploy/Caddyfile:5-8`; `web/rendering.py:39,59`, `web/errors.py`, ... | Emit the CSP from `SecurityHeadersMiddleware` (app-generated nonce, inbound header ignored, Caddy stays a second layer) with a test; remove the `csrf_token` stub and the unused `csp_nonce` context key, ... |
-| Q-066 | Low | Confirmed | D / `config-drift` | Declared-but-unenforced and exposed surfaces: `BUDGET_TRUSTED_HOSTS` never enforced; `/docs`, `/openapi.json` and `/dev/components` live in production | `config.py:54-57,169-176`; `terraform/cloud-init/compose/docker-compose.yml.tpl:23`; `web/app.py:168,187-199`; `web/routers/dev_components.py:17-27` | Register Starlette `TrustedHostMiddleware(allowed_hosts=settings.trusted_hosts)` when non-empty; register `dev_components` only when `settings.env != "production"` and build the app with `docs_url=None, ... |
-| Q-067 | Low | Probable | D / `infra-exposure` | Docker-published ports bypass ufw; the tailnet-only drill relies on the cloud security group alone | `terraform/cloud-init/compose/docker-compose.yml.tpl:125-130`; `terraform/cloud-init/bootstrap.yaml.tpl:125-135,238` (re-check at remediation) | Bind the Caddy ports to the tailnet address for the drill (Terraform variable) or filter in the `DOCKER-USER` chain beside the metadata guard; update ADR-0101 to say where the control sits. |
-| Q-068 | Low | Confirmed | D/H1 / `dependency` | Pinning gaps: mutable Caddy/Litestream/base-image tags, floating `uv`/tailscale/cloud-init versions, Actions repo settings weaker than the runbook | `terraform/cloud-init/compose/docker-compose.yml.tpl:4,60,77,102,122`; `Dockerfile:9,24,43`; `.github/workflows/ci.yml:25`, `security.yml:50,111,126`, ... | Pin `caddy`, `litestream` by `@sha256:` digest (the host agent can verify), the base image digest and `uv`; pin tailscale and `cloud-init` versions; set `sha_pinning_required: true`, `allowed_actions: selected`, ... |
+| Q-066 | Low | Confirmed | D/H4 / `config-drift` | Declared-but-unenforced and exposed surfaces: `BUDGET_TRUSTED_HOSTS` never enforced; `/docs`, `/openapi.json` and `/dev/components` live in production | `config.py:54-57,169-176`; `terraform/cloud-init/compose/docker-compose.yml.tpl:23`; `web/app.py:168,187-199`; `web/routers/dev_components.py:17-27` | Register Starlette `TrustedHostMiddleware(allowed_hosts=settings.trusted_hosts)` when non-empty; register `dev_components` only when `settings.env != "production"` and build the app with `docs_url=None, ... |
+| Q-067 | Low | Confirmed | D/H4 / `infra-exposure` | Docker-published ports bypass ufw; the tailnet-only drill relies on the cloud security group alone | `terraform/cloud-init/compose/docker-compose.yml.tpl:125-130`; `terraform/cloud-init/bootstrap.yaml.tpl:125-135,238` (re-check at remediation) | Bind the Caddy ports to the tailnet address for the drill (Terraform variable) or filter in the `DOCKER-USER` chain beside the metadata guard; update ADR-0101 to say where the control sits. |
+| Q-068 | Low | Confirmed | D/H1/H4 / `dependency` | Pinning gaps: mutable Caddy/Litestream/base-image tags, floating `uv`/tailscale/cloud-init versions, Actions repo settings weaker than the runbook | `terraform/cloud-init/compose/docker-compose.yml.tpl:4,60,77,102,122`; `Dockerfile:9,24,43`; `.github/workflows/ci.yml:25`, `security.yml:50,111,126`, ... | Pin `caddy`, `litestream` by `@sha256:` digest (the host agent can verify), the base image digest and `uv`; pin tailscale and `cloud-init` versions; set `sha_pinning_required: true`, `allowed_actions: selected`, ... |
 | Q-069 | Low | Confirmed | H1 / `ci-trust-boundary` | Release `ci` job runs third-party installers with write-capable tokens; `.security-allowlist.yml` is read from the PR checkout and reaches a `run:` line unescaped | `.github/workflows/release.yml:27-31,76-79`, `ci.yml:16-86`, `security.yml:62-75`, `.security-allowlist.yml` | `permissions: contents: read` on `ci.yml` and the `ci` job of `release.yml`, grant the rest per job; pass the allowlist through `env:` and a validated array (`^[A-Za-z0-9-]+$`) and read it from `origin/main`. |
 | Q-070 | Low | Probable | E / `template-logic` | Credit-card utilisation computed in three templates plus the router; hard-coded `10` default month and `'PLN'` fallbacks in templates | `partials/accounts/_card.html:3-7`, `_row.html:17-19`, `accounts/index.html:77-79`, `routers/accounts.py` (`_uses_available`); `partials/budget/_override_form.html:8`, ... | One `credit_utilisation(card)` returning `used_minor, available_minor, used_pct` in the accounts view model; the view model supplies `currency` and month and templates fail (StrictUndefined) instead of defaulting. |
 | Q-071 | Low | Probable | E / `duplicate-logic` | `passkeys.js` duplicates the login and re-auth flows and swallows every error | `static/js/passkeys.js:21-24,65-72,111-192,240-244`; `static/htmx-csrf.js:26-30` | Extract `runAssertion(beginUrl, finishUrl, status, errorMsg)`, share `csrfToken()` via a tiny `csrf.js`, log `err.name` to `console.debug`, rename `resp403` to `isReauthRequired`. |
@@ -240,6 +245,9 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 | Q-075 | Low | Probable | A / `duplicate-logic` | Tier resolution has two implementations and the receiving screens use three different 'monthly average' definitions | `services/budget.py:183,603,515-523`, `web/routers/budget.py:99,206`, `services/analytics.py:152`, `_mean_minor` in `budget.py:240` and `analytics.py:138` | New `services/aggregates.py` (`mean_minor`, `sum_by_category(txns, to_base)`) and one pure `pick_tier(one_off, recurring, default)`; document one average definition after the operator decides. |
 | Q-076 | Low | Confirmed | C / `money-arith` | No single rounding policy (HALF_UP, HALF_EVEN, float `round()`, floor division) and retention window compares mismatched timestamp formats | `domain/money.py:198-207`, `services/recurring_formula.py:68,135`, `services/fx.py:142,164`, `services/today.py:50`, `web/routers/today.py:141`, ... | `domain/money.py` exports `round_div` (HALF_EVEN) and `round_scaled`; document the policy in ADR-0006; compare with `strftime('%Y-%m-%dT%H:%M:%fZ','now',?)` and one precision (`utc_now_iso`). |
 | Q-077 | Low | Confirmed | F / `weak-assertion` | Test hygiene: duplicated tests and fixtures, 15 permanently skipped pre-redesign tests, tests with no meaningful assertion | `tests/e2e/test_accessibility.py:24-31`; `conn` fixture in `tests/integration/conftest.py:54`, `tests/unit/services/conftest.py:17`, ... | Delete the e2e landmarks test and one of the duplicate promotion tests; move `conn` and an autouse fast-bcrypt fixture to `tests/conftest.py` and route URLs through `sqlite_url` (also helps Q-060), ... |
+| Q-078 | Low | Confirmed | H4 / `infra-exposure` | Unauthenticated status endpoints disclose the exact running image ref and digest, deploy generation, restore result and replica generation | Caddy `handle /.well-known/bp-deploy-status.json` (file server on `/srv/bp-status`), `/health`, `/health/replication` | Trim the status JSON to `state`, `generation` and a short ref, or require a deploy-token header at Caddy for that path; or accept (tailnet only) and record it in ADR-0111. |
+| Q-079 | Low | Confirmed | H4 / `security-control` | Hardening is app-only: Caddy and the three Litestream containers run as root with a writable rootfs and no dropped capabilities, and the flat `edge` network lets them reach the app | rendered `docker-compose.yml` (`terraform/cloud-init/compose/docker-compose.yml.tpl`), `daemon.json` (`icc:false` covers only the default bridge) | Add `read_only`, `cap_drop: [ALL]` and `user:` where the images allow; put the Litestream services on a network separate from the app. |
+| Q-080 | Low | Confirmed | H4 / `infra-exposure` | The initial admin password and the cookie secret stay in the app container environment for its lifetime and are readable via `docker inspect` by any `docker` group member | the initial-admin-password and cookie-signing variables in the rendered compose and `bp-config`; Terraform state | Seed the admin through a one-shot container or file that is removed, or drop the variable from the rendered compose after first login (host-agent generation bump). |
 
 ## Details
 
@@ -409,17 +417,17 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 ### Q-012 — Ungated, all-branch GitHub environments hold prod-grade secrets (prod age identity, prod replica read key, prod app key, Tailscale OAuth) and can mint a tailnet identity that reaches prod sshd
 - **Severity / Confidence:** High / Confirmed
 - **Track / root cause:** H1 / `ci-trust-boundary`
-- **Track aliases and calibration:** H1-01 High; H1-06 Medium
-- **Calibration note:** H1-06 (orig Medium) merged: same ungated environments, one fix. H4 (infra) is pending and may add evidence.
+- **Track aliases and calibration:** H1-01 High; H1-06 Medium; H4-03 Medium (live confirmation)
+- **Calibration note:** H1-06 (orig Medium) merged: same ungated environments, one fix. H4-03 (track Medium, design-level) merged as live confirmation; the merged record keeps High.
 - **Location(s):** `.github/workflows/terraform.yml:41-56,204-215`, `drill.yml:60-107,207-218`, `restore-drill.yml`, `replace-rehearsal.yml`, `scripts/ci/tf_env.py:60-79`; live config `repro/H1/gh_api/environments.json` and the three per-environment name listings in the same directory; `docs/plans/v3/runbooks/tailscale-acl.hujson` (`tag:ci` to `tag:prod:22`); `terraform/main.tf` (re-check, see metadata note)
 - **Description:** Environments `prod-plan`, `drill`, `drill-plan`, `drill-teardown` have no reviewers and no deployment-branch policy, so a job from any branch that names one receives its secrets, and workflow YAML and local actions come from the branch. Read key plus age identity decrypt the whole prod replica. The same Tailscale OAuth client in those environments can join the tailnet as `tag:ci`, which the ACL lets reach prod port 22 (leftover of the SSH deploy path ADR-0111 removed).
-- **Evidence:** `tracks/H1-ci-supply-chain.md` H1-01, H1-06; `repro/H1/workflow_audit.out` sections 4-5; V2 verified the environment settings from the committed gh_api JSON.
+- **Evidence:** `tracks/H1-ci-supply-chain.md` H1-01, H1-06; `repro/H1/workflow_audit.out` sections 4-5; `tracks/H4-infra.md` H4-03 (live: the explore drill host carries `restore-source.env` with the prod replica read key and the age identity, mode 0600 root, and the age key is mounted into three litestream containers; `operator` has passwordless sudo and the docker group, so operator equals root; presence and permissions only, key values not read or used); V2 verified the environment settings from the committed gh_api JSON.
 - **Impact:** A stolen write-scoped token, a compromised dev machine or a prompt-injected agent with push rights can read and decrypt every user's financial data and delete or poison the prod replica without any approval. Fork PRs cannot (no secrets for forks). Precondition: same-repo write access (ADR-0121 threat model: single-owner repo).
 - **Mitigation:** Split by data sensitivity: new `prod-restore-read` environment (prod restore-reader key plus prod age identity only) with required reviewers and `main`-only branch policy, used only by `restore-drill`; give `prod-plan` and every drill environment a synthetic age identity and the drill app key, and plan with placeholder values; remove the Tailscale OAuth client from `prod-plan` and delete the `tag:ci` to `tag:prod:22` ACL rule. Rotate the secrets after the change.
 - **Alternatives:** Keep the secrets but require reviewers and a `main`-only policy on `drill`/`drill-teardown` (cheap, but the operator approves their own gates and teardown must stay ungated).
 - **Effort:** M
 - **Related:** ADR-0091, 0094, 0099, 0100, 0101, 0104, 0105, 0121, 0111; Q-041, Q-042
-- **Verification:** V2: H1-01 Confirmed (High). H1-06 not sampled (Probable; live ACL not readable).
+- **Verification:** V2: H1-01 Confirmed (High). H1-06 not sampled (Probable; live ACL not readable). H4: H4-03 Confirmed live on drill 44609305750 (presence and permissions); validity of the keys against prod deliberately not tested (OQ-31). Step 0 showed the drill DB itself held no prod data. The drill host is a second place (beside the CI environments) where prod-restore capability sits, so the fix also covers it: do not render `restore-source.env` or the prod age identity into explore drills, scope them to the `restore-drill` run only.
 
 ### Q-013 — None of Track A's 16 differential invariants exists as a test; 8 of the 10 failing ones will regress or stay open unguarded
 - **Severity / Confidence:** High / Confirmed
@@ -607,20 +615,20 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 - **Related:** ADR-0019; Q-004
 - **Verification:** V1: Confirmed (repro v_c05), High to Medium (intentional delete).
 
-### Q-027 — Authentication abuse controls: rate-limit identity is the unvalidated leftmost `X-Forwarded-For`, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another from the same IP
+### Q-027 — Authentication abuse controls: the real client IP is lost behind Docker NAT (every client is the gateway 172.18.0.1) so the per-IP login bucket is shared and `audit_log.ip` is useless, `--forwarded-allow-ips=*` trusts the header by name, throttled and failed logins write unbounded attacker text to the DB, and one user can lock out another
 - **Severity / Confidence:** Medium / Confirmed
 - **Track / root cause:** D/H2/H3 / `security-control`
-- **Track aliases and calibration:** D-06 Medium; H3-01 Medium; H3-07 Low; H2-04 Low; H3-05 Low
-- **Calibration note:** Severity depends on the Caddy behaviour (open question for H4): if Caddy overwrites the header, H3-01 reduces to a non-proxied path and the record drops to Low.
+- **Track aliases and calibration:** D-06 Medium; H3-01 Medium; H3-07 Low; H2-04 Low; H3-05 Low; H4-01 Medium
+- **Calibration note:** H4 answered the open Caddy question: Caddy overwrites a forged `X-Forwarded-For`, so the header-rotation bypass (H3-01 R3, R5) is not exploitable through Caddy and that part drops to defence in depth. But H4-01 showed the real client IP never reaches the app (Caddy and the app see 172.18.0.1 for every tailnet client), so the per-IP login bucket is one shared bucket (any tailnet peer can lock the owner out of password login for an hour) and `audit_log.ip` never identifies the device. Net severity stays Medium, for a different reason.
 - **Priority flag:** **Fix before a second user is onboarded**
 - **Location(s):** `Dockerfile:104-108` (`--proxy-headers --forwarded-allow-ips=*`); `web/routers/auth.py:85-143,146-203` (`_client_ip`, `login_rate_limit`, `reauth_rate_limit`); `services/rate_limit.py:120-166` (`audit_throttled`); `services/auth.py:151-172`; `repositories/sessions.py:124-135`; `terraform/cloud-init/bootstrap.yaml.tpl:77` (fail2ban installed, no jail); requirements 6.7 line 346
-- **Description:** Limits are per IP-and-email only; with a rotating header 30 wrong guesses on one account were never throttled (H3 R3) and a victim's bucket can be poisoned by sending the victim's address (R5). Every throttled attempt writes an audit row containing the full email (200 kB accepted). Same-IP users can burn each other's bucket (throttled attempts count), and a session-cookie holder can exhaust the owner's step-up bucket. Conditional on Caddy not overwriting the header (open, H4).
-- **Evidence:** `tracks/D-security.md` D-06; `tracks/H3-auth.md` H3-01, H3-05, H3-07 (`repro/H3/h3_rate_limit_output.txt` R3-R8); `tracks/H2-isolation.md` H2-04 (`repro/H2/h2_07_login_lockout_and_audit_tail.py`).
-- **Impact:** Credential guessing bounded only by bcrypt cost and the 12-character minimum; targeted lockout of a known user; DB and replica growth from pre-auth requests.
-- **Mitigation:** Stop trusting the header by name: `--forwarded-allow-ips` set to the proxy's fixed address, proxy overwrites `X-Forwarded-For` and `X-Real-IP`, `_client_ip` validates with `ipaddress.ip_address` and falls back to `request.client.host`. In `services/rate_limit.py`: per-email global bucket (30/h across IPs), do not count throttled attempts toward the window and reset the (IP, email) bucket on success, one `rate_limited` audit row per bucket per window, truncate stored email to 254, key the re-auth bucket on user plus session, Caddy `request_body max_size`. Either add the missing fail2ban jail or correct requirements 6.7 and ADR-0036 (Q-053).
+- **Description:** Limits are per IP-and-email only; with a rotating header 30 wrong guesses on one account were never throttled (H3 R3) and a victim's bucket can be poisoned by sending the victim's address (R5). Every throttled attempt writes an audit row containing the full email (200 kB accepted). Same-IP users can burn each other's bucket (throttled attempts count), and a session-cookie holder can exhaust the owner's step-up bucket. H4 (live drill): Caddy overwrites forged `X-Forwarded-For`, `X-Real-IP` and `X-CSP-Nonce`, so the rotating-header bypass is not exploitable via Caddy; instead the source address seen by Caddy and the app is the Docker bridge gateway 172.18.0.1 for every client (likely a `MASQUERADE` rule on the `edge` bridge, rule not isolated, OQ-30), so the stored identity is `login_ip:3600s:ip=172.18.0.1` for everyone.
+- **Evidence:** `tracks/D-security.md` D-06; `tracks/H3-auth.md` H3-01, H3-05, H3-07 (`repro/H3/h3_rate_limit_output.txt` R3-R8); `tracks/H2-isolation.md` H2-04 (`repro/H2/h2_07_login_lockout_and_audit_tail.py`); `tracks/H4-infra.md` H4-01 and section 3 (`repro/H4/h4_xff_probe.sh`, `out_xff_probe.txt`: `auth_rate_limit` rows keyed `ip=172.18.0.1` for both forged probes, `audit_log.ip=172.18.0.1`, Caddy log `client_ip` 172.18.0.1).
+- **Impact:** Credential guessing bounded only by bcrypt cost and the 12-character minimum (behind Caddy the per-IP bucket now throttles all clients together rather than being bypassable); targeted lockout of a known user, and of the owner by any tailnet peer; no usable source IP in the audit trail; DB and replica growth from pre-auth requests.
+- **Mitigation:** First fix the real-IP chain (H4-01): make the tailnet source address reach Caddy (host networking for Caddy, or avoid the `MASQUERADE` on the `edge` bridge via `iptables`/`--ip-masq` changes), set Caddy `trusted_proxies` explicitly, then pin `--forwarded-allow-ips` to Caddy's address instead of `*`, and add a drill smoke check asserting `audit_log.ip` is a `100.x` address. Then stop trusting the header by name: proxy overwrites `X-Forwarded-For` and `X-Real-IP` (verified live), `_client_ip` validates with `ipaddress.ip_address` and falls back to `request.client.host`. In `services/rate_limit.py`: per-email global bucket (30/h across IPs; stays necessary even with the IP chain fixed), do not count throttled attempts toward the window and reset the (IP, email) bucket on success, one `rate_limited` audit row per bucket per window, truncate stored email to 254, key the re-auth bucket on user plus session, Caddy `request_body max_size`. Either add the missing fail2ban jail or correct requirements 6.7 and ADR-0036 (Q-053).
 - **Effort:** M
-- **Related:** ADR-0072, ADR-0079, ADR-0036; Q-035, Q-062; H4 question: does Caddy 2.8 overwrite `X-Forwarded-For`? (OQ-27)
-- **Verification:** D-06, H3-01, H3-05, H3-07 not sampled; H2-04 not verified (Low).
+- **Related:** ADR-0072, ADR-0079, ADR-0036; Q-035, Q-062; OQ-25 (answered by H4), OQ-30
+- **Verification:** D-06, H3-01, H3-05, H3-07 not sampled; H2-04 not verified (Low). H4-01 Confirmed by live repro on drill 44609305750; no independent re-verification (the drill is torn down; evidence is the recorded redacted output in `repro/H4/`).
 
 ### Q-028 — The recurring-rule save path skips the source-category validation that preview performs: foreign or nonexistent category ids and zero-amount formula rules are persisted
 - **Severity / Confidence:** Medium / Confirmed
@@ -721,6 +729,7 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 - **Severity / Confidence:** Medium / Confirmed
 - **Track / root cause:** C/D / `security-control`
 - **Track aliases and calibration:** C-12 Medium; D-04 Low; D-05 Low
+- **Calibration note:** H4 confirmed `/ready` is unauthenticated on the live drill and returns only `{"status":"ready","db":"ok"}` on success (no detail on the success path); D-05 unchanged, the per-probe `integrity_check` cost and the exception echo remain.
 - **Location(s):** `web/routers/ledger.py:68,377-390` (`len(list_filtered(... limit=None))`, `page_size` unbounded), `domain/transactions.py:91`, `services/balance.py:77-82`, `services/budget.py:246-250`; `web/routers/health.py:40-79`, `web/middleware/auth.py:49-58`; `terraform/cloud-init/compose/Caddyfile.tpl:41-58` and `deploy/Caddyfile` (no `request_body max_size`); `routers/accounts.py:185`, `transactions.py:237` (field lengths)
 - **Description:** Counts and balances load every row; `page_size=1000000` returns 200; there is no body or field limit; `/ready` runs a full integrity check per probe and echoes exception text.
 - **Evidence:** `tracks/C-correctness.md` C-12; `tracks/D-security.md` D-04, D-05.
@@ -1101,9 +1110,10 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 - **Severity / Confidence:** Low / Confirmed
 - **Track / root cause:** D / `security-control`
 - **Track aliases and calibration:** D-03 Low; D-09 Low
+- **Calibration note:** H4 reproduced the D-02 pre-auth 500 (non-ASCII CSRF token on `/auth/login`, see Q-023) live behind Caddy: HTML 500 with the full security headers and a CSP (Caddy's `handle_response @html` adds them), generic body, no traceback. Behind Caddy the baseline headers are therefore present on 500s; the gap remains in the app itself (direct access, tests, any other proxy). Stays Low.
 - **Location(s):** `web/errors.py:117-125,155-156`; `web/app.py:187-199`; `logging.py:25-55,77-90`
 - **Description:** The catch-all handler responds outside the header middleware, and redaction works on structured keys only so exception messages carrying user input are logged verbatim.
-- **Evidence:** `tracks/D-security.md` D-03, D-09.
+- **Evidence:** `tracks/D-security.md` D-03, D-09; `tracks/H4-infra.md` section 2 (`repro/H4/out_error_path.txt`).
 - **Impact:** Low impact: maintainability or defence in depth.
 - **Mitigation:** One pure-ASGI middleware registered outermost for the baseline headers and no-store, plus a test that forces a 500 and asserts all headers; fix exceptions at the source (Q-023) and log only the exception type and frame for `ValueError`/`InvalidOperation`.
 - **Effort:** S
@@ -1127,40 +1137,42 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 - **Severity / Confidence:** Low / Confirmed
 - **Track / root cause:** D / `config-drift`
 - **Track aliases and calibration:** D-07 Low; D-12 Low
+- **Calibration note:** H4 (live drill): unauthenticated requests to `/docs`, `/openapi.json`, `/redoc` and `/dev/components` all return 302 to `/auth/login`, so there is no anonymous exposure; only an authenticated session (single owner today) could reach them. Authenticated reachability was not tested (OQ-34). Stays Low; impact is authenticated exposure only.
 - **Location(s):** `config.py:54-57,169-176`; `terraform/cloud-init/compose/docker-compose.yml.tpl:23`; `web/app.py:168,187-199`; `web/routers/dev_components.py:17-27`
 - **Description:** The setting exists and is set in prod but no `TrustedHostMiddleware` is registered; schema and dev pages are reachable (authenticated).
-- **Evidence:** `tracks/D-security.md` D-07, D-12.
+- **Evidence:** `tracks/D-security.md` D-07, D-12; `tracks/H4-infra.md` sections 1 and 3 (D-12 note).
 - **Impact:** Low impact: maintainability or defence in depth.
 - **Mitigation:** Register Starlette `TrustedHostMiddleware(allowed_hosts=settings.trusted_hosts)` when non-empty; register `dev_components` only when `settings.env != "production"` and build the app with `docs_url=None, openapi_url=None` in production.
 - **Effort:** S
 - **Related:** T-D07, ADR-0079; operator Q: docs routes intended in prod? (OQ-21)
-- **Verification:** Not sampled by V1/V2/V3.
+- **Verification:** Not sampled by V1/V2/V3; H4 verified the unauthenticated redirect live.
 
 ### Q-067 — Docker-published ports bypass ufw; the tailnet-only drill relies on the cloud security group alone
-- **Severity / Confidence:** Low / Probable
+- **Severity / Confidence:** Low / Confirmed
 - **Track / root cause:** D / `infra-exposure`
 - **Track aliases and calibration:** D-11 Low
+- **Calibration note:** H4 verified the mechanism on the live drill: Docker publishes `0.0.0.0:443` (tcp and udp) past ufw, but from the public side the barrier held (see Evidence). Stays Low; the controlling layer (probably the provider security group) is unconfirmed.
 - **Location(s):** `terraform/cloud-init/compose/docker-compose.yml.tpl:125-130`; `terraform/cloud-init/bootstrap.yaml.tpl:125-135,238` (re-check at remediation)
 - **Description:** Caddy publishes 80/443 on all interfaces and `daemon.json` lacks `"iptables": false`, so the ufw rule for tailscale0 does not filter published ports.
-- **Evidence:** `tracks/D-security.md` D-11; H4 pending.
+- **Evidence:** `tracks/D-security.md` D-11; `tracks/H4-infra.md` section 1 and Notes (`repro/H4/out_net_probe.txt`, `out_host_probe.txt`): on the drill only 22 and 443 (plus tailscaled peerapi 47390 on the tailnet) are open and 8000 is not published; from the laptop the drill's public IP is filtered on 22/80/443/2019/8000; ufw does not govern the DNAT'd published port, so the only barrier observed is upstream of the VM (likely the provider security group, not provable from inside).
 - **Impact:** Low impact: maintainability or defence in depth.
 - **Mitigation:** Bind the Caddy ports to the tailnet address for the drill (Terraform variable) or filter in the `DOCKER-USER` chain beside the metadata guard; update ADR-0101 to say where the control sits.
 - **Effort:** S
-- **Related:** ADR-0094, ADR-0101; H4 (pending) is the verifier
-- **Verification:** Pending H4 (drill).
+- **Related:** ADR-0094, ADR-0101; OQ-32
+- **Verification:** H4: mechanism Confirmed live; not exploitable from the internet in this run. No independent re-verification (drill torn down). Mitigation unchanged and concrete: publish `100.x:443:443` instead of relying on the security group.
 
 ### Q-068 — Pinning gaps: mutable Caddy/Litestream/base-image tags, floating `uv`/tailscale/cloud-init versions, Actions repo settings weaker than the runbook
 - **Severity / Confidence:** Low / Confirmed
 - **Track / root cause:** D/H1 / `dependency`
-- **Track aliases and calibration:** D-10 Low; H1-09 Low; H1-10 Low
+- **Track aliases and calibration:** D-10 Low; H1-09 Low; H1-10 Low; H4-04 Low
 - **Location(s):** `terraform/cloud-init/compose/docker-compose.yml.tpl:4,60,77,102,122`; `Dockerfile:9,24,43`; `.github/workflows/ci.yml:25`, `security.yml:50,111,126`, `terraform.yml:135-137,337`, `drill.yml:213`; `.github/workflows/README.md` (`uptime.yml` row); `repro/H1/gh_api/actions_permissions.json`, `actions_fork_pr.json`
 - **Description:** Pinned action SHAs do not pin what they download; images are tags; `sha_pinning_required` is false and fork-PR approval covers first-time contributors only; the compose comment claims a digest pin.
-- **Evidence:** Track sections of the aliases (see Details of each alias in the track files).
+- **Evidence:** Track sections of the aliases (see Details of each alias in the track files); `tracks/H4-infra.md` H4-04 (live: the rendered compose pins `caddy:2.8` and `litestream/litestream:0.3.14` by tag on lines 60, 77, 102, 122 while the app is `tag@sha256`; running digests recorded in `repro/H4/out_host_probe.txt`; Caddy terminates TLS and carries the CSP logic, so a rebuilt tag changes it without a repo diff and `restore-drill` and prod could run different digests).
 - **Impact:** Low impact: maintainability or defence in depth.
 - **Mitigation:** Pin `caddy`, `litestream` by `@sha256:` digest (the host agent can verify), the base image digest and `uv`; pin tailscale and `cloud-init` versions; set `sha_pinning_required: true`, `allowed_actions: selected`, fork approval for all outside collaborators; test that every `uses:` is a SHA; fix or remove the README row.
 - **Effort:** S
 - **Related:** ADR-0036, ADR-0103, ADR-0111, ADR-0099; re-check workflow lines after the T-D158 merge
-- **Verification:** Not sampled by V1/V2/V3.
+- **Verification:** Not sampled by V1/V2/V3; H4-04 Confirmed live.
 
 ### Q-069 — Release `ci` job runs third-party installers with write-capable tokens; `.security-allowlist.yml` is read from the PR checkout and reaches a `run:` line unescaped
 - **Severity / Confidence:** Low / Confirmed
@@ -1280,6 +1292,45 @@ Sorted Critical, High, Medium, Low. Location(s) and Mitigation are abbreviated h
 - **Related:** ADR-0108, ADR-0107
 - **Verification:** Not sampled (F Lows).
 
+### Q-078 — Unauthenticated status endpoints disclose the exact running image ref and digest, deploy generation, restore result and replica generation
+- **Severity / Confidence:** Low / Confirmed
+- **Track / root cause:** H4 / `infra-exposure`
+- **Track aliases and calibration:** H4-02 Low
+- **Location(s):** Caddy `handle /.well-known/bp-deploy-status.json` (file server on `/srv/bp-status`), `/health` (version string), `/health/replication`
+- **Description:** On the live drill the unauthenticated deploy-status JSON returns the full `desired_ref` and `running_ref` including the image digest and short sha, the deploy `generation` hash, `restore.result`, `updated_at` and `error`; `/health/replication` returns `generation`, `newest_object_at` and `age_seconds`. No secrets.
+- **Evidence:** `tracks/H4-infra.md` H4-02 (`repro/H4/out_http_probe.txt`).
+- **Impact:** Tailnet peers learn the exact running commit and digest (target selection) and whether a restore happened. Tailnet-only, so defence in depth.
+- **Mitigation:** Keep the status JSON for the CI monitor but trim it to `state`, `generation` and a short ref, or require a deploy token header at Caddy for that path; or accept it and record the decision in ADR-0111.
+- **Effort:** S
+- **Related:** ADR-0111; Q-035 (`/ready`)
+- **Verification:** Confirmed by live repro on drill 44609305750; not independently re-verified (drill torn down; evidence is the recorded redacted output).
+
+### Q-079 — Hardening is app-only: Caddy and the three Litestream containers run as root with a writable rootfs and no dropped capabilities, and the flat `edge` network lets them reach the app
+- **Severity / Confidence:** Low / Confirmed
+- **Track / root cause:** H4 / `security-control`
+- **Track aliases and calibration:** H4-05 Low
+- **Location(s):** rendered `docker-compose.yml` (`terraform/cloud-init/compose/docker-compose.yml.tpl`); host `daemon.json`
+- **Description:** `docker inspect` on the drill: the app runs as user 10001 with a read-only rootfs; Caddy, litestream and litestream-probe run as root with `ro=false` and `caps_drop=[]`. `icc:false` affects only the default bridge, so from the probe container `http://budget-planner-app:8000/health` returns 200. `no-new-privileges` is set at daemon level.
+- **Evidence:** `tracks/H4-infra.md` H4-05 (`repro/H4/out_host_probe.txt`).
+- **Impact:** A compromise of Caddy or a Litestream container (the latter hold bucket write keys and the age identity) yields root-in-container, write access to the replica and no network segmentation from the app.
+- **Mitigation:** Add `read_only`, `cap_drop: [ALL]` and `user:` where the images allow; put the Litestream services on a separate network from the app.
+- **Effort:** M
+- **Related:** Q-012, Q-068
+- **Verification:** Confirmed by live repro on drill 44609305750; not independently re-verified (drill torn down).
+
+### Q-080 — The initial admin password and the cookie secret stay in the app container environment for its lifetime and are readable via `docker inspect` by any `docker` group member
+- **Severity / Confidence:** Low / Confirmed
+- **Track / root cause:** H4 / `infra-exposure`
+- **Track aliases and calibration:** H4-06 Low
+- **Location(s):** the initial-admin-password, cookie-signing and database-URL variables in the app container env (names in `tracks/H4-infra.md` only); rendered compose; `bp-config`; Terraform state
+- **Description:** The variables are not removed after the first login (the seeded admin shows `must_change_password: true` in audit row 1). The app container cannot read the age key or bucket keys (its mounts are `/data` and `/replication` read-only). `operator` is in `sudo` (passwordless) and `docker`, so operator equals root on the host.
+- **Evidence:** `tracks/H4-infra.md` H4-06 and section 3 (values redacted at source in `repro/H4/out_host_probe.txt`).
+- **Impact:** Readable by any `docker` group member and recurs in `bp-config` and Terraform state. The initial password is valid only until the forced change, so the exposure is bounded; the cookie secret is longer-lived.
+- **Mitigation:** Seed via a one-shot container or file that is removed, or drop the variable from the rendered compose after first login (host-agent generation bump).
+- **Effort:** S
+- **Related:** Q-012 (same host-root root cause)
+- **Verification:** Confirmed by live repro on drill 44609305750; not independently re-verified (drill torn down).
+
 ## Dismissed
 
 No finding was **Rejected** by V1, V2 or V3 (0 of 58 verification verdicts). Items below are out of scope or not findings.
@@ -1303,4 +1354,4 @@ No finding was **Rejected** by V1, V2 or V3 (0 of 58 verification verdicts). Ite
 | `verification/V1.md` | A, B, C: 18 Critical/High + 8 sampled Mediums | 22 Confirmed, 2 Probable, 0 Rejected; Criticals A-01, B-01, C-01 reclassified High (latent) |
 | `verification/V2.md` | D, E, G, H1, H3: 7 Critical/High + 5 sampled Mediums | 11 Confirmed, 1 Probable, 0 Rejected; G-01 Critical to High |
 | `verification/V3.md` | F, H2: 14 High + 4 sampled Mediums + 2 bonus | 19 Confirmed, 1 Probable (F-09, stays High), 0 Rejected; F-01 and F-13 High to Medium; H2-01 = D-01 |
-| `tracks/H4-infra.md` | Infrastructure exposure on a clean drill | **Pending** (drill not started). To fold in when it lands: D-11 verification, Caddy `X-Forwarded-For` behaviour (OQ-25), drill-bucket access, secrets in logs. |
+| `tracks/H4-infra.md` | Infrastructure exposure (live explore drill 44609305750, Step 0 clean) | 6 findings Confirmed by live repro (H4-01 and H4-03 Medium by the track, 4 Low); 0 Critical, no prod data on the drill. No independent re-verification pass was done for H4: the drill is torn down, so the evidence is the recorded redacted output in `repro/H4/` and the Mediums are proven by the drill run itself. |
