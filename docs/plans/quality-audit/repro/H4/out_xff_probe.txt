@@ -1,0 +1,15 @@
+xff=203.0.113.7 csrf_len=43
+login status=401
+xff=198.51.100.9 csrf_len=43
+login status=401
+--- readback from the app DB
+tables: ['fx_rates', 'audit_log', 'auth_rate_limit']
+fx_rates ['id', 'date', 'from_ccy', 'to_ccy', 'rate', 'fetched_at']
+auth_rate_limit ['id', 'key', 'bucket_start', 'count']
+   (3, 'login_ip:3600s:ip=172.18.0.1', '2026-11-19T20:00:00.000000Z', 2)
+   (2, 'login:3600s:ip=172.18.0.1|email=h4probe@example.invalid', '2026-11-19T20:00:00.000000Z', 2)
+   (1, 'login:60s:ip=172.18.0.1|email=h4probe@example.invalid', '2026-11-19T20:47:00.000000Z', 2)
+audit_log cols: ['id', 'entity_type', 'entity_id', 'changed_at', 'operation', 'prev_json', 'new_json', 'actor_user_id', 'ip', 'user_id', 'session_id', 'user_agent']
+   ('3', 'auth_event', '0', '2026-11-19T20:47:23.663Z', 'create', 'None', '{"email": "h4probe@example.invalid", "event": "login_failed", "method": "password", "reaso', 'None', '172.18.0.1', 'None', 'None', 'curl/7.71.1')
+   ('2', 'auth_event', '0', '2026-11-19T20:47:22.729Z', 'create', 'None', '{"email": "h4probe@example.invalid", "event": "login_failed", "method": "password", "reaso', 'None', '172.18.0.1', 'None', 'None', 'curl/7.71.1')
+   ('1', 'users', '1', '2026-11-19T20:41:19.818Z', 'update', '{"email": null, "id": 1, "is_admin": false, "must_change_password": false, "name": "defaul', '{"email": "<admin>@gmail.com", "id": 1, "is_admin": true, "must_change_password": true, "', 'None', 'None', 'None', 'None', 'None')
