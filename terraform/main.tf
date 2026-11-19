@@ -115,8 +115,11 @@ locals {
     image         = "ubuntu_noble"
     zone          = var.scaleway_zone
     # ADR-0127 §7: the replacement rehearsal boots the drill on Block Storage
-    # (as prod before T-D143) and then moves it to l_ssd. Prod is always l_ssd.
-    root_volume_type    = var.env == "prod" ? "l_ssd" : var.drill_root_volume_type
+    # (as prod before T-D143) and then moves it to l_ssd.
+    # T-D158 / ADR-0127 amendment 2: prod stays on Block Storage (sbs_volume)
+    # for release A, which ships the drain-capable agent in place; release B
+    # moves it to l_ssd (T-D143).
+    root_volume_type    = var.env == "prod" ? "sbs_volume" : var.drill_root_volume_type
     root_volume_size_gb = 10
   }
   vm_spec_id = substr(sha256(jsonencode(local.vm_spec)), 0, 12)

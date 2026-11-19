@@ -611,8 +611,10 @@ run "prod_instance_type_is_stardust" {
   }
 
   assert {
-    condition     = module.compute.root_volume_type == "l_ssd" && module.compute.root_volume_size_gb == 10
-    error_message = "prod must boot from a 10 GB local SSD, not Block Storage (T-D143, ADR-0118)."
+    # T-D158 / ADR-0127 amendment 2: release A keeps prod on Block Storage so the
+    # drain-capable agent ships in place; release B moves it to l_ssd (T-D143).
+    condition     = module.compute.root_volume_type == "sbs_volume" && module.compute.root_volume_size_gb == 10
+    error_message = "prod stays on 10 GB Block Storage until release B (T-D158, ADR-0127 amendment 2)."
   }
 
   assert {
@@ -790,13 +792,13 @@ run "prod_ignores_drill_rehearsal_knobs" {
     app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
     app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
     restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
-    drill_root_volume_type        = "sbs_volume"
+    drill_root_volume_type        = "l_ssd"
     drill_allow_empty_db          = true
   }
 
   assert {
-    condition     = module.compute.root_volume_type == "l_ssd"
-    error_message = "prod must stay on l_ssd whatever drill_root_volume_type says (ADR-0127 §7)."
+    condition     = module.compute.root_volume_type == "sbs_volume"
+    error_message = "prod must ignore drill_root_volume_type (ADR-0127 §7; sbs_volume until release B, T-D158)."
   }
 
   assert {

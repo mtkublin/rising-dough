@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-19 (T-D158: agent before replace)
+- **Feat(T-D158): drain capability check, prod pinned to `sbs_volume` (release A).** `host_release.py drain-capable` runs before `bp-drain` is set and fails when the status has no `drain` field; the PR plan job prints `replaced=` from the plan JSON. Prod's root volume stays on Block Storage so release A updates the VM in place and ships the drain-capable agent; release B moves it to `l_ssd`.
+- **Docs(T-D158): ADR-0127 amendment 2.** Release v3.0.6 (run 44539030541) failed safely at the drain: prod runs the pre-T-D157 agent, which ignores `bp-drain`. The undrain removed the key, no apply ran, prod stays on v3.0.5. Fix: a capability check before the drain, and T-D143 in two releases (A pins prod to `sbs_volume` and ships the agent in place; B moves prod to `l_ssd` with a drain). `deploy.md` stuck-drain command corrected.
+
 ## 2026-11-19 (gamification: starter tuning)
 - **Docs: ADR-0128 retunes the starter from a simulation** (amends ADR-0125). 16 simulated users over 6 months, targets set by the user; ADR-0125 as written passed 27/47 checks (most users pinned at 100, abandoned starters woken by an empty "within budget" period, launch burst, flicker). Final tuning 47/47, held back 7/8: new weights and thresholds 25/55/85, reconcile ≤ 1/week across accounts, ≥ 50 % check-in coverage for budget and net-worth feeds, "nothing to log" needs a real entry in 14 days, 7-day ×1.5 comeback bonus, hysteresis 8, overflowing only while saving, per-category budget baseline. Requirements S1.1–S1.4, plan and tasks updated; simulator in `docs/plans/gamification/starter-sim/`.
 

@@ -251,6 +251,14 @@ jobs:
           terraform plan -no-color -input=false -lock=false -out=plan.bin | python3 scripts/mask_plan.py | tee plan.out
           terraform show -no-color plan.bin | python3 scripts/mask_plan.py > plan.txt
 
+      # T-D158: the masked text plan can hide the server diff, so the PR plan
+      # also says whether the app server would be replaced (JSON, no secrets
+      # printed: only `replaced=` and the server id).
+      - name: Detect VM replacement (plan)
+        run: |
+          set -euo pipefail
+          terraform show -json plan.bin | python3 ../scripts/ci/host_release.py replaced | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Upload plan artifact
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
@@ -480,6 +488,9 @@ jobs:
         run: |
           set -euo pipefail
           url="https://$(terraform output -raw fqdn)/.well-known/bp-deploy-status.json"
+          # T-D158 / ADR-0127 amendment 2: an agent that cannot drain fails here,
+          # before the key is set and before the apply.
+          python3 ../scripts/ci/host_release.py drain-capable --url "${url}"
           python3 ../scripts/ci/scw_user_data.py set --server "${SERVER_ID}" --value "${DRAIN_REQUEST}"
           python3 ../scripts/ci/host_release.py wait-drained --url "${url}" --request "${DRAIN_REQUEST}"
 

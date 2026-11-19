@@ -423,6 +423,51 @@ def test_wait_drained_cli(capsys: pytest.CaptureFixture[str]) -> None:
     assert "drained" in capsys.readouterr().out
 
 
+# --- drain-capable (T-D158, ADR-0127 amendment 2) --------------------------
+
+
+@pytest.mark.parametrize("drain", [None, {"request": REQ, "at": ""}])
+def test_drain_capable_accepts_any_drain_field(drain: object) -> None:
+    hr.drain_capable(_status(drain=drain))
+
+
+def test_drain_capable_refuses_a_pre_t_d157_agent() -> None:
+    # The v3.0.5 agent's status (release run 44539030541): no `drain` field.
+    with pytest.raises(hr.ReleaseError, match="cannot drain"):
+        hr.drain_capable(_status())
+
+
+def test_wait_status_retries_then_times_out() -> None:
+    clock = _Clock()
+    answers: list[Mapping[str, object] | None] = [None, _status()]
+    got = hr.wait_status(
+        lambda _u: answers.pop(0),
+        "https://h/s",
+        timeout=60,
+        interval=5,
+        clock=clock,
+        sleep=clock.sleep,
+    )
+    assert got["state"] == "ok"
+    with pytest.raises(hr.ReleaseError, match="no host status"):
+        hr.wait_status(
+            lambda _u: None,
+            "https://h/s",
+            timeout=10,
+            interval=5,
+            clock=clock,
+            sleep=clock.sleep,
+        )
+
+
+def test_drain_capable_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    args = ["drain-capable", "--url", "https://h/s"]
+    assert hr.main(args, fetch=lambda _u: _status(drain=None)) == 0
+    assert "can drain" in capsys.readouterr().out
+    assert hr.main(args, fetch=lambda _u: _status()) == 1
+    assert "::error::host agent cannot drain" in capsys.readouterr().err
+
+
 def test_replaced_cli_never_echoes_bad_input(capsys: pytest.CaptureFixture[str]) -> None:
     rc = hr.main(["replaced"], stdin=lambda: "not json TOPSECRET")
 
