@@ -1,0 +1,12 @@
+/* Category and goal colour presets: data-color="<preset>" sets --cat and --cat-edge. */
+@layer tokens {
+  [data-color="teal"]{--cat:#14b8a6} [data-color="peach"]{--cat:#fdba74} [data-color="purple"]{--cat:#a855f7}
+  [data-color="blue"]{--cat:#5b8cff} [data-color="pink"]{--cat:#ec4899} [data-color="yellow"]{--cat:#eab308}
+  [data-color="green"]{--cat:#22c55e} [data-color="sky"]{--cat:#38bdf8} [data-color="coral"]{--cat:#ff8a8a}
+  [data-color="lime"]{--cat:#84cc16} [data-color="rose"]{--cat:#fb7185} [data-color="orange"]{--cat:#f97316}
+  [data-color="mint"]{--cat:#86efac} [data-color="slate"]{--cat:#e2e8f0} [data-color="indigo"]{--cat:#6366f1}
+  /* the ten picker presets above match New category: red orange yellow lime green teal sky indigo purple pink */
+  [data-color="red"]{--cat:#ef4444} [data-color="default"]{--cat:#8a8a80}
+  [data-color] { --cat-edge: color-mix(in srgb, var(--cat) 60%, transparent); --cat-tint: color-mix(in srgb, var(--cat) 20%, transparent); }
+  :root[data-theme="light"] [data-color], [data-theme="light"] [data-color] { --cat-edge: color-mix(in srgb, var(--cat) 80%, #000); --cat-tint: color-mix(in srgb, var(--cat) 30%, transparent); }
+}
