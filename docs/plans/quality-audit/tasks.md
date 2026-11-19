@@ -21,7 +21,7 @@
 - Every tool in implementation_plan §2 has been run in report-only mode, with raw output in `baseline/<tool>.txt` and summaries in `baseline/README.md`.
 - No dependency or config changes committed (tools run through `uv run --with`).
 
-### T-Q03a [P] Mutmut spike
+### ✅ T-Q03a [P] Mutmut spike
 - `domain` only, unit tests, `--no-cov`. Record mutant count, wall time, kill / survive / timeout counts and fixture breakage.
 - Prod-DB safety check passed.
 - Go / no-go decision recorded in `baseline/README.md`.
