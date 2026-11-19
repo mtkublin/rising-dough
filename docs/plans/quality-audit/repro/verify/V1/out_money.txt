@@ -1,0 +1,27 @@
+JPY 0
+KRW 0
+ISK 2
+CLP 2
+VND 2
+UGX 2
+BHD 2
+KWD 2
+JOD 2
+OMR 2
+TND 2
+HUF 2
+PLN 2
+ISK 1000 -> 100000 (true 0-decimal would be 1000)
+KWD 1.234 parse -> None (3-decimal currency rejected)
+'NaN' canonical parse_amount_str -> None
+   bare Decimal(...) = NaN -> to_minor_units:    bare path RAISES ValueError cannot convert NaN to integer
+'Infinity' canonical parse_amount_str -> None
+   bare Decimal(...) = Infinity -> to_minor_units:    bare path RAISES InvalidOperation [<class 'decimal.InvalidOperation'>]
+'1e400' canonical parse_amount_str -> 1E+400
+   bare Decimal(...) = 1E+400 -> to_minor_units:    bare path RAISES InvalidOperation [<class 'decimal.InvalidOperation'>]
+'1e3' canonical parse_amount_str -> 1E+3
+   bare Decimal(...) = 1E+3 -> to_minor_units: 100000
+'1_000' canonical parse_amount_str -> 1000
+   bare Decimal(...) = 1000 -> to_minor_units: 100000
+'٣' canonical parse_amount_str -> 3
+   bare Decimal(...) = 3 -> to_minor_units: 300
