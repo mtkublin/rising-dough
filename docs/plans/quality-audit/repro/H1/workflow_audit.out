@@ -1,0 +1,67 @@
+
+=== 1. triggers ===
+build.yml                          workflow_call,workflow_dispatch          dispatch from ANY branch (needs write)
+ci.yml                             pull_request,workflow_call               PR-branch (same-repo PRs get env secrets)
+drill-destroy.yml                  workflow_dispatch                        dispatch from ANY branch (needs write)
+drill-gate-skip.yml                pull_request_target                      PULL_REQUEST_TARGET
+drill-sweeper.yml                  schedule,workflow_dispatch               dispatch from ANY branch (needs write)
+drill.yml                          workflow_dispatch                        dispatch from ANY branch (needs write)
+image-retention.yml                schedule,workflow_dispatch               dispatch from ANY branch (needs write)
+key-expiry.yml                     schedule,workflow_dispatch               dispatch from ANY branch (needs write)
+litestream-plaintext-cleanup.yml   workflow_dispatch                        dispatch from ANY branch (needs write)
+lock-check.yml                     pull_request                             PR-branch (same-repo PRs get env secrets)
+release.yml                        release,workflow_dispatch                dispatch from ANY branch (needs write)
+replace-rehearsal.yml              workflow_dispatch                        dispatch from ANY branch (needs write)
+restore-drill.yml                  schedule,workflow_dispatch               dispatch from ANY branch (needs write)
+rollback.yml                       workflow_dispatch                        dispatch from ANY branch (needs write)
+security.yml                       pull_request,push,schedule               PR-branch (same-repo PRs get env secrets)
+tailnet-cleanup.yml                workflow_call
+terraform.yml                      pull_request,workflow_call               PR-branch (same-repo PRs get env secrets)
+
+=== 2. unpinned `uses:` (empty = all pinned) ===
+unpinned count: 0; docker:// refs: 0
+
+=== 3. expressions interpolated into run: scripts ===
+build.yml:build-and-push:Record primary image ref: {{steps.meta.outputs.tags}}
+security.yml:pip-audit:Run pip-audit: {{steps.allowlist.outputs.ignore_args}}
+terraform.yml:apply:terraform init (${{ inputs.env }}): {{inputs.env}}
+
+=== 4. job -> environment -> protection -> secret names ===
+env drill          reviewers=False branch_policy=NONE (all branches)
+env drill-plan     reviewers=False branch_policy=NONE (all branches)
+env drill-teardown reviewers=False branch_policy=NONE (all branches)
+env prod           reviewers=True  branch_policy=custom
+env prod-plan      reviewers=False branch_policy=NONE (all branches)
+env prod-tailnet   reviewers=False branch_policy=custom
+
+drill          <- replace-rehearsal.yml:check-empty, replace-rehearsal.yml:seed, replace-rehearsal.yml:verify, replace-rehearsal.yml:writer, replace-rehearsal.yml:writer-started, restore-drill.yml:restore-drill, tailnet-cleanup.yml:cleanup, terraform.yml:apply, terraform.yml:plan
+drill-plan     <- terraform.yml:plan
+drill-teardown <- drill-destroy.yml:drill-lock, drill-sweeper.yml:check, drill-sweeper.yml:drill-lock, drill.yml:drill-lock, drill.yml:smoke, replace-rehearsal.yml:drill-lock, restore-drill.yml:drill-lock, restore-drill.yml:report, restore-drill.yml:restore-log, restore-drill.yml:verify-destroy, tailnet-cleanup.yml:cleanup, terraform.yml:apply
+prod           <- litestream-plaintext-cleanup.yml:cleanup, tailnet-cleanup.yml:cleanup, terraform.yml:apply, terraform.yml:plan
+prod-plan      <- key-expiry.yml:check, terraform.yml:plan
+prod-tailnet   <- tailnet-cleanup.yml:cleanup
+
+=== 5. prod-grade secrets in environments with NO reviewers ===
+drill          gated=False branch_policy=none   prod-grade secrets: 8
+    APP_SCW_SECRET_KEY           Litestream app key: read/write/delete on the env bucket
+    DEPLOY_SSH_PRIVATE_KEY       operator SSH key for the drill VM
+    GHCR_PULL_PAT                GHCR read PAT
+    LITESTREAM_AGE_IDENTITY      age identity: decrypts the prod Litestream replica
+    PROD_REPLICA_RO_ACCESS_KEY   restore-reader key id
+    PROD_REPLICA_RO_SECRET_KEY   restore-reader key: reads the PROD replica
+    SCW_SECRET_KEY               Scaleway CI key of that env
+    TS_OAUTH_SECRET              Tailscale OAuth (auth_keys write, tag:automation owns tag:ci/prod/drill)
+drill-teardown gated=False branch_policy=none   prod-grade secrets: 7
+    APP_SCW_SECRET_KEY           Litestream app key: read/write/delete on the env bucket
+    GHCR_PULL_PAT                GHCR read PAT
+    LITESTREAM_AGE_IDENTITY      age identity: decrypts the prod Litestream replica
+    PROD_REPLICA_RO_ACCESS_KEY   restore-reader key id
+    PROD_REPLICA_RO_SECRET_KEY   restore-reader key: reads the PROD replica
+    SCW_SECRET_KEY               Scaleway CI key of that env
+    TS_OAUTH_SECRET              Tailscale OAuth (auth_keys write, tag:automation owns tag:ci/prod/drill)
+prod-plan      gated=False branch_policy=none   prod-grade secrets: 5
+    APP_SCW_SECRET_KEY           Litestream app key: read/write/delete on the env bucket
+    GHCR_PULL_PAT                GHCR read PAT
+    LITESTREAM_AGE_IDENTITY      age identity: decrypts the prod Litestream replica
+    SCW_SECRET_KEY               Scaleway CI key of that env
+    TS_OAUTH_SECRET              Tailscale OAuth (auth_keys write, tag:automation owns tag:ci/prod/drill)
