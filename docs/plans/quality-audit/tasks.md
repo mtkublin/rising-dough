@@ -54,7 +54,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### T-Q09 [P] Track F — tests → `tracks/F-tests.md`
 - Mutmut real gaps carried in. Redundant-test candidates (coverage contexts + Mutmut) checked by hand. Over-mocking, weak assertions, fixture duplication, flakiness (randomised order run) and coverage gaps listed. Prod-DB path grep clean, or flagged as a finding.
 
-### T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
+### ✅ T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`
 - Vulture results checked by hand. Every Accepted ADR checked against the code (still true / drifted / should be superseded). Pre-commit vs `just ci` vs CI parity table.
 
 ### T-Q18 [S] Track H — red team → T-Q07 → `tracks/H1-ci-supply-chain.md`, `H2-isolation.md`, `H3-auth.md`, `H4-infra.md`
