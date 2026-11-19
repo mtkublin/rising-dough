@@ -73,3 +73,23 @@ Decision 4's fallback cannot be built as written. `bp-config` is a key of the se
 - Two Terraform applies, the first from the released tag with `drain = true`. It needs a second approval and a checkout of the old tag in CI, and the first plan has to be proven to touch only `bp-config`.
 - A manual drain by the operator. It happens outside the pipeline, against ADR-0099/ADR-0111.
 - Relying on a graceful stop during the destroy. The rehearsal measured it, and it loses writes.
+
+## Amendment 2026-11-19 (2): the drain-capable agent ships before the first replacing release (T-D158)
+
+**Status:** proposed, with the rest of this ADR. Adds to the T-D157 amendment; its Decisions 1 to 6 stand.
+
+**Why.** Release v3.0.6 (run 44539030541) was the first replacing prod release. The job detected the replacement, set `bp-drain` on the prod server and waited 300 s, but the status stayed `state: "ok"` and had no `drain` field: prod runs the pre-T-D157 agent, which does not read `bp-drain`. The job failed safely. The undrain step deleted the key, `terraform apply` never ran and the app was never stopped; prod stayed on v3.0.5. The loader fetches `bp-agent` from metadata on every 30 s run, but the new agent only reaches metadata through the apply, and in a replacing release that apply is the replacement itself. The rehearsal could not catch this: the drill host already ran the new agent.
+
+**Decision.**
+
+1. **Release order.** A host must run the drain-capable agent before a release replaces it. The agent ships in place: an in-place apply updates `bp-agent`, and the loader runs the new agent within one timer run.
+2. **Capability check before the drain.** `terraform.yml` reads the current status before it sets `bp-drain`. Every drain-capable agent publishes a `drain` field (`null` when not draining). When the field is missing, the job fails at once, before the key is set and before the apply: "host agent cannot drain; release the agent in place first (ADR-0127 amendment 2)". It replaces the 300 s timeout for this case.
+3. **T-D143 goes out in two releases.**
+   - Release A: prod's root volume type is pinned to `sbs_volume`, the type it runs on now (Block Storage, the provider default before ADR-0118). The plan is an in-place `user_data` update, so the new agent reaches prod. The drill keeps `drill_root_volume_type`. If the plan still shows a replacement, the capability check stops the job before the apply.
+   - Release B: prod goes to `l_ssd` (ADR-0118). This replacement drains as in the T-D157 amendment.
+4. **Proof.** Release A converges in place and the prod status shows `"drain": null`. Release B: the job logs `drained`, the restore report is `restored`, and the `audit_log` counts recorded on the old host before approval match on the new host.
+
+**Rejected.**
+- `terraform apply -target` on `bp-agent` alone. It is not a pipeline action (ADR-0099), and a targeted apply is a partial state change outside the plan the operator reads.
+- Draining by hand over SSH. It is outside the pipeline (ADR-0099, ADR-0111), as in the T-D157 amendment.
+- Letting a replacement go ahead without a drain when the agent cannot drain. The rehearsal measured that path, and it loses writes.
