@@ -1,0 +1,108 @@
+# sizes: files >400 / >800 lines, functions >50 lines (src, AST end_lineno-lineno+1)
+## python files total 120, total lines 22254
+## files > 800 lines
+  1115 src/budget_planner/web/routers/recurring.py
+   978 src/budget_planner/services/forecast.py
+## files > 400 lines
+   760 src/budget_planner/web/routers/auth.py
+   696 src/budget_planner/services/recurring.py
+   664 src/budget_planner/services/budget.py
+   601 src/budget_planner/web/charts.py
+   596 src/budget_planner/services/recurring_formula.py
+   586 src/budget_planner/web/routers/planned.py
+   561 src/budget_planner/services/users.py
+   552 src/budget_planner/repositories/recurring.py
+   509 src/budget_planner/web/routers/accounts.py
+   507 src/budget_planner/web/routers/transactions.py
+   491 src/budget_planner/web/routers/ledger.py
+   490 src/budget_planner/services/auth.py
+   428 src/budget_planner/web/routers/budget.py
+   418 src/budget_planner/repositories/users.py
+## top 15 largest files
+  1115 src/budget_planner/web/routers/recurring.py
+   978 src/budget_planner/services/forecast.py
+   760 src/budget_planner/web/routers/auth.py
+   696 src/budget_planner/services/recurring.py
+   664 src/budget_planner/services/budget.py
+   601 src/budget_planner/web/charts.py
+   596 src/budget_planner/services/recurring_formula.py
+   586 src/budget_planner/web/routers/planned.py
+   561 src/budget_planner/services/users.py
+   552 src/budget_planner/repositories/recurring.py
+   509 src/budget_planner/web/routers/accounts.py
+   507 src/budget_planner/web/routers/transactions.py
+   491 src/budget_planner/web/routers/ledger.py
+   490 src/budget_planner/services/auth.py
+   428 src/budget_planner/web/routers/budget.py
+## functions > 50 lines: 41 of 813 functions
+  184 src/budget_planner/web/routers/plan.py:68 plan
+  147 src/budget_planner/services/budget.py:454 month_summary
+  143 src/budget_planner/services/recurring.py:356 promote_recurring
+  128 src/budget_planner/services/forecast.py:778 forecast_monthly
+  119 src/budget_planner/web/routers/recurring.py:269 create_rule
+  108 src/budget_planner/web/routers/recurring.py:633 update_rule_handler
+  102 src/budget_planner/web/charts.py:144 line_area
+  101 src/budget_planner/web/charts.py:297 grouped_bars
+   93 src/budget_planner/services/recurring_formula.py:485 preview
+   89 src/budget_planner/services/forecast.py:530 forecas
+   80 src/budget_planner/web/routers/transactions.py:238 create_txn
+   80 src/budget_planner/web/routers/ledger.py:140 _hydrate_recurring_rows
+   79 src/budget_planner/db/migrate.py:134 _backfill_recurring_next_due
+   77 src/budget_planner/web/routers/transactions.py:358 update_txn
+   72 src/budget_planner/db/migrate.py:280 apply_migrations
+   71 src/budget_planner/repositories/recurring.py:428 upsert_override
+   70 src/budget_planner/web/routers/recurring.py:470 recurring_batch_undo
+   69 src/budget_planner/web/routers/recurring.py:1016 promote_submi
+   69 src/budget_planner/services/reconciliation.py:62 reconcile
+   68 src/budget_planner/services/recurring.py:501 skip_and_advance
+   67 src/budget_planner/web/routers/planned.py:220 create_planned
+   67 src/budget_planner/web/routers/accounts.py:279 update_accoun
+   67 src/budget_planner/web/charts.py:519 sparkline
+   66 src/budget_planner/services/forecast.py:710 _month_flow_sums
+   65 src/budget_planner/web/routers/accounts.py:445 reconcile_submi
+   64 src/budget_planner/web/routers/planned.py:338 update_planned
+   63 src/budget_planner/services/budget.py:253 _committed_by_category
+   62 src/budget_planner/web/routers/budget.py:170 new_override_form
+   62 src/budget_planner/web/routers/accounts.py:186 create_accoun
+   62 src/budget_planner/web/charts.py:437 horizontal_bars
+   61 src/budget_planner/web/routers/planned.py:484 promote_submi
+   60 src/budget_planner/web/routers/planned.py:112 planned_batch_undo
+   59 src/budget_planner/web/routers/recurring.py:181 _resolve_amount_inputs
+   59 src/budget_planner/web/routers/budget.py:235 create_override
+   58 src/budget_planner/web/routers/recurring.py:810 add_override
+   54 src/budget_planner/services/forecast.py:654 _planned_budget_per_month
+   54 src/budget_planner/services/auth.py:416 authenticate_passkey_finish
+   52 src/budget_planner/web/routers/today.py:42 today
+   52 src/budget_planner/services/recurring_formula.py:191 _sum_category_in_month
+   51 src/budget_planner/services/income.py:43 next_anchor_date
+   51 src/budget_planner/logging.py:96 configure
+## lines by top-level package dir
+  8847 src/budget_planner/web
+  7263 src/budget_planner/services
+  3563 src/budget_planner/repositories
+  1283 src/budget_planner/domain
+   752 src/budget_planner/db
+   391 src/budget_planner
+   155 src/budget_planner/cli
+     0 src/budget_planner/adapters
+## routers by size
+  1115 src/budget_planner/web/routers/recurring.py
+   760 src/budget_planner/web/routers/auth.py
+   586 src/budget_planner/web/routers/planned.py
+   509 src/budget_planner/web/routers/accounts.py
+   507 src/budget_planner/web/routers/transactions.py
+   491 src/budget_planner/web/routers/ledger.py
+   428 src/budget_planner/web/routers/budget.py
+   306 src/budget_planner/web/routers/settings_users.py
+   286 src/budget_planner/web/routers/plan.py
+   281 src/budget_planner/web/routers/categories.py
+   224 src/budget_planner/web/routers/today.py
+   167 src/budget_planner/web/routers/settings_password.py
+    99 src/budget_planner/web/routers/forecast.py
+    98 src/budget_planner/web/routers/health.py
+    97 src/budget_planner/web/routers/settings.py
+    70 src/budget_planner/web/routers/settings_security.py
+    33 src/budget_planner/web/routers/debug.py
+    30 src/budget_planner/web/routers/analytics.py
+    27 src/budget_planner/web/routers/dev_components.py
+     0 src/budget_planner/web/routers/__init__.py
