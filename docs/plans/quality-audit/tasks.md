@@ -74,10 +74,10 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 
 ## Phase 4 — Prevention (sequential, only after T-Q12)
 
-### T-Q13 [S] Audit of the guidance surface → `prevention.md` §1
+### ✅ T-Q13 [S] Audit of the guidance surface → `prevention.md` §1
 - Every artefact in plan §7.1 reviewed against the root-cause classes that have Critical or High findings (always including `duplicate-logic`).
 
-### T-Q14 [S] Control design → `prevention.md` §2 → T-Q13
+### ✅ T-Q14 [S] Control design → `prevention.md` §2 → T-Q13
 - Prevention matrix: class → findings → control → artefact → verification. Strongest feasible control chosen for each class.
 
 ### T-Q15 [S] Apply controls → T-Q14
