@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-19 (gamification: starter tuning)
+- **Docs: ADR-0128 retunes the starter from a simulation** (amends ADR-0125). 16 simulated users over 6 months, targets set by the user; ADR-0125 as written passed 27/47 checks (most users pinned at 100, abandoned starters woken by an empty "within budget" period, launch burst, flicker). Final tuning 47/47, held back 7/8: new weights and thresholds 25/55/85, reconcile ≤ 1/week across accounts, ≥ 50 % check-in coverage for budget and net-worth feeds, "nothing to log" needs a real entry in 14 days, 7-day ×1.5 comeback bonus, hysteresis 8, overflowing only while saving, per-category budget baseline. Requirements S1.1–S1.4, plan and tasks updated; simulator in `docs/plans/gamification/starter-sim/`.
+
 ## 2026-11-19 (T-D157: drain before replace)
 - **Docs(T-D157): ADR-0127 amended: drain the old host before a replacing apply.** The rehearsal from main (run 44513330068) proved restore, generation and tailnet rename, and lost 1 committed row (64 of 65): the destroy does not stop the app and Litestream cleanly. Decision 4's separate drain apply cannot work (`bp-config` is in the server's own `user_data`), so CI sets a transient `bp-drain` key through the Scaleway API in the same approved job and waits for `drained`. T-D143's release stays blocked.
 
