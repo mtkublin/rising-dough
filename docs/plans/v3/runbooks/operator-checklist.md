@@ -67,7 +67,7 @@ Never write secrets, key ids or passwords into the repo, a PR or a chat while do
 - [x] **Where:** GitHub UI.
 - Create environments: `prod` (required reviewer), `prod-plan`, `drill`, `drill-plan`, `drill-teardown`.
 - Add secrets per environment, using the CI keys from step 4.
-- Add vars `TAILNET_DNS_NAME`, `MANAGED_DNS_ZONE=true`, `BUCKET_ADMIN_PRINCIPALS`, `APP_DOMAIN=rising-dough.eu`.
+- Add vars `TAILNET_DNS_NAME`, `MANAGED_DNS_ZONE=true`, `BUCKET_ADMIN_PRINCIPALS`, `APP_DOMAIN=rising-dough.eu`. `MANAGED_DNS_ZONE` is an environment variable on `prod` and `prod-plan`, never a secret (T-D159: a secret `true` masks every `true` in CI logs and drops job outputs).
 - The age identity, GHCR PAT and Tailscale values must be EXACTLY the values in the local `terraform/.env`, or prod will diverge.
 - Settle the deploy-key question (T-D109) here.
 - Add the ADR-0104 secrets: `APP_APPLICATION_ID`, `APP_SCW_ACCESS_KEY`, `APP_SCW_SECRET_KEY` (all five environments, per-env values) and `RESTORE_READER_APPLICATION_ID` (`prod`, `prod-plan`). The prod app key and the restore-reader key are read once from the prod state (`key-rotation.md` part 2, steps 5-6); do it before step 11. <!-- pragma: allowlist secret -->

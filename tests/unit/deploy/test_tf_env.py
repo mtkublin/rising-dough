@@ -69,6 +69,29 @@ def test_optional_inputs_fall_back_to_defaults() -> None:
     assert out["TF_VAR_bucket_admin_principals"] == '["a"]'
 
 
+def test_managed_dns_zone_is_read_from_variables_not_secrets() -> None:
+    """T-D159: a secret `true` masks every `true` in CI logs and drops job outputs."""
+    from_var = tf_env.build_env(
+        "prod", SECRETS, {**VARS, "MANAGED_DNS_ZONE": "true"}, owner="o", run_id="1"
+    )
+    from_secret = tf_env.build_env(
+        "prod", {**SECRETS, "MANAGED_DNS_ZONE": "true"}, VARS, owner="o", run_id="1"
+    )
+
+    assert from_var["TF_VAR_managed_dns_zone"] == "true"
+    assert from_secret["TF_VAR_managed_dns_zone"] == "false"
+    assert _build("drill")["TF_VAR_managed_dns_zone"] == "false"
+
+
+def test_boolean_inputs_are_never_secrets() -> None:
+    """T-D159 / ADR-0093 amendment: common tokens as secret values break CI output."""
+    offenders = [
+        e.name for e in tf_env.ENTRIES if e.default in ("true", "false") and e.source == "secret"
+    ]
+
+    assert offenders == []
+
+
 def test_unknown_env_is_refused() -> None:
     with pytest.raises(tf_env.EnvError, match="drill or prod"):
         tf_env.build_env("staging", {}, {}, owner="o", run_id="1")

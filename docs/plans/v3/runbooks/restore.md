@@ -31,8 +31,8 @@ The drill host (and only the drill host) has `/usr/local/bin/restore-from-prod`,
 - You have operator SSH access as `operator@budget-planner-prod`.
 - You have recorded the current audit-row count for a sanity check after restore:
   ```sh
-  ssh operator@budget-planner-prod \
-    "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'" \
+  # Read-only, inside the app container (operator cannot open the DB file).
+  ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import sqlite3; c=sqlite3.connect('file:/data/budget.db?mode=ro', uri=True); print(c.execute('SELECT count(*), max(id), max(changed_at) FROM audit_log').fetchone())\"" \
     || echo "DB unreadable — expected if corruption triggered this runbook"
   ```
 
@@ -116,13 +116,12 @@ ssh operator@budget-planner-prod "ls -lt /data/backups/"
 
 ```sh
 # Integrity.
-ssh operator@budget-planner-prod "sqlite3 /data/budget.db 'PRAGMA integrity_check;'"
+ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import sqlite3; c=sqlite3.connect('file:/data/budget.db?mode=ro', uri=True); print(c.execute('PRAGMA integrity_check').fetchone()[0])\""
 # Expect: ok
 
 # Row counts — compare against the pre-restore numbers you recorded,
 # minus any writes that happened between the recovery point and the restore.
-ssh operator@budget-planner-prod \
-  "sqlite3 /data/budget.db 'SELECT count(*), max(id), max(created_at) FROM audit_log;'"
+ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import sqlite3; c=sqlite3.connect('file:/data/budget.db?mode=ro', uri=True); print(c.execute('SELECT count(*), max(id), max(changed_at) FROM audit_log').fetchone())\""
 
 # Readiness probe hits DB.
 curl -fsS "https://budget-planner-prod/ready" | jq .
