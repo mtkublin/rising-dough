@@ -51,7 +51,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - HTMX emitter/listener matrix; template-logic list; CSRF/CSP handling; kept behaviour JS (`htmx-csrf.js`, `passkeys.js`). Any runtime claim backed by a `frontend-visual-audit` run (1440 / 1024 / 375).
 - Markup, CSS, token and presentational-JS findings are out of scope: the Sourdough redesign replaces them (ADR-0107, implementation_plan Track E note).
 
-### T-Q09 [P] Track F — tests → `tracks/F-tests.md`
+### ✅ T-Q09 [P] Track F — tests → `tracks/F-tests.md`
 - Mutmut real gaps carried in. Redundant-test candidates (coverage contexts + Mutmut) checked by hand. Over-mocking, weak assertions, fixture duplication, flakiness (randomised order run) and coverage gaps listed. Prod-DB path grep clean, or flagged as a finding.
 
 ### ✅ T-Q10 [P] Track G — dead code and doc drift → `tracks/G-drift.md`

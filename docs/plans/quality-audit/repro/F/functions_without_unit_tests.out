@@ -1,0 +1,27 @@
+budget yearly_grid 603 {'integration': 37}
+balance sparkline_points 166 {'integration': 23}
+balance balance_series 191 {'integration': 23}
+forecast monthly_projection 932 {}
+rate_limit password_change_rules 187 {'integration': 18}
+rate_limit reauth_rules 196 {'integration': 12}
+auth relying_party_from_settings 130 {'integration': 21}
+auth _base_ctx 143 {'integration': 45}
+auth _audit_login_failure 151 {'integration': 24}
+auth _issue_session 175 {'integration': 24}
+auth authenticate_password 209 {'integration': 38}
+auth _revoke 245 {'integration': 11}
+auth logout 266 {'integration': 7}
+auth revoke_user_session 276 {'integration': 6}
+auth load_session_user 293 {'integration': 627}
+auth register_passkey_begin 315 {'integration': 12}
+auth register_passkey_finish 338 {'integration': 4}
+auth revoke_passkey 383 {'integration': 3}
+auth authenticate_passkey_begin 402 {'integration': 8}
+auth sign_count_regressed 411 {'integration': 8}
+auth authenticate_passkey_finish 416 {'integration': 7}
+reauth _audit 49 {'integration': 10}
+reauth _fail 67 {'integration': 3}
+reauth verify_password_reauth 73 {'integration': 8}
+reauth passkey_reauth_begin 88 {'integration': 3}
+reauth verify_passkey_reauth 103 {'integration': 1}
+reauth complete_reauth 149 {'integration': 7}
