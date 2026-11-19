@@ -1,0 +1,7 @@
+# checkov -d terraform --compact --skip-path terraform/tests (report only; checkov 3.2.477)
+# Note: terraform/tests/render.tftest.hcl skipped: checkov cannot parse .tftest.hcl (parsing error aborts the whole scan with 0 checks when included)
+## failed checks by id (count)
+## failed (check -> resource, file)
+
+## Notes (T-Q02)
+Checkov reported Passed 0 / Failed 0 on terraform/ (after skipping terraform/tests/render.tftest.hcl, which checkov cannot parse). All resources are scaleway_*, random_password and tailscale_tailnet_key; checkov ships no policies for these providers, so zero applicable checks is expected, not a clean bill of health. CI already runs tflint and Trivy config (.github/workflows/terraform.yml).

@@ -1,0 +1,6 @@
+scratch db: /tmp/audit-B.sqlite
+HTTP status: 500
+stored txn (amount, dest_account_id): (5000, None)
+derive_balance raises ValueError: transit transaction missing dest_account_id
+GET /accounts status afterwards: 500
+REPRODUCED (invalid txn persisted, balance pages fail): True

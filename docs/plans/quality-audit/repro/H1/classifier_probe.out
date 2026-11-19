@@ -1,0 +1,17 @@
+skip  A docs restore-log (gates prod plaintext delete)  ['docs/plans/v3/runbooks/restore-log.md']
+skip  B tests/render/render_check.py (run by terraform.yml fmt-validate)  ['tests/render/render_check.py']
+skip  C tests/conftest.py (runs in release ci job)  ['tests/conftest.py']
+skip  D .claude/settings.json (agent hooks)  ['.claude/settings.json']
+skip  E .claude/skills/x/SKILL.md (agent instructions)  ['.claude/skills/orchestrator-mode/SKILL.md']
+skip  F top-level CLAUDE.md  ['CLAUDE.md']
+skip  G top-level LICENSE_run.sh  ['LICENSE_run.sh']
+gate  H mixed docs + terraform  ['docs/a.md', 'terraform/main.tf']
+gate  I src package data md  ['src/budget_planner/x.md']
+skip  J dot-slash prefix (API never emits)  ['./src/budget_planner/x.md']
+skip  K upper-case dir  ['SRC/x.md']
+gate  L empty  []
+gate  M traversal  ['docs/../src/x.py']
+
+-- workflow lines that consume 'inert' paths --
+.github/workflows/litestream-plaintext-cleanup.yml:65: --restore-log docs/plans/v3/runbooks/restore-log.md "${flags[@]}" \
+.github/workflows/terraform.yml:140: run: python3 tests/render/render_check.py --require-schema
