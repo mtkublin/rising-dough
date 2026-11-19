@@ -1,0 +1,61 @@
+# radon cc -s -a src (blocks rank C or worse + average)
+6.0.1
+src/budget_planner/web/auth_cookies.py
+    F 219:0 safe_next - C (13)
+src/budget_planner/web/charts.py
+    F 144:0 line_area - C (17)
+    F 297:0 grouped_bars - C (16)
+src/budget_planner/web/routers/plan.py
+    F 68:0 plan - E (31)
+src/budget_planner/web/routers/recurring.py
+    F 633:0 update_rule_handler - C (18)
+    F 269:0 create_rule - C (16)
+    F 1016:0 promote_submit - C (13)
+    F 149:0 _resolve_dest_account - C (12)
+    F 470:0 recurring_batch_undo - C (12)
+src/budget_planner/web/routers/accounts.py
+    F 186:0 create_account - C (11)
+src/budget_planner/web/routers/planned.py
+    F 220:0 create_planned - C (13)
+    F 338:0 update_planned - C (11)
+src/budget_planner/web/routers/budget.py
+    F 170:0 new_override_form - C (12)
+    F 235:0 create_override - C (12)
+src/budget_planner/web/routers/transactions.py
+    F 238:0 create_txn - C (16)
+    F 358:0 update_txn - C (12)
+src/budget_planner/web/routers/ledger.py
+    F 140:0 _hydrate_recurring_rows - D (29)
+    F 395:0 index - C (11)
+src/budget_planner/web/routers/settings.py
+    F 52:0 drawer - C (19)
+src/budget_planner/web/middleware/auth.py
+    C 145:0 AuthRequiredMiddleware - C (11)
+src/budget_planner/repositories/planned.py
+    F 68:0 _append_filter_clauses - C (14)
+src/budget_planner/repositories/transactions.py
+    F 69:0 _append_filter_clauses - C (16)
+src/budget_planner/db/startup_migrate.py
+    F 102:0 prune_backups - C (12)
+src/budget_planner/db/migrate.py
+    F 86:0 _split_sql_statements - C (18)
+    F 280:0 apply_migrations - C (11)
+src/budget_planner/services/forecast.py
+    F 710:0 _month_flow_sums - C (15)
+    F 530:0 forecast - C (11)
+src/budget_planner/services/recurring.py
+    F 356:0 promote_recurring - C (17)
+    F 107:0 generate_occurrences - C (12)
+src/budget_planner/services/budget.py
+    F 454:0 month_summary - C (19)
+    F 253:0 _committed_by_category - C (12)
+    F 603:0 yearly_grid - C (11)
+src/budget_planner/services/recurring_formula.py
+    F 384:0 validate_formula_sources - C (16)
+
+33 blocks (classes, functions, methods) analyzed.
+Average complexity: C (14.818181818181818)
+## average (all)
+
+927 blocks (classes, functions, methods) analyzed.
+Average complexity: A (3.0614886731391584)
