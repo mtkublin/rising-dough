@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -49,7 +50,10 @@ def test_sessions_page_lists_own_sessions_by_handle(
     assert "This device" in html
     assert html.count("This device") == 1
     assert "Expires" in html
-    expected = (datetime.now(UTC) + timedelta(days=30)).strftime("%d %b %Y")
+    # The page renders in the display timezone (Europe/Warsaw, ADR-0007), which
+    # is on a different calendar day than UTC for part of every day.
+    expiry = datetime.now(UTC) + timedelta(days=30)
+    expected = expiry.astimezone(ZoneInfo("Europe/Warsaw")).strftime("%d %b %Y")
     assert expected in html  # absolute expiry = created_at + 30 days (ADR-0076)
 
 
