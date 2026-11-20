@@ -90,6 +90,23 @@ test-visual *args:
 visual-reference *surface:
     uv run python -m tests.visual.handoff {{surface}}
 
+# Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
+# (paths, -k, later --target=...). Local only: GitHub runners have no
+# Playwright browser (ADR-0097).
+test-e2e *ARGS:
+    uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" {{ARGS}}
+
+# Same journeys on Firefox then WebKit, one engine at a time. Opt-in; not part
+# of `just ci`. Needs `uv run playwright install firefox webkit` (T-UT11).
+test-e2e-browsers *ARGS:
+    #!/usr/bin/env bash
+    set -u
+    rc=0
+    for b in firefox webkit; do
+        uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" --e2e-browser="$b" {{ARGS}} || rc=1
+    done
+    exit "$rc"
+
 # Refresh visual-regression baselines after an intentional design change.
 test-visual-update:
     VISUAL_UPDATE=1 uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov

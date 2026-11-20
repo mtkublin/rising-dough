@@ -58,12 +58,55 @@ def _playwright() -> Iterator[Playwright]:
         yield pw
 
 
+E2E_BROWSERS = ("chromium", "firefox", "webkit")
+
+# T-UT11 (ADR-0106 §4): known per-browser failures on the old UI. Keys are
+# ``(browser, test nodeid suffix)``; values are the xfail reason. Chromium is
+# never listed here. Applied as ``xfail(strict=True)`` so a fix flips to XPASS
+# and fails loudly, forcing the entry's removal.
+_CDP_ONLY = "journey drives a CDP virtual WebAuthn authenticator (Chromium-only API)"
+BROWSER_XFAILS: dict[tuple[str, str], str] = {
+    (browser, f"test_passkey_journey.py::{name}"): _CDP_ONLY
+    for browser in ("firefox", "webkit")
+    for name in (
+        "test_register_then_sign_in_with_passkey",
+        "test_stale_session_adds_passkey_after_password_reauth",
+        "test_stale_session_reauths_with_passkey",
+    )
+}
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--e2e-browser",
+        action="store",
+        default="chromium",
+        choices=E2E_BROWSERS,
+        help="Playwright browser engine for tests/e2e (default: chromium).",
+    )
+
+
+def _selected_browser(config: pytest.Config) -> str:
+    return str(config.getoption("--e2e-browser"))
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    browser = _selected_browser(config)
+    if browser == "chromium":
+        return
+    for item in items:
+        for (name, suffix), reason in BROWSER_XFAILS.items():
+            if name == browser and item.nodeid.endswith(suffix):
+                item.add_marker(pytest.mark.xfail(strict=True, reason=f"{browser}: {reason}"))
+
+
 @pytest.fixture(scope="session")
-def _browser(_playwright: Playwright) -> Iterator[Browser]:
+def _browser(_playwright: Playwright, request: pytest.FixtureRequest) -> Iterator[Browser]:
+    name = _selected_browser(request.config)
     try:
-        browser = _playwright.chromium.launch()
+        browser = getattr(_playwright, name).launch()
     except Exception as exc:
-        pytest.skip(f"Chromium browser is not installed: {exc}")
+        pytest.skip(f"{name} browser is not installed: {exc}")
     try:
         yield browser
     finally:
