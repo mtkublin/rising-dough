@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))

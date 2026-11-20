@@ -45,6 +45,9 @@ dev = [
   "sqlglot>=25.0",
   "pytest-random-order>=1.1",
   "pytest-testmon>=2.3",
+  "mutmut==3.7.0",
+  "import-linter>=2.17",
+  "types-pyyaml>=6.0.12.20261113",
 ]
 
 [build-system]
@@ -61,7 +64,7 @@ package = true
 # (on that platform only) cryptography. Everywhere else cryptography floats to
 # >=50, which carries the fixes for PYSEC-2026-3552/3553/3554 (T-D91). Linux
 # prod images and CI are therefore unaffected by the macOS cap.
-constraint-dependencies = ["cbor2<6", "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'"]
+constraint-dependencies = ["libcst<1.9", "cbor2<6","cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'"]
 
 # ---------------------------------------------------------------------------
 # ruff — lint + format + import sort
@@ -93,6 +96,7 @@ select = [
   "ERA",                 # eradicate commented-out code
   "PL",                  # pylint subset
   "RUF",                 # ruff-specific
+  "PGH",                 # blanket noqa / type: ignore (ADR-0130, G4)
 ]
 ignore = [
   "ANN401",              # dynamic Any allowed in explicit kwargs forwarding
@@ -101,10 +105,48 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "PLR2004", "ANN", "ARG001", "ARG002"]
-"src/budget_planner/db/migrate.py" = ["S608"]  # dynamic SQL permitted here
+"tests/**/*.py" = ["S101", "PLR2004", "ANN", "ARG001", "ARG002", "TID251"]  # TID251: tests may read real time (not Q-031 scope)
+"src/budget_planner/db/migrate.py" = ["S608", "TID251"]  # S608: dynamic SQL permitted here; TID251: Q-031
 "src/budget_planner/repositories/*.py" = ["S608"]  # column names from DTO fields, not user input
 "src/budget_planner/web/routers/*.py" = ["B008"]  # FastAPI Depends() in defaults is idiomatic
+# TID251 clock allowlist (ADR-0130 §4, G3): one entry per current call site file.
+# Each entry is removed by Q-031 when the file migrates to budget_planner.clock.
+"src/budget_planner/clock.py" = ["TID251"]  # the one place allowed to read the wall clock
+"scripts/**/*.py" = ["TID251"]  # operator scripts, not app code
+"terraform/**/*.py" = ["TID251"]  # host agent / preflight, not app code
+"src/budget_planner/db/retention.py" = ["TID251"]  # Q-031
+"src/budget_planner/db/startup_migrate.py" = ["TID251"]  # Q-031
+"src/budget_planner/repositories/_shared.py" = ["TID251"]  # Q-031
+"src/budget_planner/repositories/recurring.py" = ["TID251"]  # Q-031
+"src/budget_planner/repositories/sessions.py" = ["TID251"]  # Q-031
+"src/budget_planner/repositories/webauthn.py" = ["TID251"]  # Q-031
+"src/budget_planner/services/balance.py" = ["TID251"]  # Q-031
+"src/budget_planner/services/budget.py" = ["TID251"]  # Q-031
+"src/budget_planner/services/planned.py" = ["TID251"]  # Q-031
+"src/budget_planner/services/recurring.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/auth_cookies.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/deps.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/accounts.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/auth.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/budget.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/forecast.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/health.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/ledger.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/plan.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/planned.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/recurring.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/today.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/routers/transactions.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/templating.py" = ["TID251"]  # Q-031
+"src/budget_planner/web/today_data.py" = ["TID251"]  # Q-031
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# ADR-0130 §4 (G3): one clock. Callers migrate in Q-031; until then each
+# offending file is allowlisted in per-file-ignores below (commented Q-031).
+"datetime.date.today".msg = "use budget_planner.clock (ADR-0130)"
+"datetime.datetime.now".msg = "use budget_planner.clock (ADR-0130)"
+"datetime.datetime.utcnow".msg = "use budget_planner.clock (ADR-0130)"
+"time.time".msg = "use budget_planner.clock (ADR-0130)"
 
 [tool.ruff.lint.isort]
 known-first-party = ["budget_planner"]
@@ -237,3 +279,119 @@ exclude_dirs = ["tests", ".venv", "migrations"]
 # repository layer where column names come from DTO fields (never from user
 # input). The ruff S608 rule has an equivalent per-file-ignore.
 skips = ["B101", "B608"]
+
+# ---------------------------------------------------------------------------
+# import-linter — layering contracts (ADR-0130 §1, G1)
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "budget_planner"
+include_external_packages = false
+
+[[tool.importlinter.contracts]]
+name = "routers do not import repositories"
+type = "forbidden"
+source_modules = ["budget_planner.web.routers"]
+forbidden_modules = ["budget_planner.repositories"]
+allow_indirect_imports = true
+ignore_imports = [
+  # E12 / Q-045: router reaches a repository directly; remove each line as the remediation lands.
+  "budget_planner.web.routers.accounts -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.accounts -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.accounts -> budget_planner.repositories.snapshots",
+  "budget_planner.web.routers.auth -> budget_planner.repositories.sessions",
+  "budget_planner.web.routers.auth -> budget_planner.repositories.webauthn",
+  "budget_planner.web.routers.budget -> budget_planner.repositories.budgets",
+  "budget_planner.web.routers.budget -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.categories -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.ledger -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.ledger -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.ledger -> budget_planner.repositories.planned",
+  "budget_planner.web.routers.ledger -> budget_planner.repositories.recurring",
+  "budget_planner.web.routers.ledger -> budget_planner.repositories.transactions",
+  "budget_planner.web.routers.plan -> budget_planner.repositories.recurring",
+  "budget_planner.web.routers.planned -> budget_planner.repositories._shared",
+  "budget_planner.web.routers.planned -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.planned -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.planned -> budget_planner.repositories.planned",
+  "budget_planner.web.routers.planned -> budget_planner.repositories.transactions",
+  "budget_planner.web.routers.recurring -> budget_planner.repositories._shared",
+  "budget_planner.web.routers.recurring -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.recurring -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.recurring -> budget_planner.repositories.recurring",
+  "budget_planner.web.routers.recurring -> budget_planner.repositories.transactions",
+  "budget_planner.web.routers.settings -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.settings -> budget_planner.repositories.fx",
+  "budget_planner.web.routers.settings_security -> budget_planner.repositories.sessions",
+  "budget_planner.web.routers.settings_security -> budget_planner.repositories.webauthn",
+  "budget_planner.web.routers.settings_users -> budget_planner.repositories.auth_users",
+  "budget_planner.web.routers.today -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.today -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.transactions -> budget_planner.repositories.accounts",
+  "budget_planner.web.routers.transactions -> budget_planner.repositories.categories",
+  "budget_planner.web.routers.transactions -> budget_planner.repositories.transactions",
+]
+
+[[tool.importlinter.contracts]]
+name = "web does not import db"
+type = "forbidden"
+source_modules = ["budget_planner.web"]
+forbidden_modules = ["budget_planner.db"]
+allow_indirect_imports = true
+ignore_imports = [
+  # E12 / Q-074: web imports db directly; remove each line as the remediation lands.
+  "budget_planner.web.app -> budget_planner.db.connection",
+  "budget_planner.web.deps -> budget_planner.db.connection",
+  "budget_planner.web.middleware.auth -> budget_planner.db.connection",
+  "budget_planner.web.retention_task -> budget_planner.db.retention",
+  "budget_planner.web.routers.health -> budget_planner.db.connection",
+]
+
+[[tool.importlinter.contracts]]
+name = "domain is a leaf layer"
+type = "forbidden"
+source_modules = ["budget_planner.domain"]
+forbidden_modules = [
+  "budget_planner.services",
+  "budget_planner.web",
+  "budget_planner.repositories",
+  "budget_planner.db",
+]
+allow_indirect_imports = true
+ignore_imports = []
+
+[[tool.importlinter.contracts]]
+name = "services do not import web"
+type = "forbidden"
+source_modules = ["budget_planner.services"]
+forbidden_modules = ["budget_planner.web"]
+allow_indirect_imports = true
+ignore_imports = []
+
+[[tool.importlinter.contracts]]
+name = "repositories do not import services or web"
+type = "forbidden"
+source_modules = ["budget_planner.repositories"]
+forbidden_modules = ["budget_planner.services", "budget_planner.web"]
+allow_indirect_imports = true
+ignore_imports = [
+  # E12 / Q-047: repository imports upward; remove each line as the remediation lands.
+  "budget_planner.repositories.recurring -> budget_planner.services.recurring",
+]
+
+# ---------------------------------------------------------------------------
+# mutmut — mutation testing (ADR-0131; advisory, never a merge gate)
+# ---------------------------------------------------------------------------
+[tool.mutmut]
+source_paths = ["src/budget_planner/domain/", "src/budget_planner/services/"]
+pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+# Explicit directories: `-m unit` selects only 53 tests (the marker is not
+# applied automatically). Never select tests/unit/deploy: it reads terraform/
+# by relative path and breaks under mutants/.
+pytest_add_cli_args_test_selection = [
+  "tests/unit/domain",
+  "tests/unit/services",
+  "tests/unit/repositories",
+]
+# All three are mandatory (partial-package shadowing; tests/conftest.py entries
+# crash; db_template reads migrations/).
+also_copy = ["tests/", "src/budget_planner/", "migrations/"]

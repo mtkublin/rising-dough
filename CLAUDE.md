@@ -37,38 +37,43 @@ Always read the relevant ADR before changing an area it covers.
 
 ## Canonical modules (reuse, never re-implement)
 
-One module owns each concept. **Before you write a helper:** (1) find the concept below; (2) run the row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"` style); (3) call or extend the owner. Report `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered: yes/no)`. A new shared concept is registered in `tests/architecture/canonical_modules.toml` (created by T-Q15a; this table mirrors it) in the same change.
+One module owns each concept. **Before you write a helper:** (1) find the concept below; (2) run the row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"` style); (3) call or extend the owner. Report `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered: yes/no)`. A new shared concept is registered in `tests/architecture/canonical_modules.toml` (this table must cover every row; `test_canonical_modules.py` checks it) in the same change.
 
 | Concept | Owner | Status |
 |---|---|---|
-| FX conversion, missing-rate policy | `services/fx.py` converter | **target**, not yet extracted (Q-007) |
-| Money format / parse / exponent / minor-major / rounding | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`) | exists, being extended |
-| Periods, month windows, prev/next month | `domain/periods.py` | **target** (Q-003) |
+| FX conversion and rate lookup | `services/fx.py` `convert` (one converter factory is the target) | exists, to be unified (Q-007) |
+| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`); one rounding helper | exists, being extended (Q-011) |
+| Periods and month windows | `domain/periods.py` `month_bounds` | **target** (Q-003) |
 | Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) |
-| Direction to signed amount | `domain` `signed_legs` (`services/balance.py` today) | **target** (Q-036) |
-| Net worth / fortune | `services/fortune.compute_fortune` | **target** (Q-009) |
-| Sum by category in base currency | `services/aggregates.py` | **target** (Q-008, Q-075) |
-| Ledger / recurring / planned totals | `services/ledger_totals.py` | **target** (Q-010) |
-| Budget tier resolution | `services/budget.pick_tier` | **target** |
-| "Now" and "today" | `budget_planner.clock` (`utc_now`, `today_local`) | exists (scaffold; callers migrate under Q-031) |
-| Request-param parsing, HTMX events | `web/params.py`, `web/htmx.py` | **target** / partial |
+| Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) |
+| Net worth and fortune | `services/fortune.compute_fortune` | exists (Q-009) |
+| Sum by category in base currency | `services/aggregates.sum_by_category` | **target** (Q-008) |
+| Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists (Q-010) |
+| Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)` | exists (callers migrate under Q-031) |
+| Request parameter parsing | `web/params.py` `parse_date`, `parse_int` | **target** (Q-023) |
+| HTMX events and toast payloads | `web/htmx.py` `trigger` | exists (Q-038) |
+| Transit validation | `services/transactions.validate_transit_shape` | **target** (Q-004) |
+| Balance as of a date | `services/balance.as_of_today` | **target** (Q-032) |
+| Category selection (expense category ids) | `services/categories.expense_category_ids` | **target** (Q-030) |
+| Budget tier resolution | `services/budget.pick_tier` | **target** (Q-075) |
+| Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | **target** (Q-039) |
 
-**Target** rows are not yet extracted: do not add a new copy. Call the nearest function the row names and note it under `New helper` / `Searched` in the report. Guard G6 bans copies once a row is `exists`.
+**Target** rows are not yet extracted: do not add a new copy. Call the nearest function the row names and note it under `New helper` / `Searched` in the report. `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
 
 ## Code conventions
 
-Rules are enforced by `tests/architecture/` and lint; a failing guard names the rule and the canonical module. `G<n>` ids: `docs/plans/quality-audit/prevention.md` §2. Full text: [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3.
+Rules are enforced by `tests/architecture/` and lint; a failing guard names the rule and the canonical module. Guard ids (`G<n>`): `docs/plans/quality-audit/prevention.md` §2. Run `just guards` before committing. Full text: [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3.
 
 | Rule | Enforced by |
 |---|---|
-| **Pure layers.** `domain/` and pure services do no I/O, read no clock/env/randomness, hold no global mutable state, mutate no argument. Services may call repositories and `logging`; network only through an injected port; clock and settings come in as arguments. Web view-models do no network. Effects live at the edges (repositories, `clock`, adapters, routers). | purity guard, import-linter (ADR-0021, ADR-0130 §5) |
-| **Thin web.** Routers parse, call one service, return a view model. No SQL, no repository import, no arithmetic on money/dates in routers or templates. | import-linter, G2, template guards |
-| **Repository-only SQL**, user-scoped (never a literal user id), soft delete + audit via repository helpers; a service calling 2+ mutators uses one `db_transaction`. | G2, `test_user_id_filter`, G8 (ADR-0019, ADR-0022) |
-| **Single clock.** `budget_planner.clock` only; never `date.today()`, `datetime.now()`, `datetime.utcnow()`, `time.time()`. | ruff TID251 (ADR-0007, Q-031) |
-| **Money.** Positive integer minor units, direction from `category.direction` (reconciliation is the only signed exception). Format/parse/round only via `domain.money`; no `/ 100`, `* 100`, `float`, `Decimal("100")` on money. Convert only via the FX owner; account owns currency, aggregates use `base_currency` (PLN) with cached historical rates. | G6 (ADR-0006, ADR-0008) |
-| **Immutable by default.** Frozen dataclasses, no classes beyond DTOs/Protocols, no module-level mutable state. | purity guard (ADR-0021) |
-| **Suppressions.** Every `noqa` / `type: ignore` / `nosec` / `pragma: no cover` carries a reason on the same line. | ruff `PGH`, G4 |
-| **Allowlists only shrink.** `tests/architecture/allowlists/*.toml` and `per-file-ignores` are the debt inventory. No new entry (or suppression) without an ADR-0130 amendment naming it and the reason. Fixed a violation: delete its entry in the same commit. | `_ratchet.py` (fails both directions) |
+| **Pure layers.** `domain/` and pure services do no I/O, read no clock/env/randomness, hold no global mutable state, mutate no argument. Services may call repositories and `logging`; network only through an injected port; clock and settings come in as arguments. Web view-models do no network. Effects live at the edges (repositories, `clock`, adapters, routers). | `test_purity.py` + `allowlists/purity.toml` (G22), import-linter `[tool.importlinter]` (ADR-0021, ADR-0130 §5) |
+| **Thin web.** Routers parse, call one service, return a view model. No SQL, no repository import, no arithmetic on money/dates in routers or templates. | import-linter, `test_thin_router.py` + `thin_router.toml`, `test_template_logic.py` + `template_logic.toml` (G9) |
+| **Repository-only SQL**, user-scoped (never a literal user id), soft delete + audit via repository helpers; a service calling 2+ mutators uses one `db_transaction`. | `test_no_sql_outside_repositories.py` + `sql_sites.toml` (G2), `test_user_id_filter.py`, `test_literal_user_id.py` + `literal_user_id.toml` (G7b); one-transaction rule G8 not yet a guard (ADR-0019, ADR-0022) |
+| **Single clock.** `budget_planner.clock` only; never `date.today()`, `datetime.now()`, `datetime.utcnow()`, `time.time()`. | ruff TID251 banned-api in `pyproject.toml` (per-file allowlist, G3) (ADR-0007, Q-031) |
+| **Money.** Positive integer minor units, direction from `category.direction` (reconciliation is the only signed exception). Format/parse/round only via `domain.money`; no `/ 100`, `* 100`, `float`, `Decimal("100")` on money. Convert only via the FX owner; account owns currency, aggregates use `base_currency` (PLN) with cached historical rates. | `test_banned_patterns.py` + `banned_patterns.toml` (G6), `test_money_scope.py` + `money_scope.toml` (G27) (ADR-0006, ADR-0008) |
+| **Immutable by default.** Frozen dataclasses, no classes beyond DTOs/Protocols, no module-level mutable state. | `test_functional_first.py` + `functional_first.toml` (G20), `test_purity.py` (ADR-0021) |
+| **Suppressions.** Every `noqa` / `type: ignore` / `nosec` / `pragma: no cover` carries a reason on the same line. | ruff `PGH`, `test_suppressions.py` + `suppressions.toml` (G4) |
+| **Allowlists only shrink.** `tests/architecture/allowlists/*.toml` and `per-file-ignores` are the debt inventory. No new entry (or suppression) without an ADR-0130 amendment naming it and the reason. Fixed a violation: delete its entry in the same commit. | `tests/architecture/_ratchet.py` (fails in both directions) |
 | **Tests assert values.** Exact amounts, the audit row and stored sign, and that a second user's rows are absent; HTTP tests assert body or DB state, not only status. | review, mutation score (ADR-0131) |
 
 Timestamps are UTC in the DB, transaction dates are naive `DATE`, display timezone defaults to `Europe/Warsaw` (ADR-0007).
@@ -126,6 +131,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 - All drill workflows share the `drill` concurrency group (queued, not cancelled).
 - Allowed non-GitHub exceptions: bootstrap stack (`terraform/bootstrap`, ADR-0096), logged break-glass runbook, one-time prod DB seed (explicit in-session user go).
 - Enforcement is by credentials: prod-write keys live only in the GitHub `prod` environment (ADR-0100); keep none in `terraform/.env`.
+- GitHub environment, branch-policy and secret settings are checked repo-side by `tests/architecture/test_workflow_secrets.py` (declared in `ci_environments.toml`) and by the operator-run `scripts/check_github_settings.py` (G17b). Never widen an environment's branch policy or add a secret to an environment without a `ci_environments.toml` entry and an operator go.
 - Releases are one approved `terraform apply` that sets the image ref in instance metadata; the host agent converges ([ADR-0111](docs/adr/0111-terraform-declared-host-state.md)). There is no SSH deploy path; do not add one.
 
 ## Rules & scope
@@ -154,7 +160,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
   The pytest suite already uses isolated temp DBs — do not bypass that by hard-coding `data/budget.sqlite` anywhere in test code, fixtures, or scripts.
 - Commands that default to the prod DB and are therefore **destructive-by-default**: `just db-reset`, `just migrate`, `just seed`, and the CSV import script. Never run them against the default path from inside a task unless the user has explicitly said "run it against prod" in the current session. When in doubt, pass `--db=<path>` to a scratch file.
 - The `--db=<path>` flag on `just dev` sets `BUDGET_DATABASE_URL=sqlite:///<path>`; app code is unchanged. Use it as the standard escape hatch for any DB experiment.
-- The anonymizer at `data/scripts/build_demo_db.py` only runs when the source basename ends with `budget.sqlite` as a tripwire against accidental swaps — do not weaken or remove that check.
+- The demo anonymizer (`just demo-build`, script `build_demo_db.py` under data/scripts) only runs when the source basename ends with `budget.sqlite` as a tripwire against accidental swaps — do not weaken or remove that check.
 
 ### Files at a glance
 

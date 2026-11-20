@@ -43,11 +43,18 @@ Not touched: prod-DB, Releases and environments, Multi-agent sections (preventio
 
 `docs/CHANGELOG.md` one line; `docs/plans/quality-audit/tasks.md` T-Q15 bullet "T-Q15c guidance drafted, pending operator review".
 
+## Update after T-Q15a/b/d merged
+
+- Canonical modules table now has all 16 registry rows with the registry's concept names verbatim (`test_claude_md_table_covers_registry` un-skipped and green); clock row is `exists` (`utc_now()`, `today_local(settings)`).
+- The rule table cites real test files and allowlists under `tests/architecture/` (guard ids in parentheses); Releases section gains the G17 pointer (`test_workflow_secrets.py`, `ci_environments.toml`, operator-run `scripts/check_github_settings.py`).
+- G15: `guidance_paths.toml` is now empty (11 entries burned to zero). Two last stale references were reworded without a backticked path: the `data/scripts/build_demo_db.py` anonymizer (the file is gitignore-exempt but untracked in worktrees) and the not-yet-existing `new_defs.py` helper in the orchestrator skill.
+- ADR-0130 §5 carries the one-line amendment that services may use `logging`.
+- `just guards` (tests/architecture, 96 tests) green.
+
 ## Points to check
 
-1. The Canonical modules table lists 11 rows (prevention S1 says 15, its list has ~14 concepts); I merged "request-param parsing, HTMX events" and left out transit validation, balance as-of, category selection, template view-model values (each `target`). Add them when `canonical_modules.toml` lands, since the table must equal the toml (drift guard).
-2. `just guards` and `just mutate*` are listed but depend on T-Q15a/b landing; `test-fast`, `demo-build`, `set-password` exist today.
-3. Rule table cites guard ids (`G2`, `G4`, `G6`, `G8`) with a pointer to `prevention.md` §2 rather than file names, because the guard files do not exist yet. Replace with file names after T-Q15a (R3 asks for rule, guard file, error text).
-4. The pure-layer definition permits `logging` in services (per the task brief); ADR-0130 §5 and the open question Q1 in the inventory (E07) leave this undecided in text.
-5. The CPU lock path `/tmp/qa-audit-heavy.lock` is named after this audit; rename if the lock should be general.
-6. No edit to the Releases section (R8) or the user-level `~/.claude/rules` (out of scope, ADR-0130 §7).
+1. The one-transaction rule (G8) has no guard yet; the rule table says so. Add its test name when it lands.
+2. `scripts/ci/new_defs.py` does not exist; the orchestrator merge check falls back to a grep. Decide whether to build it.
+3. The CPU lock path `/tmp/qa-audit-heavy.lock` is named after this audit; rename if it should be general.
+4. `data/scripts/build_demo_db.py` is gitignore-exempt but untracked in this repo state; confirm whether it should be committed.
+5. `~/.claude/rules` (user level) remains untouched (ADR-0130 §7).

@@ -1,0 +1,120 @@
+# Guard docstrings and teaching messages are prose; long lines are intentional.
+# ruff: noqa: E501
+"""INV-3: budget and forecast agree on spent / committed for the same category and window (Q-008, Q-002, Q-030)."""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import date, timedelta
+from decimal import Decimal
+
+import pytest
+
+from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.enums import Direction
+from budget_planner.domain.fx import NewFxRate
+from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.transactions import NewTransaction, TransactionFilter
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+    fx as fx_repo,
+    planned as planned_repo,
+    transactions as txn_repo,
+)
+from budget_planner.services import budget, forecast
+
+U = 1
+TODAY = date(2026, 11, 19)
+M_START, M_END = date(2026, 11, 1), date(2026, 11, 30)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Q-008: forecast._spent_so_far sums raw native amounts, budget converts to base",
+)
+def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
+    eur = accounts_repo.create(seeded, U, NewAccount(name="EUR Wallet", currency="EUR")).id
+    fx_repo.upsert_rate(
+        seeded,
+        NewFxRate(date=date(2026, 11, 10), from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+    )
+    txn_repo.create(
+        seeded,
+        U,
+        NewTransaction(
+            operation_date=date(2026, 11, 10), category_id=7, account_id=eur, amount=10_000
+        ),
+    )
+    txns = txn_repo.list_filtered(
+        seeded,
+        U,
+        TransactionFilter(
+            date_from=M_START, date_to=TODAY, category_ids=(7,), directions=(Direction.EXPENSE,)
+        ),
+    )
+    b_spent = budget._sum_by_category(txns, budget.base_txn_converter(seeded, U)).get(7, 0)
+    f_spent = forecast._spent_so_far(seeded, U, 7, M_START, TODAY)
+    assert b_spent == f_spent, (b_spent, f_spent)
+
+
+def _committed_pair(conn: sqlite3.Connection) -> tuple[int, int]:
+    win_start = TODAY + timedelta(days=1)
+    b = budget._committed_by_category(
+        conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY
+    ).get(6, 0)
+    f = forecast._committed_future_for_category(conn, U, 6, win_start, M_END, today=TODAY)
+    return b, f
+
+
+def test_3b_committed_agrees_before_a_planned_row_is_linked(seeded: sqlite3.Connection) -> None:
+    b, f = _committed_pair(seeded)
+    assert b == f
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Q-002: forecast double counts a recurring occurrence that has a linked planned row (ADR-0087 dedup)",
+)
+def test_3b_committed_agrees_after_a_planned_row_is_linked(seeded: sqlite3.Connection) -> None:
+    planned_repo.create(
+        seeded,
+        U,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 24),
+            category_id=6,
+            account_id=5,
+            amount=1530,
+            description="linked",
+            recurring_rule_id=22,
+            occurrence_date=date(2026, 11, 24),
+        ),
+    )
+    b, f = _committed_pair(seeded)
+    assert b == f, (b, f)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Q-030: budget counts overdue unpromoted items (ADR-0105), the forecast event stream drops them",
+)
+def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
+    seeded: sqlite3.Connection,
+) -> None:
+    planned_repo.create(
+        seeded,
+        U,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 5), category_id=7, account_id=1, amount=5000
+        ),
+    )
+    budget_counts = budget._committed_by_category(
+        seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY
+    ).get(7, 0)
+    directions = {
+        c.id: c.direction for c in categories_repo.list_all(seeded, U, include_deleted=True)
+    }
+    events = forecast._collect_events(seeded, U, TODAY, M_END, directions)
+    in_stream = any(e.on_date == date(2026, 11, 5) for evs in events.values() for e in evs)
+    assert budget_counts == 5000
+    assert in_stream

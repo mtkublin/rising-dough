@@ -1,0 +1,167 @@
+# S1: canonical-modules registry (ADR-0130 section 3, prevention.md S1). Machine-readable source of truth.
+#
+# status = "exists": module and symbol resolve today (test_canonical_modules.py imports them).
+# status = "target": not yet extracted. Do not add a new copy; call the nearest listed function and note it in
+#   the report. Flip to "exists" in the remediation that extracts it (epic in `epic`).
+# banned = fnmatch patterns for function names that must not be defined outside `module` (guard G6,
+#   allowlists/banned_patterns.toml). search = terms to run against the tree before writing a helper.
+
+[[row]]
+concept = "FX conversion and rate lookup"
+module = "services/fx.py"
+symbol = "convert"
+status = "exists"
+finding = "Q-007"
+epic = "E01"
+search = ["convert", "to_base", "fx_rate", "get_rate"]
+banned = ["*convert*", "*to_base*"]
+
+[[row]]
+concept = "Money format, parse, exponent, minor and major units"
+module = "domain/money.py"
+symbol = "parse_amount_str"
+status = "exists"
+finding = "Q-011"
+epic = "E11"
+search = ["parse_amount", "format_money", "to_minor_units", "currency_decimals"]
+banned = ["_parse_amount*", "parse_amount*", "_parse_money*", "*minor_per_major*"]
+
+[[row]]
+concept = "Periods and month windows"
+module = "domain/periods.py"
+symbol = "month_bounds"
+status = "target"
+finding = "Q-003"
+epic = "E01"
+search = ["month_bounds", "end_of_month", "month_range", "shift_month"]
+banned = ["*month_bounds*", "end_of_month", "_month_range", "*month_range*", "_shift_month"]
+
+[[row]]
+concept = "Recurring occurrence expansion"
+module = "services/recurring.py"
+symbol = "pending_occurrences"
+status = "target"
+finding = "Q-002"
+epic = "E01"
+search = ["pending_occurrences", "generate_occurrences", "next_due"]
+banned = ["*occurrences_between*", "_expand_occurrences*"]
+
+[[row]]
+concept = "Direction to sign"
+module = "domain/transactions.py"
+symbol = "signed_legs"
+status = "target"
+finding = "Q-036"
+epic = "E01"
+search = ["signed", "direction", "sign"]
+banned = ["*signed_amount*", "_signed_legs*", "_sign_for*"]
+
+[[row]]
+concept = "Net worth and fortune"
+module = "services/fortune.py"
+symbol = "compute_fortune"
+status = "exists"
+finding = "Q-009"
+epic = "E01"
+search = ["fortune", "net_worth", "total_balance"]
+banned = ["*net_worth*"]
+
+[[row]]
+concept = "Sum by category in base currency"
+module = "services/aggregates.py"
+symbol = "sum_by_category"
+status = "target"
+finding = "Q-008"
+epic = "E01"
+search = ["sum_by_category", "_mean_minor", "category_total"]
+banned = ["_mean_minor", "_mean", "*sum_by_category*"]
+
+[[row]]
+concept = "Ledger, recurring and planned totals"
+module = "services/ledger_totals.py"
+symbol = "day_nets"
+status = "exists"
+finding = "Q-010"
+epic = "E09"
+search = ["day_nets", "totals", "recurring_summary"]
+banned = ["_recurring_summary", "_actual_day_nets"]
+
+[[row]]
+concept = "Clock (UTC now, local today)"
+module = "clock.py"
+symbol = "utc_now"
+status = "exists"
+finding = "Q-031"
+epic = "E07"
+search = ["utc_now", "today_local", "date.today", "datetime.now"]
+banned = ["_today_local*", "_utc_now*", "_now_utc*"]
+
+[[row]]
+concept = "Request parameter parsing"
+module = "web/params.py"
+symbol = "parse_date"
+status = "target"
+finding = "Q-023"
+epic = "E03"
+search = ["_parse_date", "_parse_int", "parse_date", "parse_int"]
+banned = ["_parse_date", "_parse_int", "_parse_date_param", "_parse_int_param"]
+
+[[row]]
+concept = "HTMX events and toast payloads"
+module = "web/htmx.py"
+symbol = "trigger"
+status = "exists"
+finding = "Q-038"
+epic = "E03"
+search = ["HX-Trigger", "trigger_from_iterable", "toast", "stale"]
+banned = ["_toast_trigger", "_hx_trigger*"]
+
+[[row]]
+concept = "Transit validation"
+module = "services/transactions.py"
+symbol = "validate_transit_shape"
+status = "target"
+finding = "Q-004"
+epic = "E08"
+search = ["transit", "validate_transit"]
+banned = ["_validate_transit*"]
+
+[[row]]
+concept = "Balance as of a date"
+module = "services/balance.py"
+symbol = "as_of_today"
+status = "target"
+finding = "Q-032"
+epic = "E01"
+search = ["as_of", "balance_series", "account_balance"]
+banned = ["_balance_as_of*"]
+
+[[row]]
+concept = "Category selection (expense category ids)"
+module = "services/categories.py"
+symbol = "expense_category_ids"
+status = "target"
+finding = "Q-030"
+epic = "E01"
+search = ["expense_category_ids", "category_ids", "archived"]
+banned = ["_expense_category_ids*", "_live_category_ids*"]
+
+[[row]]
+concept = "Budget tier resolution"
+module = "services/budget.py"
+symbol = "pick_tier"
+status = "target"
+finding = "Q-075"
+epic = "E01"
+search = ["resolve_budget", "pick_tier", "yearly_grid"]
+banned = ["_pick_tier*", "_resolve_tier*"]
+
+[[row]]
+concept = "Template view-model values (left per day, percentages)"
+module = "web/view_models.py"
+symbol = "left_per_day"
+status = "target"
+finding = "Q-039"
+epic = "E09"
+search = ["left_per_day", "percent", "view_model"]
+banned = ["_left_per_day*", "*left_per_day*"]

@@ -1,0 +1,164 @@
+# G6 banned_patterns: copies of canonical-module functions and money rounding primitives outside domain/money.py.
+
+guard = "banned_patterns"
+
+[[entry]]
+path = "src/budget_planner/services/analytics.py"
+rule = "banned-name"
+count = 2
+finding = "Q-008"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/analytics.py"
+rule = "money-primitive"
+count = 2
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/balance.py"
+rule = "banned-name"
+count = 1
+finding = "Q-008"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/balance.py"
+rule = "money-primitive"
+count = 2
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "banned-name"
+count = 7
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "money-primitive"
+count = 4
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "banned-name"
+count = 2
+finding = "Q-003"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "money-primitive"
+count = 4
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/fx.py"
+rule = "money-primitive"
+count = 4
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "banned-name"
+count = 1
+finding = "Q-003"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "money-primitive"
+count = 5
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/today.py"
+rule = "money-primitive"
+count = 2
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/categories.py"
+rule = "banned-name"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "banned-name"
+count = 5
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "banned-name"
+count = 1
+finding = "Q-003"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "banned-name"
+count = 2
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "banned-name"
+count = 3
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "money-primitive"
+count = 2
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "banned-name"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/transactions.py"
+rule = "banned-name"
+count = 2
+finding = "Q-023"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/templating.py"
+rule = "banned-name"
+count = 2
+finding = "Q-031"
+epic = "E07"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "banned-name"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "money-primitive"
+count = 2
+finding = "Q-076"
+epic = "E11"
