@@ -8,8 +8,13 @@ Keyboard interaction itself lives in Playwright (see task plan §Validation).
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
+
+from tests.ui_map import _html, shell
+from tests.ui_map.locator import label
+
+_PALETTE_SEARCH = label("Command palette search").inside(shell.palette)
 
 
 def _soup(client: TestClient, path: str = "/today") -> BeautifulSoup:
@@ -20,16 +25,16 @@ def _soup(client: TestClient, path: str = "/today") -> BeautifulSoup:
 
 def test_palette_partial_in_base(client: TestClient) -> None:
     soup = _soup(client)
-    dialog = soup.find("dialog", id="command-palette")
-    assert isinstance(dialog, Tag)
+    dialog = _html.resolve_one(soup, shell.palette)
+    assert dialog.name == "dialog"
     assert dialog.get("aria-modal") == "true"
-    assert soup.select_one("#command-palette .palette-input") is not None
+    assert _html.exists(soup, _PALETTE_SEARCH)
 
 
 def test_shortcuts_partial_in_base(client: TestClient) -> None:
     soup = _soup(client)
-    dialog = soup.find("dialog", id="shortcuts-dialog")
-    assert isinstance(dialog, Tag)
+    dialog = _html.resolve_one(soup, shell.shortcuts_dialog)
+    assert dialog.name == "dialog"
     assert dialog.get("aria-modal") == "true"
 
 
@@ -52,10 +57,14 @@ def test_palette_nav_items_match_nav_partial(client: TestClient) -> None:
     keys (`n`, `?`) are palette-only and allowed."""
     soup = _soup(client)
     nav_shortcuts = {
-        el["data-shortcut"] for el in soup.select("nav [data-shortcut]") if el.get("data-shortcut")
+        str(el["data-shortcut"])
+        for el in _html.resolve(soup, shell.nav_links)
+        if el.get("data-shortcut")
     }
     palette_shortcuts = {
-        el["data-shortcut"] for el in soup.select("#command-palette .palette-item[data-shortcut]")
+        str(el["data-shortcut"])
+        for el in _html.resolve(soup, shell.palette_options)
+        if el.get("data-shortcut")
     }
     assert palette_shortcuts, "palette has no shortcut items"
     # Rising Dough v2 collapses Budget + Forecast + Analytics into /plan.

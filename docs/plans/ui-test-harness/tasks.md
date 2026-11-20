@@ -53,8 +53,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance (each item)**: its allowlist entries are gone; its tests pass; no test body asserts on a class name or copy; existing behaviour unchanged (any real bug becomes a strict `xfail` with a new task id).
 - **Validation (each item)**: `just test tests/contract tests/integration/web/<its files>`
 
-### ◻ T-UT04a [P] Shell, auth and errors
+### ✅ T-UT04a [P] Shell, auth and errors
 - Login, logout, re-auth, rate limits, passkey endpoints, session list, CSRF, security headers, cache-control, redirects, root redirect, error pages, health, palette, FAB / new-entry entry points.
+- **Done 2026-11-20**: `tests/contract/test_{shell,auth,errors}.py` cover all 22 `PENDING_T_UT04A` routes (section deleted); 14 integration files migrated to the UI map (`tests/ui_map/{shell,auth,errors}.py`) and their `ALLOWLIST` entries deleted (0 markup assertions). No template changes (role/label/id locators were enough). Notes: `label()` locators also match descendants of the `<label>` (e.g. its `<span>`), so tests filter by tag; `<script>` src/inline CSP checks still use BeautifulSoup `find_all("script")` directly (no UI-map role for scripts).
 
 ### ✅ T-UT04b [P] Today and Accounts
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
@@ -103,6 +104,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ### ◻ T-UT06 [S] Operator decisions on parity gaps → T-UT05
 - Every `no board` and `handoff-only` row in `parity.md` gets a decision: derive from the design system, ask the designer for a board, drop (needs an ADR), or new requirement first (for handoff-only features). Decisions copied into `docs/plans/ui-redesign/derived.md`.
+- Status 2026-11-20: change request sent: docs/plans/ui-redesign/designer-change-request.md; awaiting designer; T-UT12 does not block on the answers, only on every gap row having a decision/owner. Operator decision: all 16 gaps go to the designer; every `parity.md` row reads `ask designer (designer-change-request.md)`.
 
 ### ◻ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.

@@ -7,3 +7,5 @@ from tests.ui_map.locator import by_id, role
 main = by_id("main")
 alert = role("alert")
 status = role("status")
+heading = role("heading", level=1)
+back_link = role("link", "Back to dashboard")
