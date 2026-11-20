@@ -7,9 +7,9 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: end-of-file-fixer
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -17,7 +17,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*|docs/application_redesign_handoff/.*)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
@@ -79,7 +79,7 @@ repos:
         files: ^src/budget_planner/web/templates/.*\.html$
         args: [--check]
         # Designer handoff is vendored byte-identical (ADR-0106, T-UT01).
-        exclude: ^docs/design/
+        exclude: ^(docs/design|docs/application_redesign_handoff)/
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
@@ -93,6 +93,8 @@ repos:
     hooks:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline]
+        # Vendored designer output (ADR-0129): public SRI hashes, not secrets.
+        exclude: ^docs/application_redesign_handoff/
 
   - repo: local
     hooks:

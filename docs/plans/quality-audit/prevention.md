@@ -134,6 +134,7 @@ Type: **G** automated guard (strongest), **S** structural, **R** written rule. "
 
 #### G0 — Make guards run on every commit (enabler)
 
+- Parity note (T-Q15e): vendored `docs/application_redesign_handoff/` (ADR-0129) is excluded from the whitespace, eof, mixed-line-ending, djlint and detect-secrets hooks, like `docs/design/`, so `pre-commit run --all-files` in CI passes without editing vendored files.
 - Add a pre-commit local hook `architecture-guards`: `uv run pytest tests/architecture -q --no-cov -p no:testmon` on `.py` and `.html` changes, plus `lint-imports` (G1). Seconds, not minutes (**measure** in T-Q15 and record; do not quote a number before it is measured).
 - First verify the hypothesis: edit one scanned `src` file with no other change and run `just test-fast`; record whether `tests/architecture/test_user_id_filter.py` is selected. If it is, G0 is redundant and is dropped.
 - Artefacts: `.pre-commit-config.yaml`, `justfile` (`guards` recipe), requirements §3.4. Verified by: the experiment above.
