@@ -82,7 +82,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance**: all green on Chromium; no CSS locators; each journey asserts the DB effect as well as the screen.
 - **Validation**: `just test-e2e`
 
-### ◻ T-UT09 [P] Mockup target → T-UT01, T-UT02
+### ✅ T-UT09 [P] Mockup target → T-UT01, T-UT02
 - **Deliverables**: `--target=mockup` option that serves `docs/design/rising-dough-frontend/` over HTTP (with `stand-in.js` active) and runs UI-map lookups and click-through journeys against it. Mapping from app routes to handoff pages in `tests/ui_map/mockup_routes.py`.
 - **Acceptance**: a Today UI-map module variant for the new markup resolves every name against `pages/today.html` and its overlays; documented as the first step of each redesign surface.
 - **Validation**: `just test-e2e --target=mockup tests/e2e/test_today_journey.py`
