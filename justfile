@@ -76,8 +76,19 @@ css-watch:
     npm run css:watch
 
 # Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
-test-visual:
-    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
+# `just test-visual --reference=handoff [surface]` compares against the handoff references (T-UT10).
+test-visual *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    opts=()
+    for a in {{args}}; do
+      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
+    done
+    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
+
+# Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
+visual-reference *surface:
+    uv run python -m tests.visual.handoff {{surface}}
 
 # Refresh visual-regression baselines after an intentional design change.
 test-visual-update:

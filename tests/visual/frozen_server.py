@@ -22,6 +22,12 @@ import importlib
 import os
 import sys
 
+# Handoff fixture (T-UT10): the designer's sample data (period 7 Oct -> 7 Nov,
+# "day 25 of 31", tax refund due 31 Oct, 10 accounts, net worth 34,439.69 PLN)
+# was drawn from data/demo.sqlite on this day, so the frozen demo DB at this
+# date IS the matching fixture. ``HANDOFF_FIXTURE_DATE`` is the single source
+# for conftest.FROZEN_DATE and handoff.HANDOFF_FIXED_TIME.
+HANDOFF_FIXTURE_DATE = "2026-10-31"
 FROZEN_TIME = _dt.time(10, 0)  # 10:00 UTC: same calendar day in Europe/Warsaw
 _REAL_DATE = _dt.date
 _REAL_DATETIME = _dt.datetime
