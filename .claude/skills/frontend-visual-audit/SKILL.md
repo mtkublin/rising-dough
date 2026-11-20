@@ -15,7 +15,7 @@ Use when:
 
 Do **not** use for:
 - Backend-only changes.
-- Logic / data correctness (use route-level integration tests instead).
+- Service logic or data correctness (use route-level integration tests). **Exception:** the numbers a template prints and the HTMX contract are in scope (Step 3b).
 - Accessibility deep audits — this covers surface signals only (missing alt, duplicate IDs, visible focus). Use a dedicated a11y tool for a full audit.
 
 ## Prerequisites
@@ -115,7 +115,8 @@ const DIAGNOSTIC = () => ({
       const url = `${BASE}${route}`;
       const slug = `${vp.label}__${route.replace(/\W+/g, '_') || 'root'}`;
       try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await page.waitForSelector('main', { timeout: 5000 }); // a known-rendered element
       } catch (e) {
         summary.push({ route, viewport: vp.label, error: String(e) });
         await page.close();
@@ -168,10 +169,22 @@ Signals and what they usually mean:
 | `overflowingElements[]` populated but `horizontalScroll: false` | Content is clipped by `overflow-x: hidden/clip` on an ancestor — may still be visually broken | Compare screenshot against intended design |
 | `verticalScroll: false` but page clearly has more content | A scroll container (usually `overflow-x: hidden` on a tall ancestor) is swallowing Y scroll — use `overflow-x: clip` instead | Any ancestor of `main` with non-visible overflow-x |
 | `consoleErrors[]` non-empty | JS runtime error or 404 for an asset | Open the JSON entry |
-| `requestFailures[]` non-empty | Missing static asset, broken CDN, CORS | URL in the entry |
+| `requestFailures[]` non-empty | Missing static asset, wrong asset path, CORS | URL in the entry |
 | `duplicateIds[]` non-empty | Fragment / partial reused incorrectly — HTMX swaps may misbehave | Entry lists the offending ids |
 | `images.broken > 0` | Missing or wrongly-pathed image | Inspect screenshot + network |
 | Fixed/sticky element missing from screenshot | Positioning or z-index regression | `fixed[]` entry + screenshot |
+
+## Step 3b — Behaviour contract and template logic (MANDATORY for template / HTMX changes)
+
+Each item needs evidence (page text, DOM query, a forced response), not an opinion. Report the result per route. The static guards (template-logic and HTMX-contract tests in `tests/architecture/`, ADR-0130) must also be green; this step proves what they cannot.
+
+1. **Swap targets exist.** For every `hx-target` / `hx-swap` on the page, the target selector matches exactly one element, before and after the swap (`document.querySelectorAll(sel).length === 1`).
+2. **Failing saves are visible.** For every state-changing form, force a 404, 409 and 500 (intercept the request with `page.route`, or submit a stale id) and confirm a visible error or flash appears and the form is not left looking saved. Silent failure is a blocking finding.
+3. **No arithmetic in templates.** No `float`, `/ 100`, `* 100`, `set` blocks re-deriving a service value, or hard-coded currency or period literals in the touched templates (`rg` the files). Derived values come from the view model.
+4. **Money formatting by currency.** Amounts go through the `money` / `money_num(currency)` filters; check one non-PLN and one zero-decimal currency (JPY) on the scratch DB.
+5. **Rendered number equals the service value.** Read the number from the page text, call the service function on the same scratch DB, compare. Mismatch is blocking.
+6. **IDs and listeners.** No duplicate ids after a swap (re-run the diagnostic after the HTMX request). Every emitted `HX-Trigger` event has a listener, and every listener has an emitter.
+7. **Scratch data only.** Run against `--db=<scratch>` or `data/demo.sqlite`, never `data/budget.sqlite`.
 
 ## Step 4 — Categorize findings
 
@@ -179,7 +192,8 @@ Signals and what they usually mean:
 |----------|-------------|--------------|
 | **Layout** | Horizontal scroll, clipped content, broken responsive breakpoint, misaligned grid | CSS tokens / layout rules |
 | **Content** | Broken image, missing fragment, duplicate IDs after an HTMX swap | Template / partial / data-plumbing |
-| **Behavior** | Console error, failed network request, missing JS init | Client script / asset path / bundler config |
+| **Behavior** | Console error, failed network request, missing JS init, silent failed save, swap target missing | Client script / asset path / router error handling / HTMX contract |
+| **Template logic** | Arithmetic, `float`, literals or re-derived values in a template; rendered number differs from the service | View model / service; not the template |
 | **A11y surface** | Missing focus ring on an interactive element in the screenshot, invisible nav target | Component CSS + ARIA |
 
 Write category + concrete file:line pointers directly in the response. Don't dump raw screenshots.
@@ -199,8 +213,8 @@ Format each entry: *Route — viewport — one-line symptom — suggested fix (p
 - **`overflow-x: hidden` on a tall ancestor breaks vertical scroll.** Use `overflow-x: clip` instead — `clip` doesn't establish a scroll container, so Y scroll propagates normally.
 - **`height: 100dvh` falls back to `auto` in older Safari.** Add `height: 100vh;` before `height: 100dvh;` for a safe fallback.
 - **Sticky elements inside a flex row** need `align-self: flex-start` (or the parent needs `align-items: flex-start`), otherwise the flex item stretches to the row height and `top: 0` has no effect.
-- **CDN CSS cache**: a plain `app.css` link with no version is aggressively cached. If visual changes don't appear, append a `?v=<hash>` or `?v=<timestamp>` to the stylesheet URL. Confirm by inspecting the response in DevTools Network — status should be `200` (not `(disk cache)` or `304`).
-- **Plotly / embedded iframes / canvas widgets** often render at a fixed intrinsic size and overflow narrow containers. Pass `{ responsive: true }` (Plotly) or wrap in `overflow-x: auto` so the parent stays width-bound.
-- **`networkidle` is unreliable with WebSocket apps / HTMX long-polling.** Use `waitUntil: 'domcontentloaded'` plus an explicit `waitForSelector` for a known-rendered element.
+- **Stale Tailwind output**: `static/tailwind.css` is a local build. If a new utility class has no effect, run `just css` (the `tailwind-check` hook fails on a stale file). Hard-reload to bypass the browser cache.
+- **Server-rendered SVG charts and any canvas/iframe widget** can have a fixed intrinsic size and overflow narrow containers. Give the SVG a `viewBox` with `width: 100%` or wrap in `overflow-x: auto`.
+- **Never use `networkidle`** (unreliable with HTMX polling and SSE); the script waits for `domcontentloaded` plus a known-rendered element.
 - **Headless Chromium default viewport is 1280×720** — always set an explicit viewport before `goto`, or responsive bugs hide.
 - **Full-page screenshot is the ground truth**, not the diagnostic JSON. If a signal and the screenshot disagree, trust the screenshot and widen the diagnostic.
