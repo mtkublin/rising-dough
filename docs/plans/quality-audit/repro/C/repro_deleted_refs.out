@@ -1,0 +1,9 @@
+rule #7 -> account #2 'Checking EUR', next_due=2026-11-12
+
+== D1: soft-delete account with balance -660115 (minor) ==
+fortune before=3443969 after=4104084 diff=660115
+
+== D2: live recurring rule on the deleted account is still scheduled and promotable ==
+upcoming rows referencing deleted account: 7
+promote_recurring(rule) created txn #617 on deleted account #2
+account visible in list_all(): False -> the new transaction is on an invisible account

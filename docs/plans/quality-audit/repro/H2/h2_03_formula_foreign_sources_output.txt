@@ -1,0 +1,23 @@
+== preview
+  V's cat      -> 422  '9876' in r.text=False  '<span class="rd-chip rd-chip--err"\n        data-formula-preview-err\n        data-code="inv'
+  nonexistent  -> 422  '9876' in r.text=False  '<span class="rd-chip rd-chip--err"\n        data-formula-preview-err\n        data-code="inv'
+  A's own      -> 200  '9876' in r.text=False  '<span class="rd-chip rd-chip--ok" data-formula-preview-ok>\n    = <strong>33.33</strong>\n  '
+== create with V's category as the only source
+  status 200 rules A: 1 -> 2
+  saved row: [(5, 0, '{"schema_version":2,"terms":[{"coefficient_bps":10000,"sign":"+","source_category_ids":[8]}]}')] | V amount leaked in body: False
+== create with V's + A's categories mixed
+  status 200 [(6, 3333, '{"schema_version":2,"terms":[{"coefficient_bps":10000,"sign":"+","source_category_ids":[8,13]}]}')]
+== create with nonexistent source id
+  status 200 [(7, 0, '{"schema_version":2,"terms":[{"coefficient_bps":10000,"sign":"+","source_category_ids":[99999]}]}')]
+== update A's rule to formula over V's category
+  status 200 [(3, 0, '{"schema_version":2,"terms":[{"coefficient_bps":10000,"sign":"+","source_category_ids":[8]}]}')]
+== views that evaluate A's formulas: do they show V's 9876.54?
+  GET /ledger?view=recurring     -> 200 leak=False
+  GET /today                     -> 200 leak=False
+  GET /plan?tab=budget           -> 200 leak=False
+  GET /forecast                  -> 200 leak=False
+  GET /ledger?view=planned       -> 200 leak=False
+== promote A's foreign-sourced formula rule
+  status 200
+  A transactions: [(3, 1234, 13, 5), (5, 100, 14, 5)]
+== any A rows referencing V parents: []

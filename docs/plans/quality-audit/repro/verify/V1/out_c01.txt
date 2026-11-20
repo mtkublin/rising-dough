@@ -1,0 +1,6 @@
+/Users/mikolajkublin/workspace/budget/budget_planner/.venv/lib/python3.12/site-packages/pydantic/main.py:280: UserWarning: cookie_secret empty — falling back to the known dev value. Set BUDGET_COOKIE_SECRET to silence this warning.
+  validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+expense  target=150000 derived_after=50000 MISMATCH
+expense  target=50000 derived_after=50000 OK
+income   target=150000 derived_after=150000 OK
+income   target=50000 derived_after=150000 MISMATCH

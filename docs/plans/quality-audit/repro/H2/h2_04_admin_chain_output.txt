@@ -1,0 +1,20 @@
+== 1. mass assignment as non-admin A (id 3)
+  POST /settings/users/3                  -> 404
+  POST /settings/users                    -> 404
+  POST /settings/users/3/reset-password   -> 404
+  POST /settings/password                 -> 303
+  POST /accounts                          -> 200
+  POST /categories                        -> 200
+  users after: [(1, 1, 0), (2, 0, 0), (3, 0, 0), (4, 1, 0)]
+  GET /settings/users -> 404 | /debug/audit-tail -> 404
+== 2. admin self-service (admins: 1 ADM, 4 ADM2)
+  ADM deletes self -> 409 (1, 1, 0)
+  ADM saves self WITHOUT is_admin field (self-demotion, other admin exists) -> 303 [(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 1, 0)]
+  ADM next request to /settings/users -> 404 (demotion applies at once)
+  ADM2 (now last admin) demotes self -> 409 [(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 1, 0)]
+  ADM2 deletes self -> 409
+  ADM renames ADM2 without is_admin field -> 303 [(1, 1, 0), (2, 0, 0), (3, 0, 0), (4, 0, 0)] <== ADM2 silently demoted
+== 3. concurrent mutual removal of the only two admins
+  ADM deletes ADM2: OperationalError: database is locked
+  ADM2 deletes ADM: ok
+  live admins afterwards: 1 [(1, 1, 1), (2, 0, 0), (3, 0, 0), (4, 1, 0)]

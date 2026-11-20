@@ -1,0 +1,21 @@
+V promote-due planned/recurring: 204 204
+V payloads: {'promoted_txn_ids': [5], 'promoted_planned_ids': [2]} {'promoted_txn_ids': [6], 'advanced_rule_ids': [2]}
+V state after promote: {'txns': [(2, None), (5, None), (6, None)], 'planned': [(2, 5, None)], 'rules': [(2, '2026-12-05', '2026-11-05', 1, None)]}
+A replays V's planned undo -> 204 | recurring undo -> 204
+V state unchanged by A's replay: True
+audit rows added by A's replay: 0
+A crafted negatives+dups   -> 204
+A crafted rule ids dup     -> 204
+V state unchanged after crafted ids: True
+
+OWN-DATA recurring undo
+ after promote   : [('2026-12-05', '2026-11-05')]
+ edit rule       : 200
+ after edit      : [('2026-12-05', '2026-11-05')]
+ stale undo      : 204 [('2026-12-05', '2026-11-05')] <== expected next_due back to 2026-11-05
+ audit rows for rule: before-edit=1 after-edit+undo=2 (undo itself adds 0)
+
+OWN-DATA planned undo after an edit (same stale-toast pattern)
+ after promote  : [(5,)]
+ after edit    : [(5, 'edited-after-promote')]
+ stale undo    : 204 [(5,)] | promoted txn soft-deleted: [(1,)] <== expected promoted_to_txn_id NULL

@@ -1,0 +1,15 @@
+== K1: date.today() follows the PROCESS tz, not settings.display_timezone ==
+TZ=UTC            date.fromtimestamp(22:30Z)=2026-06-30  (date.today() uses the same rule)
+TZ=Europe/Warsaw  date.fromtimestamp(22:30Z)=2026-07-01  (date.today() uses the same rule)
+display tz says   : 2026-07-01
+=> on a UTC process, naive date.today() lags Warsaw by one day from 00:00 to 01:00/02:00 local
+
+== K2: soft-delete retention window compares 'T' timestamps with datetime('now') ==
+cutoff (datetime(...,'-90 days')): 2026-08-21 12:00:00
+deleted_at                       : 2026-08-21T00:00:01.000Z
+deleted_at > cutoff -> 1 (row is 90d 12h old and still listed: 'T' sorts after ' ')
+
+== K3: mixed timestamp precision (SQL %f = ms, Python %f = us) ==
+sql   : 2026-11-19T10:00:00.123Z
+python: 2026-11-19T10:00:00.123456Z
+sql > python as strings: True (10:00:00.123 < 10:00:00.123456 in time)

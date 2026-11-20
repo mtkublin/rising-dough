@@ -1,0 +1,50 @@
+== deploy status (unauthenticated)
+{
+  "schema": 1,
+  "state": "ok",
+  "generation": "<hash-redacted>",
+  "desired_ref": "ghcr.io/mtkublin/budget-planner:sha-9ace5bb@sha256:b60773f451f4d55f88b5bc75ef80d7e8c54a8f14f66f37be7584940ba9945a1d",
+  "previous_ref": "",
+  "running_ref": "ghcr.io/mtkublin/budget-planner:sha-9ace5bb@sha256:b60773f451f4d55f88b5bc75ef80d7e8c54a8f14f66f37be7584940ba9945a1d",
+  "error": "",
+  "restore": {
+    "result": "empty",
+    "generation": "",
+    "at": "2026-11-19T20:41:11Z"
+  },
+  "drain": null,
+  "updated_at": "2026-11-19T20:42:04Z"
+}
+
+=== /static/nonexistent.css
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: a8d30da4e28a
+{"detail":"Not Found"}
+=== /static/
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: b4657e26759e
+{"detail":"Not Found"}
+=== /auth/nonexistent
+HTTP/1.1 302 Found
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: b1f503291dc7
+
+== direct IP, no SNI
+== wrong Host header
+HTTP/1.1 200 OK
+Alt-Svc: h3=":443"; ma=2592000
+Server: Caddy
+Date: Thu, 19 Nov 2026 20:45:46 GMT
+Content-Length: 0
+
+== plain http :80
+== caddy admin :2019
+
+== app :8000
