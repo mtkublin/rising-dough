@@ -1,0 +1,301 @@
+# P13 other principles. Script: repro/inventory/p13_other.py
+# Rules: literal-user-id, prod-db-path, silent-except, broad-except, assert-in-src, print-call, todo-marker, any-annotation,
+# domain-literal (HX event/currency/tz/direction literal outside a constant), magic-number, repeated-literal.
+# rows: 295
+src/budget_planner/cli/set_password.py:1	prod-db-path	[cli] Operator CLI: set a user's password (ADR-0069 §4, T-D19).
+
+U
+src/budget_planner/config.py:20	prod-db-path	[root] budget.sqlite
+src/budget_planner/config.py:38	repeated-literal	'utf-8' x9 (files: 8)
+src/budget_planner/config.py:46	domain-literal	[root] <module>: 'PLN'
+src/budget_planner/config.py:47	domain-literal	[root] <module>: 'Europe/Warsaw'
+src/budget_planner/db/migrate.py:161	repeated-literal	'BEGIN' x4 (files: 2)
+src/budget_planner/db/migrate.py:209	repeated-literal	'COMMIT' x4 (files: 2)
+src/budget_planner/db/migrate.py:210	broad-except	[db] _backfill_recurring_next_due: except Exception
+src/budget_planner/db/migrate.py:211	repeated-literal	'ROLLBACK' x4 (files: 2)
+src/budget_planner/db/migrate.py:251	broad-except	[db] _upgrade_formula_schema_v1_to_v2: except Exception
+src/budget_planner/db/migrate.py:332	broad-except	[db] apply_migrations: except Exception
+src/budget_planner/db/migrate.py:361	print-call	[db] main
+src/budget_planner/db/retention.py:28	repeated-literal	'budget_planner.retention' x3 (files: 3)
+src/budget_planner/db/retention.py:31	broad-except	[db] main: except Exception
+src/budget_planner/db/seed.py:26	literal-user-id	[db] _seed_demo_accounts: user_id = 1
+src/budget_planner/db/seed.py:33	domain-literal	[db] _seed_demo_accounts: 'PLN'
+src/budget_planner/db/seed.py:44	domain-literal	[db] _seed_demo_accounts: 'PLN'
+src/budget_planner/db/seed.py:65	print-call	[db] main
+src/budget_planner/db/startup_migrate.py:183	broad-except	[db] main: except Exception
+src/budget_planner/domain/accounts.py:58	any-annotation	[domain] as_dict() -> dict[str, Any]
+src/budget_planner/domain/categories.py:75	any-annotation	[domain] as_dict() -> dict[str, Any]
+src/budget_planner/domain/money.py:229	silent-except	[domain] parse_amount_str: except (InvalidOperation, ValueError): return None
+src/budget_planner/domain/planned.py:57	any-annotation	[domain] as_dict() -> dict[str, Any]
+src/budget_planner/domain/recurring.py:134	any-annotation	[domain] as_dict() -> dict[str, Any]
+src/budget_planner/domain/transactions.py:68	any-annotation	[domain] as_dict() -> dict[str, Any]
+src/budget_planner/logging.py:46	any-annotation	[root] _redact() -> Any
+src/budget_planner/logging.py:46	any-annotation	[root] _redact(value: Any)
+src/budget_planner/logging.py:54	any-annotation	[root] redact_sensitive() -> Any
+src/budget_planner/logging.py:54	any-annotation	[root] redact_sensitive(_logger: Any)
+src/budget_planner/logging.py:54	any-annotation	[root] redact_sensitive(event_dict: Any)
+src/budget_planner/logging.py:77	any-annotation	[root] _processors() -> list[Any]
+src/budget_planner/repositories/_shared.py:35	repeated-literal	'%Y-%m-%dT%H:%M:%S.%fZ' x4 (files: 4)
+src/budget_planner/repositories/_shared.py:38	any-annotation	[repositories] _dumps(value: Any)
+src/budget_planner/repositories/_shared.py:58	any-annotation	[repositories] write_audit(prev: Any | None)
+src/budget_planner/repositories/_shared.py:59	any-annotation	[repositories] write_audit(new: Any | None)
+src/budget_planner/repositories/_shared.py:130	broad-except	[repositories] transaction: except Exception
+src/budget_planner/repositories/_shared.py:151	any-annotation	[repositories] mutate(prev: Any | None)
+src/budget_planner/repositories/accounts.py:99	assert-in-src	[repositories] create._action: assert created is not None
+src/budget_planner/repositories/accounts.py:130	assert-in-src	[repositories] update._action: assert updated is not None
+src/budget_planner/repositories/accounts.py:171	assert-in-src	[repositories] undelete._action: assert restored is not None
+src/budget_planner/repositories/categories.py:100	assert-in-src	[repositories] create._action: assert created is not None
+src/budget_planner/repositories/categories.py:128	assert-in-src	[repositories] update._action: assert updated is not None
+src/budget_planner/repositories/categories.py:168	assert-in-src	[repositories] undelete._action: assert restored is not None
+src/budget_planner/repositories/planned.py:68	any-annotation	[repositories] _append_filter_clauses() -> tuple[list[str], list[Any]]
+src/budget_planner/repositories/planned.py:160	assert-in-src	[repositories] create._action: assert created is not None
+src/budget_planner/repositories/planned.py:173	any-annotation	[repositories] _normalise_patch() -> dict[str, Any]
+src/budget_planner/repositories/planned.py:173	any-annotation	[repositories] _normalise_patch(changes: dict[str, Any])
+src/budget_planner/repositories/planned.py:209	assert-in-src	[repositories] update._action: assert updated is not None
+src/budget_planner/repositories/planned.py:275	assert-in-src	[repositories] undelete._action: assert restored is not None
+src/budget_planner/repositories/planned.py:303	assert-in-src	[repositories] stamp_promotion._action: assert updated is not None
+src/budget_planner/repositories/recurring.py:200	any-annotation	[repositories] _normalise_rule_patch() -> dict[str, Any]
+src/budget_planner/repositories/recurring.py:200	any-annotation	[repositories] _normalise_rule_patch(changes: dict[str, Any])
+src/budget_planner/repositories/recurring.py:256	assert-in-src	[repositories] create_rule._action: assert created is not None
+src/budget_planner/repositories/recurring.py:330	assert-in-src	[repositories] update_rule._action: assert updated is not None
+src/budget_planner/repositories/transactions.py:69	any-annotation	[repositories] _append_filter_clauses() -> tuple[list[str], list[Any]]
+src/budget_planner/repositories/transactions.py:139	any-annotation	[repositories] _normalise_patch() -> dict[str, Any]
+src/budget_planner/repositories/transactions.py:139	any-annotation	[repositories] _normalise_patch(changes: dict[str, Any])
+src/budget_planner/repositories/transactions.py:183	assert-in-src	[repositories] create._action: assert created is not None
+src/budget_planner/repositories/transactions.py:222	assert-in-src	[repositories] update._action: assert updated is not None
+src/budget_planner/repositories/transactions.py:287	assert-in-src	[repositories] undelete._action: assert restored is not None
+src/budget_planner/repositories/webauthn.py:53	any-annotation	[repositories] audit_view() -> dict[str, Any]
+src/budget_planner/services/_passwords.py:65	silent-except	[services] verify_password: except (ValueError, TypeError, UnicodeEncodeError): return False
+src/budget_planner/services/analytics.py:195	domain-literal	[services] _income_vs_expense_monthly: 'expense'
+src/budget_planner/services/analytics.py:195	domain-literal	[services] _income_vs_expense_monthly: 'income'
+src/budget_planner/services/analytics.py:203	domain-literal	[services] _income_vs_expense_monthly: 'income'
+src/budget_planner/services/analytics.py:205	domain-literal	[services] _income_vs_expense_monthly: 'expense'
+src/budget_planner/services/analytics.py:210	domain-literal	[services] _income_vs_expense_monthly: 'income'
+src/budget_planner/services/analytics.py:211	domain-literal	[services] _income_vs_expense_monthly: 'expense'
+src/budget_planner/services/audit.py:56	any-annotation	[services] _check_shape(prev: Mapping[str, Any] | Any | None)
+src/budget_planner/services/audit.py:57	any-annotation	[services] _check_shape(new: Mapping[str, Any] | Any | None)
+src/budget_planner/services/audit.py:78	any-annotation	[services] write_audit(prev: Mapping[str, Any] | Any | None)
+src/budget_planner/services/audit.py:79	any-annotation	[services] write_audit(new: Mapping[str, Any] | Any | None)
+src/budget_planner/services/audit_tail.py:23	any-annotation	[services] _scrub() -> Any
+src/budget_planner/services/audit_tail.py:23	any-annotation	[services] _scrub(value: Any)
+src/budget_planner/services/audit_tail.py:34	any-annotation	[services] _parse() -> Any
+src/budget_planner/services/audit_tail.py:49	any-annotation	[services] audit_tail() -> list[dict[str, Any]]
+src/budget_planner/services/categories.py:78	assert-in-src	[services] archive: assert archived is not None
+src/budget_planner/services/export.py:45	any-annotation	[services] _lookup() -> Any
+src/budget_planner/services/export.py:45	any-annotation	[services] _lookup(row: Mapping[str, Any])
+src/budget_planner/services/export.py:52	any-annotation	[services] _format_csv_cell(value: Any)
+src/budget_planner/services/export.py:66	any-annotation	[services] export_csv(rows: Sequence[Mapping[str, Any]])
+src/budget_planner/services/export.py:91	any-annotation	[services] _column_series() -> pd.Series[Any]
+src/budget_planner/services/export.py:91	any-annotation	[services] _column_series(rows: Sequence[Mapping[str, Any]])
+src/budget_planner/services/export.py:109	any-annotation	[services] export_parquet(rows: Sequence[Mapping[str, Any]])
+src/budget_planner/services/forecast.py:623	magic-number	[services] _month_offset: (anchor.month - 1 + months) // 12
+src/budget_planner/services/forecast.py:624	magic-number	[services] _month_offset: (anchor.month - 1 + months) % 12
+src/budget_planner/services/forecast.py:949	domain-literal	[services] monthly_projection: 'PLN'
+src/budget_planner/services/reauth.py:53	any-annotation	[services] _audit(payload: dict[str, Any])
+src/budget_planner/services/reconciliation.py:109	assert-in-src	[services] reconcile: assert category.direction is Direction.ADJUSTMENT
+src/budget_planner/services/recurring.py:250	literal-user-id	[services] _build_lookup_stub: RecurringRule(id=0, user_id=0, cadence=cadence, start_date=start_date, end_da...
+src/budget_planner/services/recurring.py:334	magic-number	[services] occurrence_in_month: month == 12
+src/budget_planner/services/recurring_formula.py:125	magic-number	[services] _month_bounds: month == 12
+src/budget_planner/services/recurring_formula.py:354	assert-in-src	[services] _with_formula_amount: assert rule.amount_formula is not None
+src/budget_planner/services/replication_health.py:51	silent-except	[services] read_status_text: except FileNotFoundError: return None
+src/budget_planner/services/replication_health.py:60	silent-except	[services] _parse_time: except ValueError: return None
+src/budget_planner/web/app.py:103	silent-except	[web] _install_sigterm_observer: except ValueError: return
+src/budget_planner/web/app.py:124	silent-except	[web] _close_app_connections: except sqlite3.Error: continue
+src/budget_planner/web/app.py:243	silent-except	[web] _register_routers: except ImportError: continue
+src/budget_planner/web/auth_cookies.py:119	magic-number	[web] _b64d: -len(text) % 4
+src/budget_planner/web/auth_cookies.py:156	silent-except	[web] _decode_envelope: except (binascii.Error, ValueError): return None
+src/budget_planner/web/auth_cookies.py:162	silent-except	[web] _decode_envelope: except ValueError: return None
+src/budget_planner/web/auth_cookies.py:182	silent-except	[web] verify_challenge: except (KeyError, ValueError, binascii.Error): return None
+src/budget_planner/web/charts.py:66	magic-number	[web] _nice_axis: delta * 0.5
+src/budget_planner/web/charts.py:67	magic-number	[web] _nice_axis: delta * 0.5
+src/budget_planner/web/charts.py:87	magic-number	[web] _axis_ticks: step * 0.5
+src/budget_planner/web/charts.py:190	magic-number	[web] line_area: inner_width * 0.5
+src/budget_planner/web/charts.py:220	magic-number	[web] line_area: len(points) // 6
+src/budget_planner/web/charts.py:227	magic-number	[web] line_area: inner_width * 0.5
+src/budget_planner/web/charts.py:252	domain-literal	[web] <module>: 'expense'
+src/budget_planner/web/charts.py:252	domain-literal	[web] <module>: 'income'
+src/budget_planner/web/charts.py:298	any-annotation	[web] grouped_bars(groups: Sequence[dict[str, Any]])
+src/budget_planner/web/charts.py:324	domain-literal	[web] grouped_bars: 'expense'
+src/budget_planner/web/charts.py:324	domain-literal	[web] grouped_bars: 'income'
+src/budget_planner/web/charts.py:351	magic-number	[web] grouped_bars: group_slot * _GROUPED_GROUP_GAP_RATIO * 0.5
+src/budget_planner/web/charts.py:356	magic-number	[web] grouped_bars: group_slot * 0.5
+src/budget_planner/web/charts.py:479	magic-number	[web] horizontal_bars: (row_height - _HORIZONTAL_BAR_HEIGHT) * 0.5
+src/budget_planner/web/charts.py:546	magic-number	[web] sparkline: height * 0.5
+src/budget_planner/web/charts.py:547	magic-number	[web] sparkline: width * 0.5
+src/budget_planner/web/deps.py:58	repeated-literal	'user-agent' x3 (files: 2)
+src/budget_planner/web/deps.py:114	repeated-literal	'hx-current-url' x3 (files: 3)
+src/budget_planner/web/deps.py:129	repeated-literal	'hx-request' x4 (files: 4)
+src/budget_planner/web/deps.py:133	repeated-literal	'HX-Redirect' x4 (files: 4)
+src/budget_planner/web/deps.py:136	repeated-literal	'application/json' x5 (files: 4)
+src/budget_planner/web/deps.py:136	repeated-literal	'text/html' x17 (files: 10)
+src/budget_planner/web/errors.py:31	repeated-literal	'HX-Request' x3 (files: 3)
+src/budget_planner/web/errors.py:140	assert-in-src	[web] handle_reauth_required: assert isinstance(exc, ReauthRequired)
+src/budget_planner/web/htmx.py:28	repeated-literal	'HX-Trigger' x8 (files: 5)
+src/budget_planner/web/htmx.py:42	repeated-literal	'HX-Reswap' x5 (files: 4)
+src/budget_planner/web/htmx.py:45	repeated-literal	'HX-Refresh' x3 (files: 3)
+src/budget_planner/web/middleware/cache_control.py:42	repeated-literal	'Cache-Control' x3 (files: 3)
+src/budget_planner/web/rendering.py:43	repeated-literal	'partials/_slideover.html' x13 (files: 7)
+src/budget_planner/web/retention_task.py:28	broad-except	[web] run_forever: except Exception
+src/budget_planner/web/routers/accounts.py:59	any-annotation	[web.routers] _card_context() -> dict[str, Any]
+src/budget_planner/web/routers/accounts.py:67	assert-in-src	[web.routers] _card_context: assert acc is not None
+src/budget_planner/web/routers/accounts.py:96	any-annotation	[web.routers] _hydrate() -> dict[str, Any]
+src/budget_planner/web/routers/accounts.py:152	repeated-literal	'/new' x5 (files: 5)
+src/budget_planner/web/routers/accounts.py:242	domain-literal	[web.routers] create_account: 'balance-stale'
+src/budget_planner/web/routers/accounts.py:242	repeated-literal	'balance-stale' x11 (files: 3)
+src/budget_planner/web/routers/accounts.py:338	assert-in-src	[web.routers] update_account: assert updated is not None
+src/budget_planner/web/routers/accounts.py:344	domain-literal	[web.routers] update_account: 'balance-stale'
+src/budget_planner/web/routers/accounts.py:358	domain-literal	[web.routers] delete_account: 'balance-stale'
+src/budget_planner/web/routers/accounts.py:359	domain-literal	[web.routers] delete_account: 'forecast-stale'
+src/budget_planner/web/routers/accounts.py:397	any-annotation	[web.routers] _available_mode_context() -> dict[str, Any]
+src/budget_planner/web/routers/accounts.py:508	domain-literal	[web.routers] reconcile_submit: 'balance-stale'
+src/budget_planner/web/routers/accounts.py:508	domain-literal	[web.routers] reconcile_submit: 'forecast-stale'
+src/budget_planner/web/routers/accounts.py:508	repeated-literal	'forecast-stale' x22 (files: 4)
+src/budget_planner/web/routers/auth.py:223	silent-except	[web.routers] _is_ip: except ValueError: return False
+src/budget_planner/web/routers/auth.py:264	any-annotation	[web.routers] _json_body() -> dict[str, Any]
+src/budget_planner/web/routers/auth.py:328	repeated-literal	'Retry-After' x4 (files: 2)
+src/budget_planner/web/routers/budget.py:262	domain-literal	[web.routers] create_override: 'budget-stale'
+src/budget_planner/web/routers/budget.py:292	domain-literal	[web.routers] create_override: 'budget-stale'
+src/budget_planner/web/routers/budget.py:292	repeated-literal	'budget-stale' x14 (files: 3)
+src/budget_planner/web/routers/budget.py:319	silent-except	[web.routers] _parse_decimal: except (InvalidOperation, TypeError, ValueError): return None
+src/budget_planner/web/routers/budget.py:343	domain-literal	[web.routers] set_default: 'budget-stale'
+src/budget_planner/web/routers/budget.py:371	domain-literal	[web.routers] set_recurring: 'budget-stale'
+src/budget_planner/web/routers/budget.py:387	literal-user-id	[web.routers] set_income_anchor: positional preferences_svc.set_income_anchor_category_id(conn, 1, None)
+src/budget_planner/web/routers/budget.py:394	literal-user-id	[web.routers] set_income_anchor: positional preferences_svc.set_income_anchor_category_id(conn, 1, parsed)
+src/budget_planner/web/routers/budget.py:398	domain-literal	[web.routers] set_income_anchor: 'budget-stale'
+src/budget_planner/web/routers/budget.py:427	domain-literal	[web.routers] set_one_off: 'budget-stale'
+src/budget_planner/web/routers/categories.py:58	silent-except	[web.routers] _validate_direction: except ValueError: return None
+src/budget_planner/web/routers/categories.py:108	assert-in-src	[web.routers] create_category: assert d is not None
+src/budget_planner/web/routers/categories.py:113	domain-literal	[web.routers] create_category: 'budget-stale'
+src/budget_planner/web/routers/categories.py:194	assert-in-src	[web.routers] update_category: assert updated is not None
+src/budget_planner/web/routers/categories.py:196	domain-literal	[web.routers] update_category: 'budget-stale'
+src/budget_planner/web/routers/categories.py:213	domain-literal	[web.routers] delete_category: 'budget-stale'
+src/budget_planner/web/routers/categories.py:226	domain-literal	[web.routers] _toast_trigger: 'settings-categories-stale'
+src/budget_planner/web/routers/categories.py:231	domain-literal	[web.routers] _toast_trigger: 'budget-stale'
+src/budget_planner/web/routers/categories.py:235	assert-in-src	[web.routers] _toast_trigger: assert isinstance(toast, dict)
+src/budget_planner/web/routers/health.py:34	repeated-literal	'HEAD' x4 (files: 2)
+src/budget_planner/web/routers/health.py:57	broad-except	[web.routers] ready: except Exception
+src/budget_planner/web/routers/health.py:65	broad-except	[web.routers] ready: except Exception
+src/budget_planner/web/routers/ledger.py:38	repeated-literal	'/ledger' x10 (files: 4)
+src/budget_planner/web/routers/ledger.py:49	silent-except	[web.routers] _parse_date: except ValueError: return None
+src/budget_planner/web/routers/ledger.py:58	silent-except	[web.routers] _parse_int: except (TypeError, ValueError): return None
+src/budget_planner/web/routers/ledger.py:83	any-annotation	[web.routers] _hydrate_txn_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/ledger.py:84	any-annotation	[web.routers] _hydrate_txn_rows(rows: list[Any])
+src/budget_planner/web/routers/ledger.py:108	any-annotation	[web.routers] _hydrate_planned_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/ledger.py:109	any-annotation	[web.routers] _hydrate_planned_rows(views: list[Any])
+src/budget_planner/web/routers/ledger.py:140	any-annotation	[web.routers] _hydrate_recurring_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/ledger.py:235	any-annotation	[web.routers] _actual_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/ledger.py:255	any-annotation	[web.routers] _actual_day_nets(rows: list[dict[str, Any]])
+src/budget_planner/web/routers/ledger.py:286	any-annotation	[web.routers] _planned_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/ledger.py:343	any-annotation	[web.routers] _recurring_summary(rows: list[dict[str, Any]])
+src/budget_planner/web/routers/ledger.py:359	domain-literal	[web.routers] _recurring_summary: 'monthly'
+src/budget_planner/web/routers/ledger.py:362	domain-literal	[web.routers] _recurring_summary: 'monthly'
+src/budget_planner/web/routers/ledger.py:362	domain-literal	[web.routers] _recurring_summary: 'yearly'
+src/budget_planner/web/routers/ledger.py:370	domain-literal	[web.routers] _recurring_summary: 'income'
+src/budget_planner/web/routers/ledger.py:372	domain-literal	[web.routers] _recurring_summary: 'expense'
+src/budget_planner/web/routers/ledger.py:440	repeated-literal	'/table' x3 (files: 3)
+src/budget_planner/web/routers/plan.py:40	any-annotation	[web.routers] _analytics_charts() -> dict[str, Any]
+src/budget_planner/web/routers/plan.py:55	domain-literal	[web.routers] _analytics_charts: 'income'
+src/budget_planner/web/routers/plan.py:56	domain-literal	[web.routers] _analytics_charts: 'expense'
+src/budget_planner/web/routers/planned.py:38	silent-except	[web.routers] _parse_date: except ValueError: return None
+src/budget_planner/web/routers/planned.py:102	domain-literal	[web.routers] planned_batch_promote_due: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:103	domain-literal	[web.routers] planned_batch_promote_due: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:104	domain-literal	[web.routers] planned_batch_promote_due: 'balance-stale'
+src/budget_planner/web/routers/planned.py:105	domain-literal	[web.routers] planned_batch_promote_due: 'today-stale'
+src/budget_planner/web/routers/planned.py:105	repeated-literal	'today-stale' x4 (files: 2)
+src/budget_planner/web/routers/planned.py:165	domain-literal	[web.routers] planned_batch_undo: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:166	domain-literal	[web.routers] planned_batch_undo: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:167	domain-literal	[web.routers] planned_batch_undo: 'balance-stale'
+src/budget_planner/web/routers/planned.py:168	domain-literal	[web.routers] planned_batch_undo: 'today-stale'
+src/budget_planner/web/routers/planned.py:268	assert-in-src	[web.routers] create_planned: assert op_date is not None and minor is not None
+src/budget_planner/web/routers/planned.py:282	domain-literal	[web.routers] create_planned: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:282	domain-literal	[web.routers] create_planned: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:282	repeated-literal	'ledger-stale' x20 (files: 3)
+src/budget_planner/web/routers/planned.py:289	any-annotation	[web.routers] _from_persisted() -> dict[str, Any]
+src/budget_planner/web/routers/planned.py:289	any-annotation	[web.routers] _from_persisted(acc: Any)
+src/budget_planner/web/routers/planned.py:289	any-annotation	[web.routers] _from_persisted(cat: Any)
+src/budget_planner/web/routers/planned.py:289	any-annotation	[web.routers] _from_persisted(pl: Any)
+src/budget_planner/web/routers/planned.py:384	assert-in-src	[web.routers] update_planned: assert op_date is not None and minor is not None
+src/budget_planner/web/routers/planned.py:399	domain-literal	[web.routers] update_planned: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:399	domain-literal	[web.routers] update_planned: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:415	domain-literal	[web.routers] delete_planned: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:415	domain-literal	[web.routers] delete_planned: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:431	domain-literal	[web.routers] restore_planned: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:431	domain-literal	[web.routers] restore_planned: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:515	assert-in-src	[web.routers] promote_submit: assert op_date is not None and minor is not None
+src/budget_planner/web/routers/planned.py:542	domain-literal	[web.routers] promote_submit: 'balance-stale'
+src/budget_planner/web/routers/planned.py:542	domain-literal	[web.routers] promote_submit: 'forecast-stale'
+src/budget_planner/web/routers/planned.py:542	domain-literal	[web.routers] promote_submit: 'ledger-stale'
+src/budget_planner/web/routers/planned.py:585	repeated-literal	'Content-Disposition' x4 (files: 2)
+src/budget_planner/web/routers/recurring.py:45	silent-except	[web.routers] _parse_date: except ValueError: return None
+src/budget_planner/web/routers/recurring.py:54	silent-except	[web.routers] _parse_int: except (TypeError, ValueError): return None
+src/budget_planner/web/routers/recurring.py:69	any-annotation	[web.routers] _formula_source_candidates() -> list[Any]
+src/budget_planner/web/routers/recurring.py:87	any-annotation	[web.routers] _parse_terms_from_form() -> list[dict[str, Any]]
+src/budget_planner/web/routers/recurring.py:145	silent-except	[web.routers] _validate_cadence: except ValueError: return None
+src/budget_planner/web/routers/recurring.py:154	any-annotation	[web.routers] _resolve_dest_account(category: Any)
+src/budget_planner/web/routers/recurring.py:155	any-annotation	[web.routers] _resolve_dest_account(source_account: Any)
+src/budget_planner/web/routers/recurring.py:187	any-annotation	[web.routers] _resolve_amount_inputs(term_inputs: list[dict[str, Any]])
+src/budget_planner/web/routers/recurring.py:247	any-annotation	[web.routers] _render_form_errors(rule: Any)
+src/budget_planner/web/routers/recurring.py:251	any-annotation	[web.routers] _render_form_errors(terms: list[dict[str, Any]])
+src/budget_planner/web/routers/recurring.py:352	assert-in-src	[web.routers] create_rule: assert c is not None and start is not None and (minor is not None)
+src/budget_planner/web/routers/recurring.py:384	domain-literal	[web.routers] create_rule: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:384	domain-literal	[web.routers] create_rule: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:390	any-annotation	[web.routers] _formula_prefill() -> tuple[str, list[dict[str, A...
+src/budget_planner/web/routers/recurring.py:390	any-annotation	[web.routers] _formula_prefill(rule: Any)
+src/budget_planner/web/routers/recurring.py:417	any-annotation	[web.routers] _hx_trigger_payload(payload: dict[str, Any])
+src/budget_planner/web/routers/recurring.py:460	domain-literal	[web.routers] recurring_batch_promote_due: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:461	domain-literal	[web.routers] recurring_batch_promote_due: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:462	domain-literal	[web.routers] recurring_batch_promote_due: 'budget-stale'
+src/budget_planner/web/routers/recurring.py:463	domain-literal	[web.routers] recurring_batch_promote_due: 'today-stale'
+src/budget_planner/web/routers/recurring.py:533	domain-literal	[web.routers] recurring_batch_undo: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:534	domain-literal	[web.routers] recurring_batch_undo: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:535	domain-literal	[web.routers] recurring_batch_undo: 'budget-stale'
+src/budget_planner/web/routers/recurring.py:536	domain-literal	[web.routers] recurring_batch_undo: 'today-stale'
+src/budget_planner/web/routers/recurring.py:708	assert-in-src	[web.routers] update_rule_handler: assert c is not None and start is not None and (minor is not None)
+src/budget_planner/web/routers/recurring.py:738	domain-literal	[web.routers] update_rule_handler: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:738	domain-literal	[web.routers] update_rule_handler: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:746	any-annotation	[web.routers] _effective_amount_for_render(rule: Any)
+src/budget_planner/web/routers/recurring.py:766	domain-literal	[web.routers] deactivate_rule: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:766	domain-literal	[web.routers] deactivate_rule: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:831	magic-number	[web.routers] add_override._invalid: 1900 <= year <= 9999
+src/budget_planner/web/routers/recurring.py:832	magic-number	[web.routers] add_override._invalid: 1 <= month <= 12
+src/budget_planner/web/routers/recurring.py:838	magic-number	[web.routers] add_override: 1 <= month <= 12
+src/budget_planner/web/routers/recurring.py:838	magic-number	[web.routers] add_override: 1900 <= year <= 9999
+src/budget_planner/web/routers/recurring.py:865	domain-literal	[web.routers] add_override: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:865	domain-literal	[web.routers] add_override: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:897	domain-literal	[web.routers] delete_override: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:897	domain-literal	[web.routers] delete_override: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:1082	domain-literal	[web.routers] promote_submit: 'budget-stale'
+src/budget_planner/web/routers/recurring.py:1082	domain-literal	[web.routers] promote_submit: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:1082	domain-literal	[web.routers] promote_submit: 'ledger-stale'
+src/budget_planner/web/routers/recurring.py:1102	assert-in-src	[web.routers] skip_next: assert updated is not None
+src/budget_planner/web/routers/recurring.py:1114	domain-literal	[web.routers] skip_next: 'budget-stale'
+src/budget_planner/web/routers/recurring.py:1114	domain-literal	[web.routers] skip_next: 'forecast-stale'
+src/budget_planner/web/routers/recurring.py:1114	domain-literal	[web.routers] skip_next: 'ledger-stale'
+src/budget_planner/web/routers/settings.py:38	repeated-literal	'/settings' x3 (files: 3)
+src/budget_planner/web/routers/settings_security.py:34	any-annotation	[web.routers] security_context() -> dict[str, Any]
+src/budget_planner/web/routers/settings_users.py:90	any-annotation	[web.routers] _page_context() -> dict[str, Any]
+src/budget_planner/web/routers/settings_users.py:101	any-annotation	[web.routers] _toast() -> dict[str, Any]
+src/budget_planner/web/routers/settings_users.py:106	any-annotation	[web.routers] _render_toast(toast: dict[str, Any])
+src/budget_planner/web/routers/settings_users.py:183	any-annotation	[web.routers] _edit_response(values: dict[str, Any] | None)
+src/budget_planner/web/routers/today.py:139	silent-except	[web.routers] _parse_amount_arg: except (TypeError, ValueError): return None
+src/budget_planner/web/routers/transactions.py:60	silent-except	[web.routers] _parse_date: except ValueError: return None
+src/budget_planner/web/routers/transactions.py:69	silent-except	[web.routers] _parse_int: except (TypeError, ValueError): return None
+src/budget_planner/web/routers/transactions.py:90	any-annotation	[web.routers] _hydrate_rows() -> list[dict[str, Any]]
+src/budget_planner/web/routers/transactions.py:90	any-annotation	[web.routers] _hydrate_rows(rows: list[Any])
+src/budget_planner/web/routers/transactions.py:294	assert-in-src	[web.routers] create_txn: assert op_date is not None and minor is not None
+src/budget_planner/web/routers/transactions.py:313	domain-literal	[web.routers] create_txn: 'balance-stale'
+src/budget_planner/web/routers/transactions.py:313	domain-literal	[web.routers] create_txn: 'forecast-stale'
+src/budget_planner/web/routers/transactions.py:313	domain-literal	[web.routers] create_txn: 'ledger-stale'
+src/budget_planner/web/routers/transactions.py:414	assert-in-src	[web.routers] update_txn: assert op_date is not None and minor is not None
+src/budget_planner/web/routers/transactions.py:432	domain-literal	[web.routers] update_txn: 'balance-stale'
+src/budget_planner/web/routers/transactions.py:432	domain-literal	[web.routers] update_txn: 'forecast-stale'
+src/budget_planner/web/routers/transactions.py:432	domain-literal	[web.routers] update_txn: 'ledger-stale'
+src/budget_planner/web/routers/transactions.py:443	domain-literal	[web.routers] delete_txn: 'balance-stale'
+src/budget_planner/web/routers/transactions.py:443	domain-literal	[web.routers] delete_txn: 'forecast-stale'
+src/budget_planner/web/routers/transactions.py:443	domain-literal	[web.routers] delete_txn: 'ledger-stale'
+src/budget_planner/web/routers/transactions.py:457	domain-literal	[web.routers] restore_txn: 'balance-stale'
+src/budget_planner/web/routers/transactions.py:457	domain-literal	[web.routers] restore_txn: 'forecast-stale'
+src/budget_planner/web/routers/transactions.py:457	domain-literal	[web.routers] restore_txn: 'ledger-stale'
+src/budget_planner/web/templating.py:78	any-annotation	[web] _dt_local_factory() -> Any
+src/budget_planner/web/templating.py:166	any-annotation	[web] _category_label(category: Any)
+src/budget_planner/web/templating.py:187	any-annotation	[web] _today_local_factory() -> Any

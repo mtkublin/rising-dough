@@ -1,0 +1,40 @@
+# P7 DB-side clock in SQL strings (src)
+# rows: 38
+src/budget_planner/repositories/_shared.py:11	sql-clock	``strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`` default so timestamps stored
+src/budget_planner/repositories/accounts.py:124	sql-clock	sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+src/budget_planner/repositories/accounts.py:146	sql-clock	"SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/accounts.py:147	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/accounts.py:166	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:110	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:139	sql-clock	"SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/budgets.py:140	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:205	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:235	sql-clock	"SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/budgets.py:236	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:311	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/budgets.py:346	sql-clock	"SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/budgets.py:347	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/categories.py:56	sql-clock	"AND deleted_at > datetime('now', ?) "
+src/budget_planner/repositories/categories.py:122	sql-clock	sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+src/budget_planner/repositories/categories.py:143	sql-clock	"UPDATE categories SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/categories.py:144	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/categories.py:163	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/fx.py:89	sql-clock	"fetched_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/planned.py:203	sql-clock	sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+src/budget_planner/repositories/planned.py:230	sql-clock	"SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/planned.py:231	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/planned.py:254	sql-clock	"AND deleted_at > datetime('now', ?) "
+src/budget_planner/repositories/planned.py:270	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/planned.py:298	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/preferences.py:49	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+src/budget_planner/repositories/recurring.py:283	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/recurring.py:298	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/recurring.py:324	sql-clock	sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+src/budget_planner/repositories/recurring.py:354	sql-clock	"UPDATE recurring_rules SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/recurring.py:355	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/transactions.py:216	sql-clock	sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+src/budget_planner/repositories/transactions.py:242	sql-clock	"UPDATE transactions SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
+src/budget_planner/repositories/transactions.py:243	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/repositories/transactions.py:266	sql-clock	"AND deleted_at > datetime('now', ?) "
+src/budget_planner/repositories/transactions.py:282	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+src/budget_planner/web/routers/planned.py:157	sql-clock	"updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "

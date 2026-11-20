@@ -1,0 +1,189 @@
+# P10 size/signatures. Script: repro/inventory/p09_p10_p11_imports_size_suppress.py
+# file>400 (warn), file>800, func>50 lines, cc>=11 (own approximation; radon baseline authoritative), nesting>4,
+# positional>5 (PLR0917), params>5 (PLR0913, ignored globally).
+# rows: 185
+src/budget_planner/db/migrate.py:86	cc>=11	_split_sql_statements cc~18
+src/budget_planner/db/migrate.py:134	func>50	_backfill_recurring_next_due 79 lines
+src/budget_planner/db/migrate.py:280	cc>=11	apply_migrations cc~11
+src/budget_planner/db/migrate.py:280	func>50	apply_migrations 72 lines
+src/budget_planner/logging.py:96	func>50	configure 51 lines
+src/budget_planner/repositories/_shared.py:52	params>5	write_audit 8 params
+src/budget_planner/repositories/_shared.py:146	params>5	mutate 7 params
+src/budget_planner/repositories/budgets.py:255	params>5	get_one_off 6 params
+src/budget_planner/repositories/planned.py:68	cc>=11	_append_filter_clauses cc~14
+src/budget_planner/repositories/recurring.py:1	file>400	552 lines
+src/budget_planner/repositories/recurring.py:200	nesting>4	_normalise_rule_patch depth 6
+src/budget_planner/repositories/recurring.py:428	func>50	upsert_override 71 lines
+src/budget_planner/repositories/sessions.py:112	params>5	create_session 7 params
+src/budget_planner/repositories/transactions.py:69	cc>=11	_append_filter_clauses cc~16
+src/budget_planner/repositories/users.py:1	file>400	418 lines
+src/budget_planner/repositories/webauthn.py:118	params>5	create_credential 8 params
+src/budget_planner/services/_promotion.py:32	params>5	validate_promotion 6 params
+src/budget_planner/services/audit.py:72	params>5	write_audit 8 params
+src/budget_planner/services/auth.py:1	file>400	490 lines
+src/budget_planner/services/auth.py:151	params>5	_audit_login_failure 6 params
+src/budget_planner/services/auth.py:175	params>5	_issue_session 6 params
+src/budget_planner/services/auth.py:209	params>5	authenticate_password 6 params
+src/budget_planner/services/auth.py:338	params>5	register_passkey_finish 7 params
+src/budget_planner/services/auth.py:416	func>50	authenticate_passkey_finish 54 lines
+src/budget_planner/services/auth.py:416	params>5	authenticate_passkey_finish 7 params
+src/budget_planner/services/budget.py:1	file>400	664 lines
+src/budget_planner/services/budget.py:253	func>50	_committed_by_category 63 lines
+src/budget_planner/services/budget.py:253	params>5	_committed_by_category 6 params
+src/budget_planner/services/budget.py:318	params>5	committed_in_window 6 params
+src/budget_planner/services/budget.py:341	params>5	committed_split_in_window 7 params
+src/budget_planner/services/budget.py:408	params>5	_resolve_period_start 6 params
+src/budget_planner/services/budget.py:408	positional>5	_resolve_period_start 6 positional
+src/budget_planner/services/budget.py:454	cc>=11	month_summary cc~16
+src/budget_planner/services/budget.py:454	func>50	month_summary 147 lines
+src/budget_planner/services/budget.py:454	params>5	month_summary 6 params
+src/budget_planner/services/forecast.py:1	file>800	978 lines
+src/budget_planner/services/forecast.py:345	params>5	_committed_future_for_category 6 params
+src/budget_planner/services/forecast.py:433	params>5	_collect_budget_overlay 6 params
+src/budget_planner/services/forecast.py:433	positional>5	_collect_budget_overlay 6 positional
+src/budget_planner/services/forecast.py:530	cc>=11	forecast cc~11
+src/budget_planner/services/forecast.py:530	func>50	forecast 89 lines
+src/budget_planner/services/forecast.py:530	params>5	forecast 7 params
+src/budget_planner/services/forecast.py:530	positional>5	forecast 6 positional
+src/budget_planner/services/forecast.py:654	func>50	_planned_budget_per_month 54 lines
+src/budget_planner/services/forecast.py:710	cc>=11	_month_flow_sums cc~15
+src/budget_planner/services/forecast.py:710	func>50	_month_flow_sums 66 lines
+src/budget_planner/services/forecast.py:710	params>5	_month_flow_sums 8 params
+src/budget_planner/services/forecast.py:778	func>50	forecast_monthly 128 lines
+src/budget_planner/services/forecast.py:778	params>5	forecast_monthly 6 params
+src/budget_planner/services/forecast.py:778	positional>5	forecast_monthly 6 positional
+src/budget_planner/services/fx.py:119	params>5	convert 6 params
+src/budget_planner/services/fx.py:119	positional>5	convert 6 positional
+src/budget_planner/services/income.py:43	func>50	next_anchor_date 51 lines
+src/budget_planner/services/password_change.py:119	params>5	_commit_change 6 params
+src/budget_planner/services/reauth.py:103	params>5	verify_passkey_reauth 6 params
+src/budget_planner/services/reauth.py:149	params>5	complete_reauth 6 params
+src/budget_planner/services/reconciliation.py:62	func>50	reconcile 69 lines
+src/budget_planner/services/reconciliation.py:62	params>5	reconcile 7 params
+src/budget_planner/services/reconciliation.py:62	positional>5	reconcile 7 positional
+src/budget_planner/services/recurring.py:1	file>400	696 lines
+src/budget_planner/services/recurring.py:107	cc>=11	generate_occurrences cc~11
+src/budget_planner/services/recurring.py:356	cc>=11	promote_recurring cc~17
+src/budget_planner/services/recurring.py:356	func>50	promote_recurring 143 lines
+src/budget_planner/services/recurring.py:501	func>50	skip_and_advance 68 lines
+src/budget_planner/services/recurring.py:641	params>5	expand_unpromoted 6 params
+src/budget_planner/services/recurring.py:641	positional>5	expand_unpromoted 6 positional
+src/budget_planner/services/recurring_formula.py:1	file>400	596 lines
+src/budget_planner/services/recurring_formula.py:146	params>5	_source_rule_month_value 7 params
+src/budget_planner/services/recurring_formula.py:191	func>50	_sum_category_in_month 52 lines
+src/budget_planner/services/recurring_formula.py:191	params>5	_sum_category_in_month 8 params
+src/budget_planner/services/recurring_formula.py:245	params>5	_evaluate 8 params
+src/budget_planner/services/recurring_formula.py:277	params>5	compute_formula_amount 6 params
+src/budget_planner/services/recurring_formula.py:322	params>5	rt_expand 6 params
+src/budget_planner/services/recurring_formula.py:322	positional>5	rt_expand 6 positional
+src/budget_planner/services/recurring_formula.py:384	cc>=11	validate_formula_sources cc~15
+src/budget_planner/services/recurring_formula.py:485	func>50	preview 93 lines
+src/budget_planner/services/users.py:1	file>400	561 lines
+src/budget_planner/web/auth_cookies.py:219	cc>=11	safe_next cc~13
+src/budget_planner/web/charts.py:1	file>400	601 lines
+src/budget_planner/web/charts.py:144	cc>=11	line_area cc~17
+src/budget_planner/web/charts.py:144	func>50	line_area 102 lines
+src/budget_planner/web/charts.py:297	cc>=11	grouped_bars cc~16
+src/budget_planner/web/charts.py:297	func>50	grouped_bars 101 lines
+src/budget_planner/web/charts.py:437	func>50	horizontal_bars 62 lines
+src/budget_planner/web/charts.py:519	func>50	sparkline 67 lines
+src/budget_planner/web/routers/accounts.py:1	file>400	509 lines
+src/budget_planner/web/routers/accounts.py:186	cc>=11	create_account cc~11
+src/budget_planner/web/routers/accounts.py:186	func>50	create_account 62 lines
+src/budget_planner/web/routers/accounts.py:186	params>5	create_account 10 params
+src/budget_planner/web/routers/accounts.py:186	positional>5	create_account 10 positional
+src/budget_planner/web/routers/accounts.py:279	func>50	update_account 67 lines
+src/budget_planner/web/routers/accounts.py:279	params>5	update_account 9 params
+src/budget_planner/web/routers/accounts.py:279	positional>5	update_account 9 positional
+src/budget_planner/web/routers/accounts.py:445	func>50	reconcile_submit 65 lines
+src/budget_planner/web/routers/accounts.py:445	params>5	reconcile_submit 8 params
+src/budget_planner/web/routers/accounts.py:445	positional>5	reconcile_submit 8 positional
+src/budget_planner/web/routers/auth.py:1	file>400	760 lines
+src/budget_planner/web/routers/auth.py:293	params>5	_login_page 6 params
+src/budget_planner/web/routers/auth.py:344	params>5	login_password 8 params
+src/budget_planner/web/routers/auth.py:344	positional>5	login_password 8 positional
+src/budget_planner/web/routers/auth.py:392	params>5	login_passkey_finish 6 params
+src/budget_planner/web/routers/auth.py:392	positional>5	login_passkey_finish 6 positional
+src/budget_planner/web/routers/auth.py:494	params>5	register_passkey_finish 6 params
+src/budget_planner/web/routers/auth.py:494	positional>5	register_passkey_finish 6 positional
+src/budget_planner/web/routers/auth.py:556	params>5	revoke_session 6 params
+src/budget_planner/web/routers/auth.py:556	positional>5	revoke_session 6 positional
+src/budget_planner/web/routers/auth.py:610	params>5	_reauth_page 7 params
+src/budget_planner/web/routers/auth.py:632	params>5	_reauth_success 7 params
+src/budget_planner/web/routers/auth.py:632	positional>5	_reauth_success 6 positional
+src/budget_planner/web/routers/auth.py:669	params>5	reauth_password 8 params
+src/budget_planner/web/routers/auth.py:669	positional>5	reauth_password 8 positional
+src/budget_planner/web/routers/auth.py:729	params>5	reauth_passkey_finish 7 params
+src/budget_planner/web/routers/auth.py:729	positional>5	reauth_passkey_finish 7 positional
+src/budget_planner/web/routers/budget.py:1	file>400	428 lines
+src/budget_planner/web/routers/budget.py:170	cc>=11	new_override_form cc~12
+src/budget_planner/web/routers/budget.py:170	func>50	new_override_form 62 lines
+src/budget_planner/web/routers/budget.py:235	cc>=11	create_override cc~12
+src/budget_planner/web/routers/budget.py:235	func>50	create_override 59 lines
+src/budget_planner/web/routers/budget.py:235	params>5	create_override 8 params
+src/budget_planner/web/routers/budget.py:235	positional>5	create_override 8 positional
+src/budget_planner/web/routers/budget.py:348	params>5	set_recurring 6 params
+src/budget_planner/web/routers/budget.py:348	positional>5	set_recurring 6 positional
+src/budget_planner/web/routers/budget.py:403	params>5	set_one_off 7 params
+src/budget_planner/web/routers/budget.py:403	positional>5	set_one_off 7 positional
+src/budget_planner/web/routers/categories.py:79	params>5	create_category 7 params
+src/budget_planner/web/routers/categories.py:79	positional>5	create_category 7 positional
+src/budget_planner/web/routers/categories.py:150	params>5	update_category 7 params
+src/budget_planner/web/routers/categories.py:150	positional>5	update_category 7 positional
+src/budget_planner/web/routers/ledger.py:1	file>400	491 lines
+src/budget_planner/web/routers/ledger.py:140	cc>=11	_hydrate_recurring_rows cc~28
+src/budget_planner/web/routers/ledger.py:140	func>50	_hydrate_recurring_rows 80 lines
+src/budget_planner/web/routers/plan.py:68	cc>=11	plan cc~31
+src/budget_planner/web/routers/plan.py:68	func>50	plan 184 lines
+src/budget_planner/web/routers/plan.py:68	nesting>4	plan depth 5
+src/budget_planner/web/routers/planned.py:1	file>400	586 lines
+src/budget_planner/web/routers/planned.py:112	func>50	planned_batch_undo 60 lines
+src/budget_planner/web/routers/planned.py:220	cc>=11	create_planned cc~13
+src/budget_planner/web/routers/planned.py:220	func>50	create_planned 67 lines
+src/budget_planner/web/routers/planned.py:220	params>5	create_planned 9 params
+src/budget_planner/web/routers/planned.py:220	positional>5	create_planned 9 positional
+src/budget_planner/web/routers/planned.py:338	cc>=11	update_planned cc~12
+src/budget_planner/web/routers/planned.py:338	func>50	update_planned 64 lines
+src/budget_planner/web/routers/planned.py:338	params>5	update_planned 10 params
+src/budget_planner/web/routers/planned.py:338	positional>5	update_planned 10 positional
+src/budget_planner/web/routers/planned.py:484	func>50	promote_submit 61 lines
+src/budget_planner/web/routers/planned.py:484	params>5	promote_submit 7 params
+src/budget_planner/web/routers/planned.py:484	positional>5	promote_submit 7 positional
+src/budget_planner/web/routers/recurring.py:1	file>800	1115 lines
+src/budget_planner/web/routers/recurring.py:149	cc>=11	_resolve_dest_account cc~12
+src/budget_planner/web/routers/recurring.py:181	func>50	_resolve_amount_inputs 59 lines
+src/budget_planner/web/routers/recurring.py:181	params>5	_resolve_amount_inputs 8 params
+src/budget_planner/web/routers/recurring.py:242	params>5	_render_form_errors 8 params
+src/budget_planner/web/routers/recurring.py:269	cc>=11	create_rule cc~18
+src/budget_planner/web/routers/recurring.py:269	func>50	create_rule 119 lines
+src/budget_planner/web/routers/recurring.py:470	func>50	recurring_batch_undo 70 lines
+src/budget_planner/web/routers/recurring.py:633	cc>=11	update_rule_handler cc~20
+src/budget_planner/web/routers/recurring.py:633	func>50	update_rule_handler 108 lines
+src/budget_planner/web/routers/recurring.py:810	func>50	add_override 58 lines
+src/budget_planner/web/routers/recurring.py:810	params>5	add_override 7 params
+src/budget_planner/web/routers/recurring.py:810	positional>5	add_override 7 positional
+src/budget_planner/web/routers/recurring.py:917	params>5	_render_promote_modal 6 params
+src/budget_planner/web/routers/recurring.py:1016	cc>=11	promote_submit cc~12
+src/budget_planner/web/routers/recurring.py:1016	func>50	promote_submit 69 lines
+src/budget_planner/web/routers/recurring.py:1016	params>5	promote_submit 7 params
+src/budget_planner/web/routers/recurring.py:1016	positional>5	promote_submit 7 positional
+src/budget_planner/web/routers/settings.py:52	cc>=11	drawer cc~14
+src/budget_planner/web/routers/settings_password.py:76	params>5	_render_form 6 params
+src/budget_planner/web/routers/settings_password.py:122	params>5	change_password 10 params
+src/budget_planner/web/routers/settings_password.py:122	positional>5	change_password 10 positional
+src/budget_planner/web/routers/settings_users.py:149	params>5	create_user 7 params
+src/budget_planner/web/routers/settings_users.py:177	params>5	_edit_response 6 params
+src/budget_planner/web/routers/settings_users.py:229	params>5	save_user 8 params
+src/budget_planner/web/routers/today.py:42	func>50	today 52 lines
+src/budget_planner/web/routers/transactions.py:1	file>400	507 lines
+src/budget_planner/web/routers/transactions.py:167	params>5	limit_preview 6 params
+src/budget_planner/web/routers/transactions.py:167	positional>5	limit_preview 6 positional
+src/budget_planner/web/routers/transactions.py:238	cc>=11	create_txn cc~17
+src/budget_planner/web/routers/transactions.py:238	func>50	create_txn 80 lines
+src/budget_planner/web/routers/transactions.py:238	nesting>4	create_txn depth 5
+src/budget_planner/web/routers/transactions.py:238	params>5	create_txn 10 params
+src/budget_planner/web/routers/transactions.py:238	positional>5	create_txn 10 positional
+src/budget_planner/web/routers/transactions.py:358	cc>=11	update_txn cc~13
+src/budget_planner/web/routers/transactions.py:358	func>50	update_txn 77 lines
+src/budget_planner/web/routers/transactions.py:358	params>5	update_txn 10 params
+src/budget_planner/web/routers/transactions.py:358	positional>5	update_txn 10 positional

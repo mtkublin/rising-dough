@@ -1,0 +1,24 @@
+# P3 immutability. Script: repro/inventory/p03_immutability.py
+# Local accumulators are allowed (not listed). Listed: in-place mutation of parameters, module-level mutable
+# state, setattr bypass of frozen dataclasses.
+# rows: 20
+src/budget_planner/config.py:189	setattr-bypass	_finalise: object.__setattr__(self, 'database_url', _PROD_DATABASE_URL)
+src/budget_planner/config.py:207	setattr-bypass	_finalise: object.__setattr__(self, 'cookie_secret', _DEV_COOKIE_SECRET)
+src/budget_planner/logging.py:73	param-mutation:data	root filter: record.args = (*args[:idx], path.split('?', 1)[0], *args[idx + 1:])
+src/budget_planner/repositories/_shared.py:108	module-mutation	repositories _set_depth: _TX_DEPTH.pop(key, None)
+src/budget_planner/repositories/_shared.py:110	module-mutation	repositories _set_depth: _TX_DEPTH[key] = value
+src/budget_planner/services/recurring_formula.py:240	param-mutation:data	services _sum_category_in_month: cache[key] = value
+src/budget_planner/web/htmx.py:28	param-mutation:framework	web trigger: response.headers['HX-Trigger'] = json.dumps(payload)
+src/budget_planner/web/htmx.py:42	param-mutation:framework	web refresh_unless_on: response.headers['HX-Reswap'] = 'none'
+src/budget_planner/web/htmx.py:45	param-mutation:framework	web refresh_unless_on: response.headers['HX-Refresh'] = 'true'
+src/budget_planner/web/middleware/auth.py:150	param-mutation:framework	web.middleware dispatch: request.state.user = None
+src/budget_planner/web/middleware/auth.py:151	param-mutation:framework	web.middleware dispatch: request.state.session_id = None
+src/budget_planner/web/middleware/auth.py:162	param-mutation:framework	web.middleware dispatch: request.state.user = user
+src/budget_planner/web/middleware/auth.py:163	param-mutation:framework	web.middleware dispatch: request.state.session_id = session_id
+src/budget_planner/web/middleware/csrf.py:138	param-mutation:framework	web.middleware _read_form_token: request._receive = _replay
+src/budget_planner/web/middleware/csrf.py:149	param-mutation:framework	web.middleware _read_form_token: request._receive = _replay
+src/budget_planner/web/middleware/csrf.py:167	param-mutation:framework	web.middleware dispatch: request.state.csrf_token = token
+src/budget_planner/web/middleware/request_id.py:33	param-mutation:framework	web.middleware dispatch: request.state.request_id = rid
+src/budget_planner/web/middleware/security_headers.py:72	param-mutation:framework	web.middleware dispatch: request.state.csp_nonce = nonce
+src/budget_planner/web/routers/categories.py:237	param-mutation:framework	web.routers _toast_trigger: resp.headers['HX-Trigger'] = json.dumps(payload)
+src/budget_planner/web/routers/settings_users.py:82	param-mutation:framework	web.routers _no_store: response.headers['Cache-Control'] = 'no-store'

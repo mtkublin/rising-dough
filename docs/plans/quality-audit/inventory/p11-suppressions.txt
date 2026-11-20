@@ -1,0 +1,172 @@
+# P11 suppressions. Script: repro/inventory/p09_p10_p11_imports_size_suppress.py
+# reason-same-line = text after the code list on the comment (a reason in a comment ABOVE does not count, per G4).
+# config:* rows = pyproject.toml suppressions (per-file-ignores, global ignores, coverage excludes, mypy overrides).
+# rows: 168
+pyproject.toml:0	config:coverage-exclude	\.\.\.
+pyproject.toml:0	config:coverage-exclude	if TYPE_CHECKING:
+pyproject.toml:0	config:coverage-exclude	if __name__ == .__main__.:
+pyproject.toml:0	config:coverage-exclude	pragma: no cover
+pyproject.toml:0	config:coverage-exclude	raise NotImplementedError
+pyproject.toml:0	config:global-ruff-ignore	ANN401
+pyproject.toml:0	config:global-ruff-ignore	PLR0913
+pyproject.toml:0	config:global-ruff-ignore	S101
+pyproject.toml:0	config:mypy-override	{'module': ['plotly.*', 'sqlfluff.*', 'djlint.*', 'pandas.*', 'pyarrow.*'], 'ignore_missing_imports': True}
+pyproject.toml:0	config:per-file-ignore	src/budget_planner/db/migrate.py -> S608
+pyproject.toml:0	config:per-file-ignore	src/budget_planner/repositories/*.py -> S608
+pyproject.toml:0	config:per-file-ignore	src/budget_planner/web/routers/*.py -> B008
+pyproject.toml:0	config:per-file-ignore	tests/**/*.py -> S101,PLR2004,ANN,ARG001,ARG002
+src/budget_planner/cli/set_password.py:153	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/config.py:27	suppress:noqa	S105 | reason-same-line=yes | comment-above=yes
+src/budget_planner/config.py:112	suppress:type: ignore	[pydantic-alias] | reason-same-line=NO | comment-above=yes
+src/budget_planner/config.py:116	suppress:type: ignore	[pydantic-alias] | reason-same-line=NO | comment-above=no
+src/budget_planner/config.py:165	suppress:noqa	S104 | reason-same-line=yes | comment-above=yes
+src/budget_planner/config.py:165	suppress:nosec	reason-same-line=yes
+src/budget_planner/db/migrate.py:155	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/db/migrate.py:223	suppress:noqa	PLC0415 | reason-same-line=yes | comment-above=no
+src/budget_planner/db/migrate.py:233	suppress:noqa	PLR2004 | reason-same-line=yes | comment-above=no
+src/budget_planner/db/migrate.py:354	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/db/migrate.py:366	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/db/retention.py:37	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/db/seed.py:59	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/db/seed.py:71	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/db/startup_migrate.py:197	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/domain/errors.py:24	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/domain/errors.py:35	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/domain/errors.py:48	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/domain/errors.py:58	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/logging.py:103	suppress:noqa	PLW0603 | reason-same-line=yes | comment-above=no
+src/budget_planner/logging.py:129	suppress:type: ignore	[attr-defined] | reason-same-line=NO | comment-above=no
+src/budget_planner/repositories/recurring.py:227	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/repositories/webauthn.py:141	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/_promotion.py:53	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/auth.py:253	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/auth.py:301	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/balance.py:56	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/balance.py:210	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/budget.py:69	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/budget.py:408	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/budget.py:454	suppress:noqa	PLR0915 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/export.py:58	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/forecast.py:155	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/forecast.py:157	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/forecast.py:433	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/forecast.py:495	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/forecast.py:530	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=yes
+src/budget_planner/services/forecast.py:778	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/fx.py:119	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/planned.py:86	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/planned.py:165	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/rate_limit.py:40	suppress:noqa	S105 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/reauth.py:45	suppress:noqa	S105 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/reauth.py:163	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/reconciliation.py:62	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring.py:145	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring.py:334	suppress:noqa	PLR2004 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring.py:384	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=yes
+src/budget_planner/services/recurring.py:389	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:390	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:391	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:408	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=yes
+src/budget_planner/services/recurring.py:440	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring.py:515	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:516	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:517	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:603	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:604	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:616	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring.py:635	suppress:noqa	E402 | reason-same-line=NO | comment-above=yes
+src/budget_planner/services/recurring.py:641	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring_formula.py:81	suppress:type: ignore	[return-value] | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:125	suppress:noqa	PLR2004 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:166	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:167	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:213	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:322	suppress:noqa	PLR0917 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/recurring_formula.py:336	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:392	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:432	suppress:noqa	E402 | reason-same-line=NO | comment-above=yes
+src/budget_planner/services/recurring_formula.py:433	suppress:noqa	E402 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:475	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/services/recurring_formula.py:485	suppress:noqa	PLR0911 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/replication_health.py:69	suppress:noqa	PLR0911 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/users.py:41	suppress:noqa	S105 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/users.py:49	suppress:noqa	N818 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/users.py:305	suppress:noqa	N818 | reason-same-line=yes | comment-above=no
+src/budget_planner/services/users.py:313	suppress:noqa	N818 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/app.py:86	suppress:noqa	PLW0603 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/app.py:99	suppress:type: ignore	[arg-type] | reason-same-line=NO | comment-above=no
+src/budget_planner/web/app.py:124	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/web/app.py:238	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/app.py:243	suppress:pragma: no cover	- | reason-same-line=NO | comment-above=no
+src/budget_planner/web/charts.py:144	suppress:noqa	PLR0915 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/deps.py:88	suppress:noqa	N818 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/deps.py:155	suppress:noqa	B008 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/deps.py:156	suppress:noqa	B008 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/middleware/must_change_password.py:27	suppress:noqa	S105 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/accounts.py:46	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/accounts.py:186	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/accounts.py:279	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/accounts.py:445	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:344	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:392	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:483	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/auth.py:494	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:556	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:632	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:669	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:699	suppress:fmt: skip	- | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/auth.py:729	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/budget.py:81	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/budget.py:235	suppress:noqa	PLR0911, PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/budget.py:348	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/budget.py:403	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/categories.py:79	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/categories.py:150	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/forecast.py:48	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/health.py:53	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=yes
+src/budget_planner/web/routers/health.py:57	suppress:pragma: no cover	- | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/ledger.py:292	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=yes
+src/budget_planner/web/routers/ledger.py:338	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/ledger.py:433	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/plan.py:68	suppress:noqa	PLR0912, PLR0915 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/plan.py:116	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/plan.py:117	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/plan.py:119	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/plan.py:120	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/plan.py:233	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=yes
+src/budget_planner/web/routers/planned.py:70	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:80	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:123	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:124	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:151	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:184	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:220	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:338	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/planned.py:484	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:149	suppress:noqa	PLR0911 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/recurring.py:181	suppress:noqa	PLR0911 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/recurring.py:338	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/recurring.py:353	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:419	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:435	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:482	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:486	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:511	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:580	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/recurring.py:633	suppress:noqa	PLR0915 | reason-same-line=yes | comment-above=no
+src/budget_planner/web/routers/recurring.py:694	suppress:noqa	DTZ011 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:810	suppress:noqa	PLR0917, PLR0911 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:831	suppress:noqa	PLR2004 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:832	suppress:noqa	PLR2004 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:838	suppress:noqa	PLR2004 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/recurring.py:1016	suppress:noqa	PLR0912, PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/settings_password.py:122	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/today.py:216	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/transactions.py:167	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/transactions.py:195	suppress:noqa	PLC0415 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/transactions.py:238	suppress:noqa	PLR0912, PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/transactions.py:247	suppress:noqa	ARG001 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/routers/transactions.py:358	suppress:noqa	PLR0917 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/templating.py:124	suppress:noqa	S704 | reason-same-line=NO | comment-above=yes
+src/budget_planner/web/templating.py:161	suppress:noqa	S704 | reason-same-line=NO | comment-above=no
+src/budget_planner/web/today_data.py:123	suppress:noqa	DTZ011 | reason-same-line=yes | comment-above=no
