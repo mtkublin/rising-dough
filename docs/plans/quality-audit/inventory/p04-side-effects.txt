@@ -1,0 +1,66 @@
+# P4 side effects in pure layers. Script: repro/inventory/p04_p07_effects_clock.py
+# Pure layers: domain (strict), services (no net/clock/env/random/log/fs/settings), web view-models.
+# eff-net-reach = function transitively calls a function that performs network I/O (name-resolved call graph,
+# approximate: first reachable callee shown).
+# rows: 61
+src/budget_planner/services/_passwords.py:22	eff-import	[services] imports secrets
+src/budget_planner/services/_passwords.py:71	eff-random	[services] _dummy_hash_for: secrets.token_urlsafe(16)
+src/budget_planner/services/account_planned.py:16	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/auth.py:85	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/auth.py:132	eff-settings	[services] relying_party_from_settings: get_settings()
+src/budget_planner/services/balance.py:210	eff-clock	[services] balance_series: dt.date.today()
+src/budget_planner/services/budget.py:24	eff-import	[services] imports logging
+src/budget_planner/services/budget.py:32	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/budget.py:52	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/budget.py:69	eff-clock	[services] base_amount_converter: dt.date.today()
+src/budget_planner/services/budget.py:70	eff-settings	[services] base_amount_converter: get_settings()
+src/budget_planner/services/budget.py:82	eff-log	[services] base_amount_converter._convert: logger.warning('no FX rate %s->%s; committed uses native ...
+src/budget_planner/services/budget.py:101	eff-settings	[services] base_txn_converter: get_settings()
+src/budget_planner/services/budget.py:113	eff-log	[services] base_txn_converter._convert: logger.warning('no FX rate %s->%s; spent uses native amou...
+src/budget_planner/services/categories.py:12	eff-import	[services] imports logging
+src/budget_planner/services/categories.py:21	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/categories.py:71	eff-log	[services] archive: logger.warning('archive(category_id=%s) has %s live recur...
+src/budget_planner/services/forecast.py:24	eff-import	[services] imports logging
+src/budget_planner/services/forecast.py:29	eff-import	[services] imports httpx
+src/budget_planner/services/forecast.py:50	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/forecast.py:167	eff-log	[services] _signed_events_for_direction: logger.debug('forecast skipping adjustment-direction plan...
+src/budget_planner/services/forecast.py:204	eff-net-reach	[services] _collect_fx_rates -> budget_planner.services.fx.get_rate
+src/budget_planner/services/forecast.py:530	eff-net-reach	[services] forecast -> budget_planner.services.forecast._collect_fx_rates
+src/budget_planner/services/forecast.py:778	eff-net-reach	[services] forecast_monthly -> budget_planner.services.forecast._collect_fx_rates
+src/budget_planner/services/forecast.py:932	eff-net	[services] monthly_projection performs network I/O directly
+src/budget_planner/services/forecast.py:950	eff-net	[services] monthly_projection: httpx.Client(timeout=5.0)
+src/budget_planner/services/fortune.py:13	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/fx.py:15	eff-import	[services] imports logging
+src/budget_planner/services/fx.py:19	eff-import	[services] imports httpx
+src/budget_planner/services/fx.py:25	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/fx.py:49	eff-net	[services] _fetch_remote performs network I/O directly
+src/budget_planner/services/fx.py:73	eff-log	[services] _fallback: logger.warning('fx fallback: %s->%s on %s uses stale rate...
+src/budget_planner/services/fx.py:83	eff-net-reach	[services] get_rate -> budget_planner.services.fx._fetch_remote
+src/budget_planner/services/fx.py:119	eff-net-reach	[services] convert -> budget_planner.services.fx.get_rate
+src/budget_planner/services/planned.py:86	eff-clock	[services] _default_window: dt.date.today()
+src/budget_planner/services/preferences.py:10	eff-import	[services] imports logging
+src/budget_planner/services/preferences.py:21	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/preferences.py:36	eff-log	[services] get_income_anchor_category_id: _logger.warning('corrupt income_anchor_category_id value=...
+src/budget_planner/services/preferences.py:81	eff-log	[services] resolve_income_anchor_category: _logger.debug('income anchor category_id=%s resolves to N...
+src/budget_planner/services/preferences.py:87	eff-log	[services] resolve_income_anchor_category: _logger.debug('income anchor category_id=%s direction=%s ...
+src/budget_planner/services/rate_limit.py:24	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/recurring.py:17	eff-import	[services] imports logging
+src/budget_planner/services/recurring.py:35	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/recurring.py:193	eff-log	[services] apply_overrides: logger.warning('overrides collide on (rule_id=%s, occurre...
+src/budget_planner/services/recurring.py:200	eff-log	[services] apply_overrides: logger.debug('orphan override dropped: rule_id=%s date=%s...
+src/budget_planner/services/recurring.py:249	eff-clock	[services] _build_lookup_stub: dt.datetime.now(dt.UTC)
+src/budget_planner/services/recurring_formula.py:18	eff-import	[services] imports logging
+src/budget_planner/services/recurring_formula.py:33	eff-log	[services] <module>: logging.getLogger(__name__)
+src/budget_planner/services/retention.py:14	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/users.py:26	eff-import	[services] imports secrets
+src/budget_planner/services/users.py:32	eff-import	[services] imports budget_planner.config
+src/budget_planner/services/users.py:340	eff-random	[services] generate_password: secrets.token_urlsafe(GENERATED_PASSWORD_BYTES)
+src/budget_planner/web/routers/forecast.py:65	eff-net-reach-web	[web.routers] index -> budget_planner.web.routers.forecast._compute
+src/budget_planner/web/routers/forecast.py:84	eff-net-reach-web	[web.routers] view_fragment -> budget_planner.web.routers.forecast._compute
+src/budget_planner/web/routers/plan.py:68	eff-net-reach-web	[web.routers] plan -> budget_planner.services.forecast.monthly_projection
+src/budget_planner/web/routers/today.py:42	eff-net-reach-web	[web.routers] today -> budget_planner.web.today_data.collect_account_rows
+src/budget_planner/web/templating.py:192	eff-clock	[web-vm] _today_local_factory._today_local: datetime.now(tz)
+src/budget_planner/web/today_data.py:16	eff-import	[web-vm] imports httpx
+src/budget_planner/web/today_data.py:106	eff-net	[web-vm] collect_account_rows performs network I/O directly
+src/budget_planner/web/today_data.py:123	eff-clock	[web-vm] collect_account_rows: date.today()
+src/budget_planner/web/today_data.py:124	eff-net	[web-vm] collect_account_rows: httpx.Client(timeout=5.0)

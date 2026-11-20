@@ -1,0 +1,20 @@
+# P6 INSERT/UPDATE/DELETE in repositories/ whose top-level function neither calls mutate() nor write_audit().
+# mutation-unaudited = soft-delete/audit domain table; mutation-exempt-table = ADR-sanctioned unaudited table.
+# Tables with deleted_at: accounts, budget_defaults, budget_one_off_overrides, budget_recurring_overrides, categories, planned_transactions, recurring_rules, transactions, users, webauthn_credentials
+# rows: 16
+src/budget_planner/repositories/_shared.py:79	mutation-exempt-table	write_audit: INSERT audit_log
+src/budget_planner/repositories/preferences.py:46	mutation-exempt-table	upsert: INSERT user_preferences
+src/budget_planner/repositories/preferences.py:62	mutation-exempt-table	delete: DELETE user_preferences
+src/budget_planner/repositories/rate_limit.py:28	mutation-exempt-table	hit: INSERT auth_rate_limit
+src/budget_planner/repositories/rate_limit.py:47	mutation-exempt-table	prune: DELETE auth_rate_limit
+src/budget_planner/repositories/recurring.py:282	mutation-unaudited	set_next_due: UPDATE recurring_rules
+src/budget_planner/repositories/recurring.py:297	mutation-unaudited	set_inactive: UPDATE recurring_rules
+src/budget_planner/repositories/retention.py:25	mutation-exempt-table	scrub_audit_request_context: UPDATE audit_log
+src/budget_planner/repositories/retention.py:37	mutation-exempt-table	delete_ended_sessions: DELETE sessions
+src/budget_planner/repositories/sessions.py:138	mutation-exempt-table	create_session: INSERT sessions
+src/budget_planner/repositories/sessions.py:189	mutation-exempt-table	revoke_session_by_id: UPDATE sessions
+src/budget_planner/repositories/sessions.py:214	mutation-exempt-table	revoke_all_user_sessions: UPDATE sessions
+src/budget_planner/repositories/sessions.py:248	mutation-exempt-table	touch_session: UPDATE sessions
+src/budget_planner/repositories/sessions.py:260	mutation-exempt-table	mark_authenticated: UPDATE sessions
+src/budget_planner/repositories/sessions.py:275	mutation-exempt-table	rotate_session_token: UPDATE sessions
+src/budget_planner/repositories/webauthn.py:167	mutation-unaudited	update_sign_count: UPDATE webauthn_credentials
