@@ -3,7 +3,9 @@
 Re-exports the CSRF-aware, session-aware web-test clients from
 ``tests/integration/web/conftest.py`` (T-D02b, T-D08) so contract tests run
 on the same app wiring, plus a ``db`` connection on the same scratch file and
-small audit-log helpers. Never points at ``data/budget.sqlite``.
+small audit-log helpers. The autouse ``_fast_bcrypt`` fixture is NOT re-exported
+(a plugin would apply it session-wide); ``tests/contract/conftest.py`` supplies a
+contract-scoped one. Never points at ``data/budget.sqlite``.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ import pytest
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from tests.integration.web.conftest import (  # noqa: F401
-    _fast_bcrypt,
     _migrated,
     admin_client,
     anon_client,

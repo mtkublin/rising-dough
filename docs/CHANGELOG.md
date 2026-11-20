@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-UT-FIX3: bcrypt scope, sessions test timezone)
+- **Fix(T-UT-FIX3): contract tests no longer leak the autouse `_fast_bcrypt` fixture session-wide.** `tests/contract/_support.py` re-exported it as a plugin, breaking `test_passwords.py::test_default_rounds_is_twelve_and_honoured` in shared sessions; a contract-scoped autouse fixture now lives in `tests/contract/conftest.py`. `test_sessions_page_lists_own_sessions_by_handle` computed the expiry date in UTC while the page renders Europe/Warsaw (failed 22:00-24:00 UTC). Tests only, no `src/` change.
+
 ## 2026-11-20 (T-UT-FIX2: e2e readiness, mockup plugin)
 - T-UT-FIX2: e2e server readiness timeout 15s→60s (env override), early fail on server exit; mockup plugin wired.
 
