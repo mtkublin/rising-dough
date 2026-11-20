@@ -70,7 +70,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Every Critical and High finding, plus at least 20% of Mediums, independently re-verified. Dismissed findings listed with reasons.
 - Duplicates merged; severities calibrated; one best mitigation per finding; summary and histograms written.
 
-### T-Q12 [S] Operator review → T-Q11
+### ✅ T-Q12 [S] Operator review → T-Q11
 - The operator has accepted, adjusted or dismissed every Critical and High finding. `findings.md` frozen. **Deliverable 1 done.**
 
 ## Phase 4 — Prevention (sequential, only after T-Q12)
