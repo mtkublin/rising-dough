@@ -16,7 +16,7 @@
 - **Acceptance**: the folder opens from disk (`index.html`) with no console errors; `just lint` is green; byte-identical to the delivery (checksum list in `docs/design/README.md`).
 - References: ADR-0106 §5, ADR-0107 §1.
 
-### ◻ T-UT02 [S] UI map scaffold and the no-markup-assertion check
+### ✅ T-UT02 [S] UI map scaffold and the no-markup-assertion check
 - **Deliverables**:
   - `tests/ui_map/` package: one module per surface (`shell`, `today`, `ledger`, `plan`, `accounts`, `settings`, `auth`, `errors`), each exposing semantic names as functions or constants.
   - `tests/ui_map/_html.py`: resolves role + accessible name, label, and id queries over BeautifulSoup, with the same query shape as Playwright `get_by_role` / `get_by_label`. Unit-tested against fixtures.
