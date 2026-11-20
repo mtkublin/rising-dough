@@ -81,13 +81,13 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 ### ✅ T-Q14 [S] Control design → `prevention.md` §2 → T-Q13
 - Prevention matrix: class → findings → control → artefact → verification. Strongest feasible control chosen for each class.
 
-### T-Q15 [S] Apply controls → T-Q14
+### ✅ T-Q15 [S] Apply controls → T-Q14
 - Docs first: prevention ADR(s) (next free numbers; the mutation-testing ADR is **not** 0095), requirements §3.3 / §3 tooling, then CLAUDE.md, skills and briefs.
 - Guards in allowlist mode with CI green. Mutmut setup committed (`pyproject`, `just mutate*`, `.gitignore`, fixture fixes). Nightly job decided.
 - CLAUDE.md and skill edits reviewed by the operator.
-- T-Q15c guidance drafted (CLAUDE.md, orchestrator-mode and frontend-visual-audit skills, active plan handoff templates; summary `docs/plans/quality-audit/T-Q15c-review.md`) — pending operator review.
+- T-Q15c guidance drafted (CLAUDE.md, orchestrator-mode and frontend-visual-audit skills, active plan handoff templates; summary `docs/plans/quality-audit/T-Q15c-review.md`) — operator-approved and merged 2026-11-20.
 - **T-Q15b tooling landed** (2026-11-20, ADR-0130/ADR-0131): mutmut + import-linter pinned, `[tool.mutmut]`, `[tool.importlinter]` (40 allowlisted imports), TID251 clock ban (per-file allowlist) and `PGH`, `clock.py` scaffold, `just mutate*`/`guards`/`lint-imports`, `scripts/mutate_report.py`, `scripts/check_github_settings.py`, CI runs `pre-commit run --all-files` (`SKIP=pytest-fast`), weekly `mutation.yml`. Timings: `baseline/precommit-timing.md`. Open: T-Q15a guards, T-Q15c CLAUDE.md/skills.
-- Progress: **T-Q15a guards landed** (2026-11-20, ADR-0130): `tests/architecture/` exact-ratchet guards G1-support, G2, G4, G5, G6, G7 (invariants registry), G7b, G9, G10, G12, G14, G15, G16, G17-repo and G18 to G27 with `allowlists/*.toml`, `canonical_modules.toml` (S1), S3 isolation registry; `repro/allowlist_by_qid.py` lists entries per Q-id and epic. T-Q15b (config, CI, hooks) and T-Q15c (CLAUDE.md, skills) remain; T-Q15 is not done.
+- Progress: **T-Q15a guards landed** (2026-11-20, ADR-0130): `tests/architecture/` exact-ratchet guards G1-support, G2, G4, G5, G6, G7 (invariants registry), G7b, G9, G10, G12, G14, G15, G16, G17-repo and G18 to G27 with `allowlists/*.toml`, `canonical_modules.toml` (S1), S3 isolation registry; `repro/allowlist_by_qid.py` lists entries per Q-id and epic. T-Q15b, T-Q15c and T-Q15d landed later the same day; T-Q15 is done.
 - **T-Q15d fix-ups** (2026-11-20): G18 ignores dunder same-name rows (self-test; allowlist unchanged), `clock.py` row is `[[permanent]]` (ADR-0130 §4; burn-down entries 20 to 19), pre-commit `djlint-jinja` fixed to check `.html` templates (was a silent no-op), timings in `baseline/precommit-timing.md`.
 
 ### ✅ T-Q16 [S] Prevention dry run → T-Q15

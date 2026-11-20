@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-20 (T-Q15: quality audit prevention closed)
+- **Docs(T-Q15): closed.** Guards, tooling, CLAUDE.md and skills guidance merged; ADR-0130.
+
 ## 2026-11-20 (T-Q15c: tightened development rules)
 - **Docs(T-Q15c): tightened development rules drafted, pending operator review** (ADR-0130 §7). `CLAUDE.md` (canonical modules table, enforceable code-conventions table, reuse and allowlist handoff lines, stale paths fixed), `orchestrator-mode` (search-before-write brief, Searched/Reused/New helper report, allowlist hotspots, merge duplication check, CPU rules), `frontend-visual-audit` (Step 3b template-logic and behaviour contract), v4/gamification/ui-redesign handoff lines. Summary: `docs/plans/quality-audit/T-Q15c-review.md`.
 
