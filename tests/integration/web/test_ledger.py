@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from bs4 import BeautifulSoup, Tag
@@ -54,7 +54,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
             conn,
             USER_ID,
             NewPlannedTransaction(
-                operation_date=date(2026, 10, 20),
+                operation_date=date.today() + timedelta(days=10),  # noqa: DTZ011 — inside ledger planned window
                 category_id=cat_exp.id,
                 account_id=acc.id,
                 amount=5000,
