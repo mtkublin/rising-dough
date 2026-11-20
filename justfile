@@ -215,6 +215,12 @@ worktree-init:
       echo "[worktree-init] no .testmondata in $main; the first test-changed runs everything"
     fi
 
+# --- route inventory (T-UT03, ADR-0106 section 1) --------------------------
+
+# Regenerate tests/contract/routes.md from the live route table.
+routes:
+    uv run python -m tests.contract.routes_md
+
 # --- database --------------------------------------------------------------
 
 # Apply all pending SQL migrations. Implemented in Phase 1 (T-010).

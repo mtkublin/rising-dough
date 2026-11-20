@@ -25,7 +25,7 @@
 - **Validation**: `just test tests/ui_map tests/architecture/test_no_markup_assertions.py`
 - References: ADR-0106 §2.
 
-### ◻ T-UT03 [P] Route inventory and coverage meta-test → T-UT02
+### ✅ T-UT03 [P] Route inventory and coverage meta-test → T-UT02
 - **Deliverables**:
   - `tests/contract/conftest.py` with a `@covers("<METHOD> <path>")` marker.
   - `tests/contract/test_route_coverage.py`: enumerates `app.routes` (method + path template) and fails for any route with no `@covers` test and no allowlist entry. Initial allowlist = every route (reason `pending T-UT04x`).
