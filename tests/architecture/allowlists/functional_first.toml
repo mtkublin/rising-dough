@@ -409,10 +409,10 @@ finding = "framework"
 epic = "E04"
 reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
 
-[[entry]]
+[[permanent]]
 path = "src/budget_planner/clock.py"
 rule = "module-state"
 count = 1
 finding = "Q-031"
 epic = "E07"
-reason = "ContextVar test override is mandated by ADR-0130 section 4 (clock module); T-Q15b scaffold"
+reason = "canonical clock override (ADR-0130 §4)"

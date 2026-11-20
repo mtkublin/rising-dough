@@ -46,6 +46,11 @@ IGNORE_NAMES = {
 }
 
 
+def _is_dunder(name: str) -> bool:
+    """Protocol methods (``__call__``, ``__post_init__``...) share names by contract, not by copy-paste."""
+    return len(name) > 4 and name.startswith("__") and name.endswith("__")
+
+
 class Norm(ast.NodeTransformer):
     def visit_Name(self, n: ast.Name) -> ast.AST:
         return ast.copy_location(ast.Name(id="_", ctx=n.ctx), n)
@@ -82,7 +87,11 @@ def p01_ast() -> None:
         tree = parse(p)
         for q, fn in func_qualnames(tree):
             ln = (fn.end_lineno or fn.lineno) - fn.lineno + 1
-            if fn.name not in IGNORE_NAMES and not fn.name.startswith("test_"):
+            if (
+                fn.name not in IGNORE_NAMES
+                and not _is_dunder(fn.name)
+                and not fn.name.startswith("test_")
+            ):
                 names[fn.name].append((rel(p), fn.lineno, layer(p)))
             if len(fn.body) >= 4 and ln >= 8:
                 groups[body_hash(fn)].append((rel(p), fn.lineno, q, ln))
