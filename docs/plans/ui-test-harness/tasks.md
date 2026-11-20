@@ -87,7 +87,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance**: a Today UI-map module variant for the new markup resolves every name against `pages/today.html` and its overlays; documented as the first step of each redesign surface.
 - **Validation**: `just test-e2e --target=mockup tests/e2e/test_today_journey.py`
 
-### ◻ T-UT10 [P] Visual references from the handoff → T-UT01
+### ✅ T-UT10 [P] Visual references from the handoff → T-UT01
 - **Deliverables**: `just visual-reference` screenshots each handoff page at 1440 / 1024 / 375 in light and dark into `tests/visual/reference/`; `tests/visual/frozen_server.py` gains fixture data matching the handoff's sample data closely enough for a per-surface tolerance; `just test-visual --reference=handoff <surface>`.
 - **Acceptance**: references generated for every handoff page; the comparison runs against one already-matching static page (handoff vs itself) at 0 diff; tolerance per surface recorded in `tests/visual/README.md`.
 - References: ADR-0106 (amends ADR-0027 §4).
