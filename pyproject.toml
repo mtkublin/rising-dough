@@ -47,6 +47,7 @@ dev = [
   "pytest-testmon>=2.3",
   "mutmut==3.7.0",
   "import-linter>=2.17",
+  "types-pyyaml>=6.0.12.20261113",
 ]
 
 [build-system]
@@ -355,6 +356,14 @@ forbidden_modules = [
   "budget_planner.repositories",
   "budget_planner.db",
 ]
+allow_indirect_imports = true
+ignore_imports = []
+
+[[tool.importlinter.contracts]]
+name = "services do not import web"
+type = "forbidden"
+source_modules = ["budget_planner.services"]
+forbidden_modules = ["budget_planner.web"]
 allow_indirect_imports = true
 ignore_imports = []
 

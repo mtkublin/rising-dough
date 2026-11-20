@@ -87,12 +87,16 @@ def test_today_local_reads_the_settings_display_timezone() -> None:
 
 def test_fixed_clock_rejects_naive_datetimes() -> None:
     with pytest.raises(ValueError, match="timezone-aware"):
-        clock.FixedClock(datetime(2026, 1, 1))  # noqa: DTZ001 - the point of the test
+        clock.fixed_clock(datetime(2026, 1, 1))  # noqa: DTZ001 - the point of the test
 
 
-def test_fixed_clock_is_a_callable_clock() -> None:
+def test_fixed_clock_returns_its_instant() -> None:
     instant = datetime(2026, 3, 3, tzinfo=UTC)
 
-    source: clock.Clock = clock.FixedClock(instant)
+    source: clock.Clock = clock.fixed_clock(instant)
 
-    assert source() == instant
+    assert source.now() == instant
+
+
+def test_system_clock_is_utc_aware() -> None:
+    assert clock.SYSTEM_CLOCK.now().utcoffset() == timedelta(0)

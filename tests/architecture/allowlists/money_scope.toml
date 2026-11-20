@@ -1,0 +1,312 @@
+# G27 money scope (extends G6): money arithmetic, rounding, parsing, formatting and FX outside the canonical
+# modules. Chart-geometry float rows are reviewed and not counted.
+
+guard = "money_scope"
+
+[[entry]]
+path = "src/budget_planner/services/analytics.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/balance.py"
+rule = "money-parse"
+count = 2
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/balance.py"
+rule = "money-round"
+count = 3
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "fx-call"
+count = 2
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "fx-def"
+count = 4
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "money-parse"
+count = 1
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "money-round"
+count = 2
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "fx-arith"
+count = 2
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "fx-call"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "fx-def"
+count = 2
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "money-float"
+count = 2
+finding = "Q-022"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "money-parse"
+count = 2
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "money-round"
+count = 3
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "money-scale"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/ledger_totals.py"
+rule = "fx-call"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/services/rate_limit.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "money-format"
+count = 2
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "money-parse"
+count = 1
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "money-round"
+count = 3
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "money-scale"
+count = 3
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/today.py"
+rule = "money-parse"
+count = 2
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/services/today.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/charts.py"
+rule = "money-format"
+count = 2
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/charts.py"
+rule = "money-round"
+count = 5
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/charts.py"
+rule = "money-scale"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/budget.py"
+rule = "money-parse"
+count = 2
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/forecast.py"
+rule = "money-scale"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "fx-call"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "fx-def"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "money-scale"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "money-parse"
+count = 1
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "money-format"
+count = 1
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "money-parse"
+count = 4
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "money-scale"
+count = 2
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "money-parse"
+count = 1
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "money-scale"
+count = 2
+finding = "Q-011"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "fx-arith"
+count = 2
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "fx-call"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "fx-def"
+count = 1
+finding = "Q-007"
+epic = "E01"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "money-parse"
+count = 1
+finding = "Q-023"
+epic = "E11"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "money-round"
+count = 3
+finding = "Q-076"
+epic = "E11"

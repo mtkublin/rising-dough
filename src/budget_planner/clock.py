@@ -15,7 +15,7 @@ Rules (ADR-0007):
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -25,9 +25,9 @@ from zoneinfo import ZoneInfo
 
 
 class Clock(Protocol):
-    """A zero-argument source of timezone-aware instants."""
+    """A source of timezone-aware instants."""
 
-    def __call__(self) -> datetime: ...
+    def now(self) -> datetime: ...
 
 
 class HasDisplayTimezone(Protocol):
@@ -43,26 +43,36 @@ class FixedClock:
 
     instant: datetime
 
-    def __post_init__(self) -> None:
-        if self.instant.tzinfo is None:
-            msg = "FixedClock needs a timezone-aware datetime"
-            raise ValueError(msg)
-
-    def __call__(self) -> datetime:
+    def now(self) -> datetime:
         return self.instant
 
 
+@dataclass(frozen=True, slots=True)
+class SystemClock:
+    """The host clock, read as UTC. The only place the wall clock is touched."""
+
+    def now(self) -> datetime:
+        return datetime.now(UTC)
+
+
+SYSTEM_CLOCK = SystemClock()
+
+# ADR-0130 section 4: the test override is a ContextVar, so it is task/thread local.
 _override: ContextVar[Clock | None] = ContextVar("budget_planner_clock_override", default=None)
 
 
-def _system_now() -> datetime:
-    return datetime.now(UTC)
+def fixed_clock(instant: datetime) -> FixedClock:
+    """Build a :class:`FixedClock`; ``instant`` must be timezone-aware."""
+    if instant.tzinfo is None:
+        msg = "fixed_clock needs a timezone-aware datetime"
+        raise ValueError(msg)
+    return FixedClock(instant)
 
 
 def utc_now() -> datetime:
     """Current instant as a timezone-aware UTC datetime."""
-    source: Callable[[], datetime] = _override.get() or _system_now
-    return source().astimezone(UTC)
+    source: Clock = _override.get() or SYSTEM_CLOCK
+    return source.now().astimezone(UTC)
 
 
 def now_in(tz: str | tzinfo) -> datetime:
@@ -84,7 +94,7 @@ def today_local(settings: HasDisplayTimezone) -> date:
 @contextmanager
 def frozen(instant: datetime) -> Iterator[Clock]:
     """Pin the clock to ``instant`` inside the ``with`` block (context-local)."""
-    clock = FixedClock(instant)
+    clock = fixed_clock(instant)
     token = _override.set(clock)
     try:
         yield clock

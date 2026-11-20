@@ -1,0 +1,17 @@
+# G15 guidance_paths: stale paths and just recipes in CLAUDE.md and skills (Q-053). T-Q15c removes these.
+
+guard = "guidance_paths"
+
+[[entry]]
+path = ".claude/skills/orchestrator-mode/SKILL.md"
+rule = "missing-path"
+count = 3
+finding = "Q-053"
+epic = "E14"
+
+[[entry]]
+path = "CLAUDE.md"
+rule = "missing-path"
+count = 8
+finding = "Q-053"
+epic = "E14"

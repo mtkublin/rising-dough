@@ -1,0 +1,80 @@
+# G24 read filters: soft-delete / user-id predicates on repository reads and unaudited mutations.
+
+guard = "read_filters"
+
+[[entry]]
+path = "src/budget_planner/repositories/_shared.py"
+rule = "read-no-softdelete"
+count = 2
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/audit.py"
+rule = "read-no-user-filter"
+count = 2
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/budgets.py"
+rule = "read-no-softdelete"
+count = 3
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/recurring.py"
+rule = "mutation-unaudited"
+count = 2
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/recurring.py"
+rule = "read-no-softdelete"
+count = 5
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/sessions.py"
+rule = "read-no-user-filter"
+count = 2
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/snapshots.py"
+rule = "read-no-softdelete"
+count = 3
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/users.py"
+rule = "read-no-softdelete"
+count = 1
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/webauthn.py"
+rule = "mutation-unaudited"
+count = 1
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/webauthn.py"
+rule = "read-no-softdelete"
+count = 1
+finding = "B-14"
+epic = "E10"
+
+[[entry]]
+path = "src/budget_planner/repositories/webauthn.py"
+rule = "read-no-user-filter"
+count = 1
+finding = "B-14"
+epic = "E10"
