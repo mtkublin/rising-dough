@@ -56,8 +56,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 ### ◻ T-UT04a [P] Shell, auth and errors
 - Login, logout, re-auth, rate limits, passkey endpoints, session list, CSRF, security headers, cache-control, redirects, root redirect, error pages, health, palette, FAB / new-entry entry points.
 
-### ◻ T-UT04b [P] Today and Accounts
+### ✅ T-UT04b [P] Today and Accounts
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
+- Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. App-only Today names live in `tests/ui_map/today_app.py` (the mockup twin must stay a superset of `today.py`). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
 
 ### ◻ T-UT04c [P] Ledger
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
