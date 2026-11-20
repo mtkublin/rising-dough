@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -42,7 +43,8 @@ def test_today_upcoming_row_tint_overdue_due_future(
         cat = categories_repo.create(
             conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
         )
-        today = date.today()  # noqa: DTZ011
+        # The app derives "today" in the display timezone (ADR-0007), not the host's.
+        today = clock.today_local(_migrated)
         for op_date, desc in [
             (today - timedelta(days=2), "Past bill"),
             (today, "Today bill"),
