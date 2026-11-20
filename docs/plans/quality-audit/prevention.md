@@ -302,3 +302,38 @@ The operator directed that the plan also converge the architecture to **full com
 - **Zero-violation policy** (ADR-0130 §1): every principle in `CLAUDE.md` and requirements §3 has an automated guard where feasible; every allowlist must reach zero; no new allowlist entry without an ADR amendment.
 - The remediation backlog (T-Q2xx) is extended to burn each allowlist down; T-Q16 (dry run) also checks that the tightened rules (search-before-write, handoff checks, merge-step duplication check) change agent behaviour.
 - The controls in §2 are unchanged in design; what changes is the target state of their allowlists (zero) and the breadth of the initial inventory.
+
+## 7. Dry-run result (T-Q16)
+
+Runs on 2026-11-20 from the T-Q15c branch, throwaway branches, sonnet agents, task = Today tile "Spent this calendar month" in base currency (JPY and PLN) plus "N days left in the month" (§4). Pass/fail per criterion; P5 is run by the orchestrator in CI after the fixes.
+
+| Variant | P1 | P2 | P3 | P4 | P5 | P6 | Verdict |
+|---|---|---|---|---|---|---|---|
+| V1 full brief | partial | partial | n/a | n/a | pending | this section | **partial** |
+| V2 CLAUDE.md only | partial | n/a | n/a | n/a | pending | this section | **partial** |
+| V3 adversarial | n/a | n/a | **pass** | n/a | pending | this section | **pass** |
+| V4 parallel pair | n/a | n/a | n/a | **pass** | pending | this section | **pass** |
+
+**V1 (partial).** Reused `base_txn_converter`, `transactions_repo.list_filtered(TransactionFilter(directions=(EXPENSE,)))`, the `money` filter / `domain.money` and the clock in tests; no SQL in the router, no `/ 100`, no literal user id, no new `noqa`, no allowlist entry; wrote a real user-isolation case; `Searched/Reused` named canonical symbols. Gap: the "Periods and month windows" row was `target`; the agent created `domain/periods.py` (`month_bounds`, `days_left_in_month`), flipped the row to `exists` and left the four private copies (`budget._month_range`, `analytics._month_bounds`, `forecast._month_bounds`, `recurring_formula._month_bounds`), a fifth copy; no guard fired. P2 partial (`New helper` was not "none"). Minor: skipped the `frontend-visual-audit` skill, did not view screenshots, "1 days left" plural bug.
+
+**V2 (partial).** Docs first (requirements F4.6b), reused the converter, `list_filtered` and the `money` filter, ran the visual audit through the skill (clean at 1440/1024/375), cleared the G4 suppression and S3 user-isolation guards. Gaps: (a) the S3 guard (`tests/unit/services/test_user_isolation.py`) only surfaced at commit time because `just guards` did not include it; (b) for the `target` month-window row it imported the private `budget._month_range` from another module: no guard fired (ruff SLF001 does not cover `from x import _name`).
+
+**V3 (pass, P3).** Blocked by five guards: G23 thin router, G2 SQL outside repositories, G27 money, the user_id filter guard and G26 hygiene; no bypass. TID251 and G7b were not exercised (the agent did not write those violations). Message quality: G2 and G27 named the module to use; G23 said "move into services/" without a target; the user_id filter said what was wrong but not how to fix it; G26 said only "type signatures precisely".
+
+**V4 (pass, P4).** The orchestrator plan carved the month window and base-currency sum into one earlier-wave helper item (single owner of `canonical_modules.toml`, the CLAUDE.md row and `banned_patterns.toml`); both feature items depend on it; it cited the skill's shared-helper carve-out and the `target` rows.
+
+### Gaps found and the control added (second occurrence class gets a guard, not a rule)
+
+| Gap | Control |
+|---|---|
+| `target` row flipped to `exists` with copies left (V1) | Registry statuses `exists` / `exists-migrating` / `target`; `test_canonical_modules.py` fails when an `exists` row still has banned copies (G6 `banned-name` attributable to the concept) and when an `exists-migrating` row has none. `target` and `exists-migrating` rows need `migration_task`; `target` rows need `interim` (the one public copy to call, or "none - extract via T-Q2xx"). Rows set: exists 1 (net worth), exists-migrating 5 (FX T-Q212, money T-Q216, HTMX T-Q236, ledger totals T-Q209, clock T-Q229), target 10. Self-test included. Clones are not attributed per concept (only `banned-name`). |
+| Cross-module private use (V2) | New G30 `test_private_imports.py` + `allowlists/private_imports.toml`: `from budget_planner... import _x` and `mod._x`; starts at 8 violations in 5 files (burn-down, epic mapping provisional: E03 routers, E12 db, E15 services), self-test included. |
+| User-isolation guard late at commit (V2) | `just guards` now also runs `tests/unit/services/test_user_isolation.py` (about 9 s wall, 109 tests). |
+| Rule-only guidance for target rows (V1, V2) | CLAUDE.md "Canonical modules": new `Interim` column; target rule = call the interim copy or do the extraction migrating all copies; never import a private `_name`; never create the canonical module without migrating copies. One-line mirror in the orchestrator-mode brief. |
+| Weak guard messages (V3) | G23 names `services/<page>.py` returning a frozen view model and the `services/today.py` pattern; user_id filter says `AND <alias>.user_id = ?`, `current_user_id` (web/deps.py), move SQL to repositories/; G26 gives per-rule fixes (silent/broad except, assert, print, Any). |
+
+ADR-0130 §10 carries a one-line amendment for the statuses and G30.
+
+### Status
+
+P5 (`just ci` green on the final branch): pending, run by the orchestrator in CI. V1 and V2 re-runs follow these fixes and are dispatched by the orchestrator; T-Q16 is not closed until they pass (P1, P2 for V1; no new copy and no private import for V2).

@@ -151,8 +151,8 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
   Pure layers do no I/O (CLAUDE.md "Code conventions").
 - **Search before you write.** (1) Read CLAUDE.md "Canonical modules" for your concept.
   (2) Run that row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"`
-  style). (3) Call or extend the canonical function; a `target` row is never copied, only
-  called or noted. A new shared helper is registered in `tests/architecture/canonical_modules.toml`
+  style). (3) Call or extend the canonical function; a `target` row is never copied: call its public `Interim` copy, or do its registered extraction task
+  migrating ALL copies in one change; never import another module's `_private` name. A new shared helper is registered in `tests/architecture/canonical_modules.toml`
   (you own that file only if listed above; otherwise name the row in your report).
 - **No new allowlist entry or suppression** without a reason and an ADR-0130 amendment. Delete
   allowlist entries for violations you fix. Architecture guards (`just guards`) must be green.

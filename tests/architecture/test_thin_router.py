@@ -13,7 +13,7 @@ from tests.architecture._scan import rows
 from tests.architecture.conftest import SyntheticScan
 
 GUARD = "thin_router"
-TEACH = "G23 thin router: move arithmetic, branching on domain values, SQL and transactions into services/ and return one view model (CLAUDE.md code conventions; Q-003, Q-004, Q-010, Q-024, Q-028, epics E08/E09)."
+TEACH = "G23 thin router: move arithmetic, branching on domain values, SQL and transactions into services/<page>.py (create it if missing) returning a frozen view model; copy the pattern of services/today.py (router: parse params, call service, render). See CLAUDE.md code conventions (Q-003, Q-004, Q-010, Q-024, Q-028, epics E08/E09)."
 
 
 def collect() -> list[Violation]:

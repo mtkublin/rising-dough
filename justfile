@@ -131,7 +131,7 @@ mutate-clean:
 
 # Architecture guards (tests/architecture). Run in the pytest suite and CI.
 guards:
-    uv run pytest tests/architecture -q --no-cov
+    uv run pytest tests/architecture tests/unit/services/test_user_isolation.py -q --no-cov
 
 # Import-linter layering contracts (ADR-0130 §1).
 lint-imports:

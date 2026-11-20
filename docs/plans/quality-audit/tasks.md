@@ -92,6 +92,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 
 ### T-Q16 [S] Prevention dry run → T-Q15
 - A fresh agent working on a synthetic duplication-prone task uses the canonical module, or the guard trips. Result recorded. `just ci` green. **Deliverable 2 done.**
+- Progress 2026-11-20: dry run V1-V4 recorded in `prevention.md` §7; V3 and V4 pass, V1 and V2 partial. Controls added: registry statuses (`exists-migrating`, `interim`, `migration_task`) with a flip guard, G30 private-import ratchet (8 entries), `just guards` includes the user-isolation test, sharper G23/G26/user_id messages, CLAUDE.md Interim rule. Open: V1/V2 re-runs and P5 (`just ci`); not ✅ until they pass.
 
 ## Phase 5 — Remediation backlog → T-Q12 (may overlap T-Q13…T-Q16)
 

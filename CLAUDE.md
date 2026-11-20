@@ -39,26 +39,26 @@ Always read the relevant ADR before changing an area it covers.
 
 One module owns each concept. **Before you write a helper:** (1) find the concept below; (2) run the row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"` style); (3) call or extend the owner. Report `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered: yes/no)`. A new shared concept is registered in `tests/architecture/canonical_modules.toml` (this table must cover every row; `test_canonical_modules.py` checks it) in the same change.
 
-| Concept | Owner | Status |
-|---|---|---|
-| FX conversion and rate lookup | `services/fx.py` `convert` (one converter factory is the target) | exists, to be unified (Q-007) |
-| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`); one rounding helper | exists, being extended (Q-011) |
-| Periods and month windows | `domain/periods.py` `month_bounds` | **target** (Q-003) |
-| Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) |
-| Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) |
-| Net worth and fortune | `services/fortune.compute_fortune` | exists (Q-009) |
-| Sum by category in base currency | `services/aggregates.sum_by_category` | **target** (Q-008) |
-| Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists (Q-010) |
-| Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)` | exists (callers migrate under Q-031) |
-| Request parameter parsing | `web/params.py` `parse_date`, `parse_int` | **target** (Q-023) |
-| HTMX events and toast payloads | `web/htmx.py` `trigger` | exists (Q-038) |
-| Transit validation | `services/transactions.validate_transit_shape` | **target** (Q-004) |
-| Balance as of a date | `services/balance.as_of_today` | **target** (Q-032) |
-| Category selection (expense category ids) | `services/categories.expense_category_ids` | **target** (Q-030) |
-| Budget tier resolution | `services/budget.pick_tier` | **target** (Q-075) |
-| Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | **target** (Q-039) |
+| Concept | Owner | Status | Interim (target rows) |
+|---|---|---|---|
+| FX conversion and rate lookup | `services/fx.py` `convert` (one converter factory is the target) | exists-migrating (T-Q212) | - |
+| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`); one rounding helper | exists-migrating (T-Q216) | - |
+| Periods and month windows | `domain/periods.py` `month_bounds` | **target** (Q-003) | none - extract via T-Q208 |
+| Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) | `services/recurring.generate_occurrences` |
+| Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) | `services/ledger_totals.signed_effect` |
+| Net worth and fortune | `services/fortune.compute_fortune` | exists (Q-009) | - |
+| Sum by category in base currency | `services/aggregates.sum_by_category` | **target** (Q-008) | none - extract via T-Q227 |
+| Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists-migrating (T-Q209) | - |
+| Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)` | exists-migrating (T-Q229) | - |
+| Request parameter parsing | `web/params.py` `parse_date`, `parse_int` | **target** (Q-023) | none - extract via T-Q233 |
+| HTMX events and toast payloads | `web/htmx.py` `trigger` | exists-migrating (T-Q236) | - |
+| Transit validation | `services/transactions.validate_transit_shape` | **target** (Q-004) | none - extract via T-Q210 |
+| Balance as of a date | `services/balance.as_of_today` | **target** (Q-032) | none - extract via T-Q227 |
+| Category selection (expense category ids) | `services/categories.expense_category_ids` | **target** (Q-030) | none - extract via T-Q227 |
+| Budget tier resolution | `services/budget.pick_tier` | **target** (Q-075) | `services/budget.resolve_budget` |
+| Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | **target** (Q-039) | none - extract via T-Q237 |
 
-**Target** rows are not yet extracted: do not add a new copy. Call the nearest function the row names and note it under `New helper` / `Searched` in the report. `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
+**Target** rows are not yet extracted. Either call the row's **Interim** copy (public, named in the table), or, when it says "none", do the extraction as the registered migration task (`migration_task` in the registry), migrating **all** copies in the same change. Never import another module's private `_name` (G30, `test_private_imports.py`). Never create the canonical module without migrating the copies: a row may be `exists` only at zero copies, otherwise `exists-migrating` (`test_canonical_modules.py`). `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
 
 ## Code conventions
 
@@ -164,11 +164,11 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 
 ### Files at a glance
 
-| File | Role | Policy |
+| File | Role | Policy | - |
 |------|------|--------|
-| `data/budget.sqlite` | **Prod** (local, canonical user data). Gitignored. | **Hands off.** See rule above. No writes without explicit user confirmation in the current session. |
-| `data/demo.sqlite` | Demo DB — anonymized, scaled copy of prod for feature walkthroughs. Tracked in git. | Rebuild with `just demo-build` (reads prod, writes demo; prod is untouched). Safe to nuke and regenerate. |
-| `/tmp/*.sqlite` or any path via `--db=` | Scratch / testing. | Default target for any agent-driven DB experiment. Create, abuse, delete freely. |
+| `data/budget.sqlite` | **Prod** (local, canonical user data). Gitignored. | **Hands off.** See rule above. No writes without explicit user confirmation in the current session. | - |
+| `data/demo.sqlite` | Demo DB — anonymized, scaled copy of prod for feature walkthroughs. Tracked in git. | Rebuild with `just demo-build` (reads prod, writes demo; prod is untouched). Safe to nuke and regenerate. | - |
+| `/tmp/*.sqlite` or any path via `--db=` | Scratch / testing. | Default target for any agent-driven DB experiment. Create, abuse, delete freely. | - |
 
 ## Handoff checklist (for subsequent agents)
 
