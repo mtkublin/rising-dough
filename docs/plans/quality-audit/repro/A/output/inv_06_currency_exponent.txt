@@ -1,0 +1,13 @@
+
+=== 6a table vs ISO 4217 (codes in ISO_4217_CURRENCIES) ===
+code: (app, iso) {'BIF': (2, 0), 'CLP': (2, 0), 'DJF': (2, 0), 'GNF': (2, 0), 'ISK': (2, 0), 'KMF': (2, 0), 'PYG': (2, 0), 'RWF': (2, 0), 'UGX': (2, 0), 'VND': (2, 0), 'VUV': (2, 0), 'XAF': (2, 0), 'XOF': (2, 0), 'XPF': (2, 0), 'BHD': (2, 3), 'IQD': (2, 3), 'JOD': (2, 3), 'KWD': (2, 3), 'LYD': (2, 3), 'OMR': (2, 3), 'TND': (2, 3)}
+[FAIL] exponent table correct for all accepted ISO codes :: 21 wrong
+[FAIL] ... and for every FX-reachable (frankfurter) code :: wrong+reachable=['ISK']
+
+=== 6b /today render with a JPY account ===
+Today net-worth card row for the JPY account renders: 123.45
+[FAIL] JPY balance on /today shows 12,345
+accounts page contains '12,345': True | contains '123.45': False
+
+=== 6c hard-coded /100 occurrences (static) ===
+templates: 51 | python: {'services/forecast.py': 1, 'services/recurring_formula.py': 2, 'web/routers/today.py': 1}

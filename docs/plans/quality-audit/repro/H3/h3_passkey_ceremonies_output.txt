@@ -1,0 +1,34 @@
+== P1 replay of a captured passkey login with sign_count=0 authenticator
+register -> 200 {"redirect":"/settings/security#passkeys"}
+victim login -> 200 {"redirect":"/today"}
+REPLAY from another client -> 200 {"redirect":"/today"} | new session cookie: True
+live sessions for V before/after: 1 3
+replayed session usable: GET /today -> 200
+
+== P2 replay with counter>0 authenticator revokes the victim's passkey (DoS on the credential)
+legit login -> 200
+replay -> 401 {"error":"login_failed"}
+credential deleted_at after replay: [('hw', 1)]
+victim passkey login afterwards -> 401 {"error":"login_failed"}
+
+== P3 attacker registers a credential with the victim's credential id
+dup of live V credential -> 400 {"error":"duplicate_credential"}
+dup of REVOKED V credential -> 400 {"error":"duplicate_credential"}
+rows with that id: [(2, 1)]
+
+== P4 attacker session re-auths with the victim's credential
+allowCredentials has only A's id: True
+reauth finish with V's credential -> 401 {"error":"reauth_failed"}
+
+== P5 challenge cookie purpose and user binding
+login-purpose cookie on reauth/finish -> 401 {"error":"reauth_failed"}
+A's register challenge used by V's session -> 400 {"error":"challenge_expired"}
+
+== P6 login resolves the user from credential id only
+login with forged userHandle=3 -> 200 {"redirect":"/today"}
+session owner: [(2,)] (expected 2 = credential owner)
+
+== P7 session issued by a passkey survives removal of the passkey
+passkey login -> 200
+owner revokes passkey -> 303
+session created via that passkey still works: GET /today -> 200

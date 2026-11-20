@@ -1,0 +1,13 @@
+GET  /budget?year=abc                                                                         -> 500
+GET  /budget?year=99999&month=1                                                               -> 500
+GET  /today/afford?amount=nan                                                                 -> 500
+GET  /today/afford?amount=inf                                                                 -> 500
+GET  /today/afford?amount=1e999                                                               -> 500
+GET  /today/afford?amount=1e300                                                               -> 200
+POST /accounts/1/reconcile            {'actual_balance': 'NaN'}                               -> 500
+POST /accounts/1/reconcile            {'actual_balance': 'Infinity'}                          -> 500
+POST /accounts/1/reconcile            {'actual_balance': '1e400'}                             -> 500
+POST /accounts                        {'name': 'x', 'currency': 'PLN', 'opening_balance': 'NaN'} -> 500
+POST /accounts                        {'name': 'x', 'currency': 'PLN', 'opening_balance': '1e30'} -> 500
+GET  /plan?year=99999                                                                         -> 500
+GET  /ledger?page_size=1000000                                                                -> 200

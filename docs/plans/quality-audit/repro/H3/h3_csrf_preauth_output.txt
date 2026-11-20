@@ -1,0 +1,78 @@
+== C1 login CSRF
+no cookie, no token -> 403 {"detail":"missing_cookie"}
+cookie, no token -> 403 {"detail":"invalid_csrf"}
+cookie, wrong token -> 403 {"detail":"invalid_csrf"}
+attacker-chosen 1-char cookie 'a' + same form token -> 303 (303 = accepted: no format/signature check on the token)
+
+== C2 CSRF token lifecycle across login / logout
+token before login == after login == after logout: True
+
+== C3 header vs form precedence
+empty header + valid form token -> 303
+wrong header + valid form token -> 403
+text/plain + header -> 303 (header alone suffices; cross-site fetch cannot set it without CORS preflight)
+text/plain, no token (classic cross-site form) -> 403
+PUT without token -> 403
+PATCH without token -> 403
+DELETE without token -> 403
+
+== C4 pre-auth parser fuzz on POST /auth/login (all expected 4xx; 5xx = finding)
+  non-ascii form token                 -> 500
+  non-ascii header token (latin-1)     -> 500
+  multipart no boundary                -> 500
+  multipart bad boundary body          -> 401
+  urlencoded invalid utf-8 %ff         -> 401
+  urlencoded 1500 fields               -> 500
+  NUL in email                         -> 401
+  next with NUL                        -> 401
+  duplicate _csrf_token                -> 401
+  JSON body to form route              -> 401
+  non-ascii session cookie bytes       -> 401
+
+== C5 malformed passkey login bodies with a VALID challenge cookie
+  {}                   -> 401 {"error":"login_failed"}
+  id int               -> 401 {"error":"login_failed"}
+  rawId not base64     -> 401 {"error":"login_failed"}
+  response is string   -> 401 {"error":"login_failed"}
+  null response        -> 401 {"error":"login_failed"}
+  huge nested          -> 401 {"error":"login_failed"}
+  list                 -> 400 {"detail":"invalid_json"}
+  non-utf8 body        -> 400
+
+== C6 unbounded attacker email in audit_log (one request)
+200KB email login -> 401 | max stored audit payload bytes: 200094
+
+== C7 stale admin and /settings/users (step-up on admin POSTs, HTMX and plain)
+  stale admin reset-password plain -> 303 /auth/reauth?next=%2Fsettings%2Fsecurity
+  stale admin reset-password {'HX-Request': 'true'} -> 403 /auth/reauth?next=%2Fsettings%2Fsecurity
+  stale admin delete -> 303
+
+== C8 open-redirect battery (Location / JSON redirect values)
+  next='//evil.example'               login -> '/today'                   reauth -> '/today'
+  next='/\\evil.example'              login -> '/today'                   reauth -> '/today'
+  next='/%2f/evil.example'            login -> '/%2f/evil.example'        reauth -> '/%2f/evil.example'
+  next='/%5cevil.example'             login -> '/%5cevil.example'         reauth -> '/%5cevil.example'
+  next='https://evil.example'         login -> '/today'                   reauth -> '/today'
+  next='/\t/evil.example'             login -> '/today'                   reauth -> '/today'
+  next='/ /evil.example'              login -> '/%20/evil.example'        reauth -> '/%20/evil.example'
+  next='///evil.example'              login -> '/today'                   reauth -> '/today'
+  next='/.//evil.example'             login -> '/.//evil.example'         reauth -> '/.//evil.example'
+  next='/a?next=//evil.example'       login -> '/a?next=//evil.example'   reauth -> '/a?next=//evil.example'
+  next='javascript:alert(1)'          login -> '/today'                   reauth -> '/today'
+  next='/auth/login/../x'             login -> '/today'                   reauth -> '/today'
+  next='/auth/loginx'                 login -> '/auth/loginx'             reauth -> '/auth/loginx'
+  next='/AUTH/login'                  login -> '/AUTH/login'              reauth -> '/AUTH/login'
+  next='∕evil.example'                login -> '/today'                   reauth -> '/today'
+  next='/∕evil.example'               login -> '/%E2%88%95evil.example'   reauth -> '/%E2%88%95evil.example'
+  next='/%0d%0aSet-Cookie:x=1'        login -> '/%0d%0aSet-Cookie:x=1'    reauth -> '/%0d%0aSet-Cookie:x=1'
+  GET /auth/login?next='//evil.example/x' signed-in -> /today | reauth form next field: /today
+  GET /auth/login?next='/\\evil.example' signed-in -> /today | reauth form next field: /today
+  GET /auth/login?next='https://evil.example/' signed-in -> /today | reauth form next field: /today
+  anon HX-Current-URL='//evil.example/x' -> HX-Redirect /auth/login?next=%2Ftoday
+  anon HX-Current-URL='https://evil.example/x' -> HX-Redirect /auth/login?next=%2Ftoday
+  anon HX-Current-URL='/\\evil.example' -> HX-Redirect /auth/login?next=%2Ftoday
+  GET //evil.example/x anonymous -> 302 /auth/login?next=%2Fx
+
+== C9 reflected values on the login page (autoescape check)
+GET next reflected raw: False
+failed-login echo of email/next raw: False

@@ -1,0 +1,37 @@
+warning: `VIRTUAL_ENV=/Users/mikolajkublin/workspace/budget/budget_planner/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+txn list (user, live, newest)    SCAN transactions USING INDEX ix_transactions_live
+txn by account OR dest           MULTI-INDEX OR | INDEX 1 | SEARCH transactions USING INDEX ix_transactions_account (account_id=?) | INDEX 2 | SEARCH transactions USING INDEX ix_transactions_dest_account (dest_account_id=?)
+txn date range                   SEARCH transactions USING INDEX ix_transactions_live (operation_date>? AND operation_date<?)
+txn by category                  SEARCH transactions USING INDEX ix_transactions_category (category_id=?)
+txn recently deleted             SCAN transactions | USE TEMP B-TREE FOR ORDER BY
+planned pending                  SCAN planned_transactions
+audit_log by user                SCAN audit_log
+audit_log by entity              SEARCH audit_log USING INDEX ix_audit_entity (entity_type=? AND entity_id=?)
+audit_log retention scrub        SCAN audit_log
+recurring rules                  SCAN recurring_rules USING INDEX ix_recurring_active
+overrides by rule                SEARCH recurring_rule_overrides USING INDEX ix_recurring_overrides_promoted (rule_id=?)
+categories                       SCAN categories | USE TEMP B-TREE FOR ORDER BY
+accounts                         SEARCH accounts USING INDEX ux_accounts_user_name_live (user_id=?)
+fx latest on/before              SEARCH fx_rates USING INDEX ix_fx_rates_pair_date (from_ccy=? AND to_ccy=? AND date<?)
+budget_defaults                  SEARCH budget_defaults USING INDEX ux_budget_defaults_cat_live (category_id=?)
+sessions lookup                  SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (id=?)
+
+indexes:
+  schema_migrations: sqlite_autoindex_schema_migrations_1
+  recurring_rule_overrides: ix_recurring_overrides_promoted, sqlite_autoindex_recurring_rule_overrides_1
+  account_snapshots: ix_snapshots_account_taken_at
+  fx_rates: ix_fx_rates_pair_date, ux_fx_rates_date_pair
+  audit_log: ix_audit_entity
+  users: ux_users_email_live
+  accounts: ux_accounts_user_name_live
+  categories: ux_categories_user_name_live
+  transactions: ix_transactions_promoted_from_recurring, ix_transactions_live, ix_transactions_category, ix_transactions_dest_account, ix_transactions_account, ix_transactions_operation_date
+  planned_transactions: ix_planned_rule, ix_planned_operation_date
+  recurring_rules: ix_recurring_active
+  budget_defaults: ux_budget_defaults_cat_live
+  budget_recurring_overrides: ux_budget_recurring_cat_month_live
+  budget_one_off_overrides: ux_budget_one_off_cat_year_month_live
+  user_preferences: sqlite_autoindex_user_preferences_1
+  webauthn_credentials: ix_webauthn_credentials_user, sqlite_autoindex_webauthn_credentials_1
+  sessions: ix_sessions_user, sqlite_autoindex_sessions_1
+  auth_rate_limit: ux_auth_rate_limit_key_bucket

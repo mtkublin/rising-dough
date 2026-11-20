@@ -1,0 +1,12 @@
+== R1: anchor drift after a clamped month (day_of_month=None) ==
+canonical schedule      : ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31', '2026-06-30']
+next_due walk (promote) : ['2026-02-28', '2026-03-28', '2026-04-28', '2026-05-28', '2026-06-28']
+DRIFT
+
+== R2: yearly Feb-29 anchor never recovers after promote ==
+canonical schedule : ['2028-02-29', '2029-02-28', '2030-02-28', '2031-02-28', '2032-02-29', '2033-02-28']
+next_due walk      : ['2029-02-28', '2030-02-28', '2031-02-28', '2032-02-28', '2033-02-28']
+
+== R3: occurrences emitted BEFORE rule.start_date (day_of_month < start.day) ==
+start_date=2026-03-25 day_of_month=20 -> ['2026-03-20', '2026-04-20', '2026-05-20']
+BUG: occurrence before start_date

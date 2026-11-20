@@ -1,0 +1,98 @@
+# ruff check --select ALL --statistics src tests (report only; ruff ruff 0.17.2)
+## src
+warning: `incorrect-blank-line-before-class` (D203) and `blank-line-before-class` (D211) are incompatible. Ignoring `incorrect-blank-line-before-class`.
+warning: `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible. Ignoring `multi-line-summary-second-line`.
+321	FAST002	[ ] fast-api-non-annotated-dependency
+190	COM812 	[*] missing-trailing-comma
+122	D103   	[ ] undocumented-public-function
+120	CPY001 	[ ] missing-copyright-notice
+103	TC003  	[ ] typing-only-standard-library-impor
+ 90	TRY003 	[ ] raise-vanilla-args
+ 66	PLR0913	[ ] too-many-arguments
+ 54	TC001  	[ ] typing-only-first-party-impor
+ 52	EM102  	[ ] f-string-in-exception
+ 43	EM101  	[ ] raw-string-in-exception
+ 32	ANN401 	[ ] any-type
+ 32	S101   	[ ] asser
+ 22	TC002  	[ ] typing-only-third-party-impor
+ 17	FURB157	[*] verbose-decimal-constructor
+ 16	D401   	[ ] non-imperative-mood
+ 15	D102   	[ ] undocumented-public-method
+ 13	D101   	[ ] undocumented-public-class
+ 10	C901   	[ ] complex-structure
+ 10	D205   	[ ] missing-blank-line-after-summary
+  7	PT018  	[ ] pytest-composite-assertion
+  7	D105   	[ ] undocumented-magic-method
+  7	D104   	[ ] undocumented-public-package
+  6	D107   	[ ] undocumented-public-ini
+  4	FBT001 	[ ] boolean-type-hint-positional-argumen
+  4	TRY400 	[ ] error-instead-of-exception
+  3	BLE001 	[ ] blind-excep
+  3	FURB162	[ ] fromisoformat-replace-z
+  3	FURB110	[*] if-exp-instead-of-or-operator
+  3	D209   	[*] new-line-after-last-paragraph
+  3	SLF001 	[ ] private-member-access
+  3	TC006  	[*] runtime-cast-value
+  2	FBT002 	[ ] boolean-default-value-positional-argumen
+  2	A002   	[ ] builtin-argument-shadowing
+  2	D413   	[*] missing-blank-line-after-last-section
+  2	T201   	[ ] prin
+  1	D202   	[*] blank-line-after-function
+  1	D301   	[ ] escape-sequence-in-docstring
+  1	D403   	[*] first-word-uncapitalized
+  1	PERF401	[ ] manual-list-comprehension
+  1	PIE810 	[ ] multiple-starts-ends-with
+  1	D417   	[ ] undocumented-param
+Found 1395 errors.
+[*] 220 fixable with `--fix` (528 unsafe fixes available with `--fix --unsafe-fixes`).
+## tests
+warning: `incorrect-blank-line-before-class` (D203) and `blank-line-before-class` (D211) are incompatible. Ignoring `incorrect-blank-line-before-class`.
+warning: `multi-line-summary-first-line` (D212) and `multi-line-summary-second-line` (D213) are incompatible. Ignoring `multi-line-summary-second-line`.
+2018	D103   	[ ] undocumented-public-function
+ 882	COM812 	[*] missing-trailing-comma
+ 232	CPY001 	[ ] missing-copyright-notice
+ 169	TC003  	[ ] typing-only-standard-library-impor
+  91	PT019  	[ ] pytest-fixture-param-without-value
+  87	PT018  	[ ] pytest-composite-assertion
+  54	D102   	[ ] undocumented-public-method
+  49	TC002  	[ ] typing-only-third-party-impor
+  47	D205   	[ ] missing-blank-line-after-summary
+  42	D209   	[*] new-line-after-last-paragraph
+  31	TRY003 	[ ] raise-vanilla-args
+  31	EM101  	[ ] raw-string-in-exception
+  23	TC001  	[ ] typing-only-first-party-impor
+  22	PLR0913	[ ] too-many-arguments
+  21	D100   	[ ] undocumented-public-module
+  18	D101   	[ ] undocumented-public-class
+  16	D104   	[ ] undocumented-public-package
+  15	EM102  	[ ] f-string-in-exception
+  13	FBT001 	[ ] boolean-type-hint-positional-argumen
+   9	ISC004 	[ ] implicit-string-concatenation-in-collection-literal
+   9	D401   	[ ] non-imperative-mood
+   9	FURB167	[*] regex-flag-alias
+   8	FURB157	[*] verbose-decimal-constructor
+   6	BLE001 	[ ] blind-excep
+   4	D202   	[*] blank-line-after-function
+   4	FBT003 	[ ] boolean-positional-value-in-call
+   4	SLF001 	[ ] private-member-access
+   4	PT011  	[ ] pytest-raises-too-broad
+   4	D107   	[ ] undocumented-public-ini
+   3	FBT002 	[ ] boolean-default-value-positional-argumen
+   3	ICN001 	[ ] unconventional-import-alias
+   2	D301   	[ ] escape-sequence-in-docstring
+   2	D403   	[*] first-word-uncapitalized
+   2	PERF401	[ ] manual-list-comprehension
+   2	PT001  	[*] pytest-fixture-incorrect-parentheses-style
+   2	PT006  	[ ] pytest-parametrize-names-wrong-type
+   2	PT012  	[ ] pytest-raises-with-multiple-statements
+   1	C901   	[ ] complex-structure
+   1	INP001 	[ ] implicit-namespace-package
+   1	D415   	[ ] missing-terminal-punctuation
+   1	D400   	[ ] missing-trailing-period
+   1	PYI034 	[ ] non-self-return-type
+   1	T201   	[ ] prin
+   1	PT017  	[ ] pytest-assert-in-excep
+   1	PT007  	[ ] pytest-parametrize-values-wrong-type
+   1	TRY301 	[ ] raise-within-try
+Found 3949 errors.
+[*] 949 fixable with `--fix` (390 unsafe fixes available with `--fix --unsafe-fixes`).

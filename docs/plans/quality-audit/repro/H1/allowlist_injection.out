@@ -1,0 +1,7 @@
+[benign ignore of a real CVE (D Q1: PR self-serves a pip-audit bypass)]
+  GITHUB_OUTPUT: ignore_args=--ignore-vuln PYSEC-2026-3552
+  shell line  : uv run pip-audit --strict --disable-pip -r requirements-audit.txt --ignore-vuln PYSEC-2026-3552
+[shell metacharacters in cve]
+  GITHUB_OUTPUT: ignore_args=--ignore-vuln X; echo INJECTED-$(id -un)
+  shell line  : uv run pip-audit --strict --disable-pip -r requirements-audit.txt --ignore-vuln X; echo INJECTED-$(id -un)
+[newline in cve] GITHUB_OUTPUT lines: ['ignore_args=--ignore-vuln A', 'evil=1']
