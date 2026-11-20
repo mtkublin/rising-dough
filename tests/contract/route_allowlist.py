@@ -17,32 +17,6 @@ FRAMEWORK: Final[dict[str, str]] = {
     "MOUNT /static": "framework",
 }
 
-# --- T-UT04a: shell, auth and errors ---
-PENDING_T_UT04A: Final[dict[str, str]] = {
-    "GET /health": "pending T-UT04a",
-    "GET /ready": "pending T-UT04a",
-    "GET /health/replication": "pending T-UT04a",
-    "GET /auth/login": "pending T-UT04a",
-    "POST /auth/login": "pending T-UT04a",
-    "POST /auth/login/begin": "pending T-UT04a",
-    "POST /auth/login/finish": "pending T-UT04a",
-    "POST /auth/logout": "pending T-UT04a",
-    "GET /auth/register": "pending T-UT04a",
-    "POST /auth/register/begin": "pending T-UT04a",
-    "POST /auth/register/finish": "pending T-UT04a",
-    "GET /auth/sessions": "pending T-UT04a",
-    "POST /auth/sessions/{handle}/revoke": "pending T-UT04a",
-    "POST /auth/passkeys/{credential_id}/revoke": "pending T-UT04a",
-    "GET /auth/reauth": "pending T-UT04a",
-    "POST /auth/reauth": "pending T-UT04a",
-    "POST /auth/reauth/begin": "pending T-UT04a",
-    "POST /auth/reauth/finish": "pending T-UT04a",
-    "GET /debug/audit-tail": "pending T-UT04a",
-    "GET /": "pending T-UT04a",
-    "GET /add": "pending T-UT04a",
-    "GET /dev/components": "pending T-UT04a",
-}
-
 # --- T-UT04b: today and accounts ---
 PENDING_T_UT04B: Final[dict[str, str]] = {
     "GET /accounts": "pending T-UT04b",
@@ -152,7 +126,6 @@ PENDING_T_UT04E: Final[dict[str, str]] = {
 
 ALLOWLIST: Final[dict[str, str]] = {
     **FRAMEWORK,
-    **PENDING_T_UT04A,
     **PENDING_T_UT04B,
     **PENDING_T_UT04C,
     **PENDING_T_UT04D,

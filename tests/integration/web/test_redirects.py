@@ -32,6 +32,8 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
 )
+from tests.ui_map import _html, shell
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
@@ -172,11 +174,13 @@ def test_crud_subroutes_post_create_still_200(client: TestClient, seeded: dict[s
 
 def test_htmx_fragment_aliases_still_live(client: TestClient, seeded: dict[str, int]) -> None:
     """``/transactions/table`` and ``/planned/table`` must stay 200 fragments."""
-    for path, token in (
-        ("/transactions/table", "txn-table"),
-        ("/planned/table", "planned-table"),
+    for path, anchor in (
+        ("/transactions/table", by_id("txn-table")),
+        ("/planned/table", by_id("planned-table")),
     ):
         r = client.get(path, follow_redirects=False)
         assert r.status_code == 200, f"{path} returned {r.status_code}"
-        assert "<html" not in r.text, f"{path} returned a full page, not a fragment"
-        assert token in r.text, f"{path} missing ledger fragment anchor {token!r}"
+        assert not _html.exists(r.text, shell.main), f"{path} returned a full page, not a fragment"
+        assert _html.exists(r.text, anchor), (
+            f"{path} missing ledger fragment anchor {anchor.value!r}"
+        )

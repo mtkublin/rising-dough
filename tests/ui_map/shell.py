@@ -16,8 +16,20 @@ shortcuts_dialog = by_id("shortcuts-dialog")
 primary_nav = role("navigation", "Primary navigation")
 skip_link = role("link", "Skip to content")
 sign_out = role("button", "Sign out")
+brand_link = role("link", "Rising Dough")
+nav_links = role("link").inside(primary_nav)
+dialog = role("dialog")
+
+palette_dialog = role("dialog", "Command palette")
+palette_options = role("option").inside(palette)
+shortcuts_options = role("option").inside(shortcuts_dialog)
 
 
 def nav_link(label: str) -> Locator:
     """Primary navigation link by its visible label (Today, Ledger, ...)."""
     return role("link", label).inside(primary_nav)
+
+
+def palette_option(label: str) -> Locator:
+    """Command-palette row by its visible label (``Go to Today``)."""
+    return role("option", label).inside(palette)

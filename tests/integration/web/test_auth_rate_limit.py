@@ -19,8 +19,9 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
-from budget_planner.web.routers.auth import GENERIC_LOGIN_ERROR, RATE_LIMITED_LOGIN_ERROR
+from budget_planner.web.routers.auth import RATE_LIMITED_LOGIN_ERROR
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.ui_map import _html, auth
 
 pytestmark = pytest.mark.integration
 
@@ -97,10 +98,10 @@ def test_password_login_throttles_with_429_and_retry_after(
     r = _login(client, TEST_EMAIL, "wrong")
     assert r.status_code == 429
     assert r.headers["retry-after"] == "50"
-    assert RATE_LIMITED_LOGIN_ERROR in r.text
-    assert GENERIC_LOGIN_ERROR not in r.text
-    assert 'aria-invalid="true"' not in r.text
-    assert "data-throttled" in r.text
+    alert = _html.resolve_one(r.text, auth.login_error)
+    assert _html.text_of(r.text, auth.login_error) == RATE_LIMITED_LOGIN_ERROR
+    assert alert.has_attr("data-throttled")
+    assert not any(e.has_attr("aria-invalid") for e in _html.resolve(r.text, auth.email))
 
 
 def test_throttled_login_does_not_sign_in_even_with_correct_password(

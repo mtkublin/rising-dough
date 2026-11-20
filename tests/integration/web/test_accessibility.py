@@ -17,6 +17,11 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from tests.ui_map import _html, shell
+from tests.ui_map.locator import role
+
+_TAB = role("tab")
+
 # T-070: /categories now redirects to the Settings drawer, which is a
 # fragment (not a full page), so it no longer carries the usual landmarks.
 # Every other legacy page URL still redirects to a landmarked full page
@@ -197,8 +202,9 @@ def test_settings_drawer_is_dialog(client: TestClient) -> None:
     r = client.get("/settings", headers={"HX-Request": "true"})
     assert r.status_code == 200
     frag = BeautifulSoup(r.text, "html.parser")
-    drawer = frag.select_one("[data-drawer]")
-    assert drawer is not None and isinstance(drawer, Tag)
+    drawers = [d for d in _html.resolve(frag, shell.dialog) if d.has_attr("data-drawer")]
+    assert len(drawers) == 1
+    drawer = drawers[0]
     assert drawer.get("role") == "dialog"
     assert drawer.get("aria-modal") == "true"
     assert drawer.get("aria-labelledby"), "drawer missing aria-labelledby"
@@ -207,11 +213,12 @@ def test_settings_drawer_is_dialog(client: TestClient) -> None:
 
 def test_slideover_is_dialog(client: TestClient) -> None:
     """T-071: FAB-launched slide-over form carries dialog aria + data-slideover."""
-    r = client.get("/transactions/new")
+    r = client.get("/transactions/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
     frag = BeautifulSoup(r.text, "html.parser")
-    overlay = frag.select_one("[data-slideover]")
-    assert overlay is not None and isinstance(overlay, Tag)
+    overlays = [d for d in _html.resolve(frag, shell.dialog) if d.has_attr("data-slideover")]
+    assert len(overlays) == 1
+    overlay = overlays[0]
     assert overlay.get("role") == "dialog"
     assert overlay.get("aria-modal") == "true"
     assert overlay.get("aria-labelledby"), "slide-over missing aria-labelledby"
@@ -220,9 +227,7 @@ def test_slideover_is_dialog(client: TestClient) -> None:
 def test_ledger_segmented_marks_active_view(client: TestClient) -> None:
     """Rising Dough v2 — anchor-based rd-segmented; active tab carries aria-selected='true'."""
     soup = _soup(client, "/ledger?view=planned")
-    seg = soup.select_one(".rd-segmented")
-    assert seg is not None and isinstance(seg, Tag)
-    items = seg.select("a.rd-segmented__item")
+    items = [a for a in _html.resolve(soup, _TAB) if a.name == "a"]
     assert len(items) >= 3, "expected actual / planned / recurring tabs"
     active = [a for a in items if a.get("aria-selected") == "true"]
     assert len(active) == 1, "exactly one segmented tab should be aria-selected"
