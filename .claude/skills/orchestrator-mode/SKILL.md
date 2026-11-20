@@ -59,8 +59,9 @@ Write down `MAIN=<branch>`. Every item branch starts from it and merges back int
 
 ## 3. Step 1: decompose and plan the waves
 
-1. Read the request plus the relevant parts of `docs/requirements.md`,
-   `docs/tasks.md`, `docs/implementation_plan.md`, and the ADRs that cover the area.
+1. Read the request plus the relevant parts of `docs/requirements.md`, the active plan's
+   `docs/plans/<plan>/tasks.md` and `implementation_plan.md`, the CLAUDE.md "Canonical modules"
+   table, and the ADRs that cover the area.
 2. Split the work into **work items**. Each item has an id (reuse task ids such as
    `T-D17` when they exist), a goal, a done-definition, the **files it owns**, and
    the items it depends on.
@@ -69,12 +70,18 @@ Write down `MAIN=<branch>`. Every item branch starts from it and merges back int
    - Items that depend on another item's output (a new repo function, schema, macro)
      go in a later wave, or the dependency is carved out as its own small item first.
    - Do not split a change so finely that two agents edit the same function.
+   - **Shared-helper carve-out (ADR-0130 §7).** When two or more items need a helper that
+     does not exist yet (a month window, a converter, a parser), carve it out as its own
+     earlier-wave item with a single owner; later items import it. Two items that each own
+     a helper for the same concept is the duplication this rule exists to stop. Check the
+     Canonical modules table first: a `target` row means the helper is still to be extracted.
 4. **Pre-assign shared sequence numbers** so parallel agents never collide:
    - ADR numbers: next free number in `docs/adr/`, one per item that needs an ADR.
    - Migration numbers: next free `migrations/NNNN_*.sql`, one per item that needs a migration.
 5. **Known hotspots in this repo.** Assign each one to a single owner per wave,
    or accept small append-only conflicts and resolve them at merge:
-   - `docs/tasks.md`, `docs/CHANGELOG.md`, `docs/adr/README.md` (append-only, so conflicts are trivial)
+   - `docs/plans/<plan>/tasks.md`, `docs/CHANGELOG.md`, `docs/adr/README.md` (append-only, so conflicts are trivial)
+   - `tests/architecture/allowlists/*.toml` (one file per guard) and `tests/architecture/canonical_modules.toml`: **one owner per file per wave**. Burn-down items that delete entries from the same allowlist go in different waves or are merged into one item. The ratchet fails on stale entries, so a lost deletion breaks CI.
    - `migrations/` (numbering), `pyproject.toml`, `uv.lock`, `justfile`, `.pre-commit-config.yaml`
    - `src/budget_planner/web/templates/base.html`, shared macros/partials, Tailwind input CSS
    - shared fixtures in `tests/conftest.py`
@@ -139,6 +146,16 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
   `just db-reset`, and the CSV import default to prod. Always pass a scratch `--db`.
 - Functional-first; frozen dataclasses; thin routers, fat services; repositories own SQL;
   soft delete + audit log through the repository helpers; amounts are positive minor units.
+  Clock only via `budget_planner.clock`; money only via `domain.money`; never a literal user id;
+  no arithmetic or `float` in templates; every `noqa` / `type: ignore` carries a reason.
+  Pure layers do no I/O (CLAUDE.md "Code conventions").
+- **Search before you write.** (1) Read CLAUDE.md "Canonical modules" for your concept.
+  (2) Run that row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"`
+  style). (3) Call or extend the canonical function; a `target` row is never copied, only
+  called or noted. A new shared helper is registered in `tests/architecture/canonical_modules.toml`
+  (you own that file only if listed above; otherwise name the row in your report).
+- **No new allowlist entry or suppression** without a reason and an ADR-0130 amendment. Delete
+  allowlist entries for violations you fix. Architecture guards (`just guards`) must be green.
 - Server binds 127.0.0.1 only. No secrets committed.
 - Template/CSS/HTMX changes: run the `frontend-visual-audit` skill on the affected routes at
   1440 / 1024 / 375 before you finish.
@@ -154,8 +171,14 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - `export PYTEST_WORKERS=2` before running tests or committing: `just test` and the pre-commit
   pytest hook run xdist with that many workers, so parallel agents don't each take every core
   (ADR-0108 §1).
-- Handoff checklist: commit hooks green, mark the task `✅` in docs/tasks.md, add a dated line to docs/CHANGELOG.md,
-  reference the ADR(s) in the commit.
+- Handoff checklist: commit hooks green, ADRs you touched re-read and still true, mark the task `✅`
+  in `docs/plans/<plan>/tasks.md`, add a dated line to docs/CHANGELOG.md, reference the ADR(s) in the commit.
+- **CPU budget (shared machine, parallel agents).** `export PYTEST_WORKERS=2`. Run at most one heavy
+  job (full suite, Mutmut, e2e, `just ci`) at a time; take the shared lock and always release it:
+  `until mkdir /tmp/qa-audit-heavy.lock 2>/dev/null; do sleep 20; done` ... `rmdir /tmp/qa-audit-heavy.lock`
+  (also on failure). Commits that run the full suite in the hook count as heavy. If a known
+  load-sensitive e2e test (e.g. `tests/e2e/test_ledger_filters.py`) fails, release the lock,
+  wait, and retry; do not skip hooks.
 - Commit format: `<type>(<ID>): <description>` (conventional commits).
 - You run autonomously (auto mode). Do not stop to ask for confirmation. Prod-DB access is the
   only thing that needs the user.
@@ -164,6 +187,8 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - branch name + final commit sha
 - files changed (short list)
 - commit hook results (affected tests run, pass/fail) and any manual checks (terraform); frontend audit summary if applicable
+- `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered in canonical_modules.toml: yes/no)`
+- allowlist entries deleted (file, path, count) and confirmation that none were added
 - anything left undone, assumptions you made, or changes you needed in files you do not own
 ```
 
@@ -173,8 +198,16 @@ Merge each item as soon as it finishes. Do not wait for the whole wave, because
 early merges keep later conflicts small.
 
 1. Check the report: commit hooks green, docs updated, scope respected
-   (`git diff --stat <MAIN>...wi/<MAIN>/<ID>`). If something is missing, `SendMessage`
+   (`git diff --stat <MAIN>...wi/<MAIN>/<ID>`), the `Searched/Reused/New helper` line is
+   present, and allowlist counts only went down. If something is missing, `SendMessage`
    the same agent to finish it (it keeps its context). Do not fix it yourself.
+   **Duplication check (ADR-0130 §7).** List the definitions the branch adds and look for
+   near matches of canonical ones: run `scripts/ci/new_defs.py <MAIN>` if present (report-only),
+   else list added definitions with `git diff <MAIN>...wi/<MAIN>/<ID> -U0 -- 'src/*.py'`
+   filtered to lines starting `+def ` or `+async def `, then `rg` each new name and its concept
+   words against `src/`. Anything resembling a Canonical modules row (convert, month/period,
+   sign, parse, today, totals) goes back to the agent via `SendMessage` to reuse the owner
+   before the merge.
 2. In the main checkout, on `<MAIN>`:
 
    ```sh

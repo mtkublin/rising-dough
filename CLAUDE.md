@@ -8,9 +8,9 @@ Local-first personal budget planning and fortune tracking web app. Single user, 
 
 Before touching code (or docs that drive code):
 
-1. **Requirement change** → update `docs/requirements.md` first. If scope-affecting, also update `docs/tasks.md` and `docs/implementation_plan.md`.
+1. **Requirement change** → update `docs/requirements.md` first. If scope-affecting, also update the active plan's `docs/plans/<plan>/tasks.md` and `implementation_plan.md`.
 2. **Architectural / design decision** → write a new ADR under `docs/adr/` (next sequential number), update `docs/adr/README.md`, and reference it from the affected requirement or task. Supersede, don't delete, prior ADRs.
-3. **New task or re-scoped task** → edit `docs/tasks.md` first; link to the ADR(s) it depends on.
+3. **New task or re-scoped task** → edit `docs/plans/<plan>/tasks.md` first; link to the ADR(s) it depends on.
 4. **Stack / tooling change** → ADR first, then `docs/requirements.md` section 3, then code.
 5. **Scope creep into Phase 6 / v2 items** → requires an ADR explicitly flipping it into v1.
 
@@ -21,27 +21,57 @@ Only after the relevant docs are updated and committed (or staged in the same PR
 | Need | Path |
 |------|------|
 | Full requirements | `docs/requirements.md` |
-| Task breakdown | `docs/tasks.md` |
-| Phased implementation plan + handoff rules | `docs/implementation_plan.md` |
+| Task breakdown | `docs/plans/<plan>/tasks.md` |
+| Phased implementation plan + handoff rules | `docs/plans/<plan>/implementation_plan.md` |
+| Prevention regime (guards, allowlists, zero-violation policy) | [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3 |
 | Decisions (and *why*) | `docs/adr/README.md` |
 
 Always read the relevant ADR before changing an area it covers.
 
 ## Stack
 
-- Python 3.12, FastAPI, Jinja2, HTMX, Tailwind (CDN), Plotly.
+- Python 3.12, FastAPI, Jinja2, HTMX, Tailwind (local build, `just css`), server-rendered SVG charts (no CDN, no Plotly, no SPA framework: ADR-0123).
 - SQLite only in v1 (DuckDB deferred).
 - `uv` for deps, `just` for recipes.
-- Pre-commit: `ruff`, `ruff-format`, `mypy --strict`, `pytest`, `sqlfluff`, `djlint`, `bandit`, `detect-secrets`.
+- Pre-commit: `ruff`, `ruff-format`, `mypy --strict`, `import-linter`, `pytest` (testmon-selected), `sqlfluff`, `djlint`, `stylelint`, `bandit`, `detect-secrets`. CI runs the same hooks (`SKIP=pytest-fast`) plus the full suite (ADR-0130 §8).
+
+## Canonical modules (reuse, never re-implement)
+
+One module owns each concept. **Before you write a helper:** (1) find the concept below; (2) run the row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"` style); (3) call or extend the owner. Report `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered: yes/no)`. A new shared concept is registered in `tests/architecture/canonical_modules.toml` (created by T-Q15a; this table mirrors it) in the same change.
+
+| Concept | Owner | Status |
+|---|---|---|
+| FX conversion, missing-rate policy | `services/fx.py` converter | **target**, not yet extracted (Q-007) |
+| Money format / parse / exponent / minor-major / rounding | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`) | exists, being extended |
+| Periods, month windows, prev/next month | `domain/periods.py` | **target** (Q-003) |
+| Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) |
+| Direction to signed amount | `domain` `signed_legs` (`services/balance.py` today) | **target** (Q-036) |
+| Net worth / fortune | `services/fortune.compute_fortune` | **target** (Q-009) |
+| Sum by category in base currency | `services/aggregates.py` | **target** (Q-008, Q-075) |
+| Ledger / recurring / planned totals | `services/ledger_totals.py` | **target** (Q-010) |
+| Budget tier resolution | `services/budget.pick_tier` | **target** |
+| "Now" and "today" | `budget_planner.clock` (`utc_now`, `today_local`) | exists (scaffold; callers migrate under Q-031) |
+| Request-param parsing, HTMX events | `web/params.py`, `web/htmx.py` | **target** / partial |
+
+**Target** rows are not yet extracted: do not add a new copy. Call the nearest function the row names and note it under `New helper` / `Searched` in the report. Guard G6 bans copies once a row is `exists`.
 
 ## Code conventions
 
-- **Functional-first.** Modules of pure functions. Dataclasses `frozen=True` for data; no classes beyond that unless they are DTOs or Protocols. See ADR-0021.
-- **Thin web, fat services.** Routers call services; services call repositories; repositories call SQL. No business logic in routers.
-- **Soft delete + audit log** for every mutable table. Use the repository helpers; never bypass them. See ADR-0019.
-- **Amounts** stored as positive integer minor units; direction derived from `category.direction`. Reconciliation (direction=`adjustment`) is the only signed-amount exception. See ADR-0008.
-- **Multi-currency**: account owns currency, transactions inherit. Aggregates convert to `base_currency` (default PLN) using historical FX rates cached locally. See ADR-0006.
-- **Immutable by default.** Build new values; do not mutate.
+Rules are enforced by `tests/architecture/` and lint; a failing guard names the rule and the canonical module. `G<n>` ids: `docs/plans/quality-audit/prevention.md` §2. Full text: [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3.
+
+| Rule | Enforced by |
+|---|---|
+| **Pure layers.** `domain/` and pure services do no I/O, read no clock/env/randomness, hold no global mutable state, mutate no argument. Services may call repositories and `logging`; network only through an injected port; clock and settings come in as arguments. Web view-models do no network. Effects live at the edges (repositories, `clock`, adapters, routers). | purity guard, import-linter (ADR-0021, ADR-0130 §5) |
+| **Thin web.** Routers parse, call one service, return a view model. No SQL, no repository import, no arithmetic on money/dates in routers or templates. | import-linter, G2, template guards |
+| **Repository-only SQL**, user-scoped (never a literal user id), soft delete + audit via repository helpers; a service calling 2+ mutators uses one `db_transaction`. | G2, `test_user_id_filter`, G8 (ADR-0019, ADR-0022) |
+| **Single clock.** `budget_planner.clock` only; never `date.today()`, `datetime.now()`, `datetime.utcnow()`, `time.time()`. | ruff TID251 (ADR-0007, Q-031) |
+| **Money.** Positive integer minor units, direction from `category.direction` (reconciliation is the only signed exception). Format/parse/round only via `domain.money`; no `/ 100`, `* 100`, `float`, `Decimal("100")` on money. Convert only via the FX owner; account owns currency, aggregates use `base_currency` (PLN) with cached historical rates. | G6 (ADR-0006, ADR-0008) |
+| **Immutable by default.** Frozen dataclasses, no classes beyond DTOs/Protocols, no module-level mutable state. | purity guard (ADR-0021) |
+| **Suppressions.** Every `noqa` / `type: ignore` / `nosec` / `pragma: no cover` carries a reason on the same line. | ruff `PGH`, G4 |
+| **Allowlists only shrink.** `tests/architecture/allowlists/*.toml` and `per-file-ignores` are the debt inventory. No new entry (or suppression) without an ADR-0130 amendment naming it and the reason. Fixed a violation: delete its entry in the same commit. | `_ratchet.py` (fails both directions) |
+| **Tests assert values.** Exact amounts, the audit row and stored sign, and that a second user's rows are absent; HTTP tests assert body or DB state, not only status. | review, mutation score (ADR-0131) |
+
+Timestamps are UTC in the DB, transaction dates are naive `DATE`, display timezone defaults to `Europe/Warsaw` (ADR-0007).
 
 ## Developer commands
 
@@ -56,6 +86,11 @@ just ci           # everything CI runs (full suite + coverage; optional locally,
 just lint-changed main   # pre-commit over files changed since merge-base (inner loop)
 just test-changed main   # testmon-selected tests; full suite on non-Python changes (inner loop)
 just worktree-init       # seed a new worktree's .testmondata from the main checkout
+just test-fast    # testmon-selected tests (what the pre-commit hook runs)
+just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
+just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
+just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
+just set-password # set a user's password on an explicit --db=<path> (no default DB)
 just db-reset     # recreate the dev DB
 just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
@@ -75,6 +110,7 @@ Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (
 - Primary tool for all frontend validation. Do **not** rely on reading templates + CSS alone to confirm layout, overflow, responsive behavior, or HTMX render correctness.
 - Minimum sweep: run against the routes affected by the change at desktop (1440) + tablet (1024) + mobile (375) viewports.
 - Treat non-zero `horizontalScroll`, `overflowingElements`, `duplicateIds`, `consoleErrors`, or `requestFailures` as blocking signals.
+- Also run Step 3b (behaviour contract and template logic): no arithmetic/`float` in templates, rendered numbers equal the service value, every failing save shows a visible error.
 - Reference the audit result (routes checked + findings summary) in the handoff / PR description.
 
 Agents working on frontend tasks must invoke this skill rather than inferring visual correctness from code.
@@ -132,10 +168,12 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 
 Before marking a task done:
 
-1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, `docs/tasks.md`, and/or a new ADR reflect the change *before* code lands.
-2. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). Before opening or updating a PR whose changes touched e2e-relevant code, run `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser; [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendment 2026-11-18). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
-3. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
-4. `docs/tasks.md` task line prefixed with `✅`.
-5. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
-6. Append a dated line to `docs/CHANGELOG.md` (create on first use).
-7. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.
+1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, the active plan's `tasks.md`, and/or a new ADR reflect the change *before* code lands. ADRs the change touches are re-read and still true (status or amendment updated).
+2. **Reuse check.** Searched the Canonical modules table and the tree before writing a helper; reused the canonical function, or registered the new one in `canonical_modules.toml` (why none fit is in the report).
+3. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). Before opening or updating a PR whose changes touched e2e-relevant code, run `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser; [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendment 2026-11-18). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
+4. **Architecture guards green; allowlist counts only went down.** Entries for violations you fixed are deleted; no new allowlist entry or suppression without a reason and an ADR-0130 amendment; any new dependency is justified in the commit.
+5. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
+6. The task line in `docs/plans/<plan>/tasks.md` prefixed with `✅`.
+7. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.
+8. Append a dated line to `docs/CHANGELOG.md` (create on first use).
+9. Conventional-commits message referencing the task id: e.g. `feat(T-021): derive account balance`.

@@ -85,6 +85,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Docs first: prevention ADR(s) (next free numbers; the mutation-testing ADR is **not** 0095), requirements §3.3 / §3 tooling, then CLAUDE.md, skills and briefs.
 - Guards in allowlist mode with CI green. Mutmut setup committed (`pyproject`, `just mutate*`, `.gitignore`, fixture fixes). Nightly job decided.
 - CLAUDE.md and skill edits reviewed by the operator.
+- T-Q15c guidance drafted (CLAUDE.md, orchestrator-mode and frontend-visual-audit skills, active plan handoff templates; summary `docs/plans/quality-audit/T-Q15c-review.md`) — pending operator review.
 
 ### T-Q16 [S] Prevention dry run → T-Q15
 - A fresh agent working on a synthetic duplication-prone task uses the canonical module, or the guard trips. Result recorded. `just ci` green. **Deliverable 2 done.**

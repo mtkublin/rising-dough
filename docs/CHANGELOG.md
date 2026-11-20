@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-20 (T-Q15c: tightened development rules)
+- **Docs(T-Q15c): tightened development rules drafted, pending operator review** (ADR-0130 §7). `CLAUDE.md` (canonical modules table, enforceable code-conventions table, reuse and allowlist handoff lines, stale paths fixed), `orchestrator-mode` (search-before-write brief, Searched/Reused/New helper report, allowlist hotspots, merge duplication check, CPU rules), `frontend-visual-audit` (Step 3b template-logic and behaviour contract), v4/gamification/ui-redesign handoff lines. Summary: `docs/plans/quality-audit/T-Q15c-review.md`.
+
 ## 2026-11-20 (T-Q-TB1: ledger planned time bomb)
 - **Fix(T-Q-TB1): `test_ledger_view_planned` and `test_ledger_planned_excludes_virtual_rows` no longer depend on the real date.** The seeded planned row was hard-coded to 2026-10-20 and fell out of the ledger planned window (today-30d..today+180d) on 2026-11-20. The seed now uses `date.today() + 10 days`. Tests only, no `src/` change (Q-031 / F-21, partial).
 
