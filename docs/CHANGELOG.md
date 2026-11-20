@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-20 (T-Q15e: pre-commit all-files parity fixes)
+- **CI(T-Q15e): `pre-commit run --all-files` parity step (ADR-0130 §8) passes.** Vendored `docs/application_redesign_handoff/` (ADR-0129) is excluded from the whitespace/eof/mixed-line-ending/djlint/detect-secrets hooks like `docs/design/`; trailing newline added to `docs/plans/v2/manual-audit.md`; two prose false positives in `docs/plans/v3/HANDOFF.md` carry the repo's inline `pragma: allowlist secret`.
+
 ## 2026-11-20 (T-Q15: quality audit prevention closed)
 - **Docs(T-Q15): closed.** Guards, tooling, CLAUDE.md and skills guidance merged; ADR-0130.
 
