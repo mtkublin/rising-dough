@@ -14,7 +14,7 @@ from tests.architecture._scan import rows
 from tests.architecture.conftest import SyntheticScan
 
 GUARD = "hygiene"
-TEACH = "G26 hygiene: handle or log exceptions, raise typed errors instead of assert, use logging instead of print, type signatures precisely (common coding-style error-handling rules; Q-073, epic E15)."
+TEACH = "G26 hygiene fixes per rule: silent-except/broad-except -> catch the specific exception and log or re-raise; assert-in-src -> raise a typed error from domain/errors.py; print-call -> use logging; any-annotation -> replace Any with a concrete type or a Protocol. (common coding-style error-handling rules; Q-073, epic E15)."
 
 
 def collect() -> list[Violation]:

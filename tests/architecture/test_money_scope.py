@@ -33,3 +33,12 @@ def test_money_scope_detects_fixture_violation(synthetic_scan: SyntheticScan) ->
     )
     hits = [r for r in scanned["p08-money"] if r[1] in {"money-round", "money-scale"}]
     assert hits, "fixture violation not detected by the scanner rule"
+
+
+def test_money_round_ignores_calendar_arithmetic(synthetic_scan: SyntheticScan) -> None:
+    """T-Q16: `//` in domain/periods.py is month arithmetic; an agent dodged the false positive with divmod."""
+    source = "def shift(a, b):\n    return a // b\n"
+    scanned = synthetic_scan({"domain/periods.py": source, "services/other.py": source})
+    hits = {(r[0].split(":")[0].rsplit("/", 1)[-1], r[1]) for r in scanned["p08-money"]}
+    assert ("other.py", "money-round") in hits
+    assert ("periods.py", "money-round") not in hits

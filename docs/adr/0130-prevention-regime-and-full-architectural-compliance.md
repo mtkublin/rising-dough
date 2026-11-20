@@ -47,7 +47,7 @@
 
 - import-linter contracts in pre-commit and `just lint`: `domain` imports none of `services`, `repositories`, `db`, `web`; `services` not `web`; `repositories` not `services` or `web`; `web.routers` not `repositories`; `web` not `db` except the `db.connection` dependency-injection point. `allow_indirect_imports = true`; `ignore_imports` is the allowlist, one line per direct import, commented with the finding.
 - G2: no SQL string outside `repositories/` and `db/migrate.py` (amends ADR-0022: this replaces its deferred static-analysis rule). G7b: no literal user id. G8: a service function calling two or more repository mutators runs in one `db_transaction`.
-- **Pure layers (definition, amends ADR-0021).** `domain/` and the pure-function modules of `services/` perform no I/O, read no clock, environment or randomness, touch no global mutable state, and mutate no argument. Effects (database, clock, filesystem, network) live at the edges: repositories, `clock`, adapters, routers. Services may call repositories but take the clock and settings as inputs rather than reading them ambiently. The purity guard checks `domain/` for forbidden imports and calls, and `services/` for ambient reads and argument mutation; remaining sites are allowlisted from the inventory and burned to zero.
+- **Pure layers (definition, amends ADR-0021).** `domain/` and the pure-function modules of `services/` perform no I/O, read no clock, environment or randomness, touch no global mutable state, and mutate no argument. Effects (database, clock, filesystem, network) live at the edges: repositories, `clock`, adapters, routers. Services may call repositories but take the clock and settings as inputs rather than reading them ambiently. The purity guard checks `domain/` for forbidden imports and calls, and `services/` for ambient reads and argument mutation; remaining sites are allowlisted from the inventory and burned to zero. **Amendment (operator, 2026-11-20): services may use `logging`; that is not a purity violation.**
 
 ### 6. Suppression hygiene
 
@@ -82,6 +82,7 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - ADR numbers 0105 and 0121 are duplicated; they are **grandfathered** (allowlisted in the ADR-index guard, not renumbered). The ADR index guard (G14) and guidance-path guard (G15) are added.
 - The coverage-config guard (G5) allowlists the current `exclude_lines` value (Q-014); the fix is remediation.
 - Mutation testing is governed by [ADR-0131](0131-mutation-testing-policy.md).
+- **Amendment (T-Q16 dry run, 2026-11-20): registry statuses are `exists` / `exists-migrating` / `target` (an `exists` row needs zero banned copies; target rows carry `interim` and `migration_task`), and guard G30 `private_imports` (`test_private_imports.py`, `allowlists/private_imports.toml`) bans cross-module use of `_private` names, and guard G31 (`test_frontend_audit_record.py`) requires a `docs/audits/` record for template or CSS changes.**
 - Operator decisions accepted by default (no objection recorded): always-on guards hook only if the testmon experiment shows a gap; grandfather 0105 and 0121; TOML exact-ratchet format; ADR-0107 redesign starts strict; user-level rules untouched.
 
 ## Consequences
