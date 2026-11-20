@@ -34,7 +34,7 @@
 - **Validation**: `just test tests/contract/test_route_coverage.py`
 - References: ADR-0106 §1.
 
-### ◻ T-UT05 [P] Feature-parity inventory → T-UT01
+### ✅ T-UT05 [P] Feature-parity inventory → T-UT01
 - **Deliverables**: `docs/plans/ui-test-harness/parity.md` with one row per user-visible feature or state of the current app: surface, feature, route(s), current template, handoff page/overlay/fragment, status (`mapped` / `no board` / `handoff-only`), notes. Built from `routes.md` (T-UT03 when available), the templates, and the handoff `index.html`.
 - Known candidates to resolve: the handoff's offline page, first-run registration and invite pages, "recently deleted", "Can I afford it?", year grid, bulk selection, command palette, shortcuts, undo toast. Also v3 features the handoff may not draw (passkey management, session list, password change, FX settings detail, admin user list).
 - **Acceptance**: every route in `routes.md` appears in at least one row; every handoff page appears in at least one row.
