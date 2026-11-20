@@ -85,6 +85,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Docs first: prevention ADR(s) (next free numbers; the mutation-testing ADR is **not** 0095), requirements §3.3 / §3 tooling, then CLAUDE.md, skills and briefs.
 - Guards in allowlist mode with CI green. Mutmut setup committed (`pyproject`, `just mutate*`, `.gitignore`, fixture fixes). Nightly job decided.
 - CLAUDE.md and skill edits reviewed by the operator.
+- Progress: **T-Q15a guards landed** (2026-11-20, ADR-0130): `tests/architecture/` exact-ratchet guards G1-support, G2, G4, G5, G6, G7 (invariants registry), G7b, G9, G10, G12, G14, G15, G16, G17-repo and G18 to G27 with `allowlists/*.toml`, `canonical_modules.toml` (S1), S3 isolation registry; `repro/allowlist_by_qid.py` lists entries per Q-id and epic. T-Q15b (config, CI, hooks) and T-Q15c (CLAUDE.md, skills) remain; T-Q15 is not done.
 
 ### T-Q16 [S] Prevention dry run → T-Q15
 - A fresh agent working on a synthetic duplication-prone task uses the canonical module, or the guard trips. Result recorded. `just ci` green. **Deliverable 2 done.**

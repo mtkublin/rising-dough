@@ -1,0 +1,206 @@
+# G19 literal registry: domain literals and repeated string literals outside their defining module.
+
+guard = "literals"
+
+[[entry]]
+path = "src/budget_planner/config.py"
+rule = "domain-literal"
+count = 2
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/config.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/db/migrate.py"
+rule = "repeated-literal"
+count = 3
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/db/retention.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/db/seed.py"
+rule = "domain-literal"
+count = 2
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/repositories/_shared.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/services/analytics.py"
+rule = "domain-literal"
+count = 6
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "domain-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/charts.py"
+rule = "domain-literal"
+count = 4
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/deps.py"
+rule = "repeated-literal"
+count = 6
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/errors.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/htmx.py"
+rule = "repeated-literal"
+count = 3
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/middleware/cache_control.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/rendering.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/accounts.py"
+rule = "domain-literal"
+count = 6
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/accounts.py"
+rule = "repeated-literal"
+count = 3
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/auth.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/budget.py"
+rule = "domain-literal"
+count = 6
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/budget.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/categories.py"
+rule = "domain-literal"
+count = 5
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/health.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "domain-literal"
+count = 5
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "repeated-literal"
+count = 2
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "domain-literal"
+count = 2
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "domain-literal"
+count = 19
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "repeated-literal"
+count = 3
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "domain-literal"
+count = 24
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/settings.py"
+rule = "repeated-literal"
+count = 1
+finding = "Q-038"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/transactions.py"
+rule = "domain-literal"
+count = 12
+finding = "Q-038"
+epic = "E03"
