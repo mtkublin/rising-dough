@@ -92,7 +92,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance**: references generated for every handoff page; the comparison runs against one already-matching static page (handoff vs itself) at 0 diff; tolerance per surface recorded in `tests/visual/README.md`.
 - References: ADR-0106 (amends ADR-0027 §4).
 
-### ◻ T-UT11 [P] Cross-browser recipe
+### ✅ T-UT11 [P] Cross-browser recipe
 - **Deliverables**: `just test-e2e-browsers` runs the journeys on Firefox and WebKit (opt-in, not in `just ci`).
 - **Acceptance**: recipe runs locally; known failures on the old UI recorded as strict `xfail` with reasons.
 
