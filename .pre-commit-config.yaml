@@ -98,6 +98,15 @@ repos:
         pass_filenames: false
         stages: [pre-commit]
 
+      - id: lint-imports
+        name: lint-imports (layering contracts, ADR-0130)
+        # Only when Python sources or the contracts change; ~1-2 s (measured in
+        # docs/plans/quality-audit/baseline/precommit-timing.md).
+        entry: uv run --quiet lint-imports
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml)$
+
       - id: stylelint
         name: stylelint (hand-authored CSS)
         entry: npx --no-install stylelint
