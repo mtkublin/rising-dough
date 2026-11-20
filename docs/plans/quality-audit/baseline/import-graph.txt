@@ -1,0 +1,618 @@
+# import graph: import-linter dry-run (config kept outside repo) + grimp SCC/cycle + cross-package edge counts
+## import-linter contracts (forbidden): /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/fb3c31dd-e177-4ed9-9e56-ef026967caa6/scratchpad/il.ini
+Downloading grimp (2.1MiB)
+ Downloaded grimp
+Installed 7 packages in 39ms
+DeprecationWarning: The option 'config' is deprecated. Pass the config file as a positional argument instead.
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 120 files, 440 dependencies.
+-------------------------------------
+
+routers must not import repositories BROKEN
+web must not import db BROKEN
+web (all) must not import repositories BROKEN
+domain must not import services KEPT
+domain must not import repositories, db, web, adapters KEPT
+services must not import web KEPT
+repositories must not import services or web BROKEN
+
+Contracts: 3 kept, 4 broken.
+
+
+----------------
+Broken contracts
+----------------
+
+routers must not import repositories
+------------------------------------
+
+budget_planner.web.routers is not allowed to import budget_planner.repositories:
+
+-   budget_planner.web.routers.accounts -> budget_planner.repositories.accounts
+(l.24)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.repositories.categories (l.24)
+
+-   budget_planner.web.routers.accounts -> budget_planner.repositories.snapshots
+(l.24)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.services.account_planned (l.29)
+    budget_planner.services.account_planned -> budget_planner.repositories.planned
+(l.19)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.accounts
+(l.29)
+    budget_planner.services.accounts -> budget_planner.repositories.categories
+(l.17)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.balance
+(l.29)
+    budget_planner.services.balance -> budget_planner.repositories.categories (l.20)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.fortune
+(l.29)
+    budget_planner.services.fortune -> budget_planner.repositories.accounts (l.14)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.services.reconciliation (l.29)
+    budget_planner.services.reconciliation -> budget_planner.repositories.categories
+(l.18)
+
+-   budget_planner.web.routers.auth -> budget_planner.repositories.sessions
+(l.38)
+
+-   budget_planner.web.routers.auth -> budget_planner.repositories.webauthn
+(l.37)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.auth (l.39)
+    budget_planner.services.auth -> budget_planner.repositories.webauthn (l.87,
+l.95)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.rate_limit (l.39,
+l.40)
+    budget_planner.services.rate_limit -> budget_planner.repositories._shared (l.27)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.reauth (l.39)
+    budget_planner.services.reauth -> budget_planner.repositories.webauthn (l.29)
+
+-   budget_planner.web.routers.auth -> budget_planner.web.middleware.auth (l.65)
+    budget_planner.web.middleware.auth -> budget_planner.repositories.auth_users
+(l.40)
+
+-   budget_planner.web.routers.budget -> budget_planner.repositories.budgets
+(l.36)
+
+-   budget_planner.web.routers.budget -> budget_planner.repositories.categories
+(l.36)
+
+-   budget_planner.web.routers.budget -> budget_planner.services.budget (l.40)
+    budget_planner.services.budget -> budget_planner.repositories.accounts (l.37)
+
+-   budget_planner.web.routers.categories ->
+budget_planner.repositories.categories (l.13)
+
+-   budget_planner.web.routers.categories -> budget_planner.services.categories
+(l.14)
+    budget_planner.services.categories -> budget_planner.repositories.categories
+(l.16)
+
+-   budget_planner.web.routers.debug -> budget_planner.services.audit_tail
+(l.15)
+    budget_planner.services.audit_tail -> budget_planner.repositories.audit (l.14)
+
+-   budget_planner.web.routers.debug -> budget_planner.web.middleware.auth
+(l.17)
+    budget_planner.web.middleware.auth -> budget_planner.services.auth (l.41)
+    budget_planner.services.auth -> budget_planner.repositories._shared (l.92)
+
+-   budget_planner.web.routers.forecast -> budget_planner.services.forecas
+(l.21)
+    budget_planner.services.forecast -> budget_planner.repositories.categories
+(l.37)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.accounts
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.categories
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.planned
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.recurring
+(l.21)
+
+-   budget_planner.web.routers.ledger ->
+budget_planner.repositories.transactions (l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.services.fx (l.28)
+    budget_planner.services.fx -> budget_planner.repositories.fx (l.23)
+
+-   budget_planner.web.routers.ledger -> budget_planner.services.planned (l.28)
+    budget_planner.services.planned -> budget_planner.repositories.planned (l.22)
+
+-   budget_planner.web.routers.ledger ->
+budget_planner.services.recurring_formula (l.28)
+    budget_planner.services.recurring_formula ->
+budget_planner.repositories.recurring (l.166, l.213, l.392)
+
+-   budget_planner.web.routers.plan -> budget_planner.repositories.recurring
+(l.119)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.analytics (l.19)
+    budget_planner.services.analytics -> budget_planner.repositories.categories
+(l.26)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.budget (l.19)
+    budget_planner.services.budget -> budget_planner.repositories.categories (l.37)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.forecast (l.19)
+    budget_planner.services.forecast -> budget_planner.repositories.planned (l.37)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.preferences
+(l.120)
+    budget_planner.services.preferences -> budget_planner.repositories.preferences
+(l.16)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories._shared
+(l.124)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.accounts
+(l.19)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.categories
+(l.19)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.planned
+(l.19)
+
+-   budget_planner.web.routers.planned ->
+budget_planner.repositories.transactions (l.123)
+
+-   budget_planner.web.routers.planned -> budget_planner.services.planned (l.24)
+    budget_planner.services.planned -> budget_planner.repositories._shared (l.27)
+
+-   budget_planner.web.routers.recurring -> budget_planner.repositories._shared
+(l.486)
+
+-   budget_planner.web.routers.recurring -> budget_planner.repositories.accounts
+(l.26)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.categories (l.26)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.recurring (l.26, l.482)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.transactions (l.482)
+
+-   budget_planner.web.routers.recurring -> budget_planner.services._promotion
+(l.32)
+    budget_planner.services._promotion -> budget_planner.repositories.accounts
+(l.21)
+
+-   budget_planner.web.routers.recurring -> budget_planner.services.recurring
+(l.31)
+    budget_planner.services.recurring -> budget_planner.repositories.planned (l.33)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.services.recurring_formula (l.31)
+    budget_planner.services.recurring_formula ->
+budget_planner.repositories.categories (l.475)
+
+-   budget_planner.web.routers.recurring -> budget_planner.web.deps (l.33)
+    budget_planner.web.deps -> budget_planner.repositories.sessions (l.18, l.19)
+
+-   budget_planner.web.routers.settings ->
+budget_planner.repositories.categories (l.25)
+
+-   budget_planner.web.routers.settings -> budget_planner.repositories.fx (l.25)
+
+-   budget_planner.web.routers.settings -> budget_planner.services.preferences
+(l.29)
+    budget_planner.services.preferences -> budget_planner.repositories.categories
+(l.16)
+
+-   budget_planner.web.routers.settings_password ->
+budget_planner.services.password_change (l.21)
+    budget_planner.services.password_change -> budget_planner.repositories._shared
+(l.29)
+
+-   budget_planner.web.routers.settings_password ->
+budget_planner.services.rate_limit (l.21, l.22)
+    budget_planner.services.rate_limit -> budget_planner.repositories.rate_limi
+(l.26)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.repositories.sessions (l.19, l.20)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.repositories.webauthn (l.19)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.services.password_change (l.21)
+    budget_planner.services.password_change -> budget_planner.repositories.users
+(l.24)
+
+-   budget_planner.web.routers.settings_users ->
+budget_planner.repositories.auth_users (l.32)
+
+-   budget_planner.web.routers.settings_users -> budget_planner.services.users
+(l.33, l.34)
+    budget_planner.services.users -> budget_planner.repositories.users (l.36)
+
+-   budget_planner.web.routers.today -> budget_planner.repositories.accounts
+(l.18)
+
+-   budget_planner.web.routers.today -> budget_planner.repositories.categories
+(l.18)
+
+-   budget_planner.web.routers.today -> budget_planner.services.budget (l.22)
+    budget_planner.services.budget -> budget_planner.repositories.planned (l.37)
+
+-   budget_planner.web.routers.today -> budget_planner.services.fortune (l.22)
+    budget_planner.services.fortune -> budget_planner.services.balance (l.15)
+    budget_planner.services.balance -> budget_planner.repositories.transactions
+(l.20)
+
+-   budget_planner.web.routers.today -> budget_planner.services.today (l.22)
+    budget_planner.services.today -> budget_planner.services.budget (l.17)
+    budget_planner.services.budget -> budget_planner.repositories.recurring (l.37)
+
+-   budget_planner.web.routers.today -> budget_planner.web.today_data (l.27)
+    budget_planner.web.today_data -> budget_planner.repositories.accounts (l.20)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.accounts (l.25)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.categories (l.25)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.transactions (l.25)
+
+-   budget_planner.web.routers.transactions -> budget_planner.services.balance
+(l.30)
+    budget_planner.services.balance -> budget_planner.repositories.accounts (l.20)
+
+
+web must not import db
+----------------------
+
+budget_planner.web is not allowed to import budget_planner.db:
+
+-   budget_planner.web.app -> budget_planner.db.connection (l.23)
+
+-   budget_planner.web.app -> budget_planner.services.users (l.25)
+    budget_planner.services.users -> budget_planner.db.connection (l.33)
+
+-   budget_planner.web.deps -> budget_planner.db.connection (l.16)
+
+-   budget_planner.web.middleware.auth -> budget_planner.db.connection (l.38)
+
+-   budget_planner.web.retention_task -> budget_planner.db.retention (l.16)
+
+-   budget_planner.web.routers.health -> budget_planner.db.connection (l.53)
+
+
+web (all) must not import repositories
+--------------------------------------
+
+budget_planner.web is not allowed to import budget_planner.repositories:
+
+-   budget_planner.web.app -> budget_planner.services.users (l.25)
+    budget_planner.services.users -> budget_planner.repositories.users (l.36)
+
+-   budget_planner.web.deps -> budget_planner.repositories.sessions (l.18, l.19)
+
+-   budget_planner.web.middleware.auth -> budget_planner.repositories.auth_users
+(l.40)
+
+-   budget_planner.web.middleware.auth -> budget_planner.services.auth (l.41)
+    budget_planner.services.auth -> budget_planner.repositories._shared (l.92)
+
+-   budget_planner.web.retention_task -> budget_planner.db.retention (l.16)
+    budget_planner.db.retention -> budget_planner.services.retention (l.15)
+    budget_planner.services.retention -> budget_planner.repositories.retention
+(l.16)
+
+-   budget_planner.web.routers.accounts -> budget_planner.repositories.accounts
+(l.24)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.repositories.categories (l.24)
+
+-   budget_planner.web.routers.accounts -> budget_planner.repositories.snapshots
+(l.24)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.services.account_planned (l.29)
+    budget_planner.services.account_planned -> budget_planner.repositories.planned
+(l.19)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.accounts
+(l.29)
+    budget_planner.services.accounts -> budget_planner.repositories.categories
+(l.17)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.balance
+(l.29)
+    budget_planner.services.balance -> budget_planner.repositories.categories (l.20)
+
+-   budget_planner.web.routers.accounts -> budget_planner.services.fortune
+(l.29)
+    budget_planner.services.fortune -> budget_planner.repositories.accounts (l.14)
+
+-   budget_planner.web.routers.accounts ->
+budget_planner.services.reconciliation (l.29)
+    budget_planner.services.reconciliation -> budget_planner.repositories.categories
+(l.18)
+
+-   budget_planner.web.routers.auth -> budget_planner.repositories.sessions
+(l.38)
+
+-   budget_planner.web.routers.auth -> budget_planner.repositories.webauthn
+(l.37)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.auth (l.39)
+    budget_planner.services.auth -> budget_planner.repositories.webauthn (l.87,
+l.95)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.rate_limit (l.39,
+l.40)
+    budget_planner.services.rate_limit -> budget_planner.repositories._shared (l.27)
+
+-   budget_planner.web.routers.auth -> budget_planner.services.reauth (l.39)
+    budget_planner.services.reauth -> budget_planner.repositories.webauthn (l.29)
+
+-   budget_planner.web.routers.budget -> budget_planner.repositories.budgets
+(l.36)
+
+-   budget_planner.web.routers.budget -> budget_planner.repositories.categories
+(l.36)
+
+-   budget_planner.web.routers.budget -> budget_planner.services.budget (l.40)
+    budget_planner.services.budget -> budget_planner.repositories.accounts (l.37)
+
+-   budget_planner.web.routers.categories ->
+budget_planner.repositories.categories (l.13)
+
+-   budget_planner.web.routers.categories -> budget_planner.services.categories
+(l.14)
+    budget_planner.services.categories -> budget_planner.repositories.categories
+(l.16)
+
+-   budget_planner.web.routers.debug -> budget_planner.services.audit_tail
+(l.15)
+    budget_planner.services.audit_tail -> budget_planner.repositories.audit (l.14)
+
+-   budget_planner.web.routers.forecast -> budget_planner.services.forecas
+(l.21)
+    budget_planner.services.forecast -> budget_planner.repositories.categories
+(l.37)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.accounts
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.categories
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.planned
+(l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.repositories.recurring
+(l.21)
+
+-   budget_planner.web.routers.ledger ->
+budget_planner.repositories.transactions (l.21)
+
+-   budget_planner.web.routers.ledger -> budget_planner.services.fx (l.28)
+    budget_planner.services.fx -> budget_planner.repositories.fx (l.23)
+
+-   budget_planner.web.routers.ledger -> budget_planner.services.planned (l.28)
+    budget_planner.services.planned -> budget_planner.repositories.planned (l.22)
+
+-   budget_planner.web.routers.ledger ->
+budget_planner.services.recurring_formula (l.28)
+    budget_planner.services.recurring_formula ->
+budget_planner.repositories.recurring (l.166, l.213, l.392)
+
+-   budget_planner.web.routers.plan -> budget_planner.repositories.recurring
+(l.119)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.analytics (l.19)
+    budget_planner.services.analytics -> budget_planner.repositories.categories
+(l.26)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.budget (l.19)
+    budget_planner.services.budget -> budget_planner.repositories.planned (l.37)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.forecast (l.19)
+    budget_planner.services.forecast -> budget_planner.repositories.planned (l.37)
+
+-   budget_planner.web.routers.plan -> budget_planner.services.preferences
+(l.120)
+    budget_planner.services.preferences -> budget_planner.repositories.preferences
+(l.16)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories._shared
+(l.124)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.accounts
+(l.19)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.categories
+(l.19)
+
+-   budget_planner.web.routers.planned -> budget_planner.repositories.planned
+(l.19)
+
+-   budget_planner.web.routers.planned ->
+budget_planner.repositories.transactions (l.123)
+
+-   budget_planner.web.routers.planned -> budget_planner.services.planned (l.24)
+    budget_planner.services.planned -> budget_planner.repositories._shared (l.27)
+
+-   budget_planner.web.routers.recurring -> budget_planner.repositories._shared
+(l.486)
+
+-   budget_planner.web.routers.recurring -> budget_planner.repositories.accounts
+(l.26)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.categories (l.26)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.recurring (l.26, l.482)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.repositories.transactions (l.482)
+
+-   budget_planner.web.routers.recurring -> budget_planner.services._promotion
+(l.32)
+    budget_planner.services._promotion -> budget_planner.repositories.accounts
+(l.21)
+
+-   budget_planner.web.routers.recurring -> budget_planner.services.recurring
+(l.31)
+    budget_planner.services.recurring -> budget_planner.repositories.planned (l.33)
+
+-   budget_planner.web.routers.recurring ->
+budget_planner.services.recurring_formula (l.31)
+    budget_planner.services.recurring_formula ->
+budget_planner.repositories.categories (l.475)
+
+-   budget_planner.web.routers.settings ->
+budget_planner.repositories.categories (l.25)
+
+-   budget_planner.web.routers.settings -> budget_planner.repositories.fx (l.25)
+
+-   budget_planner.web.routers.settings -> budget_planner.services.preferences
+(l.29)
+    budget_planner.services.preferences -> budget_planner.repositories.categories
+(l.16)
+
+-   budget_planner.web.routers.settings_password ->
+budget_planner.services.password_change (l.21)
+    budget_planner.services.password_change -> budget_planner.repositories._shared
+(l.29)
+
+-   budget_planner.web.routers.settings_password ->
+budget_planner.services.rate_limit (l.21, l.22)
+    budget_planner.services.rate_limit -> budget_planner.repositories.rate_limi
+(l.26)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.repositories.sessions (l.19, l.20)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.repositories.webauthn (l.19)
+
+-   budget_planner.web.routers.settings_security ->
+budget_planner.services.password_change (l.21)
+    budget_planner.services.password_change -> budget_planner.repositories.users
+(l.24)
+
+-   budget_planner.web.routers.settings_users ->
+budget_planner.repositories.auth_users (l.32)
+
+-   budget_planner.web.routers.settings_users -> budget_planner.services.users
+(l.33, l.34)
+    budget_planner.services.users -> budget_planner.repositories._shared (l.37)
+
+-   budget_planner.web.routers.today -> budget_planner.repositories.accounts
+(l.18)
+
+-   budget_planner.web.routers.today -> budget_planner.repositories.categories
+(l.18)
+
+-   budget_planner.web.routers.today -> budget_planner.services.budget (l.22)
+    budget_planner.services.budget -> budget_planner.repositories.categories (l.37)
+
+-   budget_planner.web.routers.today -> budget_planner.services.today (l.22)
+    budget_planner.services.today -> budget_planner.services.budget (l.17)
+    budget_planner.services.budget -> budget_planner.repositories.recurring (l.37)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.accounts (l.25)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.categories (l.25)
+
+-   budget_planner.web.routers.transactions ->
+budget_planner.repositories.transactions (l.25)
+
+-   budget_planner.web.routers.transactions -> budget_planner.services.balance
+(l.30)
+    budget_planner.services.balance -> budget_planner.repositories.accounts (l.20)
+
+-   budget_planner.web.today_data -> budget_planner.repositories.accounts (l.20)
+
+-   budget_planner.web.today_data -> budget_planner.services.balance (l.21)
+    budget_planner.services.balance -> budget_planner.repositories.transactions
+(l.20)
+
+-   budget_planner.web.today_data -> budget_planner.services.upcoming (l.21)
+    budget_planner.services.upcoming -> budget_planner.repositories.planned (l.28)
+
+
+repositories must not import services or web
+--------------------------------------------
+
+budget_planner.repositories is not allowed to import budget_planner.services:
+
+-   budget_planner.repositories.recurring -> budget_planner.services.recurring
+(l.31)
+
+
+exit=1
+
+## grimp cycles and cross-package edges
+modules: 120
+edges: 440
+## module-level import cycles (SCCs with >1 module, all imports incl. function-level): 1
+SCC size 3:
+    budget_planner.repositories.recurring
+    budget_planner.services.recurring
+    budget_planner.services.recurring_formula
+## cross-package import edge counts (from -> to)
+cli            -> config         1
+cli            -> db             1
+cli            -> repositories   2
+cli            -> services       1
+db             -> config         5
+db             -> domain         3
+db             -> logging        2
+db             -> repositories   1
+db             -> services       2
+repositories   -> config         1
+repositories   -> domain         18
+repositories   -> services       1
+services       -> config         7
+services       -> db             1
+services       -> domain         48
+services       -> logging        2
+services       -> repositories   67
+web            -> config         17
+web            -> db             5
+web            -> domain         29
+web            -> logging        4
+web            -> repositories   37
+web            -> services       44

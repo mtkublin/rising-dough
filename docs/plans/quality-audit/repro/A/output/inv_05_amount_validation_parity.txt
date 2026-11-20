@@ -1,0 +1,30 @@
+
+=== currency PLN ===
+'12.34'                    {'transactions': '(1234, None)', 'planned': '(1234, None)', 'accounts.credit_limit': '(1234, None)', 'budget': '1234', 'today.afford': '1234'}
+'12,34'                    {'transactions': '(1234, None)', 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': 'None'}
+'12.345'                   {'transactions': "(None, 'amount must be a decimal number')", 'planned': '(1235, None)', 'accounts.credit_limit': '(1235, None)', 'budget': '1235', 'today.afford': '1234'}
+' 12 '                     {'transactions': '(1200, None)', 'planned': '(1200, None)', 'accounts.credit_limit': '(1200, None)', 'budget': '1200', 'today.afford': '1200'}
+'NaN'                      {'transactions': "(None, 'amount must be a decimal number')", 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'None', 'today.afford': 'CRASH ValueError'}
+'Infinity'                 {'transactions': "(None, 'amount must be a decimal number')", 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'None', 'today.afford': 'CRASH OverflowError'}
+'1e400'                    {'transactions': 'CRASH InvalidOperation', 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'CRASH InvalidOperation', 'today.afford': 'CRASH OverflowError'}
+'99999999999999999999'     {'transactions': '(9999999999999999999900, None)', 'planned': '(9999999999999999999900, None)', 'accounts.credit_limit': '(9999999999999999999900, None)', 'budget': '9999999999999999999900', 'today.afford': '10000000000000000000000'}
+'1_000'                    {'transactions': '(100000, None)', 'planned': '(100000, None)', 'accounts.credit_limit': '(100000, None)', 'budget': '100000', 'today.afford': '100000'}
+'0x10'                     {'transactions': "(None, 'amount must be a decimal number')", 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': 'None'}
+'12.5'                     {'transactions': '(1250, None)', 'planned': '(1250, None)', 'accounts.credit_limit': '(1250, None)', 'budget': '1250', 'today.afford': '1250'}
+''                         {'transactions': "(None, 'amount must be a decimal number')", 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': '0'}
+[FAIL] all parsers agree on every input :: 11 inputs disagree
+
+=== currency JPY ===
+'12.34'                    {'transactions': "(None, 'amount must be a decimal number')", 'planned': '(12, None)', 'accounts.credit_limit': '(12, None)', 'budget': '12', 'today.afford': '1234'}
+'12,34'                    {'transactions': "(None, 'amount must be a decimal number')", 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': 'None'}
+'12.345'                   {'transactions': "(None, 'amount must be a decimal number')", 'planned': '(12, None)', 'accounts.credit_limit': '(12, None)', 'budget': '12', 'today.afford': '1234'}
+' 12 '                     {'transactions': '(12, None)', 'planned': '(12, None)', 'accounts.credit_limit': '(12, None)', 'budget': '12', 'today.afford': '1200'}
+'NaN'                      {'transactions': "(None, 'amount must be a decimal number')", 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'None', 'today.afford': 'CRASH ValueError'}
+'Infinity'                 {'transactions': "(None, 'amount must be a decimal number')", 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'None', 'today.afford': 'CRASH OverflowError'}
+'1e400'                    {'transactions': 'CRASH InvalidOperation', 'planned': 'CRASH InvalidOperation', 'accounts.credit_limit': 'CRASH InvalidOperation', 'budget': 'CRASH InvalidOperation', 'today.afford': 'CRASH OverflowError'}
+'99999999999999999999'     {'transactions': '(99999999999999999999, None)', 'planned': '(99999999999999999999, None)', 'accounts.credit_limit': '(99999999999999999999, None)', 'budget': '99999999999999999999', 'today.afford': '10000000000000000000000'}
+'1_000'                    {'transactions': '(1000, None)', 'planned': '(1000, None)', 'accounts.credit_limit': '(1000, None)', 'budget': '1000', 'today.afford': '100000'}
+'0x10'                     {'transactions': "(None, 'amount must be a decimal number')", 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': 'None'}
+'12.5'                     {'transactions': "(None, 'amount must be a decimal number')", 'planned': '(13, None)', 'accounts.credit_limit': '(13, None)', 'budget': '13', 'today.afford': '1250'}
+''                         {'transactions': "(None, 'amount must be a decimal number')", 'planned': "(None, 'amount must be a decimal number')", 'accounts.credit_limit': "(None, 'positive credit limit required')", 'budget': 'None', 'today.afford': '0'}
+[FAIL] all parsers agree on every input :: 10 inputs disagree

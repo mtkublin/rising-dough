@@ -1,0 +1,9 @@
+net worth before delete: 39,439.69
+delete -> 200 (no confirmation / dependency check in route)
+net worth after delete : 34,439.69
+live rules still pointing at deleted account: 1
+promote rule on deleted account -> 200
+transactions created on deleted account: 1
+/today 200
+/forecast 200
+/ledger?view=recurring 200
