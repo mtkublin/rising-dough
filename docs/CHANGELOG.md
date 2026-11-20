@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q-TB2: Warsaw midnight window test fixes)
+- **Test(T-Q-TB2): two tests no longer fail while the UTC and Europe/Warsaw dates differ (ADR-0007).** `test_sessions_page_lists_own_sessions_by_handle` now derives the expected expiry date in the display timezone (`clock.now_in`), the same rule as the `dt_local` filter; `test_today_upcoming_row_tint_overdue_due_future` derives "today" with `clock.today_local`, the same rule as `/today/upcoming`. App code unchanged; the host-clock `date.today()` sites in app code remain audit finding Q-031.
+
 ## 2026-11-20 (T-Q15e: pre-commit all-files parity fixes)
 - **CI(T-Q15e): `pre-commit run --all-files` parity step (ADR-0130 §8) passes.** Vendored `docs/application_redesign_handoff/` (ADR-0129) is excluded from the whitespace/eof/mixed-line-ending/djlint/detect-secrets hooks like `docs/design/`; trailing newline added to `docs/plans/v2/manual-audit.md`; two prose false positives in `docs/plans/v3/HANDOFF.md` carry the repo's inline `pragma: allowlist secret`.
 
