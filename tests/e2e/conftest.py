@@ -30,6 +30,11 @@ from budget_planner.web.middleware.csrf import (
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
 from tests.e2e.csp import TEST_NONCE, prod_csp
+from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F401
+
+# Loaded machines can take well over 15s to boot uvicorn. Override with
+# E2E_SERVER_READY_TIMEOUT_S; a server that exits early fails at once anyway.
+SERVER_READY_TIMEOUT_S = float(os.environ.get("E2E_SERVER_READY_TIMEOUT_S", "60"))
 
 try:
     from playwright.sync_api import Browser, Page, Playwright, Route, sync_playwright
@@ -73,9 +78,17 @@ def _free_port() -> int:
     return int(port)
 
 
-def _wait_until_ready(url: str, deadline_s: float = 15.0) -> None:
+def _wait_until_ready(
+    url: str,
+    deadline_s: float = SERVER_READY_TIMEOUT_S,
+    proc: subprocess.Popen[bytes] | None = None,
+) -> None:
     start = time.monotonic()
     while time.monotonic() - start < deadline_s:
+        if proc is not None and proc.poll() is not None:
+            raise RuntimeError(
+                f"uvicorn exited with code {proc.returncode} before becoming ready at {url}"
+            )
         try:
             with urlopen(Request(url), timeout=1.0) as resp:  # noqa: S310
                 if resp.status == 200:
@@ -134,7 +147,7 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_until_ready(f"{base_url}/health")
+        _wait_until_ready(f"{base_url}/health", proc=proc)
         yield base_url, db_path
     finally:
         proc.terminate()

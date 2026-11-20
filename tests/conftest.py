@@ -26,6 +26,7 @@ import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
 from tests.db_template import build_template, copy_template
+from tests.e2e.mockup_target import pytest_addoption as _mockup_addoption
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
 # endpoint signature on that app's first request (~35% of ~87 ms CPU per app).
@@ -34,6 +35,11 @@ from tests.db_template import build_template, copy_template
 fastapi_dependency_utils.get_typed_signature = functools.cache(
     fastapi_dependency_utils.get_typed_signature
 )
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register ``--target`` (T-UT09) for every test; the e2e fixtures read it."""
+    _mockup_addoption(parser)
 
 
 @pytest.fixture(scope="session")

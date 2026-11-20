@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-20 (T-UT-FIX2: e2e readiness, mockup plugin)
+- T-UT-FIX2: e2e server readiness timeout 15s→60s (env override), early fail on server exit; mockup plugin wired.
+
 ## 2026-11-20 (T-UT-FIX1: ledger planned time bomb)
 - **Fix(T-UT-FIX1): `test_ledger_view_planned` and `test_ledger_planned_excludes_virtual_rows` no longer depend on the real date.** The seeded planned row was hard-coded to 2026-10-20 and fell out of the ledger planned window (today-30d..today+180d) on 2026-11-20. The seed now uses `date.today() + 10 days`. Tests only, no `src/` change (same change as T-Q-TB1 on `audit/quality`; identical hunk merges cleanly).
 

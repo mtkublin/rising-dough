@@ -11,16 +11,10 @@ from typing import Any
 
 import pytest
 
-from tests.e2e import mockup_target
 from tests.e2e.mockup_target import Journey
 from tests.ui_map.locator import role, to_playwright
 
 pytestmark = pytest.mark.e2e
-
-# Fixtures re-exported until the conftest registers the plugin.
-target = mockup_target.target
-mockup_base_url = mockup_target.mockup_base_url
-journey = mockup_target.journey
 
 PROMOTE_DIALOG_HEADING = role("heading", "promote to actual")
 
