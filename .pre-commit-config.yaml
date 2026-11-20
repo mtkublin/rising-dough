@@ -72,7 +72,12 @@ repos:
     rev: v1.47.0
     hooks:
       - id: djlint-jinja
-        files: \.html$
+        # Upstream hook is `types_or: [jinja]` (.jinja/.j2 only), so a bare
+        # `files: \.html$` matched nothing ("no files to check"). Override the
+        # type filter and mirror `just lint` (format check on the app templates).
+        types_or: [html]
+        files: ^src/budget_planner/web/templates/.*\.html$
+        args: [--check]
         # Designer handoff is vendored byte-identical (ADR-0106, T-UT01).
         exclude: ^docs/design/
 

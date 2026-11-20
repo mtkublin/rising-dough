@@ -24,3 +24,16 @@ The always-on `architecture-guards` hook was not added (G0 experiment pending, A
 - With the "before" config, the mypy hook fails on the merged tree (no `pyyaml`/`types-pyyaml` stubs in its environment, T-Q15a handoff 2); that is why the "before" src runs report rc=1. Timing is unaffected.
 - A dependency or `pyproject.toml` change selects the full suite (about 2 to 10 minutes depending on machine load; observed at load 100 to 200 from other sessions). Expected, unchanged by this task.
 - CI side: the new `pre-commit run --all-files` step adds mypy (second run besides `just ci`), sqlfluff, djlint, bandit, detect-secrets, the hygiene hooks and `lint-imports`. Its runner time is not measured yet; `ci.yml` `timeout-minutes` was raised from 15 to 20 as headroom until the first PR run reports it.
+
+## T-Q15d: djlint hook fix (template-only change)
+
+Root cause: the upstream `djlint-jinja` hook declares `types_or: [jinja]` (`.jinja`/`.j2`), so our `files: \.html$` override never matched the `.html` templates and the hook always printed "no files to check". The hook now sets `types_or: [html]`, `files: ^src/budget_planner/web/templates/.*\.html$` and `args: [--check]`, i.e. the same format check `just lint` runs; `pre-commit run djlint-jinja --all-files` checks 110/110 files with 0 would be updated (agrees with `just lint`), so no template needed reformatting.
+
+Measured with `SKIP=pytest-fast pre-commit run --files <one errors/*.html template>` (2 runs each, under the heavy lock, load 4.7 / 9 / 18.5):
+
+| Config | Runs (s) | djlint |
+|---|---|---|
+| before (no-op hook) | 2.2, 2.0 | skipped, no files to check |
+| after (`--check`) | 2.5, 2.4 | passed |
+
+Cost: about +0.4 s per template-only commit.

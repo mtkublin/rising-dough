@@ -35,3 +35,15 @@ def test_clones_detects_fixture_violation(synthetic_scan: SyntheticScan) -> None
     )
     hits = [r for r in scanned["p01-same-name"] if r[2].startswith("_helper")]
     assert hits, "fixture violation not detected by the scanner rule"
+
+
+def test_clones_ignores_dunder_same_name(synthetic_scan: SyntheticScan) -> None:
+    """Protocol dunders (``__call__``, ``__post_init__``) share names by contract, not by copy-paste."""
+    body = "        y = x + 1\n        z = y * 2\n        return z\n"
+    scanned = synthetic_scan(
+        {
+            "services/a.py": f"class A:\n    def __call__(self, x):\n{body}    def __post_init__(self, x):\n{body}",
+            "services/b.py": f"class B:\n    def __call__(self, x):\n{body}    def __post_init__(self, x):\n{body}",
+        }
+    )
+    assert not [r for r in scanned["p01-same-name"] if "__" in r[2]]
