@@ -70,7 +70,7 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Every Critical and High finding, plus at least 20% of Mediums, independently re-verified. Dismissed findings listed with reasons.
 - Duplicates merged; severities calibrated; one best mitigation per finding; summary and histograms written.
 
-### T-Q12 [S] Operator review → T-Q11
+### ✅ T-Q12 [S] Operator review → T-Q11
 - The operator has accepted, adjusted or dismissed every Critical and High finding. `findings.md` frozen. **Deliverable 1 done.**
 
 ## Phase 4 — Prevention (sequential, only after T-Q12)
@@ -417,6 +417,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### T-Q229 [S] `clock` and rounding policy
 - Findings: Q-031 (A-13, C-08, F-21), Q-076 (C-18, C-19).
+- Partial: ledger tests fixed in T-Q-TB1 (planned seed date is now `date.today()`-relative).
 - Tags: none.
 - Depends on: none.
 - Docs-first step: ADR (next free number): `budget_planner/clock.py` with `utc_now()`, `today_local(settings)` and an injectable override; services never call `date.today()`; ADR-0006 amendment for the single rounding policy (`round_div` HALF_EVEN, `round_scaled`) and retention timestamp format (`utc_now_iso`). Resolves OQ-3 (zoneinfo in the image) and OQ-18 (only Europe/Warsaw).

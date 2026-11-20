@@ -134,3 +134,5 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0128 | [Starter Tuning From Simulation](0128-starter-tuning-from-simulation.md) (amends ADR-0125; relates to ADR-0124, ADR-0014, ADR-0041) |
 | 0127 | [A Prod VM Replacement Is Safe Unattended](0127-safe-prod-vm-replacement.md) (amended 2026-11-19: drain before the replacing apply, T-D157; the drain-capable agent ships before the first replacing release, T-D158; amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
 | 0129 | [The Goals and Starter Handoff Is Vendored as Its Own Folder, Delivered in One Drop](0129-goals-starter-handoff-vendored-standalone.md) (amends ADR-0126; relates to ADR-0107, ADR-0113, ADR-0123, ADR-0124, ADR-0125, ADR-0106) |
+| 0130 | [Prevention Regime and Full Architectural Compliance](0130-prevention-regime-and-full-architectural-compliance.md) (amends ADR-0007, ADR-0021, ADR-0022, ADR-0066, ADR-0120; relates to ADR-0120, ADR-0097, ADR-0108, ADR-0099, ADR-0107, ADR-0131) |
+| 0131 | [Mutation Testing Policy](0131-mutation-testing-policy.md) (relates to ADR-0130, ADR-0120, ADR-0108) |
