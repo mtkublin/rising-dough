@@ -90,9 +90,9 @@ Each task writes only `tracks/<file>.md` and contains a coverage statement, find
 - Progress: **T-Q15a guards landed** (2026-11-20, ADR-0130): `tests/architecture/` exact-ratchet guards G1-support, G2, G4, G5, G6, G7 (invariants registry), G7b, G9, G10, G12, G14, G15, G16, G17-repo and G18 to G27 with `allowlists/*.toml`, `canonical_modules.toml` (S1), S3 isolation registry; `repro/allowlist_by_qid.py` lists entries per Q-id and epic. T-Q15b (config, CI, hooks) and T-Q15c (CLAUDE.md, skills) remain; T-Q15 is not done.
 - **T-Q15d fix-ups** (2026-11-20): G18 ignores dunder same-name rows (self-test; allowlist unchanged), `clock.py` row is `[[permanent]]` (ADR-0130 §4; burn-down entries 20 to 19), pre-commit `djlint-jinja` fixed to check `.html` templates (was a silent no-op), timings in `baseline/precommit-timing.md`.
 
-### T-Q16 [S] Prevention dry run → T-Q15
+### ✅ T-Q16 [S] Prevention dry run → T-Q15
 - A fresh agent working on a synthetic duplication-prone task uses the canonical module, or the guard trips. Result recorded. `just ci` green. **Deliverable 2 done.**
-- Progress 2026-11-20: dry run V1-V4 recorded in `prevention.md` §7; V3 and V4 pass, V1 and V2 partial. Controls added: registry statuses (`exists-migrating`, `interim`, `migration_task`) with a flip guard, G30 private-import ratchet (8 entries), `just guards` includes the user-isolation test, sharper G23/G26/user_id messages, CLAUDE.md Interim rule. Open: V1/V2 re-runs and P5 (`just ci`); not ✅ until they pass.
+- Done 2026-11-20 (P5 `just ci` pending CI): dry run V1-V4 and re-runs V1b/V2b recorded in `prevention.md` §7; controls: registry statuses with flip guard (copies listed), G30 private-import ratchet (8 entries), G31 frontend audit record, G27 non-money scope, `just guards` includes user-isolation, sharper messages, CLAUDE.md Interim rule.
 
 ## Phase 5 — Remediation backlog → T-Q12 (may overlap T-Q13…T-Q16)
 

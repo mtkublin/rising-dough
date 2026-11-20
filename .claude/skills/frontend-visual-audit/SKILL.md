@@ -208,6 +208,17 @@ If findings are many or interact, write a plan file:
 
 Format each entry: *Route — viewport — one-line symptom — suggested fix (path:line).*
 
+## Step 6 — Write the audit record (MANDATORY when the change touches templates or CSS)
+
+Commit `docs/audits/<YYYY-MM-DD>-<slug>.md` in the same change (guard G31, `tests/architecture/test_frontend_audit_record.py`, fails without it). Required content:
+
+- **Routes** audited (path list) and the change they belong to (task id).
+- **Viewports**: 1440, 1024 and 375, one row per route x viewport.
+- **Diagnostics**: for each row the five signals `horizontalScroll`, `overflowingElements`, `duplicateIds`, `consoleErrors`, `requestFailures` (value, or 0/false), plus findings fixed or triaged.
+- **Screenshots**: paths of the captured PNGs (viewed by you; say what you checked).
+
+Ad-hoc Playwright scripts do not replace the skill run; the record must come from it.
+
 ## Common gotchas
 
 - **`overflow-x: hidden` on a tall ancestor breaks vertical scroll.** Use `overflow-x: clip` instead — `clip` doesn't establish a scroll container, so Y scroll propagates normally.

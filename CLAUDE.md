@@ -116,7 +116,7 @@ Any change that touches templates (`src/budget_planner/web/templates/**`), CSS (
 - Minimum sweep: run against the routes affected by the change at desktop (1440) + tablet (1024) + mobile (375) viewports.
 - Treat non-zero `horizontalScroll`, `overflowingElements`, `duplicateIds`, `consoleErrors`, or `requestFailures` as blocking signals.
 - Also run Step 3b (behaviour contract and template logic): no arithmetic/`float` in templates, rendered numbers equal the service value, every failing save shows a visible error.
-- Reference the audit result (routes checked + findings summary) in the handoff / PR description.
+- Reference the audit result (routes checked + findings summary) in the handoff / PR description, and commit it as `docs/audits/<date>-<slug>.md` (skill Step 6; guard G31 `test_frontend_audit_record.py` fails a templates/CSS change without it).
 
 Agents working on frontend tasks must invoke this skill rather than inferring visual correctness from code.
 

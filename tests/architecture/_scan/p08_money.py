@@ -68,8 +68,17 @@ FX_CALLS = {
 PARSE_NAME = re.compile(r"parse.*(amount|money|minor|decimal)|(amount|money).*parse", re.I)
 
 
+# Calendar and time arithmetic (month offsets, day counts): `//`, floor and ceil there are not money rounding.
+NON_MONEY = {
+    "src/budget_planner/domain/periods.py",
+    "src/budget_planner/clock.py",
+}
+
+
 def tag(f: str, rule: str) -> str:
-    return f"{rule}:canonical" if f in CANON else rule
+    if f in CANON or (rule == "money-round" and f in NON_MONEY):
+        return f"{rule}:canonical"
+    return rule
 
 
 def const_num(n: ast.AST) -> float | None:

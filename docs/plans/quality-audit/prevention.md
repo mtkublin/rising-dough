@@ -337,3 +337,22 @@ ADR-0130 §10 carries a one-line amendment for the statuses and G30.
 ### Status
 
 P5 (`just ci` green on the final branch): pending, run by the orchestrator in CI. V1 and V2 re-runs follow these fixes and are dispatched by the orchestrator; T-Q16 is not closed until they pass (P1, P2 for V1; no new copy and no private import for V2).
+
+### Re-runs after the fixes (V1b, V2b)
+
+Both re-runs (2026-11-20, branch with the controls above) **passed the duplication gap**: each extracted `domain/periods.py` (`month_bounds`, `shift_month`) and migrated **all** private copies (analytics, budget, forecast, recurring_formula, plan `_shift_month`) in the same change, lowered the `banned_patterns`, `clones`, `money_scope` and `suppressions` allowlists, flipped the row to `exists` at zero copies, used no private import, wrote user-isolation cases and added no allowlist entry. V1b also replaced the `routers/today.py` `datetime.now` with `clock.today_local` and dropped its TID251 ignore. Guard messages were clear ("FIXED, allowlist not lowered ... set count = 1").
+
+| Variant | P1 | P2 | Frontend audit | Verdict |
+|---|---|---|---|---|
+| V1b full brief | pass | pass | not recorded | pass (P1, P2) |
+| V2b CLAUDE.md only | pass | n/a | **fail**: mandatory `frontend-visual-audit` skipped | pass for duplication, fail for frontend validation |
+
+Follow-up findings and controls:
+
+| Finding | Control |
+|---|---|
+| `exists` message gave only a count | the registry guard now lists every remaining copy as `path:line  def name` |
+| G27 flagged `//` in `domain/periods.py` (month arithmetic) as `money-round`; the agent dodged it with `divmod` | scanner `NON_MONEY` list (`domain/periods.py`, `clock.py`) exempts calendar arithmetic from `money-round`; self-test added. Dodging a heuristic with an equivalent construct is a **guard-quality signal**: the heuristic's scope was wrong, not the code |
+| Frontend audit skipped twice (V1 ad-hoc Playwright, V2b nothing) | second occurrence, so a guard: G31 `test_frontend_audit_record.py` fails a diff against the base that touches `web/templates/**` or `web/static/*.css` without a complete `docs/audits/<date>-<slug>.md` (routes, 1440/1024/375, five diagnostics, screenshots; skips outside git or at the base); the skill gained Step 6 (write the record); the orchestrator merge step refuses such a branch without the audit result; CLAUDE.md "Frontend validation" names the record |
+
+P5 (`just ci`) stays pending in CI; T-Q16 is marked done in `tasks.md` with "P5 pending CI".

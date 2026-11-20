@@ -50,28 +50,31 @@ def row_problems(row: dict[str, Any]) -> list[str]:
     return problems
 
 
-def copy_counts(registry: list[dict[str, Any]], violations: list[Violation]) -> dict[str, int]:
-    """Banned-copy (G6 ``banned-name``) violations per registry concept."""
-    counts = dict.fromkeys((str(r["concept"]) for r in registry), 0)
+def copy_counts(
+    registry: list[dict[str, Any]], violations: list[Violation]
+) -> dict[str, list[str]]:
+    """Banned-copy (G6 ``banned-name``) sites per registry concept, as ``path:line  def name``."""
+    sites: dict[str, list[str]] = {str(r["concept"]): [] for r in registry}
     for v in violations:
         if v.rule != "banned-name":
             continue
-        for concept in counts:
+        for concept, found in sites.items():
             if f"({concept})" in v.detail:
-                counts[concept] += 1
-    return counts
+                found.append(f"{v.path}:{v.line}  {v.detail.split(' (')[0]}")
+    return sites
 
 
-def status_problems(registry: list[dict[str, Any]], counts: dict[str, int]) -> list[str]:
+def status_problems(registry: list[dict[str, Any]], counts: dict[str, list[str]]) -> list[str]:
     out: list[str] = []
     for row in registry:
-        n = counts.get(str(row["concept"]), 0)
-        if row.get("status") == "exists" and n:
+        found = counts.get(str(row["concept"]), [])
+        if row.get("status") == "exists" and found:
+            listing = "\n".join(f"      {site}" for site in found)
             out.append(
-                f"{row['concept']}: marked `exists` but {n} banned cop(ies) remain. Set status = "
-                '"exists-migrating" with a migration_task, or migrate every copy in the same change.'
+                f"{row['concept']}: marked `exists` but {len(found)} banned cop(ies) remain:\n{listing}\n"
+                '    Migrate every copy in the same change, or set status = "exists-migrating" with a migration_task.'
             )
-        if row.get("status") == "exists-migrating" and not n:
+        if row.get("status") == "exists-migrating" and not found:
             out.append(f'{row["concept"]}: no copies remain; set status = "exists".')
     return out
 
@@ -138,6 +141,10 @@ def test_status_check_catches_premature_exists() -> None:
     row = {"concept": "Periods", "status": "exists"}
     fake = [Violation("services/budget.py", 1, "banned-name", "def _month_range (Periods)")]
     assert status_problems([row], copy_counts([row], fake))
+    assert (
+        "services/budget.py:1  def _month_range"
+        in status_problems([row], copy_counts([row], fake))[0]
+    )
     assert not status_problems([row], copy_counts([row], []))
     migrating = {"concept": "Periods", "status": "exists-migrating"}
     assert status_problems([migrating], copy_counts([migrating], []))

@@ -201,6 +201,7 @@ early merges keep later conflicts small.
    (`git diff --stat <MAIN>...wi/<MAIN>/<ID>`), the `Searched/Reused/New helper` line is
    present, and allowlist counts only went down. If something is missing, `SendMessage`
    the same agent to finish it (it keeps its context). Do not fix it yourself.
+   **Frontend audit check.** Refuse to merge a branch that touches templates, CSS or HTMX swap targets unless the report includes the `frontend-visual-audit` result (routes x 1440/1024/375 and the five diagnostics) and the branch adds `docs/audits/<date>-<slug>.md`; `SendMessage` the agent to run the skill (ad-hoc Playwright does not count).
    **Duplication check (ADR-0130 §7).** List the definitions the branch adds and look for
    near matches of canonical ones: run the report-only `new_defs.py <MAIN>` helper (under scripts/ci) if it exists,
    else list added definitions with `git diff <MAIN>...wi/<MAIN>/<ID> -U0 -- 'src/*.py'`
