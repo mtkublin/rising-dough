@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 import pytest
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -28,6 +29,10 @@ from budget_planner.web.auth_cookies import (
     verify_challenge,
 )
 from tests.auth_support import seed_login_user
+from tests.ui_map import _html
+from tests.ui_map.locator import role
+
+_ADD_PASSKEY = role("button", "Add passkey")
 
 pytestmark = pytest.mark.integration
 
@@ -185,8 +190,11 @@ def test_login_begin_requires_csrf(anon_client: TestClient) -> None:
 def test_register_page_renders(client: TestClient) -> None:
     r = client.get("/settings/security")
     assert r.status_code == 200
-    assert "data-passkey-register" in r.text
-    assert "/static/js/passkeys.js" in r.text
+    assert _html.exists(r.text, _ADD_PASSKEY)
+    sources = [
+        str(s.get("src", "")) for s in BeautifulSoup(r.text, "html.parser").find_all("script")
+    ]
+    assert any(src.split("?")[0].endswith("/js/passkeys.js") for src in sources)
 
 
 def test_register_requires_session(anon_client: TestClient) -> None:

@@ -6,12 +6,14 @@ import sqlite3
 from typing import Any
 
 import pytest
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME, safe_next
 from budget_planner.web.routers.auth import GENERIC_LOGIN_ERROR
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.ui_map import _html, auth, shell
 
 pytestmark = pytest.mark.integration
 
@@ -44,11 +46,12 @@ def _session_set_cookie(resp: Any) -> str:
 def test_login_page_renders_without_app_nav(anon_client: TestClient) -> None:
     r = anon_client.get("/auth/login")
     assert r.status_code == 200
-    assert 'name="_csrf_token"' in r.text
-    assert "data-passkey-login" in r.text
-    assert 'aria-label="Primary navigation"' not in r.text
-    assert "/static/js/passkeys.js" in r.text
-    assert "<script>" not in r.text  # no inline script (CSP)
+    assert _html.exists(r.text, auth.login_heading)
+    assert _html.exists(r.text, auth.passkey_sign_in)
+    assert not _html.exists(r.text, shell.primary_nav)
+    scripts = BeautifulSoup(r.text, "html.parser").find_all("script")
+    assert any(str(s.get("src", "")).split("?")[0].endswith("/js/passkeys.js") for s in scripts)
+    assert all(s.get("src") for s in scripts)  # no inline script (CSP)
 
 
 def test_password_login_happy_path_sets_session_cookie(
@@ -93,7 +96,7 @@ def test_login_failure_is_generic(
 ) -> None:
     r = _login(anon_client, email, password)
     assert r.status_code == 401
-    assert GENERIC_LOGIN_ERROR.replace("'", "&#39;") in r.text
+    assert _html.text_of(r.text, auth.login_error) == GENERIC_LOGIN_ERROR
     assert not any(h.startswith(f"{SESSION_COOKIE_NAME}=") for h in _set_cookie_headers(r))
 
 
@@ -161,7 +164,8 @@ def test_login_page_redirects_when_already_signed_in(client: TestClient) -> None
 
 def test_login_page_keeps_next_in_form(anon_client: TestClient) -> None:
     r = anon_client.get("/auth/login?next=%2Fplan")
-    assert 'name="next" value="/plan"' in r.text
+    button = _html.resolve_one(r.text, auth.passkey_sign_in)
+    assert button["data-next"] == "/plan"
 
 
 def test_login_revokes_previously_presented_session(
