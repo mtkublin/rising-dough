@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
-from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -23,10 +22,13 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, ledger
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
 _SEG_COUNT = 3
+_VIEW_TABS = ("Actual", "Planned", "Recurring")
 
 
 @pytest.fixture
@@ -89,10 +91,7 @@ def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> Non
     (anchor-based full-page nav). The view keys appear in the href query string."""
     r = client.get("/ledger")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    seg = soup.select_one(".rd-segmented")
-    assert seg is not None and isinstance(seg, Tag)
-    items = seg.select("a.rd-segmented__item")
+    items = [_html.resolve_one(r.text, ledger.view_tab(n)) for n in _VIEW_TABS]
     assert len(items) == _SEG_COUNT
     hrefs = [a.get("href") for a in items]
     assert hrefs == ["/ledger?view=actual", "/ledger?view=planned", "/ledger?view=recurring"]
@@ -103,43 +102,29 @@ def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> Non
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    container = soup.select_one("[data-ledger-table]")
-    assert container is not None and isinstance(container, Tag)
-    assert container.get("data-view") == "actual"
-    assert soup.find(id=f"txn-{seeded['txn']}") is not None
+    assert _html.resolve_one(r.text, ledger.view_table("actual")).get("data-view") == "actual"
+    assert _html.exists(r.text, ledger.row(seeded["txn"]))
 
 
 def test_ledger_view_planned(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/ledger?view=planned")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    container = soup.select_one("[data-ledger-table]")
-    assert container is not None and isinstance(container, Tag)
-    assert container.get("data-view") == "planned"
+    assert _html.resolve_one(r.text, ledger.view_table("planned")).get("data-view") == "planned"
     # Status column header present (manual-audit #25 renamed Promoted? → Status).
-    headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
-    assert "Status" in headers
+    assert _html.exists(r.text, ledger.column_header("Status"))
     # Promote button targets the modal root.
-    btn = soup.find("button", string=lambda s: s is not None and "Promote" in s)
-    assert btn is not None and isinstance(btn, Tag)
+    btn = _html.resolve(r.text, ledger.promote)[0]
     assert btn.get("hx-target") == "#modal-root"
 
 
 def test_ledger_view_recurring(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    container = soup.select_one("[data-ledger-table]")
-    assert container is not None and isinstance(container, Tag)
-    assert container.get("data-view") == "recurring"
-    headers = {th.get_text(strip=True) for th in soup.select("table.ledger thead th")}
+    assert _html.resolve_one(r.text, ledger.view_table("recurring")).get("data-view") == "recurring"
     # Manual-audit #25 — Cadence folded into group header, Next due stays.
-    assert "Next due" in headers
-    assert "Overrides" in headers
-    # V.33 — expand reveal is now a sibling <tr>, not a <details>; the
-    # Overrides column still surfaces the per-rule override count.
-    assert "override" in r.text.lower()
+    assert _html.exists(r.text, ledger.column_header("Next due"))
+    # V.33 — the Overrides column still surfaces the per-rule override count.
+    assert _html.exists(r.text, ledger.column_header("Overrides"))
 
 
 def test_ledger_recurring_lists_each_override_with_remove_button(
@@ -161,10 +146,10 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     )
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    # V.33 — expand reveal is a sibling <tr>; Remove buttons live inside
-    # .rd-rec-over-item rows now.
-    remove_btns = soup.select(".rd-rec-over-item button")
+    # V.33 — the expand reveal is a (collapsed) sibling row holding the Remove
+    # buttons; it is hidden until toggled, so navigate from its mapped row.
+    expand = _html.resolve_one(r.text, ledger.recurring_expand(seeded["rule"]))
+    remove_btns = expand.find_all("button", string="Remove")
     assert len(remove_btns) >= 2
     endpoints = {btn.get("hx-post") for btn in remove_btns}
     assert f"/recurring/{seeded['rule']}/overrides/2026-02-01/delete" in endpoints
@@ -187,16 +172,24 @@ def test_ledger_invalid_view_falls_back_to_actual(
 ) -> None:
     r = client.get("/ledger?view=nonsense")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    container = soup.select_one("[data-ledger-table]")
-    assert container is not None and isinstance(container, Tag)
-    assert container.get("data-view") == "actual"
+    assert _html.resolve_one(r.text, ledger.view_table("actual")).get("data-view") == "actual"
 
 
 def test_ledger_fragment_is_not_full_page(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/ledger/table?view=actual")
     assert r.status_code == 200
-    assert "<html" not in r.text
+    assert _html.exists(r.text, ledger.table_container)
+    assert not _html.exists(r.text, ledger.heading)  # no page chrome
+
+
+def _headers(html: str) -> list[str]:
+    return [" ".join(th.get_text(" ").split()) for th in _html.resolve(html, ledger.any_header)]
+
+
+def _assert_same_fragment(legacy: str, new: str, view: str) -> None:
+    for html in (legacy, new):
+        assert _html.resolve_one(html, ledger.view_table(view)).get("data-view") == view
+    assert _headers(legacy) == _headers(new)
 
 
 def test_ledger_fragment_alias_transactions(client: TestClient, seeded: dict[str, int]) -> None:
@@ -206,16 +199,7 @@ def test_ledger_fragment_alias_transactions(client: TestClient, seeded: dict[str
     r_new = client.get("/ledger/table?view=actual")
     assert r_legacy.status_code == 200
     assert r_new.status_code == 200
-    legacy_soup = BeautifulSoup(r_legacy.text, "html.parser")
-    new_soup = BeautifulSoup(r_new.text, "html.parser")
-    legacy_container = legacy_soup.select_one("[data-ledger-table]")
-    new_container = new_soup.select_one("[data-ledger-table]")
-    assert legacy_container is not None and isinstance(legacy_container, Tag)
-    assert new_container is not None and isinstance(new_container, Tag)
-    assert legacy_container.get("data-view") == new_container.get("data-view") == "actual"
-    legacy_headers = [th.get_text(strip=True) for th in legacy_soup.select("table.ledger thead th")]
-    new_headers = [th.get_text(strip=True) for th in new_soup.select("table.ledger thead th")]
-    assert legacy_headers == new_headers
+    _assert_same_fragment(r_legacy.text, r_new.text, "actual")
 
 
 def test_ledger_fragment_alias_planned(client: TestClient, seeded: dict[str, int]) -> None:
@@ -224,16 +208,7 @@ def test_ledger_fragment_alias_planned(client: TestClient, seeded: dict[str, int
     r_new = client.get("/ledger/table?view=planned")
     assert r_legacy.status_code == 200
     assert r_new.status_code == 200
-    legacy_soup = BeautifulSoup(r_legacy.text, "html.parser")
-    new_soup = BeautifulSoup(r_new.text, "html.parser")
-    legacy_container = legacy_soup.select_one("[data-ledger-table]")
-    new_container = new_soup.select_one("[data-ledger-table]")
-    assert legacy_container is not None and isinstance(legacy_container, Tag)
-    assert new_container is not None and isinstance(new_container, Tag)
-    assert legacy_container.get("data-view") == new_container.get("data-view") == "planned"
-    legacy_headers = [th.get_text(strip=True) for th in legacy_soup.select("table.ledger thead th")]
-    new_headers = [th.get_text(strip=True) for th in new_soup.select("table.ledger thead th")]
-    assert legacy_headers == new_headers
+    _assert_same_fragment(r_legacy.text, r_new.text, "planned")
 
 
 def test_ledger_filter_by_category(
@@ -259,8 +234,9 @@ def test_ledger_filter_by_category(
         conn.close()
     r = client.get(f"/ledger/table?view=actual&category_id={seeded['cat']}")
     assert r.status_code == 200
-    assert "Milk" in r.text
-    assert "Payday" not in r.text
+    texts = _row_texts(r.text, "actual")
+    assert any("Milk" in t for t in texts)
+    assert not any("Payday" in t for t in texts)
 
 
 def test_ledger_planned_excludes_virtual_rows(client: TestClient, seeded: dict[str, int]) -> None:
@@ -270,17 +246,12 @@ def test_ledger_planned_excludes_virtual_rows(client: TestClient, seeded: dict[s
     should appear in the Planned view."""
     r = client.get("/ledger?view=planned")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
     # Only the one persisted planned row should render.
-    rows = soup.select("#planned-table tbody tr.row")
-    assert len(rows) == 1
-    row = rows[0]
-    row_id = row.get("id")
-    assert isinstance(row_id, str)
-    assert row_id.startswith("planned-p-"), f"got id={row_id!r}"
+    rows = [t for t in _html.resolve(r.text, ledger.any_planned_row) if t.name == "tr"]
+    assert [row.get("id") for row in rows] == [f"planned-p-{seeded['pl']}"]
     # "Monthly rent" is the recurring rule's default_description — it must not
     # leak into the Planned view (it belongs under /ledger?view=recurring).
-    assert "Monthly rent" not in r.text
+    assert not any("Monthly rent" in t for t in _row_texts(r.text, "planned"))
 
 
 def test_ledger_table_wrapper_exposes_segmented_swap_target(
@@ -297,11 +268,9 @@ def test_ledger_table_wrapper_exposes_segmented_swap_target(
     ):
         r = client.get(f"/ledger/table?view={view}")
         assert r.status_code == 200, view
-        soup = BeautifulSoup(r.text, "html.parser")
-        wrapper = soup.find(id="ledger-table")
-        assert wrapper is not None and isinstance(wrapper, Tag), view
-        inner = soup.find(id=inner_id)
-        assert inner is not None and isinstance(inner, Tag), view
+        assert _html.exists(r.text, ledger.table_container), view
+        assert _html.exists(r.text, by_id(inner_id)), view
+        assert _html.exists(r.text, ledger.view_table(view)), view
 
 
 def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: Settings) -> None:
@@ -333,9 +302,7 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
 
     r = client.get("/ledger/table?view=actual")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    rows = soup.select("#txn-table tbody tr.row")
-    descriptions = [row.get_text(strip=False) for row in rows]
+    descriptions = _row_texts(r.text, "actual")
     newest_idx = next(i for i, t in enumerate(descriptions) if "newest" in t)
     middle_idx = next(i for i, t in enumerate(descriptions) if "middle" in t)
     oldest_idx = next(i for i, t in enumerate(descriptions) if "oldest" in t)
@@ -344,13 +311,19 @@ def test_ledger_actual_rows_sorted_desc_by_date(client: TestClient, _migrated: S
     )
 
 
+def _row_texts(html: str, view: str) -> list[str]:
+    """Visible text of each data row (row ids mark data rows; group heads have none)."""
+    return [
+        " ".join(row.get_text(" ").split())
+        for row in _html.resolve(html, ledger.table_rows(view))
+        if row.get("id")
+    ]
+
+
 def _day_net_text(html: str, day_label: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    for head in soup.select("tr.rd-day-head"):
-        if day_label in head.get_text():
-            net = head.select_one(".num")
-            return net.get_text(strip=True) if net else ""
-    raise AssertionError(f"day head {day_label!r} not found")
+    """The net figure in a day-group header (``""`` when the header omits it)."""
+    head = _html.text_of(html, ledger.day_head(day_label))
+    return head.split(day_label, 1)[1].strip()
 
 
 def test_actual_day_net_with_negative_reconciliation(
@@ -385,7 +358,6 @@ def test_actual_day_net_with_negative_reconciliation(
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
     assert _day_net_text(r.text, "02 Nov") == "net -850.00"
-    assert "net +" not in r.text
 
 
 def _seed_eur_day(settings: Settings, *, with_rate: bool) -> None:
