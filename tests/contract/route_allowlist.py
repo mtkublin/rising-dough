@@ -17,24 +17,6 @@ FRAMEWORK: Final[dict[str, str]] = {
     "MOUNT /static": "framework",
 }
 
-# --- T-UT04b: today and accounts ---
-PENDING_T_UT04B: Final[dict[str, str]] = {
-    "GET /accounts": "pending T-UT04b",
-    "GET /accounts/last-checked": "pending T-UT04b",
-    "GET /accounts/new": "pending T-UT04b",
-    "POST /accounts": "pending T-UT04b",
-    "GET /accounts/{account_id}/edit": "pending T-UT04b",
-    "POST /accounts/{account_id}": "pending T-UT04b",
-    "POST /accounts/{account_id}/delete": "pending T-UT04b",
-    "POST /accounts/{account_id}/snapshot": "pending T-UT04b",
-    "GET /accounts/{account_id}/reconcile": "pending T-UT04b",
-    "POST /accounts/{account_id}/reconcile": "pending T-UT04b",
-    "GET /today": "pending T-UT04b",
-    "GET /today/upcoming": "pending T-UT04b",
-    "GET /today/afford": "pending T-UT04b",
-    "GET /afford": "pending T-UT04b",
-}
-
 # --- T-UT04c: ledger ---
 PENDING_T_UT04C: Final[dict[str, str]] = {
     "GET /transactions": "pending T-UT04c",
@@ -126,7 +108,6 @@ PENDING_T_UT04E: Final[dict[str, str]] = {
 
 ALLOWLIST: Final[dict[str, str]] = {
     **FRAMEWORK,
-    **PENDING_T_UT04B,
     **PENDING_T_UT04C,
     **PENDING_T_UT04D,
     **PENDING_T_UT04E,

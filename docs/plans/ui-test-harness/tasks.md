@@ -57,8 +57,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - Login, logout, re-auth, rate limits, passkey endpoints, session list, CSRF, security headers, cache-control, redirects, root redirect, error pages, health, palette, FAB / new-entry entry points.
 - **Done 2026-11-20**: `tests/contract/test_{shell,auth,errors}.py` cover all 22 `PENDING_T_UT04A` routes (section deleted); 14 integration files migrated to the UI map (`tests/ui_map/{shell,auth,errors}.py`) and their `ALLOWLIST` entries deleted (0 markup assertions). No template changes (role/label/id locators were enough). Notes: `label()` locators also match descendants of the `<label>` (e.g. its `<span>`), so tests filter by tag; `<script>` src/inline CSP checks still use BeautifulSoup `find_all("script")` directly (no UI-map role for scripts).
 
-### ◻ T-UT04b [P] Today and Accounts
+### ✅ T-UT04b [P] Today and Accounts
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
+- Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. App-only Today names live in `tests/ui_map/today_app.py` (the mockup twin must stay a superset of `today.py`). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
 
 ### ◻ T-UT04c [P] Ledger
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
