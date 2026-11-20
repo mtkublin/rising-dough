@@ -50,12 +50,14 @@ repos:
           - playwright>=1.47
           - structlog>=24.4
           - sqlglot>=25.0
+          - pyyaml>=6
+          - types-pyyaml>=6
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         files: ^(src|tests)/
 
   - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.1.1
+    rev: 4.4.0
     hooks:
       # Scope to migrations only. tests/fixtures/*.sql is auto-generated
       # by scripts/dump_schema.sh and must stay byte-for-byte identical to
@@ -67,7 +69,7 @@ repos:
         files: ^migrations/.*\.sql$
 
   - repo: https://github.com/djlint/djLint
-    rev: v1.35.2
+    rev: v1.47.0
     hooks:
       - id: djlint-jinja
         files: \.html$
@@ -97,6 +99,15 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+      - id: lint-imports
+        name: lint-imports (layering contracts, ADR-0130)
+        # Only when Python sources or the contracts change; ~1-2 s (measured in
+        # docs/plans/quality-audit/baseline/precommit-timing.md).
+        entry: uv run --quiet lint-imports
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml)$
 
       - id: stylelint
         name: stylelint (hand-authored CSS)

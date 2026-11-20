@@ -158,6 +158,7 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 - `just format` — autofix formatting.
 - `just typecheck` — mypy strict.
 - `just ci` — run everything CI runs.
+- `just guards` — architecture guards (`tests/architecture`); `just lint-imports` — layering contracts (ADR-0130).
 - `just mutate` / `just mutate-report` / `just mutate-clean` — Mutmut run, filtered survivor report, cleanup (ADR-0131).
 - `just db-reset` — recreate the dev database.
 - `just seed` — seed default categories, demo accounts.

@@ -1,0 +1,7 @@
+{
+  "_comment": "ADR-0131 decision 6 baseline (T-Q03b, mutmut 3.7.0). mutation.yml fails when a package falls more than 2 points below. Update deliberately after a remediation wave.",
+  "killed_pct_testable": {
+    "domain": 96.1,
+    "services": 84.3
+  }
+}

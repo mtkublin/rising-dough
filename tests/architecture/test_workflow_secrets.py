@@ -23,7 +23,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped,import-not-found,unused-ignore]
+import yaml
 
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet
 

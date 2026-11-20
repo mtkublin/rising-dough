@@ -14,8 +14,7 @@ from __future__ import annotations
 import re
 import tomllib
 
-import pytest
-import yaml  # type: ignore[import-untyped,import-not-found,unused-ignore]
+import yaml
 
 from tests.architecture._ratchet import REPO_ROOT
 
@@ -59,17 +58,12 @@ def version_drift(pinned: dict[str, str], locked: dict[str, str]) -> dict[str, t
     return {t: (v, locked.get(t, "?")) for t, v in pinned.items() if locked.get(t) != v}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-Q15b adds the `pre-commit run --all-files` step (SKIP=pytest-fast) to ci.yml, ADR-0130 section 8",
-)
 def test_ci_runs_precommit_with_skip_pytest_fast() -> None:
     assert ci_runs_precommit(
         (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     )
 
 
-@pytest.mark.xfail(strict=True, reason="Q-044: T-Q15b aligns pre-commit tool versions with uv.lock")
 def test_precommit_tool_versions_match_uv_lock() -> None:
     drift = version_drift(
         pinned_versions((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")),
