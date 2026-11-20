@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-20 (T-UT-FIX1: ledger planned time bomb)
+- **Fix(T-UT-FIX1): `test_ledger_view_planned` and `test_ledger_planned_excludes_virtual_rows` no longer depend on the real date.** The seeded planned row was hard-coded to 2026-10-20 and fell out of the ledger planned window (today-30d..today+180d) on 2026-11-20. The seed now uses `date.today() + 10 days`. Tests only, no `src/` change (same change as T-Q-TB1 on `audit/quality`; identical hunk merges cleanly).
+
 ## 2026-11-19 (T-D159: MANAGED_DNS_ZONE as a variable)
 - **Fix(T-D159): read `MANAGED_DNS_ZONE` as an environment variable, not a secret** (ADR-0093 amendment). Release v3.0.8 (run 44559131362) replaced the prod VM but skipped `tailnet-cleanup-prod`: the secret's value `true` made GitHub mask every `true` and drop the `server_replaced` output. Runbooks: `MANAGED_DNS_ZONE` is a variable on `prod` / `prod-plan`; the `audit_log` count and `integrity_check` commands in `deploy.md` / `restore.md` now run read-only through `docker exec` (column `changed_at`); `ssh-keygen -R` after a replacement.
 - **Docs(T-D158): T-D143 and T-D158 done.** Release v3.0.8 (run 44559131362, PR #37) replaced the prod VM onto `l_ssd`: drained in ~50 s, apply 2 added / 2 destroyed, restore `restored` (generation `2901fbd3873a6696`), converged 16:01:21Z, ~4.5 min downtime, `audit_log` (302, 302, 13:18:27Z) identical before and after (0 lost rows). The old tailnet node was removed by hand (T-D159). Release A was v3.0.7 (run 44553020124, in place, `"drain": null`). Open follow-up: no Block Storage line on the next prod bill.
