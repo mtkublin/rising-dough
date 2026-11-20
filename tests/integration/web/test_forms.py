@@ -47,6 +47,7 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -247,11 +248,10 @@ def test_form_submit_still_dismisses_slide_over(client: TestClient, seeded: dict
     )
     assert r.status_code == 200
     # Row fragment — not the slide-over.
-    assert 'id="txn-' in r.text
-    assert "data-slideover" not in r.text, (
+    assert _html.exists(r.text, ledger.any_row)
+    assert not _html.exists(r.text, ledger.slideover), (
         "submit response must not re-render the slide-over wrapper"
     )
-    assert "slide-over-root" not in r.text
 
 
 # ---------------------------------------------------------------------------

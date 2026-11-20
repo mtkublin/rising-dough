@@ -61,8 +61,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
 - Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. App-only Today names live in `tests/ui_map/today_app.py` (the mockup twin must stay a superset of `today.py`). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
 
-### ◻ T-UT04c [P] Ledger
+### ✅ T-UT04c [P] Ledger
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
+- Done 2026-11-20: 43 routes covered in `tests/contract/ledger/` (shared fixtures in its `conftest.py`, helpers in `support.py`; `test_ledger_access.py` is the auth + CSRF matrix over every route, the other files cover status, HX-* headers, redirect targets, DB and `audit_log` effects, and batch undo round trips). `PENDING_T_UT04C` deleted. Seven integration files (`test_ledger`, `test_transactions`, `test_planned`, `test_recurring`, `test_recurring_formula`, `test_same_account_validation`, `test_forms`) moved onto `tests/ui_map/ledger.py` and left the no-markup allowlist; `test_formula_preview` stays at 3 (the preview chip has only data-attributes; a `data-testid` hook was skipped to avoid a template change and its visual audit). The `label` locator also yields a wrapped label's non-control descendants; `ledger.control(s)` filters to the real controls (resolver left untouched).
 
 ### ◻ T-UT04d [P] Plan
 - Budget (lines, overrides, unbudgeted disclosure, left per day), year grid and cell editor, forecast (horizon, table, chart fragment), analytics (range, categories).

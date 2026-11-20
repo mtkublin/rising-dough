@@ -17,53 +17,6 @@ FRAMEWORK: Final[dict[str, str]] = {
     "MOUNT /static": "framework",
 }
 
-# --- T-UT04c: ledger ---
-PENDING_T_UT04C: Final[dict[str, str]] = {
-    "GET /transactions": "pending T-UT04c",
-    "GET /transactions/_limit_preview": "pending T-UT04c",
-    "GET /transactions/table": "pending T-UT04c",
-    "GET /transactions/new": "pending T-UT04c",
-    "POST /transactions": "pending T-UT04c",
-    "GET /transactions/{txn_id}/edit": "pending T-UT04c",
-    "POST /transactions/{txn_id}": "pending T-UT04c",
-    "POST /transactions/{txn_id}/delete": "pending T-UT04c",
-    "POST /transactions/{txn_id}/restore": "pending T-UT04c",
-    "GET /transactions/export": "pending T-UT04c",
-    "GET /planned": "pending T-UT04c",
-    "POST /planned/batch/promote-due": "pending T-UT04c",
-    "POST /planned/batch/undo": "pending T-UT04c",
-    "GET /planned/table": "pending T-UT04c",
-    "GET /planned/new": "pending T-UT04c",
-    "POST /planned": "pending T-UT04c",
-    "GET /planned/{planned_id}/edit": "pending T-UT04c",
-    "POST /planned/{planned_id}": "pending T-UT04c",
-    "POST /planned/{planned_id}/delete": "pending T-UT04c",
-    "POST /planned/{planned_id}/restore": "pending T-UT04c",
-    "GET /planned/{planned_id}/promote": "pending T-UT04c",
-    "GET /planned/{planned_id}/promote/inline": "pending T-UT04c",
-    "POST /planned/{planned_id}/promote": "pending T-UT04c",
-    "GET /planned/export": "pending T-UT04c",
-    "GET /recurring": "pending T-UT04c",
-    "GET /recurring/new": "pending T-UT04c",
-    "POST /recurring": "pending T-UT04c",
-    "POST /recurring/batch/promote-due": "pending T-UT04c",
-    "POST /recurring/batch/undo": "pending T-UT04c",
-    "POST /recurring/formula/preview": "pending T-UT04c",
-    "GET /recurring/{rule_id}/edit": "pending T-UT04c",
-    "POST /recurring/{rule_id}": "pending T-UT04c",
-    "POST /recurring/{rule_id}/deactivate": "pending T-UT04c",
-    "GET /recurring/{rule_id}/overrides/new": "pending T-UT04c",
-    "POST /recurring/{rule_id}/overrides": "pending T-UT04c",
-    "POST /recurring/{rule_id}/overrides/{occurrence_date}/delete": "pending T-UT04c",
-    "GET /recurring/{rule_id}/promote": "pending T-UT04c",
-    "GET /recurring/{rule_id}/promote/inline": "pending T-UT04c",
-    "POST /recurring/{rule_id}/promote": "pending T-UT04c",
-    "POST /recurring/{rule_id}/skip-next": "pending T-UT04c",
-    "GET /ledger": "pending T-UT04c",
-    "GET /ledger/table": "pending T-UT04c",
-    "GET /ledger/recently-deleted": "pending T-UT04c",
-}
-
 # --- T-UT04d: plan ---
 PENDING_T_UT04D: Final[dict[str, str]] = {
     "GET /budget/yearly": "pending T-UT04d",
@@ -108,7 +61,6 @@ PENDING_T_UT04E: Final[dict[str, str]] = {
 
 ALLOWLIST: Final[dict[str, str]] = {
     **FRAMEWORK,
-    **PENDING_T_UT04C,
     **PENDING_T_UT04D,
     **PENDING_T_UT04E,
 }
