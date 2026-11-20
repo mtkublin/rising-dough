@@ -40,8 +40,8 @@
 | SH09 | Shell | Row action menu (kebab) component | — | `_partials/kebab_menu.html`, `static/js/kebab.js` | `overlays/row-menu--transaction`, `overlays/row-menu--planned`, `overlays/row-menu--recurring`, `overlays/row-menu--account`, `overlays/row-menu--upcoming`, `overlays/row-menu--budget` | mapped | Actions per menu are listed in the owning feature rows. Handoff uses native popover, bottom action sheet on phone. | |
 | SH10 | Shell | Category picker combobox (type to filter, arrows, Enter) | — | `_partials/combobox.html`, `static/js/combobox.js` | `overlays/category-picker`, `overlays/category-picker--no-match` | mapped | Handoff phone variant is a bottom sheet. | |
 | SH11 | Shell | Form validation error summary (422 re-render of a dialog) | — (every form POST) | `partials/_form_errors.html` | `errors/422` (fragment `forms/error-summary`) | mapped | Per-form error states are in their own rows. | |
-| SH12 | Shell | Theme switch (system, light, dark), saved per browser | — | none | `settings/preferences` | handoff-only | App ships a single theme. Handoff expects `theme.js` and a Preferences control. Needs a requirement before wiring. | — |
-| SH13 | Shell | Export CSV / Parquet (transactions, planned) | `GET /transactions/export`, `GET /planned/export` | links only in `transactions/index.html`, `planned/index.html` (not rendered; `/transactions` and `/planned` redirect) | — | no board | Endpoints are live but the current Ledger UI has no link to them. Decide: surface, drop, or keep API-only. | |
+| SH12 | Shell | Theme switch (system, light, dark), saved per browser | — | none | `settings/preferences` | handoff-only | App ships a single theme. Handoff expects `theme.js` and a Preferences control. Needs a requirement before wiring. | ask designer (designer-change-request.md) |
+| SH13 | Shell | Export CSV / Parquet (transactions, planned) | `GET /transactions/export`, `GET /planned/export` | links only in `transactions/index.html`, `planned/index.html` (not rendered; `/transactions` and `/planned` redirect) | — | no board | Endpoints are live but the current Ledger UI has no link to them. Decide: surface, drop, or keep API-only. | ask designer (designer-change-request.md) |
 | SH14 | Shell | Developer component gallery | `GET /dev/components` | `dev/components.html` | `components.html` (reference page) | n/a | Internal gallery; the handoff `components.html` is its analogue, not a user feature. | |
 | SH15 | Shell | Operator endpoints: health, readiness, replication, audit tail | `GET /health`, `GET /ready`, `GET /health/replication`, `GET /debug/audit-tail` | none (JSON/plain) | — | n/a | Not user visible. Covered by contract tests (T-UT04a). | |
 | SH16 | Shell | Static files and OpenAPI/docs endpoints | `GET /openapi.json`, `GET /docs`, `GET /docs/oauth2-redirect` | none | — | n/a | Framework defaults and the `/static` mount (not in the router list). Whether `/docs` should stay enabled is a security question, not a parity one. | |
@@ -56,14 +56,14 @@
 | AU04 | Auth | Re-authenticate for sensitive actions (password) | `GET /auth/reauth`, `POST /auth/reauth` | `auth/reauth.html` | `auth/reauth` | mapped | | |
 | AU05 | Auth | Re-authenticate error state | `POST /auth/reauth` | `auth/reauth.html` | `auth/reauth--error` | mapped | | |
 | AU06 | Auth | Re-authenticate with passkey | `POST /auth/reauth/begin`, `POST /auth/reauth/finish` | `auth/reauth.html`, `static/js/passkeys.js` | `auth/reauth` | mapped | | |
-| AU07 | Auth | First-run registration (create the first account) | — | none | `auth/register` | handoff-only | App has no self-registration; the first user comes from seed/CLI. `GET /auth/register` is a different legacy route (AU15). Needs a requirement first. | — |
-| AU08 | Auth | Accept an invitation (set password from link) | — | none | `auth/invite` | handoff-only | No invite model in the app (admins create users directly, row ST09). | — |
-| AU09 | Auth | Invitation expired | — | none | `auth/invite--expired` | handoff-only | As AU08. | — |
+| AU07 | Auth | First-run registration (create the first account) | — | none | `auth/register` | handoff-only | App has no self-registration; the first user comes from seed/CLI. `GET /auth/register` is a different legacy route (AU15). Needs a requirement first. | ask designer (designer-change-request.md) |
+| AU08 | Auth | Accept an invitation (set password from link) | — | none | `auth/invite` | handoff-only | No invite model in the app (admins create users directly, row ST09). | ask designer (designer-change-request.md) |
+| AU09 | Auth | Invitation expired | — | none | `auth/invite--expired` | handoff-only | As AU08. | ask designer (designer-change-request.md) |
 | AU10 | Errors | Error 404 | — (exception handler) | `errors/404.html`, `errors/_shell.html` | `errors/404` | mapped | App shell is minimal (eyebrow, heading, "Back to dashboard"). Admin routes return the standard 404 for non-admins. | |
 | AU11 | Errors | Error 409 | — (exception handler) | `errors/409.html` | `errors/409` | mapped | | |
 | AU12 | Errors | Error 422 | — (exception handler) | `errors/422.html` | `errors/422` | mapped | | |
 | AU13 | Errors | Error 500 | — (exception handler) | `errors/500.html` | `errors/500` | mapped | | |
-| AU14 | Errors | Offline page | — | none (no service worker) | `errors/offline` | handoff-only | No PWA/offline support in v1 scope. | — |
+| AU14 | Errors | Offline page | — | none (no service worker) | `errors/offline` | handoff-only | No PWA/offline support in v1 scope. | ask designer (designer-change-request.md) |
 | AU15 | Auth | Legacy redirects into Security: passkey registration page, sessions page | `GET /auth/register`, `GET /auth/sessions` | none (redirect to `/settings/security`) | `settings/security` | mapped | Redirect only (ADR-0075). | |
 
 ## Today
@@ -79,7 +79,7 @@
 | TD07 | Today | Afford result: over budget | `GET /today/afford` | `today/_afford_preview.html` | `today--afford-over` | mapped | | |
 | TD08 | Today | Afford input invalid | `GET /today/afford` | `today/_afford_preview.html` | `today--afford-invalid` | mapped | | |
 | TD09 | Today | Success flash after an action on Today | — | `partials/_flash.html` | `today--flash` | mapped | See SH07. | |
-| TD10 | Today | Net-worth card: top account balances, "All N accounts", "Forecast" links | `GET /today` | `today/index.html` (netcard) | — | no board | Handoff Today has no accounts card. | |
+| TD10 | Today | Net-worth card: top account balances, "All N accounts", "Forecast" links | `GET /today` | `today/index.html` (netcard) | — | no board | Handoff Today has no accounts card. | ask designer (designer-change-request.md) |
 | TD11 | Today | Promote all due, add planned, add recurring buttons in the Upcoming header | `POST /planned/batch/promote-due`, `POST /recurring/batch/promote-due` (see L24) | `today/index.html` | `today` ("promote all due") | mapped | Handoff shows promote-all-due with the success flash; add buttons go through the new-entry dialog. | |
 
 ## Ledger
@@ -96,20 +96,20 @@
 | L08 | Ledger | Pagination | `GET /ledger/table` | `ledger/_table.html`, `partials/_pagination.html` | `ledger/actual` (fragment `ledger/pagination`) | mapped | | |
 | L09 | Ledger | Planned view: rows with due date, status, promote / edit / delete | `GET /ledger/table`, `GET /planned/table` | `ledger/_table.html`, `partials/planned/_table.html`, `partials/planned/_row.html` | `ledger/planned` | mapped | `GET /planned/table` is a legacy fragment. | |
 | L10 | Ledger | Recurring view: rows with next due, expandable formula and overrides | `GET /ledger/table` | `ledger/_table.html`, `partials/recurring/_row.html` | `ledger/recurring` | mapped | Handoff `expand.js` disclosure. | |
-| L11 | Ledger | Monthly cash-flow summary strip above the Recurring view | `GET /ledger` | `ledger/index.html` (`rd-recurring-strip`) | — | no board | | |
+| L11 | Ledger | Monthly cash-flow summary strip above the Recurring view | `GET /ledger` | `ledger/index.html` (`rd-recurring-strip`) | — | no board | | ask designer (designer-change-request.md) |
 | L12 | Ledger | Bulk selection and bulk bar (delete selected) | per-row `POST /transactions/{txn_id}/delete`, `POST /planned/{planned_id}/delete` | `static/js/bulk-select.js`, `ledger/index.html` (`data-bulk-toolbar`) | `ledger/actual` (fragment `ledger/bulk-bar`) | mapped | Handoff has no visible entry point (README section 6.7); open question 1 in `ui-redesign/derived.md`. App deletes per row; no atomic bulk endpoint. | |
 | L13 | Ledger | Recently deleted: transactions, planned, categories with restore | `GET /ledger/recently-deleted`, `POST /transactions/{txn_id}/restore`, `POST /planned/{planned_id}/restore`, `POST /categories/{category_id}/restore` | `ledger/_recently_deleted.html` | `ledger/recently-deleted` | mapped | Handoff fragments `rows/deleted-planned`, `rows/deleted-category`. | |
 | L14 | Ledger | Legacy list URLs redirect into the Ledger views | `GET /transactions`, `GET /planned`, `GET /recurring` | none (302 to `/ledger?view=...`) | `ledger/actual`, `ledger/planned`, `ledger/recurring` | mapped | Redirect only. | |
 | L15 | Ledger | New transaction (happened) form | `GET /transactions/new`, `POST /transactions` | `partials/transactions/_form.html` | `overlays/new-entry--happened`, `overlays/new-entry--error` | mapped | Also opened via `GET /add?when=happened` (SH04). | |
 | L16 | Ledger | Edit transaction | `GET /transactions/{txn_id}/edit`, `POST /transactions/{txn_id}` | `partials/transactions/_form.html` | `overlays/edit-transaction`, `overlays/edit-transaction--error` | mapped | | |
 | L17 | Ledger | Transit transfer between accounts (destination account) | `GET /transactions/new`, `GET /transactions/{txn_id}/edit` | `partials/transactions/_form.html` | `overlays/edit-transaction--transit` | mapped | Handoff `reveal.js` shows the destination only for Transit. | |
-| L18 | Ledger | Credit-limit preview while entering a transaction on a liability account | `GET /transactions/_limit_preview` | `partials/transactions/_limit_preview.html` | — | no board | Handoff draws the credit line only on the account row (AC01). | |
+| L18 | Ledger | Credit-limit preview while entering a transaction on a liability account | `GET /transactions/_limit_preview` | `partials/transactions/_limit_preview.html` | — | no board | Handoff draws the credit line only on the account row (AC01). | ask designer (designer-change-request.md) |
 | L19 | Ledger | Delete transaction with undo | `POST /transactions/{txn_id}/delete` | `ledger/_table.html` (row menu) | `overlays/row-menu--transaction` | mapped | Handoff delete = row removal plus `toast/undo`. Restore is in L13. | |
 | L20 | Ledger | New planned entry | `GET /planned/new`, `POST /planned` | `partials/planned/_form.html` | `overlays/new-entry--planned` | mapped | | |
 | L21 | Ledger | Edit planned entry | `GET /planned/{planned_id}/edit`, `POST /planned/{planned_id}` | `partials/planned/_form.html` | `overlays/edit-planned` | mapped | | |
 | L22 | Ledger | Delete planned entry with undo | `POST /planned/{planned_id}/delete` | `ledger/_table.html` (row menu) | `overlays/row-menu--planned` | mapped | | |
 | L23 | Ledger | Promote planned entry to a transaction (dialog) | `GET /planned/{planned_id}/promote`, `POST /planned/{planned_id}/promote` | `partials/planned/_promote_modal.html` | `overlays/promote--planned` | mapped | | |
-| L23b | Ledger | Promote planned / recurring as an inline row variant | `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline` | `partials/planned/_promote_inline_row.html`, `partials/recurring/_promote_inline_row.html` | — | no board | Handoff drops the inline variant (README section 6, open question 2 in `derived.md`). | |
+| L23b | Ledger | Promote planned / recurring as an inline row variant | `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline` | `partials/planned/_promote_inline_row.html`, `partials/recurring/_promote_inline_row.html` | — | no board | Handoff drops the inline variant (README section 6, open question 2 in `derived.md`). | ask designer (designer-change-request.md) |
 | L24 | Ledger | Promote all due (planned and recurring) with batch undo | `POST /planned/batch/promote-due`, `POST /planned/batch/undo`, `POST /recurring/batch/promote-due`, `POST /recurring/batch/undo` | `today/index.html`, `ledger/index.html` | `today` ("promote all due"), `today--flash` | mapped | Undo is a toast (SH08). | |
 | L25 | Ledger | New recurring rule: fixed amount | `GET /recurring/new`, `POST /recurring` | `partials/recurring/_form.html` | `overlays/new-entry--repeats-fixed` | mapped | | |
 | L25b | Ledger | New recurring rule: formula amount | `GET /recurring/new`, `POST /recurring` | `partials/recurring/_form.html` | `overlays/new-entry--repeats-formula` | mapped | | |
@@ -148,7 +148,7 @@
 | AC04 | Accounts | New account (empty, filled, validation error) | `GET /accounts/new`, `POST /accounts` | `partials/accounts/_form.html` | `overlays/new-account`, `overlays/new-account--filled`, `overlays/new-account--error` | mapped | | |
 | AC05 | Accounts | Edit account (asset and liability with credit limit) | `GET /accounts/{account_id}/edit`, `POST /accounts/{account_id}` | `partials/accounts/_form.html` | `overlays/edit-account`, `overlays/edit-account--liability` | mapped | | |
 | AC06 | Accounts | Delete account | `POST /accounts/{account_id}/delete` | `accounts/index.html`, `partials/accounts/_row.html` | `overlays/delete-account` | mapped | Handoff uses an alertdialog confirm; app posts straight from the menu. | |
-| AC07 | Accounts | Delete account refused because it still has transactions | `POST /accounts/{account_id}/delete` | none | `overlays/delete-account--blocked` | handoff-only | `delete_account` soft-deletes unconditionally; the blocking rule does not exist. Needs a requirement before wiring. | — |
+| AC07 | Accounts | Delete account refused because it still has transactions | `POST /accounts/{account_id}/delete` | none | `overlays/delete-account--blocked` | handoff-only | `delete_account` soft-deletes unconditionally; the blocking rule does not exist. Needs a requirement before wiring. | ask designer (designer-change-request.md) |
 | AC08 | Accounts | Reconcile (asset and liability): compare balance, record adjustment | `GET /accounts/{account_id}/reconcile`, `POST /accounts/{account_id}/reconcile` | `partials/accounts/_reconcile_modal.html` | `overlays/reconcile`, `overlays/reconcile--liability` | mapped | | |
 | AC09 | Accounts | Balance snapshots inside the reconcile panel | `POST /accounts/{account_id}/snapshot` | `partials/accounts/_snapshot_item.html`, `partials/accounts/_card.html` | `overlays/reconcile` (fragment `rows/reconcile-snapshot`) | mapped | | |
 | AC10 | Accounts | Account row menu | — | `partials/accounts/_row.html` | `overlays/row-menu--account` | mapped | See SH09. | |
@@ -166,37 +166,37 @@
 | ST07 | Settings | Currency and FX tab: cached rates table | `GET /settings?tab=fx` | `settings/_fx.html` | `settings/currency-fx` | mapped | App table is read-only: pair, as-of, rate. Check the handoff page for extra controls in T-UT04. | |
 | ST08 | Settings | Preferences tab: base currency and timezone (read-only) | `GET /settings?tab=prefs` | `settings/_prefs.html` | `settings/preferences` | mapped | Handoff adds Appearance (theme), see SH12. | |
 | ST09 | Settings | Security: change password section | `GET /settings/password`, `POST /settings/password` | `settings/security.html`, `settings/password.html`, `settings/_password_form.html` | `settings/security` | mapped | App has a separate page; handoff has an inline section in Security. | |
-| ST10 | Settings | Forced password change after admin reset (must-change gate) | `GET /settings/password`, `POST /settings/password` | `settings/password.html` ("Set a new password") | — | no board | Middleware redirects every page here until done. | |
+| ST10 | Settings | Forced password change after admin reset (must-change gate) | `GET /settings/password`, `POST /settings/password` | `settings/password.html` ("Set a new password") | — | no board | Middleware redirects every page here until done. | ask designer (designer-change-request.md) |
 | ST11 | Settings | Security: passkey list, add, remove | `GET /settings/security`, `POST /auth/register/begin`, `POST /auth/register/finish`, `POST /auth/passkeys/{credential_id}/revoke` | `settings/security.html`, `static/js/passkeys.js` | `settings/security` | mapped | | |
 | ST12 | Settings | Security: active sessions list and sign out a device | `POST /auth/sessions/{handle}/revoke` | `settings/security.html` | `settings/security` (fragment `rows/session-row`) | mapped | | |
 | ST13 | Settings | Security: validation error states | `POST /settings/password`, `POST /auth/register/finish` | `settings/security.html` | `settings/security--error` | mapped | | |
 | ST14 | Settings | Users list (admin only; 404 for others) | `GET /settings/users` | `settings/users/list.html`, `settings/users/_table.html`, `settings/users/_row.html` | `settings/users` (fragment `rows/user-row`) | mapped | App columns: user, role, added, last seen. Handoff: email, role, last seen, status (active / invited). | |
-| ST15 | Settings | Add user directly (email, name, admin flag) with one-time generated password toast | `POST /settings/users` | `settings/users/list.html`, `settings/users/_add-errors.html`, `settings/users/_password-toast.html` | — | no board | Handoff draws an invite-link flow instead (row ST16). | |
-| ST16 | Settings | Invite someone by email and role, shows "invited, expires" status | — | none | `settings/users` ("create invite link") | handoff-only | No invite model in the app (see AU08, AU09). Needs a requirement first. | — |
+| ST15 | Settings | Add user directly (email, name, admin flag) with one-time generated password toast | `POST /settings/users` | `settings/users/list.html`, `settings/users/_add-errors.html`, `settings/users/_password-toast.html` | — | no board | Handoff draws an invite-link flow instead (row ST16). | ask designer (designer-change-request.md) |
+| ST16 | Settings | Invite someone by email and role, shows "invited, expires" status | — | none | `settings/users` ("create invite link") | handoff-only | No invite model in the app (see AU08, AU09). Needs a requirement first. | ask designer (designer-change-request.md) |
 | ST17 | Settings | Edit user | `GET /settings/users/{user_id}/edit`, `POST /settings/users/{user_id}` | `settings/users/edit.html` | `overlays/edit-user` | mapped | | |
-| ST18 | Settings | Reset a user's password | `POST /settings/users/{user_id}/reset-password` | `settings/users/_row.html`, `settings/users/_password-toast.html` | — | no board | | |
-| ST19 | Settings | Delete a user | `POST /settings/users/{user_id}/delete` | `settings/users/_row.html` | — | no board | | |
+| ST18 | Settings | Reset a user's password | `POST /settings/users/{user_id}/reset-password` | `settings/users/_row.html`, `settings/users/_password-toast.html` | — | no board | | ask designer (designer-change-request.md) |
+| ST19 | Settings | Delete a user | `POST /settings/users/{user_id}/delete` | `settings/users/_row.html` | — | no board | | ask designer (designer-change-request.md) |
 
 ## Open gaps (for T-UT06)
 
 | ID | Status | Feature | Handoff reference | Decision |
 |---|---|---|---|---|
-| SH12 | `handoff-only` | Theme switch (system, light, dark), saved per browser | `settings/preferences` | |
-| SH13 | `no board` | Export CSV / Parquet (transactions, planned) | — | |
-| AU07 | `handoff-only` | First-run registration (create the first account) | `auth/register` | |
-| AU08 | `handoff-only` | Accept an invitation (set password from link) | `auth/invite` | |
-| AU09 | `handoff-only` | Invitation expired | `auth/invite--expired` | |
-| AU14 | `handoff-only` | Offline page | `errors/offline` | |
-| TD10 | `no board` | Net-worth card: top account balances, "All N accounts", "Forecast" links | — | |
-| L11 | `no board` | Monthly cash-flow summary strip above the Recurring view | — | |
-| L18 | `no board` | Credit-limit preview while entering a transaction on a liability account | — | |
-| L23b | `no board` | Promote planned / recurring as an inline row variant | — | |
-| AC07 | `handoff-only` | Delete account refused because it still has transactions | `overlays/delete-account--blocked` | |
-| ST10 | `no board` | Forced password change after admin reset (must-change gate) | — | |
-| ST15 | `no board` | Add user directly (email, name, admin flag) with one-time generated password toast | — | |
-| ST16 | `handoff-only` | Invite someone by email and role, shows "invited, expires" status | `settings/users` ("create invite link") | |
-| ST18 | `no board` | Reset a user's password | — | |
-| ST19 | `no board` | Delete a user | — | |
+| SH12 | `handoff-only` | Theme switch (system, light, dark), saved per browser | `settings/preferences` | ask designer (designer-change-request.md) |
+| SH13 | `no board` | Export CSV / Parquet (transactions, planned) | — | ask designer (designer-change-request.md) |
+| AU07 | `handoff-only` | First-run registration (create the first account) | `auth/register` | ask designer (designer-change-request.md) |
+| AU08 | `handoff-only` | Accept an invitation (set password from link) | `auth/invite` | ask designer (designer-change-request.md) |
+| AU09 | `handoff-only` | Invitation expired | `auth/invite--expired` | ask designer (designer-change-request.md) |
+| AU14 | `handoff-only` | Offline page | `errors/offline` | ask designer (designer-change-request.md) |
+| TD10 | `no board` | Net-worth card: top account balances, "All N accounts", "Forecast" links | — | ask designer (designer-change-request.md) |
+| L11 | `no board` | Monthly cash-flow summary strip above the Recurring view | — | ask designer (designer-change-request.md) |
+| L18 | `no board` | Credit-limit preview while entering a transaction on a liability account | — | ask designer (designer-change-request.md) |
+| L23b | `no board` | Promote planned / recurring as an inline row variant | — | ask designer (designer-change-request.md) |
+| AC07 | `handoff-only` | Delete account refused because it still has transactions | `overlays/delete-account--blocked` | ask designer (designer-change-request.md) |
+| ST10 | `no board` | Forced password change after admin reset (must-change gate) | — | ask designer (designer-change-request.md) |
+| ST15 | `no board` | Add user directly (email, name, admin flag) with one-time generated password toast | — | ask designer (designer-change-request.md) |
+| ST16 | `handoff-only` | Invite someone by email and role, shows "invited, expires" status | `settings/users` ("create invite link") | ask designer (designer-change-request.md) |
+| ST18 | `no board` | Reset a user's password | — | ask designer (designer-change-request.md) |
+| ST19 | `no board` | Delete a user | — | ask designer (designer-change-request.md) |
 
 ## Appendix A: Route index
 

@@ -103,6 +103,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ### ◻ T-UT06 [S] Operator decisions on parity gaps → T-UT05
 - Every `no board` and `handoff-only` row in `parity.md` gets a decision: derive from the design system, ask the designer for a board, drop (needs an ADR), or new requirement first (for handoff-only features). Decisions copied into `docs/plans/ui-redesign/derived.md`.
+- Status 2026-11-20: change request sent: docs/plans/ui-redesign/designer-change-request.md; awaiting designer; T-UT12 does not block on the answers, only on every gap row having a decision/owner. Operator decision: all 16 gaps go to the designer; every `parity.md` row reads `ask designer (designer-change-request.md)`.
 
 ### ◻ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.

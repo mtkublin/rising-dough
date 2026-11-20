@@ -12,6 +12,8 @@
 
 ## Parity gaps (from `../ui-test-harness/parity.md`, T-UT06)
 
+> **Pending the designer (2026-11-20).** All 16 gaps (9 `no board`, 7 `handoff-only`), including open question 2 above (inline promote, row L23b), were routed to the designer as one change request: [designer-change-request.md](designer-change-request.md). None is resolved here; this table is filled in from the designer's answers.
+
 | Feature / screen | Status | Decision (derive / ask designer / drop + ADR / requirement first) | Date |
 |---|---|---|---|
 | _…_ | | | |
