@@ -1,0 +1,63 @@
+# G17a workflow_trust: workflow trust-boundary debt (Q-012, Q-040; declared in ci_environments.toml).
+
+guard = "workflow_trust"
+
+[[entry]]
+path = ".github/workflows/drill-destroy.yml"
+rule = "ungated-environment"
+count = 1
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/drill-sweeper.yml"
+rule = "ungated-environment"
+count = 2
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/drill.yml"
+rule = "ungated-environment"
+count = 2
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/key-expiry.yml"
+rule = "ungated-environment"
+count = 1
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/replace-rehearsal.yml"
+rule = "ungated-environment"
+count = 6
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/restore-drill.yml"
+rule = "ungated-environment"
+count = 3
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/tailnet-cleanup.yml"
+rule = "ungated-environment"
+count = 2
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/terraform.yml"
+rule = "prod-env-from-branch-trigger"
+count = 2
+finding = "Q-012"
+
+[[entry]]
+path = ".github/workflows/terraform.yml"
+rule = "ungated-environment"
+count = 4
+finding = "Q-012"
+
+[[entry]]
+path = "terraform/modules/compute/user_data.tf"
+rule = "cosign-identity-unpinned"
+count = 1
+finding = "Q-040"

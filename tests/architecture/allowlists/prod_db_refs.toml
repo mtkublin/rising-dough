@@ -1,0 +1,39 @@
+# G10 prod_db_refs: tests mentioning budget.sqlite (tmp_path file names and text assertions only).
+
+guard = "prod_db_refs"
+
+[[permanent]]
+path = "tests/auth_support.py"
+count = 1
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
+
+[[permanent]]
+path = "tests/conftest.py"
+count = 3
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
+
+[[permanent]]
+path = "tests/e2e/test_drill_passkey_check.py"
+count = 1
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
+
+[[permanent]]
+path = "tests/unit/deploy/test_prod_db_seed.py"
+count = 2
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
+
+[[permanent]]
+path = "tests/unit/web/test_production_assertions.py"
+count = 4
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
+
+[[permanent]]
+path = "tests/visual/conftest.py"
+count = 1
+finding = "Q-060"
+reason = "file name under tmp_path or a text assertion, never the repo data/ database"
