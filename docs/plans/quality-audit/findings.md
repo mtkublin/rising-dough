@@ -1,6 +1,6 @@
 # Code-Quality Audit — Findings Register
 
-> Deliverable 1 (consolidated, T-Q11). Awaiting operator review (T-Q12), then frozen.
+> Deliverable 1 (consolidated, T-Q11). **Frozen — operator review T-Q12 done 2026-11-20 (all accepted).**
 > Schema, severity rubric and root-cause classes: [implementation_plan.md §4–§5](implementation_plan.md#4--finding-schema).
 > All `path:line` references are valid at `AUDIT_SHA` (9fb18cb) only. `audit/quality` later absorbed main's T-D158 CI and Terraform changes, so findings in `.github/workflows/terraform.yml`, `scripts/ci/host_release.py`, `terraform/main.tf` (H1 and D findings) need a re-check at remediation time.
 
@@ -14,7 +14,21 @@
 | LOC per package | Lines (files) under `src/budget_planner`: `domain` 1,283 (16); `services` 7,263 (32); `repositories` 3,563 (18); `web/routers` 6,114 (20); `web/templates` 6,022 (111); `web/static` 8,488 (44); `db` 752 (6); `adapters` 0 (3, empty); `cli` 155 (2). Package total (.py) 22,254 (120). `tests/` (.py) 39,158 (232). |
 | `just ci` at SHA | Green: ruff, mypy (352 files) clean; 2637 passed, 17 skipped in 423.00s (pytest), 8:52.96 wall for the whole `just ci` (`PYTEST_WORKERS=2`); coverage 94.70% (gate 90%). Raw output: `baseline/ci.txt`, per-module table: `baseline/coverage.txt` |
 | Scratch DB | `/tmp/audit.sqlite` (copied from `data/demo.sqlite`; migrations not needed) |
-| Status | Phase 3 complete, awaiting operator review (T-Q12). V1, V2, V3 verification and Track H4 (infra red team on drill 44609305750) folded in |
+| Status | Frozen — operator review T-Q12 done 2026-11-20 (all accepted). Phase 3 complete. V1, V2, V3 verification and Track H4 (infra red team on drill 44609305750) folded in |
+
+## Operator review (T-Q12)
+
+Date: 2026-11-20. Status: **frozen**.
+
+**Decision.** All findings are accepted as consolidated: 80 Q-ids (0 Critical, 20 High, 41 Medium, 19 Low), with the severities in this register. None adjusted, none dismissed beyond the one track finding already recorded as out of scope.
+
+**Directive (full compliance).** The operator added: "the plan must also cover converging our architecture to FULL compliance with our assumed architectural principles (DRY, functional paradigm, no side effects etc.). We want no violations in our codebase — not only instances that caused bugs, all of them. Our development rules need to be tightened to prevent drifting in the future."
+
+**Consequences.**
+- The register lists the violations that caused or could cause defects. The directive widens the target to *every* violation of a stated principle. The complete inventory is `compliance-inventory.md` (same folder); it is the starting content of each guard's allowlist.
+- Each guard's allowlist must reach zero. No new allowlist entries without an ADR amendment ([ADR-0130](../../adr/0130-prevention-regime-and-full-architectural-compliance.md)).
+- Development rules are tightened by ADR-0130 (search-before-write, canonical-module reuse, handoff and merge-step checks).
+- Other operator decisions of the day (CI runs pre-commit for parity, CI-side only with no local slowdown, mutation job, `clock.py`, settings check) are recorded in [prevention.md §5](prevention.md#5-operator-decisions-needed-before-or-during-t-q15) and ADR-0130/0131.
 
 ## Summary
 
