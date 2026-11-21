@@ -13,7 +13,6 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -45,10 +44,7 @@ def _compute(
     horizon_months: int,
 ) -> forecast_service.MonthlySeries:
     today = date.today()  # noqa: DTZ011
-    with httpx.Client(timeout=5.0) as client:
-        return forecast_service.forecast_monthly(
-            conn, user_id, client, today, horizon_months, settings.base_currency
-        )
+    return forecast_service.monthly_for_settings(conn, user_id, settings, today, horizon_months)
 
 
 @router.get("", response_class=HTMLResponse)

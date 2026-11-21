@@ -28,6 +28,7 @@ A web application for personal budget planning and fortune (net-worth) tracking 
 - **F2.1** Create multiple accounts. Each account has: `name` (required, unique), `type` (optional free-text label, e.g. "bank", "cash"), `currency` (ISO 4217, immutable after creation), `opening_balance` (integer minor units). Account creation surfaces as a slide-over (not inline), carries a visible close affordance per [ADR-0030](adr/0030-shared-form-interaction-primitives.md), clears its inputs after a successful save, selects currency from a filterable combobox over the ISO 4217 list, and **shows the "Credit limit" field only when the "Credit (liability)" toggle is enabled** — this conditional-visibility rule applies on initial render inside the slide-over, on toggle change, and after HTMX re-swaps the form (e.g. 422 validation rerender). The initial-render regression (credit-limit visible even when the toggle is off on a fresh New-account slide-over) is a bug fixed in T-123; see [ADR-0030 §6](adr/0030-shared-form-interaction-primitives.md) for the lockstep `hidden` + `aria-hidden` + `disabled` contract.
 - **F2.1a** Liability accounts carry an `is_liability` boolean (default `false`) and an optional `credit_limit_minor` positive integer; see [ADR-0024](adr/0024-liability-accounts-and-credit-limit.md). The user-facing label for the liability toggle is **"Credit (liability)"** (ADR-0030) — the data contract is unchanged.
 - **F2.2** Transactions must reference an existing (non-deleted) account.
+- **F2.2a** (T-Q230, ADR-0019) An account can be archived only with a zero balance and no live active recurring rules or unpromoted planned rows using it; otherwise the archive is refused with 409 and a message naming each blocker. No silent cascade.
 - **F2.3** View current state per account:
     - Current balance (derived from `opening_balance + Σ signed transactions`).
     - Transaction count, average inflow/outflow, last activity date.
@@ -94,7 +95,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - **F7.1** Each account has an immutable `currency` set at creation.
 - **F7.2** Transactions inherit the currency of their account (not stored on the transaction row).
 - **F7.3** A `base_currency` configured in the application config (default: `PLN`). All aggregates (fortune, budget, forecast, analytics) converted into base currency for display.
-- **F7.4** FX rates fetched from the ECB via `frankfurter.app` on demand, cached in a local `fx_rates(date, from_ccy, to_ccy, rate)` table. **Historical rates used for historical transaction conversion** (a transaction on 2026-01-15 converts at the 2026-01-15 rate, not today's). Fallback to the last-known rate if the API is unreachable.
+- **F7.4** FX rates fetched from the ECB via `frankfurter.app` on demand, cached in a local `fx_rates(date, from_ccy, to_ccy, rate)` table. **Historical rates used for historical transaction conversion** (a transaction on 2026-01-15 converts at the 2026-01-15 rate, not today's). **One converter** (`services/fx.FxConverter`, ADR-0139): reads the `fx_rates` cache only (exact date, else latest on or before it); page renders never touch the network. A missing rate raises `FxUnavailableError` (HTTP 503 page); there is no rate-1 or native-amount fallback. Live rates are fetched by an explicit refresh path (`python -m budget_planner.cli.refresh_fx`), through one httpx client factory with `base_url=settings.fx_api_url`; rates must be `> 0`.
 - **F7.5** Transits across currencies are **blocked at the validation layer** in v1.
 
 ---
@@ -263,11 +264,9 @@ v2 keeps v1's functional surface and data model unchanged and layers a full UI/U
 | Endpoint | Purpose | Notes |
 |---|---|---|
 | `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. |
-| `POST /recurring/formula/preview` | Returns computed value for a draft formula term list | Used by Add-entry formula builder; validates cycles / non-positive before save. |
-| `GET /accounts/last-checked` | Latest snapshot or reconcile date per account | Powers the "last checked" column on Accounts. |
-| `GET /plan/analytics` | Spend by category for selected period + 12-month averages + income-vs-expense + largest items | Replaces Plotly-backed `/analytics` with server-rendered SVG + table. |
 | `POST /categories/{id}/archive` + `POST /categories/{id}/restore` | Archive / restore category | Soft-delete via existing repository helper. |
-| `POST /recurring/batch/promote-due` | Promote every rule due today or overdue | Returns a toast with Undo (soft-delete makes undo safe). |
+
+Routes removed by T-Q244 (Q-050; no caller, ADR-0107 redesign owns any future UI): `POST /recurring/formula/preview`, `GET /accounts/last-checked`, `GET /plan/analytics` (the Plan analytics tab renders inline), `POST /budget/recurring/{category_id}/{month}`, `POST /recurring/batch/promote-due` and `POST /recurring/batch/undo` (the Today page uses `/planned/batch/promote-due`).
 
 All endpoints follow the existing router → service → repository → SQL stack. No new persistence tables.
 

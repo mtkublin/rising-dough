@@ -52,15 +52,6 @@ def acc_id(_migrated: Settings) -> int:
         conn.close()
 
 
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_index_renders_with_grid(client: TestClient, acc_id: int) -> None:
-    r = client.get("/accounts")
-    assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find(id="accounts-grid") is not None
-    assert soup.find(id=f"account-{acc_id}") is not None
-
-
 def test_new_form_fragment(client: TestClient) -> None:
     r = client.get("/accounts/new")
     assert r.status_code == 200
@@ -245,86 +236,6 @@ def _get_card(client: TestClient, acc_id: int) -> BeautifulSoup:
     return BeautifulSoup(str(card), "html.parser")
 
 
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_renders_sparkline(client: TestClient, acc_id: int, _migrated: Settings) -> None:
-    """Series has ≥ 2 points (90-day daily sample) so the sparkline must render."""
-    # Give the account at least one historical transaction so the series is not flat-zero.
-    conn = get_connection(_migrated)
-    try:
-        cat = categories_repo.create(
-            conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
-        )
-        transactions_repo.create(
-            conn,
-            USER_ID,
-            NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
-                category_id=cat.id,
-                account_id=acc_id,
-                amount=12345,
-            ),
-        )
-    finally:
-        conn.close()
-    card = _get_card(client, acc_id)
-    svg = card.find("svg", class_="sparkline")
-    assert isinstance(svg, Tag), "expected inline SVG sparkline when series has ≥ 2 points"
-    polyline = svg.find("polyline")
-    assert isinstance(polyline, Tag)
-    points = str(polyline.get("points") or "")
-    # At least two coordinate pairs.
-    assert len(points.split()) >= 2
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_sparkline_empty_state_degrades_gracefully(client: TestClient, acc_id: int) -> None:
-    """`balance_series` with days=1 (or empty) must not break the card template."""
-    # Patch the series helper to return a single point so the sparkline cannot
-    # be drawn. The card should still render; graceful text replaces the SVG.
-    original = balance_service.balance_series
-
-    def _one_point(conn, user_id, account_id, *, days=90, today=None):  # type: ignore[no-untyped-def]
-        d = today or date(2026, 10, 26)
-        return [(d, 0)]
-
-    balance_service.balance_series = _one_point
-    try:
-        card = _get_card(client, acc_id)
-        assert card.find("svg", class_="sparkline") is None
-        assert "no history" in card.get_text()
-    finally:
-        balance_service.balance_series = original
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_has_inline_reconcile_button(client: TestClient, acc_id: int) -> None:
-    card = _get_card(client, acc_id)
-    btn = card.find("button", attrs={"hx-get": f"/accounts/{acc_id}/reconcile"})
-    assert isinstance(btn, Tag), "expected a visible Reconcile button inside the card body"
-    assert "Reconcile" in btn.get_text()
-    # Must target the modal root with innerHTML swap.
-    assert btn.get("hx-target") == "#modal-root"
-    assert btn.get("hx-swap") == "innerHTML"
-    # Button is visible — not inside the snapshot disclosure.
-    assert btn.find_parent("details") is None
-    assert "btn-ghost" in (btn.get("class") or [])
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_snapshot_disclosure(client: TestClient, acc_id: int) -> None:
-    card = _get_card(client, acc_id)
-    details = card.find("details")
-    assert isinstance(details, Tag), "expected <details> wrapper around snapshot history"
-    # Collapsed by default.
-    assert not details.has_attr("open")
-    summary = details.find("summary")
-    assert isinstance(summary, Tag)
-    assert "snapshots" in summary.get_text().lower()
-    # Snapshot <ul> lives inside the disclosure.
-    snapshot_list = details.find("ul", attrs={"id": f"account-{acc_id}-snapshots"})
-    assert snapshot_list is not None
-
-
 # ---------------------------------------------------------------------------
 # T-084 — Liability accounts: form, card, dashboard split (ADR-0024)
 
@@ -423,141 +334,6 @@ def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated:
     assert after.credit_limit_minor is None
 
 
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_shows_utilization_strip_only_for_liability(
-    client: TestClient, _migrated: Settings
-) -> None:
-    conn = get_connection(_migrated)
-    try:
-        accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
-        accounts_repo.create(conn, USER_ID, NewAccount(name="Bank", currency="PLN"))
-    finally:
-        conn.close()
-    r = client.get("/accounts")
-    soup = BeautifulSoup(r.text, "html.parser")
-    cards = soup.find_all("article", class_="account-card")
-    strips_by_name = {}
-    for c in cards:
-        header = c.find("h3")
-        strip = c.find("dl", class_="credit-strip")
-        assert header is not None
-        strips_by_name[header.get_text(strip=True)] = strip
-    assert strips_by_name["Visa"] is not None
-    assert strips_by_name["Bank"] is None
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
-    client: TestClient, _migrated: Settings
-) -> None:
-    conn = get_connection(_migrated)
-    try:
-        visa = accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=100_000,
-            ),
-        )
-        cat = categories_repo.create(
-            conn, USER_ID, NewCategory(name="X", direction=Direction.EXPENSE)
-        )
-        transactions_repo.create(
-            conn,
-            USER_ID,
-            NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
-                category_id=cat.id,
-                account_id=visa.id,
-                amount=250_000,
-            ),
-        )
-    finally:
-        conn.close()
-    card = _get_card(client, visa.id)
-    badge = card.find("p", class_="badge--warning")
-    assert isinstance(badge, Tag)
-    assert "Over limit by" in badge.get_text()
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Settings) -> None:
-    conn = get_connection(_migrated)
-    try:
-        visa = accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
-        cat = categories_repo.create(
-            conn, USER_ID, NewCategory(name="Y", direction=Direction.EXPENSE)
-        )
-        transactions_repo.create(
-            conn,
-            USER_ID,
-            NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
-                category_id=cat.id,
-                account_id=visa.id,
-                amount=50_000,
-            ),
-        )
-    finally:
-        conn.close()
-    card = _get_card(client, visa.id)
-    assert card.find("p", class_="badge--warning") is None
-
-
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_accounts_index_renders_assets_liabilities_net(
-    client: TestClient, _migrated: Settings
-) -> None:
-    conn = get_connection(_migrated)
-    try:
-        accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(name="Bank", currency="PLN", opening_balance=100_000),
-        )
-        accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
-    finally:
-        conn.close()
-    r = client.get("/accounts")
-    soup = BeautifulSoup(r.text, "html.parser")
-    section = soup.find("section", class_="fortune-split")
-    assert section is not None
-    text = section.get_text()
-    assert "Assets" in text
-    assert "Liabilities" in text
-    assert "Net worth" in text
-
-
 # ---------------------------------------------------------------------------
 # T-123 — Credit-limit field initial-render lockstep bug (ADR-0030 §6 contract).
 #
@@ -629,47 +405,6 @@ def test_edit_form_hides_credit_limit_for_asset(client: TestClient, acc_id: int)
     assert limit_input.has_attr("disabled")
 
 
-@pytest.mark.skip(reason="v1 accounts card layout — superseded by Rising Dough table (ADR-0051 §6)")
-def test_utilization_bar_has_progressbar_role(client: TestClient, _migrated: Settings) -> None:
-    conn = get_connection(_migrated)
-    try:
-        visa = accounts_repo.create(
-            conn,
-            USER_ID,
-            NewAccount(
-                name="Visa",
-                currency="PLN",
-                is_liability=True,
-                credit_limit_minor=1_000_000,
-            ),
-        )
-    finally:
-        conn.close()
-    card = _get_card(client, visa.id)
-    bar = card.find("div", class_="utilization-bar")
-    assert isinstance(bar, Tag)
-    assert bar.get("role") == "progressbar"
-    assert bar.get("aria-valuemin") == "0"
-    assert bar.get("aria-valuemax") == "100"
-    assert bar.get("aria-valuenow") is not None
-
-
-# ---------------------------------------------------------------------------
-# T-R42 — GET /accounts/last-checked (ADR-0056 §6)
-# ---------------------------------------------------------------------------
-def test_last_checked_empty(client: TestClient) -> None:
-    r = client.get("/accounts/last-checked")
-    assert r.status_code == 200
-    assert 'data-rows="0"' in r.text
-
-
-def test_last_checked_with_accounts(client: TestClient, acc_id: int) -> None:
-    r = client.get("/accounts/last-checked")
-    assert r.status_code == 200
-    assert 'data-rows="1"' in r.text
-    assert 'data-source="none"' in r.text
-
-
 # ---------------------------------------------------------------------------
 # T-D51 — Liability "Available" renders with 2 decimals.
 
@@ -714,3 +449,19 @@ def test_new_form_targets_itself_not_accounts_grid(client: TestClient) -> None:
     assert 'id="account-form"' in r.text
     assert 'hx-target="#account-form"' in r.text
     assert "#accounts-grid" not in r.text
+
+
+def test_delete_refused_when_balance_not_zero(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    acc = accounts_repo.create(
+        db, USER_ID, NewAccount(name="Funded", currency="PLN", opening_balance=500)
+    )
+    audit_before = _count(db, "audit_log")
+
+    r = client.post(f"/accounts/{acc.id}/delete", headers={"HX-Request": "true"})
+
+    assert r.status_code == 409
+    assert "Cannot archive account: Balance is not zero" in r.text
+    assert accounts_repo.find_by_id(db, USER_ID, acc.id) is not None
+    assert _count(db, "audit_log") == audit_before

@@ -19,11 +19,6 @@ from budget_planner.services import _passwords
 NEW_PASSWORD = "Op3rator-chosen!"  # noqa: S105  # pragma: allowlist secret
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 @pytest.fixture
 def db_path(tmp_path: Path) -> Path:
     path = tmp_path / "cli.sqlite"

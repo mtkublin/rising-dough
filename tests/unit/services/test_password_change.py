@@ -23,11 +23,6 @@ NEW_PASSWORD = "a-brand-new-passphrase"  # noqa: S105  # pragma: allowlist secre
 CTX = RequestCtx(ip="203.0.113.7", user_id=1, session_id="h4ndle", user_agent="pytest-ua")
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 @pytest.fixture
 def user_id(conn: sqlite3.Connection) -> int:
     uid = seed_login_user(conn)

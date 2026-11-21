@@ -26,7 +26,6 @@ from budget_planner.db.migrate import (
     apply_migrations,
     discover,
 )
-from budget_planner.services import _passwords
 from budget_planner.web.app import create_app
 
 ADMIN_EMAIL = "ops@example.test"
@@ -34,11 +33,6 @@ ADMIN_PASSWORD = "startup-Init1al!"  # noqa: S105  # pragma: allowlist secret
 COOKIE_SECRET = "s" * 48  # pragma: allowlist secret
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENTRYPOINT = REPO_ROOT / "deploy" / "docker-entrypoint.sh"
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
 
 
 def _settings(db: Path, **kwargs: Any) -> Settings:

@@ -12,12 +12,6 @@ from budget_planner.services import _passwords
 PASSWORD = "s3cret-passw0rd"  # noqa: S105  # pragma: allowlist secret
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep bcrypt cheap in tests; production cost stays 12."""
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 @pytest.fixture
 def make_user(conn: sqlite3.Connection) -> Callable[..., int]:
     def _make(

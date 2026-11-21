@@ -19,6 +19,7 @@ from budget_planner.config import Settings
 from budget_planner.web.app import create_app
 from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
 from tests.auth_support import TEST_PASSWORD, login_cookie
+from tests.db_template import sqlite_url
 from tests.integration.web.conftest import _CSRFAwareTestClient
 
 pytestmark = pytest.mark.integration
@@ -30,10 +31,10 @@ HX = {"HX-Request": "true"}
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> Settings:
+def settings(migrated_db: Path) -> Settings:
     return Settings(
         _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}",
+        database_url=sqlite_url(migrated_db),
         rate_limit_password_change_per_minute=PER_MINUTE,
         rate_limit_password_change_per_hour=50,
     )
@@ -140,10 +141,10 @@ def test_other_user_is_unaffected(client: TestClient, clock: _Clock, settings: S
     assert _post(client).status_code == 422
 
 
-def test_kill_switch_disables_limit(tmp_path: Path, session_cookie: tuple[str, str]) -> None:
+def test_kill_switch_disables_limit(migrated_db: Path, session_cookie: tuple[str, str]) -> None:
     off = Settings(
         _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}",
+        database_url=sqlite_url(migrated_db),
         rate_limit_enabled=False,
         rate_limit_password_change_per_minute=1,
         rate_limit_password_change_per_hour=1,

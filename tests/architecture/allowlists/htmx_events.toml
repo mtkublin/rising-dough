@@ -12,7 +12,7 @@ epic = "E03"
 [[entry]]
 path = "event:budget-stale"
 rule = "orphan-emitter"
-count = 14
+count = 11
 finding = "Q-038"
 epic = "E03"
 
@@ -40,7 +40,7 @@ epic = "E03"
 [[entry]]
 path = "event:today-stale"
 rule = "orphan-emitter"
-count = 4
+count = 2
 finding = "Q-038"
 epic = "E03"
 

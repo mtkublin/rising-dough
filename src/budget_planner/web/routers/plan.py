@@ -17,7 +17,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from budget_planner.config import Settings
 from budget_planner.services import (
-    analytics as analytics_service,
     budget as budget_service,
     forecast as forecast_service,
     today as today_service,
@@ -83,34 +82,6 @@ def plan(
             bundle, settings.base_currency
         )
     return render(request, "plan/index.html", **ctx)
-
-
-@router.get("/plan/analytics", response_class=HTMLResponse)
-def plan_analytics(
-    request: Request,
-    period: str = "month",
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """ADR-0056 §6 — four-panel analytics bundle for the Analytics tab.
-
-    ``period`` controls spend-by-category + largest-items window; the
-    averages + flow trend always span the trailing 12 months.
-    """
-    period_norm = analytics_service.normalize_period(period)
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    data = analytics_service.bundle(conn, user_id, today=today_d, period=period_norm)
-    spend_chart, flow_chart = charts.analytics_charts(data, settings.base_currency)
-    return render(
-        request,
-        "plan/_analytics_bundle.html",
-        bundle=data,
-        base_ccy=settings.base_currency,
-        period=period_norm,
-        spend_chart=spend_chart,
-        flow_chart=flow_chart,
-    )
 
 
 @router.get("/budget-legacy", include_in_schema=False)

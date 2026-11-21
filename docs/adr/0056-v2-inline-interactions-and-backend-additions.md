@@ -96,3 +96,7 @@ Multiple overlays can co-exist (promote-in-place row + popover + modal). The Esc
 
 - A later ADR may replace Alpine with native CSS Anchor Positioning + Popover API when Safari support crosses the 95% threshold.
 - A later ADR may add the command palette (`⌘K`); kept as a design reference only for v2 (handoff screen 1m).
+
+## Amendment 2026-11-21 (T-Q244, Q-050)
+
+The section 4 live formula preview endpoint `POST /recurring/formula/preview` (and its partial) had no caller since the unified entry form (ADR-0060) and was deleted, with `GET /accounts/last-checked`, `GET /plan/analytics`, `POST /budget/recurring/{category_id}/{month}`, `POST /recurring/batch/promote-due` and `POST /recurring/batch/undo`. `services/recurring_formula.preview` remains for a future re-wire in the ADR-0107 redesign.

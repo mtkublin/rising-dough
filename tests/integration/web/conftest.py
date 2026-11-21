@@ -33,11 +33,10 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.services import _passwords
 from budget_planner.web.app import create_app
 from budget_planner.web.middleware.csrf import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
-from tests.auth_support import FAST_ROUNDS, login_cookie
-from tests.db_template import copy_template, db_path_of
+from tests.auth_support import login_cookie
+from tests.db_template import copy_template, db_path_of, sqlite_url
 
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -73,8 +72,8 @@ class _CSRFAwareTestClient(TestClient):
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> Settings:
-    db_url = f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}"
+def settings(migrated_db: Path) -> Settings:
+    db_url = sqlite_url(migrated_db)
     return Settings(_env_file=None, database_url=db_url)
 
 
@@ -83,12 +82,6 @@ def _migrated(settings: Settings, migrated_template: Path) -> Settings:
     """``settings``' DB file, filled with the migrated template (T-CS02)."""
     copy_template(migrated_template, db_path_of(settings))
     return settings
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep bcrypt cheap in web tests; production cost stays 12."""
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)
 
 
 @pytest.fixture

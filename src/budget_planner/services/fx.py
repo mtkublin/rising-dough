@@ -1,12 +1,10 @@
-"""FX service (T-020).
+"""FX service: the one converter (ADR-0139, amends ADR-0006).
 
-Resolve historical FX rates with local SQLite caching, remote fetch from
-``frankfurter.app`` on cache miss, and a stale-fallback to the most recent
-known rate when the API is unreachable (ADR-0006).
-
-The service is a pure function of the DB cache + remote state. The HTTP
-client is passed in (never constructed here) so routers can share a single
-lifespan-scoped client.
+``converter_for`` reads the ``fx_rates`` cache once and returns an immutable
+:class:`FxConverter`; page renders never touch the network. A missing rate
+raises :class:`FxUnavailableError` (one policy: never rate 1, never the native
+amount). Live rates arrive only through :func:`refresh_rates`, which takes the
+fetcher as an injected port (``adapters/fx`` provides the httpx one).
 """
 
 from __future__ import annotations
@@ -14,154 +12,140 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import sqlite3
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
+from bisect import bisect_right
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Protocol
 
-import httpx
-
-from budget_planner.domain.fx import NewFxRate
-from budget_planner.domain.money import currency_decimals
+from budget_planner.domain.fx import FxFetchError, NewFxRate, RateFetcher
+from budget_planner.domain.money import rescale_minor
 from budget_planner.repositories import fx as fx_repo
 
 logger = logging.getLogger(__name__)
 
-_HTTP_TIMEOUT = 5.0
+
+class HasBaseCurrency(Protocol):
+    """The slice of ``Settings`` the converter needs (keeps services off ``config``)."""
+
+    @property
+    def base_currency(self) -> str: ...
 
 
 class FxUnavailableError(RuntimeError):
-    """Raised when neither remote nor local cache can produce a rate."""
+    """No cached rate for a pair on or before the requested date (ADR-0139)."""
 
 
-def _parse_remote_rate(payload: object, to_ccy: str) -> Decimal:
-    """Pull ``rates[to_ccy]`` out of a frankfurter response as a Decimal.
+@dataclass(frozen=True, slots=True)
+class RateSeries:
+    """Cached rates of one source currency into base, ascending by date."""
 
-    Raises ``KeyError`` / ``TypeError`` / ``InvalidOperation`` on malformed input.
-    """
-    if not isinstance(payload, dict):
-        raise TypeError("fx payload is not an object")
-    rates = payload.get("rates")
-    if not isinstance(rates, dict):
-        raise KeyError("fx payload missing 'rates'")
-    value = rates[to_ccy]
-    # Always via str() to avoid float drift (ADR-0006 risk note).
-    return Decimal(str(value))
+    dates: tuple[dt.date, ...]
+    rates: tuple[Decimal, ...]
 
 
-def _fetch_remote(
-    http: httpx.Client,
-    on_date: dt.date,
-    from_ccy: str,
-    to_ccy: str,
-) -> Decimal:
-    response = http.get(
-        f"/{on_date.isoformat()}",
-        params={"from": from_ccy, "to": to_ccy},
-        timeout=_HTTP_TIMEOUT,
-    )
-    response.raise_for_status()
-    return _parse_remote_rate(response.json(), to_ccy)
+@dataclass(frozen=True, slots=True)
+class FxConverter:
+    """Cache-only converter into ``base_currency`` (built per request)."""
+
+    base_currency: str
+    today: dt.date
+    series: Mapping[str, RateSeries]
+
+    def rate_for(self, currency: str, on_date: dt.date | None = None) -> Decimal:
+        """Latest cached ``currency -> base`` rate on or before ``on_date`` (default today)."""
+        if currency == self.base_currency:
+            return Decimal(1)
+        day = self.today if on_date is None else on_date
+        found = self.series.get(currency)
+        idx = bisect_right(found.dates, day) - 1 if found is not None else -1
+        if found is None or idx < 0:
+            raise FxUnavailableError(
+                f"no cached FX rate {currency}->{self.base_currency} on or before {day}; "
+                "run `python -m budget_planner.cli.refresh_fx`"
+            )
+        return found.rates[idx]
+
+    def to_base(self, amount_minor: int, currency: str, on_date: dt.date | None = None) -> int:
+        """``amount_minor`` of ``currency`` in base-currency minor units."""
+        if currency == self.base_currency:
+            return amount_minor
+        return rescale_minor(
+            amount_minor, currency, self.base_currency, self.rate_for(currency, on_date)
+        )
 
 
-def _fallback(
+def build_converter(
+    base_currency: str, today: dt.date, rates: Iterable[tuple[str, dt.date, Decimal]]
+) -> FxConverter:
+    """Pure builder: ``rates`` are ``(from_ccy, date, rate)`` into ``base_currency``."""
+    grouped: dict[str, list[tuple[dt.date, Decimal]]] = {}
+    for ccy, day, rate in sorted(rates, key=lambda r: (r[0], r[1])):
+        grouped.setdefault(ccy, []).append((day, rate))
+    series = {
+        ccy: RateSeries(tuple(d for d, _ in pairs), tuple(r for _, r in pairs))
+        for ccy, pairs in grouped.items()
+    }
+    return FxConverter(base_currency=base_currency, today=today, series=series)
+
+
+def converter_for(
     conn: sqlite3.Connection,
-    on_date: dt.date,
-    from_ccy: str,
-    to_ccy: str,
-) -> Decimal:
-    latest = fx_repo.latest_rate(conn, from_ccy, to_ccy, on_or_before=on_date)
-    if latest is None:
-        raise FxUnavailableError(f"no cached FX rate for {from_ccy}->{to_ccy} on/before {on_date}")
-    logger.warning(
-        "fx fallback: %s->%s on %s uses stale rate from %s",
-        from_ccy,
-        to_ccy,
-        on_date,
-        latest.date,
-    )
-    return latest.rate
+    settings: HasBaseCurrency,
+    today: dt.date,
+    *,
+    base_currency: str | None = None,
+) -> FxConverter:
+    """Read the rate cache once and build the request's converter (no network)."""
+    base = base_currency or settings.base_currency
+    cached = fx_repo.list_rates_to(conn, base)
+    return build_converter(base, today, ((r.from_ccy, r.date, r.rate) for r in cached))
 
 
-def get_rate(
+@dataclass(frozen=True, slots=True)
+class RefreshOutcome:
+    """Result of refreshing one ``from_ccy -> to_ccy`` pair."""
+
+    from_ccy: str
+    to_ccy: str
+    rate: Decimal | None
+    error: str | None
+
+
+def refresh_rates(
     conn: sqlite3.Connection,
-    http: httpx.Client,
+    fetch: RateFetcher,
     on_date: dt.date,
-    from_ccy: str,
-    to_ccy: str,
-) -> Decimal:
-    """Return the FX rate from ``from_ccy`` to ``to_ccy`` for ``on_date``.
+    base_currency: str,
+    currencies: Iterable[str],
+) -> tuple[RefreshOutcome, ...]:
+    """Fetch and cache ``currency -> base`` for ``on_date``; one outcome per distinct currency.
 
-    - Identity: ``get_rate(..., ccy, ccy) == Decimal("1")`` (no cache or HTTP touched).
-    - Cache hit: returned verbatim; HTTP skipped.
-    - Cache miss: fetches remote, persists under ``on_date``, returns the rate.
-    - Remote failure (HTTP error, non-200, missing key): logs a warning and returns
-      the most recent cached rate on-or-before ``on_date``. Stale rates are NOT
-      persisted under ``on_date`` to avoid polluting the cache.
-    - No cached rate on failure: raises ``FxUnavailableError``.
+    A failed or invalid answer (``rate <= 0``) is reported, never stored, and does
+    not stop the other pairs.
     """
-    if from_ccy == to_ccy:
-        return Decimal("1")
-
-    hit = fx_repo.find_rate(conn, on_date, from_ccy, to_ccy)
-    if hit is not None:
-        return hit.rate
-
-    try:
-        rate = _fetch_remote(http, on_date, from_ccy, to_ccy)
-    except (httpx.HTTPError, KeyError, TypeError, ValueError, InvalidOperation):
-        return _fallback(conn, on_date, from_ccy, to_ccy)
-
-    fx_repo.upsert_rate(
-        conn,
-        NewFxRate(date=on_date, from_ccy=from_ccy, to_ccy=to_ccy, rate=rate),
-    )
-    return rate
+    outcomes: list[RefreshOutcome] = []
+    for ccy in sorted({c for c in currencies if c != base_currency}):
+        try:
+            rate = fetch(on_date, ccy, base_currency)
+            fx_repo.upsert_rate(
+                conn, NewFxRate(date=on_date, from_ccy=ccy, to_ccy=base_currency, rate=rate)
+            )
+        except (FxFetchError, ValueError) as exc:
+            logger.warning("fx refresh %s->%s failed: %s", ccy, base_currency, exc)
+            outcomes.append(RefreshOutcome(ccy, base_currency, None, str(exc)))
+        else:
+            outcomes.append(RefreshOutcome(ccy, base_currency, rate, None))
+    return tuple(outcomes)
 
 
-def convert(  # noqa: PLR0917
-    conn: sqlite3.Connection,
-    http: httpx.Client,
-    amount_minor: int,
-    on_date: dt.date,
-    from_ccy: str,
-    to_ccy: str,
-) -> int:
-    """Convert ``amount_minor`` using the historical rate for ``on_date``.
-
-    Rounds to the destination currency's minor-unit scale with
-    ``ROUND_HALF_EVEN``. Sign is preserved. Identity short-circuits.
-    """
-    if from_ccy == to_ccy:
-        return amount_minor
-    rate = get_rate(conn, http, on_date, from_ccy, to_ccy)
-    src_decimals = currency_decimals(from_ccy)
-    dst_decimals = currency_decimals(to_ccy)
-    # Minor-unit → major by src_decimals, convert, re-scale to dst minor.
-    src_scale = Decimal(10) ** src_decimals
-    dst_scale = Decimal(10) ** dst_decimals
-    major = Decimal(amount_minor) / src_scale
-    converted = (major * rate) * dst_scale
-    quantised = converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    return int(quantised)
-
-
-def convert_cached(
-    conn: sqlite3.Connection,
-    amount_minor: int,
-    on_date: dt.date,
-    from_ccy: str,
-    to_ccy: str,
-) -> int:
-    """Like :func:`convert` but never touches the network (page-render safe).
-
-    Uses the exact-date cached rate, else the latest cached rate on or before
-    ``on_date``; raises ``FxUnavailableError`` when nothing is cached.
-    """
-    if from_ccy == to_ccy:
-        return amount_minor
-    hit = fx_repo.find_rate(conn, on_date, from_ccy, to_ccy)
-    rate = hit.rate if hit is not None else _fallback(conn, on_date, from_ccy, to_ccy)
-    major = Decimal(amount_minor) / (Decimal(10) ** currency_decimals(from_ccy))
-    converted = major * rate * (Decimal(10) ** currency_decimals(to_ccy))
-    return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
-
-
-__all__ = ["FxUnavailableError", "convert", "convert_cached", "get_rate"]
+__all__ = [
+    "FxConverter",
+    "FxUnavailableError",
+    "HasBaseCurrency",
+    "RateSeries",
+    "RefreshOutcome",
+    "build_converter",
+    "converter_for",
+    "refresh_rates",
+]
