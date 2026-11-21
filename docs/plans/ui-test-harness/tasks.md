@@ -124,7 +124,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
   - T-UT06 stays open (awaiting the designer); every parity row has an owner (`ask designer`).
 
 ### Follow-ups (found during the work, not fixed here)
-- `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save.
+- ✅ `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save. Fixed 2026-11-21: only the form's own non-GET request closes the overlay; the T-UT08b workaround is removed.
 - `T-D-UT12-2`: user create/delete writes no `audit_log` row.
 - `T-D-UT12-3`: the formula preview chip/endpoint `/recurring/formula/preview` is not wired into any page.
 - `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins.
