@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q239: tamper-resistant merge gate, code half)
+- **CI(T-Q239): `.github/CODEOWNERS` covers `.github/`, `scripts/ci/`, `terraform/`, `ci_environments.toml` and `workflow_trust.toml` (ADR-0099 amendment, Q-041).** `tests/architecture/test_codeowners.py` guards it. **Operator half pending:** `workflows` rule from `main`, `integration_id` 15368 on each required context, require code-owner review, refresh `repro/H1/gh_api/ruleset_protect_main.json` (`runbooks/github-settings.md` 3c).
+
 ## 2026-11-21 (T-Q218: CI environments split by data sensitivity, code half)
 - **CI(T-Q218): prod replica read material is scoped to a new gated `prod-restore-read` environment (ADR-0132, Q-012).** `restore-drill.yml` calls `terraform.yml` with `restore_source: true`, whose apply job then runs in `prod-restore-read`; `tf_env.py --restore-source` is the only path that emits the prod read key, and `terraform/main.tf` renders `restore-source.env` only when that key is present, so explore drills carry no restore capability (H4-03). G17a gains `prod_grade`, `main_only` and `only_workflows` declarations and the 9 `workflow_trust` entries (23 violations) are deleted. **Operator half pending:** create the environment, move or replace the secrets, refresh `repro/H1` evidence, rotate (ADR-0132 checklist).
 

@@ -799,7 +799,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `workflow_trust`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/workflow_trust.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q239 [P] Merge gate becomes tamper-resistant (operator GitHub settings)
+### 🟡 T-Q239 [P] Merge gate becomes tamper-resistant (operator GitHub settings)
 - Findings: Q-041 (H1-03).
 - Epic: none (ci-trust-boundary)
 - Band: 5 · Size: S · Tags: none

@@ -69,6 +69,16 @@ Unused since ADR-0111, deleted 2026-11-18 (user-approved; no workflow read them,
 - **Done when:** a non-operator `git push origin v9.9.9` is rejected and `git push --delete origin <existing v* tag>` is rejected for everyone.
 - Done 2026-11-16 via the API as two rulesets, because one bypass list covers every rule in a ruleset: `release-tags-create` (creation; bypass: repository admin role) and `release-tags-immutable` (update, deletion, non-fast-forward; no bypass).
 
+## 3c. Tamper-resistant merge gate (ADR-0099 amendment 2026-11-21, T-Q239; operator action pending)
+
+`.github/CODEOWNERS` is in the repo (T-Q239). The ruleset edits below are the operator's (Settings > Rules > Rulesets > `protect-main`):
+
+- [ ] Add a **Require workflows to pass** (`workflows`) rule: repository `mtkublin/rising-dough`, path `.github/workflows/ci.yml`, ref `refs/heads/main`.
+- [ ] On **each** required status check context (`just ci (Python 3.12, ubuntu-latest)`, `drill-gate`, `uv lock --check`, `pip-audit (uv.lock)`, `trivy fs (repo)`, `trivy image (rising-dough:scan)`) set the source/integration to **GitHub Actions** (`integration_id` 15368). Re-add `drill-gate` with that source if the UI requires it.
+- [ ] Enable **Require review from Code Owners** (inside "Require a pull request before merging"). Keep "no bypass for admins".
+- [ ] Self-approval is accepted risk while there is one maintainer (OQ-24); a second reviewer or bot would remove it.
+- **Verify (read-only):** run `docs/plans/quality-audit/repro/H1/collect_gh_config.sh`, check `gh_api/ruleset_protect_main.json` shows the `workflows` rule, `integration_id: 15368` on every required context and `require_code_owner_review: true`, and commit the refreshed file. Then a test PR editing `.github/workflows/ci.yml` must show "Review required from code owners".
+
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
 Three OAuth clients. `budget-planner-automation` is used by every environment; `budget-planner-drill-cleanup` only by the drill environments (it deletes the drill's leftover tailnet node after destroy); `budget-planner-prod-cleanup` only by `prod-tailnet` (it deletes the old prod node after a VM replacement):
