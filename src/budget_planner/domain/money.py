@@ -307,8 +307,10 @@ def format_major(amount_minor: int, currency: str) -> str:
 
 
 def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:
-    """Whole major units (half up), for dense tables; sign preserved."""
+    """Whole major units (half up), for dense tables; sign preserved, never ``-0``."""
     value = minor_to_major(amount_minor, currency).quantize(Decimal(1), rounding=ROUND_HALF_UP)
+    if value == 0:
+        value = Decimal(0)
     return format(value, ",.0f" if grouped else ".0f")
 
 
