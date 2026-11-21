@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from budget_planner.web.app import create_app
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.db_template import sqlite_url
 from tests.integration.web.conftest import _CSRFAwareTestClient
 
 pytestmark = pytest.mark.integration
@@ -44,10 +45,10 @@ def _pinned_proxy() -> str:
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> Settings:
+def settings(migrated_db: Path) -> Settings:
     return Settings(
         _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}",
+        database_url=sqlite_url(migrated_db),
         rate_limit_login_per_minute=LIMIT_PER_MINUTE,
         rate_limit_login_per_hour=50,
         rate_limit_login_ip_per_hour=500,

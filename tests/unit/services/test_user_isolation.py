@@ -19,7 +19,6 @@ import pytest
 from budget_planner.config import Settings
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
 from budget_planner.services import (
-    _passwords,
     accounts,
     analytics,
     budget,
@@ -104,11 +103,6 @@ def _case_analytics(conn: sqlite3.Connection, world: World) -> None:
 def _case_yearly_grid(conn: sqlite3.Connection, world: World) -> None:
     assert world.other.category_id not in _grid_categories(conn, OWNER_ID)
     assert world.owner.category_id not in _grid_categories(conn, OTHER_ID)
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
 
 
 @covers("recurring_formula.invalid_source_ids")

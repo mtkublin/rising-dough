@@ -30,6 +30,9 @@ import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
 from budget_planner.config import Settings, get_settings
+from budget_planner.db.connection import get_connection
+from budget_planner.services import _passwords
+from tests.auth_support import FAST_ROUNDS
 from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
@@ -107,3 +110,23 @@ def migrated_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def migrated_db(migrated_template: Path, tmp_path: Path) -> Path:
     """Path to this test's own copy of the migrated template (``tmp_path/db.sqlite``)."""
     return copy_template(migrated_template, tmp_path / "db.sqlite")
+
+
+@pytest.fixture
+def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
+    """T-Q259: one connection to this test's own migrated DB copy (``migrated_db``)."""
+    settings = Settings(_env_file=None, database_url=sqlite_url(migrated_db))
+    c = get_connection(settings)
+    try:
+        yield c
+    finally:
+        c.close()
+
+
+@pytest.fixture(autouse=True)
+def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T-Q259: keep bcrypt cheap in every test; production cost stays 12.
+
+    A test that asserts the production default calls ``monkeypatch.undo()`` first.
+    """
+    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)

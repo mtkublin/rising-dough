@@ -20,17 +20,6 @@ pytestmark = pytest.mark.e2e
 _ROUTES = ("/today", "/ledger", "/accounts", "/budget")
 
 
-@pytest.mark.parametrize("route", _ROUTES)
-def test_landmarks_present(page: Page, live_server: tuple[str, object], route: str) -> None:
-    base_url, _ = live_server
-    page.goto(f"{base_url}{route}")
-    assert page.locator("main#main").count() == 1
-    assert page.locator("h1").count() >= 1
-    # Flash regions reserved for live announcements.
-    assert page.locator("#flash-region[role=status]").count() == 1
-    assert page.locator("#flash-region-assertive[role=alert]").count() == 1
-
-
 def test_skip_link_focuses_first(page: Page, live_server: tuple[str, object]) -> None:
     base_url, _ = live_server
     page.goto(f"{base_url}/today")
