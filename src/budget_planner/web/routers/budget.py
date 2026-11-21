@@ -376,6 +376,7 @@ def set_recurring(  # noqa: PLR0917
 def set_income_anchor(
     category_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
 ) -> Response:
     """Set or clear the income anchor preference (ADR-0025, F4.7).
 
@@ -384,14 +385,14 @@ def set_income_anchor(
     """
     raw = category_id.strip()
     if raw == "":
-        preferences_svc.set_income_anchor_category_id(conn, 1, None)
+        preferences_svc.set_income_anchor_category_id(conn, user_id, None)
     else:
         try:
             parsed = int(raw)
         except ValueError:
             return Response(status_code=422, content="invalid category_id")
         try:
-            preferences_svc.set_income_anchor_category_id(conn, 1, parsed)
+            preferences_svc.set_income_anchor_category_id(conn, user_id, parsed)
         except InvalidAnchorCategoryError as err:
             return Response(status_code=422, content=str(err))
     resp = Response(content="ok", media_type="text/html")

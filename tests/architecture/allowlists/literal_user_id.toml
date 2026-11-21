@@ -8,10 +8,3 @@ rule = "literal-user-id"
 count = 1
 finding = "Q-002"
 epic = "E01"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
-rule = "literal-user-id"
-count = 2
-finding = "Q-001"
-epic = "E09"
