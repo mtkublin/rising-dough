@@ -8,7 +8,8 @@ then reads ``bp-config`` (one JSON document rendered by Terraform), and:
 1. exits early when the config generation is already applied and the app
    container runs the desired image;
 2. installs the pinned cosign binary (checksum verified) and verifies the app
-   image signature; on failure nothing on the host changes;
+   image signature; a ``sha-*`` image must also be an ancestor of ``main``
+   (T-Q238, ADR-0099 amendment); on failure nothing on the host changes;
 3. writes the managed files atomically, runs ``docker compose pull`` +
    ``up -d`` and restarts services whose mounted files changed;
 4. probes ``/ready`` through Caddy and writes ``status.json``, which Caddy
@@ -40,6 +41,7 @@ import json
 import os
 import pwd
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -70,6 +72,11 @@ DRAIN_SETTLE_S = 30
 DRAIN_REQUEST_MAX = 64
 DRAIN_REQUEST_CHARS = frozenset("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-")
 LITESTREAM_CONTAINER = "budget-planner-litestream"
+
+# T-Q238: compare main...<sha>: the sha is an ancestor of main (or main itself).
+SHA_TAG = re.compile(r"sha-[0-9a-f]{7,40}")
+ANCESTOR_STATUSES = frozenset({"behind", "identical"})
+COMPARE_TIMEOUT_S = 15
 
 BACKOFF_BASE_S = 30
 BACKOFF_MAX_S = 900
@@ -110,6 +117,15 @@ class CosignPolicy:
 
 
 @dataclass(frozen=True)
+class AncestryPolicy:
+    """T-Q238 (Q-040): a ``sha-*`` image must be an ancestor of ``branch``."""
+
+    enabled: bool
+    repo: str
+    branch: str
+
+
+@dataclass(frozen=True)
 class Config:
     generation: str
     compose_file: str
@@ -120,6 +136,7 @@ class Config:
     ready_resolve: str
     docker_config_json: str
     cosign: CosignPolicy
+    ancestry: AncestryPolicy
     files: tuple[ManagedFile, ...]
 
 
@@ -142,6 +159,7 @@ def parse_config(raw: bytes) -> Config:
         if doc["schema"] != SCHEMA:
             raise AgentError("config_invalid", f"schema {doc['schema']}")
         cosign = doc["cosign"]
+        anc = doc["ancestry"]
         files = tuple(
             ManagedFile(
                 path=f["path"],
@@ -169,6 +187,9 @@ def parse_config(raw: bytes) -> Config:
                 identity_regexp=cosign["identity_regexp"],
                 issuer=cosign["issuer"],
             ),
+            ancestry=AncestryPolicy(
+                enabled=bool(anc["enabled"]), repo=anc["repo"], branch=anc["branch"]
+            ),
             files=files,
         )
     except AgentError:
@@ -181,6 +202,21 @@ def parse_config(raw: bytes) -> Config:
     if "@sha256:" not in cfg.image_ref:
         raise AgentError("config_invalid", "image ref must be pinned by digest")
     return cfg
+
+
+def image_tag(image_ref: str) -> str:
+    """The tag of ``repo:tag@sha256:digest`` ('' when there is none)."""
+    named = image_ref.split("@", 1)[0]
+    return named.rsplit(":", 1)[1] if ":" in named.rsplit("/", 1)[-1] else ""
+
+
+def needs_ancestry_check(cfg: Config) -> bool:
+    return cfg.ancestry.enabled and SHA_TAG.fullmatch(image_tag(cfg.image_ref)) is not None
+
+
+def is_main_ancestor(compare: object) -> bool:
+    """True when a GitHub compare ``main...<sha>`` says the sha is behind or equal."""
+    return isinstance(compare, dict) and compare.get("status") in ANCESTOR_STATUSES
 
 
 def backoff_seconds(attempts: int) -> int:
@@ -419,6 +455,27 @@ def verify_image(runner: Runner, cosign: Path, cfg: Config, env: Mapping[str, st
         raise AgentError("cosign_verify", res.stderr.strip()[-300:])
 
 
+def fetch_compare(repo: str, branch: str, sha: str) -> object:
+    """GitHub compare API (unauthenticated): ``branch...sha``. Raises on failure."""
+    url = f"https://api.github.com/repos/{repo}/compare/{branch}...{sha}"
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=COMPARE_TIMEOUT_S) as resp:  # noqa: S310  # https host
+        return json.loads(resp.read())
+
+
+def verify_main_ancestry(cfg: Config) -> None:
+    """Reject a ``sha-*`` image whose commit is not on main (fail closed)."""
+    if not needs_ancestry_check(cfg):
+        return
+    sha = image_tag(cfg.image_ref).removeprefix("sha-")
+    try:
+        compare = fetch_compare(cfg.ancestry.repo, cfg.ancestry.branch, sha)
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        raise AgentError("ancestry_check", repr(exc)) from exc
+    if not is_main_ancestor(compare):
+        raise AgentError("ancestry_not_main", f"{sha} is not an ancestor of {cfg.ancestry.branch}")
+
+
 def write_files(files: Sequence[ManagedFile]) -> tuple[ManagedFile, ...]:
     """Write every file that differs; return the ones written."""
     changed: list[ManagedFile] = []
@@ -472,6 +529,7 @@ def apply(cfg: Config, runner: Runner, sleep: Callable[[float], None]) -> None:
     write_atomic(DOCKER_CONFIG_DIR / "config.json", cfg.docker_config_json.encode(), 0o600)
     env = {"DOCKER_CONFIG": str(DOCKER_CONFIG_DIR)}
     verify_image(runner, ensure_cosign(cfg.cosign), cfg, env)
+    verify_main_ancestry(cfg)
     changed = write_files(cfg.files)
     compose(runner, cfg, env, "pull", "--quiet")
     compose(runner, cfg, env, "up", "-d", "--remove-orphans")

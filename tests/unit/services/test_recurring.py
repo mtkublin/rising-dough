@@ -385,62 +385,141 @@ def test_partition_invariant() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T-118: advance_next_due (pure)
+# T-118 / T-Q211: advance_next_due (pure, rule-anchored; ADR-0038 amendment)
 # ---------------------------------------------------------------------------
+def _advance(rule: RecurringRule, from_date: date) -> date | None:
+    return rec_svc.advance_next_due(rule, from_date)
+
+
 def test_advance_next_due_monthly() -> None:
-    out = rec_svc.advance_next_due(Cadence.MONTHLY, date(2026, 3, 15), None, None, None)
-    assert out == date(2026, 4, 15)
+    rule = _rule(start_date=date(2026, 3, 15))
+    assert _advance(rule, date(2026, 3, 15)) == date(2026, 4, 15)
 
 
 def test_advance_next_due_quarterly() -> None:
-    out = rec_svc.advance_next_due(Cadence.QUARTERLY, date(2026, 2, 10), None, None, None)
-    assert out == date(2026, 5, 10)
+    rule = _rule(cadence=Cadence.QUARTERLY, start_date=date(2026, 2, 10))
+    assert _advance(rule, date(2026, 2, 10)) == date(2026, 5, 10)
 
 
 def test_advance_next_due_yearly() -> None:
-    out = rec_svc.advance_next_due(Cadence.YEARLY, date(2026, 7, 4), None, None, None)
-    assert out == date(2027, 7, 4)
+    rule = _rule(cadence=Cadence.YEARLY, start_date=date(2026, 7, 4))
+    assert _advance(rule, date(2026, 7, 4)) == date(2027, 7, 4)
 
 
 def test_advance_next_due_eom_clamp_31_to_feb_28() -> None:
-    out = rec_svc.advance_next_due(Cadence.MONTHLY, date(2026, 1, 31), None, 31, None)
-    assert out == date(2026, 2, 28)
+    rule = _rule(start_date=date(2026, 1, 31), day_of_month=31)
+    assert _advance(rule, date(2026, 1, 31)) == date(2026, 2, 28)
 
 
 def test_advance_next_due_eom_clamp_31_to_leap_feb_29() -> None:
-    out = rec_svc.advance_next_due(Cadence.MONTHLY, date(2024, 1, 31), None, 31, None)
-    assert out == date(2024, 2, 29)
+    rule = _rule(start_date=date(2024, 1, 31), day_of_month=31)
+    assert _advance(rule, date(2024, 1, 31)) == date(2024, 2, 29)
+
+
+def test_advance_next_due_blank_dom_anchor_survives_clamped_month() -> None:
+    # Q-006 / C-06: start Jan 31, blank day_of_month -> Mar 31, not Mar 28.
+    rule = _rule(start_date=date(2026, 1, 31))
+    cur: date | None = date(2026, 1, 31)
+    walk: list[date] = []
+    for _ in range(5):
+        cur = _advance(rule, cur)  # type: ignore[arg-type]
+        assert cur is not None
+        walk.append(cur)
+    assert walk == [
+        date(2026, 2, 28),
+        date(2026, 3, 31),
+        date(2026, 4, 30),
+        date(2026, 5, 31),
+        date(2026, 6, 30),
+    ]
 
 
 def test_advance_next_due_feb_29_leap_boundary() -> None:
-    # Feb 29 2024 → Feb 28 2025 (non-leap recovery to 28).
-    out = rec_svc.advance_next_due(Cadence.YEARLY, date(2024, 2, 29), None, 29, 2)
-    assert out == date(2025, 2, 28)
+    rule = _rule(
+        cadence=Cadence.YEARLY, start_date=date(2024, 2, 29), day_of_month=29, month_of_year=2
+    )
+    assert _advance(rule, date(2024, 2, 29)) == date(2025, 2, 28)
 
 
-def test_advance_next_due_feb_28_recovers_to_feb_29() -> None:
-    # Feb 28 2025 anchor_day=29 → next leap year lands Feb 29 2026? Actually 2026 is non-leap.
-    # Walk until the next leap year: 2025 → 2026 (28), 2026→2027 (28), 2027→2028 (29).
-    cur: date | None = date(2025, 2, 28)
-    for _ in range(4):
-        cur = rec_svc.advance_next_due(Cadence.YEARLY, cur, None, 29, 2)  # type: ignore[arg-type]
-    # 2025 → 2026 → 2027 → 2028 → 2029
-    assert cur == date(2029, 2, 28)
+def test_advance_next_due_yearly_feb_29_recovers_on_leap_year() -> None:
+    rule = _rule(cadence=Cadence.YEARLY, start_date=date(2028, 2, 29))
+    cur: date | None = date(2028, 2, 29)
+    walk: list[date] = []
+    for _ in range(5):
+        cur = _advance(rule, cur)  # type: ignore[arg-type]
+        assert cur is not None
+        walk.append(cur)
+    assert walk == [
+        date(2029, 2, 28),
+        date(2030, 2, 28),
+        date(2031, 2, 28),
+        date(2032, 2, 29),
+        date(2033, 2, 28),
+    ]
 
 
 def test_advance_next_due_end_date_boundary_returns_none() -> None:
-    out = rec_svc.advance_next_due(
-        Cadence.MONTHLY, date(2026, 3, 15), date(2026, 3, 20), None, None
-    )
-    assert out is None
+    rule = _rule(start_date=date(2026, 3, 15), end_date=date(2026, 3, 20))
+    assert _advance(rule, date(2026, 3, 15)) is None
 
 
 def test_advance_next_due_at_end_date_inclusive() -> None:
-    # end_date exactly on the next step → that step is still valid.
-    out = rec_svc.advance_next_due(
-        Cadence.MONTHLY, date(2026, 3, 15), date(2026, 4, 15), None, None
+    rule = _rule(start_date=date(2026, 3, 15), end_date=date(2026, 4, 15))
+    assert _advance(rule, date(2026, 3, 15)) == date(2026, 4, 15)
+
+
+def test_generate_occurrences_never_before_start_date() -> None:
+    # Q-006 / C-13: start 2026-03-25, day_of_month=20 -> first is 2026-04-20.
+    rule = _rule(start_date=date(2026, 3, 25), day_of_month=20)
+    got = [
+        o.occurrence_date
+        for o in rec_svc.generate_occurrences(rule, date(2026, 1, 1), date(2026, 5, 31))
+    ]
+    assert got == [date(2026, 4, 20), date(2026, 5, 20)]
+
+
+def test_advance_next_due_skips_slot_before_start_date() -> None:
+    rule = _rule(start_date=date(2026, 1, 20), day_of_month=5)
+    assert _advance(rule, date(2026, 1, 20)) == date(2026, 2, 5)
+
+
+def test_create_rule_defaults_day_of_month_to_start_day(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    created = recurring_repo.create_rule(
+        conn,
+        USER_ID,
+        rec_svc.with_anchor_day(
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 31),
+                category_id=world["rent"],
+                account_id=world["checking"],
+                default_amount=100,
+            )
+        ),
     )
-    assert out == date(2026, 4, 15)
+    assert created.day_of_month == 31
+
+
+def test_create_rule_keeps_explicit_day_of_month(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    created = recurring_repo.create_rule(
+        conn,
+        USER_ID,
+        rec_svc.with_anchor_day(
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 31),
+                category_id=world["rent"],
+                account_id=world["checking"],
+                default_amount=100,
+                day_of_month=15,
+            )
+        ),
+    )
+    assert created.day_of_month == 15
 
 
 # ---------------------------------------------------------------------------

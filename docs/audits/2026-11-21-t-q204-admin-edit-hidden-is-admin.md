@@ -12,16 +12,17 @@ a scratch admin.
 
 | Route | Viewport | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
 |---|---|---|---|---|---|---|
-| /settings/users | 1440 | false | 0 | 0 | 1 (login 404, see triage) | 0 |
+| /settings/users | 1440 | false | 0 | 0 | 1 (script URL, see triage) | 0 |
 | /settings/users/1/edit | 1440 | false | 0 | 0 | 1 (same) | 0 |
 | /settings/users | 1024 | false | 0 | 0 | 1 (same) | 0 |
 | /settings/users/1/edit | 1024 | false | 0 | 0 | 1 (same) | 0 |
 | /settings/users | 375 | false | 0 | 0 | 1 (same) | 0 |
 | /settings/users/1/edit | 375 | false | 0 | 0 | 1 (same) | 0 |
 
-Triage: the single console error per session is "Failed to load resource: 404" recorded on the initial
-`GET /login` request (server log: `GET /login 404`); it is emitted before any audited route loads, the counter
-does not grow across the audited routes, and neither template involved in the login page is touched.
+Triage: the single console error per session is the audit script's own doing, not a broken link. The real
+login route is `/auth/login`; the script opened `/login`, which redirects (302) to `/auth/login?next=%2Flogin`,
+and after sign-in the app redirected to `next=/login`, which is not a route (404). It is emitted before any audited
+route loads, the counter does not grow across the audited routes, and no template or route was changed for it.
 
 ## Screenshots (viewed)
 

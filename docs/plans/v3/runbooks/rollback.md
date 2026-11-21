@@ -32,6 +32,7 @@ If the release you are leaving is flagged **"rollback requires restore"** in `do
 
 1. `gh workflow run rollback.yml --ref main -f env=prod` (empty `target` = the previous ref recorded in state). Add `-f target=v1.2.3` to pin a known-good version, or `-f target=sha-<short>` / a git SHA; the workflow resolves it to its GHCR digest first.
 2. Approve the `prod` environment when the apply parks. `rollback.yml` refuses `env=prod` unless the ref is `main` or a `v*` tag on `main` (ADR-0109).
+   **`sha-*` targets (ADR-0099 amendment 2026-11-21, T-Q238):** prod runs a `sha-*` image only if it was signed by `build.yml` on `refs/heads/main` AND its commit is an ancestor of `main`. The host agent checks both (cosign identity, then GitHub compare `main...<sha>`); a drill-gate build of a PR branch, or any commit off `main`, is rejected with status error `cosign_verify` or `ancestry_not_main`. `ancestry_check` means the GitHub API was unreachable (fail closed): retry, or roll back by release tag `vX.Y.Z`.
 3. The apply job prints `TF_VAR_app_image_ref` / `TF_VAR_app_image_previous_ref` and then waits for the host status. After a rollback the refs are swapped, so running `rollback.yml` again without a target rolls forward to the release you left.
 
 `env=drill` can be dispatched from any ref (the drill is usually torn down; a rollback there only makes sense on an explore drill with `keep=true`).

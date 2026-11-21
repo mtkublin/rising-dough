@@ -175,7 +175,7 @@ packages = ["budget_planner", "tests"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["plotly.*", "sqlfluff.*", "djlint.*", "pandas.*", "pyarrow.*"]
+module = ["sqlfluff.*", "djlint.*", "pandas.*", "pyarrow.*"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]
@@ -211,7 +211,6 @@ markers = [
 asyncio_mode = "auto"
 filterwarnings = [
   "error",
-  "ignore::DeprecationWarning:plotly.*",
 ]
 
 [tool.coverage.run]

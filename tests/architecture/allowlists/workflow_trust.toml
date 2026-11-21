@@ -1,9 +1,3 @@
 # G17a workflow_trust: workflow trust-boundary debt (Q-012, Q-040; declared in ci_environments.toml).
 
 guard = "workflow_trust"
-
-[[entry]]
-path = "terraform/modules/compute/user_data.tf"
-rule = "cosign-identity-unpinned"
-count = 1
-finding = "Q-040"

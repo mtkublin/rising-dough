@@ -85,3 +85,15 @@ Decisions (ruleset edits are made by the operator; the repository half is `.gith
 4. **Until then**, tamper-resistance comes from decisions 1 and 2 (required workflows from `main` plus `integration_id` 15368 on every required context). Repository-admin bypass stays as the operator's merge path; every bypass is recorded and visible in the ruleset's bypass log (Settings > Rules > Rulesets > `protect-main` > Rule insights, filter "Bypassed"; or Settings > Rules > Insights). Review that log after any merge that touched the CODEOWNERS paths.
 
 Operator checklist: [`runbooks/github-settings.md`](../plans/v3/runbooks/github-settings.md) section 3c. Relates to ADR-0121, ADR-0132.
+
+## Amendment 2026-11-21 (T-Q238, Q-040 / H1-02): signed-image identity pinned to `main`; rollback to `sha-*` needs ancestry
+
+Finding: the host agent's cosign `identity_regexp` ended at `build.yml@`, so a signature produced by `build.yml` run from any ref (a drill gate build of an arbitrary branch pushes `sha-<short>` too) was accepted on prod. Evidence: `docs/plans/quality-audit/repro/H1/gate_and_signing_probe.out` section 2 and 5.
+
+Decisions:
+
+1. **Verified signing identity.** On prod the agent accepts a signature only when the certificate identity is `build.yml@refs/heads/main` or `build.yml@refs/tags/v<release>` of this repository (`terraform/modules/compute/user_data.tf`, `local.cosign_identity_regexp`). Drill hosts set `allow_branch_builds` (root: `env == "drill"`) and accept `refs/(heads|tags)/.+` of the same workflow, so a drill can still run an image built from the PR branch; that variable is the only widening and prod can never receive it (`terraform test` asserts both renders).
+2. **Rollback to a `sha-*` tag (operator decision, OQ-24, 2026-11-21).** A `sha-*` image may run on prod ONLY if (a) its signature identity is `build.yml` on `refs/heads/main` (decision 1) AND (b) its commit is an ancestor of `main`. The host agent enforces (b) itself (`bp_agent.verify_main_ancestry`, GitHub compare API `main...<sha>`, status `behind` or `identical`), after the cosign check and before any file is written; an unreachable API fails closed (`ancestry_check`), a diverged or ahead commit is rejected (`ancestry_not_main`). Release-tag images are covered by decision 1 plus ADR-0109. Images signed from any other ref are rejected. The repository must be readable without authentication for the compare call; if it ever becomes private, rollback to a bare `sha-*` fails closed and a release tag (or an agent token) is needed.
+3. **Drill-gate skip classifier** is docs only; its verdict is bound to the head SHA (see ADR-0121 amendment 2026-11-21).
+
+Removes the `cosign-identity-unpinned` entry from `tests/architecture/allowlists/workflow_trust.toml`; the G17a guard also reads the `cosign_ref_regexp_prod` local. Relates to ADR-0100, ADR-0109, ADR-0111, ADR-0121.

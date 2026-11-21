@@ -854,6 +854,29 @@ run "drill_root_volume_type_rejects_other_types" {
   expect_failures = [var.drill_root_volume_type]
 }
 
+# T-Q238: drills verify branch builds under the drill identity; no ancestry check.
+run "drill_cosign_identity_accepts_branch_builds" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    allow_branch_builds = true
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@refs/(heads|tags)/.+$"
+    error_message = "drill cosign identity must accept branch builds of build.yml (T-Q238)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).ancestry.enabled == false
+    error_message = "drill must not require main ancestry (T-Q238)."
+  }
+}
+
 # ADR-0111: bp-config carries the digest-pinned image, the cosign policy and
 # the managed files; cloud-init is only the fixed bootstrap.
 run "host_config_pins_image_and_policy" {
@@ -868,9 +891,15 @@ run "host_config_pins_image_and_policy" {
     error_message = "bp-config image.ref must be repo:tag@digest (ADR-0111)."
   }
 
+  # T-Q238 (Q-040): prod accepts only build.yml signed from main or a release tag.
   assert {
-    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@"
-    error_message = "cosign identity must be this repo's build.yml (ADR-0111)."
+    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@(refs/heads/main|refs/tags/v[0-9][0-9A-Za-z.+-]*)$"
+    error_message = "prod cosign identity must be build.yml@main or a v* tag (T-Q238)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).ancestry == { enabled = true, repo = "render-check-owner/render-check-repo", branch = "main" }
+    error_message = "prod must require sha-* images to be ancestors of main (T-Q238)."
   }
 
   assert {

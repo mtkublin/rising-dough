@@ -22,6 +22,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import balance as balance_svc
+from budget_planner.services.transactions import ValidationError, validate_transit_shape
 
 
 class AccountNotFoundError(LookupError):
@@ -111,6 +112,9 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
             category = default
             assert category.direction is Direction.ADJUSTMENT  # schema invariant
 
+        # A reconciliation row has no destination: reject a transit category (ADR-0008).
+        validate_transit_shape(category.direction, account, None)
+
         # Preserve direction semantics (ADR-0008).
         stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
 
@@ -139,6 +143,7 @@ __all__ = [
     "InvalidAvailableError",
     "MissingSystemCategoryError",
     "NoAdjustmentNeededError",
+    "ValidationError",
     "available_to_target_balance",
     "reconcile",
 ]

@@ -79,3 +79,7 @@ GitHub settings (environments, required reviewers, deployment branch rules, bran
 `ci-drill` no longer holds `DomainsDNSFullAccess` on the prod project: the drill creates no DNS records ([ADR-0101](0101-drill-environment-is-tailnet-only.md)). The drill gains the ungated environments `drill-plan` and `drill-teardown` (same drill secrets); `drill` itself is gated by required reviewers.
 
 > **Amendment 2026-11-16 (T-D118):** each CI identity also holds the Block Storage permission set matching its Instances one (`BlockStorageFullAccess` / `BlockStorageReadOnly`). Instance root volumes are Block Storage (SBS) volumes; without it the first `ci-plan` PR plan failed with `insufficient permissions: read volume` on `scaleway_instance_server.app`.
+
+## Amendment 2026-11-21 (T-Q238, Q-040 / OQ-24): the image-signing identity is part of the credential boundary
+
+The cosign certificate identity the prod host trusts is `build.yml@refs/heads/main` or a release tag ([ADR-0099](0099-release-and-environment-policy.md) amendment 2026-11-21): a branch-triggered build, which can run with `packages: write` and `id-token: write`, can no longer produce an image prod will run. Only the drill hosts accept branch-signed images. The operator-run `scripts/check_github_settings.py` also diffs the live Tailscale ACL against `runbooks/tailscale-acl.hujson` (token from `TAILSCALE_API_TOKEN`, never committed or printed), so tag ownership and the tailnet rules cannot drift silently.
