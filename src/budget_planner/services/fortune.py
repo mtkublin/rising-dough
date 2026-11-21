@@ -40,8 +40,10 @@ def compute_fortune(
     assets_base = 0
     liabilities_base = 0
     net_base = 0
-    for account in accounts_repo.list_all(conn, user_id):
-        bal = balance_service.derive_balance(conn, user_id, account.id)
+    accounts = accounts_repo.list_all(conn, user_id)
+    balances = balance_service.derive_balances(conn, user_id, accounts)
+    for account in accounts:
+        bal = balances[account.id]
         ccy = account.currency
         if account.is_liability:
             liabilities_by_ccy[ccy] = liabilities_by_ccy.get(ccy, 0) + abs(bal)

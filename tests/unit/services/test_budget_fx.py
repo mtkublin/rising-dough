@@ -8,6 +8,7 @@ from decimal import Decimal
 
 import pytest
 
+from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
@@ -28,7 +29,7 @@ from budget_planner.repositories import (
     transactions,
 )
 from budget_planner.services import budget as bs, forecast
-from budget_planner.services.fx import FxUnavailableError
+from budget_planner.services.fx import FxUnavailableError, converter_for
 
 USER_ID = 1
 TODAY = date(2026, 2, 15)
@@ -145,10 +146,10 @@ def test_forecast_overlay_committed_converted(
 ) -> None:
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    got = forecast._committed_future_for_category(
-        conn, USER_ID, world["groceries"], date(2026, 2, 16), date(2026, 2, 28), today=TODAY
-    )
-    assert got == 48_000
+    span = forecast._MonthSpan(date(2026, 2, 16), date(2026, 2, 16), date(2026, 2, 28), False)
+    converter = converter_for(conn, get_settings(), TODAY)
+    ((_, committed),) = forecast._month_inputs(conn, USER_ID, [span], today=TODAY, fx=converter)
+    assert committed.get(world["groceries"], 0) == 48_000
 
 
 # --- T-FIX6: posted spent converts at the historical (tx-date) rate -----------

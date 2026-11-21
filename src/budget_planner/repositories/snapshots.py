@@ -77,4 +77,21 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
     )
 
 
-__all__ = ["create", "list_for_account"]
+def list_for_user(conn: sqlite3.Connection, user_id: int) -> dict[int, list[AccountSnapshot]]:
+    """All live accounts' snapshots in one query, grouped by ``account_id`` (T-Q234)."""
+    cols = ", ".join(f"s.{c}" for c in _COLUMNS.split(", "))
+    rows = conn.execute(
+        f"SELECT {cols} FROM account_snapshots s "
+        "JOIN accounts a ON a.id = s.account_id "
+        "WHERE a.user_id = ? AND a.deleted_at IS NULL "
+        "ORDER BY s.taken_at ASC, s.id ASC",
+        (user_id,),
+    ).fetchall()
+    out: dict[int, list[AccountSnapshot]] = {}
+    for row in rows:
+        snap = _row_to_snapshot(row)
+        out.setdefault(snap.account_id, []).append(snap)
+    return out
+
+
+__all__ = ["create", "list_for_account", "list_for_user"]

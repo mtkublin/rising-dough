@@ -75,7 +75,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "func>50"
-count = 4
+count = 3
 finding = "Q-046"
 epic = "E13"
 

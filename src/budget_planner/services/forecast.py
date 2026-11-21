@@ -22,7 +22,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from budget_planner.domain.accounts import Account
@@ -38,6 +38,7 @@ from budget_planner.repositories import (
 from budget_planner.services import (
     balance as balance_svc,
     budget as budget_svc,
+    budget_batch,
     fx as fx_svc,
     recurring as recurring_svc,
 )
@@ -230,32 +231,14 @@ def _iter_months(start: dt.date, end: dt.date) -> list[tuple[int, int]]:
     return out
 
 
-def _spent_so_far(
-    conn: sqlite3.Connection,
-    user_id: int,
-    category_id: int,
-    month_start: dt.date,
-    cutoff: dt.date,
-    *,
-    base_of: Callable[[Transaction], int],
-) -> int:
-    """Return actual expense-direction base amount for ``category`` in ``[month_start, cutoff]``.
+@dataclass(frozen=True, slots=True)
+class _MonthSpan:
+    """One budget month: spend window ``[month_start, min(today, month_end)]``, commit window."""
 
-    Each transaction converts at its own date's cached rate, like the budget (ADR-0006, Q-008).
-    """
-    if cutoff < month_start:
-        return 0
-    rows = transactions_repo.list_filtered(
-        conn,
-        user_id,
-        TransactionFilter(
-            date_from=month_start,
-            date_to=cutoff,
-            category_ids=(category_id,),
-            directions=(Direction.EXPENSE,),
-        ),
-    )
-    return sum(base_of(r) for r in rows)
+    month_start: dt.date
+    window_start: dt.date
+    month_end: dt.date
+    include_overdue: bool
 
 
 def _base_of_txn(
@@ -265,34 +248,72 @@ def _base_of_txn(
     return fx_svc.txn_base_of(fx, ccy)
 
 
-def _committed_future_for_category(
+def _spent_per_span(
     conn: sqlite3.Connection,
     user_id: int,
-    category_id: int,
-    window_start: dt.date,
-    window_end_inclusive: dt.date,
+    spans: Sequence[_MonthSpan],
     *,
     today: dt.date,
-    include_overdue: bool = False,
-) -> int:
-    """Sum unpromoted planned + active recurring expense amounts for one category.
+    base_of: Callable[[Transaction], int],
+) -> list[dict[int, int]]:
+    """Base-currency expense per category in each span's ``[month_start, min(today, month_end)]``.
 
-    Window is ``[window_start, window_end_inclusive]`` (both inclusive).
-    Delegates to ``services.budget.committed_by_category`` (one implementation,
-    ADR-0087 linked-occurrence dedup); the inclusive right edge is converted to
-    the half-open ``[start, end)`` that function takes.
+    Each transaction converts at its own date's cached rate, like the budget (ADR-0006, Q-008).
     """
-    if window_end_inclusive < window_start:
-        return 0
-    by_cat = budget_svc.committed_by_category(
+    cutoffs = [min(today, sp.month_end) for sp in spans]
+    spent: list[dict[int, int]] = [{} for _ in spans]
+    live = [(sp, c) for sp, c in zip(spans, cutoffs, strict=True) if c >= sp.month_start]
+    if not live:
+        return spent
+    rows = transactions_repo.list_filtered(
         conn,
         user_id,
-        start=window_start,
-        end=window_end_inclusive + dt.timedelta(days=1),
-        today=today,
-        include_overdue=include_overdue,
+        TransactionFilter(
+            date_from=min(sp.month_start for sp, _ in live),
+            date_to=max(c for _, c in live),
+            directions=(Direction.EXPENSE,),
+        ),
     )
-    return by_cat.get(category_id, 0)
+    for row in rows:
+        for bucket, sp, cutoff in zip(spent, spans, cutoffs, strict=True):
+            if sp.month_start <= row.operation_date <= cutoff:
+                bucket[row.category_id] = bucket.get(row.category_id, 0) + base_of(row)
+    return spent
+
+
+def _month_inputs(
+    conn: sqlite3.Connection,
+    user_id: int,
+    spans: Sequence[_MonthSpan],
+    *,
+    today: dt.date,
+    fx: fx_svc.FxConverter,
+) -> list[tuple[dict[int, int], dict[int, int]]]:
+    """Per span ``(spent_by_category, committed_by_category)`` with O(1) queries (T-Q234).
+
+    Spent is actual expense in ``[month_start, min(today, month_end)]`` (one transaction
+    query bucketed per span); committed is unpromoted planned + active recurring expense
+    in ``[window_start, month_end]`` (one expansion, ADR-0087 dedup via the budget owner).
+    """
+    if not spans:
+        return []
+    spent = _spent_per_span(
+        conn, user_id, spans, today=today, base_of=_base_of_txn(conn, user_id, fx)
+    )
+    committed = budget_batch.committed_by_category_windows(
+        conn,
+        user_id,
+        windows=[
+            budget_batch.CommitWindow(
+                start=sp.window_start,
+                end=sp.month_end + dt.timedelta(days=1),
+                include_overdue=sp.include_overdue,
+            )
+            for sp in spans
+        ],
+        today=today,
+    )
+    return list(zip(spent, committed, strict=True))
 
 
 def _distribute_overlay(
@@ -329,6 +350,28 @@ def _distribute_overlay(
     return events
 
 
+@dataclass(frozen=True, slots=True)
+class _OverlayMonth:
+    """One calendar month the budget overlay touches, with its commit/spend span."""
+
+    year: int
+    month: int
+    span: _MonthSpan
+    window_end: dt.date
+
+
+def _overlay_months(event_start: dt.date, end_date: dt.date) -> list[_OverlayMonth]:
+    out: list[_OverlayMonth] = []
+    for year, month in _iter_months(event_start, end_date):
+        month_start, month_end = month_bounds(year, month)
+        window_start = max(event_start, month_start)
+        window_end = min(end_date, month_end)
+        if window_start <= window_end:
+            span = _MonthSpan(month_start, window_start, month_end, window_start == event_start)
+            out.append(_OverlayMonth(year, month, span, window_end))
+    return out
+
+
 def _collect_budget_overlay(
     conn: sqlite3.Connection,
     user_id: int,
@@ -348,44 +391,26 @@ def _collect_budget_overlay(
     if not expense_cat_ids:
         return []
 
-    base_of = _base_of_txn(conn, user_id, fx)
-    events: list[_CashEvent] = []
-    for year, month in _iter_months(event_start, end_date):
-        month_start, month_end = month_bounds(year, month)
-        window_start = max(event_start, month_start)
-        window_end = min(end_date, month_end)
-        if window_start > window_end:
-            continue
+    resolve = budget_batch.budget_resolver(conn, user_id)
+    months = _overlay_months(event_start, end_date)
+    inputs = _month_inputs(conn, user_id, [m.span for m in months], today=today, fx=fx)
 
+    events: list[_CashEvent] = []
+    for month, (spent_by_cat, committed_by_cat) in zip(months, inputs, strict=True):
         for cat_id in expense_cat_ids:
-            budget = budget_svc.resolve_budget(conn, user_id, cat_id, year, month)
+            budget = resolve(cat_id, month.year, month.month)
             if budget is None:
                 continue
-
-            spent = _spent_so_far(
-                conn, user_id, cat_id, month_start, min(today, month_end), base_of=base_of
-            )
-            committed = _committed_future_for_category(
-                conn,
-                user_id,
-                cat_id,
-                window_start,
-                month_end,
-                today=today,
-                include_overdue=window_start == event_start,
-            )
-            unaccounted = budget - spent - committed
-            if unaccounted <= 0:
-                continue
-
-            events.extend(
-                _distribute_overlay(
-                    unaccounted_minor=unaccounted,
-                    window_start=window_start,
-                    window_end_inclusive=window_end,
-                    account_id=primary_account_id,
+            unaccounted = budget - spent_by_cat.get(cat_id, 0) - committed_by_cat.get(cat_id, 0)
+            if unaccounted > 0:
+                events.extend(
+                    _distribute_overlay(
+                        unaccounted_minor=unaccounted,
+                        window_start=month.span.window_start,
+                        window_end_inclusive=month.window_end,
+                        account_id=primary_account_id,
+                    )
                 )
-            )
 
     return events
 
@@ -399,10 +424,8 @@ def _anchor_balances(
     today: dt.date,
     accounts: tuple[Account, ...],
 ) -> dict[int, int]:
-    """Day-0 native balance per account via ``services.balance.derive_balance``."""
-    return {
-        a.id: balance_svc.derive_balance(conn, user_id, a.id, as_of_date=today) for a in accounts
-    }
+    """Day-0 native balance per account via ``services.balance.derive_balances`` (one query)."""
+    return balance_svc.derive_balances(conn, user_id, accounts, as_of_date=today)
 
 
 # ---------------------------------------------------------------------------
@@ -583,30 +606,27 @@ def _planned_budget_per_month(
         if c.direction is Direction.EXPENSE
     ]
     anchor_month = start_month if start_month is not None else today.replace(day=1)
-    base_of = _base_of_txn(conn, user_id, fx)
+    resolve = budget_batch.budget_resolver(conn, user_id)
+    months = [_month_offset(anchor_month, offset) for offset in range(horizon_months)]
+    tomorrow = today + dt.timedelta(days=1)
+    spans = [
+        _MonthSpan(
+            month_start=m,
+            window_start=max(tomorrow, m),
+            month_end=_last_day_of_month(m),
+            include_overdue=max(tomorrow, m) == tomorrow,
+        )
+        for m in months
+    ]
+    inputs = _month_inputs(conn, user_id, spans, today=today, fx=fx)
     out: dict[dt.date, int] = {}
-    for offset in range(horizon_months):
-        month = _month_offset(anchor_month, offset)
-        month_end = _last_day_of_month(month)
-        window_start = max(today + dt.timedelta(days=1), month)
+    for month, (spent_by_cat, committed_by_cat) in zip(months, inputs, strict=True):
         total = 0
         for cat in expense_cats:
-            amount = budget_svc.resolve_budget(conn, user_id, cat.id, month.year, month.month)
+            amount = resolve(cat.id, month.year, month.month)
             if amount is None:
                 continue
-            spent = _spent_so_far(
-                conn, user_id, cat.id, month, min(today, month_end), base_of=base_of
-            )
-            committed = _committed_future_for_category(
-                conn,
-                user_id,
-                cat.id,
-                window_start,
-                month_end,
-                today=today,
-                include_overdue=window_start == today + dt.timedelta(days=1),
-            )
-            remaining = amount - spent - committed
+            remaining = amount - spent_by_cat.get(cat.id, 0) - committed_by_cat.get(cat.id, 0)
             if remaining > 0:
                 total += remaining
         out[month] = total

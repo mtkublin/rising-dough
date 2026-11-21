@@ -498,6 +498,7 @@ def _rule_items(
     win: _Window,
     direction: Direction,
     *,
+    overrides: list[RecurringOverride],
     dedup: frozenset[tuple[int, dt.date]],
     next_only: bool,
 ) -> list[PendingItem]:
@@ -516,7 +517,7 @@ def _rule_items(
         conn,
         user_id,
         rule=rule,
-        overrides=recurring_repo.list_overrides(conn, user_id, rule.id),
+        overrides=overrides,
         range_start=lo,
         range_end=hi,
     )
@@ -577,10 +578,18 @@ def pending_occurrences(
     win = _Window(start, end, today, include_overdue, overdue_on)
     dedup = linked_occurrence_keys(conn, user_id)
     items = _planned_items(conn, user_id, win, kinds, wanted)
+    overrides = recurring_repo.list_pending_overrides_by_rule(conn, user_id)
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if wanted(rule.category_id):
             items += _rule_items(
-                conn, user_id, rule, win, kinds[rule.category_id], dedup=dedup, next_only=next_only
+                conn,
+                user_id,
+                rule,
+                win,
+                kinds[rule.category_id],
+                overrides=overrides.get(rule.id, []),
+                dedup=dedup,
+                next_only=next_only,
             )
     return tuple(items)
 

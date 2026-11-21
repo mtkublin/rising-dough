@@ -186,6 +186,64 @@ def sum_legs_by_direction(
     ]
 
 
+def sum_legs_by_account(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    up_to_date: date | None = None,
+) -> list[tuple[str, int, int | None, int]]:
+    """One-query ``SUM(amount)`` of the user's live rows, grouped per account pair.
+
+    Returns ``(category direction, account_id, dest_account_id, total)`` rows for
+    every account at once (T-Q234); the balance owner applies the sign rule.
+    """
+    clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
+    params: list[Any] = [user_id]
+    if up_to_date is not None:
+        clauses.append("t.operation_date <= ?")
+        params.append(up_to_date.isoformat())
+    sql = (
+        "SELECT c.direction, t.account_id, t.dest_account_id, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses) + " "
+        "GROUP BY c.direction, t.account_id, t.dest_account_id"
+    )
+    return [
+        (str(r[0]), int(r[1]), None if r[2] is None else int(r[2]), int(r[3]))
+        for r in conn.execute(sql, params).fetchall()
+    ]
+
+
+def sum_legs_by_day(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    since: date,
+    until: date,
+) -> list[tuple[date, str, int, int | None, int]]:
+    """Like :func:`sum_legs_by_account` for ``since <= operation_date <= until``, per day."""
+    sql = (
+        "SELECT t.operation_date, c.direction, t.account_id, t.dest_account_id, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE t.user_id = ? AND t.deleted_at IS NULL "
+        "AND t.operation_date >= ? AND t.operation_date <= ? "
+        "GROUP BY t.operation_date, c.direction, t.account_id, t.dest_account_id"
+    )
+    rows = conn.execute(sql, (user_id, since.isoformat(), until.isoformat())).fetchall()
+    return [
+        (
+            date.fromisoformat(str(r[0])),
+            str(r[1]),
+            int(r[2]),
+            None if r[3] is None else int(r[3]),
+            int(r[4]),
+        )
+        for r in rows
+    ]
+
+
 def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
     norm: dict[str, Any] = {}
     for key, value in changes.items():
@@ -354,6 +412,8 @@ __all__ = [
     "list_filtered",
     "list_recently_deleted",
     "soft_delete",
+    "sum_legs_by_account",
+    "sum_legs_by_day",
     "sum_legs_by_direction",
     "undelete",
     "update",

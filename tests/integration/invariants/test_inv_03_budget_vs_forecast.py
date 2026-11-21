@@ -51,9 +51,10 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
         7, 0
     )
     converter = fx_svc.converter_for(seeded, get_settings(), TODAY)
-    f_spent = forecast._spent_so_far(
-        seeded, U, 7, M_START, TODAY, base_of=fx_svc.txn_base_of(converter, {eur: "EUR"})
+    ((f_spent_by_cat, _),) = forecast._month_inputs(
+        seeded, U, [forecast._MonthSpan(M_START, M_START, TODAY, False)], today=TODAY, fx=converter
     )
+    f_spent = f_spent_by_cat.get(7, 0)
     assert b_spent == f_spent, (b_spent, f_spent)
 
 
@@ -62,7 +63,14 @@ def _committed_pair(conn: sqlite3.Connection) -> tuple[int, int]:
     b = budget.committed_by_category(
         conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY
     ).get(6, 0)
-    f = forecast._committed_future_for_category(conn, U, 6, win_start, M_END, today=TODAY)
+    ((_, f_committed),) = forecast._month_inputs(
+        conn,
+        U,
+        [forecast._MonthSpan(M_START, win_start, M_END, False)],
+        today=TODAY,
+        fx=fx_svc.converter_for(conn, get_settings(), TODAY),
+    )
+    f = f_committed.get(6, 0)
     return b, f
 
 
