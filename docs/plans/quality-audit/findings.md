@@ -149,7 +149,7 @@ Deduplicated from the Questions sections of all tracks and verification files. *
 | OQ-6 | Is the forecast ignoring overdue items intentional (ADR-0105 covers only the budget)? (A Q-01) |  | Q-030 policy |
 | OQ-7 | Are the three 'monthly average' definitions intentional? (A Q-02) |  | Q-075 |
 | OQ-8 | Can formula inputs mix currencies in practice? (A Q-05) |  | Q-010 |
-| OQ-9 | Should a user-defined category with direction transit be allowed at all? (B Q2) |  | Q-004, Q-005 scope |
+| OQ-9 | Should a user-defined category with direction transit be allowed at all? (B Q2) | Default taken 2026-11-21, pending operator confirmation: allowed; every write path validates the transit shape (ADR-0008 amendment 2026-11-21, T-Q210) | Q-004, Q-005 scope |
 | OQ-10 | Are NULL `ip`/`session_id`/`user_agent` on domain audit rows intended (ADR-0122 records only `user_id`)? (B Q3) |  | Q-049 |
 | OQ-11 | Is undo an audited action or an erase of the trail? (B Q4) |  | Q-024 shape |
 | OQ-12 | Should the CRUD service extraction wait for the Sourdough redesign (ADR-0107) or go first? (B Q5) |  | Q-045 sequencing |

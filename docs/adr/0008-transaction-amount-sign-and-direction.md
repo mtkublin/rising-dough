@@ -34,3 +34,16 @@
 - **Signed amount always**: flexible; opens door to "positive expense" / "negative income" bugs.
 - **Two reconciliation categories**: cleaner model purity; worse UX (user must pick direction manually).
 - **Separate `inflows` / `outflows` tables**: DRY violation and join-heavy unified log view.
+
+## Amendment 2026-11-21 (T-Q210, Q-004): transit shape is validated on every write path
+
+A `transit` row without a destination makes `derive_balance` raise, so /accounts, /today and /forecast return 500 until the row is deleted. One rule now guards every write path:
+
+`services/transactions.validate_transit_shape(direction, account, dest)` (pure; raises `ValidationError`):
+
+- `direction == transit` requires a destination account that exists for the same user, has the same currency as the source (ADR-0006, no cross-currency transit in v1) and differs from the source.
+- Other directions are unconstrained (a stored destination on a non-transit row is ignored by balance derivation).
+
+It is applied by create and update of transactions, create and update of planned transactions, promotion (planned and recurring, via `_promotion.validate_promotion`) and reconcile (a transit category chosen for a reconciliation has no destination and is rejected). Routers map `ValidationError` to HTTP 422 with a visible form error; a 500 is never the outcome of invalid input.
+
+OQ-9 default taken 2026-11-21, pending operator confirmation: user-defined transit categories stay allowed; the shape rule above is what makes them safe.
