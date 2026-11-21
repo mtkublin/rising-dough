@@ -5,16 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e import db_probe
+from tests.ui_map import ledger
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
 _PAGE_SIZE = 50
 _ROWS_A = _PAGE_SIZE + 1
 _ROWS_B = 3
-_ROW_SELECTOR = "#txn-table tbody tr[id^='txn-']"
 
 
 def _post_txn(
@@ -33,7 +34,7 @@ def _post_txn(
     assert resp.ok, resp.text()
 
 
-def _seed_base(base_url: str, page: Page) -> tuple[str, str, str]:
+def _seed_base(base_url: str, db_path: Path, page: Page) -> tuple[str, str, str]:
     """Create an account and two categories; return (account, alpha, beta) ids."""
     assert page.request.post(
         f"{base_url}/accounts",
@@ -43,19 +44,16 @@ def _seed_base(base_url: str, page: Page) -> tuple[str, str, str]:
         assert page.request.post(
             f"{base_url}/categories", form={"name": name, "direction": "expense"}
         ).ok
-    page.goto(f"{base_url}/accounts")
-    acct = strip_id_prefix(page.locator("tr[id^='account-']").first.get_attribute("id"), "account-")
-    page.goto(f"{base_url}/categories")
-    ids: dict[str, str] = {}
-    for name in ("Alpha", "Beta"):
-        row = page.locator("[id^='category-']", has_text=name).first
-        ids[name] = strip_id_prefix(row.get_attribute("id"), "category-")
-    return acct, ids["Alpha"], ids["Beta"]
+    return (
+        str(db_probe.account_id(db_path, "Checking")),
+        str(db_probe.category_id(db_path, "Alpha")),
+        str(db_probe.category_id(db_path, "Beta")),
+    )
 
 
-def _seed(base_url: str, page: Page) -> tuple[str, str]:
+def _seed(base_url: str, db_path: Path, page: Page) -> tuple[str, str]:
     """Seed Alpha/Beta transactions; return (alpha_id, beta_id)."""
-    acct, alpha, beta = _seed_base(base_url, page)
+    acct, alpha, beta = _seed_base(base_url, db_path, page)
     ids = {"Alpha": alpha, "Beta": beta}
     for i in range(_ROWS_A):
         _post_txn(
@@ -67,17 +65,24 @@ def _seed(base_url: str, page: Page) -> tuple[str, str]:
             page, base_url, day="2026-01-16", cat=ids["Beta"], acct=acct,
             amount="2.00", desc=f"beta banana {i}",
         )  # fmt: skip
+    assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == _ROWS_A + _ROWS_B
     return ids["Alpha"], ids["Beta"]
 
 
+def _rows(page: Page, view: str) -> Locator:
+    """One entry per data row of a ledger view (its row-actions kebab)."""
+    result: Locator = to_playwright(page, ledger.view_row_actions(view))
+    return result
+
+
 def _open_filtered(live_server: tuple[str, Path], page: Page, *, use_alpha: bool) -> list[str]:
-    base_url, _ = live_server
+    base_url, db_path = live_server
     messages: list[str] = []
     page.on("console", lambda m: messages.append(m.text))
-    alpha, beta = _seed(base_url, page)
+    alpha, beta = _seed(base_url, db_path, page)
     page.goto(f"{base_url}/ledger")
-    page.locator("select[name=category_id]").select_option(alpha if use_alpha else beta)
-    expect(page.locator(_ROW_SELECTOR)).to_have_count(_PAGE_SIZE if use_alpha else _ROWS_B)
+    to_playwright(page, ledger.filter_category).select_option(alpha if use_alpha else beta)
+    expect(_rows(page, "actual")).to_have_count(_PAGE_SIZE if use_alpha else _ROWS_B)
     return messages
 
 
@@ -91,39 +96,39 @@ def test_filter_survives_ledger_stale_refetch(live_server: tuple[str, Path], pag
     page.wait_for_load_state("networkidle")
     with page.expect_response(lambda r: "/ledger/table" in r.url):
         page.evaluate("htmx.trigger(document.body, 'ledger-stale')")
-    expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_B)
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
     _assert_no_include_warning(messages)
 
 
 def test_search_keeps_other_filters(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=False)
     with page.expect_response(lambda r: "q=a" in r.url):
-        page.locator("input[name=q]").fill("a")
+        to_playwright(page, ledger.filter_search).fill("a")
     # "a" matches alpha and beta rows alike; the category filter must still apply.
-    expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_B)
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
     with page.expect_response(lambda r: "q=banana" in r.url):
-        page.locator("input[name=q]").fill("banana")
-    expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_B)
+        to_playwright(page, ledger.filter_search).fill("banana")
+    expect(_rows(page, "actual")).to_have_count(_ROWS_B)
     _assert_no_include_warning(messages)
 
 
 def test_pagination_keeps_filters(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=True)
-    page.get_by_role("button", name="Older").click()
-    expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_A - _PAGE_SIZE)
-    expect(page.locator("#txn-table")).not_to_contain_text("beta banana")
+    to_playwright(page, ledger.older_button).click()
+    expect(_rows(page, "actual")).to_have_count(_ROWS_A - _PAGE_SIZE)
+    expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text("beta banana")
     _assert_no_include_warning(messages)
 
 
-_VIEW_ROWS = {
-    "planned": ("tr[id^='planned-p-']", "&date_from=2026-02-01&date_to=2026-02-28"),
-    "recurring": ("tr[id^='recurring-']", ""),
+_VIEW_EXTRA = {
+    "planned": "&date_from=2026-02-01&date_to=2026-02-28",
+    "recurring": "",
 }
 
 
-def _seed_planned_and_recurring(base_url: str, page: Page) -> str:
+def _seed_planned_and_recurring(base_url: str, db_path: Path, page: Page) -> str:
     """Seed one planned entry and one rule per category; return Beta's id."""
-    acct, alpha, beta = _seed_base(base_url, page)
+    acct, alpha, beta = _seed_base(base_url, db_path, page)
     for cat, word in ((alpha, "alpha apple"), (beta, "beta banana")):
         assert page.request.post(
             f"{base_url}/planned",
@@ -153,23 +158,22 @@ def _seed_planned_and_recurring(base_url: str, page: Page) -> str:
 def test_other_views_keep_filter_on_refetch_and_search(
     live_server: tuple[str, Path], page: Page, view: str
 ) -> None:
-    base_url, _ = live_server
+    base_url, db_path = live_server
     messages: list[str] = []
     page.on("console", lambda m: messages.append(m.text))
-    beta = _seed_planned_and_recurring(base_url, page)
-    selector, extra = _VIEW_ROWS[view]
-    page.goto(f"{base_url}/ledger?view={view}{extra}")
-    rows = page.locator(selector)
+    beta = _seed_planned_and_recurring(base_url, db_path, page)
+    page.goto(f"{base_url}/ledger?view={view}{_VIEW_EXTRA[view]}")
+    rows = _rows(page, view)
     expect(rows).to_have_count(2)
-    page.locator("select[name=category_id]").select_option(beta)
+    to_playwright(page, ledger.filter_category).select_option(beta)
     expect(rows).to_have_count(1)
     page.wait_for_load_state("networkidle")
     with page.expect_response(lambda r: "/ledger/table" in r.url):
         page.evaluate("htmx.trigger(document.body, 'ledger-stale')")
     expect(rows).to_have_count(1)
-    expect(page.locator("#ledger-table")).to_contain_text("banana")
+    expect(to_playwright(page, ledger.table_container)).to_contain_text("banana")
     with page.expect_response(lambda r: "q=a" in r.url):
-        page.locator("input[name=q]").fill("a")
+        to_playwright(page, ledger.filter_search).fill("a")
     expect(rows).to_have_count(1)
-    expect(page.locator("#ledger-table")).not_to_contain_text("apple")
+    expect(to_playwright(page, ledger.table_container)).not_to_contain_text("apple")
     _assert_no_include_warning(messages)

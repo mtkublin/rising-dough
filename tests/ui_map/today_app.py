@@ -8,10 +8,16 @@ their mockup twins when the Today redesign wires them.
 
 from __future__ import annotations
 
-from tests.ui_map.locator import by_id, by_testid
+from tests.ui_map.locator import by_id, by_testid, role
 
 afford_per_day = by_testid("afford-per-day")
 afford_delta = by_testid("afford-delta")
 
 # Every upcoming row in an ``/today/upcoming`` fragment (planned and recurring).
 upcoming_rows = by_id("upcoming-", prefix=True)
+
+# --- T-UT08a: existing e2e journeys ---
+add_planned = role("button", "+ Planned")
+add_recurring = role("button", "+ Recurring")
+promote_all_due = role("button", "Promote all due")
+confirm_promote = role("button", "Confirm")

@@ -150,3 +150,35 @@ def named_input(form: Tag, name: str) -> Tag:
     if not isinstance(el, Tag):
         raise LookupError(f"no input named {name!r}")
     return el
+
+
+# --- T-UT08a: existing e2e journeys ---
+filter_category = label("Category").inside(filters_form)
+filter_search = role("searchbox").inside(filters_form)
+older_button = role("button", "Older")
+cancel_button = role("button", "Cancel")
+add_rule_button = role("button", "Add rule")
+next_month_button = role("button", "Next month")
+any_virtual_planned_row = by_id("planned-v-", prefix=True)
+row_actions = role("button", "Row actions")
+
+
+def view_row_actions(view: str) -> Locator:
+    """One 'Row actions' kebab per data row of a view (counts rows without id prefixes)."""
+    return row_actions.inside(view_table(view))
+
+
+def row_kebab(row_loc: Locator) -> Locator:
+    return row_actions.inside(row_loc)
+
+
+def row_menu_item(row_loc: Locator, name: str) -> Locator:
+    return role("menuitem", name).inside(row_loc)
+
+
+def combobox_option(name: str) -> Locator:
+    """An option of the currently open combobox listbox (closed ones are hidden)."""
+    return role("option", name, exact=True)
+
+
+field_default_amount = role("textbox", "Amount", exact=True)  # recurring form (label sr-only)

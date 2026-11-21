@@ -9,6 +9,7 @@ whole suite is skipped with a clear message instead of crashing.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -200,6 +201,8 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
             proc.kill()
 
 
+_CSP_CONSOLE = re.compile(r"Content Security Policy")
+
 _CSP_LISTENER_JS = """
 document.addEventListener('securitypolicyviolation', (e) => {
   window.__reportCspViolation(
@@ -300,7 +303,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
         "console",
         lambda m: (
             violations.append(f"console: {m.text}")
-            if m.type == "error" and "Content Security Policy" in m.text
+            if m.type == "error" and _CSP_CONSOLE.search(m.text)
             else None
         ),
     )

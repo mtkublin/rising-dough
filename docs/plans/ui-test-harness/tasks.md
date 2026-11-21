@@ -88,6 +88,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
 - **Acceptance**: all green on Chromium; no CSS locators; each journey asserts the DB effect as well as the screen.
 - **Validation**: `just test-e2e`
+- **Progress**: 08a: existing journeys migrated (2026-11-21): the 15 e2e files use UI-map names through `to_playwright`, ids come from the scratch DB (`tests/e2e/db_probe.py`), journeys assert the DB effect; e2e entries removed from the markup allowlist. 08b (new journeys) open.
 
 ### ✅ T-UT09 [P] Mockup target → T-UT01, T-UT02
 - **Deliverables**: `--target=mockup` option that serves `docs/design/rising-dough-frontend/` over HTTP (with `stand-in.js` active) and runs UI-map lookups and click-through journeys against it. Mapping from app routes to handoff pages in `tests/ui_map/mockup_routes.py`.
