@@ -19,85 +19,70 @@ repos:
         args: [--fix=lf]
         exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*|docs/application_redesign_handoff/.*)$
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.2
+  # ADR-0120 amendment (2026-11-21, T-Q240): Python tool hooks run the versions
+  # locked in uv.lock (`uv run <tool>`), so local, CI and `just` agree.
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff
+        entry: uv run --quiet ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
       - id: ruff-format
+        name: ruff format
+        entry: uv run --quiet ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.4.0
-    hooks:
       - id: mypy
-        additional_dependencies:
-          - pydantic>=2.9
-          - pydantic-settings>=2.6
-          - types-python-dateutil>=2.9
-          - pandas-stubs>=2.2
-          - fastapi>=0.115
-          - pytest>=8.3
-          - httpx>=0.27
-          - jinja2>=3.1
-          - markupsafe>=2.1
-          - beautifulsoup4>=4.12
-          # T-D02a / ADR-0067 — keep in sync with pyproject + [tool.uv] constraints.
-          - bcrypt>=4.2
-          - webauthn>=2.7,<3
-          - cbor2<6
-          - cryptography<49
-          - types-beautifulsoup4>=4.12
-          - playwright>=1.47
-          - structlog>=24.4
-          - sqlglot>=25.0
-          - pyyaml>=6
-          - types-pyyaml>=6
-        args: [--config-file=pyproject.toml]
+        name: mypy
+        # Whole-repo (config: pyproject packages), env = the locked dev group.
+        entry: uv run --quiet mypy --config-file=pyproject.toml
+        language: system
         pass_filenames: false
-        files: ^(src|tests)/
+        files: ^(src|tests)/.*\.py$
 
-  - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 4.4.0
-    hooks:
       # Scope to migrations only. tests/fixtures/*.sql is auto-generated
       # by scripts/dump_schema.sh and must stay byte-for-byte identical to
-      # the SQLite master dump — sqlfluff's cosmetic rewrites would make
-      # it diverge from what the generator writes.
+      # the SQLite master dump; sqlfluff's cosmetic rewrites would diverge it.
       - id: sqlfluff-lint
-        files: ^migrations/.*\.sql$
-      - id: sqlfluff-fix
+        name: sqlfluff-lint
+        entry: uv run --quiet sqlfluff lint
+        language: system
         files: ^migrations/.*\.sql$
 
-  - repo: https://github.com/djlint/djLint
-    rev: v1.47.0
-    hooks:
+      - id: sqlfluff-fix
+        name: sqlfluff-fix
+        entry: uv run --quiet sqlfluff fix --force
+        language: system
+        files: ^migrations/.*\.sql$
+
       - id: djlint-jinja
-        # Upstream hook is `types_or: [jinja]` (.jinja/.j2 only), so a bare
-        # `files: \.html$` matched nothing ("no files to check"). Override the
-        # type filter and mirror `just lint` (format check on the app templates).
+        name: djLint (jinja templates)
+        entry: uv run --quiet djlint --check
+        language: system
         types_or: [html]
         files: ^src/budget_planner/web/templates/.*\.html$
-        args: [--check]
         # Designer handoff is vendored byte-identical (ADR-0106, T-UT01).
         exclude: ^(docs/design|docs/application_redesign_handoff)/
 
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.10
-    hooks:
       - id: bandit
-        args: [--configfile=pyproject.toml, --recursive, src]
+        name: bandit
+        entry: uv run --quiet bandit --configfile=pyproject.toml --recursive src
+        language: system
         pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml)$
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
-    hooks:
       - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
+        name: Detect secrets
+        entry: uv run --quiet detect-secrets-hook --baseline .secrets.baseline
+        language: system
         # Vendored designer output (ADR-0129): public SRI hashes, not secrets.
         exclude: ^docs/application_redesign_handoff/
 
-  - repo: local
-    hooks:
       - id: pytest-fast
         name: pytest (affected tests, testmon)
         # The local gate (ADR-0120): testmon-selected tests across the whole
