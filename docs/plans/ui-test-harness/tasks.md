@@ -59,7 +59,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ### ✅ T-UT04b [P] Today and Accounts
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
-- Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. App-only Today names live in `tests/ui_map/today_app.py` (the mockup twin must stay a superset of `today.py`). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
+- Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. Today names live in `tests/ui_map/today.py` (the mockup twin must stay a superset). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
 
 ### ✅ T-UT04c [P] Ledger
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
@@ -116,16 +116,16 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 ### ✅ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.
 - README exit criteria 1–7 checked; ADR-0106 flipped to Accepted; `docs/CHANGELOG.md` entry; `just ci` green on the work branch.
-- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run outcome follows.
+- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run of `just ci` was green: 3180 passed, 4 skipped, 1 xfailed, coverage 96.39%. Full e2e on Chromium: 110 passed, 2 skipped, 1 xfailed.
 - **Known exceptions**:
   - WebKit is unverified on this host (T-UT11).
   - ✅ `T-D-UT07-1` resolved (crawler artefact, `/plan?tab=year` does not scroll); no known app bugs remain in the crawl.
-  - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are pending operator acceptance.
+  - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are accepted by the operator 2026-11-21 (framework-owned docs/static routes, not app pages).
   - T-UT06 stays open (awaiting the designer); every parity row has an owner (`ask designer`).
 
 ### Follow-ups (found during the work, not fixed here)
-- `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save.
-- `T-D-UT12-2`: user create/delete writes no `audit_log` row.
+- ✅ `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save. Fixed 2026-11-21: only the form's own non-GET request closes the overlay; the T-UT08b workaround is removed.
+- ✅ `T-D-UT12-2`: user create/delete writes no `audit_log` row. Result: not reproducible; `repositories/users.py` `create_user` and `soft_delete` already write `entity_type = 'users'` audit rows with the acting admin as actor (F1.5, ADR-0019/ADR-0022/ADR-0073 §5). The contract test now pins exactly one row per create and delete.
 - `T-D-UT12-3`: the formula preview chip/endpoint `/recurring/formula/preview` is not wired into any page.
-- `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins.
-- `T-D-UT12-5`: `tests/contract/web_helpers_t_ut04e.py` `field()` can become `resolve_one` now that `label()` is fixed.
+- ✅ `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins. Done 2026-11-21: names moved into `today.py`, `today_app.py` deleted; mockup twins added where the handoff has the element (afford result, upcoming rows, promote-all), the three with no `today.html` element (`add_planned`, `add_recurring`, `confirm_promote`) are listed in `mockup.today.NO_HANDOFF_TWIN` and skipped by the resolve test.
+- ✅ `T-D-UT12-5`: `tests/contract/web_helpers_t_ut04e.py` `field()` can become `resolve_one` now that `label()` is fixed. Done 2026-11-21: `field()` deleted, call sites use `_html.resolve_one`.

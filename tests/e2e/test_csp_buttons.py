@@ -15,7 +15,7 @@ from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
 from tests.e2e.ui_actions import open_add_slide_over, pick
-from tests.ui_map import accounts, ledger, plan, settings, shell, today, today_app
+from tests.ui_map import accounts, ledger, plan, settings, shell, today
 from tests.ui_map.locator import Locator as UiLocator, to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -129,7 +129,7 @@ def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
     to_playwright(page, today.promote.inside(planned_row)).first.click()
-    to_playwright(page, today_app.confirm_promote).click()
+    to_playwright(page, today.confirm_promote).click()
     # The promoted planned item leaves Upcoming and lands in the ledger.
     expect(to_playwright(page, planned_row)).to_have_count(0)
     assert db_probe.txn_amounts(db_path, "csp-promote") == [2500]
@@ -179,7 +179,7 @@ def test_add_planned_from_today_submits_under_csp(
 ) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today_app.add_planned, ledger.planned_form)
+    _open_today_form(page, base_url, today.add_planned, ledger.planned_form)
     pick(page, ledger.field_category, "Groceries")
     pick(page, ledger.field_account, "Checking")
     soon = datetime.now(tz=UTC).date() + timedelta(days=2)
@@ -199,7 +199,7 @@ def test_add_planned_from_today_invalid_amount_rerenders_form(
 ) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today_app.add_planned, ledger.planned_form)
+    _open_today_form(page, base_url, today.add_planned, ledger.planned_form)
     pick(page, ledger.field_category, "Groceries")
     pick(page, ledger.field_account, "Checking")
     _fill(page, ledger.field_amount, "0")
@@ -214,7 +214,7 @@ def test_add_recurring_from_today_submits_under_csp(
 ) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today_app.add_recurring, ledger.recurring_form)
+    _open_today_form(page, base_url, today.add_recurring, ledger.recurring_form)
     pick(page, ledger.field_category, "Groceries")
     pick(page, ledger.field_account, "Checking")
     _fill(page, ledger.field_default_amount, "40.00")

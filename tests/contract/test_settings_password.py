@@ -22,7 +22,7 @@ from budget_planner.services import _passwords
 from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
 from tests.auth_support import FAST_ROUNDS, TEST_PASSWORD, issue_session, login_cookie
 from tests.contract.conftest import covers
-from tests.contract.web_helpers_t_ut04e import HX, field
+from tests.contract.web_helpers_t_ut04e import HX
 from tests.ui_map import _html, settings as ui
 
 pytest_plugins = ["tests.contract.web_support_t_ut04e"]  # client, raw_client, anon_client, db
@@ -126,8 +126,8 @@ def test_get_forced_page_is_standalone_with_banner(forced: TestClient) -> None:
     assert _html.exists(r.text, ui.sign_out_instead)
     assert not _html.exists(r.text, ui.tabs)
     assert not _html.exists(r.text, ui.passkeys)
-    assert field(r.text, ui.new_password)["autocomplete"] == "new-password"
-    assert field(r.text, ui.current_password)["autocomplete"] == "current-password"
+    assert _html.resolve_one(r.text, ui.new_password)["autocomplete"] == "new-password"
+    assert _html.resolve_one(r.text, ui.current_password)["autocomplete"] == "current-password"
 
 
 @covers("GET /settings/password")
@@ -203,7 +203,7 @@ def test_post_wrong_current_is_422_audited_and_changes_nothing(
     before = _user(db)["password_hash"]
     r = forced.post("/settings/password", data=_form(current=WRONG), headers={"User-Agent": "ua"})
     assert r.status_code == 422
-    assert field(r.text, ui.current_password)["aria-invalid"] == "true"
+    assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
     assert WRONG not in r.text
     row = _user(db)
     assert row["password_hash"] == before
@@ -236,7 +236,7 @@ def test_post_policy_errors_render_security_page_inline(
     assert _html.exists(r.text, ui.password_summary)
     assert _html.exists(r.text, ui.tabs)  # unflagged users stay inside Settings
     control = ui.confirm_password if bad_field == "confirm" else ui.new_password
-    assert field(r.text, control)["aria-invalid"] == "true"
+    assert _html.resolve_one(r.text, control)["aria-invalid"] == "true"
     assert _user(db)["password_hash"] == before
 
 

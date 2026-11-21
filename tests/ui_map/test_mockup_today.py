@@ -15,7 +15,7 @@ TODAY_HTML = (HANDOFF_ROOT / "pages" / "today.html").read_text(encoding="utf-8")
 
 def _locators() -> list[tuple[str, Locator]]:
     out: list[tuple[str, Locator]] = []
-    for name in sorted(public_names(mockup_today)):
+    for name in sorted(public_names(mockup_today) - mockup_today.NO_HANDOFF_TWIN):
         value = getattr(mockup_today, name)
         out.append((name, value(1) if callable(value) else value))
     return out

@@ -28,7 +28,7 @@ from tests.contract.web_helpers_t_ut04b import (
     fetch_all,
     seed_other_user,
 )
-from tests.ui_map import _html, today, today_app
+from tests.ui_map import _html, today
 
 pytest_plugins = ["tests.contract.web_support_t_ut04b"]  # client, anon_client, raw_client
 
@@ -79,7 +79,7 @@ def test_today_page_renders_hero_and_upcoming(client: TestClient) -> None:
     assert r.headers["content-type"].startswith("text/html")
     assert _html.exists(r.text, today.heading)
     assert _html.exists(r.text, today.upcoming)
-    assert _html.exists(r.text, today_app.afford_per_day)
+    assert _html.exists(r.text, today.afford_per_day)
 
 
 @covers("GET /today")
@@ -114,7 +114,7 @@ def test_today_page_requires_login(anon_client: TestClient) -> None:
 def test_upcoming_empty_state(client: TestClient) -> None:
     r = client.get("/today/upcoming")
     assert r.status_code == 200
-    assert _html.count(r.text, today_app.upcoming_rows) == 0
+    assert _html.count(r.text, today.upcoming_rows) == 0
 
 
 @covers("GET /today/upcoming")
@@ -177,9 +177,9 @@ def test_upcoming_requires_login(anon_client: TestClient) -> None:
 def test_afford_accepts_non_negative_amounts(client: TestClient, path: str, amount: str) -> None:
     r = client.get(path, params={"amount": amount})
     assert r.status_code == 200
-    assert _html.exists(r.text, today_app.afford_per_day)
+    assert _html.exists(r.text, today.afford_per_day)
     # The signed per-day delta only shows for a positive amount.
-    assert _html.exists(r.text, today_app.afford_delta) is (amount not in {"0", ""})
+    assert _html.exists(r.text, today.afford_delta) is (amount not in {"0", ""})
 
 
 @covers("GET /today/afford", "GET /afford")

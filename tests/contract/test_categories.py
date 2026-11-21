@@ -18,7 +18,6 @@ from tests.contract.web_helpers_t_ut04e import (
     USER_ID,
     audit_ops,
     fetch_all,
-    field,
     make_category,
     system_category_id,
 )
@@ -147,7 +146,7 @@ def test_create_requires_csrf_and_login(
 def test_edit_form_prefilled_without_direction_choice(client: TestClient, cat_id: int) -> None:
     r = client.get(f"/categories/{cat_id}/edit", headers=HX)
     assert r.status_code == 200
-    assert field(r.text, ui.category_name)["value"] == "Groceries"
+    assert _html.resolve_one(r.text, ui.category_name)["value"] == "Groceries"
     assert not _html.exists(r.text, ui.category_expense)  # direction fixed once created
 
 
