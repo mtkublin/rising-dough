@@ -535,3 +535,15 @@ Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 
   - `_all_expense_txns` #7 (row 22): `directions=None` only adds non-expense txns, and every consumer keys by expense category, so the extra rows are never read.
   - `_committed_future_for_category` #39 #42 #43 (row 101): `active_only` off includes inactive rules, but `rt_expand` -> `generate_occurrences` already returns no occurrences for an inactive rule, so the inactive 6000 rule in the tombstone world contributes 0 either way. The `active_only` argument is redundant defence at this site.
 - `tests/unit/services/test_user_isolation.py::test_isolation_registry_matches_allowlist` is skipped inside `mutants/` (it scans the mangled `x_<fn>__mutmut_N` names and fails the stats run).
+
+## T-Q225 re-run (2026-11-21)
+
+`mutmut run "budget_planner.services.recurring.*"` (mutmut 3.7.0, `mutants/` deleted first) over `services/recurring.py` after T-Q211. Baseline on the current source: 77 survivors (the audit-time ids `recurring:94-673` shifted with T-Q211). After `tests/unit/services/test_recurring_mutation_kills.py` (32 tests: full `Occurrence` equality, exact exception args and log messages, boundary days, formula guard, audit row `user_id` / `actor_user_id` / prev and new JSON for promote and skip, batch ordering, second-user absence): **13 survivors, all equivalent**.
+
+- `generate_occurrences` #22 (`base_date - relativedelta(month=.., day=..)`): `relativedelta.__neg__` keeps absolute fields, so subtraction of an absolute-only delta equals addition.
+- `generate_occurrences` #24, #26 (`day=None` / omitted): `_step_date` re-anchors every occurrence on `anchor_day`, so the candidate's day is overwritten and the emitted dates do not change.
+- `generate_occurrences` #29 (`candidate - 1 year`): the shifted base steps by 12 months and `hard_start` filters the earlier years, so the emitted dates are the same.
+- `advance_next_due` #1 (`end_date = None`): `generate_occurrences` clamps to `rule.end_date` itself and the next occurrence is always inside the 400-day lookahead.
+- `advance_next_due` #6 (`hard_end < from_date`): when `hard_end == from_date` the generator gets an empty window and returns `()`, so the result is `None` either way.
+- `promote_recurring` #73: `# pragma: no cover` branch (FK guarantees the category row), message only.
+- `promote_recurring` #146, #150, #151 and `skip_and_advance` #60, #64, #65 (`find_rule(.., include_deleted=None/omitted/False)` for the post-update read): the rule is never soft-deleted inside these transactions, so the live and include-deleted reads return the same row. (Revisit if T-Q204 changes the read order.)
