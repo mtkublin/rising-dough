@@ -229,6 +229,13 @@ def round_div(numerator: int, denominator: int, *, mode: RoundingMode) -> int:
 _BPS_PER_PERCENT: Final = Decimal(100)
 
 
+def mean_minor(total_minor: int, count: int) -> int:
+    """Mean of ``total_minor`` over ``count`` items, half-even; 0 when ``count <= 0``."""
+    if count <= 0:
+        return 0
+    return round_div(total_minor, count, mode=HALF_EVEN)
+
+
 def currency_decimals(currency: str) -> int:
     """Return the ISO 4217 minor-unit exponent for ``currency`` (2 for unknown codes)."""
     return CURRENCY_EXPONENTS.get(currency.upper(), _DEFAULT_EXPONENT)

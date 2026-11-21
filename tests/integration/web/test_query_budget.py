@@ -12,7 +12,8 @@ Statements per request measured BEFORE T-Q234 (``assert_max_queries`` counter, s
     /forecast                     771            1137
     /plan?tab=forecast            772            1138
 
-AFTER T-Q234: /accounts 18 and /forecast 49 (/plan 50) at both sizes. Budgets below
+AFTER T-Q234 (merged with the FX-converting spent of T-Q213): /accounts 19 and /forecast 64
+(/plan 65) at both sizes. Budgets below
 carry headroom (about +30 percent) so unrelated small changes do not flap the test.
 """
 
@@ -58,7 +59,7 @@ _CURRENCIES = ("PLN", "EUR", "USD")
 TODAY = date(2026, 11, 21)
 
 _ACCOUNTS_BUDGET = 25
-_FORECAST_BUDGET = 65
+_FORECAST_BUDGET = 85
 
 
 def seed_world(
@@ -247,7 +248,7 @@ def test_budget_resolver_equals_resolve_budget(conn: sqlite3.Connection) -> None
 
 
 def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection) -> None:
-    """Values recorded from the pre-T-Q234 per-account / per-category code on this world."""
+    """Values recorded from the pre-batching code (with FX-converted spent) on this world."""
     seed_world(conn, 6, 5)
     conn.commit()
     settings = get_settings()
@@ -270,4 +271,4 @@ def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection) -> Non
         conn, _USER, fx_svc.converter_for(conn, settings, TODAY), TODAY, 400
     )
     totals = [d.totals_base_minor for d in series.days]
-    assert (totals[0], totals[30], totals[-1]) == (53390, -345865, -3612762)
+    assert (totals[0], totals[30], totals[-1]) == (53390, -344413, -3611310)

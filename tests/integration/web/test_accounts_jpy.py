@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, time
+from decimal import Decimal
 
 import pytest
 from bs4 import BeautifulSoup
@@ -15,10 +16,12 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
+    fx as fx_repo,
     planned as planned_repo,
 )
 from budget_planner.web.templating import build_jinja_env
@@ -42,6 +45,9 @@ def jpy_id(_migrated: Settings) -> int:
         cat = categories_repo.create(
             conn, 1, NewCategory(name="Rent", direction=Direction.EXPENSE)
         ).id
+        fx_repo.upsert_rate(
+            conn, NewFxRate(date=TODAY, from_ccy="JPY", to_ccy="PLN", rate=Decimal("0.027"))
+        )
         planned_repo.create(
             conn,
             1,

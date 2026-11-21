@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from budget_planner.domain.accounts import Account, AccountStats
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import mean_minor
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -151,13 +151,6 @@ def derive_balance(
     return account.opening_balance + delta
 
 
-def _mean(values: list[int]) -> int:
-    """Mean rounded to the nearest integer with banker's rounding; 0 on empty."""
-    if not values:
-        return 0
-    return round_div(sum(values), len(values), mode=HALF_EVEN)
-
-
 _Leg = tuple[dt.date, Direction, int]
 
 
@@ -187,8 +180,8 @@ def _stats_from_legs(account: Account, legs: Sequence[_Leg]) -> AccountStats:
         base_balance=balance_value,
         txn_count=len(legs),
         last_txn_date=last_date.isoformat() if last_date is not None else None,
-        avg_inflow_minor=_mean(inflows),
-        avg_outflow_minor=_mean(outflows),
+        avg_inflow_minor=mean_minor(sum(inflows), len(inflows)),
+        avg_outflow_minor=mean_minor(sum(outflows), len(outflows)),
     )
 
 

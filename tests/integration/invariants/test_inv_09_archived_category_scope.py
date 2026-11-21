@@ -13,9 +13,10 @@ from datetime import date
 
 import pytest
 
+from budget_planner.config import get_settings
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.repositories import budgets as budgets_repo, categories as categories_repo
-from budget_planner.services import forecast
+from budget_planner.services import forecast, fx as fx_svc
 
 U = 1
 TODAY = date(2026, 11, 19)
@@ -34,14 +35,22 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
     end = date(2026, 11, 30)
     month = date(2026, 11, 1)
 
+    fx = fx_svc.converter_for(seeded, get_settings(), TODAY)
+
     def paths() -> tuple[int, int]:
         overlay = -sum(
             e.amount_minor
             for e in forecast._collect_budget_overlay(
-                seeded, U, today=TODAY, end_date=end, directions_by_cat=cats, primary_account_id=1
+                seeded,
+                U,
+                today=TODAY,
+                end_date=end,
+                directions_by_cat=cats,
+                primary_account_id=1,
+                fx=fx,
             )
         )
-        return overlay, forecast._planned_budget_per_month(seeded, U, TODAY, 1)[month]
+        return overlay, forecast._planned_budget_per_month(seeded, U, TODAY, 1, fx=fx)[month]
 
     overlay_with, monthly_with = paths()
     seeded.execute("DELETE FROM budget_defaults WHERE category_id = ?", (ARCHIVED,))

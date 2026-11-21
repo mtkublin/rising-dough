@@ -33,6 +33,7 @@ from budget_planner.services import (
     accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
+    fx as fx_service,
     reconciliation as reconciliation_service,
 )
 from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
@@ -132,7 +133,9 @@ def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict
             -(card["balance"] if card["balance"] >= 0 else -card["balance"]),
         )
     )
-    fortune = fortune_service.compute_fortune(conn, user_id, settings)
+    fortune = fortune_service.compute_fortune(
+        conn, user_id, fx_service.converter_for(conn, settings, clock.today_local(settings))
+    )
     return {
         "cards": cards,
         "fortune": fortune,

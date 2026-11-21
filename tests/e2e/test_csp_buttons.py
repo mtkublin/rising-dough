@@ -7,12 +7,17 @@ only need to drive the UI and assert its visible result.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
 
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.domain.fx import NewFxRate
+from budget_planner.repositories import fx as fx_repo
 from tests.e2e.conftest import strip_id_prefix
 
 pytestmark = pytest.mark.e2e
@@ -225,7 +230,16 @@ def test_create_account_from_accounts_submits_under_csp(
     live_server: tuple[str, Path], page: Page
 ) -> None:
     # T-D150: the create form targeted a non-existent #accounts-grid.
-    base_url, _ = live_server
+    base_url, db_path = live_server
+    # Net worth converts every account to base (ADR-0139): a EUR account needs a cached rate.
+    conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}"))
+    try:
+        fx_repo.upsert_rate(
+            conn,
+            NewFxRate(date=date(2020, 1, 1), from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+        )
+    finally:
+        conn.close()
     form = _open_new_account_form(page, base_url)
     form.locator("input[name='name']").fill("Travel wallet")
     _pick(page, "currency", "EUR")

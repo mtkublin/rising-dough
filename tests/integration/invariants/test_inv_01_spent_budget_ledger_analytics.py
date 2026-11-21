@@ -8,8 +8,6 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
@@ -31,11 +29,11 @@ GROCERIES = 7
 def figures(conn: sqlite3.Connection) -> dict[str, int]:
     summ = budget.month_summary(conn, U, Y, M, today=END, period_window=(START, END))
     line = next(x for x in summ.lines if x.category_id == GROCERIES)
-    bundle = analytics.bundle(conn, U, today=END, period="month")
+    converter = fx_svc.converter_for(conn, get_settings(), END)
+    bundle = analytics.bundle(conn, U, converter, today=END, period="month")
     spend = next(
         (r.amount_minor for r in bundle.spend_by_category if r.category_id == GROCERIES), 0
     )
-    converter = fx_svc.converter_for(conn, get_settings(), END)
     rows = txn_repo.list_filtered(
         conn,
         U,
@@ -58,10 +56,6 @@ def test_pln_only_demo_agrees(seeded: sqlite3.Connection) -> None:
     assert len(set(figures(seeded).values())) == 1
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-008: analytics sums native amounts across currencies (budget and ledger convert)",
-)
 def test_foreign_currency_expense_agrees_across_budget_ledger_analytics(
     seeded: sqlite3.Connection,
 ) -> None:

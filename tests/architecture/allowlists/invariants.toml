@@ -3,24 +3,6 @@
 guard = "invariants"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_01_spent_budget_ledger_analytics.py"
-rule = "Q-008"
-count = 1
-finding = "Q-008"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_02_fortune_balance_forecast.py"
-rule = "Q-009"
-count = 1
-finding = "Q-009"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_03_budget_vs_forecast.py"
-rule = "Q-008"
-count = 1
-finding = "Q-008"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_05_amount_validation_parity.py"
 rule = "Q-023"
 count = 1

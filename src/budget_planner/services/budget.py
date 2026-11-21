@@ -100,13 +100,7 @@ def txn_base_amounts(
     no network). A missing rate raises ``FxUnavailableError``.
     """
     fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
-    ccy_by_account = _currency_by_account(conn, user_id)
-
-    def _base_of(txn: Transaction) -> int:
-        ccy = ccy_by_account.get(txn.account_id, fx.base_currency)
-        return fx.to_base(txn.amount, ccy, txn.operation_date)
-
-    return _base_of
+    return fx_svc.txn_base_of(fx, _currency_by_account(conn, user_id))
 
 
 @dataclass(frozen=True, slots=True)
