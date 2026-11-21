@@ -146,7 +146,7 @@ Deduplicated from the Questions sections of all tracks and verification files. *
 | OQ-3 | Does the prod image contain `/usr/share/zoneinfo/Europe/Warsaw` (so `TZ` works)? (A Q-04, C Q-1) | Sev | Q-031 Medium to Low if yes; live if no |
 | OQ-4 | Has any reconciliation used an income/expense category? (answered: no) |  | Q-005 stays High latent |
 | OQ-5 | Is there a recurring rule with blank day-of-month and a start after the 28th, or with a day-of-month earlier than its start day? (C Q-2) | Sev | Q-006 (default taken 2026-11-21, pending operator data check; T-Q211 ships no data-fix migration) |
-| OQ-6 | Is the forecast ignoring overdue items intentional (ADR-0105 covers only the budget)? (A Q-01) |  | Q-030 policy |
+| OQ-6 | Is the forecast ignoring overdue items intentional (ADR-0105 covers only the budget)? (A Q-01) | **Default taken 2026-11-21, pending operator confirmation:** forecast counts overdue items, placed on `today + 1`; budget keeps ADR-0105 (ADR-0105 amendment 2026-11-21, T-Q207). | Q-030 policy |
 | OQ-7 | Are the three 'monthly average' definitions intentional? (A Q-02) |  | Q-075 |
 | OQ-8 | Can formula inputs mix currencies in practice? (A Q-05) |  | Q-010 |
 | OQ-9 | Should a user-defined category with direction transit be allowed at all? (B Q2) | Default taken 2026-11-21, pending operator confirmation: allowed; every write path validates the transit shape (ADR-0008 amendment 2026-11-21, T-Q210) | Q-004, Q-005 scope |

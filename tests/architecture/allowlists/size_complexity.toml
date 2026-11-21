@@ -61,13 +61,6 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/services/budget.py"
 rule = "func>50"
-count = 2
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "cc>=11"
 count = 1
 finding = "Q-046"
 epic = "E13"
@@ -83,13 +76,6 @@ epic = "E13"
 path = "src/budget_planner/services/forecast.py"
 rule = "func>50"
 count = 4
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/income.py"
-rule = "func>50"
-count = 1
 finding = "Q-046"
 epic = "E13"
 

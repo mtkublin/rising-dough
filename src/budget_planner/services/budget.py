@@ -41,13 +41,11 @@ from budget_planner.domain.periods import (
     shift_month,
     window_label_month,
 )
-from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
-    planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
@@ -242,57 +240,32 @@ def committed_by_category(
     end: dt.date,
     today: dt.date | None = None,
     base_currency: str | None = None,
+    include_overdue: bool = False,
 ) -> dict[int, int]:
     """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
 
     Expense-direction categories only (transit + adjustment + income
     excluded). Sources: unpromoted planned rows and active recurring-rule
     occurrences (overrides applied) - see :func:`committed_in_window`.
-    ``start=None`` drops the lower bound so every overdue item counts (ADR-0105).
+    ``start=None`` drops the lower bound so every overdue item counts (ADR-0105);
+    ``include_overdue`` adds items dated before ``today`` to a bounded window.
     """
     out: dict[int, int] = defaultdict(int)
     if start is not None and end <= start:
         return out
     base_of = planned_base_amounts(conn, user_id, today=today, base_currency=base_currency)
 
-    expense_ids = {
-        cat.id
-        for cat in categories_repo.list_all(conn, user_id, include_deleted=True)
-        if cat.direction is Direction.EXPENSE
-    }
-    inclusive_end = end - dt.timedelta(days=1)
-    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
-
-    planned_rows = planned_repo.list_filtered(
+    items = recurring_svc.pending_occurrences(
         conn,
         user_id,
-        PlannedFilter(
-            date_from=start,
-            date_to=inclusive_end,
-            directions=(Direction.EXPENSE,),
-            promoted=False,
-        ),
+        start=start,
+        end=end,
+        today=today,
+        include_overdue=start is None or include_overdue,
+        directions=(Direction.EXPENSE,),
     )
-    for row in planned_rows:
-        out[row.category_id] += base_of(row.account_id, row.amount)
-
-    # Clamp the window to [max(rule.next_due, start), end): earlier occurrences are
-    # promoted (counted in ``spent``) or historical no-ops; the cadence never shifts.
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if rule.category_id not in expense_ids:
-            continue
-        lo = rule.next_due if start is None else max(rule.next_due, start)
-        if lo > inclusive_end:
-            continue
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
-        occurrences = recurring_svc.rt_expand(
-            conn, user_id, rule=rule, overrides=overrides, range_start=lo, range_end=inclusive_end
-        )
-        out[rule.category_id] += sum(
-            base_of(occ.account_id, occ.amount)
-            for occ in occurrences
-            if (rule.id, occ.occurrence_date) not in dedup_keys
-        )
+    for item in items:
+        out[item.category_id] += base_of(item.account_id, item.amount)
     return out
 
 

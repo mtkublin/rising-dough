@@ -22,14 +22,8 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Literal
 
-from budget_planner.domain.enums import OverrideState
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
-from budget_planner.domain.recurring import RecurringOverride, RecurringRule
-from budget_planner.repositories import (
-    planned as planned_repo,
-    recurring as recurring_repo,
-)
-from budget_planner.services.recurring_formula import resolve_rule_amount
+from budget_planner.repositories import recurring as recurring_repo
+from budget_planner.services import recurring as recurring_svc
 
 UpcomingKind = Literal["planned", "recurring"]
 
@@ -54,78 +48,23 @@ class UpcomingItem:
     is_formula: bool
 
 
-def _planned_item(row: PlannedTransaction, today: dt.date) -> UpcomingItem:
+def _item(item: recurring_svc.PendingItem, *, is_formula: bool) -> UpcomingItem:
+    """Project one pending item (planned row or ``next_due`` occurrence) for the panel."""
     return UpcomingItem(
-        kind="planned",
-        effective_date=row.operation_date,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        category_id=row.category_id,
-        amount_minor=row.amount,
-        description=row.description,
-        is_overdue=row.operation_date < today,
-        planned_id=row.id,
-        rule_id=None,
-        override_present=False,
-        is_formula=False,
+        kind=item.kind,
+        effective_date=item.due_date,
+        account_id=item.account_id,
+        dest_account_id=item.dest_account_id,
+        category_id=item.category_id,
+        amount_minor=item.amount,
+        description=item.description,
+        # Recurring never surfaces as overdue (module docstring).
+        is_overdue=item.is_overdue and item.kind == "planned",
+        planned_id=item.planned_id,
+        rule_id=item.rule_id,
+        override_present=item.is_overridden,
+        is_formula=is_formula,
     )
-
-
-def _recurring_item(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule: RecurringRule,
-    override: RecurringOverride | None,
-) -> UpcomingItem | None:
-    """Project an active recurring rule's ``next_due`` into an UpcomingItem.
-
-    Returns ``None`` when the override on ``next_due`` is ``SKIPPED``.
-    Formula rules recompute their amount from the current source-rule
-    state for the effective date's month (ADR-0047); overrides on the
-    amount still win when present.
-    """
-    if override is not None and override.state is OverrideState.SKIPPED:
-        return None
-    description = rule.default_description
-    effective = rule.next_due
-    override_present = False
-    amount_override: int | None = None
-    if override is not None and override.state is OverrideState.OVERRIDDEN:
-        override_present = True
-        amount_override = override.amount_override
-        if override.description_override is not None:
-            description = override.description_override
-        if override.date_override is not None:
-            effective = override.date_override
-    if amount_override is not None:
-        amount = amount_override
-    else:
-        amount = resolve_rule_amount(conn, user_id, rule, effective)
-    return UpcomingItem(
-        kind="recurring",
-        effective_date=effective,
-        account_id=rule.account_id,
-        dest_account_id=rule.dest_account_id,
-        category_id=rule.category_id,
-        amount_minor=amount,
-        description=description,
-        is_overdue=False,  # recurring never surfaces as overdue — see module docstring.
-        planned_id=None,
-        rule_id=rule.id,
-        override_present=override_present,
-        is_formula=rule.amount_formula is not None,
-    )
-
-
-def _override_for_next_due(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule: RecurringRule,
-) -> RecurringOverride | None:
-    for override in recurring_repo.list_overrides(conn, user_id, rule.id):
-        if override.occurrence_date == rule.next_due:
-            return override
-    return None
 
 
 def list_upcoming(
@@ -135,41 +74,35 @@ def list_upcoming(
     today: dt.date,
     window_days: int | None,
 ) -> tuple[UpcomingItem, ...]:
-    """Union of persisted planned (not promoted) + active recurring rules.
+    """Union of persisted planned (not promoted) + each active rule's ``next_due``.
 
-    - ``window_days=None`` → unbounded forward horizon (used by "All").
-    - ``window_days=N`` → forward horizon of ``today + N`` days.
+    - ``window_days=None`` -> unbounded forward horizon (used by "All").
+    - ``window_days=N`` -> forward horizon of ``today + N`` days (effective date).
 
-    Soft-deleted + promoted planned rows excluded by the repository
-    filter. Recurring rules with ``active=False`` are excluded. Overrides
-    on ``rule.next_due`` are applied (merge or skip).
+    Built on :func:`recurring.pending_occurrences` (overrides, skips, linked-row
+    dedup); overdue planned rows stay (``is_overdue``), overdue recurring rows
+    surface undecorated so they can be promoted.
     """
     forward_limit = today + dt.timedelta(days=window_days) if window_days is not None else None
-
-    planned_filter = PlannedFilter(
-        date_to=forward_limit,
-        promoted=False,
+    formula_ids = frozenset(
+        r.id
+        for r in recurring_repo.list_rules(conn, user_id, active_only=True)
+        if r.amount_formula is not None
     )
-    planned_rows = planned_repo.list_filtered(conn, user_id, planned_filter)
-    items: list[UpcomingItem] = [_planned_item(row, today) for row in planned_rows]
-
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        # ADR-0063: a rule whose next_due already exceeds its stop date
-        # has effectively ended but has not yet been promoted (so advance
-        # has not deactivated it). Hide it from Upcoming — the next
-        # promotion attempt, or an edit, will clean up the active flag.
-        if rule.end_date is not None and rule.next_due > rule.end_date:
-            continue
-        override = _override_for_next_due(conn, user_id, rule)
-        projected = _recurring_item(conn, user_id, rule, override)
-        if projected is None:
-            continue
-        if forward_limit is not None and projected.effective_date > forward_limit:
-            continue
-        items.append(projected)
-
-    # Sort by effective_date; break ties by placing planned rows first so
-    # the overdue chip ordering stays stable.
+    pending = recurring_svc.pending_occurrences(
+        conn,
+        user_id,
+        start=None,
+        end=None,
+        today=today,
+        include_overdue=True,
+        next_only=True,
+    )
+    items = [
+        _item(p, is_formula=p.rule_id in formula_ids)
+        for p in pending
+        if forward_limit is None or p.due_date <= forward_limit
+    ]
     items.sort(key=lambda i: (i.effective_date, 0 if i.kind == "planned" else 1))
     return tuple(items)
 

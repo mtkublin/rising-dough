@@ -44,7 +44,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | FX conversion and rate lookup | `services/fx.py` `converter_for` -> `FxConverter.to_base` (cache-only, ADR-0139) | exists | - |
 | Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`, `minor_to_major`); one rounding helper (T-Q229) | exists (Q-011, T-Q216) | - |
 | Periods and month windows | `domain/periods.py` `month_bounds` | exists (Q-003) | - |
-| Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) | `services/recurring.generate_occurrences` |
+| Recurring occurrence expansion | `services/recurring.pending_occurrences` | exists (Q-002, T-Q207) | - |
 | Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) | `services/ledger_totals.signed_effect` |
 | Net worth and fortune | `services/fortune.compute_fortune` | exists (Q-009) | - |
 | Sum by category in base currency | `services/aggregates.sum_by_category` | **target** (Q-008) | none - extract via T-Q227 |

@@ -15,12 +15,8 @@ from dataclasses import dataclass
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import PeriodWindow, fiscal_window
-from budget_planner.domain.planned import PlannedFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
-    categories as categories_repo,
-    planned as planned_repo,
-    recurring as recurring_repo,
 )
 from budget_planner.services import (
     balance as balance_service,
@@ -80,38 +76,19 @@ def _legs(
 def _collect_legs(
     conn: sqlite3.Connection, user_id: int, window: PlannedWindow
 ) -> list[tuple[int, int]]:
-    last_day = window.last_day
     # Archived categories keep their unpromoted items; count them by direction (ADR-0089).
-    directions = {
-        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
-    }
-    persisted = planned_repo.list_filtered(
+    # Overdue stays clamped to the period start (ADR-0089), so ``include_overdue=False``.
+    items = recurring_svc.pending_occurrences(
         conn,
         user_id,
-        PlannedFilter(date_from=window.start, date_to=last_day, promoted=False),
+        start=window.start,
+        end=window.last_day + dt.timedelta(days=1),
+        today=None,
+        include_overdue=False,
     )
     legs: list[tuple[int, int]] = []
-    dedup = recurring_svc.linked_occurrence_keys(conn, user_id)
-    for row in persisted:
-        legs.extend(
-            _legs(directions[row.category_id], row.account_id, row.dest_account_id, row.amount)
-        )
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
-        occs = recurring_svc.expand_unpromoted(
-            conn,
-            user_id,
-            rule=rule,
-            overrides=overrides,
-            window_start=window.start,
-            window_end=last_day,
-        )
-        for occ in occs:
-            if occ.is_skipped or (rule.id, occ.occurrence_date) in dedup:
-                continue
-            legs.extend(
-                _legs(directions[rule.category_id], occ.account_id, occ.dest_account_id, occ.amount)
-            )
+    for item in items:
+        legs.extend(_legs(item.direction, item.account_id, item.dest_account_id, item.amount))
     return legs
 
 
