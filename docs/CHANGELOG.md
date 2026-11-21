@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q205: user_id-leading indexes, session write throttle)
+- **Perf(T-Q205): hot user-scoped reads no longer full-scan (Q-034, C-11).** Migration `0017_user_leading_indexes.sql` adds `user_id`-leading indexes on `transactions`, `planned_transactions`, `recurring_rules` (partial, live rows) and `audit_log (user_id, id)`; `EXPLAIN QUERY PLAN` is asserted by `tests/integration/db/test_user_leading_indexes.py`. `sessions_repo.touch_session` skips the `last_seen_at`/`expires_at` write when the previous bump is under 60 s old (`LAST_SEEN_THROTTLE`). Prod applies the migration on release.
+
 ## 2026-11-21 (T-Q218: CI environments split by data sensitivity, code half)
 - **CI(T-Q218): prod replica read material is scoped to a new gated `prod-restore-read` environment (ADR-0132, Q-012).** `restore-drill.yml` calls `terraform.yml` with `restore_source: true`, whose apply job then runs in `prod-restore-read`; `tf_env.py --restore-source` is the only path that emits the prod read key, and `terraform/main.tf` renders `restore-source.env` only when that key is present, so explore drills carry no restore capability (H4-03). G17a gains `prod_grade`, `main_only` and `only_workflows` declarations and the 9 `workflow_trust` entries (23 violations) are deleted. **Operator half pending:** create the environment, move or replace the secrets, refresh `repro/H1` evidence, rotate (ADR-0132 checklist).
 
