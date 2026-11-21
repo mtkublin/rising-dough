@@ -19,10 +19,10 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
+from budget_planner.domain.accounts import Account, AccountStats, NewAccount, PatchAccount
 from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import to_minor_units
-from budget_planner.domain.snapshots import NewAccountSnapshot
+from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -35,7 +35,7 @@ from budget_planner.services import (
     fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
-from budget_planner.web.accounts_view import credit_utilisation
+from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -53,43 +53,41 @@ def _planned_now(
     )
 
 
-_SPARKLINE_WIDTH = 120
-_SPARKLINE_HEIGHT = 32
-
-
 def _card_context(
     conn: sqlite3.Connection,
     user_id: int,
     account_id: int,
     planned: planned_service.AccountsPlanned,
     today: date,
+    *,
+    acc: Account | None = None,
+    bal: int | None = None,
+    stats: AccountStats | None = None,
+    series: list[tuple[date, int]] | None = None,
+    snapshots: list[AccountSnapshot] | None = None,
 ) -> dict[str, Any]:
-    """Build the full context dict a single `_card.html` / `_row.html` needs."""
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    """Build the full context dict a single `_card.html` / `_row.html` needs.
+
+    A value left as ``None`` is loaded for this one account (HTMX single-card
+    responses); the list page passes every value, loaded once for all accounts (T-Q234).
+    """
+    if acc is None:
+        acc = accounts_repo.find_by_id(conn, user_id, account_id)
     assert acc is not None
-    bal = balance_service.derive_balance(conn, user_id, account_id)
-    stats = balance_service.account_stats(conn, user_id, account_id)
-    series = balance_service.balance_series(conn, user_id, account_id, today=today)
-    series_values = [v for _, v in series]
-    sparkline = balance_service.sparkline_points(
-        series_values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT
-    )
-    sparkline_area = (
-        f"0,{_SPARKLINE_HEIGHT} {sparkline} {_SPARKLINE_WIDTH},{_SPARKLINE_HEIGHT}"
-        if sparkline
-        else ""
-    )
-    snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
+    if bal is None:
+        bal = balance_service.derive_balance(conn, user_id, account_id)
+    if stats is None:
+        stats = balance_service.account_stats(conn, user_id, account_id)
+    if series is None:
+        series = balance_service.balance_series(conn, user_id, account_id, today=today)
+    if snapshots is None:
+        snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
     return {
         "account": acc,
         "balance": bal,
         "stats": stats,
         "series": series,
-        "sparkline_points": sparkline,
-        "sparkline_values": series_values,
-        "sparkline_area_points": sparkline_area,
-        "sparkline_width": _SPARKLINE_WIDTH,
-        "sparkline_height": _SPARKLINE_HEIGHT,
+        **sparkline_fields(series),
         "snapshots": snapshots,
         "planned": planned.by_account.get(account_id),
         "utilisation": credit_utilisation(acc, bal),
@@ -101,8 +99,28 @@ def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict
     planned = planned_service.compute_accounts_planned(
         conn, user_id, clock.today_local(settings), settings
     )
+    # T-Q234: every per-account input is loaded once for all accounts (O(1) queries).
+    balances = balance_service.derive_balances(conn, user_id, accs)
+    stats = balance_service.account_stats_many(conn, user_id, accs)
+    series = balance_service.balance_series_many(
+        conn, user_id, accs, today=clock.today_local(settings)
+    )
+    snapshots = snapshots_repo.list_for_user(conn, user_id)
+    today = clock.today_local(settings)
     cards: list[dict[str, Any]] = [
-        _card_context(conn, user_id, a.id, planned, clock.today_local(settings)) for a in accs
+        _card_context(
+            conn,
+            user_id,
+            a.id,
+            planned,
+            today,
+            acc=a,
+            bal=balances[a.id],
+            stats=stats[a.id],
+            series=series[a.id],
+            snapshots=snapshots.get(a.id, []),
+        )
+        for a in accs
     ]
     # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
     # to the bottom. Assets land first, biggest first; liabilities land last,

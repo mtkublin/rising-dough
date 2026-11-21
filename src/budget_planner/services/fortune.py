@@ -32,8 +32,10 @@ def compute_fortune(conn: sqlite3.Connection, user_id: int, settings: Settings) 
     assets_by_ccy: dict[str, int] = {}
     liabilities_by_ccy: dict[str, int] = {}
     net_by_ccy: dict[str, int] = {}
-    for account in accounts_repo.list_all(conn, user_id):
-        bal = balance_service.derive_balance(conn, user_id, account.id)
+    accounts = accounts_repo.list_all(conn, user_id)
+    balances = balance_service.derive_balances(conn, user_id, accounts)
+    for account in accounts:
+        bal = balances[account.id]
         ccy = account.currency
         if account.is_liability:
             liabilities_by_ccy[ccy] = liabilities_by_ccy.get(ccy, 0) + abs(bal)

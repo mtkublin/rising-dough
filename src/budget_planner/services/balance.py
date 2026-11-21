@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 
-from budget_planner.domain.accounts import AccountStats
+from budget_planner.domain.accounts import Account, AccountStats
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, round_div
 from budget_planner.domain.transactions import Transaction, TransactionFilter
@@ -157,6 +158,50 @@ def _mean(values: list[int]) -> int:
     return round_div(sum(values), len(values), mode=HALF_EVEN)
 
 
+_Leg = tuple[dt.date, Direction, int]
+
+
+def _legs_by_account(
+    accounts: Sequence[Account],
+    txns: Sequence[Transaction],
+    directions: dict[int, Direction],
+) -> dict[int, list[_Leg]]:
+    """``(date, direction, signed amount)`` legs per account, for the given accounts only."""
+    legs: dict[int, list[_Leg]] = {a.id: [] for a in accounts}
+    for txn in txns:
+        direction = directions[txn.category_id]
+        for leg in signed_legs(txn, direction):
+            if leg.account_id in legs:
+                legs[leg.account_id].append((txn.operation_date, direction, leg.amount_minor))
+    return legs
+
+
+def _stats_from_legs(account: Account, legs: Sequence[_Leg]) -> AccountStats:
+    inflows = [amt for _, d, amt in legs if d is Direction.INCOME]
+    outflows = [abs(amt) for _, d, amt in legs if d is Direction.EXPENSE]
+    balance_value = account.opening_balance + sum(amt for _, _, amt in legs)
+    last_date = max((day for day, _, _ in legs), default=None)
+    return AccountStats(
+        account_id=account.id,
+        balance=balance_value,
+        base_balance=balance_value,
+        txn_count=len(legs),
+        last_txn_date=last_date.isoformat() if last_date is not None else None,
+        avg_inflow_minor=_mean(inflows),
+        avg_outflow_minor=_mean(outflows),
+    )
+
+
+def _stats_for(
+    accounts: Sequence[Account],
+    txns: Sequence[Transaction],
+    directions: dict[int, Direction],
+) -> dict[int, AccountStats]:
+    """Per-account stats from ``txns`` (which must include every txn touching them)."""
+    legs = _legs_by_account(accounts, txns, directions)
+    return {a.id: _stats_from_legs(a, legs[a.id]) for a in accounts}
+
+
 def account_stats(conn: sqlite3.Connection, user_id: int, account_id: int) -> AccountStats:
     """Current balance + descriptive stats. Pure; no caching.
 
@@ -167,37 +212,21 @@ def account_stats(conn: sqlite3.Connection, user_id: int, account_id: int) -> Ac
     account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
     if account is None:
         raise AccountNotFoundError(account_id)
-    directions = _directions_by_id(conn, user_id)
-    txns = _txns_affecting(conn, user_id, account_id)
+    return _stats_for(
+        [account],
+        _txns_affecting(conn, user_id, account_id),
+        _directions_by_id(conn, user_id),
+    )[account_id]
 
-    inflows: list[int] = []
-    outflows: list[int] = []
-    legs_count = 0
-    last_date: dt.date | None = None
-    delta = 0
-    for txn in txns:
-        direction = directions[txn.category_id]
-        for leg in signed_legs(txn, direction):
-            if leg.account_id != account_id:
-                continue
-            legs_count += 1
-            delta += leg.amount_minor
-            if last_date is None or txn.operation_date > last_date:
-                last_date = txn.operation_date
-            if direction is Direction.INCOME:
-                inflows.append(leg.amount_minor)
-            elif direction is Direction.EXPENSE:
-                outflows.append(abs(leg.amount_minor))
 
-    balance_value = account.opening_balance + delta
-    return AccountStats(
-        account_id=account_id,
-        balance=balance_value,
-        base_balance=balance_value,
-        txn_count=legs_count,
-        last_txn_date=last_date.isoformat() if last_date is not None else None,
-        avg_inflow_minor=_mean(inflows),
-        avg_outflow_minor=_mean(outflows),
+def account_stats_many(
+    conn: sqlite3.Connection, user_id: int, accounts: Sequence[Account]
+) -> dict[int, AccountStats]:
+    """:func:`account_stats` for every account in ``accounts`` with two queries (T-Q234)."""
+    return _stats_for(
+        accounts,
+        transactions_repo.list_filtered(conn, user_id, TransactionFilter()),
+        _directions_by_id(conn, user_id),
     )
 
 
@@ -226,6 +255,96 @@ def sparkline_points(
     return " ".join(parts)
 
 
+def _group_effects(
+    user_id: int,
+    *,
+    direction: str,
+    account_id: int,
+    dest_account_id: int | None,
+    total: int,
+) -> list[tuple[int, int]]:
+    """``(account_id, signed delta)`` for every account one SUM group touches (ADR-0008)."""
+    targets = {account_id} if dest_account_id is None else {account_id, dest_account_id}
+    return [
+        (
+            target,
+            _group_delta(
+                user_id,
+                target,
+                Direction(direction),
+                is_source=target == account_id,
+                is_dest=target == dest_account_id,
+                total=total,
+            ),
+        )
+        for target in sorted(targets)
+    ]
+
+
+def derive_balances(
+    conn: sqlite3.Connection,
+    user_id: int,
+    accounts: Sequence[Account],
+    as_of_date: dt.date | None = None,
+) -> dict[int, int]:
+    """:func:`derive_balance` for every account in ``accounts`` with ONE query (T-Q234)."""
+    deltas: dict[int, int] = {}
+    for direction, account_id, dest_id, total in transactions_repo.sum_legs_by_account(
+        conn, user_id, up_to_date=as_of_date
+    ):
+        for target, effect in _group_effects(
+            user_id,
+            direction=direction,
+            account_id=account_id,
+            dest_account_id=dest_id,
+            total=total,
+        ):
+            deltas[target] = deltas.get(target, 0) + effect
+    return {a.id: a.opening_balance + deltas.get(a.id, 0) for a in accounts}
+
+
+def balance_series_many(
+    conn: sqlite3.Connection,
+    user_id: int,
+    accounts: Sequence[Account],
+    *,
+    days: int = _DEFAULT_SERIES_DAYS,
+    today: dt.date,
+) -> dict[int, list[tuple[dt.date, int]]]:
+    """Daily ``(date, balance)`` series per account, two queries total (T-Q234).
+
+    Each series is oldest to newest, inclusive on both ends, ``days`` points long;
+    the last point equals the balance as of ``today``. One query yields the balance
+    before the window, one the per-day movements inside it; a running sum builds
+    every series.
+    """
+    if days < 1:
+        return {a.id: [] for a in accounts}
+    start = today - dt.timedelta(days=days - 1)
+    running = derive_balances(conn, user_id, accounts, as_of_date=start - dt.timedelta(days=1))
+    moves: dict[dt.date, dict[int, int]] = {}
+    for day, direction, account_id, dest_id, total in transactions_repo.sum_legs_by_day(
+        conn, user_id, since=start, until=today
+    ):
+        day_moves = moves.setdefault(day, {})
+        for target, effect in _group_effects(
+            user_id,
+            direction=direction,
+            account_id=account_id,
+            dest_account_id=dest_id,
+            total=total,
+        ):
+            day_moves[target] = day_moves.get(target, 0) + effect
+    out: dict[int, list[tuple[dt.date, int]]] = {a.id: [] for a in accounts}
+    for offset in range(days):
+        day = start + dt.timedelta(days=offset)
+        todays = moves.get(day, {})
+        for account_id, series in out.items():
+            running[account_id] += todays.get(account_id, 0)
+            series.append((day, running[account_id]))
+    return out
+
+
 def balance_series(
     conn: sqlite3.Connection,
     user_id: int,
@@ -234,33 +353,22 @@ def balance_series(
     days: int = _DEFAULT_SERIES_DAYS,
     today: dt.date,
 ) -> list[tuple[dt.date, int]]:
-    """Return a daily (date, balance) series for the last ``days`` days.
-
-    The series is oldest → newest and inclusive on both ends — it contains
-    ``days`` points, with the last entry equal to ``today``'s balance.
-
-    This is a shim: it calls :func:`derive_balance` once per day. It is
-    O(days * txns); fine for a card and well below any realistic account's
-    history, but a Phase 7 task should replace it with a single SQL window.
-    """
-    if days < 1:
-        return []
-    end = today
-    start = end - dt.timedelta(days=days - 1)
-    out: list[tuple[dt.date, int]] = []
-    current = start
-    while current <= end:
-        out.append((current, derive_balance(conn, user_id, account_id, as_of_date=current)))
-        current = current + dt.timedelta(days=1)
-    return out
+    """Daily ``(date, balance)`` series for one account; see :func:`balance_series_many`."""
+    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
+    if account is None:
+        raise AccountNotFoundError(account_id)
+    return balance_series_many(conn, user_id, [account], days=days, today=today)[account_id]
 
 
 __all__ = [
     "AccountNotFoundError",
     "SignedLeg",
     "account_stats",
+    "account_stats_many",
     "balance_series",
+    "balance_series_many",
     "derive_balance",
+    "derive_balances",
     "signed_legs",
     "sparkline_points",
 ]

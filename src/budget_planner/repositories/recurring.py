@@ -336,6 +336,25 @@ def list_overrides(
     return [_row_to_override(r) for r in rows]
 
 
+def list_pending_overrides_by_rule(
+    conn: sqlite3.Connection, user_id: int
+) -> dict[int, list[RecurringOverride]]:
+    """Unconsumed overrides of every live rule in one query, keyed by ``rule_id`` (T-Q234)."""
+    cols = ", ".join(f"o.{c}" for c in _OVERRIDE_COLUMNS.split(", "))
+    rows = conn.execute(
+        f"SELECT {cols} FROM recurring_rule_overrides o "
+        "JOIN recurring_rules r ON r.id = o.rule_id "
+        "WHERE r.user_id = ? AND r.deleted_at IS NULL AND o.promoted_to_txn_id IS NULL "
+        "ORDER BY o.occurrence_date ASC",
+        (user_id,),
+    ).fetchall()
+    out: dict[int, list[RecurringOverride]] = {}
+    for row in rows:
+        override = _row_to_override(row)
+        out.setdefault(override.rule_id, []).append(override)
+    return out
+
+
 def list_overrides_all(
     conn: sqlite3.Connection, user_id: int, rule_id: int
 ) -> list[RecurringOverride]:

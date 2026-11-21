@@ -34,6 +34,7 @@ from budget_planner.services import (
     account_planned,
     balance,
     budget,
+    budget_batch,
     income,
     preferences,
     today as today_svc,
@@ -157,6 +158,62 @@ def _case_balance_series(conn: sqlite3.Connection, world: World) -> None:
         balance.balance_series(conn, OTHER_ID, world.owner.account_id, days=2, today=T)
 
 
+@covers("balance.derive_balances")
+def _case_derive_balances(conn: sqlite3.Connection, world: World) -> None:
+    owner_accs = accounts_repo.list_all(conn, OWNER_ID)
+    assert balance.derive_balances(conn, OWNER_ID, owner_accs) == {
+        world.owner.account_id: OWNER_BALANCE - 1_000
+    }
+    other_accs = accounts_repo.list_all(conn, OTHER_ID)
+    assert balance.derive_balances(conn, OTHER_ID, other_accs) == {
+        world.other.account_id: OTHER_BALANCE - 2_000
+    }
+    # Before the world's single txn only the opening balance counts; the other user's rows never leak in.
+    assert balance.derive_balances(conn, OWNER_ID, owner_accs, as_of_date=dt.date(2026, 11, 9)) == {
+        world.owner.account_id: OWNER_BALANCE
+    }
+
+
+@covers("balance.balance_series_many")
+def _case_balance_series_many(conn: sqlite3.Connection, world: World) -> None:
+    owner = balance.balance_series_many(
+        conn, OWNER_ID, accounts_repo.list_all(conn, OWNER_ID), days=4, today=T
+    )
+    assert owner == {
+        world.owner.account_id: [
+            (dt.date(2026, 11, 9), OWNER_BALANCE),
+            (dt.date(2026, 11, 10), OWNER_BALANCE - 1_000),
+            (dt.date(2026, 11, 11), OWNER_BALANCE - 1_000),
+            (dt.date(2026, 11, 12), OWNER_BALANCE - 1_000),
+        ]
+    }
+    other = balance.balance_series_many(
+        conn, OTHER_ID, accounts_repo.list_all(conn, OTHER_ID), days=2, today=T
+    )
+    assert other == {
+        world.other.account_id: [
+            (dt.date(2026, 11, 11), OTHER_BALANCE - 2_000),
+            (T, OTHER_BALANCE - 2_000),
+        ]
+    }
+
+
+@covers("balance.account_stats_many")
+def _case_account_stats_many(conn: sqlite3.Connection, world: World) -> None:
+    owner = balance.account_stats_many(conn, OWNER_ID, accounts_repo.list_all(conn, OWNER_ID))
+    assert set(owner) == {world.owner.account_id}
+    assert owner[world.owner.account_id] == balance.account_stats(
+        conn, OWNER_ID, world.owner.account_id
+    )
+    other = balance.account_stats_many(conn, OTHER_ID, accounts_repo.list_all(conn, OTHER_ID))
+    stats = other[world.other.account_id]
+    assert (stats.balance, stats.txn_count, stats.avg_outflow_minor) == (
+        OTHER_BALANCE - 2_000,
+        1,
+        2_000,
+    )
+
+
 # --- budget ------------------------------------------------------------------------------------------------------
 
 
@@ -217,6 +274,29 @@ def _case_resolve_budget(conn: sqlite3.Connection, world: World) -> None:
     assert budget.resolve_budget(conn, OTHER_ID, world.other.category_id, 2026, 11) == 6_000
     assert budget.resolve_budget(conn, OTHER_ID, world.owner.category_id, 2026, 11) is None
     assert budget.resolve_budget(conn, OWNER_ID, world.other.category_id, 2026, 11) is None
+
+
+@covers("budget_batch.budget_resolver")
+def _case_budget_resolver(conn: sqlite3.Connection, world: World) -> None:
+    owner = budget_batch.budget_resolver(conn, OWNER_ID)
+    other = budget_batch.budget_resolver(conn, OTHER_ID)
+    assert owner(world.owner.category_id, 2026, 11) == 3_000
+    assert other(world.other.category_id, 2026, 11) == 6_000
+    assert owner(world.other.category_id, 2026, 11) is None
+    assert other(world.owner.category_id, 2026, 11) is None
+
+
+@covers("budget_batch.committed_by_category_windows")
+def _case_committed_by_category_windows(conn: sqlite3.Connection, world: World) -> None:
+    windows = [
+        budget_batch.CommitWindow(start=dt.date(2026, 11, 1), end=dt.date(2026, 12, 1)),
+        budget_batch.CommitWindow(start=dt.date(2026, 12, 1), end=dt.date(2026, 12, 1)),
+    ]
+    for user_id in (OWNER_ID, OTHER_ID):
+        got = budget_batch.committed_by_category_windows(conn, user_id, windows=windows, today=T)
+        # same numbers as budget.committed_by_category over the whole of November; empty window is empty
+        assert got[0] == {_own(world, user_id).category_id: 1_200 * user_id}
+        assert got[1] == {}
 
 
 @covers("budget.fiscal_month_for")

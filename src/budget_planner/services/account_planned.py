@@ -110,9 +110,11 @@ def compute_accounts_planned(
     nets = planned_net_by_account(conn, user_id, window)
     by_account: dict[int, AccountPlanned] = {}
     base_net = 0
-    for acc in accounts_repo.list_all(conn, user_id):
+    accounts = accounts_repo.list_all(conn, user_id)
+    balances = balance_service.derive_balances(conn, user_id, accounts)
+    for acc in accounts:
         net = nets.get(acc.id, 0)
-        balance = balance_service.derive_balance(conn, user_id, acc.id)
+        balance = balances[acc.id]
         by_account[acc.id] = AccountPlanned(
             account_id=acc.id,
             currency=acc.currency,

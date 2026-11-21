@@ -9,11 +9,15 @@ arithmetic in templates. The percentage comes from the canonical
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.money import percent_of
+from budget_planner.services.balance import sparkline_points
 
 _FULL_BAR_PCT = 100
+_SPARKLINE_WIDTH = 120
+_SPARKLINE_HEIGHT = 32
 
 
 @dataclass(frozen=True)
@@ -46,3 +50,19 @@ def credit_utilisation(account: Account, balance_minor: int) -> CreditUtilisatio
         used_pct=used_pct,
         bar_pct=min(used_pct, _FULL_BAR_PCT),
     )
+
+
+def sparkline_fields(series: list[tuple[date, int]]) -> dict[str, object]:
+    """Precomputed sparkline template values for one balance series (no template math)."""
+    values = [v for _, v in series]
+    points = sparkline_points(values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT)
+    area = (
+        f"0,{_SPARKLINE_HEIGHT} {points} {_SPARKLINE_WIDTH},{_SPARKLINE_HEIGHT}" if points else ""
+    )
+    return {
+        "sparkline_points": points,
+        "sparkline_values": values,
+        "sparkline_area_points": area,
+        "sparkline_width": _SPARKLINE_WIDTH,
+        "sparkline_height": _SPARKLINE_HEIGHT,
+    }

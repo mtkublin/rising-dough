@@ -145,10 +145,9 @@ def test_forecast_overlay_committed_converted(
 ) -> None:
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    got = forecast._committed_future_for_category(
-        conn, USER_ID, world["groceries"], date(2026, 2, 16), date(2026, 2, 28), today=TODAY
-    )
-    assert got == 48_000
+    span = forecast._MonthSpan(date(2026, 2, 16), date(2026, 2, 16), date(2026, 2, 28), False)
+    ((_, committed),) = forecast._month_inputs(conn, USER_ID, [span], today=TODAY)
+    assert committed.get(world["groceries"], 0) == 48_000
 
 
 # --- T-FIX6: posted spent converts at the historical (tx-date) rate -----------
