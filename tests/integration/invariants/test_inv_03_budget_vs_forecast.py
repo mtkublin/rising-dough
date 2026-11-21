@@ -8,8 +8,7 @@ import sqlite3
 from datetime import date, timedelta
 from decimal import Decimal
 
-import pytest
-
+from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.fx import NewFxRate
@@ -21,17 +20,13 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as txn_repo,
 )
-from budget_planner.services import budget, forecast
+from budget_planner.services import budget, forecast, fx as fx_svc
 
 U = 1
 TODAY = date(2026, 11, 19)
 M_START, M_END = date(2026, 11, 1), date(2026, 11, 30)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-008: forecast._spent_so_far sums raw native amounts, budget converts to base",
-)
 def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
     eur = accounts_repo.create(seeded, U, NewAccount(name="EUR Wallet", currency="EUR")).id
     fx_repo.upsert_rate(
@@ -55,7 +50,10 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
     b_spent = budget._sum_by_category(txns, budget.txn_base_amounts(seeded, U, today=TODAY)).get(
         7, 0
     )
-    f_spent = forecast._spent_so_far(seeded, U, 7, M_START, TODAY)
+    converter = fx_svc.converter_for(seeded, get_settings(), TODAY)
+    f_spent = forecast._spent_so_far(
+        seeded, U, 7, M_START, TODAY, base_of=fx_svc.txn_base_of(converter, {eur: "EUR"})
+    )
     assert b_spent == f_spent, (b_spent, f_spent)
 
 

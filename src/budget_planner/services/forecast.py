@@ -22,13 +22,14 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, major_float, round_div
 from budget_planner.domain.periods import month_bounds, shift_month
-from budget_planner.domain.transactions import TransactionFilter
+from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -235,8 +236,13 @@ def _spent_so_far(
     category_id: int,
     month_start: dt.date,
     cutoff: dt.date,
+    *,
+    base_of: Callable[[Transaction], int],
 ) -> int:
-    """Return actual expense-direction amount for ``category`` in ``[month_start, cutoff]``."""
+    """Return actual expense-direction base amount for ``category`` in ``[month_start, cutoff]``.
+
+    Each transaction converts at its own date's cached rate, like the budget (ADR-0006, Q-008).
+    """
     if cutoff < month_start:
         return 0
     rows = transactions_repo.list_filtered(
@@ -249,7 +255,14 @@ def _spent_so_far(
             directions=(Direction.EXPENSE,),
         ),
     )
-    return sum(r.amount for r in rows)
+    return sum(base_of(r) for r in rows)
+
+
+def _base_of_txn(
+    conn: sqlite3.Connection, user_id: int, fx: fx_svc.FxConverter
+) -> Callable[[Transaction], int]:
+    ccy = {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    return fx_svc.txn_base_of(fx, ccy)
 
 
 def _committed_future_for_category(
@@ -324,6 +337,7 @@ def _collect_budget_overlay(
     end_date: dt.date,
     directions_by_cat: dict[int, Direction],
     primary_account_id: int,
+    fx: fx_svc.FxConverter,
 ) -> list[_CashEvent]:
     """Return synthetic expense events for per-category per-month unaccounted budget."""
     event_start = today + dt.timedelta(days=1)
@@ -334,6 +348,7 @@ def _collect_budget_overlay(
     if not expense_cat_ids:
         return []
 
+    base_of = _base_of_txn(conn, user_id, fx)
     events: list[_CashEvent] = []
     for year, month in _iter_months(event_start, end_date):
         month_start, month_end = month_bounds(year, month)
@@ -347,7 +362,9 @@ def _collect_budget_overlay(
             if budget is None:
                 continue
 
-            spent = _spent_so_far(conn, user_id, cat_id, month_start, min(today, month_end))
+            spent = _spent_so_far(
+                conn, user_id, cat_id, month_start, min(today, month_end), base_of=base_of
+            )
             committed = _committed_future_for_category(
                 conn,
                 user_id,
@@ -477,6 +494,7 @@ def forecast(
             end_date=end_date,
             directions_by_cat=directions_by_cat,
             primary_account_id=primary_account_id,
+            fx=fx,
         )
         for ev in overlay_events:
             events.setdefault(ev.on_date, []).append(ev)
@@ -535,6 +553,7 @@ def _planned_budget_per_month(
     today: dt.date,
     horizon_months: int,
     *,
+    fx: fx_svc.FxConverter,
     start_month: dt.date | None = None,
 ) -> dict[dt.date, int]:
     """Return per-month **remaining** budget, clamped at zero.
@@ -554,7 +573,7 @@ def _planned_budget_per_month(
       (or exceeds) their budget, matching the ADR-0042 overlay semantics
       and the user's "only if remaining is positive" rule.
 
-    Budgets are stored in base currency, so no FX conversion is needed.
+    Budgets are stored in base currency; ``spent_so_far`` is converted to base (Q-008).
     Budget-period consumption boundaries (ADR-0041) are approximated with
     calendar months here, matching ``_collect_budget_overlay``.
     """
@@ -564,6 +583,7 @@ def _planned_budget_per_month(
         if c.direction is Direction.EXPENSE
     ]
     anchor_month = start_month if start_month is not None else today.replace(day=1)
+    base_of = _base_of_txn(conn, user_id, fx)
     out: dict[dt.date, int] = {}
     for offset in range(horizon_months):
         month = _month_offset(anchor_month, offset)
@@ -574,7 +594,9 @@ def _planned_budget_per_month(
             amount = budget_svc.resolve_budget(conn, user_id, cat.id, month.year, month.month)
             if amount is None:
                 continue
-            spent = _spent_so_far(conn, user_id, cat.id, month, min(today, month_end))
+            spent = _spent_so_far(
+                conn, user_id, cat.id, month, min(today, month_end), base_of=base_of
+            )
             committed = _committed_future_for_category(
                 conn,
                 user_id,
@@ -677,7 +699,7 @@ def forecast_monthly(
     series = forecast(conn, user_id, fx, today, horizon_days)
 
     planned_budget_by_month = _planned_budget_per_month(
-        conn, user_id, today, horizon_months, start_month=start_month
+        conn, user_id, today, horizon_months, fx=fx, start_month=start_month
     )
 
     active_accounts = tuple(accounts_repo.list_all(conn, user_id))

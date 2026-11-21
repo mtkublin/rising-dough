@@ -68,7 +68,7 @@ def plan(
         )
     else:
         bundle, derived = plan_data.analytics_bundle(
-            conn, user_id, today_d, picked, request.query_params.get("period")
+            conn, user_id, picked, request.query_params.get("period"), settings=settings
         )
         ctx.update(derived)
         ctx["spend_chart"], ctx["flow_chart"] = charts.analytics_charts(

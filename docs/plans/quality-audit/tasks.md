@@ -295,7 +295,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:13 (3 entries); `invariants`:1 (1 entry); `money_scope`:18 (11 entries); `purity`:17 (11 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml`, `allowlists/purity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-10 (Q-007) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q213 [S] Analytics and forecast "spent" convert to base currency
+### ✅ T-Q213 [S] Analytics and forecast "spent" convert to base currency
 - Findings: Q-008 (A-02, A-03).
 - Epic: E01
 - Band: 1 · Size: M · Tags: `[pre-v4-P3]` `[pre-first-non-PLN]`
@@ -306,7 +306,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:3 (2 entries); `invariants`:2 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-1 and INV-3a (Q-008) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q214 [S] One net-worth computation
+### ✅ T-Q214 [S] One net-worth computation
 - Findings: Q-009 (A-07).
 - Epic: E01
 - Band: 1 · Size: M · Tags: `[pre-v4-P3]` `[pre-first-non-PLN]`

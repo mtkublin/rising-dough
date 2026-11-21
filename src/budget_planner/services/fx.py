@@ -13,13 +13,14 @@ import datetime as dt
 import logging
 import sqlite3
 from bisect import bisect_right
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol
 
 from budget_planner.domain.fx import FxFetchError, NewFxRate, RateFetcher
 from budget_planner.domain.money import rescale_minor
+from budget_planner.domain.transactions import Transaction
 from budget_planner.repositories import fx as fx_repo
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,18 @@ def converter_for(
     return build_converter(base, today, ((r.from_ccy, r.date, r.rate) for r in cached))
 
 
+def txn_base_of(
+    converter: FxConverter, currency_by_account: Mapping[int, str]
+) -> Callable[[Transaction], int]:
+    """Return ``txn -> base minor`` at the rate on the txn's own date (ADR-0006, ADR-0139)."""
+
+    def _to_base(txn: Transaction) -> int:
+        ccy = currency_by_account.get(txn.account_id, converter.base_currency)
+        return converter.to_base(txn.amount, ccy, txn.operation_date)
+
+    return _to_base
+
+
 @dataclass(frozen=True, slots=True)
 class RefreshOutcome:
     """Result of refreshing one ``from_ccy -> to_ccy`` pair."""
@@ -148,4 +161,5 @@ __all__ = [
     "build_converter",
     "converter_for",
     "refresh_rates",
+    "txn_base_of",
 ]

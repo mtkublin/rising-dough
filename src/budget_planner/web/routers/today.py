@@ -57,10 +57,9 @@ def today(
     year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
     base_ccy = settings.base_currency
 
-    account_rows, totals_by_ccy, fortune_base = today_data.collect_account_rows(
-        conn, user_id, fx_service.converter_for(conn, settings, today_d)
-    )
-    fortune = fortune_service.compute_fortune(conn, user_id, settings)
+    converter = fx_service.converter_for(conn, settings, today_d)
+    account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
+    fortune = fortune_service.compute_fortune(conn, user_id, converter)
     summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
@@ -79,7 +78,7 @@ def today(
         year=year,
         month=month,
         base_ccy=base_ccy,
-        fortune_base=fortune_base,
+        fortune_base=fortune.net_base,
         fortune=fortune,
         account_rows=account_rows,
         totals_by_ccy=totals_by_ccy,

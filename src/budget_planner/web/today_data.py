@@ -93,8 +93,8 @@ def collect_account_rows(
     conn: sqlite3.Connection,
     user_id: int,
     fx: fx_service.FxConverter,
-) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...], int]:
-    """Return (per-account rows, per-currency totals, fortune in base)."""
+) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...]]:
+    """Return (per-account rows, per-currency totals); net worth is ``compute_fortune``."""
     accs = accounts_repo.list_all(conn, user_id)
     per_ccy: dict[str, int] = {}
     native: list[tuple[int, str, str | None, str, int]] = []
@@ -117,8 +117,7 @@ def collect_account_rows(
     totals = tuple(
         CurrencyTotal(currency=ccy, total_minor=total) for ccy, total in sorted(per_ccy.items())
     )
-    fortune_base = sum(r.balance_base_minor for r in rows)
-    return rows, totals, fortune_base
+    return rows, totals
 
 
 def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> PaceTag:

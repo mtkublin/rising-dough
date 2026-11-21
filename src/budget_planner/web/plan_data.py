@@ -8,7 +8,13 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-from budget_planner.services import analytics as analytics_service, budget as budget_service
+from budget_planner import clock
+from budget_planner.config import Settings
+from budget_planner.services import (
+    analytics as analytics_service,
+    budget as budget_service,
+    fx as fx_service,
+)
 from budget_planner.services.analytics import AnalyticsBundle
 from budget_planner.web import view_models
 
@@ -50,14 +56,22 @@ def year_context(
 def analytics_bundle(
     conn: sqlite3.Connection,
     user_id: int,
-    today: date,
     picked: budget_service.PickerMonth,
     period_raw: str | None,
+    *,
+    settings: Settings,
 ) -> tuple[AnalyticsBundle, dict[str, object]]:
     """Return the analytics bundle for the picked month and the keys derived from it."""
+    today = clock.today_local(settings)
     period = analytics_service.normalize_period(period_raw)
     ref_today = analytics_service.reference_today(today, picked.year, picked.month)
-    bundle = analytics_service.bundle(conn, user_id, today=ref_today, period=period)
+    bundle = analytics_service.bundle(
+        conn,
+        user_id,
+        fx_service.converter_for(conn, settings, today),
+        today=ref_today,
+        period=period,
+    )
     return bundle, {
         "bundle": bundle,
         "period": period,

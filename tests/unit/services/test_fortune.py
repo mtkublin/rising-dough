@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -11,15 +12,20 @@ from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.transactions import NewTransaction
-from budget_planner.repositories import accounts, categories, transactions
-from budget_planner.services import fortune
+from budget_planner.repositories import accounts, categories, fx as fx_repo, transactions
+from budget_planner.services import fortune, fx
 
 USER_ID = 1
 
 
-def _settings(base: str = "PLN") -> Settings:
-    return Settings(_env_file=None, base_currency=base)
+TODAY = date(2026, 6, 1)
+EUR_PLN = Decimal("4.00")
+
+
+def _converter(conn: sqlite3.Connection, base: str = "PLN") -> fx.FxConverter:
+    return fx.converter_for(conn, Settings(_env_file=None, base_currency=base), TODAY)
 
 
 def _mk_expense(conn: sqlite3.Connection, *, account_id: int, cat_id: int, amount: int) -> None:
@@ -45,7 +51,7 @@ def cats(conn: sqlite3.Connection) -> dict[str, int]:
 
 def test_asset_only_no_liabilities(conn: sqlite3.Connection) -> None:
     accounts.create(conn, USER_ID, NewAccount(name="Bank", currency="PLN", opening_balance=100_000))
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.assets_by_ccy == {"PLN": 100_000}
     assert totals.liabilities_by_ccy == {}
     assert totals.net_by_ccy == {"PLN": 100_000}
@@ -66,7 +72,7 @@ def test_liability_only(conn: sqlite3.Connection, cats: dict[str, int]) -> None:
         ),
     )
     _mk_expense(conn, account_id=visa.id, cat_id=cats["expense"], amount=50_000)
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.assets_by_ccy == {}
     assert totals.liabilities_by_ccy == {"PLN": 50_000}
     assert totals.net_by_ccy == {"PLN": -50_000}
@@ -83,7 +89,7 @@ def test_mixed_single_currency(conn: sqlite3.Connection, cats: dict[str, int]) -
         NewAccount(name="Visa", currency="PLN", is_liability=True, credit_limit_minor=1_000_000),
     )
     _mk_expense(conn, account_id=visa.id, cat_id=cats["expense"], amount=20_000)
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.assets_base == 100_000
     assert totals.liabilities_base == 20_000
     assert totals.net_base == 80_000
@@ -96,12 +102,13 @@ def test_multi_currency_buckets(conn: sqlite3.Connection) -> None:
     accounts.create(
         conn, USER_ID, NewAccount(name="EUR Bank", currency="EUR", opening_balance=50_000)
     )
-    totals = fortune.compute_fortune(conn, USER_ID, _settings(base="PLN"))
+    fx_repo.upsert_rate(conn, NewFxRate(date=TODAY, from_ccy="EUR", to_ccy="PLN", rate=EUR_PLN))
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn, "PLN"))
     assert totals.assets_by_ccy == {"PLN": 100_000, "EUR": 50_000}
     assert totals.net_by_ccy == {"PLN": 100_000, "EUR": 50_000}
-    # base selection only picks PLN
-    assert totals.assets_base == 100_000
-    assert totals.net_base == 100_000
+    # base totals convert EUR at the cached rate: 100_000 + 50_000 * 4
+    assert totals.assets_base == 300_000
+    assert totals.net_base == 300_000
 
 
 def test_soft_deleted_account_excluded(conn: sqlite3.Connection) -> None:
@@ -110,7 +117,7 @@ def test_soft_deleted_account_excluded(conn: sqlite3.Connection) -> None:
     )
     accounts.create(conn, USER_ID, NewAccount(name="Other", currency="PLN", opening_balance=25_000))
     accounts.soft_delete(conn, USER_ID, a.id)
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.assets_base == 25_000
 
 
@@ -138,7 +145,7 @@ def test_invariant_net_eq_assets_minus_liabilities(
     )
     if liability_balance != 0:
         _mk_expense(conn, account_id=visa.id, cat_id=cats["expense"], amount=abs(liability_balance))
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.net_base == totals.assets_base - totals.liabilities_base
 
 
@@ -149,14 +156,14 @@ def test_over_limit_balance_included(conn: sqlite3.Connection, cats: dict[str, i
         NewAccount(name="Visa", currency="PLN", is_liability=True, credit_limit_minor=100_000),
     )
     _mk_expense(conn, account_id=visa.id, cat_id=cats["expense"], amount=250_000)
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.liabilities_by_ccy["PLN"] == 250_000
     assert totals.net_by_ccy["PLN"] == -250_000
 
 
 def test_zero_balance_account_counted_as_zero(conn: sqlite3.Connection) -> None:
     accounts.create(conn, USER_ID, NewAccount(name="Empty", currency="PLN", opening_balance=0))
-    totals = fortune.compute_fortune(conn, USER_ID, _settings())
+    totals = fortune.compute_fortune(conn, USER_ID, _converter(conn))
     assert totals.assets_by_ccy == {"PLN": 0}
     assert totals.net_by_ccy == {"PLN": 0}
     assert totals.assets_base == 0
