@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-21 (T-D-UT07-1: yearly budget crawl artefact)
+- **Fix(T-D-UT07-1): the crawler now visits `/plan?tab=year` instead of the bare htmx fragment `/budget/yearly`.** The 2000px horizontal scroll was a crawler artefact (fragment without page layout); the real page does not scroll at 375, 1024, 1440. `VIEWS` added to `tests/e2e/test_crawl.py`, strict xfail removed, inventory regenerated. Audit `docs/audits/2026-11-21-plan-year-crawl.md`.
 ## 2026-11-21 (T-UT12-DOCS: green CI recorded, framework allowlist accepted)
 - **Docs(T-UT12): re-run of `just ci` green** (3180 passed, 4 skipped, 1 xfailed, coverage 96.39%; full e2e on Chromium 110 passed, 2 skipped, 1 xfailed). The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) accepted by the operator.
 ## 2026-11-21 (T-D-UT12-1: overlay closes only on its own submit)

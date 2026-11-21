@@ -82,7 +82,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance**: green on today's UI; the inventory lists every page route with its controls; a seeded broken `hx-get` target fails the test; the run stays under 5 minutes (else split by surface with a marker).
 - **Validation**: `just test-e2e tests/e2e/test_crawl.py`
 - **Notes (2026-11-20)**: `tests/e2e/test_crawl.py` (one test per page route, 21 pages) + helpers in `tests/e2e/crawl/` + `tests/e2e/test_crawl_checker.py` (fixture page proving a broken `hx-get` target, a healthy swap and an inert control). Regenerate the inventory with `CRAWL_UPDATE=1`. Single theme today (no dark mode), so one pass. Controls are activated at 1440; 375 gets load-time overflow / duplicate-id / console / request checks, plus the same checks after every activation at 1440. Skipped with a recorded reason: logout, WebAuthn (passkey add/revoke/register), external links, sr-only / off-screen controls, form- or input-triggered hx elements. Known app bugs (strict xfail in `test_known_bug`):
-  - `T-D-UT07-1`: `/budget/yearly` is 2000px wide and scrolls the whole page horizontally at 375 and 1440 (`table > caption > thead` overflow).
+  - ✅ `T-D-UT07-1`: resolved 2026-11-21, crawler artefact. `/budget/yearly` is an htmx fragment (bare table, no layout wrapper), not a page. The real page `/plan?tab=year` has no page-level horizontal scroll at 375, 1024, 1440 (document scrollWidth equals clientWidth). The crawler now crawls `/plan?tab=year` (`VIEWS`), `/budget/yearly` is in `NOT_PAGES`, the xfail is gone. Audit: `docs/audits/2026-11-21-plan-year-crawl.md`.
 
 ### ✅ T-UT08 [P] Journeys on the UI map → T-UT04a..e
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
@@ -119,7 +119,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run of `just ci` was green: 3180 passed, 4 skipped, 1 xfailed, coverage 96.39%. Full e2e on Chromium: 110 passed, 2 skipped, 1 xfailed.
 - **Known exceptions**:
   - WebKit is unverified on this host (T-UT11).
-  - `T-D-UT07-1`: `/budget/yearly` scrolls horizontally (strict xfail).
+  - ✅ `T-D-UT07-1` resolved (crawler artefact, `/plan?tab=year` does not scroll); no known app bugs remain in the crawl.
   - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are accepted by the operator 2026-11-21 (framework-owned docs/static routes, not app pages).
   - T-UT06 stays open (awaiting the designer); every parity row has an owner (`ask designer`).
 
