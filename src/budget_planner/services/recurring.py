@@ -348,76 +348,77 @@ def promote_recurring(
         validate_promotion,
     )
 
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
-    if rule is None:
-        raise RecurringNotFoundError(rule_id)
-    if not rule.active:
-        raise InactiveRecurringError(rule_id)
+    # ADR-0137: guard reads and writes share one write-locked transaction.
+    with db_transaction(conn):
+        rule = recurring_repo.find_rule(conn, user_id, rule_id)
+        if rule is None:
+            raise RecurringNotFoundError(rule_id)
+        if not rule.active:
+            raise InactiveRecurringError(rule_id)
 
-    due_date = rule.next_due
-    overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
-    match = _resolve_override_for_next_due(overrides, due_date)
+        due_date = rule.next_due
+        overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
+        match = _resolve_override_for_next_due(overrides, due_date)
 
-    # Defaults start from the rule. Formula rules recompute from the
-    # live source-rule state for the next_due month (ADR-0045).
-    from budget_planner.services.recurring_formula import (  # noqa: PLC0415
-        resolve_rule_amount,
-    )
-
-    default_amount = resolve_rule_amount(conn, user_id, rule, due_date)
-    default_description = rule.default_description
-    effective_date = due_date
-    if match is not None:
-        if match.state is OverrideState.SKIPPED:
-            raise CannotPromoteSkippedError(rule_id)
-        if match.amount_override is not None:
-            default_amount = match.amount_override
-        if match.description_override is not None:
-            default_description = match.description_override
-        if match.date_override is not None:
-            effective_date = match.date_override
-
-    # Explicit edits overlay the override-derived defaults.
-    operation_date = edits.operation_date or effective_date
-    amount = edits.amount_minor if edits.amount_minor is not None else default_amount
-    description = edits.description if edits.description is not None else default_description
-
-    # ADR-0047: formulas may resolve to zero or negative when term sums
-    # cancel. User-explicit edits (``edits.amount_minor``) take precedence,
-    # so the guard only trips on live-formula resolution.
-    if rule.amount_formula is not None and edits.amount_minor is None and amount <= 0:
-        raise ValidationError(
-            "formula resolved to a non-positive amount — "
-            "edit the formula or override this occurrence"
+        # Defaults start from the rule. Formula rules recompute from the
+        # live source-rule state for the next_due month (ADR-0045).
+        from budget_planner.services.recurring_formula import (  # noqa: PLC0415
+            resolve_rule_amount,
         )
 
-    category = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
-    if category is None:  # pragma: no cover - FK guarantees existence
-        raise ValidationError(f"category {rule.category_id} not found")
+        default_amount = resolve_rule_amount(conn, user_id, rule, due_date)
+        default_description = rule.default_description
+        effective_date = due_date
+        if match is not None:
+            if match.state is OverrideState.SKIPPED:
+                raise CannotPromoteSkippedError(rule_id)
+            if match.amount_override is not None:
+                default_amount = match.amount_override
+            if match.description_override is not None:
+                default_description = match.description_override
+            if match.date_override is not None:
+                effective_date = match.date_override
 
-    validate_promotion(
-        conn,
-        user_id,
-        direction=category.direction,
-        account_id=rule.account_id,
-        dest_account_id=rule.dest_account_id,
-        amount=amount,
-    )
+        # Explicit edits overlay the override-derived defaults.
+        operation_date = edits.operation_date or effective_date
+        amount = edits.amount_minor if edits.amount_minor is not None else default_amount
+        description = edits.description if edits.description is not None else default_description
 
-    new_txn = NewTransaction(
-        operation_date=operation_date,
-        category_id=rule.category_id,
-        account_id=rule.account_id,
-        dest_account_id=rule.dest_account_id,
-        amount=amount,
-        description=description,
-        promoted_from_recurring_rule_id=rule_id,
-        promoted_from_recurring_date=due_date,
-    )
+        # ADR-0047: formulas may resolve to zero or negative when term sums
+        # cancel. User-explicit edits (``edits.amount_minor``) take precedence,
+        # so the guard only trips on live-formula resolution.
+        if rule.amount_formula is not None and edits.amount_minor is None and amount <= 0:
+            raise ValidationError(
+                "formula resolved to a non-positive amount — "
+                "edit the formula or override this occurrence"
+            )
 
-    new_next_due = advance_next_due(rule, due_date)
+        category = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+        if category is None:  # pragma: no cover - FK guarantees existence
+            raise ValidationError(f"category {rule.category_id} not found")
 
-    with db_transaction(conn):
+        validate_promotion(
+            conn,
+            user_id,
+            direction=category.direction,
+            account_id=rule.account_id,
+            dest_account_id=rule.dest_account_id,
+            amount=amount,
+        )
+
+        new_txn = NewTransaction(
+            operation_date=operation_date,
+            category_id=rule.category_id,
+            account_id=rule.account_id,
+            dest_account_id=rule.dest_account_id,
+            amount=amount,
+            description=description,
+            promoted_from_recurring_rule_id=rule_id,
+            promoted_from_recurring_date=due_date,
+        )
+
+        new_next_due = advance_next_due(rule, due_date)
+
         txn = transactions_repo.create(conn, user_id, new_txn)
         if new_next_due is None:
             recurring_repo.set_inactive(conn, user_id, rule_id)
@@ -465,16 +466,17 @@ def skip_and_advance(
     from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
     from budget_planner.services import audit as audit_svc  # noqa: PLC0415
 
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
-    if rule is None:
-        raise RecurringNotFoundError(rule_id)
-    if not rule.active:
-        raise InactiveRecurringError(rule_id)
-
-    due_date = rule.next_due
-    new_next_due = advance_next_due(rule, due_date)
-
+    # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
+        rule = recurring_repo.find_rule(conn, user_id, rule_id)
+        if rule is None:
+            raise RecurringNotFoundError(rule_id)
+        if not rule.active:
+            raise InactiveRecurringError(rule_id)
+
+        due_date = rule.next_due
+        new_next_due = advance_next_due(rule, due_date)
+
         # Record the skip (audit emitted by the override upsert path).
         recurring_repo.upsert_override(
             conn,

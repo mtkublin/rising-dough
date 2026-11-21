@@ -166,7 +166,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q204 [S] One transaction for compound mutations, immediate write locks, admin edge cases
+### ✅ T-Q204 [S] One transaction for compound mutations, immediate write locks, admin edge cases
 - Findings: Q-025 (C-09, B-07), Q-063 (H2-05).
 - Epic: E10
 - Band: 0 · Size: M · Tags: `[before-2nd-user]`

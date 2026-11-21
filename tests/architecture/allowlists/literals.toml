@@ -19,7 +19,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/db/migrate.py"
 rule = "repeated-literal"
-count = 3
+count = 2
 finding = "Q-038"
 epic = "E03"
 

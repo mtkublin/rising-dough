@@ -20,6 +20,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import balance as balance_svc
 from budget_planner.services.transactions import ValidationError, validate_transit_shape
 
@@ -86,52 +87,54 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
     chosen category direction so ``derive_balance`` still matches the
     actual balance.
     """
-    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
-    if account is None:
-        raise AccountNotFoundError(account_id)
-    if account.deleted_at is not None:
-        raise CannotReconcileDeletedAccountError(account_id)
+    # ADR-0137: the balance read and the adjustment insert share one locked transaction.
+    with db_transaction(conn):
+        account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
+        if account is None:
+            raise AccountNotFoundError(account_id)
+        if account.deleted_at is not None:
+            raise CannotReconcileDeletedAccountError(account_id)
 
-    derived = balance_svc.derive_balance(conn, user_id, account_id)
-    delta = actual_balance_minor - derived
-    if delta == 0:
-        raise NoAdjustmentNeededError(account_id)
+        derived = balance_svc.derive_balance(conn, user_id, account_id)
+        delta = actual_balance_minor - derived
+        if delta == 0:
+            raise NoAdjustmentNeededError(account_id)
 
-    if category_id is not None:
-        chosen = categories_repo.find_by_id(conn, user_id, category_id)
-        if chosen is None:
-            raise MissingSystemCategoryError(f"id={category_id}")
-        category = chosen
-    else:
-        default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
-        if default is None:
-            raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
-        category = default
-        assert category.direction is Direction.ADJUSTMENT  # schema invariant
+        if category_id is not None:
+            chosen = categories_repo.find_by_id(conn, user_id, category_id)
+            if chosen is None:
+                raise MissingSystemCategoryError(f"id={category_id}")
+            category = chosen
+        else:
+            default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
+            if default is None:
+                raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
+            category = default
+            assert category.direction is Direction.ADJUSTMENT  # schema invariant
 
-    # A reconciliation row has no destination: reject a transit category (ADR-0008).
-    validate_transit_shape(category.direction, account, None)
+        # A reconciliation row has no destination: reject a transit category (ADR-0008).
+        validate_transit_shape(category.direction, account, None)
 
-    # Preserve direction semantics (ADR-0008).
-    stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
+        # Preserve direction semantics (ADR-0008).
+        stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
 
-    description = f"auto-reconciliation {today.isoformat()}"
-    if note:
-        description += f" — {note}"
+        description = f"auto-reconciliation {today.isoformat()}"
+        if note:
+            description += f" — {note}"
 
-    return transactions_repo.create(
-        conn,
-        user_id,
-        NewTransaction(
-            operation_date=today,
-            category_id=category.id,
-            account_id=account_id,
-            dest_account_id=None,
-            amount=stored_amount,
-            description=description,
-            promoted_from_planned_id=None,
-        ),
-    )
+        return transactions_repo.create(
+            conn,
+            user_id,
+            NewTransaction(
+                operation_date=today,
+                category_id=category.id,
+                account_id=account_id,
+                dest_account_id=None,
+                amount=stored_amount,
+                description=description,
+                promoted_from_planned_id=None,
+            ),
+        )
 
 
 __all__ = [

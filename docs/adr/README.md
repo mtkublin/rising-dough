@@ -142,3 +142,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0133 | [Proxy-Set Client Identity and Bounded Auth Audit Text](0133-proxy-set-client-identity-and-bounded-auth-audit-text.md) (amends ADR-0072; relates to ADR-0032, ADR-0036) |
 | 0135 | [Per-Drill Litestream Age Key Pair Generated in Terraform](0135-per-drill-age-keypair-in-terraform.md) (amends ADR-0132, ADR-0078; relates to ADR-0093, ADR-0101, ADR-0111) |
 | 0136 | [Soft-Deleted Accounts Are Excluded From Balances, Stats and Converters](0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md) (relates to ADR-0130, ADR-0008) |
+| 0137 | [Write Transactions Begin IMMEDIATE and Guard Reads Live Inside Them](0137-begin-immediate-and-guard-reads-inside-the-transaction.md) (amends ADR-0019, ADR-0022; relates to ADR-0061, ADR-0073) |
