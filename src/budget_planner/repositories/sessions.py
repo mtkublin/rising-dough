@@ -23,9 +23,10 @@ import hashlib
 import secrets
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Final
 
+from budget_planner import clock
 from budget_planner.config import get_settings
 from budget_planner.repositories._shared import parse_dt, parse_dt_required, transaction
 
@@ -78,11 +79,11 @@ def session_handle(token: str) -> str:
 
 
 def _iso(value: datetime) -> str:
-    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return clock.iso_utc(value)
 
 
 def _now(now: datetime | None) -> datetime:
-    return datetime.now(UTC) if now is None else now
+    return clock.utc_now_ms() if now is None else now
 
 
 def _lifetime(lifetime_days: int | None) -> timedelta:

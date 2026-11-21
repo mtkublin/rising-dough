@@ -39,20 +39,6 @@ finding = "Q-074"
 epic = "E07"
 
 [[entry]]
-path = "src/budget_planner/services/balance.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
-epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
-epic = "E07"
-
-[[entry]]
 path = "src/budget_planner/services/budget.py"
 rule = "eff-import"
 count = 1
@@ -71,13 +57,6 @@ path = "src/budget_planner/services/fortune.py"
 rule = "eff-import"
 count = 1
 finding = "Q-074"
-epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/services/planned.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
 epic = "E07"
 
 [[entry]]
@@ -106,11 +85,4 @@ path = "src/budget_planner/services/users.py"
 rule = "eff-random"
 count = 1
 finding = "Q-074"
-epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/web/templating.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
 epic = "E07"

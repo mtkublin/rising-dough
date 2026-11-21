@@ -8,11 +8,12 @@ import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import pytest
-
+from budget_planner import clock
+from budget_planner.config import Settings
 from budget_planner.domain.budgets import NewBudgetOneOffOverride
 from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import budget
+from budget_planner.web.deps import get_today
 
 U = 1
 
@@ -31,14 +32,13 @@ def test_8a_resolve_budget_equals_yearly_grid_on_every_cell(seeded: sqlite3.Conn
     assert not bad, bad[:5]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-031: host-clock date.today() and the display-timezone date disagree around midnight",
-)
-def test_8b_display_timezone_today_equals_host_today() -> None:
+def test_8b_every_surface_shares_the_display_timezone_today() -> None:
+    """Q-031 / ADR-0140: around Warsaw midnight on a UTC host every surface sees one date."""
+    settings = Settings(display_timezone="Europe/Warsaw")
     frozen_utc = datetime(2026, 11, 19, 23, 30, tzinfo=real_dt.UTC)
     warsaw_today = frozen_utc.astimezone(ZoneInfo("Europe/Warsaw")).date()
-    host_today = frozen_utc.astimezone(
-        real_dt.UTC
-    ).date()  # what date.today() returns on a UTC host
-    assert warsaw_today == host_today
+
+    with clock.frozen(frozen_utc):
+        assert clock.today_local(settings) == warsaw_today
+        assert get_today(settings) == warsaw_today
+    assert warsaw_today != frozen_utc.date()

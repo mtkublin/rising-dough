@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -27,7 +27,7 @@ from budget_planner.services import (
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
-from budget_planner.web.deps import current_user_id, get_db
+from budget_planner.web.deps import current_user_id, get_db, get_today
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
@@ -78,10 +78,11 @@ def _hx_trigger_payload(payload: dict[str, object]) -> str:
 
 @router.post("/batch/promote-due", response_class=HTMLResponse)
 def planned_batch_promote_due(
-    conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     """Promote every unpromoted planned row with ``operation_date <= today``."""
-    today = date.today()  # noqa: DTZ011
     try:
         result = planned_service.batch_promote_due(conn, user_id, today)
     except (
@@ -558,10 +559,11 @@ def export(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     fmt = request.query_params.get("format", "csv")
     flt = parse_filter(request)
-    views = list(planned_service.list_planned(conn, user_id, flt))
+    views = list(planned_service.list_planned(conn, user_id, flt, today=today))
     rows = [
         {
             "key": v.persisted_id if v.persisted_id is not None else -1,
@@ -581,7 +583,7 @@ def export(
         export_service.ExportColumn(key="kind", header="kind", kind="str"),
         export_service.ExportColumn(key="is_promoted", header="promoted", kind="bool"),
     ]
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
+    stamp = today.strftime("%Y%m%d")
     if fmt == "parquet":
         return Response(
             content=export_service.export_parquet(rows, columns),

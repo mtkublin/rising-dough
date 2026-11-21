@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Iterator
+from datetime import UTC, date, datetime, time
 
 import pytest
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -25,8 +27,9 @@ TODAY = date(2026, 11, 6)
 
 
 @pytest.fixture(autouse=True)
-def _fixed_today(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("budget_planner.web.routers.accounts._today", lambda: TODAY)
+def _fixed_today() -> Iterator[None]:
+    with clock.frozen(datetime.combine(TODAY, time(10, 0), tzinfo=UTC)):
+        yield
 
 
 @pytest.fixture

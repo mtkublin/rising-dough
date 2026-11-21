@@ -12,6 +12,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -880,7 +881,7 @@ def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Setti
         )
         # Pick a start_date in the past so repository backfills next_due to a
         # future canonical date (not start_date itself).
-        past_start = dt.date.today() - dt.timedelta(days=800)  # noqa: DTZ011
+        past_start = clock.today_local(Settings()) - dt.timedelta(days=800)
         rule = recurring_repo.create_rule(
             conn,
             USER_ID,

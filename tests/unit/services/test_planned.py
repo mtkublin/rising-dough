@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
@@ -133,6 +134,7 @@ def test_list_planned_persisted_only(conn: sqlite3.Connection, world: dict[str, 
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 12, 31)),
+        today=clock.utc_now().date(),
     )
     assert rows  # fixture seeds at least two persisted rows
     assert all(r.kind == "persisted" for r in rows)
@@ -147,6 +149,7 @@ def test_list_planned_no_virtual_rows_in_month_without_persisted(
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 2, 1), date_to=date(2026, 2, 28)),
+        today=clock.utc_now().date(),
     )
     rent_rows = [r for r in rows if r.recurring_rule_id == world["rule_rent"]]
     assert rent_rows == []
@@ -161,6 +164,7 @@ def test_list_planned_category_filter(conn: sqlite3.Connection, world: dict[str,
             date_to=date(2026, 6, 30),
             category_ids=(world["groceries"],),
         ),
+        today=clock.utc_now().date(),
     )
     assert len(rows) == 1
     assert rows[0].persisted_id == world["p1"]
@@ -175,6 +179,7 @@ def test_list_planned_account_filter(conn: sqlite3.Connection, world: dict[str, 
             date_to=date(2026, 6, 30),
             account_ids=(world["savings"],),
         ),
+        today=clock.utc_now().date(),
     )
     assert rows == ()
 
@@ -190,6 +195,7 @@ def test_list_planned_recurring_rule_id_filter_excludes(
             date_to=date(2026, 3, 31),
             recurring_rule_id=world["rule_rent"],
         ),
+        today=clock.utc_now().date(),
     )
     assert all(r.recurring_rule_id == world["rule_rent"] for r in rows)
 
@@ -202,6 +208,7 @@ def test_list_planned_promoted_filter_excludes(
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30), promoted=False),
+        today=clock.utc_now().date(),
     )
     assert all(not r.is_promoted for r in rows)
 
@@ -211,6 +218,7 @@ def test_list_planned_sort_order(conn: sqlite3.Connection, world: dict[str, int]
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30)),
+        today=clock.utc_now().date(),
     )
     dates = [r.operation_date for r in rows]
     assert dates == sorted(dates)

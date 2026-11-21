@@ -27,11 +27,11 @@ from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Decimal
 
 from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.money import HALF_EVEN, round_div
 from budget_planner.domain.periods import (
     MONTHS_IN_YEAR,
     PeriodWindow,
@@ -69,7 +69,7 @@ def planned_base_amounts(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    today: dt.date | None = None,
+    today: dt.date,
     base_currency: str | None = None,
 ) -> Callable[[int, int], int]:
     """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095, ADR-0139).
@@ -79,8 +79,7 @@ def planned_base_amounts(
     network). Base-currency accounts are untouched. A missing rate raises
     ``FxUnavailableError``; there is no native-amount fallback.
     """
-    ref = today if today is not None else dt.date.today()  # noqa: DTZ011 — ADR-0007
-    fx = fx_svc.converter_for(conn, get_settings(), ref, base_currency=base_currency)
+    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
     ccy_by_account = _currency_by_account(conn, user_id)
 
     def _base_of(account_id: int, amount_minor: int) -> int:
@@ -224,8 +223,7 @@ def _active_month_counts(txns: list[Transaction]) -> dict[int, int]:
 def _mean_minor(total: int, count: int) -> int:
     if count <= 0:
         return 0
-    quantised = (Decimal(total) / Decimal(count)).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    return int(quantised)
+    return round_div(total, count, mode=HALF_EVEN)
 
 
 def _all_expense_txns(conn: sqlite3.Connection, user_id: int) -> list[Transaction]:
@@ -240,7 +238,7 @@ def committed_by_category(
     *,
     start: dt.date | None,
     end: dt.date,
-    today: dt.date | None = None,
+    today: dt.date,
     base_currency: str | None = None,
 ) -> dict[int, int]:
     """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
@@ -305,7 +303,7 @@ def committed_in_window(
     *,
     start: dt.date | None,
     end: dt.date,
-    today: dt.date | None = None,
+    today: dt.date,
     base_currency: str | None = None,
 ) -> int:
     """Return the committed-minor sum for ``[start, end)`` over ALL expense categories.
@@ -329,7 +327,7 @@ def committed_split_in_window(
     start: dt.date | None,
     end: dt.date,
     budgeted_category_ids: frozenset[int],
-    today: dt.date | None = None,
+    today: dt.date,
     base_currency: str | None = None,
 ) -> tuple[int, int]:
     """Return ``(budgeted_committed, unbudgeted_committed)`` for ``[start, end)``.
@@ -579,10 +577,8 @@ def month_summary(  # noqa: PLR0915
     )
 
     if budgeted_total != 0:
-        left_daily_spend_minor = int(
-            (Decimal(totals.remaining_minor) / Decimal(days_until_next_income)).quantize(
-                Decimal("1"), rounding=ROUND_HALF_EVEN
-            )
+        left_daily_spend_minor = round_div(
+            totals.remaining_minor, days_until_next_income, mode=HALF_EVEN
         )
 
     return MonthSummary(

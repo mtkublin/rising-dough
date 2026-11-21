@@ -11,6 +11,7 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -258,7 +259,7 @@ def test_card_renders_sparkline(client: TestClient, acc_id: int, _migrated: Sett
             conn,
             USER_ID,
             NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
+                operation_date=clock.today_local(Settings()),
                 category_id=cat.id,
                 account_id=acc_id,
                 amount=12345,
@@ -478,7 +479,7 @@ def test_card_shows_over_limit_badge_when_balance_below_negative_limit(
             conn,
             USER_ID,
             NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
+                operation_date=clock.today_local(Settings()),
                 category_id=cat.id,
                 account_id=visa.id,
                 amount=250_000,
@@ -513,7 +514,7 @@ def test_card_hides_badge_when_within_limit(client: TestClient, _migrated: Setti
             conn,
             USER_ID,
             NewTransaction(
-                operation_date=date.today(),  # noqa: DTZ011
+                operation_date=clock.today_local(Settings()),
                 category_id=cat.id,
                 account_id=visa.id,
                 amount=50_000,

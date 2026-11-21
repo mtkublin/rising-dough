@@ -15,12 +15,13 @@ credentials.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from budget_planner import clock
 from budget_planner.services import replication_health
 
 if TYPE_CHECKING:
@@ -92,7 +93,7 @@ def replication(request: Request) -> JSONResponse:
         raw = "unreadable"  # not JSON: evaluate() answers "unreadable"
     verdict = replication_health.evaluate(
         raw,
-        now=datetime.now(UTC),
+        now=clock.utc_now(),
         max_age=timedelta(hours=cfg.replication_max_age_hours),
     )
     return JSONResponse(status_code=200 if verdict.ok else 503, content=verdict.body())

@@ -18,9 +18,15 @@ import datetime as dt
 import logging
 import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation
 
-from budget_planner.domain.money import bps_to_percent, format_bps_percent, percent_to_bps
+from budget_planner.domain.money import (
+    HALF_UP,
+    bps_to_percent,
+    format_bps_percent,
+    percent_to_bps,
+    round_scaled,
+)
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
@@ -136,7 +142,7 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
     """Return ``round_half_up(sum_minor * coefficient_bps / 10 000)`` as int."""
     dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
-    return int(dec.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return round_scaled(dec, mode=HALF_UP)
 
 
 def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:

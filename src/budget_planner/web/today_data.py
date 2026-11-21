@@ -16,6 +16,7 @@ from typing import Final, Literal
 
 from fastapi import Request
 
+from budget_planner.domain.money import divide_minor_units
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
@@ -128,7 +129,7 @@ def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> P
         return PaceTag(kind="over_budget", label=_PACE_LABELS["over_budget"])
     days_in_month = calendar.monthrange(year, month)[1]
     elapsed = today.day if (today.year == year and today.month == month) else days_in_month
-    expected = budgeted * elapsed // days_in_month
+    expected = divide_minor_units(budgeted * elapsed, days_in_month)
     if spent > expected:
         return PaceTag(kind="pacing_high", label=_PACE_LABELS["pacing_high"])
     return PaceTag(kind="on_track", label=_PACE_LABELS["on_track"])

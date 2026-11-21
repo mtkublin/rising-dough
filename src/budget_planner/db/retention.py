@@ -7,9 +7,7 @@ ignores it so the app still starts).
 
 from __future__ import annotations
 
-import datetime as dt
-
-from budget_planner import logging as bp_logging
+from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.services import retention
@@ -18,7 +16,7 @@ from budget_planner.services import retention
 def run(settings: Settings) -> retention.PurgeResult:
     conn = get_connection(settings)
     try:
-        return retention.purge(conn, dt.datetime.now(dt.UTC), settings)
+        return retention.purge(conn, clock.utc_now(), settings)
     finally:
         conn.close()
 

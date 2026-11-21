@@ -24,7 +24,6 @@ from budget_planner.repositories._shared import (
     parse_dt,
     parse_dt_required,
     transaction,
-    utc_now_iso,
     write_audit,
 )
 
@@ -168,7 +167,7 @@ def update_sign_count(
     now: datetime | None = None,
 ) -> None:
     """Persist the authenticator's latest ``sign_count`` and ``last_used_at``."""
-    used_at = (now or datetime.now(UTC)).astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    used_at = clock.iso_utc(now or clock.utc_now())
     with transaction(conn):
         conn.execute(
             "UPDATE webauthn_credentials SET sign_count = ?, last_used_at = ? "
@@ -197,7 +196,7 @@ def revoke_credential(
             return False
         conn.execute(
             "UPDATE webauthn_credentials SET deleted_at = ? WHERE id = ? AND user_id = ?",
-            (utc_now_iso(), credential_row_id, user_id),
+            (clock.utc_now_iso(), credential_row_id, user_id),
         )
         write_audit(
             conn,

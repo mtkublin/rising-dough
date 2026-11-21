@@ -23,6 +23,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 
+from budget_planner import clock
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.domain.system_categories import (
@@ -34,7 +35,6 @@ from budget_planner.repositories._shared import (
     parse_dt,
     parse_dt_required,
     transaction,
-    utc_now_iso,
     write_audit,
 )
 from budget_planner.repositories.auth_users import (
@@ -241,7 +241,7 @@ def update_credentials(
                 int(update.must_change_password),
                 update.email,
                 None if update.is_admin is None else int(update.is_admin),
-                utc_now_iso(),
+                clock.utc_now_iso(),
                 user_id,
             ),
         )
@@ -322,7 +322,7 @@ def update_profile(
                 update.email,
                 update.name,
                 None if update.is_admin is None else int(update.is_admin),
-                utc_now_iso(),
+                clock.utc_now_iso(),
                 user_id,
             ),
         )
@@ -359,7 +359,7 @@ def reset_password(
         conn.execute(
             "UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? "
             "WHERE id = ? AND deleted_at IS NULL",
-            (password_hash, utc_now_iso(), user_id),
+            (password_hash, clock.utc_now_iso(), user_id),
         )
         revoked = sessions_repo.revoke_all_user_sessions(conn, user_id)
         updated = _require_live(conn, user_id)
@@ -390,7 +390,7 @@ def soft_delete(
     """
     with transaction(conn):
         prev = _require_live(conn, user_id)
-        now = utc_now_iso()
+        now = clock.utc_now_iso()
         conn.execute(
             "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
             (now, now, user_id),

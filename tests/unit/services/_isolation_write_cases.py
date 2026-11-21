@@ -13,6 +13,7 @@ import sqlite3
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
@@ -315,7 +316,10 @@ def _case_recurring_restore_progress(conn: sqlite3.Connection, world: World) -> 
 
 def _planned_ids(conn: sqlite3.Connection, user_id: int) -> set[int | None]:
     window = PlannedFilter(date_from=dt.date(2026, 11, 1), date_to=dt.date(2026, 11, 30))
-    return {v.persisted_id for v in planned.list_planned(conn, user_id, window)}
+    return {
+        v.persisted_id
+        for v in planned.list_planned(conn, user_id, window, today=clock.utc_now().date())
+    }
 
 
 @covers("planned.list_planned")
@@ -325,7 +329,10 @@ def _case_list_planned(conn: sqlite3.Connection, world: World) -> None:
     }  # the soft-deleted planned row is excluded
     assert _planned_ids(conn, OTHER_ID) == {world.other.planned_id}
     view = planned.list_planned(
-        conn, OWNER_ID, PlannedFilter(date_from=dt.date(2026, 11, 1), date_to=dt.date(2026, 11, 30))
+        conn,
+        OWNER_ID,
+        PlannedFilter(date_from=dt.date(2026, 11, 1), date_to=dt.date(2026, 11, 30)),
+        today=clock.utc_now().date(),
     )[0]
     assert (view.amount_minor, view.operation_date, view.account_id) == (
         500,
