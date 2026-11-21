@@ -16,10 +16,11 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import sqlite3
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
+from typing import Literal
 
-from budget_planner.domain.enums import OverrideState
+from budget_planner.domain.enums import Direction, OverrideState
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
@@ -394,26 +395,194 @@ def restore_progress(
     )
 
 
-def expand_unpromoted(
+PendingKind = Literal["planned", "recurring"]
+
+
+@dataclass(frozen=True, slots=True)
+class PendingItem:
+    """One unpromoted commitment: a persisted planned row or a virtual rule occurrence.
+
+    ``due_date`` is where the item falls on the calendar (planned
+    ``operation_date`` / occurrence ``effective_date``); ``on_date`` is where a
+    consumer should place it (equal to ``due_date`` except for an overdue item
+    placed on ``overdue_on``, ADR-0105 amendment 2026-11-21). ``occurrence_date``
+    is the canonical schedule date (recurring only).
+    """
+
+    kind: PendingKind
+    due_date: dt.date
+    on_date: dt.date
+    category_id: int
+    direction: Direction
+    account_id: int
+    dest_account_id: int | None
+    amount: int
+    description: str
+    is_overdue: bool
+    planned_id: int | None
+    rule_id: int | None
+    occurrence_date: dt.date | None
+    is_overridden: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _Window:
+    """Canonical-date window plus the overdue policy of one expansion."""
+
+    start: dt.date | None
+    end: dt.date | None
+    today: dt.date | None
+    include_overdue: bool
+    overdue_on: dt.date | None
+
+    def contains(self, day: dt.date) -> bool:
+        """``[start, end)`` membership; dates before ``today`` also pass when overdue counts."""
+        if self.end is not None and day >= self.end:
+            return False
+        if self.start is None or day >= self.start:
+            return True
+        return self.include_overdue and self.today is not None and day < self.today
+
+    def is_overdue(self, day: dt.date) -> bool:
+        return self.today is not None and day < self.today
+
+    def placed(self, due: dt.date, day: dt.date) -> dt.date:
+        """Where to put an item: its own date, or ``overdue_on`` when it is overdue."""
+        if self.overdue_on is not None and self.is_overdue(day) and due < self.overdue_on:
+            return self.overdue_on
+        return due
+
+
+def _planned_items(
+    conn: sqlite3.Connection,
+    user_id: int,
+    win: _Window,
+    kinds: Mapping[int, Direction],
+    wanted: Callable[[int], bool],
+) -> list[PendingItem]:
+    rows = planned_repo.list_filtered(
+        conn,
+        user_id,
+        PlannedFilter(
+            date_from=None if win.include_overdue else win.start,
+            date_to=win.end - dt.timedelta(days=1) if win.end is not None else None,
+            promoted=False,
+        ),
+    )
+    return [
+        PendingItem(
+            kind="planned",
+            due_date=row.operation_date,
+            on_date=win.placed(row.operation_date, row.operation_date),
+            category_id=row.category_id,
+            direction=kinds[row.category_id],
+            account_id=row.account_id,
+            dest_account_id=row.dest_account_id,
+            amount=row.amount,
+            description=row.description,
+            is_overdue=win.is_overdue(row.operation_date),
+            planned_id=row.id,
+            rule_id=None,
+            occurrence_date=None,
+            is_overridden=False,
+        )
+        for row in rows
+        if wanted(row.category_id) and win.contains(row.operation_date)
+    ]
+
+
+def _rule_items(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    win: _Window,
+    direction: Direction,
+    *,
+    dedup: frozenset[tuple[int, dt.date]],
+    next_only: bool,
+) -> list[PendingItem]:
+    lo = rule.next_due
+    if win.start is not None and not win.include_overdue:
+        lo = max(lo, win.start)
+    if next_only:
+        hi = rule.next_due
+    elif win.end is not None:
+        hi = win.end - dt.timedelta(days=1)
+    else:
+        raise ValueError("an unbounded end needs next_only")
+    if lo > hi:
+        return []
+    occs = rt_expand(
+        conn,
+        user_id,
+        rule=rule,
+        overrides=recurring_repo.list_overrides(conn, user_id, rule.id),
+        range_start=lo,
+        range_end=hi,
+    )
+    return [
+        PendingItem(
+            kind="recurring",
+            due_date=occ.effective_date,
+            on_date=win.placed(occ.effective_date, occ.occurrence_date),
+            category_id=rule.category_id,
+            direction=direction,
+            account_id=occ.account_id,
+            dest_account_id=occ.dest_account_id,
+            amount=occ.amount,
+            description=occ.description,
+            is_overdue=win.is_overdue(occ.occurrence_date),
+            planned_id=None,
+            rule_id=rule.id,
+            occurrence_date=occ.occurrence_date,
+            is_overridden=occ.is_overridden,
+        )
+        for occ in occs
+        if (rule.id, occ.occurrence_date) not in dedup and win.contains(occ.occurrence_date)
+    ]
+
+
+def pending_occurrences(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    rule: RecurringRule,
-    overrides: Sequence[RecurringOverride],
-    window_start: dt.date,
-    window_end: dt.date,
-) -> tuple[Occurrence, ...]:
-    """Expand ``rule`` from ``max(next_due, window_start)`` (ADR-0087, ADR-0089).
+    start: dt.date | None,
+    end: dt.date | None,
+    today: dt.date | None,
+    include_overdue: bool,
+    overdue_on: dt.date | None = None,
+    directions: Collection[Direction] | None = None,
+    category_ids: Collection[int] | None = None,
+    next_only: bool = False,
+) -> tuple[PendingItem, ...]:
+    """Every unpromoted planned row and rule occurrence in ``[start, end)`` (ADR-0087, ADR-0138).
 
-    The filter is on the canonical occurrence date: occurrences before
-    ``next_due`` are already promoted (or skipped) and are never returned.
+    The one "planned x active rules x overrides x linked-dedup x window" expander
+    (T-Q207). ``None`` bounds are open; membership is on the canonical date.
+    ``include_overdue`` adds items dated before ``today`` even below ``start``
+    (ADR-0105), placed on ``overdue_on`` when given. Rules expand from ``next_due``;
+    skipped occurrences and occurrences with a linked planned row are dropped;
+    ``next_only`` yields at most the ``next_due`` occurrence per rule.
     """
-    start = max(rule.next_due, window_start)
-    if start > window_end:
-        return ()
-    return rt_expand(
-        conn, user_id, rule=rule, overrides=overrides, range_start=start, range_end=window_end
-    )
+    if include_overdue and start is not None and today is None:
+        raise ValueError("include_overdue with a bounded start needs today")
+    kinds = {
+        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
+    }
+
+    def wanted(category_id: int) -> bool:
+        in_ids = category_ids is None or category_id in category_ids
+        return in_ids and (directions is None or kinds[category_id] in directions)
+
+    win = _Window(start, end, today, include_overdue, overdue_on)
+    dedup = linked_occurrence_keys(conn, user_id)
+    items = _planned_items(conn, user_id, win, kinds, wanted)
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
+        if wanted(rule.category_id):
+            items += _rule_items(
+                conn, user_id, rule, win, kinds[rule.category_id], dedup=dedup, next_only=next_only
+            )
+    return tuple(items)
 
 
 def linked_occurrence_keys(
@@ -437,6 +606,7 @@ __all__ = [
     "BatchPromoteResult",
     "CannotPromoteSkippedError",
     "InactiveRecurringError",
+    "PendingItem",
     "PromotionEdits",
     "RecurringNotFoundError",
     "advance_next_due",
@@ -444,11 +614,11 @@ __all__ = [
     "batch_promote_due",
     "default_day_of_month",
     "expand",
-    "expand_unpromoted",
     "first_due_on_or_after",
     "generate_occurrences",
     "linked_occurrence_keys",
     "occurrence_in_month",
+    "pending_occurrences",
     "promote_recurring",
     "resolve_rule_amount",
     "restore_progress",

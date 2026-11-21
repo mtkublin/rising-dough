@@ -355,7 +355,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 2 — Pre-v4-Phase-3 epics (duplicate-logic residue, repository discipline, layering, purity, clock, parsers, HTMX contract)
 
-### T-Q207 [S] One occurrence expander for all seven consumers
+### ✅ T-Q207 [S] One occurrence expander for all seven consumers
 - Findings: Q-002 step 2 (A-04, A-17).
 - Epic: E01
 - Band: 2 · Size: L · Tags: `[pre-v4-P3]`

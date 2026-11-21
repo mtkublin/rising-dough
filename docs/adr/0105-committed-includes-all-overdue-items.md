@@ -26,3 +26,14 @@ Due-today items were already counted (inclusive lower bound). For budgeted categ
 - Forecast current-period **Expenses** now includes overdue items; EOM balance is lower by the previously-lost unbudgeted overdue amount; budgeted overdue moves from "Planned budget" to "Expenses".
 - Budget hero, Today hero and left-per-day drop by the budgeted overdue amount — the cash is still going to leave before payday.
 - ADR-0089 (Accounts planned net) still clamps overdue to `>= period_start`; aligning it is a separate decision.
+
+## Amendment 2026-11-21 (T-Q207, Q-002, Q-030): one expander, forecast counts overdue
+
+`services/recurring.pending_occurrences(conn, user_id, *, start, end, today, include_overdue, ...)` is now the single implementation of "unpromoted planned rows x active rules x overrides x linked-row dedup x half-open window" (amends ADR-0087 and ADR-0085; the window is `[start, end)`, ADR-0138). Budget, forecast (event stream, monthly flows, budget overlay), `account_planned`, `income`, and `upcoming` call it; `include_overdue` is passed explicitly at every call site.
+
+Per-consumer policy:
+
+- **Budget** (`committed_by_category`): unchanged. `start=None` is unbounded, so every overdue item counts (this ADR, decision 1).
+- **Forecast** (OQ-6 default, taken 2026-11-21, pending operator confirmation): unpromoted items dated before `today` are counted and placed on `today + 1` (`include_overdue=True`, `overdue_on=today + 1`), in the daily event stream and the monthly flow sums. Items dated exactly `today` are unchanged (not in the stream). The budget overlay subtracts overdue commitments only in the first (current) window, so a budgeted overdue item is neither double counted nor repeated in later months.
+- **Accounts planned** (ADR-0089): overdue stays clamped to `period_start` (`include_overdue=False`).
+- **Income anchor / Upcoming**: only each rule's `next_due` occurrence (`next_only=True`); overdue planned rows stay flagged `is_overdue`. They now also drop a virtual occurrence whose linked planned row exists (ADR-0087), and Upcoming formula amounts resolve for the canonical occurrence month.

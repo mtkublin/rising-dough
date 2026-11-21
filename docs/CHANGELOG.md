@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q207: one occurrence expander)
+- **Refactor(T-Q207): `services/recurring.pending_occurrences` replaces the hand-rolled expansion loops (Q-002 step 2, Q-030 overdue part; ADR-0105 amendment 2026-11-21).** Budget, forecast (events, monthly flows, overlay), `account_planned`, `income` and `upcoming` call it; `expand_unpromoted` deleted; canonical row `exists`; INV-3c flipped (`invariants` entry deleted); `size_complexity` lowered (budget func>50 2 to 1, forecast cc 1 to 0, income func>50 1 to 0); `literal_user_id` already empty. Forecast now counts overdue unpromoted items on `today + 1` (OQ-6 default, pending operator confirmation). `recurring_formula._source_rule_month_value` keeps its leaf generate+override call (formula cycle guard, historical months, `list_overrides_all`; it cannot import `services.recurring`).
+
 ## 2026-11-21 (T-Q254: security headers on every response)
 - **Fix(T-Q254): 500s carry security headers; CSP and nonce from the app; unenforced surfaces off (ADR-0036 addendum; Q-064, Q-065, Q-066; OQ-20 default pending operator confirmation).** Outermost pure-ASGI `SecurityHeadersMiddleware`, app-minted nonce (client `X-CSP-Nonce` ignored), Caddy CSP reduced to non-fetch directives, `TrustedHostMiddleware` from `BUDGET_TRUSTED_HOSTS`, `/docs`/`/openapi.json`/`/dev/components` off in production, dead `csrf_token` stub removed, log redaction covers exception text. No allowlist entries added.
 ## 2026-11-21 (T-Q256: card utilisation and passkey JS)

@@ -28,14 +28,10 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, major_float, round_div
 from budget_planner.domain.periods import month_bounds, shift_month
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
-from budget_planner.domain.recurring import Occurrence, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
-    planned as planned_repo,
-    recurring as recurring_repo,
     transactions as transactions_repo,
 )
 from budget_planner.services import (
@@ -170,29 +166,13 @@ def _signed_events_for_direction(
     return ()
 
 
-def _events_from_persisted(
-    row: PlannedTransaction,
-    direction: Direction,
-) -> tuple[_CashEvent, ...]:
+def _events_for_item(item: recurring_svc.PendingItem) -> tuple[_CashEvent, ...]:
     return _signed_events_for_direction(
-        direction=direction,
-        operation_date=row.operation_date,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        amount_minor=row.amount,
-    )
-
-
-def _events_from_occurrence(
-    occ: Occurrence,
-    direction: Direction,
-) -> tuple[_CashEvent, ...]:
-    return _signed_events_for_direction(
-        direction=direction,
-        operation_date=occ.effective_date,
-        account_id=occ.account_id,
-        dest_account_id=occ.dest_account_id,
-        amount_minor=occ.amount,
+        direction=item.direction,
+        operation_date=item.on_date,
+        account_id=item.account_id,
+        dest_account_id=item.dest_account_id,
+        amount_minor=item.amount,
     )
 
 
@@ -204,55 +184,29 @@ def _collect_events(
     user_id: int,
     today: dt.date,
     end_date: dt.date,
-    directions_by_cat: dict[int, Direction],
 ) -> dict[dt.date, list[_CashEvent]]:
-    """Return per-date cash events sourced from planned rows + virtual occurrences."""
+    """Return per-date cash events sourced from planned rows + virtual occurrences.
+
+    Overdue unpromoted items are counted and placed on ``today + 1`` (ADR-0105
+    amendment 2026-11-21, OQ-6 default).
+    """
     event_start = today + dt.timedelta(days=1)
     if event_start > end_date:
         return {}
 
-    persisted = planned_repo.list_filtered(
+    events: dict[dt.date, list[_CashEvent]] = {}
+    for item in recurring_svc.pending_occurrences(
         conn,
         user_id,
-        PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
-    )
-    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
-
-    events: dict[dt.date, list[_CashEvent]] = {}
-    for row in persisted:
-        direction = directions_by_cat[row.category_id]
-        for ev in _events_from_persisted(row, direction):
+        start=event_start,
+        end=end_date + dt.timedelta(days=1),
+        today=today,
+        include_overdue=True,
+        overdue_on=event_start,
+    ):
+        for ev in _events_for_item(item):
             events.setdefault(ev.on_date, []).append(ev)
-
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if _rule_outside_window(rule, event_start, end_date):
-            continue
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
-        direction = directions_by_cat[rule.category_id]
-        for occ in recurring_svc.expand_unpromoted(
-            conn,
-            user_id,
-            rule=rule,
-            overrides=overrides,
-            window_start=event_start,
-            window_end=end_date,
-        ):
-            if (rule.id, occ.occurrence_date) in dedup_keys:
-                continue
-            for ev in _events_from_occurrence(occ, direction):
-                events.setdefault(ev.on_date, []).append(ev)
-
     return events
-
-
-def _rule_outside_window(
-    rule: RecurringRule,
-    window_start: dt.date,
-    window_end: dt.date,
-) -> bool:
-    if rule.start_date > window_end:
-        return True
-    return rule.end_date is not None and rule.end_date < window_start
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +260,7 @@ def _committed_future_for_category(
     window_end_inclusive: dt.date,
     *,
     today: dt.date,
+    include_overdue: bool = False,
 ) -> int:
     """Sum unpromoted planned + active recurring expense amounts for one category.
 
@@ -322,6 +277,7 @@ def _committed_future_for_category(
         start=window_start,
         end=window_end_inclusive + dt.timedelta(days=1),
         today=today,
+        include_overdue=include_overdue,
     )
     return by_cat.get(category_id, 0)
 
@@ -393,7 +349,13 @@ def _collect_budget_overlay(
 
             spent = _spent_so_far(conn, user_id, cat_id, month_start, min(today, month_end))
             committed = _committed_future_for_category(
-                conn, user_id, cat_id, window_start, month_end, today=today
+                conn,
+                user_id,
+                cat_id,
+                window_start,
+                month_end,
+                today=today,
+                include_overdue=window_start == event_start,
             )
             unaccounted = budget - spent - committed
             if unaccounted <= 0:
@@ -504,7 +466,7 @@ def forecast(
     directions_by_cat = {
         c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
-    events = _collect_events(conn, user_id, today, end_date, directions_by_cat)
+    events = _collect_events(conn, user_id, today, end_date)
 
     if include_budget_overlay:
         primary_account_id = min(a.id for a in active_accounts)
@@ -614,7 +576,13 @@ def _planned_budget_per_month(
                 continue
             spent = _spent_so_far(conn, user_id, cat.id, month, min(today, month_end))
             committed = _committed_future_for_category(
-                conn, user_id, cat.id, window_start, month_end, today=today
+                conn,
+                user_id,
+                cat.id,
+                window_start,
+                month_end,
+                today=today,
+                include_overdue=window_start == today + dt.timedelta(days=1),
             )
             remaining = amount - spent - committed
             if remaining > 0:
@@ -630,7 +598,6 @@ def _month_flow_sums(
     today: dt.date,
     end_date: dt.date,
     accounts: tuple[Account, ...],
-    directions_by_cat: dict[int, Direction],
     fx: fx_svc.FxConverter,
 ) -> dict[dt.date, tuple[int, int]]:
     """Sum signed income + expense events per calendar month, in base currency.
@@ -650,42 +617,23 @@ def _month_flow_sums(
     if start > end_date:
         return {}
 
-    persisted = planned_repo.list_filtered(
+    for item in recurring_svc.pending_occurrences(
         conn,
         user_id,
-        PlannedFilter(date_from=start, date_to=end_date, promoted=False),
-    )
-    dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
-
-    for row in persisted:
-        direction = directions_by_cat[row.category_id]
-        ccy = acct_ccy.get(row.account_id)
+        start=start,
+        end=end_date + dt.timedelta(days=1),
+        today=today,
+        include_overdue=True,
+        overdue_on=start,
+    ):
+        ccy = acct_ccy.get(item.account_id)
         if ccy is None:
             continue
-        base = fx.to_base(row.amount, ccy)
-        if direction is Direction.INCOME:
-            _add(row.operation_date, 0, base)
-        elif direction is Direction.EXPENSE:
-            _add(row.operation_date, 1, base)
-
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if _rule_outside_window(rule, start, end_date):
-            continue
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
-        direction = directions_by_cat[rule.category_id]
-        ccy = acct_ccy.get(rule.account_id)
-        if ccy is None:
-            continue
-        for occ in recurring_svc.expand_unpromoted(
-            conn, user_id, rule=rule, overrides=overrides, window_start=start, window_end=end_date
-        ):
-            if (rule.id, occ.occurrence_date) in dedup_keys:
-                continue
-            base = fx.to_base(occ.amount, ccy)
-            if direction is Direction.INCOME:
-                _add(occ.effective_date, 0, base)
-            elif direction is Direction.EXPENSE:
-                _add(occ.effective_date, 1, base)
+        base = fx.to_base(item.amount, ccy)
+        if item.direction is Direction.INCOME:
+            _add(item.on_date, 0, base)
+        elif item.direction is Direction.EXPENSE:
+            _add(item.on_date, 1, base)
 
     return {month: (bucket[0], bucket[1]) for month, bucket in sums.items()}
 
@@ -754,16 +702,12 @@ def forecast_monthly(
             months=months_empty,
         )
 
-    directions_by_cat = {
-        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
-    }
     flows = _month_flow_sums(
         conn,
         user_id,
         today=today,
         end_date=end_date,
         accounts=active_accounts,
-        directions_by_cat=directions_by_cat,
         fx=fx,
     )
 

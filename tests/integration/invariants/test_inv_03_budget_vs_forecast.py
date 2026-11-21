@@ -17,7 +17,6 @@ from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
-    categories as categories_repo,
     fx as fx_repo,
     planned as planned_repo,
     transactions as txn_repo,
@@ -92,10 +91,6 @@ def test_3b_committed_agrees_after_a_planned_row_is_linked(seeded: sqlite3.Conne
     assert b == f, (b, f)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-030: budget counts overdue unpromoted items (ADR-0105), the forecast event stream drops them",
-)
 def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
     seeded: sqlite3.Connection,
 ) -> None:
@@ -109,10 +104,8 @@ def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
     budget_counts = budget.committed_by_category(
         seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY
     ).get(7, 0)
-    directions = {
-        c.id: c.direction for c in categories_repo.list_all(seeded, U, include_deleted=True)
-    }
-    events = forecast._collect_events(seeded, U, TODAY, M_END, directions)
-    in_stream = any(e.on_date == date(2026, 11, 5) for evs in events.values() for e in evs)
+    events = forecast._collect_events(seeded, U, TODAY, M_END)
+    placed = [e for evs in events.values() for e in evs if e.amount_minor == -5000]
     assert budget_counts == 5000
-    assert in_stream
+    # OQ-6 default (ADR-0105 amendment 2026-11-21): overdue is placed on today + 1.
+    assert [(e.on_date, e.account_id) for e in placed] == [(TODAY + timedelta(days=1), 1)]

@@ -174,32 +174,34 @@ def _case_monthly_projection(conn: sqlite3.Connection, world: World) -> None:
 # --- recurring ---------------------------------------------------------------------------------------------------
 
 
-@covers("recurring.expand_unpromoted")
-def _case_expand_unpromoted(conn: sqlite3.Connection, world: World) -> None:
-    window = (dt.date(2026, 11, 1), dt.date(2026, 12, 31))
+@covers("recurring.pending_occurrences")
+def _case_pending_occurrences(conn: sqlite3.Connection, world: World) -> None:
+    window = (dt.date(2026, 11, 1), dt.date(2027, 1, 1))
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _rows(world, user_id)
-        rule = _rule(conn, user_id, rows.rule_id)
-        occs = recurring.expand_unpromoted(
-            conn, user_id, rule=rule, overrides=[], window_start=window[0], window_end=window[1]
+        items = recurring.pending_occurrences(
+            conn,
+            user_id,
+            start=window[0],
+            end=window[1],
+            today=T,
+            include_overdue=False,
+            category_ids=(rows.category_id,),
         )
-        assert [(o.occurrence_date, o.amount, o.account_id) for o in occs] == [
+        rule_items = [i for i in items if i.kind == "recurring"]
+        assert [(i.occurrence_date, i.amount, i.account_id) for i in rule_items] == [
             (EXPENSE_RULE_DUE, 700 * user_id, rows.account_id),
             (dt.date(2026, 12, 15), 700 * user_id, rows.account_id),
         ]
     assert world.tombstones is not None
     inactive = _rule(conn, OWNER_ID, world.tombstones.inactive_rule_id)
-    assert (
-        recurring.expand_unpromoted(
-            conn,
-            OWNER_ID,
-            rule=inactive,
-            overrides=[],
-            window_start=window[0],
-            window_end=window[1],
+    assert not [
+        i
+        for i in recurring.pending_occurrences(
+            conn, OWNER_ID, start=window[0], end=window[1], today=T, include_overdue=False
         )
-        == ()
-    )  # inactive rules expand to nothing
+        if i.rule_id == inactive.id
+    ]  # inactive rules expand to nothing
 
 
 @covers("recurring.linked_occurrence_keys")

@@ -613,32 +613,27 @@ def test_batch_skipped_rule_does_not_stop_later_due_rule(
 # ---------------------------------------------------------------------------
 # expand_unpromoted / linked_occurrence_keys
 # ---------------------------------------------------------------------------
-def test_expand_unpromoted_window_end_equal_to_start_is_inclusive(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
-    """Kills `start > window_end` -> `>=`."""
-    rule = recurring_repo.find_rule(conn, USER_ID, world["rule"])
-    assert rule is not None
-    occs = rec_svc.expand_unpromoted(
+def _pending_rule_dates(
+    conn: sqlite3.Connection, world: dict[str, int], end: date, **kwargs: object
+) -> list[date | None]:
+    items = rec_svc.pending_occurrences(
         conn,
         USER_ID,
-        rule=rule,
-        overrides=[],
-        window_start=date(2026, 1, 1),
-        window_end=date(2026, 1, 5),
+        start=date(2026, 1, 1),
+        end=end,
+        today=date(2026, 1, 1),
+        include_overdue=False,
+        **kwargs,  # type: ignore[arg-type]  # reason: test helper forwards optional keywords
     )
-    assert [o.occurrence_date for o in occs] == [date(2026, 1, 5)]
-    assert (
-        rec_svc.expand_unpromoted(
-            conn,
-            USER_ID,
-            rule=rule,
-            overrides=[],
-            window_start=date(2026, 1, 1),
-            window_end=date(2026, 1, 4),
-        )
-        == ()
-    )
+    return [i.occurrence_date for i in items if i.rule_id == world["rule"]]
+
+
+def test_pending_occurrences_end_is_exclusive(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Half-open window: an occurrence on ``end`` is out, the day before ``end`` is in."""
+    assert _pending_rule_dates(conn, world, date(2026, 1, 6)) == [date(2026, 1, 5)]
+    assert _pending_rule_dates(conn, world, date(2026, 1, 5)) == []
 
 
 def test_linked_occurrence_keys_only_unpromoted_linked_rows(
@@ -677,3 +672,110 @@ def test_linked_occurrence_keys_only_unpromoted_linked_rows(
     assert rec_svc.linked_occurrence_keys(conn, USER_ID) == frozenset({(rule_id, date(2026, 1, 5))})
     _seed_second_user(conn)
     assert rec_svc.linked_occurrence_keys(conn, OTHER_USER_ID) == frozenset()
+
+
+# ---------------------------------------------------------------------------
+# pending_occurrences: overdue policy (T-Q207, ADR-0105 amendment 2026-11-21)
+# ---------------------------------------------------------------------------
+_PENDING_TODAY = date(2026, 3, 10)
+_PENDING_START = date(2026, 3, 11)
+_PENDING_END = date(2026, 5, 1)
+
+
+def _pending(
+    conn: sqlite3.Connection,
+    *,
+    start: date | None = _PENDING_START,
+    end: date | None = _PENDING_END,
+    include_overdue: bool = False,
+    overdue_on: date | None = None,
+    next_only: bool = False,
+) -> tuple[rec_svc.PendingItem, ...]:
+    return rec_svc.pending_occurrences(
+        conn,
+        USER_ID,
+        start=start,
+        end=end,
+        today=_PENDING_TODAY,
+        include_overdue=include_overdue,
+        overdue_on=overdue_on,
+        next_only=next_only,
+    )
+
+
+def test_pending_overdue_rule_occurrences_are_placed_on_overdue_on(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    """Jan/Feb/Mar occurrences are overdue and land on ``today + 1``; April keeps its date."""
+    items = _pending(conn, include_overdue=True, overdue_on=_PENDING_START)
+    assert [(i.occurrence_date, i.on_date, i.is_overdue, i.amount) for i in items] == [
+        (date(2026, 1, 5), _PENDING_START, True, 200_000),
+        (date(2026, 2, 5), _PENDING_START, True, 200_000),
+        (date(2026, 3, 5), _PENDING_START, True, 200_000),
+        (date(2026, 4, 5), date(2026, 4, 5), False, 200_000),
+    ]
+
+
+def test_pending_without_overdue_drops_items_before_start(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    items = _pending(conn, include_overdue=False)
+    assert [(i.occurrence_date, i.on_date) for i in items] == [(date(2026, 4, 5), date(2026, 4, 5))]
+
+
+def test_pending_overdue_planned_row_is_placed_and_today_is_not_overdue(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    for day in (date(2026, 3, 1), _PENDING_TODAY):
+        planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=day,
+                category_id=world["rent"],
+                account_id=world["checking"],
+                amount=5_000,
+                description=f"p{day.day}",
+            ),
+        )
+    items = [
+        i
+        for i in _pending(conn, include_overdue=True, overdue_on=_PENDING_START)
+        if i.kind == "planned"
+    ]
+    # The row dated ``today`` is below ``start`` but not overdue, so it stays out.
+    assert [(i.description, i.due_date, i.on_date, i.is_overdue) for i in items] == [
+        ("p1", date(2026, 3, 1), _PENDING_START, True)
+    ]
+
+
+def test_pending_next_only_yields_the_next_due_occurrence(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    items = _pending(conn, start=None, end=None, include_overdue=True, next_only=True)
+    assert [(i.rule_id, i.occurrence_date) for i in items] == [(world["rule"], date(2026, 1, 5))]
+
+
+def test_pending_linked_planned_row_stands_for_its_occurrence(
+    conn: sqlite3.Connection, world: dict[str, int]
+) -> None:
+    planned_repo.create(
+        conn,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=date(2026, 3, 20),
+            category_id=world["rent"],
+            account_id=world["checking"],
+            amount=190_000,
+            description="re-dated",
+            recurring_rule_id=world["rule"],
+            occurrence_date=date(2026, 3, 5),
+        ),
+    )
+    items = _pending(conn, include_overdue=True, overdue_on=_PENDING_START)
+    assert [(i.kind, i.occurrence_date, i.on_date, i.amount) for i in items] == [
+        ("planned", None, date(2026, 3, 20), 190_000),
+        ("recurring", date(2026, 1, 5), _PENDING_START, 200_000),
+        ("recurring", date(2026, 2, 5), _PENDING_START, 200_000),
+        ("recurring", date(2026, 4, 5), date(2026, 4, 5), 200_000),
+    ]

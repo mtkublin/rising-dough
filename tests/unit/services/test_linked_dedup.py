@@ -74,7 +74,7 @@ def _budget(conn: sqlite3.Connection) -> int:
 
 
 def _forecast(conn: sqlite3.Connection, ids: dict[str, int]) -> int:
-    events = fc._collect_events(conn, USER_ID, TODAY, END, {ids["cat"]: Direction.EXPENSE})
+    events = fc._collect_events(conn, USER_ID, TODAY, END)
     return sum(ev.amount_minor for evs in events.values() for ev in evs)
 
 

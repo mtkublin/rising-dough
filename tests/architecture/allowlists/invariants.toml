@@ -21,12 +21,6 @@ count = 1
 finding = "Q-008"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_03_budget_vs_forecast.py"
-rule = "Q-030"
-count = 1
-finding = "Q-030"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_05_amount_validation_parity.py"
 rule = "Q-023"
 count = 1

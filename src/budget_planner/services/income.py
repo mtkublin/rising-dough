@@ -14,30 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
-from budget_planner.domain.enums import OverrideState
-from budget_planner.domain.planned import PlannedFilter
-from budget_planner.repositories import (
-    planned as planned_repo,
-    recurring as recurring_repo,
-)
-
-
-def _recurring_candidate_date(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule_id: int,
-    next_due: dt.date,
-) -> dt.date | None:
-    """Return the effective date for ``rule.next_due`` after override lookup."""
-    for override in recurring_repo.list_overrides(conn, user_id, rule_id):
-        if override.occurrence_date != next_due:
-            continue
-        if override.state is OverrideState.SKIPPED:
-            return None
-        if override.state is OverrideState.OVERRIDDEN and override.date_override is not None:
-            return override.date_override
-        return next_due
-    return next_due
+from budget_planner.services import recurring as recurring_svc
 
 
 def next_anchor_date(
@@ -50,47 +27,28 @@ def next_anchor_date(
 ) -> dt.date | None:
     """Earliest effective date strictly after ``after`` within ``horizon_days``.
 
-    Composes:
-      - persisted one-off planned rows (``promoted=False``,
-        ``category_ids=(category_id,)``) via ``planned_repo.list_filtered``.
-      - active recurring rules filtered client-side on ``category_id``,
-        reading ``rule.next_due`` directly (ADR-0038). Override on
-        ``next_due`` is applied via ``_recurring_candidate_date``.
-
-    Returns ``None`` when nothing matches inside the horizon.
+    Composes, via :func:`recurring.pending_occurrences`, the unpromoted planned
+    rows of ``category_id`` and each active rule's ``next_due`` occurrence
+    (overrides applied, skipped dropped, linked-row dedup). Returns ``None``
+    when nothing matches inside the horizon.
     """
     if horizon_days < 1:
         raise ValueError("horizon_days must be >= 1")
 
     window_start = after + dt.timedelta(days=1)
     window_end = after + dt.timedelta(days=horizon_days)
-
-    # Persisted one-offs.
-    planned_rows = planned_repo.list_filtered(
+    pending = recurring_svc.pending_occurrences(
         conn,
         user_id,
-        PlannedFilter(
-            date_from=window_start,
-            date_to=window_end,
-            category_ids=(category_id,),
-            promoted=False,
-        ),
+        start=None,
+        end=None,
+        today=after,
+        include_overdue=True,
+        category_ids=(category_id,),
+        next_only=True,
     )
-    candidates: list[dt.date] = [row.operation_date for row in planned_rows]
-
-    # Active recurring rules — honour overrides on ``next_due``.
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if rule.category_id != category_id:
-            continue
-        effective = _recurring_candidate_date(conn, user_id, rule.id, rule.next_due)
-        if effective is None:
-            continue
-        if window_start <= effective <= window_end:
-            candidates.append(effective)
-
-    if not candidates:
-        return None
-    return min(candidates)
+    candidates = [p.due_date for p in pending if window_start <= p.due_date <= window_end]
+    return min(candidates) if candidates else None
 
 
 __all__ = ["next_anchor_date"]
