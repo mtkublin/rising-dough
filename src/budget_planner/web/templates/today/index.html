@@ -7,7 +7,7 @@
 {% block main %}
   <header class="rd-screen-header">
     <div class="rd-screen-header__title">
-      <div class="rd-eyebrow">{{ today|date_fmt("%A · %d %B %Y") }}</div>
+      <div class="rd-eyebrow">{{ today|date_weekday_long }}</div>
       <h1>Today</h1>
     </div>
     <div class="rd-screen-header__actions">
@@ -25,37 +25,29 @@
         <span class="rd-eyebrow" id="hero-left">Left to spend per day</span>
         {{ pace_tag(pace.kind) }}
       </div>
-      {% set budgeted = summary.totals.budgeted_minor %}
-      {% set spent = summary.totals.spent_minor %}
-      {% set committed = summary.totals.committed_minor %}
-      {% set remaining = summary.totals.remaining_minor %}
-      {% set spent_pct = (100.0 * spent / budgeted) if budgeted > 0 else 0 %}
-      {% set committed_pct = (100.0 * committed / budgeted) if budgeted > 0 else 0 %}
-      {% set period_total_days = ((summary.next_income_date - summary.period_start).days) or 1 %}
-      {% set period_day_x = ((today - summary.period_start).days) + 1 %}
       <div class="rd-hero__amount">
-        <span>{{ left_per_day_minor|money_num(base_ccy) }}</span>
+        <span>{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
         <span class="rd-hero__cur num mut">{{ base_ccy }} / day</span>
       </div>
       <div class="rd-hero__meta num">
-        {{ remaining|money_num(base_ccy) }} {{ base_ccy }} left ·
-        {{ days_left }} days until next income
-        {% if summary.anchor_category_name %}
-          ({{ summary.anchor_category_name }}, {{ summary.next_income_date|date_fmt("%-d %b") }})
+        {{ budget.summary.totals.remaining_minor|money_num(base_ccy) }} {{ base_ccy }} left ·
+        {{ budget.summary.days_until_next_income }} days until next income
+        {% if budget.summary.anchor_category_name %}
+          ({{ budget.summary.anchor_category_name }}, {{ budget.summary.next_income_date|date_day_month }})
         {% endif %}
       </div>
       <div class="rd-hero__progress" aria-hidden="true">
-        {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent > budgeted and budgeted > 0)) }}
+        {{ progress_bar(budget.spent_pct, committed_pct=budget.committed_pct, over=budget.is_over) }}
       </div>
       <div class="rd-hero__legend">
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--spent"></i>Spent <span class="num">{{ spent|money_num(base_ccy) }}</span></span>
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--committed"></i>Committed <span class="num">{{ committed|money_num(base_ccy) }}</span></span>
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--left"></i>Left <span class="num">{{ remaining|money_num(base_ccy) }}</span></span>
-        <span class="rd-hero__legend-item rd-hero__legend-item--total mut">of <span class="num">{{ budgeted|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--spent"></i>Spent <span class="num">{{ budget.summary.totals.spent_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--committed"></i>Committed <span class="num">{{ budget.summary.totals.committed_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--left"></i>Left <span class="num">{{ budget.summary.totals.remaining_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item rd-hero__legend-item--total mut">of <span class="num">{{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }}</span></span>
       </div>
       <div class="rd-hero__period">
         <kbd class="rd-kbd">Period</kbd>
-        {{ summary.period_start|date_fmt("%-d %b") }} → {{ summary.next_income_date|date_fmt("%-d %b") }} · day {{ period_day_x }} of {{ period_total_days }}
+        {{ budget.summary.period_start|date_day_month }} → {{ budget.summary.next_income_date|date_day_month }} · day {{ budget.period_day }} of {{ budget.period_total_days }}
       </div>
       <div class="rd-afford">
         <form class="rd-afford__row"
@@ -75,7 +67,7 @@
           </span>
           <span id="afford-preview" class="rd-afford__preview">
             <span class="mut">→ per day becomes</span>
-            <span class="num rd-afford__new">{{ left_per_day_minor|money_num(base_ccy) }}</span>
+            <span class="num rd-afford__new">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
           </span>
         </form>
       </div>

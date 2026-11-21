@@ -89,7 +89,7 @@
                      autofocus
                      placeholder="0.00"
                      value="{{ default_amount_str or '' }}">
-              <span class="cur">{{ account.currency if account else 'PLN' }}</span>
+              <span class="cur">{{ account.currency if account else base_ccy }}</span>
             </span>
             <button type="submit" class="rd-btn rd-btn--primary">Save ↵</button>
           </div>

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import json
 import re
 import sqlite3
 from collections.abc import Callable, Mapping
@@ -222,8 +223,6 @@ def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
 
     Idempotent: rows already at ``schema_version == 2`` are left unchanged.
     """
-    import json  # noqa: PLC0415 — hook-local import keeps top-of-module imports lean
-
     rows = conn.execute(
         "SELECT id, amount_formula FROM recurring_rules WHERE amount_formula IS NOT NULL"
     ).fetchall()

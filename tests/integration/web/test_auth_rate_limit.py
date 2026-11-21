@@ -21,6 +21,7 @@ from budget_planner.config import Settings
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
 from budget_planner.web.routers.auth import GENERIC_LOGIN_ERROR, RATE_LIMITED_LOGIN_ERROR
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.db_template import sqlite_url
 
 pytestmark = pytest.mark.integration
 
@@ -30,10 +31,10 @@ _CREDENTIAL: dict[str, Any] = {"id": "abc", "rawId": "abc", "type": "public-key"
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> Settings:
+def settings(migrated_db: Path) -> Settings:
     return Settings(
         _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}",
+        database_url=sqlite_url(migrated_db),
         rate_limit_login_per_minute=LOGIN_PER_MINUTE,
         rate_limit_login_per_hour=4,
         rate_limit_login_ip_per_hour=5,
@@ -191,14 +192,14 @@ def test_throttled_login_writes_audit_row(
     assert all(r[1] == "127.0.0.1" for r in rows)
 
 
-def test_rate_limit_disabled_never_throttles(tmp_path: Path, login_user: int) -> None:
+def test_rate_limit_disabled_never_throttles(migrated_db: Path, login_user: int) -> None:
     from budget_planner.web.app import create_app  # noqa: PLC0415
     from tests.integration.web.conftest import _CSRFAwareTestClient  # noqa: PLC0415
 
     del login_user
     off = Settings(
         _env_file=None,
-        database_url=f"sqlite:///{(tmp_path / 'web.sqlite').as_posix()}",
+        database_url=sqlite_url(migrated_db),
         rate_limit_enabled=False,
         rate_limit_login_per_minute=1,
     )

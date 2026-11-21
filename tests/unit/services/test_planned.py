@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 
@@ -20,8 +19,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
 from budget_planner.domain.recurring import NewRecurringOverride, NewRecurringRule
-from budget_planner.domain.transactions import TransactionFilter
-from budget_planner.repositories import accounts, categories, planned, recurring, transactions
+from budget_planner.repositories import accounts, categories, planned, recurring
 from budget_planner.services import planned as pl_svc
 from budget_planner.services.planned import (
     AlreadyPromotedError,
@@ -331,21 +329,3 @@ def test_promote_unknown_id(conn: sqlite3.Connection) -> None:
 def test_promote_amount_zero_rejected(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     with pytest.raises(ValidationError):
         pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits(amount_minor=0))
-
-
-def test_rollback_on_stamp_failure(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    empty = TransactionFilter()
-    before = len(transactions.list_filtered(conn, USER_ID, filters=empty))
-    with (
-        patch(
-            "budget_planner.services.planned.planned_repo.stamp_promotion",
-            side_effect=RuntimeError("boom"),
-        ),
-        pytest.raises(RuntimeError),
-    ):
-        pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits())
-    after = len(transactions.list_filtered(conn, USER_ID, filters=empty))
-    assert before == after
-    pt = planned.find_by_id(conn, USER_ID, world["p1"])
-    assert pt is not None
-    assert pt.promoted_to_txn_id is None

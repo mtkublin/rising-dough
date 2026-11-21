@@ -103,7 +103,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/services/recurring.py"
 rule = "cc>=11"
-count = 2
+count = 1
 finding = "Q-046"
 epic = "E13"
 
@@ -124,7 +124,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "func>50"
-count = 2
+count = 1
 finding = "Q-046"
 epic = "E13"
 
@@ -229,13 +229,6 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/settings.py"
 rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/today.py"
-rule = "func>50"
 count = 1
 finding = "Q-046"
 epic = "E13"

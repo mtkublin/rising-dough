@@ -35,11 +35,6 @@ ADMIN_ID = 1
 CTX = RequestCtx(ip="127.0.0.1", user_id=ADMIN_ID, session_id="h", user_agent="pytest")
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 @pytest.fixture
 def admin_conn(conn: sqlite3.Connection) -> sqlite3.Connection:
     conn.execute(

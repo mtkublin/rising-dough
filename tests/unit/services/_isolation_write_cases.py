@@ -180,7 +180,9 @@ def _case_expand_unpromoted(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _rows(world, user_id)
         rule = _rule(conn, user_id, rows.rule_id)
-        occs = recurring.expand_unpromoted(conn, user_id, rule, [], *window)
+        occs = recurring.expand_unpromoted(
+            conn, user_id, rule=rule, overrides=[], window_start=window[0], window_end=window[1]
+        )
         assert [(o.occurrence_date, o.amount, o.account_id) for o in occs] == [
             (EXPENSE_RULE_DUE, 700 * user_id, rows.account_id),
             (dt.date(2026, 12, 15), 700 * user_id, rows.account_id),
@@ -188,7 +190,15 @@ def _case_expand_unpromoted(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     inactive = _rule(conn, OWNER_ID, world.tombstones.inactive_rule_id)
     assert (
-        recurring.expand_unpromoted(conn, OWNER_ID, inactive, [], *window) == ()
+        recurring.expand_unpromoted(
+            conn,
+            OWNER_ID,
+            rule=inactive,
+            overrides=[],
+            window_start=window[0],
+            window_end=window[1],
+        )
+        == ()
     )  # inactive rules expand to nothing
 
 
@@ -427,11 +437,20 @@ def _case_rt_expand(conn: sqlite3.Connection, world: World) -> None:
         fixed, amount_formula=_income_formula(world.owner.income_category_id)
     )
     window = (dt.date(2026, 12, 1), dt.date(2026, 12, 31))
-    owner = formula_svc.rt_expand(conn, OWNER_ID, with_formula, [], *window)
+    owner = formula_svc.rt_expand(
+        conn, OWNER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+    )
     assert [(o.occurrence_date, o.amount) for o in owner] == [(dt.date(2026, 12, 15), 5_000)]
-    other = formula_svc.rt_expand(conn, OTHER_ID, with_formula, [], *window)
+    other = formula_svc.rt_expand(
+        conn, OTHER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+    )
     assert [(o.occurrence_date, o.amount) for o in other] == [(dt.date(2026, 12, 15), 0)]
-    assert [o.amount for o in formula_svc.rt_expand(conn, OWNER_ID, fixed, [], *window)] == [700]
+    assert [
+        o.amount
+        for o in formula_svc.rt_expand(
+            conn, OWNER_ID, rule=fixed, overrides=[], range_start=window[0], range_end=window[1]
+        )
+    ] == [700]
 
 
 @covers("recurring_formula.validate_formula_sources")
@@ -519,16 +538,20 @@ def _case_restore(conn: sqlite3.Connection, world: World) -> None:
 def _case_reconcile(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     with pytest.raises(reconciliation.AccountNotFoundError):
-        reconciliation.reconcile(conn, OTHER_ID, world.owner.account_id, 1, T)
+        reconciliation.reconcile(
+            conn, OTHER_ID, account_id=world.owner.account_id, actual_balance_minor=1, today=T
+        )
     with pytest.raises(reconciliation.CannotReconcileDeletedAccountError):
-        reconciliation.reconcile(conn, OWNER_ID, world.tombstones.account_id, 1, T)
+        reconciliation.reconcile(
+            conn, OWNER_ID, account_id=world.tombstones.account_id, actual_balance_minor=1, today=T
+        )
     target = OWNER_BALANCE
     txn = reconciliation.reconcile(
         conn,
         OWNER_ID,
-        world.owner.account_id,
-        target,
-        T,
+        account_id=world.owner.account_id,
+        actual_balance_minor=target,
+        today=T,
         category_id=world.owner.income_category_id,  # positive delta needs income (Q-005)
     )
     assert (txn.user_id, txn.account_id, txn.amount) == (OWNER_ID, world.owner.account_id, 1_000)

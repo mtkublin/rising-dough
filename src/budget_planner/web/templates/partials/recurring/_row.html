@@ -35,14 +35,14 @@
   <td>{% if category %}{{ category_label(category) }}{% else %}—{% endif %}</td>
   <td class="text-right tabular-nums">
     {% if amount_overridden %}
-      <em data-amount-overridden>{{ display_amount|money(account.currency if account else 'PLN') }}</em>
+      <em data-amount-overridden>{{ display_amount|money(account.currency if account else base_ccy) }}</em>
     {% elif is_formula %}
       <span data-formula-amount title="{% for t in rule.amount_formula.terms %}{{ t.sign }} {{ t.coefficient_bps|bps_percent }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
-        {{ display_amount|money(account.currency if account else 'PLN') }}
+        {{ display_amount|money(account.currency if account else base_ccy) }}
         <span class="formula-chip" aria-label="computed amount">ƒ</span>
       </span>
     {% else %}
-      {{ display_amount|money(account.currency if account else 'PLN') }}
+      {{ display_amount|money(account.currency if account else base_ccy) }}
     {% endif %}
   </td>
   <td>{{ 'Yes' if rule.active else 'No' }}</td>

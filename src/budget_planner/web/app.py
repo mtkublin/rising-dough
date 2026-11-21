@@ -10,6 +10,7 @@ exception handlers (see `web.errors`).
 
 from __future__ import annotations
 
+import importlib
 import signal
 import sqlite3
 from contextlib import asynccontextmanager
@@ -28,6 +29,7 @@ from budget_planner.web import retention_task
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.admin import AdminRequiredMiddleware
 from budget_planner.web.middleware.auth import AuthRequiredMiddleware
+from budget_planner.web.middleware.body_limit import body_limit_middleware
 from budget_planner.web.middleware.cache_control import CacheControlMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
@@ -205,6 +207,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(CacheControlMiddleware)
     app.add_middleware(AuthRequiredMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(body_limit_middleware)  # T-Q235: 413 above MAX_BODY_BYTES
     app.add_middleware(RequestIdMiddleware)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
@@ -244,8 +247,6 @@ _ROUTER_NAMES: tuple[str, ...] = (
 def _register_routers(app: FastAPI) -> None:
     """Register Phase 3 routers; missing modules (during iterative landing)
     are tolerated so each task can commit atomically."""
-    import importlib  # noqa: PLC0415
-
     for name in _ROUTER_NAMES:
         try:
             mod = importlib.import_module(f"budget_planner.web.routers.{name}")

@@ -25,11 +25,6 @@ ADMIN_PASSWORD = "lifespan-Init1al!"  # noqa: S105  # pragma: allowlist secret
 COOKIE_SECRET = "c" * 48  # pragma: allowlist secret
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 def _migrated_url(tmp_path: Path) -> str:
     url = f"sqlite:///{(tmp_path / 'lifespan.sqlite').as_posix()}"
     conn = get_connection(Settings(_env_file=None, database_url=url))

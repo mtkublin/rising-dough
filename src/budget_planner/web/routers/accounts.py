@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
+from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import (
@@ -34,6 +35,7 @@ from budget_planner.services import (
     fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
+from budget_planner.web.accounts_view import credit_utilisation
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -90,6 +92,7 @@ def _card_context(
         "sparkline_height": _SPARKLINE_HEIGHT,
         "snapshots": snapshots,
         "planned": planned.by_account.get(account_id),
+        "utilisation": credit_utilisation(acc, bal),
     }
 
 
@@ -189,8 +192,8 @@ def create_account(  # noqa: PLR0917
     except InvalidOperation:
         errors["opening_balance"] = "invalid number"
         opening_dec = Decimal(0)
-    if not name.strip():
-        errors["name"] = "name required"
+    if (bad_name := name_error(name)) is not None:
+        errors["name"] = bad_name
     liability = _parse_liability(is_liability)
     credit_limit_minor: int | None = None
     if liability and not errors.get("currency"):
@@ -288,13 +291,13 @@ def update_account(  # noqa: PLR0917
             errors={"account": "not found"},
             status_code=404,
         )
-    if not name.strip():
+    if (bad_name := name_error(name)) is not None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=acc,
             action=f"/accounts/{account_id}",
-            errors={"name": "name required"},
+            errors={"name": bad_name},
             status_code=422,
         )
     liability = _parse_liability(is_liability)
@@ -386,21 +389,16 @@ def take_snapshot(
     return resp
 
 
-def _uses_available(acc: Account) -> bool:
-    """T-D52 — liability with a credit limit reconciles by available credit."""
-    return bool(acc.is_liability and acc.credit_limit_minor)
-
-
 def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
-    if not _uses_available(acc):
+    """T-D52 — liability with a credit limit reconciles by available credit."""
+    util = credit_utilisation(acc, derived)
+    if util is None:
         return {"by_available": False}
-    limit = acc.credit_limit_minor or 0
-    used = max(-derived, 0)
     return {
         "by_available": True,
-        "credit_limit_minor": limit,
-        "used_minor": used,
-        "available_minor": max(limit - used, 0),
+        "credit_limit_minor": util.limit_minor,
+        "used_minor": util.used_minor,
+        "available_minor": util.available_minor,
     }
 
 
@@ -472,7 +470,7 @@ def reconcile_submit(  # noqa: PLR0917
     except InvalidOperation:
         return _reject("invalid number")
     actual_minor = to_minor_units(actual, acc.currency)
-    if _uses_available(acc):
+    if credit_utilisation(acc, derived) is not None:
         try:
             actual_minor = reconciliation_service.available_to_target_balance(
                 acc.credit_limit_minor or 0, actual_minor
@@ -485,9 +483,9 @@ def reconcile_submit(  # noqa: PLR0917
             reconciliation_service.reconcile(
                 conn,
                 user_id,
-                account_id,
-                actual_minor,
-                clock.today_local(settings),
+                account_id=account_id,
+                actual_balance_minor=actual_minor,
+                today=clock.today_local(settings),
                 category_id=chosen_cat_id,
             )
         except reconciliation_service.ValidationError as exc:

@@ -37,6 +37,9 @@ from budget_planner.domain.recurring import (
     RecurringRule,
     TermSign,
 )
+from budget_planner.domain.recurring_schedule import generate_occurrences
+from budget_planner.repositories import categories as categories_repo, recurring as recurring_repo
+from budget_planner.services.recurring_overrides import apply_overrides
 
 logger = logging.getLogger(__name__)
 
@@ -176,12 +179,6 @@ def _source_rule_month_value(
     (ADR-0046). A formula source whose schedule has no occurrence in the
     month contributes 0 without being evaluated (ADR-0047 month-scope gate).
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import (  # noqa: PLC0415
-        apply_overrides,
-        generate_occurrences,
-    )
-
     occs = generate_occurrences(rule, start, end)
     if not occs:
         return 0, cache
@@ -224,8 +221,6 @@ def _sum_category_in_month(
     ``list_overrides_all`` (ADR-0046 soft-consume contract — historical
     overrides stay visible).
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-
     start, end = month_bounds(year, month)
     cat_set = set(category_ids)
     total = 0
@@ -243,13 +238,7 @@ def _sum_category_in_month(
             total += cache[key]
             continue
         value, cache = _source_rule_month_value(
-            conn,
-            user_id,
-            rule,
-            start,
-            end,
-            in_progress=in_progress,
-            cache=cache,
+            conn, user_id, rule, start, end, in_progress=in_progress, cache=cache
         )
         cache = {**cache, key: value}
         total += value
@@ -333,9 +322,10 @@ def resolve_rule_amount(
     )
 
 
-def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def rt_expand(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     rule: RecurringRule,
     overrides: Iterable[RecurringOverride],
     range_start: dt.date,
@@ -347,11 +337,6 @@ def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     Formula rules get per-month computed amounts substituted before overrides
     apply (override amount still wins when present).
     """
-    from budget_planner.services.recurring import (  # noqa: PLC0415
-        apply_overrides,
-        generate_occurrences,
-    )
-
     occs = generate_occurrences(rule, range_start, range_end)
     if rule.amount_formula is not None:
         occs = tuple(_with_formula_amount(conn, user_id, rule, occs))
@@ -403,8 +388,6 @@ def validate_formula_sources(
     exclude_rule_id: int | None = None,
 ) -> None:
     """Topological reachability check — reject cycles (ADR-0047)."""
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-
     # Sentinel for brand-new rules (not yet persisted) so the walk still
     # catches a cycle the new rule would introduce once persisted.
     target_id = -1 if exclude_rule_id is None else exclude_rule_id
@@ -458,8 +441,6 @@ def invalid_source_ids(
     a live category of ``user_id`` (foreign, unknown or soft-deleted); ``None``
     on all-valid input (Q-028: the save path shares this with the preview).
     """
-    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
-
     live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
     for idx, group in enumerate(source_groups):
         for cid in group:

@@ -10,6 +10,7 @@ from datetime import date
 
 from budget_planner.services import analytics as analytics_service, budget as budget_service
 from budget_planner.services.analytics import AnalyticsBundle
+from budget_planner.web import view_models
 
 
 def base_context(
@@ -18,6 +19,7 @@ def base_context(
     """Return the keys every Plan tab shares: selected month and its neighbours."""
     return {
         "tab": tab,
+        "header": view_models.plan_header(tab, picked.year, picked.month),
         "today": today,
         "year": picked.year,
         "month": picked.month,
@@ -37,7 +39,8 @@ def year_context(
     rows = budget_service.yearly_grid(conn, user_id, selected)
     column_totals, grand_total = budget_service.yearly_grid_totals(rows)
     return {
-        "year_rows": rows,
+        "header": view_models.plan_header("year", selected, today.month, year_selected=selected),
+        "year_view": view_models.year_view(rows),
         "year_selected": selected,
         "year_column_totals": column_totals,
         "year_grand_total": grand_total,
@@ -58,6 +61,8 @@ def analytics_bundle(
     return bundle, {
         "bundle": bundle,
         "period": period,
-        "twelve_mo_avg_by_cat": analytics_service.twelve_month_avg_by_category(bundle),
+        "spend_rows": view_models.spend_rows(
+            bundle, analytics_service.twelve_month_avg_by_category(bundle)
+        ),
         "spend_total_minor": analytics_service.spend_total_minor(bundle),
     }

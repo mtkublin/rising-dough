@@ -427,7 +427,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:6 (3 entries); `htmx_events`:35 (7 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/htmx_events.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q237 [P] Budget numbers in templates come from `MonthSummary`
+### ✅ T-Q237 [P] Budget numbers in templates come from `MonthSummary`
 - Findings: Q-039 (E-05, A-15).
 - Epic: E09, E16
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -452,7 +452,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:36 (13 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q243 [S] Break the recurring import cycle; keyword-only service signatures
+### ✅ T-Q243 [S] Break the recurring import cycle; keyword-only service signatures
 - Findings: Q-047 (B-06, B-12, A-21), Q-048 (B-08).
 - Epic: E12, E13
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -462,6 +462,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Operator question blocking it: none.
 - Final-backlog note: Also owns the `PLC0415` ceiling (37 lazy imports) and the 8 service-signature slice of the `PLR0917` ceiling in `suppressions.toml`.
 - Removes allowlist entries: `layering`:4 (4 entries); `suppressions` ceiling `PLC0415`:37; `suppressions` ceiling `PLR0917`:8
+- Outcome (2026-11-21): pure schedule in `domain/recurring_schedule.py` (`initial_next_due` replaces the repository stub copy); `apply_overrides` split into `services/recurring_overrides.py` so `recurring` and `recurring_formula` no longer import each other; all 37 `PLC0415` lazy imports in `src/` removed (ceiling key stays at 0, the guard needs the key); seven service signatures made keyword-only after `conn, user_id` (`expand_unpromoted`, `rt_expand`, `reconcile`, `forecast`, `forecast_monthly`, `_collect_budget_overlay`, `_resolve_period_start`), `PLR0917` ceiling 32 -> 25; `fx.convert` (no `user_id`, owned by T-Q212) left for its migration.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q245 [P] ADR status, bodies, and project-instruction drift
@@ -592,7 +593,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q224 [S] Kill the `budget` mutant cluster
+### ✅ T-Q224 [S] Kill the `budget` mutant cluster
 - Findings: Q-018 (F-04).
 - Epic: none (test-gap)
 - Band: 3 · Size: M · Tags: none
@@ -790,7 +791,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q235 [P] Bound work per request
+### ✅ T-Q235 [P] Bound work per request
 - Findings: Q-035 (C-12, D-04, D-05).
 - Epic: none (security-control)
 - Band: 5 · Size: M · Tags: none
@@ -879,7 +880,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q249 [P] Test transport matches production
+### ✅ T-Q249 [P] Test transport matches production
 - Findings: Q-058 (F-17).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -971,7 +972,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q256 [P] Frontend duplication: card utilisation and passkey JS
+### ✅ T-Q256 [P] Frontend duplication: card utilisation and passkey JS
 - Findings: Q-070 (E-06, E-09), Q-071 (E-10).
 - Epic: E03, E16
 - Band: 6 · Size: S · Tags: none
@@ -993,7 +994,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q259 [P] Test hygiene
+### ✅ T-Q259 [P] Test hygiene
 - Findings: Q-077 (F-23, F-24, F-25, F-26).
 - Epic: none (test-gap)
 - Band: 6 · Size: S · Tags: none

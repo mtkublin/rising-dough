@@ -21,7 +21,7 @@
           data-suffix="{{ planned_account.currency if planned_account else '' }}">
       <input type="text"
              name="amount"
-             value="{{ planned.amount|money_major(planned_account.currency if planned_account else 'PLN') if planned else '' }}"
+             value="{{ planned.amount|money_major(planned_account.currency if planned_account else base_ccy) if planned else '' }}"
              placeholder="0.00"
              inputmode="decimal"
              data-numeric

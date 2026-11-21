@@ -28,8 +28,8 @@ from budget_planner.domain.recurring import (
     RecurringOverride,
     RecurringRule,
 )
+from budget_planner.domain.recurring_schedule import initial_next_due as compute_initial_next_due
 from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
-from budget_planner.services.recurring import first_due_on_or_after
 
 _RULE_COLUMNS = (
     "id, user_id, cadence, start_date, end_date, category_id, account_id, "
@@ -126,32 +126,6 @@ def _row_to_rule(row: sqlite3.Row) -> RecurringRule:
     )
 
 
-def _compute_initial_next_due(data: NewRecurringRule, user_id: int, today: date) -> date:
-    """Return the earliest canonical occurrence on-or-after ``max(start, today)``."""
-    stub = RecurringRule(
-        id=0,
-        user_id=user_id,
-        cadence=data.cadence,
-        start_date=data.start_date,
-        end_date=data.end_date,
-        category_id=data.category_id,
-        account_id=data.account_id,
-        dest_account_id=data.dest_account_id,
-        default_amount=data.default_amount,
-        default_description=data.default_description,
-        day_of_month=data.day_of_month,
-        month_of_year=data.month_of_year,
-        active=True,
-        next_due=data.start_date,  # placeholder; helper doesn't read it
-        last_promoted_date=None,
-        amount_formula=data.amount_formula,
-        created_at=clock.utc_now(),
-        updated_at=clock.utc_now(),
-        deleted_at=None,
-    )
-    return first_due_on_or_after(stub, today)
-
-
 def _row_to_override(row: sqlite3.Row) -> RecurringOverride:
     return RecurringOverride(
         id=row["id"],
@@ -226,7 +200,7 @@ def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) 
         category_ids=(data.category_id,),
     )
     today = clock.today_local(get_settings())
-    initial_next_due = _compute_initial_next_due(data, user_id, today)
+    first_due = compute_initial_next_due(data, user_id, today)
 
     def _action(c: sqlite3.Connection) -> tuple[int, RecurringRule]:
         cursor = c.execute(
@@ -248,7 +222,7 @@ def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) 
                 data.day_of_month,
                 data.month_of_year,
                 int(data.active),
-                initial_next_due.isoformat(),
+                first_due.isoformat(),
                 _formula_to_json(data.amount_formula),
             ),
         )

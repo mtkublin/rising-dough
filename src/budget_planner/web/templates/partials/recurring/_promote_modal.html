@@ -46,7 +46,7 @@
             Amount
             <input type="text"
                    name="amount"
-                   value="{{ prefill_amount_minor|money_major(account.currency if account else 'PLN') }}"
+                   value="{{ prefill_amount_minor|money_major(account.currency if account else base_ccy) }}"
                    inputmode="decimal"
                    data-numeric
                    required>

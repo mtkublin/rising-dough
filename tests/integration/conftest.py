@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -19,7 +19,6 @@ import httpx
 import pytest
 
 from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
@@ -35,30 +34,19 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as txn_repo,
 )
-from tests.db_template import copy_template, db_path_of
+from tests.db_template import sqlite_url
 
 USER_ID = 1
 
 
 @pytest.fixture
-def db_path(tmp_path: Path) -> Path:
-    return tmp_path / "integration.sqlite"
+def db_path(migrated_db: Path) -> Path:
+    return migrated_db
 
 
 @pytest.fixture
 def settings(db_path: Path) -> Settings:
-    return Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}")
-
-
-@pytest.fixture
-def conn(settings: Settings, migrated_template: Path) -> Iterator[sqlite3.Connection]:
-    # T-CS02: copy the migrated template instead of running every migration.
-    copy_template(migrated_template, db_path_of(settings))
-    c = get_connection(settings)
-    try:
-        yield c
-    finally:
-        c.close()
+    return Settings(_env_file=None, database_url=sqlite_url(db_path))
 
 
 # ---------------------------------------------------------------------------

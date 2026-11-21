@@ -9,6 +9,7 @@
  *
  * Install:
  *   <meta name="csrf-token" content="{{ csrf_token }}">
+ *   <script src="/static/csrf.js" defer></script>   (shared token reader)
  *   <script src="/static/htmx-csrf.js" defer></script>
  *   <body hx-ext="csrf">
  *
@@ -23,12 +24,6 @@
   var HEADER_NAME = "X-CSRF-Token";
   var UNSAFE = { POST: 1, PUT: 1, PATCH: 1, DELETE: 1 };
 
-  function readToken() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    var token = meta ? meta.getAttribute("content") : "";
-    return token || null;
-  }
-
   if (typeof window === "undefined" || !window.htmx) {
     // htmx not loaded yet — bail. Rely on `defer` ordering.
     return;
@@ -40,7 +35,7 @@
       var detail = evt.detail || {};
       var verb = (detail.verb || "").toUpperCase();
       if (!UNSAFE[verb]) return;
-      var token = readToken();
+      var token = window.budgetCsrf && window.budgetCsrf.token();
       if (!token) return;
       detail.headers = detail.headers || {};
       detail.headers[HEADER_NAME] = token;

@@ -17,6 +17,7 @@ from fastapi.responses import HTMLResponse
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.limits import PAGE_SIZE_MAX
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
@@ -39,7 +40,6 @@ from budget_planner.web.rendering import render
 router = APIRouter(prefix="/ledger", tags=["ledger"])
 
 _PAGE_SIZE_DEFAULT = 50
-_PAGE_SIZE_MAX = 500
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -67,7 +67,7 @@ def parse_filters(request: Request) -> LedgerFilters:
     category_id = _parse_int(q.get("category_id"))
     page = max(1, _parse_int(q.get("page")) or 1)
     size = _parse_int(q.get("page_size")) or _PAGE_SIZE_DEFAULT
-    size = max(1, min(size, _PAGE_SIZE_MAX))
+    size = max(1, min(size, PAGE_SIZE_MAX))
     description = q.get("q") or None
     return LedgerFilters(
         date_from=_parse_date(q.get("date_from")),
@@ -343,9 +343,7 @@ def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
     active recurring. Keeps logic in one place so the shell + fragments
     always display the same number.
     """
-    actual_total = len(
-        transactions_repo.list_filtered(conn, user_id, TransactionFilter(limit=None, offset=0))
-    )
+    actual_total = transactions_repo.count_filtered(conn, user_id)
     planned_pending = len(planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False)))
     recurring_active = len(recurring_repo.list_rules(conn, user_id, active_only=True))
     return {
