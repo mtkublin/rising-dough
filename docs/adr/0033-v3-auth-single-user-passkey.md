@@ -1,6 +1,6 @@
 # ADR-0033: v3 Authentication — Single-User Passkey (WebAuthn) + Fallback Password
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
 - **Related**: ADR-0005 (single user, no auth, user_id scaffolded), ADR-0032 (v3 remote deployment)
 - **Amends**: ADR-0005. The server now authenticates every request; the single `user_id = 1` scaffold becomes the identity attached to each session.

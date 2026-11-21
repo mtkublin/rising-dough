@@ -96,6 +96,7 @@ just guards       # tests/architecture/ + import-linter only (fast, run before e
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
 just set-password # set a user's password on an explicit --db=<path> (no default DB)
+just dev-demo     # run the app on the anonymized data/demo.sqlite
 just db-reset     # recreate the dev DB
 just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
@@ -140,7 +141,7 @@ Policy: [ADR-0099](docs/adr/0099-release-and-environment-policy.md).
 - **Server binds to `127.0.0.1` only** in v1. No LAN or public exposure.
 - **No secrets committed.** `detect-secrets` is in the pre-commit stack.
 - **Timestamps are UTC in DB**, dates on transactions are naive `DATE`, display timezone defaults to `Europe/Warsaw`. See ADR-0007.
-- **`data/budget.sqlite` = prod. Hands off.** No agent writes, migrations, resets, seeds, or ad-hoc SQL against it without explicit in-session user confirmation. For any DB experiment use `just dev --db=<path>` with a scratch file (e.g. `/tmp/scratch.sqlite`) or `just dev-demo`. See "Databases" section above.
+- **`data/budget.sqlite` = prod. Hands off.** No agent writes, migrations, resets, seeds, or ad-hoc SQL against it without explicit in-session user confirmation. For any DB experiment use `just dev --db=<path>` with a scratch file (e.g. `/tmp/scratch.sqlite`) or `just dev-demo`. See the "Databases" section below.
 
 ## Databases
 

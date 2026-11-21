@@ -1,6 +1,6 @@
 # ADR-0036: v3 Reverse Proxy & TLS — Caddy with Automatic HTTPS
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; amended by addendum below: stock caddy image, rate limiting moved to the app per ADR-0072)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
 - **Related**: ADR-0032 (v3 remote deployment), ADR-0033 (auth), ADR-0035 (Terraform IaC)
 
@@ -170,3 +170,7 @@ The CSP was never sent in prod: `header @html ...` with `@html { header Content-
 ## Addendum 2026-11-18 (T-D140): `style-src` amended by ADR-0113
 
 The `style-src` directive in §1 is replaced by `style-src 'self' 'unsafe-inline'` (stopgap, no nonce). Inline style attributes are allowed until the templates move to classes (T-D140d). `script-src` is unchanged and stays strict. See [ADR-0113](0113-csp-compatible-frontend.md). The prod policy broke HTMX-driven buttons because the frontend used inline scripts, a CDN and Google Fonts; ADR-0113 fixes the frontend side.
+
+## Addendum 2026-11-21: stock Caddy image, app-side rate limiting
+
+Two statements above no longer hold. (1) Section 2 describes a custom `xcaddy` image with the `caddy-ratelimit` plugin; the deployment runs the stock `caddy:2.8` image (`terraform/cloud-init/compose/docker-compose.yml.tpl`) and no custom Caddy Dockerfile exists. (2) Auth rate limiting is not done by Caddy: it is in-house fixed-window counters in the app ([ADR-0072](0072-auth-rate-limit-sqlite-fixed-window.md)), and the client IP chain is amended by ADR-0133. The `rate_limit @auth` block and the fail2ban jails are not implemented. Quality-audit findings Q-052, Q-053 (D-13).

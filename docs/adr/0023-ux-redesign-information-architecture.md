@@ -76,3 +76,7 @@ Per the explicit v1 spec (2026-10-25): the dashboard shows (a) current account s
 - **5 tabs (keep Analytics as its own tab)** — rejected. The analytics figures are a *view* of budget data; they belong under Budget. A dedicated Analytics tab was Phase 3's "we don't know where to put the charts yet" placement.
 - **Top horizontal nav instead of left rail** — rejected. The app is dense (money tables + numeric data). Left rail keeps the horizontal strip for page title + actions and gives the content column one axis of visual rhythm.
 - **Command palette deferred to v2** — rejected. ~60 lines vanilla JS; big UX win for a keyboard-first audience. Low cost, high leverage.
+
+## Addendum 2026-11-21: navigation and FAB drift
+
+Section 1 (four nav items plus a Settings drawer) and the context-aware quick-add FAB (affordance #4) describe the Phase 6 design. The shipped navigation (Rising Dough, ADR-0050, ADR-0051) is Today, Ledger, Plan, Accounts plus Settings in the rail footer and a mobile tab bar; the FAB and `fab_target_for` no longer exist in `src/`. Quality-audit finding Q-052.

@@ -177,7 +177,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q205 [S] `user_id`-leading indexes and the per-request session write
+### ✅ T-Q205 [S] `user_id`-leading indexes and the per-request session write
 - Findings: Q-034 (C-11).
 - Epic: none (index/perf)
 - Band: 0 · Size: S · Tags: `[before-2nd-user]`
@@ -462,7 +462,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:4 (4 entries); `suppressions` ceiling `PLC0415`:37; `suppressions` ceiling `PLR0917`:8
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q245 [P] ADR status, bodies, and project-instruction drift
+### ✅ T-Q245 [P] ADR status, bodies, and project-instruction drift
 - Findings: Q-051 (G-02, G-03, G-04), Q-052 (G-16, G-15), Q-053 (G-08, G-09, D-13).
 - Epic: E14
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -545,7 +545,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 3 — Test-gap Highs and test infrastructure
 
-### T-Q219 [S] Coverage config stops excluding every line containing `...`
+### ✅ T-Q219 [S] Coverage config stops excluding every line containing `...`
 - Findings: Q-014 (F-12).
 - Epic: E14
 - Band: 3 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -557,7 +557,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `coverage_config`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/coverage_config.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q220 [S] Differential invariant tests (Track A): close-out of what T-Q15a landed
+### ✅ T-Q220 [S] Differential invariant tests (Track A): close-out of what T-Q15a landed
 - Findings: Q-013 (F-14).
 - Epic: none (test-gap)
 - Band: 3 · Size: S · Tags: none

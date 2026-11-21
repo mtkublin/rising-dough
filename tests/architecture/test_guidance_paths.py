@@ -3,8 +3,8 @@
 """G15: guidance paths exist (Q-053; ADR-0130 section 10).
 
 Every backticked repo path and every ``just <recipe>`` named in ``CLAUDE.md`` and ``.claude/skills/**/SKILL.md``
-must exist, otherwise the guidance sends agents to files that are gone. Allowlist: ``allowlists/guidance_paths.toml``
-(stale references that T-Q15c fixes when it edits ``CLAUDE.md`` / the skills; delete the entries then).
+must exist, otherwise the guidance sends agents to files that are gone. There is no allowlist
+file (T-Q245 deleted ``guidance_paths.toml``): any stale reference fails the test.
 """
 
 from __future__ import annotations
@@ -12,10 +12,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet
+from tests.architecture._ratchet import REPO_ROOT, Violation
 
-GUARD = "guidance_paths"
-HEADER = "G15 guidance_paths: stale paths and just recipes in CLAUDE.md and skills (Q-053). T-Q15c removes these."
 TICKS = re.compile(r"`([^`\n]+)`")
 PATH_PREFIXES = (
     "docs/",
@@ -84,12 +82,11 @@ def collect() -> list[Violation]:
     return found
 
 
-def meta(_v: Violation) -> tuple[str, str, str, str]:
-    return "entry", "Q-053", "E14", ""
-
-
-def test_guidance_paths_match_allowlist() -> None:
-    assert_ratchet(GUARD, collect(), TEACH)
+def test_guidance_paths_exist() -> None:
+    found = collect()
+    assert not found, (
+        TEACH + "\n" + "\n".join(f"{v.path}:{v.line}: {v.rule} {v.detail}" for v in found)
+    )
 
 
 def test_guidance_paths_detect_dead_path_and_recipe(tmp_path: Path) -> None:

@@ -31,6 +31,8 @@ from budget_planner.repositories._shared import parse_dt, parse_dt_required, tra
 
 SESSION_ID_BYTES: Final = 32
 _HANDLE_HEX_CHARS: Final = 16
+# T-Q205 (Q-034): a request inside this window of the last bump does not write.
+LAST_SEEN_THROTTLE: Final = timedelta(seconds=60)
 _COLUMNS = (
     "id, user_id, created_at, last_seen_at, expires_at, revoked_at, user_agent, ip, "
     "authenticated_at"
@@ -230,19 +232,23 @@ def touch_session(
 
     The new expiry is ``min(now + lifetime, created_at + absolute lifetime)``
     (ADR-0076 §1) and is returned. ``None`` (nothing changed) when the
-    session is revoked, expired, or unknown.
+    session is revoked, expired, or unknown. Inside ``LAST_SEEN_THROTTLE`` of
+    the previous bump nothing is written and the stored expiry is returned
+    (T-Q205, Q-034): one fewer write transaction per request.
     """
     current = _now(now)
     key = hash_token(token)
     with transaction(conn):
         row = conn.execute(
-            "SELECT created_at FROM sessions "
+            "SELECT created_at, last_seen_at, expires_at FROM sessions "
             "WHERE id = ? AND revoked_at IS NULL AND expires_at > ?",
             (key, _iso(current)),
         ).fetchone()
         if row is None:
             return None
         created_at = parse_dt_required(row["created_at"])
+        if current - parse_dt_required(row["last_seen_at"]) < LAST_SEEN_THROTTLE:
+            return min(parse_dt_required(row["expires_at"]), created_at + _absolute(absolute_days))
         expires_at = min(current + _lifetime(lifetime_days), created_at + _absolute(absolute_days))
         conn.execute(
             "UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?",
@@ -282,6 +288,7 @@ def rotate_session_token(conn: sqlite3.Connection, token: str) -> IssuedSession 
 
 
 __all__ = [
+    "LAST_SEEN_THROTTLE",
     "IssuedSession",
     "Session",
     "create_session",
