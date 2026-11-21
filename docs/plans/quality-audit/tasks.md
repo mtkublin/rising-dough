@@ -131,7 +131,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 0 — Before a second user is onboarded, and Highs that bite current PLN data
 
-### T-Q201 [S] Income-anchor endpoint uses the signed-in user
+### ✅ T-Q201 [S] Income-anchor endpoint uses the signed-in user
 - Findings: Q-001 (D-01, H2-01).
 - Epic: E09
 - Band: 0 · Size: S · Tags: `[pre-v4-P3]` `[before-2nd-user]`
