@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
@@ -31,7 +30,7 @@ from budget_planner.domain.budgets import (
     NewBudgetRecurringOverride,
 )
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import to_minor_units
+from budget_planner.domain.money import parse_amount_minor
 from budget_planner.repositories import (
     budgets as budgets_repo,
     categories as categories_repo,
@@ -41,6 +40,7 @@ from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import trigger
+from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/budget", tags=["budget"])
@@ -64,9 +64,7 @@ def _year_month(request: Request, conn: sqlite3.Connection, user_id: int) -> tup
     q = request.query_params
     today = today_for(request)
     fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, user_id, today)
-    year = int(q.get("year", fiscal_year))
-    month = int(q.get("month", fiscal_month))
-    return year, month
+    return parse_year_month(q.get("year"), q.get("month"), (fiscal_year, fiscal_month))
 
 
 def _rules_rows(conn: sqlite3.Connection, user_id: int) -> tuple[RulesRow, ...]:
@@ -140,7 +138,7 @@ def yearly_fragment(
     """
     q = request.query_params
     today = clock.today_local(settings)
-    year = int(q.get("year", today.year))
+    year, _ = parse_year_month(q.get("year"), None, (today.year, 1))
     yearly = budget_service.yearly_grid(conn, user_id, year)
     return render(
         request,
@@ -168,16 +166,8 @@ def new_override_form(
     cat = categories_repo.find_by_id(conn, user_id, category_id)
     tz_now = clock.today_local(settings)
     q = request.query_params
-    try:
-        preset_month = int(q["month"]) if "month" in q else None
-    except ValueError:
-        preset_month = None
-    if preset_month is not None and (preset_month < 1 or preset_month > _MONTHS_IN_YEAR):
-        preset_month = None
-    try:
-        preset_year = int(q["year"]) if "year" in q else None
-    except ValueError:
-        preset_year = None
+    preset_month = parse_int(q.get("month"), minimum=1, maximum=_MONTHS_IN_YEAR)
+    preset_year = parse_int(q.get("year"), minimum=MIN_YEAR, maximum=MAX_YEAR)
     period = view_models.override_period(preset_month or tz_now.month, preset_year or tz_now.year)
     if cat is None:
         return render(
@@ -229,10 +219,9 @@ def create_override(  # noqa: PLR0911, PLR0917
         return Response(status_code=404, content="not found")
     if tier not in {"recurring", "one-off", "default"}:
         return Response(status_code=422, content="invalid tier")
-    dec = _parse_decimal(amount) if amount.strip() else Decimal(0)
-    if dec is None or dec < 0:
+    minor = parse_amount_minor(amount, settings.base_currency) if amount.strip() else 0
+    if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
     if tier == "default":
         budgets_repo.set_default(
             conn,
@@ -284,16 +273,6 @@ def index(
     return _render_index(request, conn, user_id, settings)
 
 
-def _parse_decimal(value: str) -> Decimal | None:
-    try:
-        dec = Decimal(value)
-    except (InvalidOperation, TypeError, ValueError):
-        return None
-    if not dec.is_finite():
-        return None
-    return dec
-
-
 @router.post("/defaults/{category_id}")
 def set_default(
     category_id: int,
@@ -305,10 +284,9 @@ def set_default(
     cat = categories_repo.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    dec = _parse_decimal(amount)
-    if dec is None or dec < 0:
+    minor = parse_amount_minor(amount, settings.base_currency)
+    if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
     budgets_repo.set_default(conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor))
     resp = Response(content="ok", media_type="text/html")
     trigger(resp, "budget-stale")
@@ -330,9 +308,8 @@ def set_income_anchor(
     if raw == "":
         preferences_svc.set_income_anchor_category_id(conn, user_id, None)
     else:
-        try:
-            parsed = int(raw)
-        except ValueError:
+        parsed = parse_int(raw)
+        if parsed is None:
             return Response(status_code=422, content="invalid category_id")
         try:
             preferences_svc.set_income_anchor_category_id(conn, user_id, parsed)
@@ -358,10 +335,9 @@ def set_one_off(  # noqa: PLR0917
         return Response(status_code=404, content="not found")
     if month < 1 or month > _MONTHS_IN_YEAR:
         return Response(status_code=422, content="invalid month")
-    dec = _parse_decimal(amount)
-    if dec is None or dec < 0:
+    minor = parse_amount_minor(amount, settings.base_currency)
+    if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
     budgets_repo.set_one_off(
         conn,
         user_id,

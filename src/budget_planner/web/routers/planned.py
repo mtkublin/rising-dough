@@ -5,13 +5,11 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import date
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
-from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
@@ -30,19 +28,11 @@ from budget_planner.services import (
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_today
 from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.params import parse_date, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
 
 router = APIRouter(prefix="/planned", tags=["planned"])
-
-
-def _parse_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
 
 
 def parse_filter(request: Request) -> PlannedFilter:
@@ -52,8 +42,8 @@ def parse_filter(request: Request) -> PlannedFilter:
     if scope == "unpromoted":
         promoted = False
     return PlannedFilter(
-        date_from=_parse_date(q.get("date_from")),
-        date_to=_parse_date(q.get("date_to")),
+        date_from=parse_date(q.get("date_from")),
+        date_to=parse_date(q.get("date_to")),
         promoted=promoted,
     )
 
@@ -172,16 +162,6 @@ def new_form(
     )
 
 
-def _validate_amount(amount: str, currency: str) -> tuple[int | None, str | None]:
-    try:
-        dec = Decimal(amount)
-    except (InvalidOperation, TypeError):
-        return None, "amount must be a decimal number"
-    if dec <= 0:
-        return None, "amount must be positive"
-    return to_minor_units(dec, currency), None
-
-
 @router.post("")
 def create_planned(  # noqa: PLR0917
     request: Request,
@@ -195,7 +175,7 @@ def create_planned(  # noqa: PLR0917
     user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
-    op_date = _parse_date(operation_date)
+    op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
@@ -233,7 +213,7 @@ def create_planned(  # noqa: PLR0917
         errors["dest_account_id"] = shape
     minor: int | None = None
     if acc is not None:
-        minor, err = _validate_amount(amount, acc.currency)
+        minor, err = positive_amount(amount, acc.currency)
         if err:
             errors["amount"] = err
     if errors:
@@ -334,7 +314,7 @@ def update_planned(  # noqa: PLR0917
         return Response(status_code=404, content="not found")
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
-    op_date = _parse_date(operation_date)
+    op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
     if acc is None:
@@ -365,7 +345,7 @@ def update_planned(  # noqa: PLR0917
             errors["dest_account_id"] = str(exc)
     minor: int | None = None
     if acc is not None:
-        minor, err = _validate_amount(amount, acc.currency)
+        minor, err = positive_amount(amount, acc.currency)
         if err:
             errors["amount"] = err
     if errors:
@@ -492,13 +472,13 @@ def promote_submit(  # noqa: PLR0917
     if pl is None:
         return Response(status_code=404, content="not found")
     acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
-    op_date = _parse_date(operation_date)
+    op_date = parse_date(operation_date)
     errors: dict[str, str] = {}
     if op_date is None:
         errors["operation_date"] = "invalid date"
     minor: int | None = None
     if acc is not None:
-        minor, err = _validate_amount(amount, acc.currency)
+        minor, err = positive_amount(amount, acc.currency)
         if err:
             errors["amount"] = err
     if errors:

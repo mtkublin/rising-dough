@@ -403,7 +403,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:29 (10 entries); `functional_first`:1 (1 entry); `invariants`:1 (1 entry); `money_scope`:27 (13 entries); `purity`:6 (6 entries); `suppressions` ceiling `DTZ011`:18
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/functional_first.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml`, `allowlists/purity.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-8 (Q-031) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q233 [P] One input parser and bounded parameters (no 500 on bad input)
+### ✅ T-Q233 [P] One input parser and bounded parameters (no 500 on bad input)
 - Findings: Q-023 (A-08, C-10, A-19, D-02, H3-03).
 - Epic: E03, E11
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

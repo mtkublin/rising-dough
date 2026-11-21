@@ -6,7 +6,6 @@ import re
 import sqlite3
 from collections.abc import Mapping
 from datetime import date
-from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Any
 
@@ -15,7 +14,7 @@ from fastapi.responses import HTMLResponse, Response
 from starlette.datastructures import FormData
 
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
-from budget_planner.domain.money import format_major, to_minor_units
+from budget_planner.domain.money import format_major
 from budget_planner.domain.recurring import (
     AmountFormula,
     NewRecurringOverride,
@@ -35,27 +34,10 @@ from budget_planner.services import (
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db, today_for
 from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
-
-
-def _parse_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _parse_int(value: str | None) -> int | None:
-    if value in (None, ""):
-        return None
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
 
 
 def _formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Any]:
@@ -159,7 +141,7 @@ def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirrorin
         return None, {}
     if category is None or category.direction != Direction.TRANSIT:
         return None, {}
-    parsed = _parse_int(dest_account_id_raw)
+    parsed = parse_int(dest_account_id_raw)
     if parsed is None:
         return None, {"dest_account_id": "invalid destination"}
     dest = accounts_repo.find_by_id(conn, user_id, parsed)
@@ -172,7 +154,7 @@ def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirrorin
     return parsed, {}
 
 
-def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
+def _resolve_amount_inputs(
     conn: sqlite3.Connection,
     user_id: int,
     *,
@@ -219,15 +201,10 @@ def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
     if account_currency is None:
         errors["default_amount"] = "unknown account currency"
         return None, None, errors
-    try:
-        dec = Decimal(default_amount)
-    except InvalidOperation:
-        errors["default_amount"] = "invalid amount"
-        return None, None, errors
-    if dec <= 0:
-        errors["default_amount"] = "must be positive"
-        return None, None, errors
-    return to_minor_units(dec, account_currency), None, errors
+    minor, amount_err = positive_amount(default_amount, account_currency)
+    if amount_err is not None:
+        errors["default_amount"] = amount_err
+    return minor, None, errors
 
 
 def _render_form_errors(
@@ -279,12 +256,12 @@ async def create_rule(
     c = _validate_cadence(cadence)
     if c is None:
         errors["cadence"] = "invalid cadence"
-    start = _parse_date(start_date)
+    start = parse_date(start_date)
     if start is None:
         errors["start_date"] = "invalid date"
     end: date | None = None
     if end_date_raw:
-        end = _parse_date(end_date_raw)
+        end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
         elif start is not None and end < start:
@@ -359,7 +336,7 @@ async def create_rule(
                 dest_account_id=dest_id,
                 default_amount=minor,
                 default_description=default_description,
-                day_of_month=_parse_int(day_of_month),
+                day_of_month=parse_int(day_of_month),
                 amount_formula=formula,
                 active=initial_active,
             )
@@ -453,7 +430,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     cat = categories_repo.find_by_id(conn, user_id, category_id)
     c = _validate_cadence(cadence)
-    start = _parse_date(start_date)
+    start = parse_date(start_date)
     end: date | None = None
     errors: dict[str, str] = {}
     if c is None:
@@ -461,7 +438,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     if start is None:
         errors["start_date"] = "invalid date"
     if end_date_raw:
-        end = _parse_date(end_date_raw)
+        end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
         elif start is not None and end < start:
@@ -602,7 +579,7 @@ def new_override_form(
 
 
 @router.post("/{rule_id}/overrides")
-def add_override(  # noqa: PLR0917, PLR0911
+def add_override(  # noqa: PLR0917
     rule_id: int,
     request: Request,
     year: int = Form(...),
@@ -637,13 +614,9 @@ def add_override(  # noqa: PLR0917, PLR0911
         return _invalid("month", f"rule has no occurrence in {year:04d}-{month:02d}")
     if acc is None:
         return _invalid("account", "rule has no live account")
-    try:
-        dec = Decimal(amount.replace(",", "."))
-    except InvalidOperation:
-        return _invalid("amount", "invalid amount")
-    if dec <= 0:
-        return _invalid("amount", "amount must be positive")
-    amount_minor = to_minor_units(dec, acc.currency)
+    amount_minor, amount_err = positive_amount(amount, acc.currency)
+    if amount_minor is None:
+        return _invalid("amount", amount_err or "invalid amount")
     recurring_repo.upsert_override(
         conn,
         user_id,
@@ -673,7 +646,7 @@ def delete_override(
     rule = recurring_repo.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    occ = _parse_date(occurrence_date)
+    occ = parse_date(occurrence_date)
     if occ is None:
         return Response(status_code=422, content="invalid date")
     recurring_repo.delete_override(conn, user_id, rule_id, occ)
@@ -785,7 +758,7 @@ def promote_inline(
     if rule is None:
         return Response(status_code=404, content="not found")
     account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    occurrence = _parse_date(date) or rule.next_due
+    occurrence = parse_date(date) or rule.next_due
     override = _override_on_next_due(conn, user_id, rule_id, occurrence)
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence)
     prefill_description = rule.default_description
@@ -808,7 +781,7 @@ def promote_inline(
 
 
 @router.post("/{rule_id}/promote")
-def promote_submit(  # noqa: PLR0912, PLR0917
+def promote_submit(  # noqa: PLR0917
     rule_id: int,
     request: Request,
     operation_date: str = Form(""),
@@ -825,7 +798,7 @@ def promote_submit(  # noqa: PLR0912, PLR0917
 
     op_date: date | None = None
     if operation_date:
-        op_date = _parse_date(operation_date)
+        op_date = parse_date(operation_date)
         if op_date is None:
             errors["operation_date"] = "invalid date"
 
@@ -834,15 +807,9 @@ def promote_submit(  # noqa: PLR0912, PLR0917
         if account is None:
             errors["amount"] = "unknown account currency"
         else:
-            try:
-                dec = Decimal(amount)
-            except (InvalidOperation, TypeError):
-                errors["amount"] = "amount must be a decimal number"
-            else:
-                if dec <= 0:
-                    errors["amount"] = "amount must be positive"
-                else:
-                    amount_minor = to_minor_units(dec, account.currency)
+            amount_minor, amount_err = positive_amount(amount, account.currency)
+            if amount_err is not None:
+                errors["amount"] = amount_err
 
     if errors:
         return _render_promote_modal(

@@ -18,12 +18,13 @@ import datetime as dt
 import logging
 import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from budget_planner.domain.money import (
     HALF_UP,
     bps_to_percent,
     format_bps_percent,
+    parse_percent_str,
     percent_to_bps,
     round_scaled,
 )
@@ -71,10 +72,9 @@ def parse_percent_to_bps(percent_str: str) -> int:
     normalised = (percent_str or "").strip().replace(",", ".")
     if not normalised:
         raise FormulaError("coefficient is required for formula rules")
-    try:
-        dec = Decimal(normalised)
-    except InvalidOperation as exc:
-        raise FormulaError("coefficient must be a decimal number") from exc
+    dec = parse_percent_str(normalised)
+    if dec is None:
+        raise FormulaError("coefficient must be a decimal number")
     bps = percent_to_bps(dec)
     if bps < _BPS_MIN or bps > _BPS_MAX:
         raise FormulaError(
