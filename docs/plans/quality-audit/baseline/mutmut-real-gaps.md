@@ -574,3 +574,23 @@ Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 
 - `month_summary` #164, #166, #167, #172 (defaults of `overall_sum.get` / `overall_mo.get`): a category missing from one dict is missing from the other, and `_mean_minor` returns 0 for a zero count.
 
 Real bugs found: none.
+
+## T-Q223 re-run (2026-11-22)
+
+`mutmut run "budget_planner.services.forecast.*" --max-children 2` (mutmut 3.7.0, `mutants/` deleted first) over `services/forecast.py` as it stands after T-Q207 (`recurring.pending_occurrences`, overdue on `today + 1`), T-Q212/T-Q213 (`FxConverter`, `_base_of_txn`), T-Q229 (`today` required) and T-Q234 (batched `_month_inputs`, `_MonthSpan`, `budget_batch`). Before the new tests (existing `test_forecast*.py`): 135 survivors + 4 timeouts + 22 no-tests (`projection_summary`) = 161 of the current function set. After `tests/unit/services/test_forecast_mutation_kills.py` (49 tests: horizon-end boundary on the last day and the day after, horizon 0 and 1, due-today and overdue placement, income/expense/transit legs on one day with exact per-account and total balances, skipped and overridden occurrences followed by valid ones, inactive rules, EUR rates on and before `today` and `FxUnavailableError`, the overlay (HALF_EVEN spread, last-day residual, year-end crossing, spend on `today`, foreign spend on a deleted account, overdue only in the first window, unbudgeted category before a budgeted one, remaining of exactly 1), monthly flows, `_planned_budget_per_month`, a fiscal month that differs from the calendar month, `projection_summary`, `normalize_horizon`, `monthly_projection` fields; every case runs beside a second user's rows, one with the tombstone world): 40 survivors + 4 timeouts, 0 no-tests. The 4 timeouts (`_iter_months` #6, #7, #12, #13: `month = 1` / `month -= 1` / `year = 1` / `year -= 1`) never terminate, so they are killed. Every survivor is equivalent:
+
+- `zip(..., strict=...)` (`_spent_per_span` #10, #13, #14, #35, #39, #40; `_month_inputs` #40, #43, #44; `_collect_budget_overlay` #33, #36, #37; `_planned_budget_per_month` #62, #65, #66): both sides are always the same length, so strictness never fires.
+- `_spent_per_span` #24-#29 (`date_from` / `date_to` / `directions` dropped or the call reshaped): the bucketing loop re-filters every row by `[month_start, cutoff]`, and income/transit rows only land in categories the overlay never reads.
+- `_collect_events` #9 (`start=None`) and #23 (`end + 2 days`): events on or before `today` and after the horizon end are never read by the day loop (`range(1, horizon + 1)`).
+- `_distribute_overlay` #8 (`mode=None`): `round_div` defaults to HALF_EVEN.
+- `_collect_budget_overlay` #60 (`unaccounted >= 0`): a zero amount distributes to zero-amount events, which are skipped.
+- `forecast` #115 (`running_native.get(..., 1)`): the entry only exists for an inactive account and is never read.
+- `_planned_budget_per_month` #4, #7 (`include_deleted` None / omitted): the default is False. #13 (`day=2`): `_month_offset` normalizes to the first of the month. #91 (`remaining >= 0`): adds zero.
+- `forecast_monthly` #35 (`max(..., 1)`): only `series.days[0]` is read. #53, #59 (`start_month` dropped): the fiscal row takes `month_summary` totals, and in the fixture the other rows get the same budget either way.
+- `_current_month_budget_totals` #2 and `forecast_monthly` #124, #129 (`fiscal_year` default `today.year`): differ only when the fiscal cycle crosses a year boundary; the fiscal-month test covers November vs December of one year.
+- `forecast` #40, #43, #44 (`categories_repo.list_all(include_deleted=...)` in the direction map): see the finding below; no assertion pins either choice.
+- `monthly_projection` #28: formatting-only mutant (a moved closing parenthesis).
+
+Finding (no src change, for triage): the budget overlay reads categories with `include_deleted=True`, so a soft-deleted expense category that still has a budget default keeps reserving forecast spend (a 50 default became -50 on the next day in a probe), while `_planned_budget_per_month` uses `include_deleted=False` and ignores it. Whether that is intended is undecided, so the tests do not pin it.
+
+Real bugs found: none confirmed.

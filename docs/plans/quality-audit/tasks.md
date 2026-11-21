@@ -582,7 +582,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q223 [S] Kill the `forecast` mutant cluster
+### ✅ T-Q223 [S] Kill the `forecast` mutant cluster
 - Findings: Q-017 (F-03).
 - Epic: none (test-gap)
 - Band: 3 · Size: L · Tags: none
