@@ -547,3 +547,15 @@ Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 
 - `advance_next_due` #6 (`hard_end < from_date`): when `hard_end == from_date` the generator gets an empty window and returns `()`, so the result is `None` either way.
 - `promote_recurring` #73: `# pragma: no cover` branch (FK guarantees the category row), message only.
 - `promote_recurring` #146, #150, #151 and `skip_and_advance` #60, #64, #65 (`find_rule(.., include_deleted=None/omitted/False)` for the post-update read): the rule is never soft-deleted inside these transactions, so the live and include-deleted reads return the same row. (Revisit if T-Q204 changes the read order.)
+
+## T-Q226 re-run (2026-11-21)
+
+`mutmut run "budget_planner.services.balance.*"` (mutmut 3.7.0, `mutants/` deleted first) over `services/balance.py`. Before the new tests (T-Q221 suite only): 12 survivors + 1 timeout. After `tests/unit/services/test_balance_mutation_kills.py` (23 tests: exact `derive_balance` / `AccountStats` for two users, include-deleted account and category, transit legs, `sparkline_points` strings, `balance_series` window and `days<=0`, `budget.yearly_grid` tier precedence, totals and unset cells, exception payloads): **7 survivors, all equivalent**, plus 1 timeout (counted as detected).
+
+- Killed by the new tests: `signed_legs` #14 #15 #16 (transit-without-destination `ValueError` message, built in memory because the schema CHECK blocks the row); `derive_balance` #12 and `account_stats` #12 (`AccountNotFoundError(None)`: asserted `args == (id,)`).
+- Survived, equivalent (7):
+  - `_txns_affecting` #2 (`account_or_dest=None`) and #4 (argument dropped), `derive_balance` #21, `account_stats` #21 (`_txns_affecting(..., None)`): the filter is only an optimisation; both loops keep only legs whose `account_id` matches, so the result is identical (same reasoning as T-Q221).
+  - `_mean` #10 (`rounding=None`) and #12 (`rounding` omitted): `Decimal.quantize` then uses the default context rounding, which is `ROUND_HALF_EVEN`, the same value.
+  - `account_stats` #46 (`>` to `>=` on `last_date`): equal dates assign the same date, so the output is identical.
+- `balance_series` #23 (`current - 1 day`): infinite loop, reported as timeout, i.e. detected.
+- `budget.yearly_grid` is covered by the same file; its own mutants belong to the budget cluster and were not measured here.
