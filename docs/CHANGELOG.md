@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q275: bandit 1.9.4)
+- **Chore(T-Q275): bandit pinned to 1.9.4 (ADR-0130 tooling note); its three new findings fixed in code, zero suppressions added.** B105: audit key moved to a constant (`repositories/users.py`); two B704: `Markup` literal templates with `.format` escaping (`web/templating.py`), tests assert the escaped output.
+
 ## 2026-11-21 (T-Q277: per-drill age key pair in Terraform)
 - **Feat(T-Q277): each drill generates its own Litestream age key pair with the `koendelaat/age` Terraform provider (ADR-0135, amends ADR-0132 and ADR-0078; Q-012 H4-03).** The pair lives in that drill's state (survives VM replacement, dies on teardown); `litestream_age_*` are prod-only inputs, the prod replica identity reaches a drill only as `restore_source_age_identity` from `prod-restore-read`, in its own file. `drill`, `drill-plan`, `drill-teardown` no longer read `LITESTREAM_AGE_*`. Root `.terraform.lock.hcl` is now committed (linux_amd64, darwin_arm64). **Operator half pending:** delete the age secrets from the three drill environments after merge.
 

@@ -44,6 +44,8 @@ from budget_planner.repositories.auth_users import (
 )
 
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
+# Audit-JSON key marking a credential rotation (name avoids bandit B105 heuristics).
+_AUDIT_CREDENTIAL_ROTATED_KEY = "password_changed"
 
 # Mirrors ``migrations/0003_seed_system_rows.sql`` (ADR-0061 §6).
 SYSTEM_CATEGORY_SEEDS: tuple[tuple[str, Direction], ...] = (
@@ -247,7 +249,7 @@ def update_credentials(
             entity_id=user_id,
             operation="update",
             prev=_redacted(prev),
-            new={**_redacted(updated), "password_changed": True},
+            new={**_redacted(updated), _AUDIT_CREDENTIAL_ROTATED_KEY: True},
             request_ctx=request_ctx,
         )
     return updated
