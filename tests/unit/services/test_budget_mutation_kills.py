@@ -12,6 +12,7 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from decimal import Decimal
 from functools import partial
+from typing import Any
 
 import pytest
 
@@ -586,11 +587,11 @@ def test_planned_base_missing_rate_raises_without_native_fallback(
     assert base_of(eur_world["pln"], 10_000) == 10_000  # base currency needs no rate
 
 
-def test_planned_base_defaults_today_to_the_clock(
-    conn: sqlite3.Connection, eur_world: dict[str, int]
-) -> None:
-    _rate(conn, date(2020, 1, 1), "4.00")
-    assert budget.planned_base_amounts(conn, 1)(eur_world["eur"], 10_000) == 40_000
+def test_planned_base_requires_an_explicit_today(conn: sqlite3.Connection) -> None:
+    """ADR-0140: pure services never fall back to the host clock."""
+    no_kwargs: dict[str, Any] = {}
+    with pytest.raises(TypeError, match="today"):
+        budget.planned_base_amounts(conn, 1, **no_kwargs)
 
 
 def test_base_amounts_honour_base_currency_and_soft_deleted_accounts(

@@ -27,12 +27,6 @@ count = 1
 finding = "Q-023"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_08_tier_resolution_and_clock.py"
-rule = "Q-031"
-count = 1
-finding = "Q-031"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_09_archived_category_scope.py"
 rule = "Q-030"
 count = 1

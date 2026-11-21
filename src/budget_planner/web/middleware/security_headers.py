@@ -1,43 +1,29 @@
-"""Security-headers middleware + CSP nonce propagation.
+"""Outermost security-headers middleware: baseline headers, app-owned CSP nonce.
 
-T-D07 — Adds the five baseline response headers (HSTS, X-Frame-Options,
-X-Content-Type-Options, Referrer-Policy, Permissions-Policy) when they are not
-already present on the outgoing response. Caddy (ADR-0036 §1) sets most of
-these at the edge in production; the middleware is the single source of truth
-for local development, prod-sim stacks, and any direct-to-app request path.
+T-D07 introduced the baseline headers; T-Q254 (ADR-0036 addendum 2026-11-21)
+makes this the outermost layer and the owner of the CSP:
 
-CSP nonce flow (ADR-0036 §3):
-
-- In production, Caddy generates a per-request UUID nonce and forwards it to
-  the app as the ``X-CSP-Nonce`` request header. The CSP header itself is
-  terminated at Caddy — this middleware only propagates the nonce into
-  ``request.state.csp_nonce`` so Jinja templates can embed it on inline
-  ``<script>`` / ``<style>`` tags.
-- In development (and tests) no proxy is in front of the app. The middleware
-  mints a fresh 24-byte base64 nonce per request so templates always see a
-  non-empty, URL-safe nonce value. This keeps the Jinja contract identical in
-  every environment.
-
-Order per ADR-0033 §5: this middleware sits immediately after
-``RequestIdMiddleware`` and before the (future) auth / CSRF / rate-limit
-layers. Register with ``app.add_middleware(SecurityHeadersMiddleware)`` *after*
-the request-id middleware has been added so the Starlette outer-first stack
-runs request-id first, then security headers.
+- Pure ASGI, wrapped around the *whole* Starlette stack (see ``create_app``),
+  so the 500 page rendered by ``ServerErrorMiddleware`` carries the headers too.
+- A fresh 24-byte URL-safe nonce is minted per request. Any client- or
+  proxy-supplied ``X-CSP-Nonce`` is ignored. The nonce is exposed to templates
+  as ``request.state.csp_nonce`` and put in the CSP of HTML responses.
+- 5xx responses are forced ``Cache-Control: no-store``.
+- Headers a downstream layer already set are never overwritten.
 """
 
 from __future__ import annotations
 
 import secrets
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-_NONCE_HEADER = "X-CSP-Nonce"
+from budget_planner.web.middleware.asgi import CACHE_CONTROL_HEADER, NO_STORE, RESPONSE_START
+
 _NONCE_BYTES = 24
+_SERVER_ERROR_FLOOR = 500
 
-# Baseline response headers. Caddy may already set some in production; the
-# middleware only fills gaps (``setdefault`` semantics via a presence check).
 _DEFAULT_HEADERS: tuple[tuple[str, str], ...] = (
     (
         "Strict-Transport-Security",
@@ -52,28 +38,53 @@ _DEFAULT_HEADERS: tuple[tuple[str, str], ...] = (
     ),
 )
 
+# ADR-0036 §1 as amended by ADR-0113: strict script-src, no nonce in style-src
+# (a nonce would make browsers ignore 'unsafe-inline').
+_CSP_TEMPLATE = (
+    "default-src 'self'; script-src 'self' 'nonce-{nonce}'; "
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
+    "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; "
+    "object-src 'none'; form-action 'self'"
+)
 
-def _generate_nonce() -> str:
-    """Return a URL-safe base64 nonce (24 bytes of entropy → 32 chars)."""
+
+def generate_nonce() -> str:
+    """Return a URL-safe base64 nonce (24 bytes of entropy, 32 chars)."""
     return secrets.token_urlsafe(_NONCE_BYTES)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Attach baseline security headers and propagate the CSP nonce.
+def build_csp(nonce: str) -> str:
+    """The application CSP for ``nonce``."""
+    return _CSP_TEMPLATE.format(nonce=nonce)
 
-    Idempotent: never overwrites a header a downstream layer (Caddy, a route
-    handler) has already set. Reads the ``X-CSP-Nonce`` request header set by
-    Caddy; falls back to a locally-generated nonce in dev / test.
-    """
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        incoming_nonce = request.headers.get(_NONCE_HEADER)
-        nonce = incoming_nonce if incoming_nonce else _generate_nonce()
-        request.state.csp_nonce = nonce
+def security_headers_middleware(app: ASGIApp) -> ASGIApp:
+    """Wrap ``app`` with baseline headers, the nonce CSP and 5xx ``no-store``."""
 
-        response = await call_next(request)
+    async def middleware(scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await app(scope, receive, send)
+            return
 
-        for name, value in _DEFAULT_HEADERS:
-            if name not in response.headers:
-                response.headers[name] = value
-        return response
+        nonce = generate_nonce()
+        # New scope (no mutation of the caller's): Starlette's ``request.state``
+        # reads ``scope["state"]``.
+        inner_scope = {**scope, "state": {**scope.get("state", {}), "csp_nonce": nonce}}
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == RESPONSE_START:
+                headers = MutableHeaders(scope=message)
+                for name, value in _DEFAULT_HEADERS:
+                    if name not in headers:
+                        headers[name] = value
+                if "text/html" in headers.get("content-type", "") and (
+                    "content-security-policy" not in headers
+                ):
+                    headers["Content-Security-Policy"] = build_csp(nonce)
+                if message["status"] >= _SERVER_ERROR_FLOOR:
+                    headers[CACHE_CONTROL_HEADER] = NO_STORE
+            await send(message)
+
+        await app(inner_scope, receive, send_wrapper)
+
+    return middleware

@@ -100,3 +100,45 @@ def test_fixed_clock_returns_its_instant() -> None:
 
 def test_system_clock_is_utc_aware() -> None:
     assert clock.SYSTEM_CLOCK.now().utcoffset() == timedelta(0)
+
+
+def test_utc_now_iso_is_millisecond_utc_text_matching_sqlite_strftime() -> None:
+    with clock.frozen(datetime(2026, 11, 19, 23, 30, 5, 123_987, tzinfo=UTC)):
+        assert clock.utc_now_iso() == "2026-11-19T23:30:05.123Z"
+
+
+def test_iso_utc_converts_to_utc_and_truncates_to_milliseconds() -> None:
+    plus_two = timezone(timedelta(hours=2))
+
+    assert clock.iso_utc(datetime(2026, 6, 1, 1, 0, 0, 999_999, tzinfo=plus_two)) == (
+        "2026-05-31T23:00:00.999Z"
+    )
+
+
+def test_iso_utc_text_sorts_like_time_across_precisions() -> None:
+    earlier = clock.iso_utc(datetime(2026, 11, 19, 10, 0, 0, 123_000, tzinfo=UTC))
+    later = clock.iso_utc(datetime(2026, 11, 19, 10, 0, 0, 124_000, tzinfo=UTC))
+
+    assert earlier < later
+
+
+def test_warsaw_zone_resolves_in_the_runtime_environment() -> None:
+    """OQ-3: tzdata ships in the venv (PyPI wheel), so the display zone never silently degrades."""
+    instant = datetime(2026, 6, 30, 22, 30, tzinfo=UTC)
+
+    assert instant.astimezone(ZoneInfo(WARSAW)).date() == date(2026, 7, 1)
+
+
+def test_today_local_follows_display_zone_not_host_zone_at_warsaw_midnight() -> None:
+    settings = Settings(display_timezone=WARSAW)
+
+    with clock.frozen(datetime(2026, 6, 30, 22, 30, tzinfo=UTC)):
+        assert clock.today_local(settings) == date(2026, 7, 1)
+        assert clock.utc_now().date() == date(2026, 6, 30)
+
+
+def test_today_local_at_month_end_rolls_the_month_in_warsaw() -> None:
+    settings = Settings(display_timezone=WARSAW)
+
+    with clock.frozen(datetime(2026, 1, 31, 23, 30, tzinfo=UTC)):
+        assert clock.today_local(settings) == date(2026, 2, 1)

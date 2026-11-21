@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from starlette.responses import JSONResponse
 
 from budget_planner.domain.limits import MAX_BODY_BYTES
+from budget_planner.web.middleware.asgi import RESPONSE_START
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -55,7 +56,7 @@ def body_limit_middleware(app: ASGIApp) -> ASGIApp:
 
         async def tracking_send(message: Message) -> None:
             nonlocal started
-            if message["type"] == "http.response.start":
+            if message["type"] == RESPONSE_START:
                 started = True
             await send(message)
 

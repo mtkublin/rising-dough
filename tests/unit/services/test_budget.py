@@ -7,6 +7,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import (
     NewBudgetDefault,
@@ -312,7 +313,9 @@ def test_committed_in_window_planned_only(
         ),
     )
     # Unpromoted planned expense inside [Feb 1, Feb 15).
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15), today=clock.utc_now().date()
+    )
     assert total == 12_000
     # Promoted-row counterpart must NOT be counted.
     planned.create(
@@ -345,7 +348,7 @@ def test_committed_in_window_planned_only(
     )
     planned.stamp_promotion(conn, USER_ID, rows[-1].id, txn.id)
     total_after = bs.committed_in_window(
-        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15)
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 15), today=clock.utc_now().date()
     )
     # Only the first (unpromoted) planned row survives.
     assert total_after == 12_000
@@ -368,7 +371,9 @@ def test_committed_in_window_recurring_monthly_inside_window(
     )
     # Pin next_due into the test window.
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 5)))
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28), today=clock.utc_now().date()
+    )
     assert total == 300_000
 
 
@@ -392,7 +397,9 @@ def test_committed_in_window_recurring_end_date_cuts_mid_window(
     )
     # end_date = Feb 20; window extends to Mar 10 — the single Feb occurrence
     # is in; the hypothetical Mar occurrence is cut by end_date.
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 3, 10))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 3, 10), today=clock.utc_now().date()
+    )
     assert total == 300_000
 
 
@@ -422,7 +429,9 @@ def test_committed_in_window_override_adjusts_amount(
             amount_override=250_000,
         ),
     )
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28), today=clock.utc_now().date()
+    )
     assert total == 250_000
 
 
@@ -450,7 +459,9 @@ def test_committed_in_window_skipped_override_excluded(
             state=OverrideState.SKIPPED,
         ),
     )
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28), today=clock.utc_now().date()
+    )
     assert total == 0
 
 
@@ -482,14 +493,18 @@ def test_committed_in_window_excludes_non_expense_directions(
         ),
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 1)))
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 1), end=date(2026, 2, 28), today=clock.utc_now().date()
+    )
     assert total == 0
 
 
 def test_committed_in_window_empty_range_short_circuits(
     conn: sqlite3.Connection, committed_world: dict[str, int]
 ) -> None:
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 15), end=date(2026, 2, 15))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 15), end=date(2026, 2, 15), today=clock.utc_now().date()
+    )
     assert total == 0
 
 
@@ -916,10 +931,13 @@ def test_recurring_counted_once_per_occurrence_across_long_window(
         start=date(2026, 2, 20),
         end=date(2026, 5, 20),
         budgeted_category_ids=frozenset({committed_world["rent"]}),
+        today=clock.utc_now().date(),
     )
     # Mar 5, Apr 5, May 5 only (Feb 5 is before the window).
     assert split == (300_000, 0)
-    total = bs.committed_in_window(conn, USER_ID, start=date(2026, 2, 20), end=date(2026, 5, 20))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=date(2026, 2, 20), end=date(2026, 5, 20), today=clock.utc_now().date()
+    )
     assert total == 300_000
 
 
@@ -967,7 +985,9 @@ def test_committed_in_window_unbounded_start_counts_all_overdue_planned(
     _planned_expense(conn, committed_world, "groceries", date(2025, 6, 1), 1_000)
     _planned_expense(conn, committed_world, "groceries", date(2026, 2, 19), 2_000)
     _planned_expense(conn, committed_world, "groceries", date(2026, 2, 28), 4_000)
-    total = bs.committed_in_window(conn, USER_ID, start=None, end=date(2026, 2, 25))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=None, end=date(2026, 2, 25), today=clock.utc_now().date()
+    )
     assert total == 3_000
 
 
@@ -976,7 +996,9 @@ def test_committed_in_window_unbounded_start_expands_recurring_from_next_due(
 ) -> None:
     # Monthly rent overdue since Dec 5: Dec 5, Jan 5, Feb 5 all still owed.
     _overdue_rule(conn, committed_world, "rent", date(2025, 12, 5), 300_000)
-    total = bs.committed_in_window(conn, USER_ID, start=None, end=date(2026, 2, 25))
+    total = bs.committed_in_window(
+        conn, USER_ID, start=None, end=date(2026, 2, 25), today=clock.utc_now().date()
+    )
     assert total == 900_000
 
 

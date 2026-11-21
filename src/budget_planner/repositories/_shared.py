@@ -19,7 +19,7 @@ import sqlite3
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from budget_planner.domain.request_ctx import RequestCtx
@@ -29,11 +29,6 @@ from budget_planner.domain.request_ctx import RequestCtx
 # forbids inlining the ``RequestCtx.empty()`` call in parameter defaults.
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
 _SAVEPOINT = "bp_nested"
-
-
-def utc_now_iso() -> str:
-    """Return the current UTC time as an ISO-8601 string with millisecond precision."""
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def _dumps(value: Any) -> str | None:

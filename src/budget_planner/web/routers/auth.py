@@ -25,13 +25,14 @@ import logging
 import re
 import sqlite3
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from http import HTTPStatus
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.client_ip import UNKNOWN_IP
 from budget_planner.domain.request_ctx import RequestCtx
@@ -91,8 +92,8 @@ _SEE_OTHER: Final = HTTPStatus.SEE_OTHER
 
 
 def _rate_limit_now(request: Request) -> datetime:
-    clock: Callable[[], datetime] | None = getattr(request.app.state, "rate_limit_clock", None)
-    return clock() if clock is not None else datetime.now(UTC)
+    override: Callable[[], datetime] | None = getattr(request.app.state, "rate_limit_clock", None)
+    return override() if override is not None else clock.utc_now()
 
 
 def _ip_identity(request: Request) -> str:

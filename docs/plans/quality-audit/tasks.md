@@ -389,7 +389,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `sql_sites`:6 (4 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/sql_sites.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q229 [S] `clock` and rounding policy
+### ✅ T-Q229 [S] `clock` and rounding policy
 - Findings: Q-031 (A-13, C-08, F-21), Q-076 (C-18, C-19).
 - Epic: E07, E11
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`
@@ -398,6 +398,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR (next free number): `budget_planner/clock.py` with `utc_now()`, `today_local(settings)` and an injectable override; services never call `date.today()`; ADR-0006 amendment for the single rounding policy (`round_div` HALF_EVEN, `round_scaled`) and retention timestamp format (`utc_now_iso`). Resolves OQ-3 (zoneinfo in the image) and OQ-18 (only Europe/Warsaw).
 - Acceptance: failing tests first from `repro/A/output/inv_08*` and `repro/C/repro_clock.py` (month-end and Warsaw midnight window); then replace the 16-18 `date.today()` sites (`baseline/clock-sites.txt`), add a `today` FastAPI dependency, route time-dependent tests and the visual suite through the override, unify the rounding helpers (`domain/money.py`, `services/recurring_formula.py`, `services/fx.py`, `services/today.py`, `web/routers/today.py`) and the retention comparison.
 - Operator question blocking it: OQ-3, OQ-18.
+- Defaults taken 2026-11-21, pending operator confirmation (ADR-0140): OQ-3 yes (the venv carries the PyPI `tzdata` wheel via `python-dateutil`/`pandas`, no Dockerfile change); OQ-18 Europe/Warsaw is the only supported display zone, the setting stays configurable. OQ-ROUND: single rounding mode? default kept per-site 2026-11-21 (HALF_EVEN averages and FX, HALF_UP `to_minor_units` and recurring formula; ADR-0006 amendment table), pending operator confirmation. The task text said HALF_EVEN everywhere, but the code and pinned tests (T-Q222, T-Q216) are HALF_UP at two sites; no user-visible amount changes.
 - Final-backlog note: Also owns the `clock.py` `module-state` entry in `functional_first.toml`, the `DTZ011` ceiling (18 `noqa`) and the rounding and float slices of `banned_patterns` and `money_scope` (Q-022, Q-076).
 - Removes allowlist entries: `banned_patterns`:29 (10 entries); `functional_first`:1 (1 entry); `invariants`:1 (1 entry); `money_scope`:27 (13 entries); `purity`:6 (6 entries); `suppressions` ceiling `DTZ011`:18
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/functional_first.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml`, `allowlists/purity.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-8 (Q-031) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
@@ -949,7 +950,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q254 [P] 500 responses carry security headers; CSP from the app; unenforced surfaces
+### ✅ T-Q254 [P] 500 responses carry security headers; CSP from the app; unenforced surfaces
 - Findings: Q-064 (D-03, D-09), Q-065 (D-08, E-11), Q-066 (D-07, D-12).
 - Epic: none (security-control)
 - Band: 6 · Size: M · Tags: none

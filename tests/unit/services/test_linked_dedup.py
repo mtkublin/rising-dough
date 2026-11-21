@@ -7,6 +7,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
@@ -69,7 +70,7 @@ def _planned(
 
 
 def _budget(conn: sqlite3.Connection) -> int:
-    return bs.committed_in_window(conn, USER_ID, start=START, end=END)
+    return bs.committed_in_window(conn, USER_ID, start=START, end=END, today=clock.utc_now().date())
 
 
 def _forecast(conn: sqlite3.Connection, ids: dict[str, int]) -> int:

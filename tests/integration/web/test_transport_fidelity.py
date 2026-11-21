@@ -80,6 +80,7 @@ def _production_settings(tmp_path: Path) -> Settings:
         cookie_secret="x" * 32,  # pragma: allowlist secret
         webauthn_rp_id="budget.example.test",
         webauthn_origin="https://budget.example.test",
+        trusted_hosts=("testserver",),  # T-Q254: Host allow-list is enforced
         database_url=f"sqlite:///{(tmp_path / 'prod_sim.db').as_posix()}",
         admin_email="admin@prodsim.test",
         admin_initial_password="prodsim-only",  # noqa: S106  # pragma: allowlist secret

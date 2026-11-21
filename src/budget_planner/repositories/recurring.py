@@ -11,12 +11,13 @@ Every rule-level function takes ``user_id`` as the first positional arg after
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 import sqlite3
 from datetime import date
 from typing import Any
 
+from budget_planner import clock
+from budget_planner.config import get_settings
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.recurring import (
     AmountFormula,
@@ -198,7 +199,7 @@ def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) 
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
     )
-    today = dt.date.today()  # noqa: DTZ011 — date-only anchor; display tz applies at render
+    today = clock.today_local(get_settings())
     first_due = compute_initial_next_due(data, user_id, today)
 
     def _action(c: sqlite3.Connection) -> tuple[int, RecurringRule]:

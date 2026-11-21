@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner.config import Settings
 from budget_planner.services import forecast as forecast_service
 from budget_planner.web import charts
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
@@ -42,8 +42,8 @@ def _compute(
     user_id: int,
     settings: Settings,
     horizon_months: int,
+    today: date,
 ) -> forecast_service.MonthlySeries:
-    today = date.today()  # noqa: DTZ011
     return forecast_service.monthly_for_settings(conn, user_id, settings, today, horizon_months)
 
 
@@ -55,7 +55,7 @@ def index(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, user_id, settings, horizon_months)
+    monthly = _compute(conn, user_id, settings, horizon_months, today_for(request))
     chart = charts.line_area_minor(
         tuple(m.end_balance_base_minor for m in monthly.months),
         settings.base_currency,
@@ -78,7 +78,7 @@ def view_fragment(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, user_id, settings, horizon_months)
+    monthly = _compute(conn, user_id, settings, horizon_months, today_for(request))
     chart = charts.line_area_minor(
         tuple(m.end_balance_base_minor for m in monthly.months),
         settings.base_currency,

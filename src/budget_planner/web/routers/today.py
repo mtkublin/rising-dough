@@ -7,13 +7,12 @@ at the canonical URL ``/today``. ``/`` redirects here (ADR-0077).
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.money import parse_amount_str, to_minor_units
 from budget_planner.repositories import (
@@ -51,7 +50,7 @@ def today(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     # Fiscal cycle anchors the landing month so the hero never pulls a
     # future-cycle budget while spent is still on the previous paycheck
     # (ADR-0064).
@@ -108,7 +107,7 @@ def today_upcoming_fragment(
     swap preserves the Today surface's row shape (category pill +
     direction-aware amount) instead of a generic list layout.
     """
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
     categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
@@ -155,7 +154,7 @@ def afford(
     amount_minor = _afford_amount_minor(amount, settings.base_currency)
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     result = today_service.afford(conn, user_id, today_d, amount_minor)
     return render(
         request,

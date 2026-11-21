@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import re
 import sqlite3
 from collections.abc import Mapping
@@ -34,7 +33,7 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
-from budget_planner.web.deps import current_user_id, get_db
+from budget_planner.web.deps import current_user_id, get_db, today_for
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 
@@ -338,7 +337,7 @@ async def create_rule(
         term_inputs=term_inputs,
         account_currency=acc.currency if acc else None,
         exclude_rule_id=None,
-        today=dt.date.today(),  # noqa: DTZ011 — date-only anchor
+        today=today_for(request),
     )
     errors.update(amount_errors)
     if errors:
@@ -353,7 +352,7 @@ async def create_rule(
             terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
-    today = dt.date.today()  # noqa: DTZ011
+    today = today_for(request)
     # ADR-0063: a stop date already in the past means the schedule is dead
     # on arrival — insert as inactive so it never shows up in Upcoming
     # or Forecast between create and the first promotion attempt.
@@ -498,7 +497,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         term_inputs=term_inputs,
         account_currency=acc.currency if acc else None,
         exclude_rule_id=rule_id,
-        today=dt.date.today(),  # noqa: DTZ011
+        today=today_for(request),
     )
     errors.update(amount_errors)
     if errors:

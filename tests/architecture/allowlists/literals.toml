@@ -38,13 +38,6 @@ finding = "Q-038"
 epic = "E03"
 
 [[entry]]
-path = "src/budget_planner/repositories/_shared.py"
-rule = "repeated-literal"
-count = 1
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
 path = "src/budget_planner/services/analytics.py"
 rule = "domain-literal"
 count = 6
@@ -76,13 +69,6 @@ epic = "E03"
 path = "src/budget_planner/web/htmx.py"
 rule = "repeated-literal"
 count = 3
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/middleware/cache_control.py"
-rule = "repeated-literal"
-count = 1
 finding = "Q-038"
 epic = "E03"
 

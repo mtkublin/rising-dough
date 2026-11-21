@@ -8,6 +8,7 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -54,7 +55,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
             conn,
             USER_ID,
             NewPlannedTransaction(
-                operation_date=date.today() + timedelta(days=10),  # noqa: DTZ011 — inside ledger planned window
+                operation_date=clock.today_local(Settings()) + timedelta(days=10),
                 category_id=cat_exp.id,
                 account_id=acc.id,
                 amount=5000,

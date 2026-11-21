@@ -8,13 +8,12 @@ service helpers and renders a v2 template.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
 from typing import Any, Literal
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
 from budget_planner.web import charts, plan_data, view_models
@@ -38,7 +37,7 @@ def plan(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     tab_norm: PlanTab = tab if tab in _VALID else "budget"
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     month_scoped = tab_norm in {"budget", "analytics"}
     query = request.query_params if month_scoped else {}
     picked = budget_service.resolve_picker_month(

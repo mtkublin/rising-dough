@@ -12,10 +12,10 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal
 
 from budget_planner.domain.accounts import AccountStats
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.money import HALF_EVEN, round_div
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -154,10 +154,7 @@ def _mean(values: list[int]) -> int:
     """Mean rounded to the nearest integer with banker's rounding; 0 on empty."""
     if not values:
         return 0
-    total = Decimal(sum(values))
-    count = Decimal(len(values))
-    quantised = (total / count).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    return int(quantised)
+    return round_div(sum(values), len(values), mode=HALF_EVEN)
 
 
 def account_stats(conn: sqlite3.Connection, user_id: int, account_id: int) -> AccountStats:
@@ -235,7 +232,7 @@ def balance_series(
     account_id: int,
     *,
     days: int = _DEFAULT_SERIES_DAYS,
-    today: dt.date | None = None,
+    today: dt.date,
 ) -> list[tuple[dt.date, int]]:
     """Return a daily (date, balance) series for the last ``days`` days.
 
@@ -248,7 +245,7 @@ def balance_series(
     """
     if days < 1:
         return []
-    end = today if today is not None else dt.date.today()  # noqa: DTZ011
+    end = today
     start = end - dt.timedelta(days=days - 1)
     out: list[tuple[dt.date, int]] = []
     current = start

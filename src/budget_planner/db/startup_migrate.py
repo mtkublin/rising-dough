@@ -26,7 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from budget_planner import logging as bp_logging
+from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import _resolve_db_path, get_connection
 from budget_planner.db.migrate import (
@@ -122,7 +122,7 @@ def prune_backups(
     )
     stale = set(backups[: max(len(backups) - keep, 0)])
     if max_age is not None:
-        cutoff = ((now or _utcnow()) - max_age).timestamp()
+        cutoff = ((now or clock.utc_now()) - max_age).timestamp()
         stale.update(p for p in backups if p.stat().st_mtime < cutoff)
     doomed = tuple(p for p in backups if p in stale)
     for path in doomed:
@@ -135,16 +135,12 @@ def backup_max_local_age(settings: Settings) -> dt.timedelta:
     return dt.timedelta(days=settings.backup_max_age_days - BACKUP_AGE_MARGIN_DAYS)
 
 
-def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.UTC)
-
-
 def run_startup_migrations(
     settings: Settings,
     *,
     migrations_dir: Path = MIGRATIONS_DIR,
     keep_backups: int = DEFAULT_KEEP_BACKUPS,
-    now: Callable[[], dt.datetime] = _utcnow,
+    now: Callable[[], dt.datetime] = clock.utc_now,
 ) -> StartupMigrationResult:
     """Back up if needed, apply pending migrations, prune old backups."""
     db_path = _resolve_db_path(settings.database_url)
