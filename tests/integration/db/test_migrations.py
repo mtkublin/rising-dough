@@ -653,7 +653,7 @@ def test_0015_down_reverses(tmp_path: Path) -> None:
     )
     conn = get_connection(_settings_for(tmp_path / "down15.sqlite"))
     try:
-        apply_migrations(conn)
+        apply_migrations(conn, _staged_dir(tmp_path, 15))
         conn.execute("BEGIN")
         for statement in _split_sql_statements(down_sql):
             conn.execute(statement)

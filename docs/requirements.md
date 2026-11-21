@@ -184,6 +184,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - **Timestamps**: `created_at` / `updated_at` columns stored as UTC. User-facing dates on transactions stored as DATE (no time component). Display timezone = `Europe/Warsaw` by default, configurable.
 - **Soft delete**: every mutable table has `deleted_at` nullable timestamp. All queries filter `WHERE deleted_at IS NULL` via a repository helper.
 - **Audit**: shared polymorphic `audit_log(id, entity_type, entity_id, changed_at, operation, prev_json, new_json)` written on every mutation.
+- **Indexes**: hot user-scoped reads are served by `user_id`-leading indexes (migration `0017_user_leading_indexes.sql`, T-Q205): `transactions (user_id, operation_date)` and `planned_transactions (user_id, operation_date)` and `recurring_rules (user_id, active)`, each partial `WHERE deleted_at IS NULL`; `audit_log (user_id, id)`. `sessions.last_seen_at` is written at most once per 60 s per session.
 - **Multi-user scaffold**: every user-owned table has a nullable `user_id` column (defaults to `1`), unused in v1, ready for future auth. **v3 activates this scaffold** — see [§6.9](#69-multi-user-scope-added-2026-10-30-adr-0061) and [ADR-0061](adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md); the `DEFAULT 1` is dropped by migration `0012_multi_user.sql`.
 
 ### 3.9 UI / Interaction Model
