@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -40,6 +42,28 @@ def cat_id(_migrated: Settings) -> int:
         conn.close()
 
 
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _budget_rows(conn: sqlite3.Connection) -> tuple[int, int, int]:
+    """Row counts of (defaults, recurring overrides, one-off overrides), deleted included."""
+    return (
+        len(budgets_repo.list_defaults(conn, USER_ID, include_deleted=True)),
+        len(budgets_repo.list_recurring(conn, USER_ID, include_deleted=True)),
+        len(budgets_repo.list_one_off(conn, USER_ID, include_deleted=True)),
+    )
+
+
+def _audit_count(conn: sqlite3.Connection) -> int:
+    return int(conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0])
+
+
 def test_index(client: TestClient, cat_id: int) -> None:
     r = client.get("/budget")
     assert r.status_code == 200
@@ -59,65 +83,119 @@ def test_manage_page_redirects_to_budget_rules(client: TestClient, cat_id: int) 
     assert r.headers["location"] == "/budget#budget-rules"
 
 
-def test_set_default(client: TestClient, cat_id: int) -> None:
+def test_set_default(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/budget/defaults/{cat_id}", data={"amount": "500"})
     assert r.status_code == 200
     assert "budget-stale" in r.headers["HX-Trigger"]
+    stored = budgets_repo.get_default(db, USER_ID, cat_id)
+    assert stored is not None
+    assert stored.amount == 50_000
+    assert _budget_rows(db) == (1, 0, 0)
+    audit = db.execute(
+        "SELECT operation FROM audit_log WHERE entity_type = 'budget_default'"
+    ).fetchall()
+    assert [row["operation"] for row in audit] == ["create"]
 
 
-def test_set_default_404(client: TestClient) -> None:
+def test_set_default_404(client: TestClient, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post("/budget/defaults/9999", data={"amount": "100"})
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_default_invalid(client: TestClient, cat_id: int) -> None:
+def test_set_default_invalid(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/defaults/{cat_id}", data={"amount": "nan"})
     assert r.status_code == 422
+    assert r.text == "invalid amount"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_default_negative(client: TestClient, cat_id: int) -> None:
+def test_set_default_negative(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/defaults/{cat_id}", data={"amount": "-5"})
     assert r.status_code == 422
+    assert r.text == "invalid amount"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_recurring(client: TestClient, cat_id: int) -> None:
+def test_set_recurring(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/budget/recurring/{cat_id}/5", data={"amount": "200"})
     assert r.status_code == 200
+    assert r.text == "ok"
+    stored = budgets_repo.get_recurring(db, USER_ID, cat_id, 5)
+    assert stored is not None
+    assert stored.amount == 20_000
+    assert _budget_rows(db) == (0, 1, 0)
 
 
-def test_set_recurring_404(client: TestClient) -> None:
+def test_set_recurring_404(client: TestClient, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post("/budget/recurring/9999/5", data={"amount": "1"})
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_recurring_bad_month(client: TestClient, cat_id: int) -> None:
+def test_set_recurring_bad_month(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/recurring/{cat_id}/13", data={"amount": "1"})
     assert r.status_code == 422
+    assert r.text == "invalid month"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_recurring_bad_amount(client: TestClient, cat_id: int) -> None:
+def test_set_recurring_bad_amount(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/recurring/{cat_id}/5", data={"amount": "nope"})
     assert r.status_code == 422
+    assert r.text == "invalid amount"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_one_off(client: TestClient, cat_id: int) -> None:
+def test_set_one_off(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/budget/one-off/{cat_id}/2026/10", data={"amount": "99"})
     assert r.status_code == 200
+    assert r.text == "ok"
+    stored = budgets_repo.get_one_off(db, USER_ID, cat_id, 2026, 10)
+    assert stored is not None
+    assert stored.amount == 9_900
+    assert _budget_rows(db) == (0, 0, 1)
 
 
-def test_set_one_off_404(client: TestClient) -> None:
+def test_set_one_off_404(client: TestClient, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post("/budget/one-off/9999/2026/10", data={"amount": "1"})
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_one_off_bad_month(client: TestClient, cat_id: int) -> None:
+def test_set_one_off_bad_month(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/one-off/{cat_id}/2026/14", data={"amount": "1"})
     assert r.status_code == 422
+    assert r.text == "invalid month"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_set_one_off_bad_amount(client: TestClient, cat_id: int) -> None:
+def test_set_one_off_bad_amount(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    audit_before = _audit_count(db)
     r = client.post(f"/budget/one-off/{cat_id}/2026/10", data={"amount": "nope"})
     assert r.status_code == 422
+    assert r.text == "invalid amount"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +354,7 @@ def test_slideover_override_form_has_no_cancel(client: TestClient, cat_id: int) 
 def test_new_override_form_404_for_unknown_category(client: TestClient) -> None:
     r = client.get("/budget/rules/9999/overrides/new")
     assert r.status_code == 404
+    assert "<strong>category:</strong> not found" in r.text
 
 
 def test_new_override_form_returns_slide_over(client: TestClient, cat_id: int) -> None:
@@ -304,44 +383,74 @@ def test_create_override_one_off(client: TestClient, cat_id: int) -> None:
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
-def test_create_override_404_for_unknown_category(client: TestClient) -> None:
+def test_create_override_404_for_unknown_category(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    audit_before = _audit_count(db)
     r = client.post(
         "/budget/rules/9999/overrides",
         data={"tier": "recurring", "month": "6", "amount": "1"},
     )
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_create_override_rejects_bad_tier(client: TestClient, cat_id: int) -> None:
+def test_create_override_rejects_bad_tier(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
+    audit_before = _audit_count(db)
     r = client.post(
         f"/budget/rules/{cat_id}/overrides",
         data={"tier": "monthly", "month": "6", "amount": "1"},
     )
     assert r.status_code == 422
+    assert r.text == "invalid tier"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_create_override_rejects_bad_month(client: TestClient, cat_id: int) -> None:
+def test_create_override_rejects_bad_month(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
+    audit_before = _audit_count(db)
     r = client.post(
         f"/budget/rules/{cat_id}/overrides",
         data={"tier": "recurring", "month": "13", "amount": "1"},
     )
     assert r.status_code == 422
+    assert r.text == "invalid month"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_create_override_rejects_bad_amount(client: TestClient, cat_id: int) -> None:
+def test_create_override_rejects_bad_amount(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
+    audit_before = _audit_count(db)
     r = client.post(
         f"/budget/rules/{cat_id}/overrides",
         data={"tier": "recurring", "month": "6", "amount": "nope"},
     )
     assert r.status_code == 422
+    assert r.text == "invalid amount"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
-def test_create_override_one_off_rejects_bad_year(client: TestClient, cat_id: int) -> None:
+def test_create_override_one_off_rejects_bad_year(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
+    audit_before = _audit_count(db)
     r = client.post(
         f"/budget/rules/{cat_id}/overrides",
         data={"tier": "one-off", "month": "7", "year": "bogus", "amount": "1"},
     )
     assert r.status_code == 422
+    assert r.text == "invalid year"
+    assert _budget_rows(db) == (0, 0, 0)
+    assert _audit_count(db) == audit_before
 
 
 # ---------------------------------------------------------------------------
