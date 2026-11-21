@@ -1,0 +1,19 @@
+-P POSTROUTING ACCEPT
+-A POSTROUTING -o br-dfc87c4832cc -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.18.0.0/16 ! -o br-dfc87c4832cc -j MASQUERADE
+-A POSTROUTING -j ts-postrouting
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.18.0.5/32 -d 172.18.0.5/32 -p tcp -m tcp --dport 443 -j MASQUERADE
+-A POSTROUTING -s 172.18.0.5/32 -d 172.18.0.5/32 -p udp -m udp --dport 443 -j MASQUERADE
+-N ts-postrouting
+-A POSTROUTING -o br-dfc87c4832cc -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.18.0.0/16 ! -o br-dfc87c4832cc -j MASQUERADE
+-A POSTROUTING -j ts-postrouting
+-A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.18.0.5/32 -d 172.18.0.5/32 -p tcp -m tcp --dport 443 -j MASQUERADE
+-A POSTROUTING -s 172.18.0.5/32 -d 172.18.0.5/32 -p udp -m udp --dport 443 -j MASQUERADE
+-A ts-postrouting -m mark --mark 0x40000/0xff0000 -j MASQUERADE
+-P PREROUTING ACCEPT
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER

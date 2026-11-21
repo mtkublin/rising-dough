@@ -1,0 +1,418 @@
+# G20 functional-first (ADR-0021, ADR-0130). [[framework]] is a permanent category (operator decision
+# 2026-11-20): BaseHTTPMiddleware subclasses, APIRouter module singletons, request/response mutation required by
+# Starlette, logging.Filter. It is not counted toward zero.
+
+guard = "functional_first"
+
+[[entry]]
+path = "src/budget_planner/config.py"
+rule = "hidden-cache"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/config.py"
+rule = "setattr-bypass"
+count = 2
+finding = "B-13"
+epic = "E07"
+
+[[entry]]
+path = "src/budget_planner/db/migrate.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/domain/money.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/logging.py"
+rule = "global-stmt"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/logging.py"
+rule = "param-mutation:data"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/repositories/_shared.py"
+rule = "module-mutation"
+count = 2
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/repositories/_shared.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/services/_passwords.py"
+rule = "hidden-cache"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/services/audit.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/services/export.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/services/recurring.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "param-mutation:data"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/app.py"
+rule = "global-stmt"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/middleware/auth.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/middleware/must_change_password.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "mutable-constant"
+count = 1
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/templating.py"
+rule = "mutable-constant"
+count = 2
+finding = "B-13"
+epic = "E05"
+
+[[entry]]
+path = "src/budget_planner/web/today_data.py"
+rule = "mutable-constant"
+count = 2
+finding = "B-13"
+epic = "E05"
+
+[[framework]]
+path = "src/budget_planner/logging.py"
+rule = "class-plain"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "logging.Filter subclass required by the logging API"
+
+[[framework]]
+path = "src/budget_planner/web/htmx.py"
+rule = "param-mutation:framework"
+count = 3
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/admin.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/auth.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/auth.py"
+rule = "param-mutation:framework"
+count = 4
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/cache_control.py"
+rule = "class-plain"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/csrf.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/csrf.py"
+rule = "param-mutation:framework"
+count = 3
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/must_change_password.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/request_id.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/request_id.py"
+rule = "param-mutation:framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/security_headers.py"
+rule = "class-framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/security_headers.py"
+rule = "param-mutation:framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/routers/accounts.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/analytics.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/auth.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/budget.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/categories.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/categories.py"
+rule = "param-mutation:framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/routers/debug.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/dev_components.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/forecast.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/health.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/settings.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/settings_password.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/settings_security.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/settings_users.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/settings_users.py"
+rule = "param-mutation:framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "request.state / response.headers mutation is the Starlette contract"
+
+[[framework]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[framework]]
+path = "src/budget_planner/web/routers/transactions.py"
+rule = "module-singleton"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[permanent]]
+path = "src/budget_planner/clock.py"
+rule = "module-state"
+count = 1
+finding = "Q-031"
+epic = "E07"
+reason = "canonical clock override (ADR-0130 §4)"

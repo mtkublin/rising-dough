@@ -1,0 +1,14 @@
+# pip-audit (uv export --frozen --no-hashes | pip-audit -r)
+     333
+WARNING:pip_audit._cli:--no-deps is supported, but users are encouraged to fully hash their pinned dependencies
+WARNING:pip_audit._cli:Consider using a tool like `pip-compile`: https://pip-tools.readthedocs.io/en/latest/#using-hashes
+Found 6 known vulnerabilities in 1 package
+Name         Version ID              Fix Versions
+------------ ------- --------------- ------------
+cryptography 48.0.1  PYSEC-2026-3554 49.0.0
+cryptography 48.0.1  PYSEC-2026-3552 50.0.0
+cryptography 48.0.1  PYSEC-2026-3553 49.0.0
+cryptography 48.0.1  PYSEC-2026-3552 50.0.0
+cryptography 48.0.1  PYSEC-2026-3553 49.0.0
+cryptography 48.0.1  PYSEC-2026-3554 49.0.0
+exit=0

@@ -1,0 +1,4 @@
+planned promote x2 (planned_id=1): ['OperationalError: database is locked', 'ok txn_id=617']
+transactions linked to planned #1: 1 (expected 1)
+recurring promote x2 (rule_id=3): ['OperationalError: database is locked', 'ok txn_id=618']
+transactions for rule #3 occurrence 2026-11-15: 1 (expected 1)

@@ -56,8 +56,10 @@ def _scanned_files() -> list[Path]:
 
 def test_every_user_owned_query_carries_user_id_predicate() -> None:
     violations = check_paths(_scanned_files(), REPO_ROOT, SQL_ALLOWLIST)
-    assert not violations, "Unscoped SQL on user-owned tables:\n" + "\n".join(
-        v.render() for v in violations
+    assert not violations, (
+        "Unscoped SQL on user-owned tables. Fix: add `AND <alias>.user_id = ?`, take user_id from "
+        "`current_user_id` (web/deps.py) and pass it down; SQL belongs in repositories/ only.\n"
+        + "\n".join(v.render() for v in violations)
     )
 
 

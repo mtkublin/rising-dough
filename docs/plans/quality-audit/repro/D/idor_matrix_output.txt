@@ -1,0 +1,245 @@
+control	GET	/transactions/3/edit	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/transactions/3	{'category_id': '7', 'account_id': '3'}	200	leak=False	Vchanged=['transactions']	xref=[]
+control	POST	/transactions/3	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	200	leak=False	Vchanged=['transactions']	xref=[]
+control	POST	/transactions/3/delete	{}	200	leak=False	Vchanged=['transactions']	xref=[]
+control	POST	/transactions/4/restore	{}	200	leak=False	Vchanged=['transactions']	xref=[]
+control	POST	/transactions	{'category_id': '7', 'account_id': '3'}	200	leak=True	Vchanged=['transactions']	xref=[]
+control	POST	/transactions	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	200	leak=True	Vchanged=['transactions']	xref=[]
+control	GET	/accounts/3/edit	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/accounts/3	{'name': 'renamed'}	200	leak=False	Vchanged=['accounts']	xref=[]
+control	POST	/accounts/3/delete	{}	200	leak=False	Vchanged=['accounts']	xref=[]
+control	POST	/accounts/3/snapshot	{}	200	leak=False	Vchanged=['account_snapshots']	xref=[]
+control	GET	/accounts/3/reconcile	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/accounts/3/reconcile	{'category_id': '10'}	200	leak=True	Vchanged=['transactions', 'account_snapshots']	xref=[]
+control	GET	/categories/7/edit	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/categories/7	{'name': 'renamed'}	200	leak=False	Vchanged=['categories']	xref=[]
+control	POST	/categories/7/archive	{}	204	leak=False	Vchanged=['categories']	xref=[]
+control	POST	/categories/7/delete	{}	200	leak=False	Vchanged=['categories']	xref=[]
+control	POST	/categories/7/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+control	GET	/planned/3/edit	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/planned/3	{'category_id': '7', 'account_id': '3'}	200	leak=False	Vchanged=['planned_transactions']	xref=[]
+control	POST	/planned/3/delete	{}	200	leak=False	Vchanged=['planned_transactions']	xref=[]
+control	POST	/planned/4/restore	{}	200	leak=False	Vchanged=['planned_transactions']	xref=[]
+control	POST	/planned	{'category_id': '7', 'account_id': '3'}	200	leak=False	Vchanged=['planned_transactions']	xref=[]
+control	POST	/planned	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	200	leak=False	Vchanged=['planned_transactions']	xref=[]
+control	GET	/planned/3/promote	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/planned/3/promote/inline	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/planned/3/promote	{}	200	leak=False	Vchanged=['transactions', 'planned_transactions']	xref=[]
+control	POST	/planned/batch/undo	{}	204	leak=False	Vchanged=['transactions']	xref=[]
+control	GET	/recurring/2/edit	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/recurring	{'category_id': '7', 'account_id': '3'}	200	leak=True	Vchanged=['recurring_rules']	xref=[]
+control	POST	/recurring/2	{'category_id': '7', 'account_id': '3'}	200	leak=False	Vchanged=['recurring_rules']	xref=[]
+control	POST	/recurring/2/deactivate	{}	200	leak=False	Vchanged=['recurring_rules']	xref=[]
+control	POST	/recurring/2/skip-next	{}	200	leak=True	Vchanged=['recurring_rules']	xref=[]
+control	GET	/recurring/2/overrides/new	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/recurring/2/overrides	{}	200	leak=False	Vchanged=['recurring_rule_overrides']	xref=[]
+control	POST	/recurring/2/overrides/2026-12-05/delete	{}	200	leak=True	Vchanged=['recurring_rule_overrides']	xref=[]
+control	GET	/recurring/2/promote	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/recurring/2/promote/inline	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/recurring/2/promote	{}	200	leak=False	Vchanged=['transactions', 'recurring_rules']	xref=[]
+control	POST	/recurring/batch/undo	{}	204	leak=False	Vchanged=['transactions']	xref=[]
+control	POST	/recurring/formula/preview	{'account_id': '3'}	200	leak=False	Vchanged=[]	xref=[]
+control	GET	/budget/rules/7/overrides/new	{}	200	leak=True	Vchanged=[]	xref=[]
+control	POST	/budget/rules/7/overrides	{'tier': 'default'}	200	leak=False	Vchanged=['budget_defaults']	xref=[]
+control	POST	/budget/defaults/7	{}	200	leak=False	Vchanged=['budget_defaults']	xref=[]
+control	POST	/budget/recurring/7/5	{}	200	leak=False	Vchanged=['budget_recurring_overrides']	xref=[]
+control	POST	/budget/one-off/7/2026/5	{}	200	leak=False	Vchanged=['budget_one_off_overrides']	xref=[]
+control	POST	/budget/preferences/income-anchor	{'category_id': ''}	200	leak=False	Vchanged=[]	xref=[]
+control	POST	/auth/passkeys/2/revoke	{}	303	leak=False	Vchanged=['webauthn_credentials']	xref=[]
+control	POST	/auth/sessions/474dc3080762ab77/revoke	{}	303	leak=False	Vchanged=['sessions_alive']	xref=[]
+control	GET	/settings/users/2/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+control	POST	/settings/users/2	{'name': 'evil'}	404	leak=False	Vchanged=[]	xref=[]
+control	POST	/settings/users/2/reset-password	{}	404	leak=False	Vchanged=[]	xref=[]
+control	POST	/settings/users/2/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+control	GET	/ledger?q=zzqq	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/ledger/table?view=actual&account_id=3&category_id=7	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/transactions/export?account_id=3	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/planned/export?account_id=3	{}	200	leak=True	Vchanged=[]	xref=[]
+control	GET	/transactions/_limit_preview?account_id=3&amount=1&operation_date=2026-11-12	{}	200	leak=False	Vchanged=[]	xref=[]
+control	GET	/forecast/view?account_id=3	{}	200	leak=False	Vchanged=[]	xref=[]
+control	GET	/today/afford?account_id=3&amount=10	{}	200	leak=False	Vchanged=[]	xref=[]
+control	GET	/accounts/last-checked?account_id=3	{}	200	leak=True	Vchanged=[]	xref=[]
+attackA	GET	/transactions/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/transactions/3	{'category_id': '11', 'account_id': '5'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/transactions/3	{'category_id': '13', 'account_id': '5', 'dest_account_id': '6'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/transactions/3/delete	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/transactions/4/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/transactions	{'category_id': '11', 'account_id': '5'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/transactions	{'category_id': '13', 'account_id': '5', 'dest_account_id': '6'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/accounts/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/accounts/3	{'name': 'renamed'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/accounts/3/delete	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/accounts/3/snapshot	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/accounts/3/reconcile	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/accounts/3/reconcile	{'category_id': '14'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/categories/7/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/categories/7	{'name': 'renamed'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/categories/7/archive	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/categories/7/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/categories/7/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/planned/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned/3	{'category_id': '11', 'account_id': '5'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned/3/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned/4/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned	{'category_id': '11', 'account_id': '5'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/planned	{'category_id': '13', 'account_id': '5', 'dest_account_id': '6'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/planned/3/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/planned/3/promote/inline	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned/3/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/planned/batch/undo	{}	204	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/recurring/2/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring	{'category_id': '11', 'account_id': '5'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/recurring/2	{'category_id': '11', 'account_id': '5'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/2/deactivate	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/2/skip-next	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/recurring/2/overrides/new	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/2/overrides	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/2/overrides/2026-12-05/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/recurring/2/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/recurring/2/promote/inline	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/2/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/recurring/batch/undo	{}	204	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/recurring/formula/preview	{'account_id': '5'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/budget/rules/7/overrides/new	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/budget/rules/7/overrides	{'tier': 'default'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/budget/defaults/7	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/budget/recurring/7/5	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/budget/one-off/7/2026/5	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/budget/preferences/income-anchor	{'category_id': ''}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	POST	/auth/passkeys/2/revoke	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/auth/sessions/3d9d65d521f087b1/revoke	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/settings/users/2/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/settings/users/2	{'name': 'evil'}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/settings/users/2/reset-password	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	POST	/settings/users/2/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+attackA	GET	/ledger?q=zzqq	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/ledger/table?view=actual&account_id=5&category_id=11	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/transactions/export?account_id=5	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/planned/export?account_id=5	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/transactions/_limit_preview?account_id=5&amount=1&operation_date=2026-11-12	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/forecast/view?account_id=5	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/today/afford?account_id=5&amount=10	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+attackA	GET	/accounts/last-checked?account_id=5	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/transactions/5/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/transactions/5	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/transactions/5	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/transactions/5/delete	{}	200	leak=False	Vchanged=['transactions']	xref=[]  <== REVIEW
+fk	POST	/transactions/6/restore	{}	200	leak=False	Vchanged=['transactions']	xref=[]  <== REVIEW
+fk	POST	/transactions	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/transactions	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	422	leak=False	Vchanged=[]	xref=[]
+fk	GET	/accounts/5/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/accounts/5	{'name': 'renamed'}	200	leak=False	Vchanged=['accounts']	xref=[]  <== REVIEW
+fk	POST	/accounts/5/delete	{}	200	leak=False	Vchanged=['accounts']	xref=[]  <== REVIEW
+fk	POST	/accounts/5/snapshot	{}	200	leak=False	Vchanged=['account_snapshots']	xref=[]  <== REVIEW
+fk	GET	/accounts/5/reconcile	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/accounts/5/reconcile	{'category_id': '10'}	599	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/categories/11/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/categories/11	{'name': 'renamed'}	200	leak=False	Vchanged=['categories']	xref=[]  <== REVIEW
+fk	POST	/categories/11/archive	{}	204	leak=False	Vchanged=['categories']	xref=[]  <== REVIEW
+fk	POST	/categories/11/delete	{}	200	leak=False	Vchanged=['categories']	xref=[]  <== REVIEW
+fk	POST	/categories/11/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+fk	GET	/planned/5/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/planned/5	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/planned/5/delete	{}	200	leak=False	Vchanged=['planned_transactions']	xref=[]  <== REVIEW
+fk	POST	/planned/6/restore	{}	200	leak=False	Vchanged=['planned_transactions']	xref=[]  <== REVIEW
+fk	POST	/planned	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/planned	{'category_id': '9', 'account_id': '3', 'dest_account_id': '4'}	422	leak=False	Vchanged=[]	xref=[]
+fk	GET	/planned/5/promote	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/planned/5/promote/inline	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/planned/5/promote	{}	200	leak=False	Vchanged=['transactions', 'planned_transactions']	xref=[]  <== REVIEW
+fk	POST	/planned/batch/undo	{}	204	leak=False	Vchanged=['transactions']	xref=[]  <== REVIEW
+fk	GET	/recurring/3/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/recurring	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/recurring/3	{'category_id': '7', 'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	POST	/recurring/3/deactivate	{}	200	leak=False	Vchanged=['recurring_rules']	xref=[]  <== REVIEW
+fk	POST	/recurring/3/skip-next	{}	200	leak=False	Vchanged=['recurring_rules']	xref=[]  <== REVIEW
+fk	GET	/recurring/3/overrides/new	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/recurring/3/overrides	{}	200	leak=False	Vchanged=['recurring_rule_overrides']	xref=[]  <== REVIEW
+fk	POST	/recurring/3/overrides/2026-12-05/delete	{}	200	leak=False	Vchanged=['recurring_rule_overrides']	xref=[]  <== REVIEW
+fk	GET	/recurring/3/promote	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/recurring/3/promote/inline	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/recurring/3/promote	{}	200	leak=False	Vchanged=['transactions', 'recurring_rules']	xref=[]  <== REVIEW
+fk	POST	/recurring/batch/undo	{}	204	leak=False	Vchanged=['transactions']	xref=[]  <== REVIEW
+fk	POST	/recurring/formula/preview	{'account_id': '3'}	422	leak=False	Vchanged=[]	xref=[]
+fk	GET	/budget/rules/11/overrides/new	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/budget/rules/11/overrides	{'tier': 'default'}	200	leak=False	Vchanged=['budget_defaults']	xref=[]  <== REVIEW
+fk	POST	/budget/defaults/11	{}	200	leak=False	Vchanged=['budget_defaults']	xref=[]  <== REVIEW
+fk	POST	/budget/recurring/11/5	{}	200	leak=False	Vchanged=['budget_recurring_overrides']	xref=[]  <== REVIEW
+fk	POST	/budget/one-off/11/2026/5	{}	200	leak=False	Vchanged=['budget_one_off_overrides']	xref=[]  <== REVIEW
+fk	POST	/budget/preferences/income-anchor	{'category_id': ''}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	POST	/auth/passkeys/3/revoke	{}	303	leak=False	Vchanged=['webauthn_credentials']	xref=[]  <== REVIEW
+fk	POST	/auth/sessions/0f8a8d287e7b302e/revoke	{}	303	leak=False	Vchanged=['sessions_alive']	xref=[]  <== REVIEW
+fk	GET	/settings/users/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+fk	POST	/settings/users/3	{'name': 'evil'}	404	leak=False	Vchanged=[]	xref=[]
+fk	POST	/settings/users/3/reset-password	{}	404	leak=False	Vchanged=[]	xref=[]
+fk	POST	/settings/users/3/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+fk	GET	/ledger?q=zzqq	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/ledger/table?view=actual&account_id=3&category_id=7	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/transactions/export?account_id=3	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/planned/export?account_id=3	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/transactions/_limit_preview?account_id=3&amount=1&operation_date=2026-11-12	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/forecast/view?account_id=3	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/today/afford?account_id=3&amount=10	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+fk	GET	/accounts/last-checked?account_id=3	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/transactions/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/transactions/3	{'category_id': '3', 'account_id': '1'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/transactions/3	{'category_id': '5', 'account_id': '1', 'dest_account_id': '2'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/transactions/3/delete	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/transactions/4/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/transactions	{'category_id': '3', 'account_id': '1'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/transactions	{'category_id': '5', 'account_id': '1', 'dest_account_id': '2'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/accounts/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/accounts/3	{'name': 'renamed'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/accounts/3/delete	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/accounts/3/snapshot	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/accounts/3/reconcile	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/accounts/3/reconcile	{'category_id': '6'}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/categories/7/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/categories/7	{'name': 'renamed'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/categories/7/archive	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/categories/7/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/categories/7/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/planned/3/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned/3	{'category_id': '3', 'account_id': '1'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned/3/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned/4/restore	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned	{'category_id': '3', 'account_id': '1'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/planned	{'category_id': '5', 'account_id': '1', 'dest_account_id': '2'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/planned/3/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/planned/3/promote/inline	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned/3/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/planned/batch/undo	{}	204	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/recurring/2/edit	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring	{'category_id': '3', 'account_id': '1'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/recurring/2	{'category_id': '3', 'account_id': '1'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/2/deactivate	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/2/skip-next	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/recurring/2/overrides/new	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/2/overrides	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/2/overrides/2026-12-05/delete	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/recurring/2/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/recurring/2/promote/inline	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/2/promote	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/recurring/batch/undo	{}	204	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/recurring/formula/preview	{'account_id': '1'}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/budget/rules/7/overrides/new	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/budget/rules/7/overrides	{'tier': 'default'}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/budget/defaults/7	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/budget/recurring/7/5	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/budget/one-off/7/2026/5	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/budget/preferences/income-anchor	{'category_id': ''}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/auth/passkeys/2/revoke	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	POST	/auth/sessions/36f1be44b9c3360d/revoke	{}	404	leak=False	Vchanged=[]	xref=[]
+admin	GET	/settings/users/2/edit	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	POST	/settings/users/2	{'name': 'evil'}	303	leak=False	Vchanged=['users']	xref=[]  <== REVIEW
+admin	POST	/settings/users/2/reset-password	{}	200	leak=False	Vchanged=['users', 'sessions_alive']	xref=[]  <== REVIEW
+admin	POST	/settings/users/2/delete	{}	303	leak=False	Vchanged=['users', 'sessions_alive']	xref=[]  <== REVIEW
+admin	GET	/ledger?q=zzqq	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/ledger/table?view=actual&account_id=1&category_id=3	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/transactions/export?account_id=1	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/planned/export?account_id=1	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/transactions/_limit_preview?account_id=1&amount=1&operation_date=2026-11-12	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/forecast/view?account_id=1	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/today/afford?account_id=1&amount=10	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+admin	GET	/accounts/last-checked?account_id=1	{}	200	leak=False	Vchanged=[]	xref=[]  <== REVIEW
+workdir /var/folders/bk/4vvl8lwn04s3xkcwnsp7l17r0000gn/T/auditD-7qedrajw

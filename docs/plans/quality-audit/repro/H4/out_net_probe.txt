@@ -1,0 +1,17 @@
+### tailnet-IP tcp ports
+open 100.116.84.107:22
+open 100.116.84.107:443
+open 100.116.84.107:47390
+### public IP (not via tailnet) tcp
+closed/filtered 151.115.86.61:22
+closed/filtered 151.115.86.61:80
+closed/filtered 151.115.86.61:443
+closed/filtered 151.115.86.61:2019
+closed/filtered 151.115.86.61:8000
+### route used to public IP
+    gateway: 192.168.0.1
+  interface: en0
+### public https handshake (SNI = drill name)
+http=000
+### forged nonce check
+nonce-427de422-7788-4dfe-9226-910413db9cc4

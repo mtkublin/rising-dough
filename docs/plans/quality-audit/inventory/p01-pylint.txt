@@ -1,0 +1,21 @@
+# P1 pylint duplicate-code blocks (baseline/pylint-duplicate.txt; src identical to AUDIT_SHA).
+# rows: 19
+src/budget_planner/db/migrate.py:177	pylint-R0801	P18 budget_planner.db.migrate:177-184 <> budget_planner.repositories.recurring:106-113
+src/budget_planner/domain/planned.py:15	pylint-R0801	P15 budget_planner.domain.planned:15-23 <> budget_planner.domain.transactions:25-33
+src/budget_planner/domain/planned.py:49	pylint-R0801	P09 budget_planner.domain.planned:49-63 <> budget_planner.domain.transactions:60-74
+src/budget_planner/repositories/accounts.py:176	pylint-R0801	P07 budget_planner.repositories.accounts:176-188 <> budget_planner.repositories.categories:173-185
+src/budget_planner/repositories/accounts.py:176	pylint-R0801	P12 budget_planner.repositories.accounts:176-186 <> budget_planner.repositories.transactions:292-302
+src/budget_planner/repositories/planned.py:32	pylint-R0801	P13 budget_planner.repositories.planned:32-40 <> budget_planner.repositories.transactions:33-41
+src/budget_planner/repositories/planned.py:145	pylint-R0801	P14 budget_planner.repositories.planned:145-153 <> budget_planner.repositories.transactions:163-171
+src/budget_planner/repositories/planned.py:191	pylint-R0801	P04 budget_planner.repositories.planned:191-204 <> budget_planner.repositories.transactions:204-217
+src/budget_planner/repositories/planned.py:309	pylint-R0801	P08 budget_planner.repositories.planned:309-321 <> budget_planner.repositories.transactions:293-305
+src/budget_planner/repositories/recurring.py:214	pylint-R0801	P11 budget_planner.repositories.recurring:214-226 <> budget_planner.repositories.transactions:143-157
+src/budget_planner/services/auth.py:162	pylint-R0801	P10 budget_planner.services.auth:162-183 <> budget_planner.services.rate_limit:131-149
+src/budget_planner/services/auth.py:437	pylint-R0801	P05 budget_planner.services.auth:437-450 <> budget_planner.services.reauth:121-132
+src/budget_planner/services/password_change.py:106	pylint-R0801	P19 budget_planner.services.password_change:106-113 <> budget_planner.services.reauth:54-61
+src/budget_planner/web/middleware/auth.py:119	pylint-R0801	P17 budget_planner.web.middleware.auth:119-133 <> budget_planner.web.middleware.must_change_password:59-73
+src/budget_planner/web/routers/ledger.py:44	pylint-R0801	P02 budget_planner.web.routers.ledger:44-66 <> budget_planner.web.routers.transactions:55-77
+src/budget_planner/web/routers/ledger.py:79	pylint-R0801	P01 budget_planner.web.routers.ledger:79-110 <> budget_planner.web.routers.transactions:86-121
+src/budget_planner/web/routers/planned.py:230	pylint-R0801	P06 budget_planner.web.routers.planned:230-240 <> budget_planner.web.routers.transactions:249-259
+src/budget_planner/web/routers/planned.py:352	pylint-R0801	P16 budget_planner.web.routers.planned:352-361 <> budget_planner.web.routers.transactions:382-390
+src/budget_planner/web/routers/recurring.py:40	pylint-R0801	P03 budget_planner.web.routers.recurring:40-65 <> budget_planner.web.routers.transactions:55-74

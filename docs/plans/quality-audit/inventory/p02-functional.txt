@@ -1,0 +1,57 @@
+# P2 functional-first (ADR-0021). Script: repro/inventory/p02_functional.py
+# Rules: class-plain, class-framework, dataclass-not-frozen, class-nested, mutable-constant, module-state,
+# module-singleton, global-stmt, mutable-default, hidden-cache.
+# rows: 53
+src/budget_planner/config.py:228	hidden-cache	@lru_cache get_settings
+src/budget_planner/db/migrate.py:260	mutable-constant	_POST_APPLY_HOOKS = {6: _backfill_recurring_next_due, 10: _upgrade_...
+src/budget_planner/domain/money.py:14	mutable-constant	_CURRENCY_DECIMALS = {'JPY': 0, 'KRW': 0, 'HUF': 2, 'PLN': 2, 'EUR':...
+src/budget_planner/logging.py:63	class-plain	_StripQueryFilter(Filter) [root]
+src/budget_planner/logging.py:103	global-stmt	global _CONFIGURED
+src/budget_planner/repositories/_shared.py:30	module-singleton	_EMPTY_REQUEST_CTX = RequestCtx.empty()
+src/budget_planner/repositories/_shared.py:98	mutable-constant	_TX_DEPTH = {}
+src/budget_planner/repositories/users.py:46	module-singleton	_EMPTY_REQUEST_CTX = RequestCtx.empty()
+src/budget_planner/repositories/webauthn.py:34	module-singleton	_EMPTY_CTX = RequestCtx.empty()
+src/budget_planner/services/_passwords.py:70	hidden-cache	@lru_cache _dummy_hash_for
+src/budget_planner/services/audit.py:36	module-singleton	_EMPTY_REQUEST_CTX = RequestCtx.empty()
+src/budget_planner/services/audit.py:46	mutable-constant	_SHAPE_RULES = {'create': (False, True), 'update': (True, True...
+src/budget_planner/services/export.py:82	mutable-constant	_DTYPES = {'int': pd.Int64Dtype(), 'money_minor': pd.Int6...
+src/budget_planner/services/rate_limit.py:67	module-singleton	ALLOWED = RateDecision(allowed=True)
+src/budget_planner/services/recurring.py:39	mutable-constant	_STEP_MONTHS = {Cadence.MONTHLY: 1, Cadence.QUARTERLY: 3, Cade...
+src/budget_planner/services/users.py:293	module-singleton	_EMPTY_REQUEST_CTX = RequestCtx.empty()
+src/budget_planner/web/app.py:86	global-stmt	global _SIGTERM_INSTALLED
+src/budget_planner/web/app.py:250	module-singleton	app = create_app()
+src/budget_planner/web/middleware/admin.py:40	class-framework	AdminRequiredMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/middleware/auth.py:67	mutable-constant	_UNAUTHORIZED_BODY = {'error': 'unauthorized'}
+src/budget_planner/web/middleware/auth.py:68	module-singleton	_log = get_logger('budget_planner.auth')
+src/budget_planner/web/middleware/auth.py:145	class-framework	AuthRequiredMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/middleware/cache_control.py:28	class-plain	CacheControlMiddleware() [web.middleware]
+src/budget_planner/web/middleware/csrf.py:152	class-framework	CSRFMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/middleware/must_change_password.py:37	mutable-constant	_BODY = {'error': ERROR_CODE, 'location': PASSWORD_PATH}
+src/budget_planner/web/middleware/must_change_password.py:83	class-framework	MustChangePasswordMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/middleware/request_id.py:26	class-framework	RequestIdMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/middleware/security_headers.py:61	class-framework	SecurityHeadersMiddleware(BaseHTTPMiddleware) [web.middleware]
+src/budget_planner/web/routers/accounts.py:40	module-singleton	router = APIRouter(prefix='/accounts', tags=['accounts'])
+src/budget_planner/web/routers/analytics.py:19	module-singleton	router = APIRouter(prefix='/analytics', tags=['analytics'])
+src/budget_planner/web/routers/auth.py:69	module-singleton	router = APIRouter(prefix='/auth', tags=['auth'])
+src/budget_planner/web/routers/budget.py:46	module-singleton	router = APIRouter(prefix='/budget', tags=['budget'])
+src/budget_planner/web/routers/categories.py:19	module-singleton	router = APIRouter(prefix='/categories', tags=['categories'])
+src/budget_planner/web/routers/debug.py:20	module-singleton	router = APIRouter(prefix='/debug', tags=['debug'], include_in_sch...
+src/budget_planner/web/routers/dev_components.py:17	module-singleton	router = APIRouter(tags=['dev'])
+src/budget_planner/web/routers/forecast.py:26	module-singleton	router = APIRouter(prefix='/forecast', tags=['forecast'])
+src/budget_planner/web/routers/health.py:29	module-singleton	router = APIRouter(tags=['health'])
+src/budget_planner/web/routers/ledger.py:38	module-singleton	router = APIRouter(prefix='/ledger', tags=['ledger'])
+src/budget_planner/web/routers/plan.py:28	module-singleton	router = APIRouter(tags=['plan'])
+src/budget_planner/web/routers/planned.py:30	module-singleton	router = APIRouter(prefix='/planned', tags=['planned'])
+src/budget_planner/web/routers/recurring.py:37	module-singleton	router = APIRouter(prefix='/recurring', tags=['recurring'])
+src/budget_planner/web/routers/recurring.py:78	mutable-constant	_EMPTY_TERM_INPUT = {'sign': '+', 'coefficient_percent': '', 'sourc...
+src/budget_planner/web/routers/settings.py:34	module-singleton	_VALID_TABS = get_args(TabKind)
+src/budget_planner/web/routers/settings.py:38	module-singleton	router = APIRouter(prefix='/settings', tags=['settings'])
+src/budget_planner/web/routers/settings_password.py:35	module-singleton	router = APIRouter(prefix='/settings', tags=['settings'])
+src/budget_planner/web/routers/settings_security.py:31	module-singleton	router = APIRouter(prefix='/settings', tags=['settings'])
+src/budget_planner/web/routers/settings_users.py:50	module-singleton	router = APIRouter(prefix=LIST_PATH, tags=['settings-users'])
+src/budget_planner/web/routers/today.py:32	module-singleton	router = APIRouter(tags=['today'])
+src/budget_planner/web/routers/transactions.py:52	module-singleton	router = APIRouter(prefix='/transactions', tags=['transactions'])
+src/budget_planner/web/templating.py:98	mutable-constant	_DIRECTION_COLORS = {Direction.INCOME.value: 'pill-income', Directi...
+src/budget_planner/web/templating.py:108	mutable-constant	_DIRECTION_CSS_VARS = {Direction.INCOME.value: 'var(--income)', Direc...
+src/budget_planner/web/today_data.py:29	mutable-constant	_PACE_LABELS = {'on_track': 'on track', 'pacing_high': 'pacing...
+src/budget_planner/web/today_data.py:35	mutable-constant	_WINDOWS = {'7': 7, '30': 30, 'all': None}

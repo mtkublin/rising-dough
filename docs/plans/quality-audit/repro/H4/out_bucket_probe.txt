@@ -1,0 +1,4 @@
+ListBuckets status 200
+buckets visible: ['budget-planner-drill-pl-waw', 'budget-planner-tfstate-drill-pl-waw']
+  LIST budget-planner-drill-pl-waw: status=200 keys_in_page=1
+  LIST budget-planner-tfstate-drill-pl-waw: status=403 keys_in_page=-

@@ -78,3 +78,7 @@ node_modules/
 
 # Claude Code worktrees (ephemeral per-agent working copies)
 .claude/worktrees/
+
+# mutmut (ADR-0131)
+mutants/
+.mutmut-cache/

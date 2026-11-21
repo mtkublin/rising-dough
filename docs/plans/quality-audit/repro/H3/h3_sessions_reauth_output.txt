@@ -1,0 +1,56 @@
+== S1 fixation: pre-planted session cookie value before login
+login -> 303 | cookie after login equals planted value: False
+planted value usable by attacker: GET /today -> 302
+
+== S2 replay of a copied session token
+thief before logout: /today -> 200
+thief after victim logout -> 302
+password change -> 303 | stolen token after change -> 302 | victim rotated cookie works -> 200
+reauth -> 303 | pre-rotation token still valid -> 302
+
+== S3 re-auth window and HTMX / JSON shapes
+fresh login, guarded route -> 404 (404 = passed guard, no such passkey)
+t+11min plain POST -> 303 /auth/reauth?next=%2Fsettings%2Fsecurity
+t+11min HX-Request -> 403 /auth/reauth?next=%2Fsettings%2Fsecurity
+t+11min register/begin JSON -> 403 {"error":"reauth_required","redirect":"/auth/reauth?next=%2Fsettings%2Fsecurity"}
+  stale POST /auth/register/finish -> 303
+  stale POST /settings/users -> 404
+  stale POST /settings/users/2 -> 404
+  stale POST /settings/users/2/reset-password -> 404
+  stale POST /settings/users/2/delete -> 404
+stale stolen session -> guarded route -> 303 /auth/reauth?next=%2Fsettings%2Fsecurity
+stale stolen session -> reauth with wrong password -> 401
+reauth next=//evil.example/x -> 303 /today
+
+== S4 must_change_password gate: which state-changing routes answer?
+flagged login -> 303
+  POST /auth/reauth                               -> 302 /settings/password?next=%2Fauth%2Freauth
+  POST /auth/reauth/begin                         -> 302 /settings/password?next=%2Fauth%2Freauth%2Fbegin
+  POST /auth/reauth/finish                        -> 302 /settings/password?next=%2Fauth%2Freauth%2Ffinish
+  POST /auth/register/begin                       -> 302 /settings/password?next=%2Fauth%2Fregister%2Fbegin
+  POST /auth/register/finish                      -> 302 /settings/password?next=%2Fauth%2Fregister%2Ffinish
+  POST /auth/passkeys/1/revoke                    -> 302 /settings/password?next=%2Fauth%2Fpasskeys%2F1%2Frevoke
+  POST /auth/sessions/aaaaaaaaaaaaaaaa/revoke     -> 302 /settings/password?next=%2Fauth%2Fsessions%2Faaaaaaaaaaaaaaaa%2Frevoke
+  POST /transactions                              -> 302 /settings/password?next=%2Ftransactions
+  POST /accounts                                  -> 302 /settings/password?next=%2Faccounts
+  POST /settings/password                         -> 422
+  GET  /today                                     -> 302 /settings/password
+  GET  /auth/reauth                               -> 302 /settings/password?next=%2Fauth%2Freauth
+  GET  /auth/sessions                             -> 302 /settings/password?next=%2Fauth%2Fsessions
+  GET  /auth/register                             -> 302 /settings/password?next=%2Fauth%2Fregister
+  POST /auth/login/begin                          -> 302 /settings/password
+  POST /auth/logout                               -> 303 /auth/login
+  GET /settings/password/                        -> 302 /auth/login?next=%2Fsettings%2Fpassword%2F
+  GET //settings/password                        -> 302 /auth/login?next=%2Fpassword
+  GET /Settings/password                         -> 302 /auth/login?next=%2FSettings%2Fpassword
+  GET /settings/password/../../transactions      -> 302 /auth/login?next=%2Ftransactions
+  GET /static/../transactions                    -> 302 /auth/login?next=%2Ftransactions
+
+== S5 demotion / soft-delete of the user invalidates live sessions immediately
+admin GET /settings/users -> 200
+after demotion GET /settings/users -> 404
+deleted user login -> 401 (401 = generic failure)
+
+== S6 absolute lifetime cap holds across re-auth rotation
+session older than absolute cap but expires_at in future -> GET /today 200 (200 = cap enforced only via touch clamp, see note)
+expires_at after touch: [('2020-01-31T00:00:00.000000Z',)]

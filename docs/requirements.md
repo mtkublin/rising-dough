@@ -106,10 +106,11 @@ Planned transactions and recurring rules are two independent concepts with two i
 - Python 3.12.
 - SQLite (OLTP). DuckDB attach deferred to a later iteration if analytics queries become slow.
 - FastAPI + HTMX + Jinja2 (templates) + Tailwind CSS (compiled via local Tailwind CLI, output to `static/tailwind.css`; see [ADR-0027](adr/0027-frontend-toolchain-hardening.md)).
-- Plotly for charts.
+- Charts are Jinja-rendered server-side SVG with data-table fallbacks (no Plotly, no CDN; §5.1, [ADR-0123](adr/0123-frontend-stays-server-rendered-no-spa-framework.md)).
 - `uv` for Python dependency and virtual-environment management.
 - `npm` for the small dev-only Node toolchain (`tailwindcss`, `stylelint`, `pixelmatch`, Playwright). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 - `just` as the task runner.
+- Architecture and test-quality tooling: `import-linter` (layer contracts) and Mutmut (mutation testing, `domain` + `services`; [ADR-0131](adr/0131-mutation-testing-policy.md)), both pinned dev dependencies. Architecture guards live in `tests/architecture/` ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md)).
 
 ### 3.2 Testing
 
@@ -120,17 +121,30 @@ Planned transactions and recurring rules are two independent concepts with two i
 
 ### 3.3 Code Style
 
-- Functional-first: pure functions, immutable data (dataclasses `frozen=True`), no OO beyond dataclasses / Pydantic DTOs / Protocols.
-- DRY: shared repository/service layer across views; one place for query helpers.
+The principles below are **enforceable rules**, not guidance. Each has an automated guard where feasible, and the guard fails the build on a violation ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md)).
+
+**Zero-violation policy.** The codebase complies with every rule in this section. Guards start in allowlist (ratchet) mode: each allowlist is the complete inventory of current violations (`docs/plans/quality-audit/compliance-inventory.md`), fails on both new violations and on stale entries, and **must reach zero**. No new allowlist entry, and no new suppression (`noqa`, `type: ignore`, `nosec`, `pragma: no cover`), without a reason and an ADR amendment.
+
+- **Functional-first.** Pure functions, immutable data (dataclasses `frozen=True`), no OO beyond dataclasses / Pydantic DTOs / Protocols ([ADR-0021](adr/0021-functional-style-no-oop.md)).
+- **No side effects in pure layers.** `domain/` and the pure-function modules of `services/` do no I/O, read no clock, environment or randomness, touch no global mutable state and mutate no argument. Effects live at the edges: repositories (database), `clock` (time), adapters (network, filesystem), routers (HTTP). Services receive the clock and settings as inputs.
+- **DRY through canonical modules.** One module owns each concept (FX conversion, money format/parse/rounding, periods and month windows, recurring expansion, direction to sign, net worth, clock). The registry is `tests/architecture/canonical_modules.toml`, mirrored in `CLAUDE.md`. Before writing a helper, search the registry and the tree; reuse or extend the canonical function, never add a copy. Guards ban copies and primitives (`/ 100`, `* 100`, `round(` on money) outside the canonical module.
+- **Thin web, fat services, repository-only SQL.** Routers call services; services call repositories; SQL appears only in `repositories/` (and `db/migrate.py`). Layers are enforced by `import-linter` contracts. Compound mutations run in one transaction. No literal user id; every query is user-scoped.
+- **Single clock.** "Now" and "today" come only from `budget_planner.clock` (`utc_now`, `today_local`); `date.today()`, `datetime.now()`, `datetime.utcnow()` and `time.time()` are banned elsewhere (ruff TID251) ([ADR-0007](adr/0007-timezone-handling.md)).
+- **Money rules.** Amounts are positive integer minor units; format and parse only through `money` / `domain.money`; one rounding helper; one direction-to-sign function; FX conversion only through the canonical converter ([ADR-0006](adr/0006-multi-currency-model.md), [ADR-0008](adr/0008-transaction-amount-sign-and-direction.md)).
+- **No logic in templates.** No arithmetic, `float` or hard-coded currency or period literals in Jinja; the view model derives display values.
+- **Suppressions carry reasons**; per-code ceilings ratchet down.
 - Type-checked with `mypy --strict`.
 - Formatted and linted with `ruff` (replaces `black` + `isort` + `flake8`; `black`-compatible output).
 - SQL formatted/linted with `sqlfluff`.
 - Jinja templates linted with `djlint`.
 - Hand-authored CSS (`static/*.css`, excluding generated `tailwind.css`) linted with `stylelint`. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- Imports are layered and checked with `import-linter` (pre-commit and `just lint`).
+- CI runs every check pre-commit runs: `pre-commit run --all-files` with `SKIP=pytest-fast` (CI runs the full pytest suite with coverage itself). Parity is CI-side only: local pre-commit speed must not regress (ADR-0108, ADR-0120), new local hooks are fast and measured, otherwise they run in CI only. A small guard checks `ci.yml` keeps doing so and that hook tool versions match `uv.lock` ([ADR-0130](adr/0130-prevention-regime-and-full-architectural-compliance.md), amends ADR-0120).
+- Mutation score (`just mutate`, weekly job) tracks test strength on `domain` and `services`; it is not a merge gate ([ADR-0131](adr/0131-mutation-testing-policy.md)).
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
+Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), `architecture-guards` (only if the always-on experiment shows a selection gap, ADR-0130; `lint-imports` and `architecture-guards` must be fast: T-Q15 measures local `pre-commit run` wall time before and after on a docs-only and a src-only change, and a guard with a meaningful regression runs in CI only), `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 
@@ -144,6 +158,8 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `pytest` (fast subset, testmon-selected, x
 - `just format` — autofix formatting.
 - `just typecheck` — mypy strict.
 - `just ci` — run everything CI runs.
+- `just guards` — architecture guards (`tests/architecture`); `just lint-imports` — layering contracts (ADR-0130).
+- `just mutate` / `just mutate-report` / `just mutate-clean` — Mutmut run, filtered survivor report, cleanup (ADR-0131).
 - `just db-reset` — recreate the dev database.
 - `just seed` — seed default categories, demo accounts.
 
@@ -168,7 +184,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 
 ### 3.9 UI / Interaction Model
 
-- **Information architecture.** Four top-level nav items in a left rail: **Overview**, **Ledger**, **Accounts**, **Budget**. One Settings affordance at the bottom opens a slide-over drawer; Settings is not a top-level tab. Legacy routes (`/transactions`, `/planned`, `/recurring`, `/categories`, `/analytics`) continue to resolve via 302 redirects for one release before Phase 7 cleanup. See [ADR-0023](adr/0023-ux-redesign-information-architecture.md).
+- **Information architecture.** Superseded for navigation by §5.1 (top-level nav **Today · Ledger · Plan · Accounts**); the v1 rail was **Overview**, **Ledger**, **Accounts**, **Budget**. One Settings affordance at the bottom opens a slide-over drawer; Settings is not a top-level tab. Legacy routes (`/transactions`, `/planned`, `/recurring`, `/categories`, `/analytics`) continue to resolve via 302 redirects for one release before Phase 7 cleanup. See [ADR-0023](adr/0023-ux-redesign-information-architecture.md).
 - **No home/overview page (ADR-0077).** `GET /` answers `303` to `/today`; the post-login landing page is Today. The former Overview panels (accounts, month budget, Upcoming) live on Today (`/today`; Upcoming fragment at `/today/upcoming`).
 - **Ledger `/ledger`.** One shell renders Actual | Planned | Recurring behind a segmented control; filter and column shape are shared. The fragment route `/ledger/table?view=…` dispatches to existing repository queries. Keyboard `[` and `]` cycle the segmented control. **Planned** lists only persisted one-off `planned_transactions`; no virtual recurring rows (ADR-0038). **Recurring** lists all live `recurring_rules` with columns `cadence | next_due | account | category | amount | active | actions`. The actions column exposes **Promote**, **Override next…**, **Skip next**, **Edit**, **Delete**: Promote posts to `POST /recurring/{id}/promote` (opens a confirm modal pre-filled from `rule.default_amount`/`description` with any override on `next_due` layered on top); Override-next opens the existing `POST /recurring/{id}/overrides` slide-over pre-filled with `occurrence_date = rule.next_due`; Skip-next posts to `POST /recurring/{id}/skip-next`; Edit opens the rule edit slide-over; Delete posts to the existing `POST /recurring/{id}/deactivate` (soft delete via `active=0`).
 - **Settings drawer.** `/settings?tab=categories|fx|prefs` returns the drawer HTML; drawer is injected into a persistent `#drawer-root`. Opens via gear icon or `g s`. The Preferences tab (`?tab=prefs`) owns the income-anchor selector (F4.7, [ADR-0031](adr/0031-budget-page-composition-v2.md)) and is the home for all future per-user preferences ([ADR-0025](adr/0025-user-preferences-and-income-anchor.md)).
@@ -177,7 +193,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - **Keyboard shortcuts.** `g o / g l / g a / g b / g s` navigate. `n` opens the context-aware Quick-add form. `/` focuses the active page's search/filter. `[` / `]` cycle Ledger segmented control. `?` opens the cheatsheet. `⎋` closes the topmost overlay. All guards against capturing keys inside `<input>` / `<textarea>` / `[contenteditable]`.
 - **Quick-add FAB.** Fixed bottom-right. Click or `n`. Form shape is derived from the active Ledger tab (or defaults to actual transaction on Overview / Accounts).
 - **Design direction.** Editorial / Swiss, per [ADR-0023](adr/0023-ux-redesign-information-architecture.md) continuing [T-053](plans/v1/phase-5/T-053-visual-polish.md): oklch palette, hairline elevation, tabular numerals, one display + one text + one mono face, single accent colour. No dark mode, no mobile adaptive nav, no icon system in v1.
-- **Overlay stack.** Only one overlay (drawer, modal, palette) responds to Esc at a time; stack managed by `static/js/overlay-stack.js`.
+- **Overlay stack.** Only one overlay (drawer, modal, palette) responds to Esc at a time; stack managed in `static/js/overlay-actions.js`.
 
 ---
 

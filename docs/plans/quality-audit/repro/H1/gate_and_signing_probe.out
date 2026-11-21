@@ -1,0 +1,29 @@
+== 1. drill-gate-skip: verdict inputs
+file list source : ['repos/${REPO}/pulls/${PR}/files']
+status target    : ['${{ github.event.pull_request.head.sha }}']
+compares head sha with live PR head?: False
+
+== 2. cosign identity
+identity_regexp: ^https://github\.com/mtkublin/rising-dough/\.github/workflows/build\.yml@
+  SAN ...build.yml@refs/heads/main                    accepted=True
+  SAN ...build.yml@refs/tags/v3.0.5                   accepted=True
+  SAN ...build.yml@refs/heads/attacker/evil-branch    accepted=True
+
+== 3. ruleset required checks
+   required_approving_review_count = 0 code_owner_review = False
+   {'context': 'drill-gate'} -> pinned to an app: False
+   {'context': 'just ci (Python 3.12, ubuntu-latest)'} -> pinned to an app: False
+   {'context': 'uv lock --check'} -> pinned to an app: False
+   {'context': 'pip-audit (uv.lock)'} -> pinned to an app: False
+   {'context': 'trivy fs (repo)'} -> pinned to an app: False
+   {'context': 'trivy image (rising-dough:scan)'} -> pinned to an app: False
+   bypass_actors = [] | CODEOWNERS present: False
+
+== 4. release.yml -> ci.yml permissions
+release top-level permissions: {'contents': 'read', 'packages': 'write', 'id-token': 'write', 'pull-requests': 'write'}
+ci.yml permissions block (workflow/job): None None
+release job `ci` permissions override  : None
+
+== 5. rollback target validation
+ref_guard rollback-target checks ancestry of main?: False
+build.yml tags pushed for ANY ref (drill gate builds): type=raw,value=sha-${{ steps.sha.outputs.short }}

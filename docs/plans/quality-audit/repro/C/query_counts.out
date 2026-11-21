@@ -1,0 +1,71 @@
+route                                         status queries     ms max-repeat
+/                                                303       4   1161          1
+/accounts                                        200    2963  11950        950
+    repeated x950: SELECT id, user_id, name, type, currency, opening_balance, is_liability, credit_limit_minor, created_at, updated_at, deleted_at FROM accounts WHERE id = ? AND u
+/accounts/last-checked                           200       8    149          1
+/accounts/new                                    200       4    349          1
+/accounts/1/edit                                 200       5     26          1
+/accounts/1/reconcile                            200      11    334          2
+/add                                             200       6    195          1
+/afford                                          200     114    718         33
+    repeated x33: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/analytics                                       302       4     22          1
+/auth/login                                      303       4    135          1
+/auth/reauth                                     200       5    153          1
+/auth/register                                   303       4     42          1
+/auth/sessions                                   303       4     28          1
+/budget                                          200     120   1109         33
+    repeated x33: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/budget-legacy                                   302       4     79          1
+/budget/manage                                   302       4     18          1
+/budget/rules/1/overrides/new                    200       6    218          1
+/budget/yearly                                   200       8    122          1
+/categories                                      302       4     41          1
+/categories/new                                  200       4    167          1
+/categories/1/edit                               200       5     54          1
+/debug/audit-tail                                404       4     38          1
+/dev/components                                  200       4    860          1
+/forecast                                        200    2774   7065        493
+    repeated x493: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/forecast/view                                   200    2774   3258        493
+    repeated x493: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/health                                          200       4     49          1
+/health/replication                              200       4     14          1
+/ledger                                          200      13   1981          2
+/ledger/recently-deleted                         200       9    166          1
+/ledger/table                                    200       8     86          2
+/plan                                            200     114    980         33
+    repeated x33: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/plan/analytics                                  200      12    432          4
+/planned                                         302       4     20          1
+/planned/export                                  200       5     25          1
+/planned/new                                     200       6    313          1
+/planned/table                                   200       8    106          2
+/planned/1/edit                                  200       7    284          1
+/planned/1/promote                               200       6    210          1
+/planned/1/promote/inline                        200       7     91          1
+/ready                                           200       4    107          1
+/recurring                                       302       4     27          1
+/recurring/new                                   200       7    293          2
+/recurring/1/edit                                200       8     64          2
+/recurring/1/overrides/new                       200       6    411          1
+/recurring/1/promote                             200       7    201          1
+/recurring/1/promote/inline                      200       8    108          1
+/settings                                        200       6    179          1
+/settings/close                                  200       4     32          1
+/settings/password                               303       4     29          1
+/settings/security                               200       6    488          1
+/settings/users                                  404       4     60          1
+/settings/users/1/edit                           404       4    151          1
+/today                                           200     228   1968         71
+    repeated x71: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/today/afford                                    200     114    695         33
+    repeated x33: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/today/upcoming                                  200      56    206         38
+    repeated x38: SELECT o.id, o.rule_id, o.occurrence_date, o.state, o.amount_override, o.description_override, o.date_override, o.created_at, o.promoted_to_txn_id FROM recurrin
+/transactions                                    302       4    112          1
+/transactions/_limit_preview                     200       4    118          1
+/transactions/export                             200       7    269          1
+/transactions/new                                200       6    458          1
+/transactions/table                              200       8    138          2
+/transactions/1/edit                             200       7     54          1

@@ -1,0 +1,38 @@
+# G30 private_imports: use of another module's private _name symbols (cross-module private import or attribute).
+
+guard = "private_imports"
+
+[[entry]]
+path = "src/budget_planner/db/startup_migrate.py"
+rule = "private-import"
+count = 1
+finding = "T-Q16"
+epic = "E12"
+
+[[entry]]
+path = "src/budget_planner/services/password_change.py"
+rule = "private-import"
+count = 1
+finding = "T-Q16"
+epic = "E15"
+
+[[entry]]
+path = "src/budget_planner/services/users.py"
+rule = "private-import"
+count = 1
+finding = "T-Q16"
+epic = "E15"
+
+[[entry]]
+path = "src/budget_planner/web/routers/settings_password.py"
+rule = "private-import"
+count = 3
+finding = "T-Q16"
+epic = "E03"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "private-import"
+count = 2
+finding = "T-Q16"
+epic = "E03"

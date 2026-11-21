@@ -1,0 +1,2 @@
+id=2**63 OverflowError Python int too large to convert to SQLite INTEGER
+amount 1e17 major->minor OverflowError Python int too large to convert to SQLite INTEGER
