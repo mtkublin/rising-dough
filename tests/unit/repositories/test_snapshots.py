@@ -14,4 +14,4 @@ def test_create_and_list(conn: sqlite3.Connection, account_id: int) -> None:
     )
     assert snap.balance == 1000
     assert snapshots.list_for_account(conn, USER_ID, account_id) == [snap]
-    assert audit.list_entries(conn, "snapshot", snap.id)[0].operation.value == "create"
+    assert audit.list_entries(conn, 1, "snapshot", snap.id)[0].operation.value == "create"

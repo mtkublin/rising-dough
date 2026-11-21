@@ -180,23 +180,26 @@ def require_owned(
     *,
     account_ids: Iterable[int | None] = (),
     category_ids: Iterable[int | None] = (),
+    include_deleted: bool = True,
 ) -> None:
     """Raise :class:`LookupError` unless every referenced FK row belongs to ``user_id``.
 
     Guards writes against cross-user FK linking (T-D16 / ADR-0061 §5): a
     leaked ``account_id`` / ``category_id`` from another user must not be
     attachable to the caller's rows. ``None`` ids are skipped. Soft-deleted
-    parents still count as owned — liveness is the service layer's concern.
+    parents still count as owned by default (``include_deleted=True``);
+    liveness is the service layer's concern (ADR-0019 note, T-Q268).
     """
+    live = "" if include_deleted else " AND deleted_at IS NULL"
     for account_id in {a for a in account_ids if a is not None}:
         row = conn.execute(
-            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?", (account_id, user_id)
+            f"SELECT 1 FROM accounts WHERE id = ? AND user_id = ?{live}", (account_id, user_id)
         ).fetchone()
         if row is None:
             raise LookupError(f"account {account_id} not found")
     for category_id in {c for c in category_ids if c is not None}:
         row = conn.execute(
-            "SELECT 1 FROM categories WHERE id = ? AND user_id = ?", (category_id, user_id)
+            f"SELECT 1 FROM categories WHERE id = ? AND user_id = ?{live}", (category_id, user_id)
         ).fetchone()
         if row is None:
             raise LookupError(f"category {category_id} not found")

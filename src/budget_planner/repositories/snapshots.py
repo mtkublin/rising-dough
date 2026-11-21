@@ -37,7 +37,7 @@ def list_for_account(
     rows = conn.execute(
         f"SELECT {cols} FROM account_snapshots s "
         "JOIN accounts a ON a.id = s.account_id "
-        "WHERE s.account_id = ? AND a.user_id = ? "
+        "WHERE s.account_id = ? AND a.user_id = ? AND a.deleted_at IS NULL "
         "ORDER BY s.taken_at ASC, s.id ASC",
         (account_id, user_id),
     ).fetchall()
@@ -48,7 +48,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
     def _action(c: sqlite3.Connection) -> tuple[int, AccountSnapshot]:
         # Validate FK-ownership first; the account must belong to user_id.
         parent = c.execute(
-            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?",
+            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (data.account_id, user_id),
         ).fetchone()
         if parent is None:
@@ -62,7 +62,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
         row = c.execute(
             f"SELECT {cols} FROM account_snapshots s "
             "JOIN accounts a ON a.id = s.account_id "
-            "WHERE s.id = ? AND a.user_id = ?",
+            "WHERE s.id = ? AND a.user_id = ? AND a.deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_snapshot(row)

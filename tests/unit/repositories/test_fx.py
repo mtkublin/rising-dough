@@ -21,7 +21,7 @@ def test_upsert_and_find(conn: sqlite3.Connection) -> None:
     assert rate.rate == Decimal("4.3123")
     assert fx.find_rate(conn, date(2026, 1, 15), "EUR", "PLN") == rate
     assert fx.find_rate(conn, date(2026, 1, 16), "EUR", "PLN") is None
-    ops = [e.operation.value for e in audit.list_entries(conn, "fx_rate", rate.id)]
+    ops = [e.operation.value for e in audit.list_entries(conn, None, "fx_rate", rate.id)]
     assert ops == ["create"]
 
 
@@ -46,7 +46,7 @@ def test_upsert_updates_existing(conn: sqlite3.Connection) -> None:
     )
     assert updated.id == original.id
     assert updated.rate == Decimal("4.35")
-    ops = [e.operation.value for e in audit.list_entries(conn, "fx_rate", updated.id)]
+    ops = [e.operation.value for e in audit.list_entries(conn, None, "fx_rate", updated.id)]
     assert ops == ["create", "update"]
 
 

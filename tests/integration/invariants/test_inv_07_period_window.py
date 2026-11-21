@@ -53,10 +53,6 @@ def test_an_item_before_the_last_day_is_counted_by_both(no_anchor: sqlite3.Conne
     assert (b1 - b0, n1 - n0) == (5000, -5000)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-003: budget's committed window excludes the last day of the month, account_planned includes it",
-)
 def test_an_item_on_the_last_day_is_counted_by_both(no_anchor: sqlite3.Connection) -> None:
     b0, n0, _ = _snapshot(no_anchor)
     _plan(no_anchor, date(2026, 11, 30))
@@ -64,9 +60,6 @@ def test_an_item_on_the_last_day_is_counted_by_both(no_anchor: sqlite3.Connectio
     assert (b1 - b0, n1 - n0) == (5000, -5000)
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Q-003: the left-per-day divisor omits the last day of the month"
-)
 def test_left_per_day_divisor_counts_today_through_month_end(no_anchor: sqlite3.Connection) -> None:
     _, _, days = _snapshot(no_anchor)
     assert days == (date(2026, 11, 30) - TODAY).days + 1

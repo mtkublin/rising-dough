@@ -95,13 +95,6 @@ finding = "B-01"
 epic = "E09"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "logic-in-router"
-count = 1
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "helper-in-router"
 count = 4
