@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q219: coverage ellipsis exclusion anchored)
+- **Test(T-Q219): the coverage exclusion `"\\.\\.\\."` is now the anchored `"^\\s*\\.\\.\\.$"` (Q-014).** It had hidden every line containing an ellipsis (793 statements). Total coverage on the same run: 95.31 % under the old pattern, 95.18 % under the new one (gate stays 90 %). 38 newly visible missed statements triaged in `docs/plans/quality-audit/baseline/coverage-ellipsis-triage.md`: 25 tested (`tests/integration/web/test_ellipsis_coverage_gaps.py`), 2 dead (T-Q244), 11 owned by T-Q206 and T-Q209. `allowlists/coverage_config.toml` entry deleted; the anchored pattern joins the G5 approved set.
+
 ## 2026-11-21 (T-Q218: CI environments split by data sensitivity, code half)
 - **CI(T-Q218): prod replica read material is scoped to a new gated `prod-restore-read` environment (ADR-0132, Q-012).** `restore-drill.yml` calls `terraform.yml` with `restore_source: true`, whose apply job then runs in `prod-restore-read`; `tf_env.py --restore-source` is the only path that emits the prod read key, and `terraform/main.tf` renders `restore-source.env` only when that key is present, so explore drills carry no restore capability (H4-03). G17a gains `prod_grade`, `main_only` and `only_workflows` declarations and the 9 `workflow_trust` entries (23 violations) are deleted. **Operator half pending:** create the environment, move or replace the secrets, refresh `repro/H1` evidence, rotate (ADR-0132 checklist).
 ## 2026-11-21 (T-Q203: authentication abuse controls)
