@@ -29,6 +29,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import (
     account_planned as planned_service,
+    accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
     reconciliation as reconciliation_service,
