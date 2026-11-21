@@ -9,6 +9,7 @@
 - Services and repositories are **modules of pure functions**, not classes.
 - Data types are frozen `@dataclass(frozen=True)` or Pydantic models (as DTOs).
 - Classes are allowed **only** when they serve as pure data containers (dataclasses) or Protocols for structural typing.
+- Framework-required classes (Pydantic models, Starlette middleware, `Protocol`s) and the `request`/memo parameters of framework callbacks are exempt; module-level constants are immutable (`MappingProxyType`, tuples, frozensets) and per-call state lives in `ContextVar`s or on the connection, never in module-level mutables (T-Q258, T-Q263).
 - No service-locator / dependency-injection framework. Dependencies (DB connection, HTTP client) are passed as function arguments.
 - Build new values; do not mutate inputs. Where SQLite requires imperative statements, those are isolated inside the repository function.
 

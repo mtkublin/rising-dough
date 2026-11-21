@@ -18,12 +18,12 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from budget_planner import clock
 from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.config import Settings, get_settings as _get_settings
-from budget_planner.db.connection import get_connection
 from budget_planner.domain.client_ip import USER_AGENT_MAX_LENGTH, bound_text
 from budget_planner.domain.ports import TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.sessions import session_handle
+from budget_planner.services.connections import get_connection
 from budget_planner.web.auth_cookies import safe_next
 from budget_planner.web.middleware.auth import CurrentUser
 

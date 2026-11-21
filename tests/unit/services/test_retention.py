@@ -197,7 +197,7 @@ def test_background_loop_runs_and_survives_errors(
         if len(calls) == 1:
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(retention_cli, "run", fake_run)
+    monkeypatch.setattr(retention, "run_once", fake_run)
 
     async def scenario() -> None:
         task = asyncio.create_task(retention_task.run_forever(settings, 0.01))

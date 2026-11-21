@@ -478,7 +478,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `adr_index`:1 (1 entry); `guidance_paths`:11 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/adr_index.toml`, `allowlists/guidance_paths.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q258 [P] Small layering and functional-first deviations
+### ✅ T-Q258 [P] Small layering and functional-first deviations
 - Findings: Q-074 (B-13, B-14, B-15, B-16).
 - Epic: E05, E10, E12
 - Band: 2 · Size: S · Tags: `[pre-v4-P3-rec]`

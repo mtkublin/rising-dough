@@ -3,20 +3,6 @@
 
 guard = "sql_sites"
 
-[[entry]]
-path = "src/budget_planner/services/accounts.py"
-rule = "sql-exec:real"
-count = 2
-finding = "Q-074"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/services/accounts.py"
-rule = "sql-literal:real"
-count = 2
-finding = "Q-074"
-epic = "E10"
-
 [[permanent]]
 path = "src/budget_planner/db/connection.py"
 rule = "sql-exec:bootstrap"
