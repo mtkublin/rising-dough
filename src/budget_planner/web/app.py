@@ -10,7 +10,6 @@ exception handlers (see `web.errors`).
 
 from __future__ import annotations
 
-import importlib
 import signal
 import sqlite3
 from contextlib import asynccontextmanager
@@ -36,6 +35,26 @@ from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
 from budget_planner.web.middleware.security_headers import security_headers_middleware
+from budget_planner.web.routers import (
+    accounts,
+    auth,
+    budget,
+    categories,
+    debug,
+    dev_components,
+    forecast,
+    health,
+    ledger,
+    plan,
+    planned,
+    recurring,
+    settings,
+    settings_password,
+    settings_security,
+    settings_users,
+    today,
+    transactions,
+)
 from budget_planner.web.templating import build_jinja_env
 
 if TYPE_CHECKING:
@@ -246,44 +265,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-_ROUTER_NAMES: tuple[str, ...] = (
-    # Health first — it must be registered before any auth middleware so
-    # /health + /ready stay publicly reachable (ADR-0033 §5).
-    "health",
-    # T-D02b — login / logout / passkeys / sessions (ADR-0070).
-    "auth",
-    "transactions",
-    "accounts",
-    "categories",
-    "planned",
-    "recurring",
-    "budget",
-    "forecast",
-    "analytics",
-    "settings",
-    "settings_users",
-    "settings_password",
-    "settings_security",
-    "debug",
-    "ledger",
-    "today",
-    "plan",
-)
-#: Registered only outside production (ADR-0053, OQ-20).
-_DEV_ROUTER_NAMES: tuple[str, ...] = ("dev_components",)
-
-
 def _register_routers(app: FastAPI, *, include_dev: bool) -> None:
-    """Register Phase 3 routers; missing modules (during iterative landing)
-    are tolerated so each task can commit atomically."""
-    for name in (*_ROUTER_NAMES, *(_DEV_ROUTER_NAMES if include_dev else ())):
-        try:
-            mod = importlib.import_module(f"budget_planner.web.routers.{name}")
-        except ImportError:  # pragma: no cover
-            continue
-        router = getattr(mod, "router", None)
-        if router is not None:
-            app.include_router(router)
+    """Include every router explicitly; a router that fails to import fails startup."""
+    # Health first: it must be registered before any auth middleware so
+    # /health + /ready stay publicly reachable (ADR-0033 §5).
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(transactions.router)
+    app.include_router(accounts.router)
+    app.include_router(categories.router)
+    app.include_router(planned.router)
+    app.include_router(recurring.router)
+    app.include_router(budget.router)
+    app.include_router(forecast.router)
+    app.include_router(settings.router)
+    app.include_router(settings_users.router)
+    app.include_router(settings_password.router)
+    app.include_router(settings_security.router)
+    app.include_router(debug.router)
+    app.include_router(ledger.router)
+    app.include_router(today.router)
+    app.include_router(plan.router)
+    if include_dev:  # ADR-0053, OQ-20: dev surfaces never ship in production
+        app.include_router(dev_components.router)
 
 
 app = create_app()

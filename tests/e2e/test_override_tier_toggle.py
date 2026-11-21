@@ -26,7 +26,7 @@ def _seed_budgeted(base_url: str, page: Page) -> str:
     assert page.request.post(
         f"{base_url}/categories", form={"name": "Groceries", "direction": "expense"}
     ).ok
-    page.goto(f"{base_url}/categories")
+    page.goto(f"{base_url}/settings?tab=categories")
     row = page.locator("[id^='category-']", has_text="Groceries").first
     category_id = strip_id_prefix(row.get_attribute("id"), "category-")
     assert page.request.post(

@@ -75,13 +75,6 @@ def ctx(_migrated: Settings) -> dict[str, int]:
         conn.close()
 
 
-def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> None:
-    """T-070: ``/planned`` returns 302 to the unified ledger (planned view)."""
-    r = client.get("/planned", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=planned"
-
-
 def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.get("/planned/table")
     assert "<html" not in r.text

@@ -229,7 +229,7 @@ epic = "E15"
 [[entry]]
 path = "src/budget_planner/web/app.py"
 rule = "silent-except"
-count = 3
+count = 2
 finding = "Q-073"
 epic = "E15"
 

@@ -30,7 +30,6 @@ def test_no_fab_on_any_route(client: TestClient) -> None:
         "/budget",
         "/settings",
         "/forecast",
-        "/analytics",
         "/today",
         "/plan",
     ):

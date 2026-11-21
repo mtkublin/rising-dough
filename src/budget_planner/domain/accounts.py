@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
 
@@ -93,10 +93,3 @@ class AccountStats:
     last_txn_date: str | None
     avg_inflow_minor: int = 0
     avg_outflow_minor: int = 0
-
-    @property
-    def last_activity_date(self) -> date | None:
-        """Parse ``last_txn_date`` into a ``date`` for typed consumers."""
-        if self.last_txn_date is None:
-            return None
-        return date.fromisoformat(self.last_txn_date)

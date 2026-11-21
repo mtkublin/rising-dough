@@ -983,7 +983,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q257 [P] Dead code and silent router import
+### ✅ T-Q257 [P] Dead code and silent router import
 - Findings: Q-072 (G-17, E-08, plus the E-track alias in findings.md Details), Q-073 (C-20, G-14).
 - Epic: none (dead-code)
 - Band: 6 · Size: S · Tags: none

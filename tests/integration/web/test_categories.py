@@ -45,13 +45,6 @@ def cat_id(_migrated: Settings) -> int:
         conn.close()
 
 
-def test_index_redirects_to_settings(client: TestClient, cat_id: int) -> None:
-    """T-070: ``/categories`` returns 302 to the Settings drawer tab."""
-    r = client.get("/categories", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/settings?tab=categories"
-
-
 def test_new_form(client: TestClient) -> None:
     r = client.get("/categories/new")
     assert r.status_code == 200

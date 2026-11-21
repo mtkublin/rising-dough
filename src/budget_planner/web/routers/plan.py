@@ -11,7 +11,7 @@ import sqlite3
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 from budget_planner import clock
 from budget_planner.config import Settings
@@ -75,8 +75,3 @@ def plan(
             bundle, settings.base_currency
         )
     return render(request, "plan/index.html", **ctx)
-
-
-@router.get("/budget-legacy", include_in_schema=False)
-def _redirect_budget() -> RedirectResponse:
-    return RedirectResponse(url="/plan?tab=budget", status_code=302)

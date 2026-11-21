@@ -45,7 +45,7 @@ def _seed_base(base_url: str, page: Page) -> tuple[str, str, str]:
         ).ok
     page.goto(f"{base_url}/accounts")
     acct = strip_id_prefix(page.locator("tr[id^='account-']").first.get_attribute("id"), "account-")
-    page.goto(f"{base_url}/categories")
+    page.goto(f"{base_url}/settings?tab=categories")
     ids: dict[str, str] = {}
     for name in ("Alpha", "Beta"):
         row = page.locator("[id^='category-']", has_text=name).first

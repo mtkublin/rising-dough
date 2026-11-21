@@ -59,7 +59,7 @@ def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: 
     account_id = strip_id_prefix(
         page.locator("tr[id^='account-']").first.get_attribute("id"), "account-"
     )
-    page.goto(f"{base_url}/categories")
+    page.goto(f"{base_url}/settings?tab=categories")
     category_id = strip_id_prefix(
         page.locator("[id^='category-']", has_text="Rent").first.get_attribute("id"),
         "category-",

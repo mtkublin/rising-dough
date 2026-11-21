@@ -41,7 +41,7 @@ def test_recurring_rule_and_planned_promote_cycle(
         page.locator("tr[id^='account-']").first.get_attribute("id"),
         "account-",
     )
-    page.goto(f"{base_url}/categories")
+    page.goto(f"{base_url}/settings?tab=categories")
     rent_row = page.locator("[id^='category-']", has_text="Rent").first
     category_id = strip_id_prefix(rent_row.get_attribute("id"), "category-")
 
