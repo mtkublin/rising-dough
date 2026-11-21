@@ -52,7 +52,6 @@ PAGES: tuple[str, ...] = (
     "/auth/sessions",
     "/budget",
     "/budget/manage",
-    "/budget/yearly",
     "/categories",
     "/forecast",
     "/ledger",
@@ -68,6 +67,10 @@ PAGES: tuple[str, ...] = (
     "/today",
 )
 
+# Extra tab views of a page route, crawled as pages in their own right. A view
+# is a query-string variant users open; its path must be in PAGES.
+VIEWS: tuple[str, ...] = ("/plan?tab=year",)
+
 # GET routes deliberately not crawled as pages: htmx fragments, forms opened
 # from a page control (reached through that control), downloads, and auth
 # flows. ``test_every_get_route_is_classified`` keeps this list honest.
@@ -80,6 +83,7 @@ NOT_PAGES: dict[str, str] = {
     "/auth/login": "login form (crawl starts logged in)",
     "/auth/reauth": "re-auth form",
     "/auth/register": "WebAuthn registration",
+    "/budget/yearly": "fragment (host page: /plan?tab=year, crawled in VIEWS)",
     "/budget/rules/{category_id}/overrides/new": "dialog fragment",
     "/categories/new": "dialog fragment",
     "/categories/{category_id}/edit": "dialog fragment",
@@ -109,16 +113,11 @@ NOT_PAGES: dict[str, str] = {
 }
 
 # Real app bugs found by the crawl (not fixed here, ADR-0106 / T-UT07 notes).
+# (Empty today: T-D-UT07-1 was a crawler artefact, see docs/audits/2026-11-21-plan-year-crawl.md.)
 # route -> (task id, substring identifying the problem, reason). The page test
 # ignores matching problems; ``test_known_bug`` re-crawls and xfails strictly,
 # so the day the bug is fixed the xfail turns into a failure and the entry must go.
-KNOWN_BUGS: dict[str, tuple[str, str, str]] = {
-    "/budget/yearly": (
-        "T-D-UT07-1",
-        "horizontal scroll",
-        "yearly table is 2000px wide and scrolls the whole page at 375 and 1440",
-    ),
-}
+KNOWN_BUGS: dict[str, tuple[str, str, str]] = {}
 
 # Shell controls (header / nav / aside / footer) are identical on every page;
 # activate each once per run and only list them per page. Serial-run state.
@@ -209,7 +208,9 @@ def crawl_page(
     return inventory.canonical(entries), problems
 
 
-@pytest.mark.parametrize("route_template", PAGES, ids=lambda r: r.strip("/").replace("/", "_"))
+@pytest.mark.parametrize(
+    "route_template", (*PAGES, *VIEWS), ids=lambda r: r.strip("/").replace("/", "_")
+)
 def test_crawl_page(
     route_template: str,
     page: Page,
@@ -275,14 +276,15 @@ def test_known_bug(
 def test_inventory_covers_exactly_the_pages() -> None:
     if inventory.updating():
         pytest.skip("regenerating")
-    stale = sorted(set(inventory.load()) - set(PAGES))
-    missing = sorted(set(PAGES) - set(inventory.load()))
+    stale = sorted(set(inventory.load()) - {*PAGES, *VIEWS})
+    missing = sorted({*PAGES, *VIEWS} - set(inventory.load()))
     assert not stale and not missing, f"inventory stale: {stale}, missing: {missing}"
 
 
 def test_every_get_route_is_classified() -> None:
     """A new page must be added to PAGES (crawled) or NOT_PAGES (with a reason)."""
     get_paths = {p for p, ops in app.openapi()["paths"].items() if "get" in ops}
+    assert all(v.split("?")[0] in PAGES for v in VIEWS)
     known = set(PAGES) | set(NOT_PAGES)
     assert not (get_paths - known), f"unclassified GET routes: {sorted(get_paths - known)}"
     assert not (known - get_paths), f"classified but not in the app: {sorted(known - get_paths)}"

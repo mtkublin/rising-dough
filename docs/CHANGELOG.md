@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-D-UT07-1: yearly budget crawl artefact)
+- **Fix(T-D-UT07-1): the crawler now visits `/plan?tab=year` instead of the bare htmx fragment `/budget/yearly`.** The 2000px horizontal scroll was a crawler artefact (fragment without page layout); the real page does not scroll at 375, 1024, 1440. `VIEWS` added to `tests/e2e/test_crawl.py`, strict xfail removed, inventory regenerated. Audit `docs/audits/2026-11-21-plan-year-crawl.md`.
+
 ## 2026-11-21 (T-UT12: UI test harness exit gate, ADR-0106 accepted)
 - **T-UT12: the UI behaviour test harness is complete; ADR-0106 is Accepted.** Contract tests cover every app route (route-coverage meta-test, framework routes allowlisted); `tests/ui_map/` maps semantic names to role/label/id locators and no assertion reads raw markup (empty allowlist); a crawler activates every control on every page at 375 and 1440 with a committed inventory; 35 new journeys plus the migrated existing ones run on UI-map names and assert the DB effect; `just test-e2e-browsers` is the opt-in Firefox/WebKit recipe; `just test-visual --reference=handoff` compares against handoff references; `--target=mockup` resolves the Today surface against the designer handoff. Known exceptions and follow-ups (T-D-UT12-1..5) are in `docs/plans/ui-test-harness/tasks.md`.
 
