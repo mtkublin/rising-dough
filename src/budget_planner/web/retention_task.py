@@ -1,7 +1,7 @@
 """Daily retention purge on the FastAPI lifespan (T-D60, ADR-0078 §7).
 
 The container entrypoint already purges at start, so the loop sleeps one
-interval first and then runs :func:`budget_planner.db.retention.run` in a
+interval first and then runs :func:`budget_planner.services.retention.run_once` in a
 worker thread. Failures are logged and never stop the loop; cancellation on
 shutdown propagates cleanly (T-D15).
 """
@@ -13,8 +13,8 @@ import contextlib
 from typing import Final
 
 from budget_planner.config import Settings
-from budget_planner.db import retention
 from budget_planner.logging import get_logger
+from budget_planner.services import retention
 
 PURGE_INTERVAL_SECONDS: Final = 24 * 60 * 60
 
@@ -24,7 +24,7 @@ async def run_forever(cfg: Settings, interval_seconds: float = PURGE_INTERVAL_SE
     while True:
         await asyncio.sleep(interval_seconds)
         try:
-            await asyncio.to_thread(retention.run, cfg)
+            await asyncio.to_thread(retention.run_once, cfg)
         except Exception as exc:
             log.error("retention_purge_failed", error=str(exc), error_type=type(exc).__name__)
 

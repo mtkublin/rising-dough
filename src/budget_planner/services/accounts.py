@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
     snapshots as snapshots_repo,
+    transactions as transactions_repo,
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import balance as balance_service
@@ -37,51 +38,17 @@ class LastCheckedRow:
     source: str  # "snapshot" | "reconcile" | "none"
 
 
-def _latest_snapshot_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, dt.datetime]:
-    """Return ``{account_id: max(taken_at)}`` across non-deleted accounts."""
-    rows = conn.execute(
-        """
-        SELECT s.account_id AS account_id, MAX(s.taken_at) AS taken_at
-        FROM account_snapshots s
-        JOIN accounts a ON a.id = s.account_id
-        WHERE a.user_id = ?
-        GROUP BY s.account_id
-        """,
-        (user_id,),
-    ).fetchall()
-    out: dict[int, dt.datetime] = {}
-    for row in rows:
-        if row["taken_at"] is None:
-            continue
-        out[row["account_id"]] = dt.datetime.fromisoformat(row["taken_at"].replace("Z", "+00:00"))
-    return out
-
-
 def _latest_reconcile_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, dt.date]:
-    """Return ``{account_id: max(operation_date)}`` across reconcile txns.
+    """Return ``{account_id: max(operation_date)}`` across live reconcile txns.
 
     The reconcile category is seeded with direction=``adjustment``; we match
-    by name because the system flag protects it from rename and the join
-    stays single-condition. Soft-deleted transactions are excluded.
+    by name because the system flag protects it from rename. Soft-deleted
+    transactions are excluded by the repository.
     """
     cat = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
     if cat is None:
         return {}
-    rows = conn.execute(
-        """
-        SELECT account_id, MAX(operation_date) AS d
-        FROM transactions
-        WHERE user_id = ? AND category_id = ? AND deleted_at IS NULL
-        GROUP BY account_id
-        """,
-        (user_id, cat.id),
-    ).fetchall()
-    out: dict[int, dt.date] = {}
-    for row in rows:
-        if row["d"] is None:
-            continue
-        out[row["account_id"]] = dt.date.fromisoformat(row["d"])
-    return out
+    return transactions_repo.latest_operation_date_by_account(conn, user_id, cat.id)
 
 
 def _max_signal(
@@ -113,7 +80,7 @@ def last_checked(conn: sqlite3.Connection, user_id: int) -> tuple[LastCheckedRow
 
     Ordered by account name (case-insensitive) for deterministic rendering.
     """
-    snaps = _latest_snapshot_by_account(conn, user_id)
+    snaps = snapshots_repo.latest_taken_at_by_account(conn, user_id)
     reconciles = _latest_reconcile_by_account(conn, user_id)
     rows: list[LastCheckedRow] = []
     for acc in accounts_repo.list_all(conn, user_id):

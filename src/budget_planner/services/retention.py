@@ -15,6 +15,7 @@ from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.logging import get_logger
 from budget_planner.repositories import retention as repo
+from budget_planner.services.connections import get_connection
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,3 +43,12 @@ def purge(conn: sqlite3.Connection, now: dt.datetime, settings: Settings) -> Pur
         retention_days=settings.retention_personal_days,
     )
     return result
+
+
+def run_once(settings: Settings) -> PurgeResult:
+    """Open a connection, purge once at the current instant, close it."""
+    conn = get_connection(settings)
+    try:
+        return purge(conn, clock.utc_now(), settings)
+    finally:
+        conn.close()
