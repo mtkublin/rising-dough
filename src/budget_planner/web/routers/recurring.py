@@ -209,20 +209,17 @@ def _resolve_amount_inputs(  # noqa: PLR0911 — branchy validation surface
             errors["formula"] = str(exc)
             return None, None, errors
         try:
-            formula_svc.validate_formula_sources(
-                conn, user_id, formula, exclude_rule_id=exclude_rule_id
+            snapshot = formula_svc.compute_savable_amount(
+                conn,
+                user_id,
+                formula,
+                today.year,
+                today.month,
+                exclude_rule_id=exclude_rule_id,
             )
         except formula_svc.FormulaError as exc:
             errors["formula"] = str(exc)
             return None, None, errors
-        snapshot = formula_svc.compute_formula_amount(
-            conn,
-            user_id,
-            formula,
-            today.year,
-            today.month,
-            exclude_rule_id=exclude_rule_id,
-        )
         return snapshot, formula, errors
     # fixed branch
     if account_currency is None:
