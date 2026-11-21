@@ -17,25 +17,6 @@ FRAMEWORK: Final[dict[str, str]] = {
     "MOUNT /static": "framework",
 }
 
-# --- T-UT04d: plan ---
-PENDING_T_UT04D: Final[dict[str, str]] = {
-    "GET /budget/yearly": "pending T-UT04d",
-    "GET /budget/rules/{category_id}/overrides/new": "pending T-UT04d",
-    "POST /budget/rules/{category_id}/overrides": "pending T-UT04d",
-    "GET /budget": "pending T-UT04d",
-    "GET /budget/manage": "pending T-UT04d",
-    "POST /budget/defaults/{category_id}": "pending T-UT04d",
-    "POST /budget/recurring/{category_id}/{month}": "pending T-UT04d",
-    "POST /budget/preferences/income-anchor": "pending T-UT04d",
-    "POST /budget/one-off/{category_id}/{year}/{month}": "pending T-UT04d",
-    "GET /forecast": "pending T-UT04d",
-    "GET /forecast/view": "pending T-UT04d",
-    "GET /analytics": "pending T-UT04d",
-    "GET /plan": "pending T-UT04d",
-    "GET /plan/analytics": "pending T-UT04d",
-    "GET /budget-legacy": "pending T-UT04d",
-}
-
 # --- T-UT04e: settings ---
 PENDING_T_UT04E: Final[dict[str, str]] = {
     "GET /categories": "pending T-UT04e",
@@ -61,6 +42,5 @@ PENDING_T_UT04E: Final[dict[str, str]] = {
 
 ALLOWLIST: Final[dict[str, str]] = {
     **FRAMEWORK,
-    **PENDING_T_UT04D,
     **PENDING_T_UT04E,
 }

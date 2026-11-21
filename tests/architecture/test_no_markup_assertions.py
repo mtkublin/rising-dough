@@ -88,12 +88,8 @@ def scan(root: Path = REPO_ROOT, dirs: tuple[str, ...] = SCANNED_DIRS) -> dict[s
 
 # file -> number of offending lines today. May only shrink (ADR-0106 section 2).
 ALLOWLIST: dict[str, int] = {
-    "tests/integration/web/test_budget.py": 32,
-    "tests/integration/web/test_budget_left_daily_spend.py": 10,
     "tests/integration/web/test_categories.py": 7,
-    "tests/integration/web/test_forecast.py": 17,
     "tests/integration/web/test_formula_preview.py": 3,
-    "tests/integration/web/test_plan_analytics.py": 4,
     "tests/integration/web/test_settings.py": 6,
     "tests/integration/web/test_settings_password.py": 10,
     "tests/integration/web/test_settings_password_rate_limit.py": 5,
