@@ -33,7 +33,7 @@ from budget_planner.services import (
     planned as planned_service,
     recurring_formula as formula_svc,
 )
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
 from budget_planner.web.rendering import render
 
@@ -287,12 +287,11 @@ def _actual_day_nets(
 
 
 def _planned_rows(
-    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters, today: date
 ) -> list[dict[str, Any]]:
     # Ledger · Planned should surface the pending backlog + the forward
     # window, not the current calendar month (the service default). Expand
     # to [today-30d, today+180d] when the user hasn't filtered.
-    today = date.today()  # noqa: DTZ011 — naive date filter
     pl_filter = PlannedFilter(
         date_from=filters.date_from or (today - timedelta(days=30)),
         date_to=filters.date_to or (today + timedelta(days=180)),
@@ -300,7 +299,7 @@ def _planned_rows(
         category_ids=filters.category_ids,
         directions=_direction_tuple(filters.direction),
     )
-    views = list(planned_service.list_planned(conn, user_id, pl_filter))
+    views = list(planned_service.list_planned(conn, user_id, pl_filter, today=today))
     rows = _hydrate_planned_rows(conn, user_id, views)
     if filters.search:
         q = filters.search.lower()
@@ -318,7 +317,7 @@ def _render_table(
     if view == "actual":
         rows = _actual_rows(conn, user_id, filters)
     elif view == "planned":
-        rows = _planned_rows(conn, user_id, filters)
+        rows = _planned_rows(conn, user_id, filters, today_for(request))
     else:
         rows = _hydrate_recurring_rows(conn, user_id, filters)
     categories_by_id = {
@@ -334,7 +333,7 @@ def _render_table(
         page=filters.page,
         page_size=filters.page_size,
         has_next=(view == "actual" and len(rows) == filters.page_size),
-        today_date=date.today(),  # noqa: DTZ011 — status chip math only
+        today_date=today_for(request),
         categories_by_id=categories_by_id,
     )
 
@@ -365,7 +364,7 @@ def index(
     if view == "actual":
         rows = _actual_rows(conn, user_id, filters)
     elif view == "planned":
-        rows = _planned_rows(conn, user_id, filters)
+        rows = _planned_rows(conn, user_id, filters, today_for(request))
     else:
         rows = _hydrate_recurring_rows(conn, user_id, filters)
     base_ccy = get_settings_dep(request).base_currency
@@ -390,7 +389,7 @@ def index(
         page_size=filters.page_size,
         has_next=(view == "actual" and len(rows) == filters.page_size),
         tab_counts=_tab_counts(conn, user_id),
-        today_date=date.today(),  # noqa: DTZ011
+        today_date=today_for(request),
         recurring_summary=recurring_summary,
         planned_summary=planned_summary,
         categories_by_id={c.id: c for c in cats_list},

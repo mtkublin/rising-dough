@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
+from budget_planner import clock
 from budget_planner.config import get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.enums import Cadence
@@ -154,7 +155,7 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
     if not rows:
         return
 
-    today = dt.date.today()  # noqa: DTZ011 — UTC vs local is irrelevant for a date-only anchor
+    today = clock.utc_now().date()  # UTC vs local is irrelevant for a date-only anchor
     # 400 days covers monthly / quarterly / yearly in one shot — the first
     # canonical occurrence on-or-after `range_start` is at most one cadence
     # period away, and 400d > 366d.
@@ -187,8 +188,8 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
                 active=True,
                 next_due=start_date,  # placeholder; generator does not read it
                 last_promoted_date=None,
-                created_at=dt.datetime.now(dt.UTC),
-                updated_at=dt.datetime.now(dt.UTC),
+                created_at=clock.utc_now(),
+                updated_at=clock.utc_now(),
                 deleted_at=None,
             )
             range_start = max(start_date, today)

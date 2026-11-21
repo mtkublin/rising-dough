@@ -11,9 +11,10 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from typing import Literal
 
+from budget_planner.domain.money import HALF_EVEN, round_div
 from budget_planner.services import budget as budget_service
 
 PaceTag = Literal["on_track", "tight", "over_limit"]
@@ -46,9 +47,7 @@ _TIGHT_FRACTION_BPS = 5_000  # 50% of baseline, in basis points.
 def _div_round_half_even(numerator: int, denominator: int) -> int:
     if denominator <= 0:
         return 0
-    return int(
-        (Decimal(numerator) / Decimal(denominator)).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    )
+    return round_div(numerator, denominator, mode=HALF_EVEN)
 
 
 def _pace_tag_for(

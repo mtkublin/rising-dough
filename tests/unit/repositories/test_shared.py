@@ -13,15 +13,8 @@ from budget_planner.repositories._shared import (
     parse_dt,
     parse_dt_required,
     transaction,
-    utc_now_iso,
     write_audit,
 )
-
-
-def test_utc_now_iso_format() -> None:
-    value = utc_now_iso()
-    assert value.endswith("Z")
-    assert "T" in value
 
 
 def test_dumps_none() -> None:

@@ -106,39 +106,14 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "PLR2004", "ANN", "ARG001", "ARG002", "TID251"]  # TID251: tests may read real time (not Q-031 scope)
-"src/budget_planner/db/migrate.py" = ["S608", "TID251"]  # S608: dynamic SQL permitted here; TID251: Q-031
+"src/budget_planner/db/migrate.py" = ["S608"]  # S608: dynamic SQL permitted here
 "src/budget_planner/repositories/*.py" = ["S608"]  # column names from DTO fields, not user input
 "src/budget_planner/web/routers/*.py" = ["B008"]  # FastAPI Depends() in defaults is idiomatic
 # TID251 clock allowlist (ADR-0130 §4, G3): one entry per current call site file.
-# Each entry is removed by Q-031 when the file migrates to budget_planner.clock.
+# All Q-031 entries are gone (T-Q229, ADR-0140): only clock.py, scripts and tests are exempt.
 "src/budget_planner/clock.py" = ["TID251"]  # the one place allowed to read the wall clock
 "scripts/**/*.py" = ["TID251"]  # operator scripts, not app code
 "terraform/**/*.py" = ["TID251"]  # host agent / preflight, not app code
-"src/budget_planner/db/retention.py" = ["TID251"]  # Q-031
-"src/budget_planner/db/startup_migrate.py" = ["TID251"]  # Q-031
-"src/budget_planner/repositories/_shared.py" = ["TID251"]  # Q-031
-"src/budget_planner/repositories/recurring.py" = ["TID251"]  # Q-031
-"src/budget_planner/repositories/sessions.py" = ["TID251"]  # Q-031
-"src/budget_planner/repositories/webauthn.py" = ["TID251"]  # Q-031
-"src/budget_planner/services/balance.py" = ["TID251"]  # Q-031
-"src/budget_planner/services/budget.py" = ["TID251"]  # Q-031
-"src/budget_planner/services/planned.py" = ["TID251"]  # Q-031
-"src/budget_planner/services/recurring.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/auth_cookies.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/deps.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/accounts.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/auth.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/budget.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/forecast.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/health.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/ledger.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/plan.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/planned.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/recurring.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/today.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/routers/transactions.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/templating.py" = ["TID251"]  # Q-031
-"src/budget_planner/web/today_data.py" = ["TID251"]  # Q-031
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # ADR-0130 §4 (G3): one clock. Callers migrate in Q-031; until then each

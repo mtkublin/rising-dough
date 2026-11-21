@@ -4,35 +4,7 @@
 guard = "money_scope"
 
 [[entry]]
-path = "src/budget_planner/services/analytics.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
 path = "src/budget_planner/services/balance.py"
-rule = "money-parse"
-count = 2
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/balance.py"
-rule = "money-round"
-count = 3
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "money-parse"
-count = 1
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
 rule = "money-round"
 count = 2
 finding = "Q-076"
@@ -43,20 +15,6 @@ path = "src/budget_planner/services/forecast.py"
 rule = "money-float"
 count = 1
 finding = "Q-022"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "money-parse"
-count = 1
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
 epic = "E11"
 
 [[entry]]
@@ -74,24 +32,10 @@ finding = "Q-023"
 epic = "E11"
 
 [[entry]]
-path = "src/budget_planner/services/recurring_formula.py"
-rule = "money-round"
-count = 2
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
 path = "src/budget_planner/services/today.py"
 rule = "money-parse"
 count = 2
 finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/today.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
 epic = "E11"
 
 [[entry]]
@@ -120,11 +64,4 @@ path = "src/budget_planner/web/routers/recurring.py"
 rule = "money-parse"
 count = 3
 finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
 epic = "E11"

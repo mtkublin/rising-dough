@@ -17,14 +17,14 @@ import binascii
 import hashlib
 import hmac
 import json
-import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Final, Literal
 from urllib.parse import urlsplit
 
 from starlette.responses import Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
 
 SESSION_COOKIE_NAME: Final = "__Host-session"
@@ -65,7 +65,7 @@ def set_session_cookie(
     now: datetime | None = None,
 ) -> None:
     """Attach the session cookie; ``Max-Age`` follows the clamped ``expires_at`` (ADR-0076 §1)."""
-    remaining = expires_at - (datetime.now(UTC) if now is None else now)
+    remaining = expires_at - (clock.utc_now() if now is None else now)
     response.set_cookie(
         key=session_cookie_name(settings),
         value=token,
@@ -137,7 +137,7 @@ def sign_challenge(
             "p": purpose,
             "u": user_id,
             "c": _b64e(challenge),
-            "t": int(time.time() if now is None else now),
+            "t": int(clock.utc_now().timestamp() if now is None else now),
         },
         separators=(",", ":"),
         sort_keys=True,
@@ -181,7 +181,7 @@ def verify_challenge(
         issued = int(str(data["t"]))
     except (KeyError, ValueError, binascii.Error):
         return None
-    current = time.time() if now is None else now
+    current = clock.utc_now().timestamp() if now is None else now
     if not issued <= current < issued + CHALLENGE_TTL_SECONDS:
         return None
     return ChallengeEnvelope(purpose=purpose, user_id=user_id, challenge=challenge)

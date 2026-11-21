@@ -90,9 +90,8 @@ class CannotPromoteDeletedError(RuntimeError):
 # ---------------------------------------------------------------------------
 # list_planned
 # ---------------------------------------------------------------------------
-def _default_window(filters: PlannedFilter) -> tuple[dt.date, dt.date]:
+def _default_window(filters: PlannedFilter, today: dt.date) -> tuple[dt.date, dt.date]:
     """Fill in a window if filters don't specify one — defaults to the current month."""
-    today = dt.date.today()  # noqa: DTZ011 - naive date, routers inject when needed
     first, last = month_bounds(today.year, today.month)
     date_from = filters.date_from or first
     date_to = filters.date_to or last
@@ -120,8 +119,10 @@ def list_planned(
     conn: sqlite3.Connection,
     user_id: int,
     filters: PlannedFilter,
+    *,
+    today: dt.date,
 ) -> tuple[PlannedView, ...]:
-    """Return persisted planned rows filtered + sorted.
+    """Return persisted planned rows filtered + sorted (``today`` anchors the default window).
 
     After T-119 (ADR-0038) this surface no longer unions virtual recurring
     occurrences. The forecast service continues to call
@@ -132,7 +133,7 @@ def list_planned(
     # ``_default_window`` honours the historical "no window → current month"
     # fallback so callers that omit date_from / date_to keep their previous
     # output shape even though the virtual branch is gone.
-    date_from, date_to = _default_window(filters)
+    date_from, date_to = _default_window(filters, today)
     effective_filters = PlannedFilter(
         date_from=filters.date_from or date_from,
         date_to=filters.date_to or date_to,

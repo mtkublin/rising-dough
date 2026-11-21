@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable
-from datetime import date
 
-from budget_planner.config import get_settings
+from budget_planner import clock
+from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import budget, forecast, fx
@@ -18,7 +18,7 @@ U = 1
 
 
 def test_missing_rate_degrades_consistently(seeded: sqlite3.Connection) -> None:
-    today = date.today()  # noqa: DTZ011
+    today = clock.today_local(Settings())
     eur = accounts_repo.create(
         seeded, U, NewAccount(name="EUR", currency="EUR", opening_balance=100_000)
     ).id

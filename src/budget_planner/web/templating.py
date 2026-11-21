@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 from markupsafe import Markup
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import (
@@ -219,14 +220,13 @@ def _category_label(category: Any) -> Markup:
     )
 
 
-def _today_local_factory(tz_name: str) -> Any:
-    """Return today's date in `display_timezone` as ISO string (ADR-0030 §1)."""
-    tz = ZoneInfo(tz_name)
+def _display_today_global(settings: Settings) -> Any:
+    """Jinja global: today's date in `display_timezone` as ISO string (ADR-0030 §1, ADR-0140)."""
 
-    def _today_local() -> str:
-        return datetime.now(tz).date().isoformat()
+    def _display_today() -> str:
+        return clock.today_local(settings).isoformat()
 
-    return _today_local
+    return _display_today
 
 
 def build_jinja_env(settings: Settings) -> Environment:
@@ -258,6 +258,6 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.globals["base_ccy"] = settings.base_currency
     env.globals["Direction"] = Direction
     # T-110 / ADR-0030 — shared primitives: default-date-today + ISO 4217 list.
-    env.globals["today_local"] = _today_local_factory(settings.display_timezone)
+    env.globals["today_local"] = _display_today_global(settings)
     env.globals["iso_4217_currencies"] = ISO_4217_CURRENCIES
     return env

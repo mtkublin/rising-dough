@@ -11,11 +11,10 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.logging import get_logger
 from budget_planner.repositories import retention as repo
-
-_ISO_FMT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +30,7 @@ def cutoff(now: dt.datetime, retention_days: int) -> dt.datetime:
 
 def purge(conn: sqlite3.Connection, now: dt.datetime, settings: Settings) -> PurgeResult:
     """Run the purge once and log ``retention_purge`` with counts only."""
-    cutoff_iso = cutoff(now, settings.retention_personal_days).strftime(_ISO_FMT)
+    cutoff_iso = clock.iso_utc(cutoff(now, settings.retention_personal_days))
     result = PurgeResult(
         audit_rows_scrubbed=repo.scrub_audit_request_context(conn, cutoff_iso),
         sessions_deleted=repo.delete_ended_sessions(conn, cutoff_iso),

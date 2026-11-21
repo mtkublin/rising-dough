@@ -1,10 +1,8 @@
 """The single source of "now" and "today" (ADR-0130 section 4, ADR-0007).
 
-Scaffold only: no caller uses it yet. Migrating call sites is Q-031. Until
-then the ruff ``TID251`` ban on ``datetime.date.today``, ``datetime.datetime.now``,
-``datetime.datetime.utcnow`` and ``time.time`` is allowlisted per file in
-``pyproject.toml``; ``clock.py`` is the one module allowed to read the host
-clock.
+The ruff ``TID251`` ban on ``datetime.date.today``, ``datetime.datetime.now``,
+``datetime.datetime.utcnow`` and ``time.time`` covers all of ``src/``;
+``clock.py`` is the one module allowed to read the host clock (ADR-0140).
 
 Rules (ADR-0007):
 
@@ -73,6 +71,22 @@ def utc_now() -> datetime:
     """Current instant as a timezone-aware UTC datetime."""
     source: Clock = _override.get() or SYSTEM_CLOCK
     return source.now().astimezone(UTC)
+
+
+def iso_utc(instant: datetime) -> str:
+    """Stored timestamp text ``YYYY-MM-DDTHH:MM:SS.mmmZ`` (ms, same as SQLite ``%f``; ADR-0006)."""
+    utc = instant.astimezone(UTC)
+    return utc.isoformat(timespec="milliseconds").removesuffix("+00:00") + "Z"
+
+
+def utc_now_iso() -> str:
+    """Current instant as stored timestamp text (see :func:`iso_utc`)."""
+    return iso_utc(utc_now())
+
+
+def utc_now_ms() -> datetime:
+    """:func:`utc_now` truncated to milliseconds, equal to what the stored text round-trips to."""
+    return datetime.fromisoformat(utc_now_iso())
 
 
 def now_in(tz: str | tzinfo) -> datetime:
