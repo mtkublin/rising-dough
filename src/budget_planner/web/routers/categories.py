@@ -6,7 +6,7 @@ import json
 import sqlite3
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
@@ -18,17 +18,6 @@ from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/categories", tags=["categories"])
-
-
-@router.get("")
-def index() -> RedirectResponse:
-    """Legacy page URL (T-070).
-
-    Redirects to the Settings drawer's Categories tab. The CRUD sub-routes
-    (``/categories/new``, ``/categories/{id}/edit``, etc.) remain live
-    because the Settings drawer reuses them as HTMX fragments.
-    """
-    return RedirectResponse(url="/settings?tab=categories", status_code=302)
 
 
 @router.get("/new", response_class=HTMLResponse)

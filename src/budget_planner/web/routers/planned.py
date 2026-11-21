@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.planned import (
@@ -56,16 +56,6 @@ def parse_filter(request: Request) -> PlannedFilter:
         date_to=_parse_date(q.get("date_to")),
         promoted=promoted,
     )
-
-
-@router.get("")
-def index() -> RedirectResponse:
-    """Legacy page URL (T-070).
-
-    Redirects to the unified ledger with the ``planned`` view selected. The
-    HTMX fragment alias ``/planned/table`` and the CRUD sub-routes stay live.
-    """
-    return RedirectResponse(url="/ledger?view=planned", status_code=302)
 
 
 # ---------------------------------------------------------------------------

@@ -23,7 +23,7 @@ from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.budgets import (
@@ -283,16 +283,6 @@ def index(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     return _render_index(request, conn, user_id, settings)
-
-
-@router.get("/manage")
-def manage() -> RedirectResponse:
-    """Legacy page URL (T-070).
-
-    Redirects to the ``/budget`` Rules section anchor. Kept at ``302`` for
-    one release per ADR-0023; a follow-up task flips to ``301``.
-    """
-    return RedirectResponse(url="/budget#budget-rules", status_code=302)
 
 
 def _parse_decimal(value: str) -> Decimal | None:

@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+import importlib
 import json
-from unittest.mock import MagicMock
+import pkgutil
 
 import pytest
 from bs4 import BeautifulSoup
-from fastapi import Request
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
+from budget_planner.web import routers as routers_pkg
 from budget_planner.web.app import create_app
-from budget_planner.web.htmx import is_htmx, trigger, trigger_from_iterable
+from budget_planner.web.htmx import trigger
 from budget_planner.web.templating import build_jinja_env
 
 
@@ -92,22 +93,6 @@ def test_trigger_no_events_noop() -> None:
     assert "HX-Trigger" not in resp.headers
 
 
-def test_trigger_from_iterable() -> None:
-    resp = Response()
-    trigger_from_iterable(resp, ["a", "b"])
-    assert json.loads(resp.headers["HX-Trigger"]) == {"a": True, "b": True}
-
-
-def test_is_htmx_detects_header() -> None:
-    req = MagicMock(spec=Request)
-    req.headers = {}
-    assert is_htmx(req) is False
-    req.headers = {"HX-Request": "true"}
-    assert is_htmx(req) is True
-    req.headers = {"HX-Request": "false"}
-    assert is_htmx(req) is False
-
-
 def test_create_app_respects_settings() -> None:
     cfg = Settings(_env_file=None, base_currency="EUR")
     app = create_app(settings=cfg)
@@ -168,3 +153,42 @@ def test_dt_local_handles_none_and_bad_input() -> None:
 def test_csrf_token_global_is_empty_in_v1() -> None:
     env = build_jinja_env(_settings())
     assert env.from_string("{{ csrf_token() }}").render() == ""
+
+
+_EXPECTED_ROUTER_MODULES = frozenset(
+    {
+        "accounts",
+        "auth",
+        "budget",
+        "categories",
+        "debug",
+        "dev_components",
+        "forecast",
+        "health",
+        "ledger",
+        "plan",
+        "planned",
+        "recurring",
+        "settings",
+        "settings_password",
+        "settings_security",
+        "settings_users",
+        "today",
+        "transactions",
+    }
+)
+
+
+def test_every_router_module_is_registered() -> None:
+    """T-Q257 (Q-073): the router set is exact and every module's routes are mounted."""
+    on_disk = {
+        m.name for m in pkgutil.iter_modules(routers_pkg.__path__) if not m.name.startswith("_")
+    }
+    assert on_disk == _EXPECTED_ROUTER_MODULES
+
+    included = [r.original_router for r in create_app().routes if hasattr(r, "original_router")]
+    for name in sorted(on_disk):
+        module = importlib.import_module(f"budget_planner.web.routers.{name}")
+        assert module.router.routes, name
+        assert sum(1 for r in included if r is module.router) == 1, name
+    assert len(included) == len(on_disk)

@@ -126,10 +126,3 @@ def test_afford_endpoint_no_db_write(client: TestClient) -> None:
     r2 = client.get("/today/afford?amount=2500")
     assert r1.status_code == 200
     assert r2.status_code == 200
-
-
-def test_afford_alias_route(client: TestClient) -> None:
-    """Legacy ``/afford`` alias keeps working."""
-    r = client.get("/afford?amount=10000")
-    assert r.status_code == 200
-    assert "rd-afford__new" in r.text

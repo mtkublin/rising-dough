@@ -76,13 +76,6 @@ def test_index_with_year_month(client: TestClient, cat_id: int) -> None:
     assert "2026-10" in r.text
 
 
-def test_manage_page_redirects_to_budget_rules(client: TestClient, cat_id: int) -> None:
-    """T-070: ``/budget/manage`` returns 302 to ``/budget#budget-rules``."""
-    r = client.get("/budget/manage", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/budget#budget-rules"
-
-
 def test_set_default(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/budget/defaults/{cat_id}", data={"amount": "500"})
     assert r.status_code == 200
@@ -220,13 +213,6 @@ def test_budget_breakdown_has_three_charts(client: TestClient, cat_id: int) -> N
     # No more Plotly placeholders; link to the Plan hub instead.
     assert not breakdown.select("[data-plotly]")
     assert breakdown.find("a", href="/plan?tab=analytics") is not None
-
-
-def test_budget_manage_lands_on_rules_section(client: TestClient, cat_id: int) -> None:
-    """``/budget/manage`` follows to ``/budget`` and the Rules section is present."""
-    r = client.get("/budget/manage")  # follow_redirects=True by default
-    assert r.status_code == 200
-    assert "Rules" in r.text
 
 
 # ---------------------------------------------------------------------------

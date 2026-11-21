@@ -168,19 +168,6 @@ def afford(
     )
 
 
-# Alias so the legacy template `/afford` hx-get keeps working during the
-# v2 handoff (same handler, same semantics). Phase 7 cleanup drops this.
-@router.get("/afford", response_class=HTMLResponse)
-def afford_alias(
-    request: Request,
-    amount: str = "",
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    return afford(request, amount, conn, settings, user_id)
-
-
 # F-04 — Unified Add entry overlay. Hosts the Happened / Planned / Repeats
 # segmented control; each tab reuses the existing /transactions, /planned,
 # /recurring form partials so submit paths stay unchanged.

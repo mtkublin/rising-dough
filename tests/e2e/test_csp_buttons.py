@@ -32,7 +32,7 @@ def _seed(base_url: str, page: Page, category: str = "Groceries") -> tuple[str, 
     account_id = strip_id_prefix(
         page.locator("tr[id^='account-']").first.get_attribute("id"), "account-"
     )
-    page.goto(f"{base_url}/categories")
+    page.goto(f"{base_url}/settings?tab=categories")
     row = page.locator("[id^='category-']", has_text=category).first
     return account_id, strip_id_prefix(row.get_attribute("id"), "category-")
 
@@ -245,7 +245,7 @@ def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], pa
     expect(page.locator(".account-form")).to_contain_text("name required")
 
 
-@pytest.mark.parametrize("entry", ["/settings?tab=categories", "/categories"])
+@pytest.mark.parametrize("entry", ["/settings?tab=categories"])
 def test_create_category_submits_under_csp(
     live_server: tuple[str, Path], page: Page, entry: str
 ) -> None:

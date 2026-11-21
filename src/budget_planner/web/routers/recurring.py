@@ -12,7 +12,7 @@ from types import MappingProxyType
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from starlette.datastructures import FormData
 
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
@@ -57,17 +57,6 @@ def _parse_int(value: str | None) -> int | None:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
-
-
-@router.get("")
-def index() -> RedirectResponse:
-    """Legacy page URL (T-070).
-
-    Redirects to the unified ledger with the ``recurring`` view selected. The
-    CRUD sub-routes (``/recurring/new``, ``/recurring/{id}/edit``, etc.)
-    remain live for the FAB and settings tooling.
-    """
-    return RedirectResponse(url="/ledger?view=recurring", status_code=302)
 
 
 def _formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Any]:
