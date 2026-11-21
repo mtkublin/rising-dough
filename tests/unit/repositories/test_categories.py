@@ -35,7 +35,7 @@ def test_update_rename(conn: sqlite3.Connection) -> None:
     )
     renamed = categories.update(conn, USER_ID, created.id, PatchCategory(name="Shops"))
     assert renamed.name == "Shops"
-    assert audit.list_entries(conn, "category", created.id)[-1].operation.value == ("update")
+    assert audit.list_entries(conn, 1, "category", created.id)[-1].operation.value == ("update")
 
 
 def test_update_missing_raises(conn: sqlite3.Connection) -> None:
@@ -52,13 +52,13 @@ def test_soft_delete_and_undelete(conn: sqlite3.Connection) -> None:
 
     restored = categories.undelete(conn, USER_ID, created.id)
     assert restored.deleted_at is None
-    ops = [e.operation.value for e in audit.list_entries(conn, "category", created.id)]
+    ops = [e.operation.value for e in audit.list_entries(conn, 1, "category", created.id)]
     assert ops == ["create", "delete", "undelete"]
 
 
 def test_soft_delete_missing_is_noop(conn: sqlite3.Connection) -> None:
     categories.soft_delete(conn, USER_ID, 999)
-    assert audit.list_entries(conn, "category", 999) == []
+    assert audit.list_entries(conn, 1, "category", 999) == []
 
 
 def test_undelete_missing_raises(conn: sqlite3.Connection) -> None:
@@ -72,7 +72,7 @@ def test_update_noop_patch(conn: sqlite3.Connection) -> None:
     )
     # Patch with no changes still audits as 'update'.
     categories.update(conn, USER_ID, created.id, PatchCategory())
-    ops = [e.operation.value for e in audit.list_entries(conn, "category", created.id)]
+    ops = [e.operation.value for e in audit.list_entries(conn, 1, "category", created.id)]
     assert ops == ["create", "update"]
 
 

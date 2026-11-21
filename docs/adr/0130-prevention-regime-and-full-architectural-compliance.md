@@ -120,3 +120,8 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 
 - **Entry.** `tests/architecture/allowlists/read_filters.toml` gains one `[[permanent]]` row: `src/budget_planner/repositories/_unaudited.py`, rule `mutation-unaudited`, count 3.
 - **Reason.** These UPDATEs skip `audit_log` by design. The module is importable only by `services/recurring.py` (`tests/architecture/test_unaudited_imports.py`), and that caller writes the paired audit row in the same transaction ([ADR-0022](0022-repository-layer-soft-delete-audit-discipline.md) amendment 2026-11-21). It replaces the burn-down entry on `repositories/recurring.py` (deleted), so it is a lasting, justified category, not new debt.
+
+## Amendment 2026-11-21 (T-Q268): permanent entries for secret-keyed lookups and credential bookkeeping
+
+- **Entries.** `tests/architecture/allowlists/read_filters.toml` gains `[[permanent]]` rows (all replace deleted burn-down entries, so the total only shrinks): `repositories/sessions.py` `read-no-user-filter` x2 (`touch_session`, `rotate_session_token`); `repositories/webauthn.py` `read-no-user-filter` x1 (`get_by_credential_id`) and `mutation-unaudited` x1 (`update_sign_count`).
+- **Reason.** The first three are keyed by a secret (the hashed session token, the authenticator's credential id): possession of the key is the authorization and the user is not known before the lookup. `update_sign_count` is per-login counter bookkeeping on a credential (same class as `sessions`, an exempt table); auditing every login would bury the real credential create/revoke events. Everything else in the T-Q268 list was fixed or made explicit in code (ADR-0019 amendment 2026-11-21).

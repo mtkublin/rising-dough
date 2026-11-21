@@ -352,7 +352,7 @@ def list_overrides(
     sql = (
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND r.user_id = ?"
+        "WHERE o.rule_id = ? AND r.user_id = ? AND r.deleted_at IS NULL"
     )
     if not include_consumed:
         sql += " AND o.promoted_to_txn_id IS NULL"
@@ -375,7 +375,8 @@ def upsert_override(
     existing = conn.execute(
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ? "
+        "AND r.deleted_at IS NULL",
         (data.rule_id, data.occurrence_date.isoformat(), user_id),
     ).fetchone()
     prev = _row_to_override(existing) if existing is not None else None
@@ -386,7 +387,7 @@ def upsert_override(
             # parent rule — if the caller's user_id does not own rule_id the
             # lookup returns NULL and the insert aborts via the assertion.
             parent = c.execute(
-                "SELECT 1 FROM recurring_rules WHERE id = ? AND user_id = ?",
+                "SELECT 1 FROM recurring_rules WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
                 (data.rule_id, user_id),
             ).fetchone()
             if parent is None:
@@ -426,7 +427,7 @@ def upsert_override(
         row = conn.execute(
             f"SELECT {cols} FROM recurring_rule_overrides o "
             "JOIN recurring_rules r ON r.id = o.rule_id "
-            "WHERE o.id = ? AND r.user_id = ?",
+            "WHERE o.id = ? AND r.user_id = ? AND r.deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_override(row)
@@ -451,7 +452,8 @@ def delete_override(
     existing = conn.execute(
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ? "
+        "AND r.deleted_at IS NULL",
         (rule_id, occurrence_date.isoformat(), user_id),
     ).fetchone()
     if existing is None:

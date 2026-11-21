@@ -42,7 +42,7 @@ def _mk(
 def test_create_round_trip(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
     pid = _mk(conn, account_id, category_id)
     assert planned.find_by_id(conn, USER_ID, pid) is not None
-    entries = audit.list_entries(conn, "planned_transaction", pid)
+    entries = audit.list_entries(conn, 1, "planned_transaction", pid)
     assert len(entries) == 1
 
 
