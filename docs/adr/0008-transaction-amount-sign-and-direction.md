@@ -47,3 +47,13 @@ A `transit` row without a destination makes `derive_balance` raise, so /accounts
 It is applied by create and update of transactions, create and update of planned transactions, promotion (planned and recurring, via `_promotion.validate_promotion`) and reconcile (a transit category chosen for a reconciliation has no destination and is rejected). Routers map `ValidationError` to HTTP 422 with a visible form error; a 500 is never the outcome of invalid input.
 
 OQ-9 default taken 2026-11-21, pending operator confirmation: user-defined transit categories stay allowed; the shape rule above is what makes them safe.
+
+## Amendment 2026-11-21 (T-Q217, Q-005): a reconcile category must agree with the sign of the delta
+
+`reconcile` stores `abs(delta)` for an income or expense category, so a category whose direction contradicts the delta sign (expense with `delta > 0`, income with `delta < 0`) moved the balance the wrong way, and the earlier docstring promise of "coercing the sign" could not hold (the amount is positive by ADR-0008). The service now validates instead of coercing. The category chosen for a reconcile must be one of:
+
+- `adjustment` (the seeded `Reconciliation` default; stores the signed delta);
+- `income` with `delta > 0`;
+- `expense` with `delta < 0`.
+
+Anything else raises `CategoryDirectionMismatchError` (a `ValidationError`) inside the reconcile transaction, before the insert (ADR-0137), so no row is written. Transit categories remain rejected by the T-Q210 rule above. The accounts router maps it to 422 on the existing reconcile-modal error partial. Post-condition: `derive_balance == typed target` for every accepted reconcile.

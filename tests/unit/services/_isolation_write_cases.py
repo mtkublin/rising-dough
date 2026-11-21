@@ -497,7 +497,7 @@ def _case_reconcile(conn: sqlite3.Connection, world: World) -> None:
         account_id=world.owner.account_id,
         actual_balance_minor=target,
         today=T,
-        category_id=world.owner.category_id,
+        category_id=world.owner.income_category_id,  # positive delta needs income (Q-005)
     )
     assert (txn.user_id, txn.account_id, txn.amount) == (OWNER_ID, world.owner.account_id, 1_000)
     other_txns = transactions_repo.list_filtered(conn, OTHER_ID, TransactionFilter())

@@ -340,7 +340,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:1 (1 entry); `invariants`:3 (2 entries); `money_scope`:16 (10 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-6 (Q-011, Q-029) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
+### ✅ T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
 - Findings: Q-005 (C-01, F-07).
 - Epic: none (money-arith, latent)
 - Band: 1 · Size: S · Tags: none
@@ -570,7 +570,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q222 [S] Kill the `recurring_formula` mutant cluster
+### ✅ T-Q222 [S] Kill the `recurring_formula` mutant cluster
 - Findings: Q-016 (F-02).
 - Epic: none (test-gap)
 - Band: 3 · Size: M · Tags: none
@@ -868,7 +868,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q248 [P] Browser e2e drives real forms; ledger pagination race
+### ✅ T-Q248 [P] Browser e2e drives real forms; ledger pagination race
 - Findings: Q-056 (F-15), Q-057 (F-16).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -890,7 +890,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
+### ✅ T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
 - Findings: Q-059 (F-18, F-19).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -923,7 +923,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
+### ✅ T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
 - Findings: tooling (T-Q15b left bandit pinned at 1.7.10); new findings B105 `repositories/users.py:250`, B704 `web/templating.py:124` and `:161`; epic E15.
 - Epic: E15
 - Band: 5 · Size: S · Tags: none

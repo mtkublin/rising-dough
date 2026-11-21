@@ -41,6 +41,10 @@ class MissingSystemCategoryError(RuntimeError):
     """Raised when the seeded ``Reconciliation`` category cannot be found."""
 
 
+class CategoryDirectionMismatchError(ValidationError):
+    """The chosen reconcile category contradicts the sign of the balance delta."""
+
+
 class InvalidAvailableError(ValueError):
     """Raised when an available-credit figure is outside ``0..credit_limit``."""
 
@@ -59,6 +63,18 @@ def available_to_target_balance(credit_limit_minor: int, available_minor: int) -
     if available_minor > credit_limit_minor:
         raise InvalidAvailableError("available credit cannot exceed the credit limit")
     return available_minor - credit_limit_minor
+
+
+def _require_direction_matches_delta(direction: Direction, delta: int) -> None:
+    """Reject a category whose direction contradicts the sign of ``delta`` (ADR-0008)."""
+    if (direction is Direction.INCOME and delta < 0) or (
+        direction is Direction.EXPENSE and delta > 0
+    ):
+        raise CategoryDirectionMismatchError(
+            f"a {direction.value} category cannot book a "
+            f"{'positive' if delta > 0 else 'negative'} difference; "
+            "pick a matching category or the default Reconciliation"
+        )
 
 
 def reconcile(
@@ -82,11 +98,10 @@ def reconcile(
     Post-condition:
       ``services.balance.derive_balance(conn, account_id, today) == actual_balance_minor``
 
-    ``category_id`` lets F-03 pin the adjustment to any expense / income
-    category instead of the default ``Reconciliation`` system category.
-    When supplied, the adjustment amount sign is coerced to match the
-    chosen category direction so ``derive_balance`` still matches the
-    actual balance.
+    ``category_id`` lets F-03 pin the adjustment to a chosen category. The
+    category must be ``ADJUSTMENT``, ``INCOME`` with ``delta > 0`` or
+    ``EXPENSE`` with ``delta < 0`` (ADR-0008 amendment 2026-11-21); any other
+    combination raises ``CategoryDirectionMismatchError`` and writes nothing.
     """
     # ADR-0137: the balance read and the adjustment insert share one locked transaction.
     with db_transaction(conn):
@@ -115,6 +130,8 @@ def reconcile(
 
         # A reconciliation row has no destination: reject a transit category (ADR-0008).
         validate_transit_shape(category.direction, account, None)
+
+        _require_direction_matches_delta(category.direction, delta)
 
         # Preserve direction semantics (ADR-0008).
         stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
