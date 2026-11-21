@@ -256,7 +256,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `workflow_trust`:23 (9 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/workflow_trust.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q221 [S] Two-user and tombstone fixtures for the money services
+### ✅ T-Q221 [S] Two-user and tombstone fixtures for the money services
 - Findings: Q-015 (F-09, F-10).
 - Epic: none (test-gap)
 - Band: 0 · Size: M · Tags: `[before-2nd-user]`
