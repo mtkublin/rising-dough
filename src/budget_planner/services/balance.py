@@ -82,6 +82,41 @@ def _txns_affecting(
     return transactions_repo.list_filtered(conn, user_id, filt)
 
 
+_NO_ACCOUNT = -1
+_EPOCH = dt.datetime.min.replace(tzinfo=dt.UTC)
+
+
+def _group_delta(
+    user_id: int,
+    account_id: int,
+    direction: Direction,
+    *,
+    is_source: bool,
+    is_dest: bool,
+    total: int,
+) -> int:
+    """Signed effect on ``account_id`` of one SUM group, via :func:`signed_legs` (ADR-0008)."""
+    probe = Transaction(
+        id=0,
+        user_id=user_id,
+        operation_date=dt.date.min,
+        category_id=0,
+        account_id=account_id if is_source else _NO_ACCOUNT,
+        dest_account_id=account_id if is_dest else _NO_ACCOUNT,
+        amount=total,
+        description="",
+        promoted_from_planned_id=None,
+        promoted_from_recurring_rule_id=None,
+        promoted_from_recurring_date=None,
+        created_at=_EPOCH,
+        updated_at=_EPOCH,
+        deleted_at=None,
+    )
+    return sum(
+        leg.amount_minor for leg in signed_legs(probe, direction) if leg.account_id == account_id
+    )
+
+
 def derive_balance(
     conn: sqlite3.Connection,
     user_id: int,
@@ -98,14 +133,20 @@ def derive_balance(
     account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
     if account is None:
         raise AccountNotFoundError(account_id)
-    directions = _directions_by_id(conn, user_id)
-    txns = _txns_affecting(conn, user_id, account_id, as_of=as_of_date)
-    delta = 0
-    for txn in txns:
-        direction = directions[txn.category_id]
-        for leg in signed_legs(txn, direction):
-            if leg.account_id == account_id:
-                delta += leg.amount_minor
+    groups = transactions_repo.sum_legs_by_direction(
+        conn, user_id, account_id, up_to_date=as_of_date
+    )
+    delta = sum(
+        _group_delta(
+            user_id,
+            account_id,
+            Direction(direction),
+            is_source=is_source,
+            is_dest=is_dest,
+            total=total,
+        )
+        for direction, is_source, is_dest, total in groups
+    )
     return account.opening_balance + delta
 
 

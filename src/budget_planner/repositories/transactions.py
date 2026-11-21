@@ -136,6 +136,56 @@ def list_filtered(
     return [_row_to_txn(r) for r in rows]
 
 
+def count_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: TransactionFilter | None = None,
+    *,
+    include_deleted: bool = False,
+) -> int:
+    """``COUNT(*)`` of the user's rows matching ``filters`` (limit/offset ignored)."""
+    clauses, params = _append_filter_clauses(filters or TransactionFilter(), include_deleted)
+    clauses.insert(0, "t.user_id = ?")
+    params.insert(0, user_id)
+    sql = (
+        "SELECT COUNT(*) FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses)
+    )
+    return int(conn.execute(sql, params).fetchone()[0])
+
+
+def sum_legs_by_direction(
+    conn: sqlite3.Connection,
+    user_id: int,
+    account_id: int,
+    *,
+    up_to_date: date | None = None,
+) -> list[tuple[str, bool, bool, int]]:
+    """``SUM(amount)`` of live rows touching ``account_id``, grouped.
+
+    Returns ``(category direction, is_source, is_dest, total)`` rows; the caller
+    applies the sign rule (ADR-0008) via the canonical balance owner.
+    """
+    clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
+    params: list[Any] = [account_id, account_id, user_id]
+    if up_to_date is not None:
+        clauses.append("t.operation_date <= ?")
+        params.append(up_to_date.isoformat())
+    params.extend([account_id, account_id])
+    sql = (
+        "SELECT c.direction, t.account_id = ? AS is_source, "
+        "t.dest_account_id = ? AS is_dest, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses) + " AND (t.account_id = ? OR t.dest_account_id = ?) "
+        "GROUP BY c.direction, is_source, is_dest"
+    )
+    return [
+        (str(r[0]), bool(r[1]), bool(r[2]), int(r[3])) for r in conn.execute(sql, params).fetchall()
+    ]
+
+
 def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
     norm: dict[str, Any] = {}
     for key, value in changes.items():
@@ -298,11 +348,13 @@ def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction
 
 
 __all__ = [
+    "count_filtered",
     "create",
     "find_by_id",
     "list_filtered",
     "list_recently_deleted",
     "soft_delete",
+    "sum_legs_by_direction",
     "undelete",
     "update",
 ]

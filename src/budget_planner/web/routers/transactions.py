@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
 from budget_planner.domain.money import parse_amount_str, to_minor_units
 from budget_planner.domain.transactions import (
     NewTransaction,
@@ -249,6 +250,8 @@ def create_txn(  # noqa: PLR0917
     user_id: int = Depends(current_user_id),
 ) -> Response:
     errors: dict[str, str] = {}
+    if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
+        errors["description"] = too_long
     op_date = _parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
@@ -386,6 +389,8 @@ def update_txn(  # noqa: PLR0917
         )
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
+    if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
+        errors["description"] = too_long
     op_date = _parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"

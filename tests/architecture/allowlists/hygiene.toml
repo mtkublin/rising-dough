@@ -313,7 +313,7 @@ epic = "E15"
 [[entry]]
 path = "src/budget_planner/web/routers/health.py"
 rule = "broad-except"
-count = 2
+count = 1
 finding = "Q-073"
 epic = "E15"
 

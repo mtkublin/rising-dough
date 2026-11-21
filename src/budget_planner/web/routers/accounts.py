@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
+from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import (
@@ -204,8 +205,8 @@ def create_account(  # noqa: PLR0917
     except InvalidOperation:
         errors["opening_balance"] = "invalid number"
         opening_dec = Decimal(0)
-    if not name.strip():
-        errors["name"] = "name required"
+    if (bad_name := name_error(name)) is not None:
+        errors["name"] = bad_name
     liability = _parse_liability(is_liability)
     credit_limit_minor: int | None = None
     if liability and not errors.get("currency"):
@@ -297,13 +298,13 @@ def update_account(  # noqa: PLR0917
             errors={"account": "not found"},
             status_code=404,
         )
-    if not name.strip():
+    if (bad_name := name_error(name)) is not None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=acc,
             action=f"/accounts/{account_id}",
-            errors={"name": "name required"},
+            errors={"name": bad_name},
             status_code=422,
         )
     liability = _parse_liability(is_liability)
