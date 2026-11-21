@@ -165,13 +165,6 @@ finding = "Q-007"
 epic = "E01"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "money-parse"
 count = 1

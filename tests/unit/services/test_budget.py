@@ -258,11 +258,6 @@ def test_sort_order_budgeted_first_then_alpha(
     assert budgeted_names == sorted(budgeted_names)
 
 
-def test_prev_year_month_rollover_december() -> None:
-    assert bs.prev_year_month(2026, 1) == (2025, 12)
-    assert bs.prev_year_month(2026, 7) == (2026, 6)
-
-
 # ---------------------------------------------------------------------------
 # T-120 — committed_in_window + MonthTotals.committed_minor
 # ---------------------------------------------------------------------------
@@ -717,9 +712,9 @@ def test_budgeted_remaining_formula_consistency(
 def test_fiscal_month_for_returns_last_anchor_month(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    """Last promoted anchor on Jan 25 + today Feb 2 → (2026, 1)."""
+    """Anchor Jan 25, today Feb 2: period Jan 25..Feb 25 is mostly February (ADR-0138)."""
     _bind_anchor(conn, seed["salary"])
-    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 2, 2)) == (2026, 1)
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 2, 2)) == (2026, 2)
 
 
 def test_fiscal_month_for_no_anchor_falls_back_to_calendar_month(
@@ -1041,3 +1036,113 @@ def test_month_summary_promoted_overdue_planned_not_committed(
     s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY)
     assert s.totals.committed_minor == 0
     assert s.totals.spent_minor == 2_000
+
+
+# ---------------------------------------------------------------------------
+# ADR-0138 / OQ-14: payday opens the new period
+# ---------------------------------------------------------------------------
+def _salary_period_fixture(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
+    _bind_anchor(conn, seed["salary"])
+    for day in (date(2026, 10, 25),):
+        transactions.create(
+            conn,
+            USER_ID,
+            NewTransaction(
+                operation_date=day,
+                category_id=seed["salary"],
+                account_id=seed["checking"],
+                amount=500_000,
+            ),
+        )
+    for day in (date(2026, 11, 25), date(2026, 12, 25)):
+        planned.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=day,
+                category_id=seed["salary"],
+                account_id=seed["checking"],
+                amount=500_000,
+                description="salary",
+            ),
+        )
+    transactions.create(
+        conn,
+        USER_ID,
+        NewTransaction(
+            operation_date=date(2026, 11, 1),
+            category_id=seed["groceries"],
+            account_id=seed["checking"],
+            amount=20_000,
+        ),
+    )
+
+
+def test_on_payday_budget_uses_the_new_period_not_old_leftovers(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    _salary_period_fixture(conn, seed)
+    payday = date(2026, 11, 25)
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=payday)
+    assert s.period_start == payday
+    assert s.next_income_date == date(2026, 12, 25)
+    assert s.days_until_next_income == 30
+    # The Nov 1 grocery spend belongs to the old period.
+    assert s.totals.spent_minor == 0
+    assert bs.resolve_period_start(conn, USER_ID, payday) == payday
+
+
+def test_day_before_payday_is_still_the_old_period(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    _salary_period_fixture(conn, seed)
+    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 24))
+    assert s.period_start == date(2026, 10, 25)
+    assert s.next_income_date == date(2026, 11, 25)
+    assert s.days_until_next_income == 1
+    assert s.totals.spent_minor == 20_000
+
+
+def test_fiscal_month_label_is_the_month_with_most_days(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    _salary_period_fixture(conn, seed)
+    # Oct 25 to Nov 25: 7 days in Oct, 25 in Nov -> November.
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 11, 3)) == (2026, 11)
+    # Nov 25 to Dec 25 starts on payday (planned, not landed): still the Oct window until it lands.
+    assert bs.fiscal_month_for(conn, USER_ID, date(2026, 11, 25)) == (2026, 11)
+
+
+def test_picker_non_current_month_clamps_anchor_day_and_zeroes_committed(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    _bind_anchor(conn, seed["salary"])
+    recurring.create_rule(
+        conn,
+        USER_ID,
+        NewRecurringRule(
+            category_id=seed["salary"],
+            account_id=seed["checking"],
+            default_amount=500_000,
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 1, 30),
+            day_of_month=30,
+            default_description="pay",
+        ),
+    )
+    today = date(2026, 1, 31)
+    picked = bs.resolve_picker_month(conn, USER_ID, today, year_raw="2026", month_raw="2")
+    s = bs.month_summary_for_picker(conn, USER_ID, picked, today)
+    assert s.period_start == date(2026, 2, 28)  # day 30 clamped, not capped at 28 for Jan/Mar
+    assert s.next_income_date == date(2026, 3, 30)
+    assert s.totals.committed_minor == 0
+    assert (picked.prev_year, picked.prev_month, picked.next_month) == (2026, 1, 3)
+
+
+def test_picker_rejects_bad_query_values(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
+    today = date(2026, 3, 10)
+    for year_raw, month_raw in (("x", "3"), ("2026", "13"), ("2026", "0")):
+        picked = bs.resolve_picker_month(
+            conn, USER_ID, today, year_raw=year_raw, month_raw=month_raw
+        )
+        assert (picked.year, picked.month) == (2026, 3)

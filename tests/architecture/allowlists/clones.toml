@@ -131,26 +131,12 @@ epic = "E02"
 [[entry]]
 path = "src/budget_planner/services/analytics.py"
 rule = "same-name"
-count = 2
+count = 1
 finding = "P1"
 epic = "E03"
 
 [[entry]]
 path = "src/budget_planner/services/budget.py"
-rule = "same-name"
-count = 1
-finding = "P1"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "same-name"
-count = 1
-finding = "P1"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/services/recurring_formula.py"
 rule = "same-name"
 count = 1
 finding = "P1"

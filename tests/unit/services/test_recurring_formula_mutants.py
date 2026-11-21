@@ -13,6 +13,7 @@ import pytest
 
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction, OverrideState
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     AmountFormula,
     FormulaTerm,
@@ -33,7 +34,6 @@ from budget_planner.services.recurring_formula import (
     PreviewError,
     PreviewOk,
     _apply_coefficient,
-    _month_bounds,
     _parse_sign,
     build_formula,
     build_term,
@@ -118,7 +118,7 @@ class TestMonthBounds:
         ],
     )
     def test_bounds(self, year: int, month: int, first: dt.date, last: dt.date) -> None:
-        assert _month_bounds(year, month) == (first, last)
+        assert month_bounds(year, month) == (first, last)
 
 
 class TestApplyCoefficientHalfUp:
