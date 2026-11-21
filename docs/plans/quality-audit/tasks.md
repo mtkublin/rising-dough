@@ -546,7 +546,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `coverage_config`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/coverage_config.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q220 [S] Differential invariant tests (Track A): close-out of what T-Q15a landed
+### ✅ T-Q220 [S] Differential invariant tests (Track A): close-out of what T-Q15a landed
 - Findings: Q-013 (F-14).
 - Epic: none (test-gap)
 - Band: 3 · Size: S · Tags: none
