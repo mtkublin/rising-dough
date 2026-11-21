@@ -116,7 +116,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 ### ✅ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.
 - README exit criteria 1–7 checked; ADR-0106 flipped to Accepted; `docs/CHANGELOG.md` entry; `just ci` green on the work branch.
-- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; `just ci` result recorded in the commit.
+- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run outcome follows.
 - **Known exceptions**:
   - WebKit is unverified on this host (T-UT11).
   - `T-D-UT07-1`: `/budget/yearly` scrolls horizontally (strict xfail).
