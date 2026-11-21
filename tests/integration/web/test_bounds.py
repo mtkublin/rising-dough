@@ -150,7 +150,7 @@ def test_ready_does_not_run_integrity_check(
         conn.set_trace_callback(statements.append)
         return conn
 
-    monkeypatch.setattr("budget_planner.db.connection.get_connection", traced)
+    monkeypatch.setattr("budget_planner.web.routers.health.get_connection", traced)
     c = TestClient(create_app(settings=_migrated))
     for _ in range(3):
         assert c.get("/ready").status_code == 200

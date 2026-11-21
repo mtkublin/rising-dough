@@ -77,9 +77,10 @@ def _require_direction_matches_delta(direction: Direction, delta: int) -> None:
         )
 
 
-def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
+def reconcile(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,

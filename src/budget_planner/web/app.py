@@ -10,6 +10,7 @@ exception handlers (see `web.errors`).
 
 from __future__ import annotations
 
+import importlib
 import signal
 import sqlite3
 from contextlib import asynccontextmanager
@@ -275,8 +276,6 @@ _DEV_ROUTER_NAMES: tuple[str, ...] = ("dev_components",)
 def _register_routers(app: FastAPI, *, include_dev: bool) -> None:
     """Register Phase 3 routers; missing modules (during iterative landing)
     are tolerated so each task can commit atomically."""
-    import importlib  # noqa: PLC0415
-
     for name in (*_ROUTER_NAMES, *(_DEV_ROUTER_NAMES if include_dev else ())):
         try:
             mod = importlib.import_module(f"budget_planner.web.routers.{name}")

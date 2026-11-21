@@ -158,7 +158,9 @@ def test_concurrent_reconcile_second_sees_first_adjustment(
 
     outcomes = _race(
         settings,
-        lambda c: reconciliation_svc.reconcile(c, USER_ID, account_id, 1500, date(2026, 11, 20)),
+        lambda c: reconciliation_svc.reconcile(
+            c, USER_ID, account_id=account_id, actual_balance_minor=1500, today=date(2026, 11, 20)
+        ),
     )
 
     # One adjustment of +500; the loser sees derived == actual inside the lock.

@@ -41,7 +41,7 @@ def test_reconcile_computes_delta_from_derived_balance(
     txn = reconcile_service.reconcile(
         conn,
         USER_ID,
-        account_id,
+        account_id=account_id,
         actual_balance_minor=7000,
         today=date(2026, 1, 15),
     )
@@ -64,7 +64,7 @@ def test_reconcile_inserts_adjustment_under_reconciliation_category(
     txn = reconcile_service.reconcile(
         conn,
         USER_ID,
-        account_id,
+        account_id=account_id,
         actual_balance_minor=15000,
         today=date(2026, 1, 15),
     )
@@ -87,7 +87,7 @@ def test_reconcile_is_noop_when_delta_zero(
         reconcile_service.reconcile(
             conn,
             USER_ID,
-            account_id,
+            account_id=account_id,
             actual_balance_minor=10000,
             today=date(2026, 1, 15),
         )
@@ -102,7 +102,7 @@ def test_reconcile_writes_audit_row(
     txn = reconcile_service.reconcile(
         conn,
         USER_ID,
-        account_id,
+        account_id=account_id,
         actual_balance_minor=12000,
         today=date(2026, 1, 15),
     )

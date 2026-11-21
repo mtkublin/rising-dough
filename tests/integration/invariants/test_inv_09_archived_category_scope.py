@@ -36,7 +36,10 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
 
     def paths() -> tuple[int, int]:
         overlay = -sum(
-            e.amount_minor for e in forecast._collect_budget_overlay(seeded, U, TODAY, end, cats, 1)
+            e.amount_minor
+            for e in forecast._collect_budget_overlay(
+                seeded, U, today=TODAY, end_date=end, directions_by_cat=cats, primary_account_id=1
+            )
         )
         return overlay, forecast._planned_budget_per_month(seeded, U, TODAY, 1)[month]
 

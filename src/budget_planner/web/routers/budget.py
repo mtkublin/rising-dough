@@ -39,6 +39,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as budget_service, preferences as preferences_svc
 from budget_planner.services.preferences import InvalidAnchorCategoryError
+from budget_planner.web import view_models
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -57,22 +58,6 @@ class RulesRow:
     category_direction: Direction
     category_color: str | None
     default_minor: int | None
-
-
-_MONTH_LABELS: tuple[str, ...] = (
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-)
 
 
 def _year_month(request: Request, conn: sqlite3.Connection, user_id: int) -> tuple[int, int]:
@@ -132,10 +117,12 @@ def _render_index(
         "budget/index.html",
         year=year,
         month=month,
-        summary=summary,
+        budget=view_models.budget_view(summary, today),
+        period_label=view_models.period_label(year, month),
+        month_options=view_models.month_options(month),
         rules=rules,
         yearly=yearly,
-        month_labels=_MONTH_LABELS,
+        month_labels=view_models.MONTH_SHORT,
         base_ccy=settings.base_currency,
     )
 
@@ -161,7 +148,7 @@ def yearly_fragment(
         "budget/_yearly.html",
         year=year,
         yearly=yearly,
-        month_labels=_MONTH_LABELS,
+        month_labels=view_models.MONTH_SHORT,
         base_ccy=settings.base_currency,
     )
 
@@ -180,7 +167,7 @@ def new_override_form(
     form is opened from the Year heatmap (ADR-0051 §5.3).
     """
     cat = categories_repo.find_by_id(conn, user_id, category_id)
-    tz_year = datetime.now(ZoneInfo(settings.display_timezone)).year
+    tz_now = datetime.now(ZoneInfo(settings.display_timezone))
     q = request.query_params
     try:
         preset_month = int(q["month"]) if "month" in q else None
@@ -192,15 +179,14 @@ def new_override_form(
         preset_year = int(q["year"]) if "year" in q else None
     except ValueError:
         preset_year = None
+    period = view_models.override_period(preset_month or tz_now.month, preset_year or tz_now.year)
     if cat is None:
         return render(
             request,
             "partials/budget/_override_form.html",
             category=None,
             errors={"category": "not found"},
-            today_year=tz_year,
-            preset_month=preset_month,
-            preset_year=preset_year,
+            period=period,
             status_code=404,
         )
     default_row = budgets_repo.get_default(conn, user_id, category_id)
@@ -212,9 +198,7 @@ def new_override_form(
             category=cat,
             errors={},
             inline=True,
-            today_year=tz_year,
-            preset_month=preset_month,
-            preset_year=preset_year,
+            period=period,
             default_amount_minor=default_row.amount if default_row else None,
         )
     return render(
@@ -224,9 +208,7 @@ def new_override_form(
         form_include="partials/budget/_override_form.html",
         category=cat,
         errors={},
-        today_year=tz_year,
-        preset_month=preset_month,
-        preset_year=preset_year,
+        period=period,
         default_amount_minor=default_row.amount if default_row else None,
     )
 

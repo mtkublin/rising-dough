@@ -13,16 +13,14 @@
     <span class="rd-acct-name">{{ a.name }}</span>
     <small class="text-muted rd-acct-type">{{ a.type or 'account' }}</small>
     {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
-    {%- if a.is_liability and a.credit_limit_minor %}
-      {%- set used_minor = -card.balance if card.balance < 0 else 0 -%}
-      {%- set available_minor = (a.credit_limit_minor - used_minor) if a.credit_limit_minor else 0 -%}
-      {%- set used_pct = (100.0 * used_minor / a.credit_limit_minor) if a.credit_limit_minor > 0 else 0 -%}
-      <div class="rd-credit-bar" style="--used-pct: {{ [used_pct, 100]|min }}%;">
+    {%- if card.utilisation %}
+      <div class="rd-credit-bar"
+           style="--used-pct: {{ card.utilisation.bar_pct }}%">
         <span class="rd-credit-bar__track" aria-hidden="true"></span>
         <small class="rd-credit-bar__meta">
-          Limit {{ a.credit_limit_minor|money_num(a.currency) }} ·
-          Available {{ available_minor|money_num(a.currency) }} ·
-          Used {{ "{:.0f}".format(used_pct) }}%
+          Limit {{ card.utilisation.limit_minor|money_num(a.currency) }} ·
+          Available {{ card.utilisation.available_minor|money_num(a.currency) }} ·
+          Used {{ card.utilisation.used_pct }}%
         </small>
       </div>
     {%- endif %}

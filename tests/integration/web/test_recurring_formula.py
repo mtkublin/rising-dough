@@ -759,10 +759,10 @@ class TestFormulaSourceOverrides:
         occs = formula_svc.rt_expand(
             conn,
             USER_ID,
-            rule,
-            recurring_repo.list_overrides_all(conn, USER_ID, parent),
-            NOV,
-            date(2026, 11, 30),
+            rule=rule,
+            overrides=recurring_repo.list_overrides_all(conn, USER_ID, parent),
+            range_start=NOV,
+            range_end=date(2026, 11, 30),
         )
         assert [o.amount for o in occs] == [expected]
         # Upcoming resolves the amount through the same entry point.

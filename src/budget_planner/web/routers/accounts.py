@@ -34,6 +34,7 @@ from budget_planner.services import (
     fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
+from budget_planner.web.accounts_view import credit_utilisation
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
@@ -91,6 +92,7 @@ def _card_context(
         "sparkline_height": _SPARKLINE_HEIGHT,
         "snapshots": snapshots,
         "planned": planned.by_account.get(account_id),
+        "utilisation": credit_utilisation(acc, bal),
     }
 
 
@@ -371,21 +373,16 @@ def take_snapshot(
     return resp
 
 
-def _uses_available(acc: Account) -> bool:
-    """T-D52 — liability with a credit limit reconciles by available credit."""
-    return bool(acc.is_liability and acc.credit_limit_minor)
-
-
 def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
-    if not _uses_available(acc):
+    """T-D52 — liability with a credit limit reconciles by available credit."""
+    util = credit_utilisation(acc, derived)
+    if util is None:
         return {"by_available": False}
-    limit = acc.credit_limit_minor or 0
-    used = max(-derived, 0)
     return {
         "by_available": True,
-        "credit_limit_minor": limit,
-        "used_minor": used,
-        "available_minor": max(limit - used, 0),
+        "credit_limit_minor": util.limit_minor,
+        "used_minor": util.used_minor,
+        "available_minor": util.available_minor,
     }
 
 
@@ -457,7 +454,7 @@ def reconcile_submit(  # noqa: PLR0917
     except InvalidOperation:
         return _reject("invalid number")
     actual_minor = to_minor_units(actual, acc.currency)
-    if _uses_available(acc):
+    if credit_utilisation(acc, derived) is not None:
         try:
             actual_minor = reconciliation_service.available_to_target_balance(
                 acc.credit_limit_minor or 0, actual_minor
@@ -468,7 +465,12 @@ def reconcile_submit(  # noqa: PLR0917
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
         try:
             reconciliation_service.reconcile(
-                conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
+                conn,
+                user_id,
+                account_id=account_id,
+                actual_balance_minor=actual_minor,
+                today=_today(),
+                category_id=chosen_cat_id,
             )
         except reconciliation_service.ValidationError as exc:
             return _reject(str(exc))

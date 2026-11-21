@@ -7,7 +7,7 @@ registered on `env`. See ADR-0021 (functional style) + T-030 plan.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import MappingProxyType
@@ -94,6 +94,26 @@ def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-
             return value
         return parsed.strftime(pattern)
     return value.strftime(pattern)
+
+
+# T-Q237 (G9): named date styles so templates never carry strftime patterns.
+_DATE_STYLES: Mapping[str, str] = MappingProxyType(
+    {
+        "date_day_month": "%-d %b",
+        "date_month_day": "%b %d",
+        "date_month_year": "%b %Y",
+        "date_day_month_year": "%d %b %Y",
+        "date_year_month": "%Y-%m",
+        "date_weekday_long": "%A · %d %B %Y",
+    }
+)
+
+
+def _date_style_filter(pattern: str) -> Callable[[date | datetime | str | None], str]:
+    def _styled(value: date | datetime | str | None) -> str:
+        return _date_fmt_filter(value, pattern)
+
+    return _styled
 
 
 def _dt_local_factory(tz_name: str) -> Any:
@@ -227,6 +247,8 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["bps_percent"] = _bps_percent_filter
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
+    for name, pattern in _DATE_STYLES.items():
+        env.filters[name] = _date_style_filter(pattern)
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)
     env.filters["direction_badge"] = _direction_badge
     env.globals["direction_badge"] = _direction_badge
