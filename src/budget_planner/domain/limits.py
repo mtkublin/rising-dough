@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 PAGE_SIZE_MAX = 500
+ID_MAX = 2**63 - 1  # SQLite INTEGER ceiling; larger ids are never valid
 NAME_MAX_LENGTH = 120
 DESCRIPTION_MAX_LENGTH = 500
 MAX_BODY_BYTES = 256 * 1024

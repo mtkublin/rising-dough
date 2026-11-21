@@ -14,7 +14,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.money import parse_amount_str, to_minor_units
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -28,6 +27,7 @@ from budget_planner.services import (
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.params import afford_amount_minor
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.recurring import (
     _EMPTY_TERM_INPUT,
@@ -125,18 +125,6 @@ def today_upcoming_fragment(
     )
 
 
-def _afford_amount_minor(raw: str, currency: str) -> int | None:
-    """Parse the ``amount=`` query arg (a major-unit decimal) into minor units.
-
-    Returns ``None`` on invalid input so the router can surface a 422.
-    """
-    stripped = (raw or "").strip()
-    if stripped == "":
-        return 0
-    dec = parse_amount_str(stripped, currency)
-    return None if dec is None else to_minor_units(dec, currency)
-
-
 @router.get("/today/afford", response_class=HTMLResponse)
 def afford(
     request: Request,
@@ -150,7 +138,7 @@ def afford(
     Returns the ``today/_afford_preview.html`` fragment with the recomputed
     per-day figure + signed delta + pace tag. Pure read; no DB write.
     """
-    amount_minor = _afford_amount_minor(amount, settings.base_currency)
+    amount_minor = afford_amount_minor(amount, settings.base_currency)
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
     today_d = clock.today_local(settings)

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -36,6 +35,7 @@ from budget_planner.services import (
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
 
@@ -55,37 +55,19 @@ class LimitPreview:
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
-def _parse_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _parse_int(value: str | None) -> int | None:
-    if value in (None, ""):
-        return None
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
 def parse_filter(request: Request) -> TransactionFilter:
     """Parse the shared filter query params. Public — reused by T-038."""
     q = request.query_params
-    account_id = _parse_int(q.get("account_id"))
-    category_id = _parse_int(q.get("category_id"))
+    account_id = parse_int(q.get("account_id"))
+    category_id = parse_int(q.get("category_id"))
     description = q.get("q") or None
     return TransactionFilter(
-        date_from=_parse_date(q.get("date_from")),
-        date_to=_parse_date(q.get("date_to")),
+        date_from=parse_date(q.get("date_from")),
+        date_to=parse_date(q.get("date_to")),
         account_ids=(account_id,) if account_id is not None else (),
         category_ids=(category_id,) if category_id is not None else (),
-        amount_min=_parse_int(q.get("min_amount")),
-        amount_max=_parse_int(q.get("max_amount")),
+        amount_min=parse_int(q.get("min_amount")),
+        amount_max=parse_int(q.get("max_amount")),
         description_contains=description,
     )
 
@@ -175,8 +157,8 @@ def limit_preview(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc_id = _parse_int(account_id)
-    cat_id = _parse_int(category_id)
+    acc_id = parse_int(account_id)
+    cat_id = parse_int(category_id)
     preview: LimitPreview | None = None
     if acc_id is not None and cat_id is not None:
         preview = _compute_limit_preview(conn, user_id, acc_id, cat_id, amount)
@@ -221,20 +203,6 @@ def new_form(
     )
 
 
-def _validate_amount(amount: str, currency: str) -> tuple[int | None, str | None]:
-    # T-124 / ADR-0040 — accept both `,` and `.` as decimal separators and
-    # cap fractional digits at the currency's minor-unit scale (two for
-    # PLN/EUR/USD, zero for JPY/KRW), mirroring the UI contract in
-    # `numeric-input.js`.
-    dec = parse_amount_str(amount, currency)
-    if dec is None:
-        return None, "amount must be a decimal number"
-    if dec <= 0:
-        return None, "amount must be positive"
-    minor = to_minor_units(dec, currency)
-    return minor, None
-
-
 @router.post("")
 def create_txn(  # noqa: PLR0917
     request: Request,
@@ -251,7 +219,7 @@ def create_txn(  # noqa: PLR0917
     errors: dict[str, str] = {}
     if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
         errors["description"] = too_long
-    op_date = _parse_date(operation_date)
+    op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
@@ -262,12 +230,12 @@ def create_txn(  # noqa: PLR0917
         errors["category_id"] = "unknown category"
     minor: int | None = None
     if acc is not None:
-        minor, err = _validate_amount(amount, acc.currency)
+        minor, err = positive_amount(amount, acc.currency)
         if err is not None:
             errors["amount"] = err
     dest_id: int | None = None
     if cat is not None and cat.direction == Direction.TRANSIT:
-        parsed = _parse_int(dest_account_id) if dest_account_id else None
+        parsed = parse_int(dest_account_id) if dest_account_id else None
         if dest_account_id and parsed is None:
             errors["dest_account_id"] = "invalid destination"
         elif acc is not None:
@@ -390,7 +358,7 @@ def update_txn(  # noqa: PLR0917
     errors: dict[str, str] = {}
     if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
         errors["description"] = too_long
-    op_date = _parse_date(operation_date)
+    op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
     if acc is None:
@@ -399,7 +367,7 @@ def update_txn(  # noqa: PLR0917
     if cat is None:
         errors["category_id"] = "unknown category"
     # Submitted destination wins; else the stored one still applies.
-    submitted_dest = _parse_int(dest_account_id) if dest_account_id else None
+    submitted_dest = parse_int(dest_account_id) if dest_account_id else None
     effective_dest = submitted_dest if submitted_dest is not None else existing.dest_account_id
     if dest_account_id and submitted_dest is None:
         errors["dest_account_id"] = "invalid destination"
@@ -419,7 +387,7 @@ def update_txn(  # noqa: PLR0917
         errors["dest_account_id"] = same
     minor: int | None = None
     if acc is not None:
-        minor, err = _validate_amount(amount, acc.currency)
+        minor, err = positive_amount(amount, acc.currency)
         if err is not None:
             errors["amount"] = err
     if errors:
@@ -435,7 +403,7 @@ def update_txn(  # noqa: PLR0917
             status_code=422,
         )
     assert op_date is not None and minor is not None
-    dest_id_val = _parse_int(dest_account_id) if dest_account_id else None
+    dest_id_val = parse_int(dest_account_id) if dest_account_id else None
     transactions_repo.update(
         conn,
         user_id,

@@ -7,8 +7,9 @@ integer minor units routes through this module.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from types import MappingProxyType
 from typing import Final, Literal
 
@@ -253,33 +254,39 @@ def to_minor_units(amount: Decimal, currency: str) -> int:
     return int(quantised * (Decimal(10) ** decimals))
 
 
+MAX_MINOR: Final = 10**15
+"""Largest accepted absolute amount in minor units (T-Q233, Q-023); far below SQLite's int64."""
+
+_AMOUNT_RE: Final = re.compile(r"[+-]?\d+(?:\.(\d+))?", re.ASCII)
+
+
 def parse_amount_str(raw: str, currency: str) -> Decimal | None:
-    """Parse a user-entered amount string into a Decimal (T-124 / ADR-0040).
+    """Parse a user-entered amount string into a Decimal (T-124 / ADR-0040, T-Q233).
 
-    - Normalises comma to dot so Polish/EU-style ``12,34`` and dot-style
-      ``12.34`` both round-trip to the same minor-unit value.
-    - Rejects more fractional digits than the currency supports (e.g.
-      ``12.345`` for PLN) by returning ``None``; the router surfaces a 422
-      with the same inline error shape as other invalid-amount cases.
-    - Rejects non-decimal strings and non-finite values by returning ``None``.
+    The one amount parser (Q-023). Returns ``None`` (the router surfaces a 422) for:
 
-    Mirrors ``numeric-input.js`` which already allows either separator in
-    the UI; this helper pins the server contract against future
-    regressions.
+    - anything but ASCII digits with an optional sign and one ``.`` or ``,`` separator
+      (no exponents, ``NaN``/``Infinity``, underscores, non-ASCII digits, hex);
+    - more fractional digits than the currency supports (``12.345`` for PLN);
+    - an absolute value above ``MAX_MINOR`` minor units.
     """
     normalised = raw.strip().replace(",", ".")
-    if not normalised:
+    match = _AMOUNT_RE.fullmatch(normalised)
+    if match is None:
         return None
-    try:
-        dec = Decimal(normalised)
-    except (InvalidOperation, ValueError):
+    decimals = currency_decimals(currency)
+    if len(match.group(1) or "") > decimals:
         return None
-    if not dec.is_finite():
-        return None
-    _, _, frac = normalised.partition(".")
-    if len(frac) > currency_decimals(currency):
+    dec = Decimal(normalised)
+    if abs(dec) * (Decimal(10) ** decimals) > MAX_MINOR:
         return None
     return dec
+
+
+def parse_amount_minor(raw: str, currency: str) -> int | None:
+    """Parse ``raw`` straight to signed minor units (``None`` when invalid or out of range)."""
+    dec = parse_amount_str(raw, currency)
+    return None if dec is None else to_minor_units(dec, currency)
 
 
 def minor_to_major(amount_minor: int, currency: str) -> Decimal:
@@ -341,6 +348,15 @@ def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> s
 def format_bps_percent(bps: int) -> str:
     """Basis points as a two-decimal percent string (1 -> ``'0.01'``)."""
     return f"{bps_to_percent(bps):.2f}"
+
+
+_PERCENT_RE: Final = re.compile(r"[+-]?\d{1,9}(?:\.\d{1,9})?", re.ASCII)
+
+
+def parse_percent_str(raw: str) -> Decimal | None:
+    """Parse percent text (``"12"``, ``"12,5"``) to a Decimal, or ``None``."""
+    normalised = raw.strip().replace(",", ".")
+    return Decimal(normalised) if _PERCENT_RE.fullmatch(normalised) else None
 
 
 def percent_to_bps(percent: Decimal) -> int:

@@ -152,14 +152,14 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/budget.py"
 rule = "cc>=11"
-count = 2
+count = 1
 finding = "Q-046"
 epic = "E13"
 
 [[entry]]
 path = "src/budget_planner/web/routers/budget.py"
 rule = "func>50"
-count = 2
+count = 1
 finding = "Q-046"
 epic = "E13"
 

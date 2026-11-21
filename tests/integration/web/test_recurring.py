@@ -180,7 +180,7 @@ def test_create_invalid_amount(
         },
     )
     assert r.status_code == 422
-    assert "<strong>default_amount:</strong> must be positive" in r.text
+    assert "<strong>default_amount:</strong> amount must be positive" in r.text
     assert _state(db) == before
 
 
@@ -424,7 +424,7 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
     assert r.status_code == 422
     assert "<strong>cadence:</strong> invalid" in r.text
     assert "<strong>start_date:</strong> invalid date" in r.text
-    assert "<strong>default_amount:</strong> must be positive" in r.text
+    assert "<strong>default_amount:</strong> amount must be positive" in r.text
     assert _state(db) == before
 
 
@@ -487,7 +487,7 @@ def test_override_invalid_amount(
         data={"year": 2026, "month": 5, "amount": "nope"},
     )
     assert r.status_code == 422
-    assert "<strong>amount:</strong> invalid amount" in r.text
+    assert "<strong>amount:</strong> amount must be a decimal number within range" in r.text
     assert _state(db) == before
 
 
@@ -1183,7 +1183,7 @@ def test_override_errors_rerender_form_with_message(
 ) -> None:
     for form, text in (
         ({"year": "2026", "month": "13", "amount": "5"}, "invalid year or month"),
-        ({"year": "2026", "month": "5", "amount": "abc"}, "invalid amount"),
+        ({"year": "2026", "month": "5", "amount": "abc"}, "decimal number within range"),
         ({"year": "2026", "month": "5", "amount": "-1"}, "must be positive"),
     ):
         r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)

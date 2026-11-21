@@ -35,6 +35,7 @@ from budget_planner.services import (
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
+from budget_planner.web.params import parse_date, parse_int
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/ledger", tags=["ledger"])
@@ -42,36 +43,18 @@ router = APIRouter(prefix="/ledger", tags=["ledger"])
 _PAGE_SIZE_DEFAULT = 50
 
 
-def _parse_date(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _parse_int(value: str | None) -> int | None:
-    if value in (None, ""):
-        return None
-    try:
-        return int(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
 def parse_filters(request: Request) -> LedgerFilters:
     """Parse the shared ledger filter from the request's query params."""
     q = request.query_params
-    account_id = _parse_int(q.get("account_id"))
-    category_id = _parse_int(q.get("category_id"))
-    page = max(1, _parse_int(q.get("page")) or 1)
-    size = _parse_int(q.get("page_size")) or _PAGE_SIZE_DEFAULT
+    account_id = parse_int(q.get("account_id"))
+    category_id = parse_int(q.get("category_id"))
+    page = max(1, parse_int(q.get("page")) or 1)
+    size = parse_int(q.get("page_size")) or _PAGE_SIZE_DEFAULT
     size = max(1, min(size, PAGE_SIZE_MAX))
     description = q.get("q") or None
     return LedgerFilters(
-        date_from=_parse_date(q.get("date_from")),
-        date_to=_parse_date(q.get("date_to")),
+        date_from=parse_date(q.get("date_from")),
+        date_to=parse_date(q.get("date_to")),
         account_ids=(account_id,) if account_id is not None else (),
         category_ids=(category_id,) if category_id is not None else (),
         direction=q.get("direction") or None,
