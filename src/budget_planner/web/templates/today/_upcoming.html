@@ -2,73 +2,53 @@
    Grid-based rows (no <table>); category pill uses the category's own
    color + direction so sign + styling follow the taxonomy rather than
    the amount's raw sign. #}
-{% if upcoming %}
-  {% set cap = 6 %}
-  {% set total_count = upcoming|length %}
-  {% set shown = upcoming[:cap] %}
-  {% set next_7 = [] %}
-  {% set later = [] %}
-  {% for row in shown %}
-    {% set delta = (row.operation_date - today).days %}
-    {% if delta <= 7 %}
-      {% set _ = next_7.append(row) %}
-    {% else %}
-      {% set _ = later.append(row) %}
-    {% endif %}
-  {% endfor %}
-  {% macro upcoming_row(row) %}
-    {% set row_id = "upcoming-planned-" ~ row.planned_id if row.kind == "planned" else "upcoming-recurring-" ~ row.rule_id %}
-    {% set cat = categories_by_id.get(row.category_id) if categories_by_id is defined else none %}
-    {% set acc = accounts_by_id.get(row.account_id) if accounts_by_id is defined else none %}
-    {% set direction = cat.direction.value if cat else "expense" %}
-    {% set is_income = direction == "income" %}
-    {% set is_overdue = row.operation_date < today %}
-    {% set is_due_today = row.operation_date == today %}
-    <div id="{{ row_id }}"
-         class="rd-row rd-upcoming__row{% if is_overdue %} rd-upcoming__row--overdue{% elif is_due_today %} rd-upcoming__row--due{% endif %}">
-      <span class="num mut rd-upcoming__date">{{ row.operation_date.strftime("%b %d") }}</span>
+{% if upcoming_view.total_count %}
+  {% macro upcoming_row(item) %}
+    <div id="{{ item.row_id }}"
+         class="rd-row rd-upcoming__row{% if item.is_overdue %} rd-upcoming__row--overdue{% elif item.is_due_today %} rd-upcoming__row--due{% endif %}">
+      <span class="num mut rd-upcoming__date">{{ item.row.operation_date|date_month_day }}</span>
       <span class="rd-upcoming__desc">
-        <span class="rd-upcoming__name">{{ row.description }}</span>
-        {% if acc %}<span class="mut rd-upcoming__acct">· {{ acc.name }}</span>{% endif %}
-        {% if row.is_formula %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
+        <span class="rd-upcoming__name">{{ item.row.description }}</span>
+        {% if item.account %}<span class="mut rd-upcoming__acct">· {{ item.account.name }}</span>{% endif %}
+        {% if item.row.is_formula %}<kbd class="rd-kbd">ƒ</kbd>{% endif %}
       </span>
       <span class="rd-upcoming__cat">
-        {% if cat %}
-          <span class="rd-pill rd-pill--{{ direction }}"
-                {% if cat.color %} style="background: color-mix(in oklab, {{ cat.color }} 14%, transparent); color: {{ cat.color }}"{% endif %}>{{ cat.name|upper }}</span>
+        {% if item.category %}
+          <span class="rd-pill rd-pill--{{ item.direction }}"
+                {% if item.category.color %} style="background: color-mix(in oklab, {{ item.category.color }} 14%, transparent); color: {{ item.category.color }}"{% endif %}>{{ item.category.name|upper }}</span>
         {% else %}
           <span class="rd-pill rd-pill--muted">—</span>
         {% endif %}
       </span>
-      <span class="num {{ 'pos' if is_income else '' }} rd-upcoming__amt">{{ '+' if is_income else '' }}{{ row.amount_minor|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span></span>
+      <span class="num {{ 'pos' if item.is_income else '' }} rd-upcoming__amt">{{ '+' if item.is_income else '' }}{{ item.row.amount_minor|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span></span>
       <span class="rd-upcoming__actions">
-        {% if row.kind == "planned" %}
+        {% if item.is_planned %}
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--primary"
-                  hx-get="/planned/{{ row.planned_id }}/promote/inline"
-                  hx-target="#{{ row_id }}"
+                  hx-get="/planned/{{ item.row.planned_id }}/promote/inline"
+                  hx-target="#{{ item.row_id }}"
                   hx-swap="outerHTML">Promote</button>
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--ghost"
-                  hx-get="/planned/{{ row.planned_id }}/edit"
+                  hx-get="/planned/{{ item.row.planned_id }}/edit"
                   hx-target="#modal-root"
                   hx-swap="innerHTML">Override</button>
         {% else %}
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--primary"
-                  hx-get="/recurring/{{ row.rule_id }}/promote/inline?date={{ row.operation_date.isoformat() }}"
-                  hx-target="#{{ row_id }}"
+                  hx-get="/recurring/{{ item.row.rule_id }}/promote/inline?date={{ item.row.operation_date|date_fmt }}"
+                  hx-target="#{{ item.row_id }}"
                   hx-swap="outerHTML">Promote</button>
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--ghost"
-                  hx-post="/recurring/{{ row.rule_id }}/skip-next"
+                  hx-post="/recurring/{{ item.row.rule_id }}/skip-next"
                   hx-swap="none"
                   hx-trigger="click"
                   data-refresh-upcoming
                   hx-confirm="Skip this occurrence?">Skip</button>
           <button type="button"
                   class="rd-btn rd-btn--sm rd-btn--ghost"
-                  hx-get="/recurring/{{ row.rule_id }}/overrides/new?occurrence_date={{ row.operation_date.isoformat() }}"
+                  hx-get="/recurring/{{ item.row.rule_id }}/overrides/new?occurrence_date={{ item.row.operation_date|date_fmt }}"
                   hx-target="#modal-root"
                   hx-swap="innerHTML">Override</button>
         {% endif %}
@@ -76,18 +56,18 @@
     </div>
   {% endmacro %}
   <div class="rd-upcoming">
-    {% if next_7 %}
+    {% if upcoming_view.next_7 %}
       <div class="rd-eyebrow rd-upcoming__group">Next 7 days</div>
-      {% for row in next_7 %}{{ upcoming_row(row) }}{% endfor %}
+      {% for item in upcoming_view.next_7 %}{{ upcoming_row(item) }}{% endfor %}
     {% endif %}
-    {% if later %}
+    {% if upcoming_view.later %}
       <div class="rd-eyebrow rd-upcoming__group">Later</div>
-      {% for row in later %}{{ upcoming_row(row) }}{% endfor %}
+      {% for item in upcoming_view.later %}{{ upcoming_row(item) }}{% endfor %}
     {% endif %}
   </div>
-  {% if total_count > cap %}
+  {% if upcoming_view.has_more %}
     <p class="rd-upcoming__more">
-      Showing {{ cap }} of {{ total_count }} ·
+      Showing {{ upcoming_view.cap }} of {{ upcoming_view.total_count }} ·
       <a href="/ledger?view=planned">open in Ledger →</a>
     </p>
   {% endif %}

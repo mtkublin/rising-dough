@@ -426,7 +426,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:6 (3 entries); `htmx_events`:35 (7 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/htmx_events.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q237 [P] Budget numbers in templates come from `MonthSummary`
+### ✅ T-Q237 [P] Budget numbers in templates come from `MonthSummary`
 - Findings: Q-039 (E-05, A-15).
 - Epic: E09, E16
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

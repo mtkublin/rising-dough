@@ -127,7 +127,18 @@ class LineAreaChart:
     height: float
     points: tuple[LinePoint, ...] = ()
 
+    @property
+    def plot_right(self) -> float:
+        """Right edge of the plot area (gridline end)."""
+        return self.width - _LINE_AREA_PAD_RIGHT
 
+    @property
+    def x_label_y(self) -> float:
+        """Baseline of the x-axis labels."""
+        return self.height - _X_LABEL_INSET
+
+
+_X_LABEL_INSET = 10.0
 _LINE_AREA_WIDTH = 600.0
 _LINE_AREA_HEIGHT = 240.0
 _LINE_AREA_PAD_LEFT = 48.0
@@ -277,6 +288,16 @@ class GroupedBarsChart:
     view_box: str
     width: float
     height: float
+
+    @property
+    def plot_right(self) -> float:
+        """Right edge of the plot area (gridline end)."""
+        return self.width - _GROUPED_PAD_RIGHT
+
+    @property
+    def x_label_y(self) -> float:
+        """Baseline of the x-axis labels."""
+        return self.height - _X_LABEL_INSET
 
 
 _GROUPED_WIDTH = 600.0

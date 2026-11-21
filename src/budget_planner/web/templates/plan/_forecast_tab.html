@@ -3,26 +3,22 @@
    shared Plan header slot (plan/index.html). The tab body renders the
    Now / End / Peak summary row, the SVG line + area chart with monthly
    dots, and the monthly table. #}
-{% set chart = forecast_chart %}
-{% set points = forecast_points %}
-{% set horizon = forecast_horizon or 12 %}
-{% set summary = forecast_summary %}
 <section class="rd-forecast">
-  {% if summary %}
+  {% if forecast_summary %}
     <aside class="rd-forecast__summary" aria-label="Projection summary">
       <div class="rd-forecast__sum-item">
         <span class="rd-eyebrow">Now</span>
-        <strong class="num rd-forecast__sum-value">{{ summary.now_value|money_whole(base_ccy) }}</strong>
+        <strong class="num rd-forecast__sum-value">{{ forecast_summary.now_value|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
       <div class="rd-forecast__sum-item">
-        <span class="rd-eyebrow">End · {{ summary.end_point.label }}</span>
-        <strong class="num rd-forecast__sum-value">{{ summary.end_point.end_balance_minor|money_whole(base_ccy) }}</strong>
+        <span class="rd-eyebrow">End · {{ forecast_summary.end_point.label }}</span>
+        <strong class="num rd-forecast__sum-value">{{ forecast_summary.end_point.end_balance_minor|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
       <div class="rd-forecast__sum-item">
-        <span class="rd-eyebrow">Peak · {{ summary.peak_point.label }}</span>
-        <strong class="num rd-forecast__sum-value">{{ summary.peak_point.end_balance_minor|money_whole(base_ccy) }}</strong>
+        <span class="rd-eyebrow">Peak · {{ forecast_summary.peak_point.label }}</span>
+        <strong class="num rd-forecast__sum-value">{{ forecast_summary.peak_point.end_balance_minor|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
     </aside>
@@ -32,34 +28,34 @@
           aria-labelledby="forecast-caption">
     <figcaption id="forecast-caption" class="rd-chart__caption">
       Projected balance,
-      {% if points %}
-        {{ points[0].label }} — {{ points[-1].label }}
+      {% if forecast_points %}
+        {{ forecast_points[0].label }} — {{ forecast_points[-1].label }}
       {% else %}
         no data available
       {% endif %}
       · {{ base_ccy }}
     </figcaption>
     <svg class="rd-chart__svg rd-chart__svg--line"
-         viewBox="{{ chart.view_box }}"
+         viewBox="{{ forecast_chart.view_box }}"
          preserveAspectRatio="xMidYMid meet"
          role="presentation">
-      {% for tick in chart.y_axis %}
-        <line class="rd-chart__gridline" x1="48" x2="{{ chart.width - 16 }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
+      {% for tick in forecast_chart.y_axis %}
+        <line class="rd-chart__gridline" x1="48" x2="{{ forecast_chart.plot_right }}" y1="{{ tick.position }}" y2="{{ tick.position }}" />
         <text class="rd-chart__y-label" x="42" y="{{ tick.position }}" text-anchor="end" dominant-baseline="middle">{{ tick.label }}</text>
       {% endfor %}
-      {% if chart.area_d %}
-        <path class="rd-chart__area" d="{{ chart.area_d }}" />
+      {% if forecast_chart.area_d %}
+        <path class="rd-chart__area" d="{{ forecast_chart.area_d }}" />
       {% endif %}
-      {% if chart.line_d %}
-        <path class="rd-chart__line" d="{{ chart.line_d }}" fill="none" />
+      {% if forecast_chart.line_d %}
+        <path class="rd-chart__line" d="{{ forecast_chart.line_d }}" fill="none" />
       {% endif %}
-      {% if chart.points %}
-        {% for pt in chart.points %}
+      {% if forecast_chart.points %}
+        {% for pt in forecast_chart.points %}
           <circle class="rd-chart__dot" cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5" />
         {% endfor %}
       {% endif %}
-      {% for tick in chart.x_axis %}
-        <text class="rd-chart__x-label" x="{{ tick.position }}" y="{{ chart.height - 10 }}" text-anchor="middle">{{ tick.label }}</text>
+      {% for tick in forecast_chart.x_axis %}
+        <text class="rd-chart__x-label" x="{{ tick.position }}" y="{{ forecast_chart.x_label_y }}" text-anchor="middle">{{ tick.label }}</text>
       {% endfor %}
     </svg>
   </figure>
@@ -78,14 +74,13 @@
         </tr>
       </thead>
       <tbody>
-        {% for p in points %}
-          {% set net = p.net_minor|int %}
-          <tr data-month="{{ p.month.isoformat() }}">
+        {% for p in forecast_points %}
+          <tr data-month="{{ p.month|date_fmt }}">
             <td>{{ p.label }}</td>
-            <td class="num">{{ (p.income_minor or 0)|money_whole(base_ccy) }}</td>
-            <td class="num">{{ (p.expense_minor or 0)|money_whole(base_ccy) }}</td>
-            <td class="num">{{ (p.planned_budget_minor or 0)|money_whole(base_ccy) }}</td>
-            <td class="num {% if net < 0 %}rd-forecast__net--neg{% endif %}">{{ net|money_whole(base_ccy) }}</td>
+            <td class="num">{{ p.income_minor|money_whole(base_ccy) }}</td>
+            <td class="num">{{ p.expense_minor|money_whole(base_ccy) }}</td>
+            <td class="num">{{ p.planned_budget_minor|money_whole(base_ccy) }}</td>
+            <td class="num {% if p.net_minor < 0 %}rd-forecast__net--neg{% endif %}">{{ p.net_minor|money_whole(base_ccy) }}</td>
             <td class="num rd-forecast__eom"><strong>{{ p.end_balance_minor|money_num(base_ccy) }}</strong></td>
           </tr>
         {% else %}

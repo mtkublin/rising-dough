@@ -14,8 +14,8 @@
   </thead>
   <tbody>
     {% for row in monthly.months %}
-      <tr data-month="{{ row.month|date_fmt('%Y-%m') }}">
-        <td class="whitespace-nowrap font-semibold">{{ row.month|date_fmt("%b %Y") }}</td>
+      <tr data-month="{{ row.month|date_year_month }}">
+        <td class="whitespace-nowrap font-semibold">{{ row.month|date_month_year }}</td>
         <td class="numeric text-right">{{ row.income_base_minor|money(monthly.base_currency) }}</td>
         <td class="numeric text-right">{{ row.expense_base_minor|money(monthly.base_currency) }}</td>
         <td class="numeric text-right">{{ row.planned_budget_base_minor|money(monthly.base_currency) }}</td>
