@@ -15,7 +15,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
-from markupsafe import Markup, escape
+from markupsafe import Markup
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
@@ -144,11 +144,8 @@ def _direction_badge(direction: Direction | str | None) -> Markup:
     value = direction.value if isinstance(direction, Direction) else str(direction)
     css = _DIRECTION_COLORS.get(value, "pill-adjust")
     label = value.capitalize()
-    # Values come from the Direction StrEnum or a bounded string set; label is
-    # just capitalised. Safe to mark as Markup — content is derived not user.
-    return Markup(  # noqa: S704
-        f'<span class="pill {css}" aria-label="{label}">{label}</span>'
-    )
+    # Markup built from a literal template; ``.format`` escapes every argument.
+    return Markup('<span class="pill {}" aria-label="{}">{}</span>').format(css, label, label)
 
 
 def _resolve_category_color(direction: Direction | str | None, color: str | None) -> str:
@@ -181,11 +178,9 @@ def _category_label_parts(
     if not name:
         return Markup("")
     css_color = _resolve_category_color(direction, color)
-    safe_name = escape(name)
     style = f"background: color-mix(in oklab, {css_color} 16%, transparent); color: {css_color}"
-    return Markup(  # noqa: S704
-        f'<span class="pill cat-pill" style="{style}">{safe_name}</span>'
-    )
+    # Literal template; ``.format`` escapes name and style.
+    return Markup('<span class="pill cat-pill" style="{}">{}</span>').format(style, name)
 
 
 def _category_label(category: Any) -> Markup:

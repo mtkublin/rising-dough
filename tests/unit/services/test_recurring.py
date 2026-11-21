@@ -866,7 +866,7 @@ def test_promote_rollback_on_set_next_due_failure(
     def _boom(*args: object, **kwargs: object) -> None:
         raise RuntimeError("boom")
 
-    monkeypatch.setattr("budget_planner.repositories.recurring.set_next_due", _boom)
+    monkeypatch.setattr("budget_planner.services.recurring.set_next_due", _boom)
     with pytest.raises(RuntimeError):
         rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
 

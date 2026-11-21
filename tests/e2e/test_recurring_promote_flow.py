@@ -15,6 +15,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import strip_id_prefix
+from tests.e2e.forms import PANEL, wait_for_htmx
 
 pytestmark = pytest.mark.e2e
 
@@ -77,23 +78,24 @@ def test_recurring_rule_and_planned_promote_cycle(
     )
     assert planned_resp.ok, planned_resp.text()
 
-    # Scrape the persisted row id.
     page.goto(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
     persisted_el = page.locator("tr[id^='planned-p-']").first
-    planned_id = strip_id_prefix(persisted_el.get_attribute("id"), "planned-p-")
 
-    # Promote with an edited amount.
-    promote_resp = page.request.post(
-        f"{base_url}/planned/{planned_id}/promote",
-        form={
-            "operation_date": "2026-01-22",
-            "amount": "27.50",
-            "description": "promoted one-off",
-        },
-    )
-    assert promote_resp.ok, promote_resp.text()
+    # Promote through the row's slide-over form with an edited amount.
+    wait_for_htmx(page)
+    persisted_el.get_by_role("button", name="Promote").click()
+    panel = page.locator(PANEL)
+    expect(panel).to_be_visible()
+    panel.locator("input[name='operation_date']").fill("2026-01-22")
+    panel.locator("input[name='amount']").fill("27.50")
+    panel.locator("input[name='description']").fill("promoted one-off")
+    with page.expect_response(
+        lambda r: r.url.endswith("/promote") and r.request.method == "POST"
+    ) as resp:
+        panel.get_by_role("button", name="Promote").click()
+    assert resp.value.ok, resp.value.text()
 
     # Verify the transaction appears on the unified ledger (Phase 6 — T-064
     # collapsed /transactions, /planned, /recurring into /ledger?view=…).

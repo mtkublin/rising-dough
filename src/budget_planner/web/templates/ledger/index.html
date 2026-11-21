@@ -26,6 +26,7 @@
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
         hx-swap="outerHTML"
+        hx-sync="#ledger-table:replace"
         hx-trigger="change, submit">
     <label>
       <span class="sr-only">From</span>
@@ -85,6 +86,7 @@
              hx-target="#ledger-table"
              hx-swap="outerHTML"
              hx-include="#ledger-filters"
+             hx-sync="#ledger-table:replace"
              hx-trigger="input changed delay:400ms"
              hx-push-url="false">
       <kbd class="rd-kbd">/</kbd>

@@ -29,7 +29,11 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
+from budget_planner.services import (
+    recurring as recurring_svc,
+    recurring_formula as formula_svc,
+    recurring_undo,
+)
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import refresh_unless_on, trigger
@@ -433,7 +437,7 @@ def recurring_batch_promote_due(
                 "undo_url": "/recurring/batch/undo",
                 "undo_payload": {
                     "promoted_txn_ids": list(result.promoted_txn_ids),
-                    "advanced_rule_ids": list(result.advanced_rule_ids),
+                    "advance_audit_ids": list(result.advance_audit_ids),
                 },
             },
             "ledger-stale": True,
@@ -453,62 +457,27 @@ async def recurring_batch_undo(
 ) -> Response:
     """Reverse a prior batch recurring promote.
 
-    Expects form fields ``promoted_txn_ids`` (CSV of ints) and
-    ``advanced_rule_ids`` (CSV of ints). Soft-deletes the promoted txns
-    + reverts each rule's ``next_due`` from its most recent
-    audit_log entry.
+    Expects form fields ``promoted_txn_ids`` and ``advance_audit_ids`` (CSV of
+    ints, parallel). Audited action (ADR-0019 amendment, T-Q228): each rule is
+    restored from the audit row its advance wrote, only if unchanged since.
     """
-    from budget_planner.repositories import (  # noqa: PLC0415
-        recurring as recurring_repo_mod,
-        transactions as transactions_repo,
-    )
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-
     form = await request.form()
     try:
         txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
-        rule_ids = [int(v) for v in str(form.get("advanced_rule_ids", "")).split(",") if v]
+        audit_ids = [int(v) for v in str(form.get("advance_audit_ids", "")).split(",") if v]
     except ValueError:
         return Response(status_code=422, content="invalid id list")
+    if len(txn_ids) != len(audit_ids):
+        return Response(status_code=422, content="id lists differ in length")
 
-    with db_transaction(conn):
-        for txn_id in txn_ids:
-            transactions_repo.soft_delete(conn, user_id, txn_id)
-        for rule_id in rule_ids:
-            # Replay audit: the batch wrote a `recurring_rule` update row
-            # for each advancement with the prior rule state in ``prev_json``.
-            row = conn.execute(
-                """
-                SELECT prev_json FROM audit_log
-                WHERE entity_type = 'recurring_rule' AND entity_id = ?
-                ORDER BY id DESC LIMIT 1
-                """,
-                (rule_id,),
-            ).fetchone()
-            if row is None or row["prev_json"] is None:
-                continue
-            import json  # noqa: PLC0415
-
-            prev = json.loads(row["prev_json"])
-            prev_next_due_raw = prev.get("next_due")
-            prev_last_promoted = prev.get("last_promoted_date")
-            if not prev_next_due_raw:
-                continue
-            prev_next_due = date.fromisoformat(prev_next_due_raw)
-            prev_last_promoted_date = (
-                date.fromisoformat(prev_last_promoted) if prev_last_promoted else None
-            )
-            recurring_repo_mod.set_next_due(
-                conn,
-                user_id,
-                rule_id,
-                next_due=prev_next_due,
-                last_promoted_date=prev_last_promoted_date,
-            )
+    result = recurring_undo.undo_batch(conn, user_id, list(zip(txn_ids, audit_ids, strict=True)))
+    message = "Undone"
+    if result.skipped_rule_ids:
+        message = f"Undone ({len(result.skipped_rule_ids)} rule(s) changed since, left as is)"
     resp = Response(status_code=204)
     resp.headers["HX-Trigger"] = _hx_trigger_payload(
         {
-            "toast": {"variant": "info", "message": "Undone"},
+            "toast": {"variant": "info", "message": message},
             "ledger-stale": True,
             "forecast-stale": True,
             "budget-stale": True,

@@ -57,6 +57,7 @@ from budget_planner.repositories import (  # noqa: E402
     recurring as _recurring_repo,
     transactions as _transactions_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due  # noqa: E402
 from budget_planner.services import preferences as _preferences_svc  # noqa: E402
 
 WORLD_DAY = _dt.date(2026, 11, 10)  # the day of each user's transaction
@@ -163,7 +164,7 @@ def seed_rule(
             active=active,
         ),
     )
-    _recurring_repo.set_next_due(conn, user_id, rule.id, next_due=due, last_promoted_date=None)
+    set_next_due(conn, user_id, rule.id, next_due=due, last_promoted_date=None)
     return rule
 
 

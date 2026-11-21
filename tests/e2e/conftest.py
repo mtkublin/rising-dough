@@ -73,11 +73,17 @@ def _free_port() -> int:
     return int(port)
 
 
-def _wait_until_ready(url: str, deadline_s: float = 15.0) -> None:
+_READY_DEADLINE_S = 60.0
+
+
+def _wait_until_ready(url: str, proc: subprocess.Popen[bytes], deadline_s: float) -> None:
+    """Poll ``url`` until it answers 200; fail fast if the server process died."""
     start = time.monotonic()
     while time.monotonic() - start < deadline_s:
+        if proc.poll() is not None:
+            raise RuntimeError(f"uvicorn exited with code {proc.returncode} before becoming ready")
         try:
-            with urlopen(Request(url), timeout=1.0) as resp:  # noqa: S310
+            with urlopen(Request(url), timeout=2.0) as resp:  # noqa: S310
                 if resp.status == 200:
                     return
         except Exception:
@@ -134,7 +140,7 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_until_ready(f"{base_url}/health")
+        _wait_until_ready(f"{base_url}/health", proc, _READY_DEADLINE_S)
         yield base_url, db_path
     finally:
         proc.terminate()
