@@ -878,7 +878,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q249 [P] Test transport matches production
+### ✅ T-Q249 [P] Test transport matches production
 - Findings: Q-058 (F-17).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
