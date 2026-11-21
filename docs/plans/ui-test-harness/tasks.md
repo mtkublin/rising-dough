@@ -77,10 +77,12 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ## Phase 2 — End-to-end layer → T-UT02
 
-### ◻ T-UT07 [P] Crawler smoke test
+### ✅ T-UT07 [P] Crawler smoke test
 - **Deliverables**: `tests/e2e/test_crawl.py` and `tests/e2e/crawl_inventory.json` per ADR-0106 §3. Seeded scratch DB copied per destructive control; viewports 375 and 1440; both themes where the app supports them.
 - **Acceptance**: green on today's UI; the inventory lists every page route with its controls; a seeded broken `hx-get` target fails the test; the run stays under 5 minutes (else split by surface with a marker).
 - **Validation**: `just test-e2e tests/e2e/test_crawl.py`
+- **Notes (2026-11-20)**: `tests/e2e/test_crawl.py` (one test per page route, 21 pages) + helpers in `tests/e2e/crawl/` + `tests/e2e/test_crawl_checker.py` (fixture page proving a broken `hx-get` target, a healthy swap and an inert control). Regenerate the inventory with `CRAWL_UPDATE=1`. Single theme today (no dark mode), so one pass. Controls are activated at 1440; 375 gets load-time overflow / duplicate-id / console / request checks, plus the same checks after every activation at 1440. Skipped with a recorded reason: logout, WebAuthn (passkey add/revoke/register), external links, sr-only / off-screen controls, form- or input-triggered hx elements. Known app bugs (strict xfail in `test_known_bug`):
+  - `T-D-UT07-1`: `/budget/yearly` is 2000px wide and scrolls the whole page horizontally at 375 and 1440 (`table > caption > thead` overflow).
 
 ### ◻ T-UT08 [P] Journeys on the UI map → T-UT04a..e
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
