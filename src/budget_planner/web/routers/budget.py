@@ -180,7 +180,7 @@ def new_override_form(
     form is opened from the Year heatmap (ADR-0051 §5.3).
     """
     cat = categories_repo.find_by_id(conn, user_id, category_id)
-    tz_year = datetime.now(ZoneInfo(settings.display_timezone)).year
+    tz_now = datetime.now(ZoneInfo(settings.display_timezone))
     q = request.query_params
     try:
         preset_month = int(q["month"]) if "month" in q else None
@@ -192,15 +192,16 @@ def new_override_form(
         preset_year = int(q["year"]) if "year" in q else None
     except ValueError:
         preset_year = None
+    form_month = preset_month or tz_now.month
+    form_year = preset_year or tz_now.year
     if cat is None:
         return render(
             request,
             "partials/budget/_override_form.html",
             category=None,
             errors={"category": "not found"},
-            today_year=tz_year,
-            preset_month=preset_month,
-            preset_year=preset_year,
+            form_month=form_month,
+            form_year=form_year,
             status_code=404,
         )
     default_row = budgets_repo.get_default(conn, user_id, category_id)
@@ -212,9 +213,8 @@ def new_override_form(
             category=cat,
             errors={},
             inline=True,
-            today_year=tz_year,
-            preset_month=preset_month,
-            preset_year=preset_year,
+            form_month=form_month,
+            form_year=form_year,
             default_amount_minor=default_row.amount if default_row else None,
         )
     return render(
@@ -224,9 +224,8 @@ def new_override_form(
         form_include="partials/budget/_override_form.html",
         category=cat,
         errors={},
-        today_year=tz_year,
-        preset_month=preset_month,
-        preset_year=preset_year,
+        form_month=form_month,
+        form_year=form_year,
         default_amount_minor=default_row.amount if default_row else None,
     )
 

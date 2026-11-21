@@ -33,7 +33,7 @@
           data-suffix="{{ txn_account.currency if txn_account else '' }}">
       <input type="text"
              name="amount"
-             value="{{ txn.amount|money_major(txn_account.currency if txn_account else 'PLN') if txn else '' }}"
+             value="{{ txn.amount|money_major(txn_account.currency if txn_account else base_ccy) if txn else '' }}"
              placeholder="0.00"
              inputmode="decimal"
              data-numeric

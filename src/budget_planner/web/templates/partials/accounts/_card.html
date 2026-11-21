@@ -1,10 +1,6 @@
 {% from "_partials/components/_planned_net.html" import planned_net %}
 {% set a = card.account %}
-{% set used = (-card.balance) if (a.is_liability and card.balance < 0) else 0 %}
-{% set limit = a.credit_limit_minor or 0 %}
-{% set available = (limit - used) if (limit - used) > 0 else 0 %}
-{% set pct_raw = (used * 100 / limit) if (a.is_liability and limit) else 0 %}
-{% set pct = pct_raw if pct_raw <= 100 else 100 %}
+{% set util = card.utilisation %}
 <article id="account-{{ a.id }}"
          class="account-card p-5 border border-[color:var(--rule)] rounded-[var(--radius-card)]{% if a.is_liability %} account-card--liability{% endif %}">
   <header class="flex items-baseline justify-between">
@@ -18,24 +14,24 @@
   <p class="mt-3 text-3xl tabular-nums">{{ card.balance|money(a.currency) }}</p>
   {{ planned_net(card.planned, a.currency) }}
   <p class="mt-1 text-muted text-sm">{{ card.stats.txn_count }} txns</p>
-  {% if a.is_liability and a.credit_limit_minor %}
+  {% if util %}
     <dl class="credit-strip mt-3 grid grid-cols-3 gap-2 text-sm tabular-nums">
       <div>
         <dt class="text-muted">Limit</dt>
         <dd>
-          {{ a.credit_limit_minor|money(a.currency) }}
+          {{ util.limit_minor|money(a.currency) }}
         </dd>
       </div>
       <div>
         <dt class="text-muted">Available</dt>
         <dd>
-          {{ available|money(a.currency) }}
+          {{ util.available_minor|money(a.currency) }}
         </dd>
       </div>
       <div>
         <dt class="text-muted">Used</dt>
         <dd>
-          {{ "%.0f"|format(pct_raw) }}%
+          {{ util.used_pct }}%
         </dd>
       </div>
     </dl>
@@ -43,11 +39,11 @@
          role="progressbar"
          aria-valuemin="0"
          aria-valuemax="100"
-         aria-valuenow="{{ pct|round(0, 'floor')|int }}">
-      <span style="width: {{ pct|round(2) }}%"></span>
+         aria-valuenow="{{ util.bar_pct|int }}">
+      <span style="width: {{ util.bar_pct|round(2) }}%"></span>
     </div>
-    {% if card.balance < -a.credit_limit_minor %}
-      <p class="badge badge--warning mt-2">Over limit by {{ (used - a.credit_limit_minor)|money(a.currency) }}</p>
+    {% if util.over_limit_minor %}
+      <p class="badge badge--warning mt-2">Over limit by {{ util.over_limit_minor|money(a.currency) }}</p>
     {% endif %}
   {% endif %}
   {% if card.sparkline_points %}
