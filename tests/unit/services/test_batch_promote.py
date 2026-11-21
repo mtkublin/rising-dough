@@ -18,6 +18,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import planned as planned_svc, recurring as recurring_svc
 
 USER_ID = 1
@@ -58,9 +59,7 @@ class TestRecurringBatch:
             ),
         )
         # Force next_due back to a past date so batch_promote picks it up.
-        recurring_repo.set_next_due(
-            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
-        )
+        set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None)
         result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert rule.id in result.advanced_rule_ids
         assert len(result.promoted_txn_ids) == 1
@@ -99,7 +98,7 @@ class TestRecurringBatch:
             ),
         )
         due = date(2026, 10, 20)
-        recurring_repo.set_next_due(conn, USER_ID, rule.id, next_due=due, last_promoted_date=None)
+        set_next_due(conn, USER_ID, rule.id, next_due=due, last_promoted_date=None)
         recurring_repo.upsert_override(
             conn,
             USER_ID,
