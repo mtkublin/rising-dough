@@ -36,14 +36,18 @@ class NotFoundError(Exception):
         return f"{self.entity} {self.entity_id} not found"
 
 
-@dataclass(frozen=True)
 class ConflictError(Exception):
     """Conflicting state (unique constraint, protected row, same-currency transit…).
 
-    409 on the wire.
+    409 on the wire. A plain exception, not a frozen dataclass: a frozen
+    dataclass exception cannot carry ``__traceback__`` and raises
+    ``FrozenInstanceError`` once it propagates (T-Q230 is the first service to
+    raise it).
     """
 
-    message: str
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
     def __str__(self) -> str:  # pragma: no cover
         return self.message

@@ -714,3 +714,19 @@ def test_new_form_targets_itself_not_accounts_grid(client: TestClient) -> None:
     assert 'id="account-form"' in r.text
     assert 'hx-target="#account-form"' in r.text
     assert "#accounts-grid" not in r.text
+
+
+def test_delete_refused_when_balance_not_zero(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    acc = accounts_repo.create(
+        db, USER_ID, NewAccount(name="Funded", currency="PLN", opening_balance=500)
+    )
+    audit_before = _count(db, "audit_log")
+
+    r = client.post(f"/accounts/{acc.id}/delete", headers={"HX-Request": "true"})
+
+    assert r.status_code == 409
+    assert "Cannot archive account: Balance is not zero" in r.text
+    assert accounts_repo.find_by_id(db, USER_ID, acc.id) is not None
+    assert _count(db, "audit_log") == audit_before

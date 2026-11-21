@@ -13,11 +13,17 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
+from budget_planner.domain.errors import ConflictError
+from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
+    planned as planned_repo,
+    recurring as recurring_repo,
 )
+from budget_planner.repositories._shared import transaction as db_transaction
+from budget_planner.services import balance as balance_service
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,4 +129,49 @@ def last_checked(conn: sqlite3.Connection, user_id: int) -> tuple[LastCheckedRow
     return tuple(rows)
 
 
-__all__ = ["LastCheckedRow", "last_checked"]
+def _plural(count: int, singular: str, plural: str) -> str:
+    return f"{count} {singular if count == 1 else plural}"
+
+
+def _archive_blockers(conn: sqlite3.Connection, user_id: int, account_id: int) -> list[str]:
+    """Return one message per reason the account cannot be archived (T-Q230)."""
+    blockers: list[str] = []
+    if balance_service.derive_balance(conn, user_id, account_id) != 0:
+        blockers.append("Balance is not zero")
+    rules = [
+        r
+        for r in recurring_repo.list_rules(conn, user_id, active_only=True)
+        if account_id in (r.account_id, r.dest_account_id)
+    ]
+    if rules:
+        blockers.append(
+            f"{_plural(len(rules), 'recurring rule uses', 'recurring rules use')} this account"
+        )
+    planned = [
+        p
+        for p in planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False))
+        if account_id in (p.account_id, p.dest_account_id)
+    ]
+    if planned:
+        noun = _plural(len(planned), "planned transaction uses", "planned transactions use")
+        blockers.append(f"{noun} this account")
+    return blockers
+
+
+def archive_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> None:
+    """Soft-delete an account unless balance, rules or planned rows still use it.
+
+    Guard reads and the soft delete share one transaction (ADR-0137). Refusal
+    raises :class:`ConflictError` (409) naming every blocker and writes nothing.
+    A missing or already-archived account is a no-op.
+    """
+    with db_transaction(conn):
+        if accounts_repo.find_by_id(conn, user_id, account_id) is None:
+            return
+        blockers = _archive_blockers(conn, user_id, account_id)
+        if blockers:
+            raise ConflictError(message="Cannot archive account: " + "; ".join(blockers))
+        accounts_repo.soft_delete(conn, user_id, account_id)
+
+
+__all__ = ["LastCheckedRow", "archive_account", "last_checked"]
