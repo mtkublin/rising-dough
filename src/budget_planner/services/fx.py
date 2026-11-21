@@ -33,6 +33,13 @@ class HasBaseCurrency(Protocol):
     def base_currency(self) -> str: ...
 
 
+@dataclass(frozen=True, slots=True)
+class BaseCurrency:
+    """A bare base-currency code as a :class:`HasBaseCurrency` (callers holding only the code)."""
+
+    base_currency: str
+
+
 class FxUnavailableError(RuntimeError):
     """No cached rate for a pair on or before the requested date (ADR-0139)."""
 

@@ -11,13 +11,6 @@ count = 1
 finding = "B-13"
 epic = "E05"
 
-[[entry]]
-path = "src/budget_planner/config.py"
-rule = "setattr-bypass"
-count = 2
-finding = "B-13"
-epic = "E07"
-
 [[framework]]
 path = "src/budget_planner/web/htmx.py"
 rule = "param-mutation:framework"

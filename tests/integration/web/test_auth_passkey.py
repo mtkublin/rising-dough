@@ -333,7 +333,7 @@ def test_challenge_valid_signature_bad_payload_rejected(settings: Settings) -> N
 
     payload = b'{"p":"login"}'
     mac = hmac.new(
-        settings.cookie_secret.encode(), b"passkey-challenge|" + payload, hashlib.sha256
+        settings.resolve().cookie_secret.encode(), b"passkey-challenge|" + payload, hashlib.sha256
     ).digest()
 
     def b64(raw: bytes) -> str:

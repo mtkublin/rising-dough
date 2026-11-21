@@ -7,6 +7,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -81,9 +82,11 @@ def test_lifespan_calls_bootstrap_exactly_once(
     calls: list[Settings] = []
     real = users_service.bootstrap_admin_at_startup
 
-    def _spy(cfg: Settings) -> users_service.BootstrapOutcome:
+    def _spy(
+        cfg: Settings, *, connect: Callable[[Settings], sqlite3.Connection]
+    ) -> users_service.BootstrapOutcome:
         calls.append(cfg)
-        return real(cfg)
+        return real(cfg, connect=connect)
 
     monkeypatch.setattr(users_service, "bootstrap_admin_at_startup", _spy)
     cfg = _settings(_migrated_url(tmp_path), "test")

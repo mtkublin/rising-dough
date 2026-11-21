@@ -32,7 +32,7 @@ from budget_planner.services import (
     reauth,
     users,
 )
-from tests.auth_support import issue_session, seed_login_user
+from tests.auth_support import FakeTokenSource, issue_session, seed_login_user
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import OTHER_ID, OWNER_ID, World
 
@@ -374,14 +374,14 @@ def _case_reset_password(conn: sqlite3.Connection, world: World) -> None:
     owner_hash = _hash(conn, OWNER_ID)
     other_token = issue_session(conn, user_id=OTHER_ID)
     owner_token = issue_session(conn, user_id=OWNER_ID)
-    user, plaintext = users.reset_password(conn, OWNER_ID, OTHER_ID)
+    user, plaintext = users.reset_password(conn, OWNER_ID, OTHER_ID, tokens=FakeTokenSource())
     assert user.id == OTHER_ID
     assert _passwords.verify_password(plaintext, _hash(conn, OTHER_ID))
     assert _hash(conn, OWNER_ID) == owner_hash
     assert sessions_repo.get_session(conn, other_token) is None  # target's sessions revoked
     assert sessions_repo.get_session(conn, owner_token) is not None
     with pytest.raises(users.UserNotFound):
-        users.reset_password(conn, OWNER_ID, 999)
+        users.reset_password(conn, OWNER_ID, 999, tokens=FakeTokenSource())
 
 
 @covers("users.set_user_password")

@@ -143,7 +143,7 @@ def run_startup_migrations(
     now: Callable[[], dt.datetime] = clock.utc_now,
 ) -> StartupMigrationResult:
     """Back up if needed, apply pending migrations, prune old backups."""
-    db_path = _resolve_db_path(settings.database_url)
+    db_path = _resolve_db_path(settings.resolve().database_url)
     conn = get_connection(settings)
     try:
         plan = plan_migrations(conn, migrations_dir)

@@ -378,7 +378,9 @@ def test_current_month_row_mirrors_budget_month_summary(
             default_description="rent",
         ),
     )
-    summary = budget_svc.month_summary(conn, USER_ID, TODAY.year, TODAY.month, today=TODAY)
+    summary = budget_svc.month_summary(
+        conn, USER_ID, TODAY.year, TODAY.month, today=TODAY, base_currency="PLN"
+    )
     monthly = forecast_svc.forecast_monthly(conn, USER_ID, _fx(conn), TODAY, 2)
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert (

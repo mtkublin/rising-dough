@@ -12,7 +12,6 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import PeriodWindow, fiscal_window
 from budget_planner.repositories import (
@@ -25,6 +24,7 @@ from budget_planner.services import (
     preferences as preferences_svc,
     recurring as recurring_svc,
 )
+from budget_planner.services.fx import HasBaseCurrency
 
 PlannedWindow = PeriodWindow  # half-open fiscal window ``[start, end)`` (ADR-0138)
 
@@ -103,7 +103,7 @@ def planned_net_by_account(
 
 
 def compute_accounts_planned(
-    conn: sqlite3.Connection, user_id: int, today: dt.date, settings: Settings
+    conn: sqlite3.Connection, user_id: int, today: dt.date, settings: HasBaseCurrency
 ) -> AccountsPlanned:
     """Compose per-account planned net, projected balance and the base-ccy hero total."""
     window = resolve_window(conn, user_id, today)
