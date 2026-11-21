@@ -36,9 +36,8 @@ from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.client_ip import UNKNOWN_IP
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.repositories import webauthn as webauthn_repo
-from budget_planner.repositories.sessions import IssuedSession, session_handle
 from budget_planner.services import auth as auth_service, rate_limit, reauth as reauth_service
+from budget_planner.services.auth import IssuedSession, session_handle
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
@@ -624,7 +623,7 @@ def _reauth_page(
         next_path=next_path,
         error=error,
         throttled=throttled,
-        has_passkeys=bool(webauthn_repo.list_credentials(conn, user.id)),
+        has_passkeys=bool(auth_service.list_passkeys(conn, user.id)),
         current_user=user,
     )
 

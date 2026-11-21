@@ -507,15 +507,24 @@ def authenticate_passkey_finish(
         )
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+list_active_sessions = sessions_repo.list_active_sessions
+list_passkeys = webauthn_repo.list_credentials
+
+
 __all__ = [
     "AUTH_EVENT_ENTITY",
     "SESSION_ENTITY",
+    "IssuedSession",
     "PasskeyChallenge",
     "PasskeyRegistrationError",
     "RelyingParty",
     "authenticate_passkey_begin",
     "authenticate_passkey_finish",
     "authenticate_password",
+    "list_active_sessions",
+    "list_passkeys",
     "load_session_user",
     "logout",
     "register_passkey_begin",

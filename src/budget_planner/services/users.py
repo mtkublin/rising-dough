@@ -35,6 +35,7 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.logging import get_logger
 from budget_planner.repositories import auth_users as auth_users_repo, users as users_repo
 from budget_planner.repositories._shared import transaction
+from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import _passwords
 
 DEV_ADMIN_EMAIL: Final = "admin@local.test"
@@ -544,6 +545,7 @@ __all__ = [
     "LAST_ADMIN_DELETE_MESSAGE",
     "LAST_ADMIN_DEMOTE_MESSAGE",
     "SELF_DELETE_MESSAGE",
+    "AuthUser",
     "BootstrapAdminMissingEnv",
     "BootstrapCredentials",
     "BootstrapOutcome",

@@ -147,3 +147,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0139 | [Canonical FX Converter: Cache-Only per Request, One Missing-Rate Policy, Explicit Live Refresh](0139-canonical-fx-converter-cache-only-one-missing-rate-policy.md) (amends ADR-0006; relates to ADR-0008, ADR-0021, ADR-0130) |
 | 0140 | [One Clock, a `today` Dependency, and One Rounding Helper Module](0140-canonical-clock-and-today-dependency.md) (amends ADR-0007, ADR-0006; relates to ADR-0130, ADR-0139) |
 | 0141 | [One Amount Parser and Bounded Request Parameters](0141-one-amount-parser-and-bounded-request-parameters.md) (relates to ADR-0006, ADR-0008, ADR-0130) |
+| 0142 | [CRUD Service Entry Points; Routers Never Import Repositories](0142-crud-service-entry-points-routers-never-import-repositories.md) (amends ADR-0021; relates to ADR-0019, ADR-0022, ADR-0130, ADR-0107) |
