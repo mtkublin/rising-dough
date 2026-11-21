@@ -174,3 +174,14 @@ The `style-src` directive in §1 is replaced by `style-src 'self' 'unsafe-inline
 ## Addendum 2026-11-21: stock Caddy image, app-side rate limiting
 
 Two statements above no longer hold. (1) Section 2 describes a custom `xcaddy` image with the `caddy-ratelimit` plugin; the deployment runs the stock `caddy:2.8` image (`terraform/cloud-init/compose/docker-compose.yml.tpl`) and no custom Caddy Dockerfile exists. (2) Auth rate limiting is not done by Caddy: it is in-house fixed-window counters in the app ([ADR-0072](0072-auth-rate-limit-sqlite-fixed-window.md)), and the client IP chain is amended by ADR-0133. The `rate_limit @auth` block and the fail2ban jails are not implemented. Quality-audit findings Q-052, Q-053 (D-13).
+
+## Addendum 2026-11-21 (T-Q254): the app emits the CSP; Caddy is a second layer
+
+Supersedes §3 (nonce flow) and the T-D132/T-D140 statements that the CSP is terminated at Caddy. Quality-audit findings Q-064, Q-065, Q-066.
+
+1. **Outermost pure-ASGI `SecurityHeadersMiddleware`** wraps the whole Starlette stack, including `ServerErrorMiddleware`, so unhandled-exception 500 pages carry the baseline headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) and `Cache-Control: no-store` (forced on every 5xx). It never overwrites a header a downstream layer set.
+2. **CSP from the app, nonce from the app.** The middleware mints a 24-byte URL-safe nonce per request, ignores any client- or proxy-supplied `X-CSP-Nonce`, exposes it as `request.state.csp_nonce`, and sets `Content-Security-Policy` on HTML responses (policy string of §1 as amended by ADR-0113: strict `script-src 'self' 'nonce-N'`). Works in every environment, so dev, tests and e2e run under the production policy.
+3. **Caddy second layer.** Caddy no longer generates a nonce or forwards `X-CSP-Nonce`. Its CSP carries only the non-fetch directives (`frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`); it omits `default-src`/`script-src` because two CSP headers are intersected and a second nonce would block the app's.
+4. **`TrustedHostMiddleware`** is enforced from `BUDGET_TRUSTED_HOSTS` (terraform `trusted_hosts_csv` = the deployed FQDN, so prod and the drill, whose FQDN is the `*.ts.net` name, are covered). `localhost` and `127.0.0.1` are always allowed (container healthcheck, loopback-only bind); `testserver` and `[::1]` additionally outside production. Other Host values get 400.
+5. **Unenforced surfaces off in production** (OQ-20, default taken 2026-11-21, pending operator confirmation): `/docs`, `/openapi.json` return 404; `/dev/components` is not registered.
+6. Dead `csrf_token` Jinja global/stub and the `csp_nonce` stub semantics are removed/replaced; log redaction also scrubs exception text (`exception`, `exc_info` rendering).

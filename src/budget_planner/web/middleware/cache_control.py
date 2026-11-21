@@ -16,8 +16,9 @@ from __future__ import annotations
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from budget_planner.web.middleware.asgi import CACHE_CONTROL_HEADER, NO_STORE, RESPONSE_START
+
 _STATIC_PREFIX = "/static/"
-_NO_STORE = "no-store"
 
 
 def _is_authenticated(scope: Scope) -> bool:
@@ -37,9 +38,9 @@ class CacheControlMiddleware:
             return
 
         async def send_wrapper(message: Message) -> None:
-            if message["type"] == "http.response.start" and _is_authenticated(scope):
+            if message["type"] == RESPONSE_START and _is_authenticated(scope):
                 headers = MutableHeaders(scope=message)
-                headers["Cache-Control"] = _NO_STORE
+                headers[CACHE_CONTROL_HEADER] = NO_STORE
             await send(message)
 
         await self.app(scope, receive, send_wrapper)

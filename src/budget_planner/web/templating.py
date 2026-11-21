@@ -199,11 +199,6 @@ def _category_label(category: Any) -> Markup:
     )
 
 
-def _csrf_token() -> str:
-    # v1 single-user, no auth (ADR-0005). Keep the attr shape stable.
-    return ""
-
-
 def _today_local_factory(tz_name: str) -> Any:
     """Return today's date in `display_timezone` as ISO string (ADR-0030 §1)."""
     tz = ZoneInfo(tz_name)
@@ -239,7 +234,6 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.globals["category_label"] = _category_label
     env.globals["category_label_parts"] = _category_label_parts
     env.globals["base_ccy"] = settings.base_currency
-    env.globals["csrf_token"] = _csrf_token
     env.globals["Direction"] = Direction
     # T-110 / ADR-0030 — shared primitives: default-date-today + ISO 4217 list.
     env.globals["today_local"] = _today_local_factory(settings.display_timezone)
