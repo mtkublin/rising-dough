@@ -68,7 +68,14 @@
 - Add user dialog: email, name, member or admin; one-time credential shown once in a dialog (not a toast); duplicate email refused.
 - User row menu: reset (confirm, one-time credential dialog, forced change), delete (destructive confirm; the user's ledger entries stay).
 - Forced change page (ST10): after sign-in for users added directly or reset; nothing else is reachable; sign out is the only way out.
-- The designer removed the Edit user dialog: an existing user's name and role can no longer be edited. Open follow-up question to the designer (change request, "Follow-up for the designer"); until answered, the app keeps no edit entry.
+- Edit user: see §11 (ST17). The first handoff dropped it; the designer restored it in a delta package.
+
+### 11. Edit user is kept (ST17)
+
+- The designer's answer (2026-11-21): keep editing, leaving it out was an oversight. `overlays/edit-user` is drawn: an Edit user dialog (460px) with name and member or admin; the **email is fixed and read-only**.
+- User row menu order: edit user, reset password, delete user. An admin's own row has **no menu**, so an admin cannot demote or delete themselves and there is always at least one admin.
+- The app enforces this server side, not only by hiding the menu (T-UR20): the edit route refuses an actor editing their own role to member, refuses demoting the last admin, ignores or refuses an email change; delete keeps refusing self and last admin (ADR-0073 §3, §4). Today `services/users.edit_user` allows self-demotion while a second admin exists and still edits the email; T-UR20 closes both.
+- Requirement: `docs/requirements.md` §6.2 user admin. Harness: parity row ST17 resolved with `overlays/edit-user`.
 
 ## Consequences
 

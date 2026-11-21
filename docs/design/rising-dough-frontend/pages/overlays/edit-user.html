@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Edit user · name and role · Rising Dough</title>
+<link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../static/css/main.css">
+<script src="../../static/js/theme.js"></script>
+<script defer src="../../static/js/reveal.js"></script>
+<script defer src="../../static/js/expand.js"></script>
+<script defer src="../../static/js/filters.js"></script>
+<script defer src="../../static/js/formula.js"></script>
+<script defer src="../../static/js/dialog.js"></script>
+<script defer src="../../static/js/row-menu.js"></script>
+<script defer src="../../static/js/palette.js"></script>
+<script defer src="../../static/js/shortcuts.js"></script>
+<script defer src="../../static/js/combobox.js"></script>
+<script defer src="../../static/js/amount-input.js"></script>
+<script defer src="../../static/js/bulk-select.js"></script>
+<script defer src="../../static/js/segmented.js"></script>
+<script defer src="../../static/js/toast.js"></script>
+<script defer src="../../static/js/theme-switch.js"></script>
+<script defer src="../../static/js/stand-in.js"></script>
+</head>
+<body class="rd-app">
+<!-- icon sprite: inline copy of static/icons/sprite.svg (include it in the base template) -->
+<svg class="rd-sprite" aria-hidden="true" focusable="false">
+  
+  <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-passkey" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-6 6-6 1.2 0 2.3.3 3.2.9M17 12a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 5v4m0-2h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+<a class="rd-skip" href="#main">skip to content</a>
+<div class="rd-frame">
+<header class="rd-topbar">
+<div class="rd-topbar__start">
+<a class="rd-brand" href="../../pages/today.html">Rising Dough</a>
+<nav class="rd-mainnav" aria-label="Main"><a class="rd-mainnav__link" href="../../pages/today.html" aria-keyshortcuts="g o">today</a><a class="rd-mainnav__link" href="../../pages/ledger/actual.html" aria-keyshortcuts="g l">ledger</a><a class="rd-mainnav__link" href="../../pages/plan/budget.html" aria-keyshortcuts="g p">plan</a><a class="rd-mainnav__link" href="../../pages/accounts.html" aria-keyshortcuts="g a">accounts</a></nav>
+</div>
+<div class="rd-topbar__actions">
+<a class="rd-btn rd-btn--primary rd-topbar__new" href="../../pages/overlays/new-entry--happened.html" data-js="new-entry" aria-keyshortcuts="n">[ new entry ]</a>
+<button type="button" class="rd-btn rd-btn--icon rd-topbar__help" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" data-js="shortcuts-open">?</button>
+<a class="rd-topbar__link rd-topbar__link--muted" href="../../pages/settings/categories.html" aria-keyshortcuts="g s" aria-current="page">settings</a>
+<form class="rd-topbar__form" method="post" action="#" data-demo-next="../../pages/auth/login.html"><button type="submit" class="rd-topbar__link rd-topbar__link--outline" name="sign_out" value="1">sign out</button></form>
+</div>
+</header><div id="flash-region" class="rd-flash-region"></div>
+<main id="main" class="rd-main">
+<section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+<div class="rd-hero__body"><h1 class="rd-hero__title" id="page-title">Users</h1></div>
+</section>
+<section class="rd-panel" aria-label="Users">
+<div class="rd-settings">
+<div class="rd-settings__head"><nav class="rd-tabs" aria-label="Settings"><a class="rd-tabs__tab" href="../../pages/settings/categories.html">categories</a><a class="rd-tabs__tab" href="../../pages/settings/currency-fx.html">currency &amp; fx</a><a class="rd-tabs__tab" href="../../pages/settings/preferences.html">preferences</a><a class="rd-tabs__tab" href="../../pages/settings/security.html">security</a><a class="rd-tabs__tab" href="../../pages/settings/users.html" aria-current="page">users</a></nav><span class="rd-settings__actions"><a class="rd-btn" href="../../pages/overlays/add-user.html">+ add user</a><a class="rd-btn" href="../../pages/overlays/invite-user.html">+ invite by email</a></span></div>
+<section class="rd-card rd-card--outline" aria-labelledby="users-title"><h2 class="rd-card__title" id="users-title">Users</h2><div class="rd-card__body"><div class="rd-table-scroll rd-table-scroll--flush" tabindex="0" role="region" aria-label="Users (scrolls sideways)"><table class="rd-ledger rd-ledger--users">
+<caption class="u-visually-hidden">Users</caption>
+<thead><tr class="rd-row rd-row--head rd-row--user"><th scope="col">EMAIL</th><th scope="col">ROLE</th><th scope="col">LAST SEEN</th><th scope="col">STATUS</th><th scope="col"><span class="u-visually-hidden">Actions</span></th></tr></thead>
+<tbody><!-- fragment: rows/user-row -->
+<tr class="rd-row rd-row--user"><td class="rd-session__device">owner@example.test<span class="rd-row__sub">you</span></td><td>admin</td><td>now</td><td>● active</td><td class="rd-row__actions"></td></tr>
+<!-- /fragment --><!-- fragment: rows/user-row -->
+<tr class="rd-row rd-row--user"><td class="rd-session__device">partner@example.test<span class="rd-row__sub">Ola</span></td><td>member</td><td>30 OCT 21:12</td><td>● active</td><td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-367" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-367" popover role="menu" aria-label="partner@example.test actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">partner@example.test</p><p class="rd-menu__sub">Ola · member</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-user.html">edit user</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/reset-password.html">reset password</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-user.html">delete user</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-367" popovertargetaction="hide">cancel</button></div></td></tr>
+<!-- /fragment --><!-- fragment: rows/user-row -->
+<tr class="rd-row rd-row--user"><td class="rd-session__device">parent@example.test<span class="rd-row__sub">Ewa</span></td><td>member</td><td>12 NOV 08:40</td><td>◐ new password required at next sign-in</td><td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-368" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-368" popover role="menu" aria-label="parent@example.test actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">parent@example.test</p><p class="rd-menu__sub">Ewa · member</p></div><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/edit-user.html">edit user</a><a class="rd-menu__item" role="menuitem" href="../../pages/overlays/reset-password.html">reset password</a><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/delete-user.html">delete user</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-368" popovertargetaction="hide">cancel</button></div></td></tr>
+<!-- /fragment --><!-- fragment: rows/user-row -->
+<tr class="rd-row rd-row--user"><td class="rd-session__device">accountant@example.test</td><td>member</td><td class="rd-muted">—</td><td class="rd-muted">✉ invited · expires 07 NOV</td><td class="rd-row__actions"><button type="button" class="rd-btn rd-btn--icon" aria-label="Row menu" aria-haspopup="menu" popovertarget="menu-369" data-js="row-menu"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-more"></use></svg></button><div class="rd-menu" id="menu-369" popover role="menu" aria-label="accountant@example.test actions"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">accountant@example.test</p><p class="rd-menu__sub">pending invite</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="toast" data-demo-label="Invite link copied">copy link</button><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="toast" data-demo-label="Invite resent · the new link expires 28 NOV">resend invite</button><a class="rd-menu__item rd-menu__item--danger" role="menuitem" href="../../pages/overlays/revoke-invite.html">revoke invite</a><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-369" popovertargetaction="hide">cancel</button></div></td></tr>
+<!-- /fragment --></tbody></table></div></div></section>
+</div>
+</section>
+</main>
+</div>
+<nav class="rd-tabbar" aria-label="Main, phone"><a class="rd-tabbar__link" href="../../pages/today.html">today</a><a class="rd-tabbar__link" href="../../pages/ledger/actual.html">ledger</a><a class="rd-tabbar__new" href="../../pages/overlays/new-entry--phone-sheet.html" aria-label="New entry">+</a><a class="rd-tabbar__link" href="../../pages/plan/budget.html">plan</a><a class="rd-tabbar__link" href="../../pages/accounts.html">accounts</a></nav>
+<div id="modal-root"><!-- fragment: overlays/edit-user -->
+<dialog class="rd-dialog rd-dialog--md" id="dlg-398" aria-labelledby="dlg-398-title" data-js="modal"><form class="rd-dialog__form" method="post" action="#"><header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="dlg-398-title">edit user · partner@example.test</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header><div class="rd-dialog__body"><div class="rd-field rd-field--readonly"><label class="rd-field__label" for="eu-email">email</label><span class="rd-input"><input class="rd-input__control" id="eu-email" name="email" type="email" value="partner@example.test" readonly autocomplete="off"></span></div>
+<div class="rd-field"><label class="rd-field__label" for="eu-name">name</label><span class="rd-input"><input class="rd-input__control" id="eu-name" name="name" type="text" value="Ola" autocomplete="off" required></span></div>
+<div class="rd-field rd-field--seg" role="radiogroup" aria-labelledby="seg-397"><span class="rd-field__label" id="seg-397">role</span><div class="rd-segmented"><label class="rd-segmented__option"><input type="radio" name="role" value="member" checked>member</label><label class="rd-segmented__option"><input type="radio" name="role" value="admin">admin</label></div></div><div class="rd-dialog__actions"><button type="button" class="rd-btn rd-btn--lg rd-btn--quiet" data-js="dialog-close">cancel</button><button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">[ save ]</button></div></div></form></dialog>
+<!-- /fragment --></div>
+<div id="drawer-root"></div>
+<div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+<!-- fragment: overlays/command-palette -->
+<dialog class="rd-dialog rd-dialog--palette" id="palette" aria-label="Command palette" data-js="palette">
+<div class="rd-palette">
+<div class="rd-palette__search"><span aria-hidden="true">→</span><input class="rd-palette__input" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" aria-label="Command" placeholder="type a command or jump to…" autocomplete="off" data-js="palette-input" aria-activedescendant="pal-o0"><kbd class="rd-kbd">esc</kbd></div>
+<div class="rd-palette__body"><ul class="rd-palette__list" role="listbox" id="pal-list" aria-label="Commands"><li role="presentation"><p class="rd-palette__group" id="pal-g-navigate">NAVIGATE</p><ul role="group" aria-labelledby="pal-g-navigate"><li role="option" id="pal-o0" class="rd-palette__option" aria-selected="true" data-href="../../pages/today.html"><span>Go to Today</span><kbd class="rd-palette__keys">g o</kbd></li><li role="option" id="pal-o1" class="rd-palette__option" aria-selected="false" data-href="../../pages/ledger/actual.html"><span>Go to Ledger</span><kbd class="rd-palette__keys">g l</kbd></li><li role="option" id="pal-o2" class="rd-palette__option" aria-selected="false" data-href="../../pages/plan/budget.html"><span>Go to Plan</span><kbd class="rd-palette__keys">g p</kbd></li><li role="option" id="pal-o3" class="rd-palette__option" aria-selected="false" data-href="../../pages/accounts.html"><span>Go to Accounts</span><kbd class="rd-palette__keys">g a</kbd></li><li role="option" id="pal-o4" class="rd-palette__option" aria-selected="false" data-href="../../pages/settings/categories.html"><span>Open Settings</span><kbd class="rd-palette__keys">g s</kbd></li></ul></li><li role="presentation"><p class="rd-palette__group" id="pal-g-actions">ACTIONS</p><ul role="group" aria-labelledby="pal-g-actions"><li role="option" id="pal-o5" class="rd-palette__option" aria-selected="false" data-href="../../pages/overlays/new-entry--happened.html"><span>New entry</span><kbd class="rd-palette__keys">n</kbd></li><li role="option" id="pal-o6" class="rd-palette__option" aria-selected="false" data-href="../../#shortcuts"><span>Shortcuts</span><kbd class="rd-palette__keys">?</kbd></li></ul></li></ul><p class="rd-palette__empty" data-js="palette-empty" hidden>No command matches “<span data-js="palette-query"></span>”.</p></div>
+<p class="rd-palette__foot"><span>↑↓ move</span><span>↵ run</span><span>? all shortcuts</span></p>
+</div>
+</dialog>
+<!-- /fragment -->
+<!-- fragment: overlays/shortcuts-help -->
+<dialog class="rd-dialog" id="shortcuts" aria-labelledby="shortcuts-title" data-js="shortcuts">
+<header class="rd-dialog__band rd-dialog__band--slim"><div class="rd-dialog__band-head"><h2 class="rd-dialog__title" id="shortcuts-title">keyboard shortcuts</h2><button type="button" class="rd-dialog__close" aria-label="Close" data-js="dialog-close"><svg class="rd-icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button></div></header>
+<div class="rd-dialog__body"><dl class="rd-keys"><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">o</kbd></dt><dd>Go to Today</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">l</kbd></dt><dd>Go to Ledger</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">p</kbd></dt><dd>Go to Plan</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">a</kbd></dt><dd>Go to Accounts</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">g</kbd><kbd class="rd-key">s</kbd></dt><dd>Open Settings</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">n</kbd></dt><dd>New entry</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">/</kbd></dt><dd>Focus the page’s search or filter</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">[</kbd><kbd class="rd-key">]</kbd></dt><dd>Cycle ledger tabs</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">?</kbd></dt><dd>Open this cheatsheet</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">⌘ K / Ctrl K</kbd></dt><dd>Open command palette</dd></div><div class="rd-keys__row"><dt><kbd class="rd-key">Esc</kbd></dt><dd>Close the topmost overlay</dd></div></dl></div>
+</dialog>
+<!-- /fragment -->
+</body>
+</html>

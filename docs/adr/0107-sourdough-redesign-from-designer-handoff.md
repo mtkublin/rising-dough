@@ -101,6 +101,7 @@ The handoff README §4 lists values the server sets as attributes or classes. Th
 ## Amendments
 
 - 2026-11-21: `docs/design/rising-dough-frontend/` re-vendored byte-identical from the designer's updated package answering change request T-UT06 (171 files, 113 HTML; checksum manifest regenerated). No decision change.
+- 2026-11-21 (T-UT06-EDITUSER): delta package for ST17 (Edit user) copied over the folder byte-identical: 2 files added (`pages/overlays/edit-user.html`, `CHANGES-edit-user.md`, kept as delivered), 13 changed (Users page, 8 Users overlays, `index.html`, `README.md`, `field.css`, `auth.css`); now 173 files, 114 HTML; checksum manifest regenerated. No decision change.
 
 ## Alternatives considered
 

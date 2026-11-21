@@ -511,7 +511,7 @@ The whole presentation layer is replaced by the designer's handoff "Rising Dough
 - Behaviour code is kept and adapted: routers, services, filters, HTMX endpoints, `htmx-csrf.js`, `passkeys.js`, CSP and security headers.
 - Feature parity with v3. Screens the handoff draws but the app lacks are wired only after their own requirement is added here.
 - Light and dark themes, 320–1920 px, keyboard map and command palette as in the handoff. The theme switch (system, light, dark; default system, per browser) ships in the redesign release (ADR-0134 §8).
-- Forced password change (reset and direct add), user reset and delete with one-time credential dialogs, invite pages (expired, used, invalid) as drawn; the Edit user dialog is not drawn, follow-up with the designer ([designer-change-request.md](plans/ui-redesign/designer-change-request.md)).
+- Forced password change (reset and direct add), user reset and delete with one-time credential dialogs, invite pages (expired, used, invalid) as drawn; Edit user (name and member or admin; email read-only) is the first item of a member's row menu, before reset and delete; an admin's own row has no menu. Server side: no actor may demote or delete themselves, the last admin can be neither demoted nor deleted, and the email cannot be changed through edit (ADR-0134 §11, ST17).
 - Offline: the offline page and states are in scope. A failed save keeps an open dialog's typed input and shows the offline state; a service worker for failed full page loads is deferred (ADR-0134 §4, ADR-0123).
 
 ### 10.2 Non-functional

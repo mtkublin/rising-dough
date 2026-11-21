@@ -25,9 +25,12 @@ The canvas gained and changed boards; this package follows them:
   `overlays/new-entry--over-limit.html` (▲ over-limit line, `role="alert"`, saving still allowed).
 - **Settings › Users** rebuilt: `+ add user` and `+ invite by email` next to the tabs, one Users table with a
   row menu (member: reset password, delete user · invite: copy link, resend invite, revoke invite). The old
-  *Invite someone* card and the *Edit user* dialog are gone. New overlays: `add-user` (+ `--error`),
+  *Invite someone* card is gone. New overlays: `add-user` (+ `--error`),
   `one-time-password`, `reset-password`, `delete-user`, `invite-user` (+ `--error`), `revoke-invite`. These
   dialogs use the new 460px size (`rd-dialog--md`, token `--size-dialog-md`).
+- **Edit user** (follow-up ST17): *edit user* is the first item in a member's row menu and opens
+  `overlays/edit-user.html` (email fixed and read-only, name, member/admin, `[ save ]`). The owner's own row has
+  no menu, so an admin can't demote or delete themselves.
 - **Delete account:** new copy; the blocked state links to what still points at the account. New state
   `overlays/delete-account--blocked-planned.html` (blocked only by recurring rules). In the accounts menu,
   Investments D opens that state and accounts with transactions open the blocked one.
@@ -59,7 +62,7 @@ rising-dough-frontend/
 │   ├── plan/        budget, year, forecast, analytics
 │   ├── settings/    categories, currency-fx, preferences, security (+ --error), users
 │   ├── errors/      404, 409, 422, 500, offline
-│   └── overlays/    each overlay open on top of its page (61 files, see index.html)
+│   └── overlays/    each overlay open on top of its page (62 files, see index.html)
 ├── static/
 │   ├── css/main.css               @layer order + @import list only
 │   ├── css/tokens.css             every colour, size, space, radius, z-index, duration; themes; breakpoints
@@ -266,7 +269,7 @@ delete it (and those attributes) view by view as you wire each one.
 - **Visual comparison with every board**, light and dark: each page and overlay was screenshotted at the
   board's width (1440, 560-wide dialogs, 390 and 320 for the phone boards) in both themes and compared with
   the board. Phone layouts of screens that only have a desktop board were checked at 390 and 320 too.
-- W3C Nu validator (`vnu.jar --errors-only`) on all 113 HTML files: **0 errors**, no duplicate ids.
+- W3C Nu validator (`vnu.jar --errors-only`) on all 114 HTML files: **0 errors**, no duplicate ids.
 - `stylelint` with `.stylelintrc.json` (standard + BEM pattern): **0 problems**.
 - **Wiring:** a script clicked every distinct link, button, menu item and option on every page and in every
   dialog and checked that each one navigates, opens or closes something, or changes state. The only controls
