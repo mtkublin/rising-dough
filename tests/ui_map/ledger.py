@@ -5,7 +5,7 @@ from __future__ import annotations
 from bs4 import Tag
 
 from tests.ui_map import _html
-from tests.ui_map.locator import Locator, by_id, label, role
+from tests.ui_map.locator import Locator, by_id, by_testid, label, role
 
 heading = role("heading", level=1)
 table = by_id("txn-table")
@@ -105,8 +105,12 @@ _CONTROLS = frozenset({"input", "select", "textarea"})
 
 
 def controls(source: _html.Source, field: Locator) -> list[Tag]:
-    """Form controls behind a ``label`` locator (the resolver also yields the
-    label's wrapper descendants; only the real controls are returned)."""
+    """Form controls behind a ``label`` locator.
+
+    Kept (rather than a bare ``label()`` lookup) because ``label`` also matches
+    any element carrying a matching ``aria-label`` (as Playwright does), e.g. the
+    "Amount source" tablist next to the "Amount" input on the recurring form.
+    """
     return [el for el in _html.resolve(source, field) if el.name in _CONTROLS]
 
 
@@ -182,3 +186,5 @@ def combobox_option(name: str) -> Locator:
 
 
 field_default_amount = role("textbox", "Amount", exact=True)  # recurring form (label sr-only)
+
+formula_preview = by_testid("formula-preview")
