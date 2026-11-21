@@ -234,14 +234,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q211 [S] Recurring schedule anchor day and start-date boundary
+### ✅ T-Q211 [S] Recurring schedule anchor day and start-date boundary
 - Findings: Q-006 (C-06, C-13).
 - Epic: none (date-boundary)
 - Band: 0 · Size: M · Tags: none
 - Depends on: none
 - Docs-first step: ADR amendment (recurrence anchor): `day_of_month` defaults to `start_date.day` at create, `advance_next_due` takes the rule and anchors on `rule.start_date`.
 - Acceptance: failing tests first from `repro/C/repro_recurrence_boundaries.py` and `repro/verify/V1/v_c06_c13.py` (drift after a clamped month; occurrences before the start date); then the create-service default, `advance_next_due(rule, ...)` (`services/recurring.py:130,272-306`), and a one-off data-fix step only if OQ-5 shows affected prod rules (read-only check on a copy; prod write only on explicit in-session go).
-- Operator question blocking it: OQ-5.
+- Operator question blocking it: OQ-5 (default taken 2026-11-21: no data-fix migration, pending operator data check).
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
