@@ -72,3 +72,16 @@ Superseded by [ADR-0109](0109-release-from-github-release-tags.md) for the relea
 ## Amendment 2026-11-18 (T-D147): non-deploy PRs skip the real gate
 
 Amended by [ADR-0121](0121-drill-gate-skip-for-non-deploy-prs.md): a PR whose changed files are all on a non-deploy allowlist gets `drill-gate` set to success by `drill-gate-skip.yml` without a drill VM. Every other PR still needs the real gate run.
+
+## Amendment 2026-11-21 (T-Q239, Q-041 / H1-03): the merge gate is tamper-resistant
+
+Finding: the `protect-main` ruleset's required status checks carry no `integration_id`, so any actor able to post a commit status or check run with the right name (a workflow in a PR branch, a PAT) satisfies `drill-gate` and the CI contexts; and a PR can edit the workflows that produce those checks. Evidence: `docs/plans/quality-audit/repro/H1/gh_api/ruleset_protect_main.json`.
+
+Decisions (ruleset edits are made by the operator; the repository half is `.github/CODEOWNERS` plus a guard):
+
+1. **Required workflows from `main`.** The `protect-main` ruleset gains a `workflows` rule (required workflows) pinned to `ci.yml` at ref `refs/heads/main`, so the CI that gates a PR is the one on `main`, not the one in the PR branch.
+2. **`integration_id` on every required status check context.** Each of `just ci (Python 3.12, ubuntu-latest)`, `drill-gate`, `uv lock --check`, `pip-audit (uv.lock)`, `trivy fs (repo)`, `trivy image (rising-dough:scan)` is bound to `integration_id` 15368 (GitHub Actions), so only the Actions app can satisfy it. `drill-gate` and `drill-gate-skip` are posted with `GITHUB_TOKEN`, which is that app.
+3. **CODEOWNERS over the trust boundary**: `.github/`, `scripts/ci/`, `terraform/`, `tests/architecture/ci_environments.toml`, `tests/architecture/allowlists/workflow_trust.toml`. It documents the boundary and auto-requests the owner's review; `tests/architecture/test_codeowners.py` fails if the file or a path rule disappears. **"Require review from Code Owners" is NOT enabled yet** (OQ-24): GitHub never lets a PR author approve their own PR, so with a single maintainer it would make every PR touching these paths unmergeable. Enable it once a second reviewer or a review bot exists.
+4. **Until then**, tamper-resistance comes from decisions 1 and 2 (required workflows from `main` plus `integration_id` 15368 on every required context). Repository-admin bypass stays as the operator's merge path; every bypass is recorded and visible in the ruleset's bypass log (Settings > Rules > Rulesets > `protect-main` > Rule insights, filter "Bypassed"; or Settings > Rules > Insights). Review that log after any merge that touched the CODEOWNERS paths.
+
+Operator checklist: [`runbooks/github-settings.md`](../plans/v3/runbooks/github-settings.md) section 3c. Relates to ADR-0121, ADR-0132.
