@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q268: repository read filters classified)
+- **Fix(T-Q268): repository reads user-scoped and tombstone-aware (ADR-0019 and ADR-0130 amendments; Q-025, B-14).** Predicates added: budgets re-reads, recurring override reads/writes (rule must be live), snapshots (account must be live), `audit.list_entries` (takes `user_id`) and `audit.recent` (explicit `user_id`, `None` only for the masked debug tail). Made explicit with `include_deleted`: `require_owned`, `users.owns_accounts`, `webauthn._get_by_id`. Permanent (reasoned, ADR-0130): sessions token lookups x2, webauthn `get_by_credential_id`, `update_sign_count`. Deleted 11 `read_filters` burn-down entries (23 violations), added 3 permanent rows replacing them; tests in `tests/unit/repositories/test_read_filters.py`.
+
 ## 2026-11-21 (T-Q253: session and passkey hardening)
 - **Fix(T-Q253): passkey challenges single-use, passkey revoke ends its sessions, no stale cookie from in-flight responses (ADR-0067 amendment, Q-062; OQ-26 defaults pending confirmation).** Migration `0018_passkey_challenges_and_session_credential.sql` adds `passkey_challenges_consumed` and `sessions.credential_id`. CSRF token binding (H3-08) deliberately not changed, recorded in the ADR. No allowlist entry touched.
 ## 2026-11-21 (T-Q228: audited batch undo, audit-free helpers fenced)

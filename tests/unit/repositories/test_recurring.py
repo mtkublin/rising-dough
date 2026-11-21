@@ -36,7 +36,7 @@ def test_create_rule_round_trip(
     assert recurring.find_rule(conn, USER_ID, rule.id) == rule
     rules = recurring.list_rules(conn, USER_ID)
     assert any(r.id == rule.id for r in rules)
-    assert audit.list_entries(conn, "recurring_rule", rule.id)[0].operation.value == ("create")
+    assert audit.list_entries(conn, 1, "recurring_rule", rule.id)[0].operation.value == ("create")
 
 
 def test_update_rule_fields(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:

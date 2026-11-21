@@ -88,7 +88,7 @@ def test_missing_system_category(conn: sqlite3.Connection, seed: dict[str, int])
 
 def test_audit_entry_written(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
     txn = reconciliation.reconcile(conn, USER_ID, seed["checking"], 140_000, _TODAY)
-    entries = audit_repo.list_entries(conn, "transaction", txn.id)
+    entries = audit_repo.list_entries(conn, 1, "transaction", txn.id)
     assert len(entries) == 1
     assert entries[0].operation.value == "create"
     assert entries[0].prev_json is None

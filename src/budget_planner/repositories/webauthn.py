@@ -87,9 +87,12 @@ def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
     )
 
 
-def _get_by_id(conn: sqlite3.Connection, user_id: int, row_id: int) -> WebAuthnCredential | None:
+def _get_by_id(
+    conn: sqlite3.Connection, user_id: int, row_id: int, *, include_deleted: bool = True
+) -> WebAuthnCredential | None:
+    live = "" if include_deleted else " AND deleted_at IS NULL"
     row = conn.execute(
-        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?",
+        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?{live}",
         (row_id, user_id),
     ).fetchone()
     return None if row is None else _hydrate(row)

@@ -531,7 +531,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `thin_router`:56 (8 entries); `suppressions` ceiling `PLR0917`:10
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q268 [S] Repository read filters and unaudited mutations classified or fixed
+### ✅ T-Q268 [S] Repository read filters and unaudited mutations classified or fixed
 - Findings: B-14 (inventory P6: 22 read rows, 3 unaudited mutations); epic E10.
 - Epic: E10
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

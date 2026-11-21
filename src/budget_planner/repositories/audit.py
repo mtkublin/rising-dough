@@ -29,22 +29,30 @@ def _row_to_entry(row: sqlite3.Row) -> AuditEntry:
 
 def list_entries(
     conn: sqlite3.Connection,
+    user_id: int | None,
     entity_type: str,
     entity_id: int,
 ) -> list[AuditEntry]:
+    """Audit rows of one entity owned by ``user_id`` (``None``: ownerless system rows)."""
     rows = conn.execute(
         f"SELECT {_COLUMNS} FROM audit_log "
-        "WHERE entity_type = ? AND entity_id = ? "
+        "WHERE user_id IS ? AND entity_type = ? AND entity_id = ? "
         "ORDER BY changed_at ASC, id ASC",
-        (entity_type, entity_id),
+        (user_id, entity_type, entity_id),
     ).fetchall()
     return [_row_to_entry(r) for r in rows]
 
 
-def recent(conn: sqlite3.Connection, limit: int = 100) -> list[AuditEntry]:
+def recent(conn: sqlite3.Connection, limit: int = 100, *, user_id: int | None) -> list[AuditEntry]:
+    """Newest audit rows; ``user_id`` scopes to one owner, ``None`` is the explicit cross-user tail.
+
+    The cross-user form exists only for the debug audit tail, whose service masks other users'
+    payloads (ADR-0019 amendment 2026-11-21, T-Q268).
+    """
     rows = conn.execute(
-        f"SELECT {_COLUMNS} FROM audit_log ORDER BY id DESC LIMIT ?",
-        (limit,),
+        f"SELECT {_COLUMNS} FROM audit_log WHERE (? IS NULL OR user_id = ?) "
+        "ORDER BY id DESC LIMIT ?",
+        (user_id, user_id, limit),
     ).fetchall()
     return [_row_to_entry(r) for r in rows]
 
@@ -64,7 +72,7 @@ def latest_entry_id(
     """Id of the newest audit row of one entity written for ``user_id`` (T-Q228)."""
     row = conn.execute(
         "SELECT MAX(id) AS id FROM audit_log "
-        "WHERE user_id = ? AND entity_type = ? AND entity_id = ?",
+        "WHERE user_id IS ? AND entity_type = ? AND entity_id = ?",
         (user_id, entity_type, entity_id),
     ).fetchone()
     return None if row is None or row["id"] is None else int(row["id"])
