@@ -800,7 +800,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q238 [P] Signed-image identity pinned to `main`; stricter skip classifier
+### ✅ T-Q238 [P] Signed-image identity pinned to `main`; stricter skip classifier
 - Findings: Q-040 (H1-02), Q-042 (H1-04, H1-05).
 - Epic: none (ci-trust-boundary)
 - Band: 5 · Size: S · Tags: none

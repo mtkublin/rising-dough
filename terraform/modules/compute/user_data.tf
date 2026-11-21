@@ -13,6 +13,15 @@
 # ----------------------------------------------------------------------------
 
 locals {
+  # T-Q238 (Q-040): the verified signing identity is build.yml run from main or
+  # from a release tag. A signature from any other ref (a PR or attacker branch
+  # that reached the reusable build) is rejected on prod. Drill hosts verify
+  # branch builds, so they accept any branch or tag ref of the same workflow.
+  cosign_identity_prefix  = "^https://github\\.com/${var.github_owner}/${var.github_repo}/\\.github/workflows/build\\.yml@"
+  cosign_ref_regexp_prod  = "(refs/heads/main|refs/tags/v[0-9][0-9A-Za-z.+-]*)$"
+  cosign_ref_regexp_drill = "refs/(heads|tags)/.+$"
+  cosign_identity_regexp  = "${local.cosign_identity_prefix}${var.allow_branch_builds ? local.cosign_ref_regexp_drill : local.cosign_ref_regexp_prod}"
+
   image_repo  = "ghcr.io/${var.github_owner}/budget-planner"
   compose_dir = "/etc/budget-planner"
 
@@ -117,8 +126,16 @@ locals {
       version         = var.cosign_version
       url             = "https://github.com/sigstore/cosign/releases/download/${var.cosign_version}/cosign-linux-amd64"
       sha256          = var.cosign_sha256
-      identity_regexp = "^https://github\\.com/${var.github_owner}/${var.github_repo}/\\.github/workflows/build\\.yml@"
+      identity_regexp = local.cosign_identity_regexp
       issuer          = "https://token.actions.githubusercontent.com"
+    }
+    # T-Q238 (Q-040, ADR-0099 amendment 2026-11-21): a sha-* image is accepted
+    # only when its commit is an ancestor of main (host agent, GitHub compare
+    # API). Drills build from arbitrary branches, so the check is off there.
+    ancestry = {
+      enabled = !var.allow_branch_builds
+      repo    = "${var.github_owner}/${var.github_repo}"
+      branch  = "main"
     }
     files = [for f in local.managed_files : merge(f, { owner = "root", group = "root" })]
   }

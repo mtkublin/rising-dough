@@ -79,6 +79,17 @@ Unused since ADR-0111, deleted 2026-11-18 (user-approved; no workflow read them,
 - [ ] Repository-admin bypass stays as the operator's merge path. Every bypass is visible in the ruleset's bypass log: Settings > Rules > Rulesets > `protect-main` > Rule insights (filter "Bypassed"), or Settings > Rules > Insights. Check it after merging a PR that touched CODEOWNERS paths.
 - **Verify (read-only):** run `docs/plans/quality-audit/repro/H1/collect_gh_config.sh`, check `gh_api/ruleset_protect_main.json` shows the `workflows` rule, `integration_id: 15368` on every required context and commit the refreshed file (`require_code_owner_review` stays false until OQ-24 is resolved).
 
+## 3d. Live Tailscale ACL drift check (T-Q238, OQ-24; operator)
+
+`scripts/check_github_settings.py` also compares the live tailnet policy with [`tailscale-acl.hujson`](tailscale-acl.hujson) (the runbook copy; `you@example.com` is replaced by your login). Create a Tailscale API access token (admin console > Settings > Keys, read-only is enough), then run it with the token in the environment only:
+
+```sh
+TAILSCALE_API_TOKEN=... TAILSCALE_OWNER_EMAIL=you@yourdomain uv run python scripts/check_github_settings.py
+# or just the ACL: TAILSCALE_API_TOKEN=... uv run python scripts/tailscale_acl_drift.py --owner you@yourdomain
+```
+
+Without the variables the ACL line is SKIP. The token is never committed or printed; rotate it after use. Drift lines name live-only and runbook-only rules and changed `tagOwners`; fix the live policy or update the runbook copy (docs first), never leave it.
+
 ## 4. Tailscale OAuth client (admin console > Settings > OAuth clients)
 
 Three OAuth clients. `budget-planner-automation` is used by every environment; `budget-planner-drill-cleanup` only by the drill environments (it deletes the drill's leftover tailnet node after destroy); `budget-planner-prod-cleanup` only by `prod-tailnet` (it deletes the old prod node after a VM replacement):

@@ -172,10 +172,12 @@ module "compute" {
   ghcr_pull_pat          = var.ghcr_pull_pat
   github_owner           = var.github_owner
   github_repo            = var.github_repo
-  admin_email            = var.admin_email
-  admin_password         = random_password.admin_initial_password.result
-  cookie_secret          = random_password.cookie_secret.result
-  trusted_hosts_csv      = local.fqdn
+  # T-Q238 (Q-040): only drills may verify branch-signed images.
+  allow_branch_builds = var.env == "drill"
+  admin_email         = var.admin_email
+  admin_password      = random_password.admin_initial_password.result
+  cookie_secret       = random_password.cookie_secret.result
+  trusted_hosts_csv   = local.fqdn
 
   # T-D97 / ADR-0101: drill = tailnet only (no public 80/443, Caddy cert from tailscaled).
   tailnet_only = local.tailnet_only

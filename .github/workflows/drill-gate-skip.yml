@@ -87,9 +87,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          # T-Q238 (Q-042): bind the verdict to the head SHA it was computed for.
+          # The file list was read earlier; if the PR head moved since the event,
+          # post nothing (the real gate stays required for the new head).
+          live=$(gh api "repos/${REPO}/pulls/${PR}" --jq .head.sha)
+          if [ "${live}" != "${SHA}" ]; then
+            echo "head moved (${SHA} -> ${live}); no skip status posted" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           gh api "repos/${REPO}/statuses/${SHA}" \
             -f state=success -f context=drill-gate \
             -f description="skipped: no deploy-relevant changes (ADR-0121)" \
