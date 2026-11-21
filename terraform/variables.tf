@@ -317,32 +317,68 @@ variable "scw_secret_key_restore" {
 }
 
 # ----------------------------------------------------------------------------
-# Litestream replica encryption (T-D56, ADR-0078 section 3). Required on every env.
-# Generate with `age-keygen -o litestream-age.key`; derive the recipient with
-# `age-keygen -y litestream-age.key`. Supply via TF_VAR_* (never committed).
-# A lost identity makes the encrypted replica unrecoverable. The drill env gets
-# the PROD identity (it restores the prod replica). The committed dev-only
-# identity under deploy/ must never be used here.
+# Litestream replica encryption (T-D56, ADR-0078 section 3; split by role in
+# T-Q277 / ADR-0135). Two roles, two inputs:
+#   * the host's OWN replica key pair (litestream_age_identity / _recipient):
+#     required on prod (supplied from the `prod` environment); NOT an input on
+#     drill, where Terraform generates a per-drill pair (age_secret_key.drill,
+#     main.tf) that lives in that drill's state and dies with its teardown;
+#   * the PROD replica read identity (restore_source_age_identity): supplied only
+#     by the restore drill's apply, from `prod-restore-read` (ADR-0132).
+# Generate the prod pair with `age-keygen -o litestream-age.key`; derive the
+# recipient with `age-keygen -y litestream-age.key`. Supply via TF_VAR_* (never
+# committed). A lost prod identity makes the encrypted replica unrecoverable.
+# The committed dev-only identity under deploy/ must never be used here.
+# Empty = unset: tf_env.py exports an empty string for a missing secret.
 # ----------------------------------------------------------------------------
 
 variable "litestream_age_identity" {
-  description = "age private identity for the Litestream replica (AGE-SECRET-KEY-1... line or the full age-keygen output file). Rendered to /etc/budget-planner/litestream-age.key at 0600."
+  description = "Prod only: age private identity for the Litestream replica (AGE-SECRET-KEY-1... line or the full age-keygen output file). Rendered to /etc/budget-planner/litestream-age.key at 0600. Must be empty on drill (the drill generates its own pair, ADR-0135)."
   type        = string
+  default     = ""
   sensitive   = true
 
   validation {
-    condition     = can(regex("AGE-SECRET-KEY-1[0-9A-Z]{50,}", var.litestream_age_identity))
-    error_message = "litestream_age_identity must contain an AGE-SECRET-KEY-1... line (from age-keygen)."
+    condition     = var.env == "drill" || can(regex("AGE-SECRET-KEY-1[0-9A-Z]{50,}", var.litestream_age_identity))
+    error_message = "litestream_age_identity must contain an AGE-SECRET-KEY-1... line (from age-keygen) when env = 'prod'."
+  }
+
+  validation {
+    condition     = var.env != "drill" || var.litestream_age_identity == ""
+    error_message = "litestream_age_identity must be empty when env = 'drill': the drill generates its own key pair (ADR-0135)."
   }
 }
 
 variable "litestream_age_recipient" {
-  description = "age public recipient (age1...) the replica is encrypted to; derive with `age-keygen -y <identity file>`."
+  description = "Prod only: age public recipient (age1...) the replica is encrypted to; derive with `age-keygen -y <identity file>`. Must be empty on drill (ADR-0135)."
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^age1[0-9a-z]{58}$", var.litestream_age_recipient))
-    error_message = "litestream_age_recipient must be an age public key (age1 + 58 chars), e.g. the output of age-keygen -y."
+    condition     = var.env == "drill" || can(regex("^age1[0-9a-z]{58}$", var.litestream_age_recipient))
+    error_message = "litestream_age_recipient must be an age public key (age1 + 58 chars), e.g. the output of age-keygen -y, when env = 'prod'."
+  }
+
+  validation {
+    condition     = var.env != "drill" || var.litestream_age_recipient == ""
+    error_message = "litestream_age_recipient must be empty when env = 'drill': the drill generates its own key pair (ADR-0135)."
+  }
+}
+
+variable "restore_source_age_identity" {
+  description = "Restore drill only: the PROD replica's age private identity (AGE-SECRET-KEY-1...), used by restore-from-prod to decrypt the prod replica. Empty everywhere else (ADR-0135, ADR-0132). Rendered to restore-source-age.key at 0600 only when the restore helper is enabled."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.restore_source_age_identity == "" || can(regex("AGE-SECRET-KEY-1[0-9A-Z]{50,}", var.restore_source_age_identity))
+    error_message = "restore_source_age_identity must be empty or contain an AGE-SECRET-KEY-1... line (from age-keygen)."
+  }
+
+  validation {
+    condition     = var.restore_source_age_identity == "" || var.env == "drill"
+    error_message = "restore_source_age_identity is restore-drill only (env must be 'drill')."
   }
 }
 

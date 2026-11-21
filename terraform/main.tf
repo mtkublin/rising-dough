@@ -24,6 +24,20 @@ resource "random_password" "console" {
   special = false
 }
 
+# T-Q277 / ADR-0135: the drill's OWN Litestream replica key pair. One pair per
+# drill, kept in that drill's Terraform state: it survives a VM replacement (the
+# replacement rehearsal restores the drill's own replica with it), is regenerated
+# with a fresh drill (new state, new bucket), and dies with the teardown. The
+# drill GitHub environments hold no age key. Prod keeps its operator-held pair.
+resource "age_secret_key" "drill" {
+  count = var.env == "drill" ? 1 : 0
+}
+
+locals {
+  litestream_age_identity  = var.env == "drill" ? age_secret_key.drill[0].secret_key : var.litestream_age_identity
+  litestream_age_recipient = var.env == "drill" ? age_secret_key.drill[0].public_key : var.litestream_age_recipient
+}
+
 # ----------------------------------------------------------------------------
 # Module composition.
 # ----------------------------------------------------------------------------
@@ -191,8 +205,12 @@ module "compute" {
   scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
 
   # T-D56: Litestream replica age encryption (ADR-0078 §3).
-  litestream_age_identity  = var.litestream_age_identity
-  litestream_age_recipient = var.litestream_age_recipient
+  litestream_age_identity  = local.litestream_age_identity
+  litestream_age_recipient = local.litestream_age_recipient
+
+  # ADR-0135: the PROD replica identity, separate from the host's own pair; only
+  # reaches the host with the restore helper (restore drill apply).
+  restore_source_age_identity = var.env == "drill" ? var.restore_source_age_identity : ""
 
   # T-D156 / ADR-0127: the drill bucket starts empty; prod must restore or fail.
   # The rehearsal (§7) turns it off on the drill once to prove the refusal.

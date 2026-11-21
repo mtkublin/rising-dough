@@ -166,9 +166,16 @@ variable "scw_secret_key_restore" {
   sensitive   = true
 }
 
+variable "restore_source_age_identity" {
+  description = "PROD replica age identity for restore-from-prod, written to restore-source-age.key (0600) only when enable_restore_helper (ADR-0135). Distinct from litestream_age_identity (the host's own replica key)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
 variable "litestream_age_identity" {
-  description = "age private identity (AGE-SECRET-KEY-1... line or the full age-keygen file) written to /etc/budget-planner/litestream-age.key (0600). Used by restores only."
+  description = "age private identity (AGE-SECRET-KEY-1... line or the full age-keygen file) written to /etc/budget-planner/litestream-age.key (0600). Used by restores of this host's own replica."
   type        = string
   sensitive   = true
 }

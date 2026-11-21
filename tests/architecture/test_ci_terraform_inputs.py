@@ -47,7 +47,9 @@ def _terraform_jobs() -> list[tuple[str, str, dict[str, Any]]]:
 
 
 def test_required_variables_parsed() -> None:
-    assert {"env", "scaleway_project_id", "litestream_age_recipient"} <= set(REQUIRED)
+    assert {"env", "scaleway_project_id", "ghcr_pull_pat"} <= set(REQUIRED)
+    # ADR-0135: the age pair is prod-only (validated per env), not unconditionally required.
+    assert not {"litestream_age_identity", "litestream_age_recipient"} & set(REQUIRED)
     assert "scaleway_region" not in REQUIRED
 
 

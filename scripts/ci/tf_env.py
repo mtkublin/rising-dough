@@ -59,8 +59,13 @@ ENTRIES: tuple[Entry, ...] = (
     # T-D137: public CI key, drill only (main.tf drops it on any other env too).
     Entry("ci_ssh_pubkey", "var", "CI_SSH_PUBKEY", only_env="drill"),
     Entry("ghcr_pull_pat", "secret", "GHCR_PULL_PAT"),
-    Entry("litestream_age_identity", "secret", "LITESTREAM_AGE_IDENTITY"),
-    Entry("litestream_age_recipient", "secret", "LITESTREAM_AGE_RECIPIENT"),
+    # ADR-0135: the host's own replica key pair is a prod input only; a drill
+    # generates its own pair in Terraform state and reads no age secret.
+    Entry("litestream_age_identity", "secret", "LITESTREAM_AGE_IDENTITY", "", "prod"),
+    Entry("litestream_age_recipient", "secret", "LITESTREAM_AGE_RECIPIENT", "", "prod"),
+    # ADR-0135 / ADR-0132: the PROD replica identity, restore drill apply only
+    # (`prod-restore-read`); same secret name as above, different Terraform input.
+    Entry("restore_source_age_identity", "secret", "LITESTREAM_AGE_IDENTITY", "", "drill", True),
     # Optional inputs; fall back to the variables.tf defaults when unset.
     # T-D159 / ADR-0093 amendment: a variable, not a secret. A secret `true` makes
     # GitHub mask every `true` in the logs and drop job outputs equal to it.

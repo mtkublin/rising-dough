@@ -44,7 +44,7 @@
 #   ${source_endpoint}  — S3 endpoint of the prod bucket.
 #   ${source_region}    — region of the prod bucket.
 #   ${drill_bucket}     — this drill environment's own bucket.
-#   ${age_key_file}     — root-only age identity file (T-D56); must be the PROD replica's identity.
+#   ${age_key_file}     — root-only age identity file (T-D56); the PROD replica's identity (restore_source_age_identity, ADR-0135), not the host's own key.
 #
 # Shell-side variables use the `$${…}` escape so Terraform leaves them alone.
 
@@ -102,7 +102,7 @@ preflight() {
   command -v jq >/dev/null || die "jq not found"
   [[ -f "$${COMPOSE_FILE}" ]] || die "missing $${COMPOSE_FILE}"
   [[ -r "$${RESTORE_ENV_FILE}" ]] || die "missing $${RESTORE_ENV_FILE}"
-  [[ -r "$${AGE_KEY_FILE}" ]] || die "missing age identity $${AGE_KEY_FILE} (set litestream_age_identity; T-D56)"
+  [[ -r "$${AGE_KEY_FILE}" ]] || die "missing age identity $${AGE_KEY_FILE} (set restore_source_age_identity; ADR-0135)"
   [[ -n "$${SOURCE_BUCKET}" ]] || die "source bucket is empty"
   [[ "$${SOURCE_BUCKET}" != "$${DRILL_BUCKET}" ]] \
     || die "source bucket equals drill bucket ($${SOURCE_BUCKET}); refusing"
