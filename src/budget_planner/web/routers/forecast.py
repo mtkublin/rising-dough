@@ -20,6 +20,7 @@ from budget_planner.config import Settings
 from budget_planner.services import forecast as forecast_service
 from budget_planner.web import charts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
+from budget_planner.web.params import parse_int
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
@@ -30,9 +31,8 @@ _MAX_HORIZON_MONTHS = 60
 
 
 def _parse_horizon_months(request: Request) -> int:
-    try:
-        val = int(request.query_params.get("horizon_months", _DEFAULT_HORIZON_MONTHS))
-    except (TypeError, ValueError):
+    val = parse_int(request.query_params.get("horizon_months"))
+    if val is None:
         return _DEFAULT_HORIZON_MONTHS
     return max(_MIN_HORIZON_MONTHS, min(val, _MAX_HORIZON_MONTHS))
 

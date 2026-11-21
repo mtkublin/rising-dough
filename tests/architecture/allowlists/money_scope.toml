@@ -44,24 +44,3 @@ rule = "money-round"
 count = 4
 finding = "Q-076"
 epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
-rule = "money-parse"
-count = 2
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "money-parse"
-count = 1
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "money-parse"
-count = 3
-finding = "Q-023"
-epic = "E11"

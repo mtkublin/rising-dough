@@ -3,12 +3,6 @@
 guard = "invariants"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_05_amount_validation_parity.py"
-rule = "Q-023"
-count = 1
-finding = "Q-023"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_09_archived_category_scope.py"
 rule = "Q-030"
 count = 1

@@ -1,83 +1,77 @@
 # Guard docstrings and teaching messages are prose; long lines are intentional.
 # ruff: noqa: E501
-"""INV-5: every user-amount parser gives the same verdict for the same text (Q-023).
+"""INV-5: every user-amount entry point gives the same verdict for the same text (Q-023, T-Q233).
 
-Parsers compared: transactions._validate_amount (canonical: domain.money.parse_amount_str), planned._validate_amount,
-accounts._parse_credit_limit, budget._parse_decimal + to_minor_units, today._afford_amount_minor. An uncaught exception
-is an HTTP 500 at the router.
+All parsers route through ``domain.money.parse_amount_minor``; this pins the verdict (exact minor units or
+rejection) across the router wrappers and that no input raises (an uncaught exception is an HTTP 500).
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 
-from budget_planner.domain.money import to_minor_units
-from budget_planner.web.routers import accounts, budget, planned, today, transactions
+from budget_planner.web.params import afford_amount_minor, credit_limit_amount, positive_amount
 
-INPUTS = [
-    "12.34",
-    "12,34",
-    "12.345",
-    " 12 ",
-    "NaN",
-    "Infinity",
-    "1e400",
-    "99999999999999999999",
-    "1_000",
-    "0x10",
-    "12.5",
-    "",
-]
+REJECT = "REJECT"
 
-
-def _budget_parser(raw: str, ccy: str) -> Any:
-    dec = budget._parse_decimal(raw)
-    return None if dec is None else to_minor_units(dec, ccy)
-
-
-def _today_parser(raw: str, ccy: str) -> Any:
-    return today._afford_amount_minor(raw, ccy)
-
-
-PARSERS: dict[str, Callable[[str, str], Any]] = {
-    "transactions": transactions._validate_amount,
-    "planned": planned._validate_amount,
-    "accounts.credit_limit": accounts._parse_credit_limit,
-    "budget": _budget_parser,
-    "today.afford": _today_parser,
+EXPECTED_PLN: dict[str, int | str] = {
+    "12.34": 1234,
+    "12,34": 1234,
+    "12.345": REJECT,
+    " 12 ": 1200,
+    "NaN": REJECT,
+    "Infinity": REJECT,
+    "1e400": REJECT,
+    "1e3": REJECT,
+    "99999999999999999999": REJECT,
+    "1_000": REJECT,
+    "0x10": REJECT,
+    "١٢": REJECT,
+    "12.5": 1250,
+}
+EXPECTED_JPY: dict[str, int | str] = {
+    "12.34": REJECT,
+    "12,34": REJECT,
+    "12.345": REJECT,
+    " 12 ": 12,
+    "NaN": REJECT,
+    "Infinity": REJECT,
+    "1e400": REJECT,
+    "99999999999999999999": REJECT,
+    "1_000": REJECT,
+    "0x10": REJECT,
+    "12.5": REJECT,
 }
 
 
-def _verdict(fn: Callable[[str, str], Any], raw: str, ccy: str) -> str:
-    try:
-        return repr(fn(raw, ccy))
-    except Exception as exc:
-        return f"CRASH {type(exc).__name__}"
+def _transactions(raw: str, ccy: str) -> int | str:
+    minor, err = positive_amount(raw, ccy)
+    return REJECT if err is not None or minor is None else minor
 
 
-def disagreements(ccy: str) -> list[str]:
-    bad: list[str] = []
-    for raw in INPUTS:
-        normalised = set()
-        for fn in PARSERS.values():
-            v = _verdict(fn, raw, ccy)
-            if v.startswith("CRASH"):
-                normalised.add(v)
-            elif "None" in v.split(",")[0] or ", '" in v:
-                normalised.add("REJECT")
-            else:
-                normalised.add(v)
-        if len(normalised) > 1:
-            bad.append(raw)
-    return bad
+def _credit_limit(raw: str, ccy: str) -> int | str:
+    minor, err = credit_limit_amount(raw, ccy)
+    return REJECT if err is not None or minor is None else minor
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Q-023: seven hand-rolled amount parsers disagree and some crash (HTTP 500)"
+def _afford(raw: str, ccy: str) -> int | str:
+    minor = afford_amount_minor(raw, ccy)
+    return REJECT if minor is None else minor
+
+
+PARSERS: dict[str, Callable[[str, str], int | str]] = {
+    "transactions/planned/recurring": _transactions,
+    "accounts.credit_limit": _credit_limit,
+    "today.afford": _afford,
+}
+
+
+@pytest.mark.parametrize("name", PARSERS)
+@pytest.mark.parametrize(
+    ("ccy", "expected"), [("PLN", EXPECTED_PLN), ("JPY", EXPECTED_JPY)], ids=["PLN", "JPY"]
 )
-@pytest.mark.parametrize("ccy", ["PLN", "JPY"])
-def test_all_amount_parsers_agree(ccy: str) -> None:
-    assert not disagreements(ccy)
+def test_all_amount_parsers_agree(name: str, ccy: str, expected: dict[str, int | str]) -> None:
+    parser = PARSERS[name]
+    assert {raw: parser(raw, ccy) for raw in expected} == expected

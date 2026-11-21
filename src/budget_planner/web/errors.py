@@ -24,6 +24,7 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
+from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
 
@@ -114,6 +115,11 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+async def handle_param_error(request: Request, exc: Exception) -> HTMLResponse:
+    fields = exc.fields if isinstance(exc, ParamError) else {}
+    return await handle_validation(request, ValidationError(fields=fields))
+
+
 async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
     rid = _request_id(request)
     logger.error(
@@ -162,6 +168,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)
     app.add_exception_handler(ValidationError, handle_validation)
+    app.add_exception_handler(ParamError, handle_param_error)
     app.add_exception_handler(FxUnavailableError, handle_missing_quote)
     app.add_exception_handler(ServiceError, handle_server_error)
     app.add_exception_handler(Exception, handle_server_error)

@@ -11,7 +11,6 @@ import contextlib
 import json
 import sqlite3
 from datetime import date
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -21,7 +20,7 @@ from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, AccountStats, NewAccount, PatchAccount
 from budget_planner.domain.limits import name_error
-from budget_planner.domain.money import to_minor_units
+from budget_planner.domain.money import parse_amount_minor
 from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -39,6 +38,7 @@ from budget_planner.services import (
 from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import trigger
+from budget_planner.web.params import credit_limit_amount
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -177,20 +177,6 @@ def _parse_liability(raw: str) -> bool:
     return raw.strip().lower() in {"on", "true", "1"}
 
 
-def _parse_credit_limit(raw: str, currency: str) -> tuple[int | None, str | None]:
-    """Return (minor_units, error_message)."""
-    trimmed = raw.strip()
-    if not trimmed:
-        return None, "positive credit limit required"
-    try:
-        dec = Decimal(trimmed)
-    except InvalidOperation:
-        return None, "positive credit limit required"
-    if dec <= 0:
-        return None, "positive credit limit required"
-    return to_minor_units(dec, currency), None
-
-
 @router.post("")
 def create_account(  # noqa: PLR0917
     request: Request,
@@ -208,17 +194,16 @@ def create_account(  # noqa: PLR0917
     cur = currency.upper().strip()
     if len(cur) != _ISO_CCY_LEN or not cur.isalpha():
         errors["currency"] = "ISO 4217 code required"
-    try:
-        opening_dec = Decimal(opening_balance or "0")
-    except InvalidOperation:
+    opening = parse_amount_minor(opening_balance or "0", cur)
+    if opening is None:
         errors["opening_balance"] = "invalid number"
-        opening_dec = Decimal(0)
+        opening = 0
     if (bad_name := name_error(name)) is not None:
         errors["name"] = bad_name
     liability = _parse_liability(is_liability)
     credit_limit_minor: int | None = None
     if liability and not errors.get("currency"):
-        credit_limit_minor, limit_err = _parse_credit_limit(credit_limit, cur)
+        credit_limit_minor, limit_err = credit_limit_amount(credit_limit, cur)
         if limit_err is not None:
             errors["credit_limit"] = limit_err
     if errors:
@@ -230,7 +215,6 @@ def create_account(  # noqa: PLR0917
             errors=errors,
             status_code=422,
         )
-    opening = to_minor_units(opening_dec, cur)
     acc = accounts_repo.create(
         conn,
         user_id,
@@ -325,7 +309,7 @@ def update_account(  # noqa: PLR0917
     patch_limit: int | None = None
     clear_limit = False
     if liability:
-        patch_limit, limit_err = _parse_credit_limit(credit_limit, acc.currency)
+        patch_limit, limit_err = credit_limit_amount(credit_limit, acc.currency)
         if limit_err is not None:
             return render(
                 request,
@@ -486,11 +470,9 @@ def reconcile_submit(  # noqa: PLR0917
             **_available_mode_context(acc, derived),
         )
 
-    try:
-        actual = Decimal(actual_balance.replace(",", ".").strip())
-    except InvalidOperation:
+    actual_minor = parse_amount_minor(actual_balance, acc.currency)
+    if actual_minor is None:
         return _reject("invalid number")
-    actual_minor = to_minor_units(actual, acc.currency)
     if credit_utilisation(acc, derived) is not None:
         try:
             actual_minor = reconciliation_service.available_to_target_balance(

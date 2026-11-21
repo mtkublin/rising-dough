@@ -46,6 +46,8 @@ import secrets
 from http import HTTPStatus
 from typing import Final
 
+from starlette.exceptions import HTTPException
+from starlette.formparsers import MultiPartException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -110,6 +112,10 @@ def _attach_cookie(response: Response, name: str, token: str, *, secure: bool) -
     )
 
 
+class MalformedFormError(Exception):
+    """The request body could not be parsed as the form its content type claims."""
+
+
 async def _read_form_token(request: Request) -> str | None:
     """Return the ``_csrf_token`` form field if the body is a form payload.
 
@@ -137,7 +143,11 @@ async def _read_form_token(request: Request) -> str | None:
     # https://github.com/encode/starlette/discussions/1933.
     request._receive = _replay
 
-    form = await request.form()
+    try:
+        form = await request.form()
+    except (HTTPException, MultiPartException):
+        # Malformed multipart or too many fields: a client error, not a 500 (T-Q233).
+        raise MalformedFormError from None
     try:
         value = form.get(CSRF_FORM_FIELD)
         if isinstance(value, str):
@@ -170,9 +180,14 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if existing is None:
                 return _reject("missing_cookie")
             header_token = request.headers.get(CSRF_HEADER_NAME)
-            form_token = await _read_form_token(request)
+            try:
+                form_token = await _read_form_token(request)
+            except MalformedFormError:
+                return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST)
             submitted = header_token or form_token
-            if submitted is None or not secrets.compare_digest(submitted, existing):
+            if submitted is None or not secrets.compare_digest(
+                submitted.encode("utf-8"), existing.encode("utf-8")
+            ):
                 return _reject("invalid_csrf")
 
         response = await call_next(request)
@@ -183,9 +198,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def _reject(detail: str) -> JSONResponse:
-    """Build the canonical 403 response. Detail string is machine-readable."""
+def _reject(detail: str, *, status: HTTPStatus = HTTPStatus.FORBIDDEN) -> JSONResponse:
+    """Canonical 403 (400 for a malformed body); ``detail`` is machine-readable."""
     return JSONResponse(
-        status_code=HTTPStatus.FORBIDDEN,
+        status_code=status,
         content={"detail": detail},
     )
