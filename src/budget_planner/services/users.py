@@ -282,6 +282,9 @@ NAME_MAX_LENGTH: Final = 100
 LAST_ADMIN_DELETE_MESSAGE: Final = (
     "Can't remove the last admin. Promote another user to admin first."
 )
+CONCURRENT_CHANGE_MESSAGE: Final = (
+    "Another change to the user roster is in progress. Reload and try again."
+)
 LAST_ADMIN_DEMOTE_MESSAGE: Final = (
     "Can't remove admin rights from the last admin. Promote another user first."
 )
@@ -332,7 +335,7 @@ class UserDraft:
 
     email: str
     name: str
-    is_admin: bool
+    is_admin: bool | None  # None = field absent from the form: leave unchanged (Q-063)
 
 
 def generate_password() -> str:
@@ -347,7 +350,7 @@ def _valid_email(email: str) -> bool:
     return bool(sep and local and domain and "@" not in domain and "." in domain.strip("."))
 
 
-def build_draft(*, email: str, name: str, is_admin: bool) -> UserDraft:
+def build_draft(*, email: str, name: str, is_admin: bool | None) -> UserDraft:
     """Normalise + validate raw form input. Pure.
 
     Raises :class:`UserInputError` keyed by field name. An empty name falls
@@ -389,6 +392,10 @@ def _atomically[T](conn: sqlite3.Connection, body: Callable[[], T]) -> T:
             return body()
     except sqlite3.IntegrityError as exc:  # ux_users_email_live race
         raise UserInputError({"email": DUPLICATE_EMAIL_MESSAGE}) from exc
+    except sqlite3.OperationalError as exc:  # writer lock wait exceeded busy_timeout (ADR-0137)
+        if "locked" not in str(exc) and "busy" not in str(exc):
+            raise
+        raise UserConflict(CONCURRENT_CHANGE_MESSAGE) from exc
 
 
 def _require_target(conn: sqlite3.Connection, user_id: int) -> auth_users_repo.AuthUser:
@@ -431,7 +438,7 @@ def create_user(
                 name=draft.name,
                 email=draft.email,
                 password_hash=password_hash,
-                is_admin=draft.is_admin,
+                is_admin=bool(draft.is_admin),
                 must_change_password=True,
             ),
             request_ctx=request_ctx,
@@ -458,7 +465,7 @@ def edit_user(
     def _body() -> auth_users_repo.AuthUser:
         target = _require_target(conn, user_id)
         _ensure_email_free(conn, draft.email, own_id=target.id)
-        if not draft.is_admin and _is_last_admin(conn, target):
+        if draft.is_admin is False and _is_last_admin(conn, target):
             raise UserConflict(LAST_ADMIN_DEMOTE_MESSAGE)
         return users_repo.update_profile(
             conn,
@@ -529,6 +536,7 @@ def soft_delete_user(
 
 
 __all__ = [
+    "CONCURRENT_CHANGE_MESSAGE",
     "DEV_ADMIN_EMAIL",
     "DEV_ADMIN_PASSWORD",
     "DUPLICATE_EMAIL_MESSAGE",

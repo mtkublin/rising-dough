@@ -153,40 +153,41 @@ def promote_to_actual(
     edits: PromotionEdits,
 ) -> Transaction:
     """Insert a transactions row linked to ``planned_id`` and stamp the planned row."""
-    row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
-    if row is None:
-        raise PlannedNotFoundError(planned_id)
-    if row.deleted_at is not None:
-        raise CannotPromoteDeletedError(planned_id)
-    if row.promoted_to_txn_id is not None:
-        raise AlreadyPromotedError(planned_id)
-
-    category = categories_repo.find_by_id(conn, user_id, row.category_id, include_deleted=True)
-    if category is None:  # pragma: no cover - FK guarantees existence
-        raise ValidationError(f"category {row.category_id} not found")
-    operation_date = edits.operation_date or row.operation_date
-    amount = edits.amount_minor if edits.amount_minor is not None else row.amount
-    description = edits.description if edits.description is not None else row.description
-    _shared_validate_promotion(
-        conn,
-        user_id,
-        direction=category.direction,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        amount=amount,
-    )
-
-    new_txn = NewTransaction(
-        operation_date=operation_date,
-        category_id=row.category_id,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        amount=amount,
-        description=description,
-        promoted_from_planned_id=planned_id,
-    )
-
+    # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
+        row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
+        if row is None:
+            raise PlannedNotFoundError(planned_id)
+        if row.deleted_at is not None:
+            raise CannotPromoteDeletedError(planned_id)
+        if row.promoted_to_txn_id is not None:
+            raise AlreadyPromotedError(planned_id)
+
+        category = categories_repo.find_by_id(conn, user_id, row.category_id, include_deleted=True)
+        if category is None:  # pragma: no cover - FK guarantees existence
+            raise ValidationError(f"category {row.category_id} not found")
+        operation_date = edits.operation_date or row.operation_date
+        amount = edits.amount_minor if edits.amount_minor is not None else row.amount
+        description = edits.description if edits.description is not None else row.description
+        _shared_validate_promotion(
+            conn,
+            user_id,
+            direction=category.direction,
+            account_id=row.account_id,
+            dest_account_id=row.dest_account_id,
+            amount=amount,
+        )
+
+        new_txn = NewTransaction(
+            operation_date=operation_date,
+            category_id=row.category_id,
+            account_id=row.account_id,
+            dest_account_id=row.dest_account_id,
+            amount=amount,
+            description=description,
+            promoted_from_planned_id=planned_id,
+        )
+
         txn = transactions_repo.create(conn, user_id, new_txn)
         planned_repo.stamp_promotion(conn, user_id, planned_id, txn.id)
     return txn

@@ -114,14 +114,18 @@ def _set_depth(conn: sqlite3.Connection, value: int) -> None:
 def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     """Explicit transaction context manager.
 
-    First entry runs ``BEGIN``/``COMMIT``; nested entries use SQLite
+    First entry runs ``BEGIN IMMEDIATE``/``COMMIT`` (ADR-0137): the write
+    lock is taken up front and waits on ``busy_timeout``, so guard reads
+    made inside the block cannot go stale and concurrent writers queue
+    instead of failing with "database is locked" on lock upgrade.
+    Nested entries use SQLite
     ``SAVEPOINT``/``RELEASE`` so services can compose multi-mutation flows
     (e.g. planned promotion) and keep the whole operation atomic.
     Requires ``isolation_level=None`` on the connection.
     """
     depth = _depth(conn)
     if depth == 0:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
     else:
         conn.execute(f"SAVEPOINT sp_{depth}")
     _set_depth(conn, depth + 1)

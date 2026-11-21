@@ -42,3 +42,7 @@ Every repository mutation calls `write_audit(...)` in the same DB transaction vi
 - **Per-entity history tables**: more tables, same effect; higher maintenance.
 - **SQL triggers**: DB-coupled, harder to test, harder to port.
 - **Per-field history columns**: schema bloat and fragile.
+
+## Amendments
+
+- 2026-11-21 ([ADR-0137](0137-begin-immediate-and-guard-reads-inside-the-transaction.md)): the shared transaction helper opens `BEGIN IMMEDIATE`, and the guard reads that decide a mutation run inside the same transaction as the mutation and its audit rows.

@@ -242,9 +242,15 @@ def save_user(
         target = users_service.get_live_user(conn, user_id)
     except UserNotFound:
         return _not_found(request)
-    values = {"email": email, "name": name, "is_admin": _checkbox(is_admin)}
+    # A missing field means "unchanged" (Q-063); the edit form always sends it.
+    admin_flag = None if is_admin is None else _checkbox(is_admin)
+    values = {
+        "email": email,
+        "name": name,
+        "is_admin": target.is_admin if admin_flag is None else admin_flag,
+    }
     try:
-        draft = users_service.build_draft(email=email, name=name, is_admin=_checkbox(is_admin))
+        draft = users_service.build_draft(email=email, name=name, is_admin=admin_flag)
         updated = users_service.edit_user(conn, admin.id, user_id, draft, request_ctx=request_ctx)
     except UserInputError as exc:
         return _edit_response(

@@ -82,7 +82,7 @@ class ProfileUpdate:
 
     email: str
     name: str
-    is_admin: bool
+    is_admin: bool | None = None  # None leaves the flag unchanged (ADR-0137)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -310,9 +310,16 @@ def update_profile(
     with transaction(conn):
         prev = _require_live(conn, user_id)
         conn.execute(
-            "UPDATE users SET email = ?, name = ?, is_admin = ?, updated_at = ? "
+            "UPDATE users SET email = ?, name = ?, "
+            "is_admin = COALESCE(?, is_admin), updated_at = ? "
             "WHERE id = ? AND deleted_at IS NULL",
-            (update.email, update.name, int(update.is_admin), utc_now_iso(), user_id),
+            (
+                update.email,
+                update.name,
+                None if update.is_admin is None else int(update.is_admin),
+                utc_now_iso(),
+                user_id,
+            ),
         )
         updated = _require_live(conn, user_id)
         write_audit(
