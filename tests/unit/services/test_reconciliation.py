@@ -11,7 +11,7 @@ import pytest
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.transactions import NewTransaction, TransactionFilter
+from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import accounts, audit as audit_repo, categories, transactions
 from budget_planner.services import balance, reconciliation
 from budget_planner.services.reconciliation import (
@@ -135,26 +135,29 @@ def test_negative_balance_account(conn: sqlite3.Connection) -> None:
     assert balance.derive_balance(conn, USER_ID, acct) == -50_000
 
 
+def _count(conn: sqlite3.Connection) -> int:
+    return int(conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
+
+
 def test_rollback_on_failure(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    before = len(transactions.list_filtered(conn, USER_ID, filters=TransactionFilter()))
+    """The INSERT succeeds, the paired audit write fails: nothing may persist (ADR-0019)."""
+    before_txns = _count(conn)
+    before_audit = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
     with (
         patch(
-            "budget_planner.services.reconciliation.transactions_repo.create",
+            "budget_planner.repositories._shared.write_audit",
             side_effect=RuntimeError("boom"),
         ),
-        pytest.raises(RuntimeError),
+        pytest.raises(RuntimeError, match="boom"),
     ):
         reconciliation.reconcile(conn, USER_ID, seed["checking"], 140_000, _TODAY)
-    after = len(transactions.list_filtered(conn, USER_ID, filters=TransactionFilter()))
-    assert before == after
+    assert _count(conn) == before_txns
+    assert conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == before_audit
+    assert balance.derive_balance(conn, USER_ID, seed["checking"]) == 130_000
 
 
 def _category(conn: sqlite3.Connection, name: str, direction: Direction) -> int:
     return categories.create(conn, USER_ID, NewCategory(name=name, direction=direction)).id
-
-
-def _count(conn: sqlite3.Connection) -> int:
-    return int(conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
 
 
 @pytest.mark.parametrize(

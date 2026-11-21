@@ -569,7 +569,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q222 [S] Kill the `recurring_formula` mutant cluster
+### ✅ T-Q222 [S] Kill the `recurring_formula` mutant cluster
 - Findings: Q-016 (F-02).
 - Epic: none (test-gap)
 - Band: 3 · Size: M · Tags: none
@@ -867,7 +867,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q248 [P] Browser e2e drives real forms; ledger pagination race
+### ✅ T-Q248 [P] Browser e2e drives real forms; ledger pagination race
 - Findings: Q-056 (F-15), Q-057 (F-16).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -889,7 +889,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
+### ✅ T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
 - Findings: Q-059 (F-18, F-19).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -922,7 +922,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
+### ✅ T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
 - Findings: tooling (T-Q15b left bandit pinned at 1.7.10); new findings B105 `repositories/users.py:250`, B704 `web/templating.py:124` and `:161`; epic E15.
 - Epic: E15
 - Band: 5 · Size: S · Tags: none

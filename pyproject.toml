@@ -35,7 +35,7 @@ dev = [
   "playwright>=1.47",
   "sqlfluff>=3.1",
   "djlint>=1.35",
-  "bandit>=1.7",
+  "bandit==1.9.4",
   "detect-secrets>=1.5",
   "pip-audit>=2.7",
   "pre-commit>=3.8",

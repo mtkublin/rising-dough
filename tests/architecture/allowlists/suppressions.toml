@@ -217,10 +217,3 @@ rule = "suppress:noqa"
 count = 5
 finding = "Q-048"
 epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/web/templating.py"
-rule = "suppress:noqa"
-count = 2
-finding = "Q-048"
-epic = "E14"
