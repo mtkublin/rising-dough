@@ -1,6 +1,6 @@
 # ADR-0050: v2 Rising Dough — Product Rename and Visual Direction
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0023 (prior UX redesign — IA consolidation + interaction model), ADR-0027 (frontend toolchain), ADR-0048 (category color coding)
 - **Supersedes (visual direction only)**: ADR-0023 "Design direction" subsection — ADR-0050 replaces the editorial/Swiss tokens defined there with the explicit Rising Dough palette, typography, and elevation rules from `docs/application_redesign_handoff/tokens.css`.

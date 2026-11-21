@@ -1,6 +1,6 @@
 # ADR-0034: v3 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
 - **Related**: ADR-0003 (SQLite only in v1), ADR-0029 (SQLite connection threading), ADR-0032 (v3 remote deployment)
 - **Amends**: ADR-0003 (adds an off-host durability layer; SQLite remains the single OLTP store).

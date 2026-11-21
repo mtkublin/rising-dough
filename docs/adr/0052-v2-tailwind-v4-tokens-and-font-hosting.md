@@ -1,6 +1,6 @@
 # ADR-0052: v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts
 
-- **Status**: Proposed
+- **Status**: Accepted in part (2026-11-21; Tailwind v4 not adopted, repo is on Tailwind 3.4.14; superseded in part by ADR-0107 implementation pending)
 - **Date**: 2026-10-28
 - **Related**: ADR-0027 (frontend toolchain hardening), ADR-0050 (visual direction)
 
@@ -96,3 +96,7 @@ Charts move from Plotly to Jinja-rendered SVG per ADR-0054. The Tailwind theme e
 - Stay on Tailwind v3 and hand-roll `@theme` via `theme.extend` in `tailwind.config.ts` — works but duplicates every token in two syntaxes; defeats the "tokens.css is the source" rule.
 - Use CDN fonts (Google Fonts) — rejected (third-party request on the critical path; ADR-0005 principle for v1 and privacy posture for v3).
 - Ship static font files but gate them behind a conditional `@font-face` for reduced-motion — rejected; fonts are a visual identity concern, not a motion concern.
+
+## Addendum 2026-11-21: Tailwind version
+
+The Decision to move to Tailwind v4 with `@theme` was not implemented: `package.json` pins `tailwindcss` 3.4.14 and compiles `static/tailwind.src.css` to `static/tailwind.css` (`just css`). Tokens are plain CSS variables. The redesign direction is owned by ADR-0107 (implementation pending). Quality-audit finding Q-052.

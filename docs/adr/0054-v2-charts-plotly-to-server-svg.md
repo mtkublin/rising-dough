@@ -1,6 +1,6 @@
 # ADR-0054: v2 Rising Dough — Charts Move From Plotly to Server-Rendered SVG
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0002 (web stack — Plotly), ADR-0015 (forecast deterministic + live HTMX), ADR-0042 (forecast budget overlay), ADR-0043 (forecast monthly horizon + table), ADR-0050 (visual direction), ADR-0053 (component system)
 

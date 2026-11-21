@@ -147,7 +147,7 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - Pre-assigned numbers: ADR-<NNNN> / migration <NNNN>. Use exactly these.
 
 ## Repo rules (MANDATORY; full text in CLAUDE.md, read it first)
-- Docs first: update docs/requirements.md / docs/tasks.md / write the ADR before code,
+- Docs first: update docs/requirements.md / docs/plans/<plan>/tasks.md / write the ADR before code,
   in the same branch.
 - `data/budget.sqlite` is PRODUCTION. Never open, migrate, seed, reset, or query it. For any
   DB work use `--db=/tmp/<id>.sqlite` or `data/demo.sqlite`. `just migrate`, `just seed`,
@@ -182,11 +182,18 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - Handoff checklist: commit hooks green, ADRs you touched re-read and still true, mark the task `✅`
   in `docs/plans/<plan>/tasks.md`, add a dated line to docs/CHANGELOG.md, reference the ADR(s) in the commit.
 - **CPU budget (shared machine, parallel agents).** `export PYTEST_WORKERS=2`. Run at most one heavy
-  job (full suite, Mutmut, e2e, `just ci`) at a time; take the shared lock and always release it:
-  `until mkdir /tmp/qa-audit-heavy.lock 2>/dev/null; do sleep 20; done` ... `rmdir /tmp/qa-audit-heavy.lock`
-  (also on failure). Commits that run the full suite in the hook count as heavy. If a known
-  load-sensitive e2e test (e.g. `tests/e2e/test_ledger_filters.py`) fails, release the lock,
-  wait, and retry; do not skip hooks.
+  job (full suite, Mutmut, e2e, `just ci`) at a time per slot; take the lock and always release it.
+  The orchestrator picks one lock name per effort and session, `/tmp/<effort>-heavy.lock`
+  (e.g. `/tmp/remediation-heavy.lock`), and states it in EVERY brief. A lock name must never be
+  shared with another session or effort. If load allows, the orchestrator may open a second slot,
+  `/tmp/<effort>-heavy-2.lock`, and says so in the brief; the acquire loop then tries both:
+  `while :; do mkdir /tmp/<effort>-heavy.lock 2>/dev/null && { echo SLOT=/tmp/<effort>-heavy.lock; break; }; mkdir /tmp/<effort>-heavy-2.lock 2>/dev/null && { echo SLOT=/tmp/<effort>-heavy-2.lock; break; }; sleep 20; done`
+  (drop the second `mkdir` when only one slot is open) and prints the slot it took.
+  The worktree sandbox refuses a combined lock + git Bash command, so use THREE separate Bash
+  calls: (1) acquire (the loop above), (2) `PYTEST_WORKERS=2 git commit ...`, (3) `rmdir <the SLOT
+  path printed in (1)>`. Always release (3), also when the commit fails. Commits that run the
+  full suite in the hook count as heavy. If a known load-sensitive e2e test (e.g.
+  `tests/e2e/test_ledger_filters.py`) fails, release the lock, wait, and retry; do not skip hooks.
 - Commit format: `<type>(<ID>): <description>` (conventional commits).
 - You run autonomously (auto mode). Do not stop to ask for confirmation. Prod-DB access is the
   only thing that needs the user.

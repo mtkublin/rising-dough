@@ -1,6 +1,6 @@
 # ADR-0035: v3 Infrastructure as Code — Terraform (Scaleway Provider) + Cloud-Init Bootstrap
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28)
 - **Amended by**: [ADR-0096](0096-terraform-state-bootstrap-stack.md) (§4 bootstrap)
 - **Related**: ADR-0032 (v3 remote deployment), ADR-0034 (Litestream), ADR-0036 (Caddy TLS), ADR-0037 (GHA deploy pipeline)

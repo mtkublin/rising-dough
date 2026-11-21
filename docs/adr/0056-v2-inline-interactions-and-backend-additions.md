@@ -1,6 +1,6 @@
 # ADR-0056: v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0026 (FAB visibility), ADR-0030 (shared form primitives), ADR-0038 (recurring standalone lifecycle), ADR-0041 (budget period anchor window), ADR-0048 (category colour), ADR-0051 (new IA), ADR-0053 (component system)
 

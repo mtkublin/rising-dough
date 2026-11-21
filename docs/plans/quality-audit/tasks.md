@@ -451,7 +451,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:4 (4 entries); `suppressions` ceiling `PLC0415`:37; `suppressions` ceiling `PLR0917`:8
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q245 [P] ADR status, bodies, and project-instruction drift
+### ✅ T-Q245 [P] ADR status, bodies, and project-instruction drift
 - Findings: Q-051 (G-02, G-03, G-04), Q-052 (G-16, G-15), Q-053 (G-08, G-09, D-13).
 - Epic: E14
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

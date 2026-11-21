@@ -87,7 +87,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - **F6.1** Analytics view over the persistent transaction log.
 - **F6.2** Graphs: spend by category over time, income vs expense trend, cash-flow by account, top categories per month.
 - **F6.3** Groupable by category, account, direction, month/quarter/year.
-- **F6.4** All graphs interactive (Plotly).
+- **F6.4** All graphs interactive (originally Plotly; superseded: server-rendered SVG with data-table fallbacks, ADR-0054, ADR-0123).
 
 ### 2.7 Multi-Currency
 
@@ -162,6 +162,10 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 - `just mutate` / `just mutate-report` / `just mutate-clean` — Mutmut run, filtered survivor report, cleanup (ADR-0131).
 - `just db-reset` — recreate the dev database.
 - `just seed` — seed default categories, demo accounts.
+- `just dev-demo` — run the app on the anonymized `data/demo.sqlite`; `just demo-build` rebuilds it from prod (read-only on prod).
+- `just test-fast` — testmon-selected tests (what the pre-commit hook runs); `just lint-changed` / `just test-changed` run the same selection on demand (ADR-0120).
+- `just worktree-init` — seed a new worktree's `.testmondata` from the main checkout.
+- `just set-password` — set a user's password on an explicit `--db=<path>` (no default DB).
 
 Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) through `just install`.
 
@@ -190,8 +194,8 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - **Settings drawer.** `/settings?tab=categories|fx|prefs` returns the drawer HTML; drawer is injected into a persistent `#drawer-root`. Opens via gear icon or `g s`. The Preferences tab (`?tab=prefs`) owns the income-anchor selector (F4.7, [ADR-0031](adr/0031-budget-page-composition-v2.md)) and is the home for all future per-user preferences ([ADR-0025](adr/0025-user-preferences-and-income-anchor.md)).
 - **Form primitives.** All create / edit forms share a small primitive set per [ADR-0030](adr/0030-shared-form-interaction-primitives.md): `<input type="date">` on create defaults to today; `amount` inputs restrict to digits + decimal separator client-side; id-reference `<select>`s become filterable comboboxes (case-insensitive substring match on label); every modal / slide-over carries a visible close button; create forms clear their inputs after a successful 2xx submit; conditional fields (today only: liability credit-limit) hide at both the markup and the a11y layer when their trigger toggle is off.
 - **Command palette.** `⌘K` / `Ctrl K` opens an Alfred-style popover for navigation and quick actions. Vanilla JS (no framework), ~60 lines total.
-- **Keyboard shortcuts.** `g o / g l / g a / g b / g s` navigate. `n` opens the context-aware Quick-add form. `/` focuses the active page's search/filter. `[` / `]` cycle Ledger segmented control. `?` opens the cheatsheet. `⎋` closes the topmost overlay. All guards against capturing keys inside `<input>` / `<textarea>` / `[contenteditable]`.
-- **Quick-add FAB.** Fixed bottom-right. Click or `n`. Form shape is derived from the active Ledger tab (or defaults to actual transaction on Overview / Accounts).
+- **Keyboard shortcuts.** (Real nav, 2026-11-21: `g o` Today, `g l` Ledger, `g p` Plan, `g a` Accounts, `g s` Settings; see `partials/_nav.html`, ADR-0051. The legacy list follows as the v1 record.) `g o / g l / g a / g b / g s` navigate. `n` opens the context-aware Quick-add form. `/` focuses the active page's search/filter. `[` / `]` cycle Ledger segmented control. `?` opens the cheatsheet. `⎋` closes the topmost overlay. All guards against capturing keys inside `<input>` / `<textarea>` / `[contenteditable]`.
+- **Quick-add FAB.** (Removed in the Rising Dough redesign: + Add lives in the top bar and the mobile centre tab, ADR-0051; kept below as the v1 record.) Fixed bottom-right. Click or `n`. Form shape is derived from the active Ledger tab (or defaults to actual transaction on Overview / Accounts).
 - **Design direction.** Editorial / Swiss, per [ADR-0023](adr/0023-ux-redesign-information-architecture.md) continuing [T-053](plans/v1/phase-5/T-053-visual-polish.md): oklch palette, hairline elevation, tabular numerals, one display + one text + one mono face, single accent colour. No dark mode, no mobile adaptive nav, no icon system in v1.
 - **Overlay stack.** Only one overlay (drawer, modal, palette) responds to Esc at a time; stack managed in `static/js/overlay-actions.js`.
 
@@ -311,7 +315,7 @@ v3 keeps the v2-redesigned functional surface unchanged and layers a hardened pu
 - **Unauthenticated access**: every page except `/health`, `/ready`, `/static/*` and the login endpoints sends a browser to `/auth/login?next=…`; HTMX requests get `401` + `HX-Redirect`, JSON clients a `401` body.
 - **Security controls live in Settings → Security** (`/settings/security`, every signed-in user; [ADR-0075](adr/0075-security-controls-live-in-settings.md)): the nav rail carries only the signed-in email and "Sign out". The tab has three sections — Password (change form, see §6.7), Passkeys, Sessions. Legacy `GET /auth/sessions` and `GET /auth/register` answer `303` to `/settings/security#sessions` / `#passkeys`. The Sessions section lists the user's own active sessions (device, IP, last seen; the current one marked) and passkeys, each revocable. Revoking the current session signs the user out. The Passkeys section registers a new passkey with a label (`/auth/register/begin|finish`). A "Sign out" control in the nav (and on mobile) revokes the current session.
 - **CSRF**: `__Host-csrf` cookie + `X-CSRF-Token` header enforced on all state-changing routes.
-- **Rate limit + jail**: password login is limited to 5 attempts / min and 20 / hour per IP + email, plus 100 / hour per IP; passkey login finish to 10 / min and 60 / hour per IP; passkey registration finish to 5 / min and 20 / hour per user; password change (`POST /settings/password`) to 5 / min and 20 / hour per user. Every attempt counts, successful ones included. Over the limit the server answers `429` with `Retry-After`; the login form shows one generic "too many attempts" message; HTMX / JSON callers get `{"error": "rate_limited"}`. Counters persist in SQLite (`auth_rate_limit`), so they survive restarts. A `fail2ban` jail reading Caddy's access log is the outer layer. See [ADR-0072](adr/0072-auth-rate-limit-sqlite-fixed-window.md).
+- **Rate limit + jail**: password login is limited to 5 attempts / min and 20 / hour per IP + email, plus 100 / hour per IP; passkey login finish to 10 / min and 60 / hour per IP; passkey registration finish to 5 / min and 20 / hour per user; password change (`POST /settings/password`) to 5 / min and 20 / hour per user. Every attempt counts, successful ones included. Over the limit the server answers `429` with `Retry-After`; the login form shows one generic "too many attempts" message; HTMX / JSON callers get `{"error": "rate_limited"}`. Counters persist in SQLite (`auth_rate_limit`), so they survive restarts. (No `fail2ban` jail exists today; see §6.7.) See [ADR-0072](adr/0072-auth-rate-limit-sqlite-fixed-window.md).
 - **Admin surface**: `/settings/users` (list, add, edit, remove, reset password) — admin-only, returns 404 to non-admins to avoid surface fingerprinting. Every user changes their own password from Settings → Security (`POST /settings/password`; `GET /settings/password` redirects there unless a rotation is forced).
 
 ### 6.3 Infrastructure as Code (new NFR)
@@ -355,11 +359,11 @@ Release and environment policy (ADR-0099):
 
 ### 6.7 Security (new NFR)
 
-- CSP with per-request nonce (Caddy injects, app propagates to Jinja).
+- CSP with per-request nonce: Caddy sets the header (`terraform/cloud-init/compose/Caddyfile.tpl`); the app-side nonce propagation to Jinja (`csp_nonce` in `web/rendering.py`) is not wired, so the nonce is empty today (ADR-0113 keeps the frontend CSP-compatible; closing the gap is quality-audit Q-065).
 - HSTS preload, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal.
 - `trivy` + `pip-audit` block on HIGH/CRITICAL in CI.
-- `testssl.sh` grade A, Mozilla Observatory ≥ A+ required pre-go-live.
-- UFW default-deny; only 22/80/443 allowed. `fail2ban` jails on `sshd` + `caddy-auth`.
+- `testssl.sh` grade A and Mozilla Observatory ≥ A+ are the pre-go-live targets; neither is run by a pipeline today.
+- UFW default-deny incoming; SSH is allowed only on `tailscale0`, and 80/443 are opened for Caddy (`terraform/cloud-init/bootstrap.yaml.tpl`). `fail2ban` is installed but no jail (`sshd`, `caddy-auth`) is configured; auth abuse is limited in the app (ADR-0072, ADR-0133). The stock `caddy:2.8` image is used with no rate-limit plugin (ADR-0036 addendum 2026-11-21).
 - Auth abuse controls ([ADR-0133](adr/0133-proxy-set-client-identity-and-bounded-auth-audit-text.md), amends ADR-0072): the rate-limit identity is the proxy-set client address (Caddy overwrites `X-Forwarded-For`/`X-Real-IP`, uvicorn trusts one pinned proxy address, never `*`), validated as an IP literal; buckets are (IP, email) plus a per-IP ceiling; request text persisted to `audit_log` (email, user agent) is truncated.
 
 ### 6.8 Non-goals for v3

@@ -1,6 +1,6 @@
 # ADR-0032: v3 Remote Deployment — Scaleway Stardust in Warsaw + Scaleway Object Storage
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-27 (renumbered v2 → v3 on 2026-10-28; v2 slot reassigned to the Rising Dough redesign)
 - **Related**: ADR-0003 (SQLite only in v1), ADR-0005 (single user, no auth, 127.0.0.1), ADR-0027 (frontend toolchain)
 - **Supersedes**: nothing. **Amends**: ADR-0005 (v1 bound to `127.0.0.1`; v3 binds to a container inside a hardened VM behind TLS reverse proxy).
