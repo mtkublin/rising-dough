@@ -28,6 +28,7 @@ from budget_planner.domain.request_ctx import RequestCtx
 # ``RequestCtx`` is frozen so sharing one instance is safe. Ruff B008
 # forbids inlining the ``RequestCtx.empty()`` call in parameter defaults.
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
+_SAVEPOINT = "bp_nested"
 
 
 def utc_now_iso() -> str:
@@ -95,21 +96,6 @@ def write_audit(
     )
 
 
-_TX_DEPTH: dict[int, int] = {}
-
-
-def _depth(conn: sqlite3.Connection) -> int:
-    return _TX_DEPTH.get(id(conn), 0)
-
-
-def _set_depth(conn: sqlite3.Connection, value: int) -> None:
-    key = id(conn)
-    if value == 0:
-        _TX_DEPTH.pop(key, None)
-    else:
-        _TX_DEPTH[key] = value
-
-
 @contextmanager
 def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     """Explicit transaction context manager.
@@ -123,28 +109,28 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     (e.g. planned promotion) and keep the whole operation atomic.
     Requires ``isolation_level=None`` on the connection.
     """
-    depth = _depth(conn)
-    if depth == 0:
+    # Nesting is read from the connection itself (no module-level depth map):
+    # an open transaction means this entry is nested. SQLite resolves a repeated
+    # savepoint name to the innermost one, so a single name nests correctly.
+    is_outermost = not conn.in_transaction
+    if is_outermost:
         conn.execute("BEGIN IMMEDIATE")
     else:
-        conn.execute(f"SAVEPOINT sp_{depth}")
-    _set_depth(conn, depth + 1)
+        conn.execute(f"SAVEPOINT {_SAVEPOINT}")
     try:
         yield conn
     except Exception:
-        if depth == 0:
+        if is_outermost:
             conn.execute("ROLLBACK")
         else:
-            conn.execute(f"ROLLBACK TO sp_{depth}")
-            conn.execute(f"RELEASE sp_{depth}")
-        _set_depth(conn, depth)
+            conn.execute(f"ROLLBACK TO {_SAVEPOINT}")
+            conn.execute(f"RELEASE {_SAVEPOINT}")
         raise
     else:
-        if depth == 0:
+        if is_outermost:
             conn.execute("COMMIT")
         else:
-            conn.execute(f"RELEASE sp_{depth}")
-        _set_depth(conn, depth)
+            conn.execute(f"RELEASE {_SAVEPOINT}")
 
 
 def mutate[T](

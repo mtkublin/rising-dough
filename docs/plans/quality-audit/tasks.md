@@ -487,7 +487,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:5 (5 entries); `sql_sites`:4 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/sql_sites.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q263 [P] Immutable module constants, no hidden caches or globals
+### ✅ T-Q263 [P] Immutable module constants, no hidden caches or globals
 - Findings: Q-074 (B-13); epic E05.
 - Epic: E05
 - Band: 2 · Size: S · Tags: `[pre-v4-P3-rec]`
@@ -495,7 +495,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR-0021 sentence (framework classes and memo parameters) is T-Q258; this task needs none beyond a CHANGELOG line.
 - Acceptance: Failing guard first: `functional_first.toml` entries with `epic = "E05"` (18 entries, 21 violations). Convert module `dict`/`list`/`set` constants to `MappingProxyType`, tuples or frozensets (`db/migrate.py`, `domain/money.py`, `repositories/_shared.py`, `services/audit.py`, `export.py`, `recurring.py`, `web/templating.py`, `web/today_data.py`, `web/routers/recurring.py`, middleware); replace the two `global` statements (`logging.py`, `web/app.py`) with an explicit state object; remove the `lru_cache` hidden caches by passing the object explicitly (`config.get_settings` caching moves with T-Q264); stop mutating `data` parameters in `logging.py` and `recurring_formula.py`.
 - Operator question blocking it: none.
-- Removes allowlist entries: `functional_first`:21 (18 entries)
+- Removes allowlist entries: `functional_first`:21 (18 entries) Done 2026-11-21: 16 of the 18 entries deleted; the two `config.py` entries (`hidden-cache`, `setattr-bypass`) stay with T-Q264 (settings caching and the frozen `ResolvedSettings`).
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/functional_first.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings

@@ -15,6 +15,7 @@ import io
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
+from types import MappingProxyType
 from typing import Any, Literal
 
 import pandas as pd
@@ -79,13 +80,15 @@ def export_csv(
     return buf.getvalue().encode("utf-8")
 
 
-_DTYPES: dict[ColumnKind, Any] = {
-    "int": pd.Int64Dtype(),
-    "money_minor": pd.Int64Dtype(),
-    "str": pd.StringDtype(),
-    "bool": pd.BooleanDtype(),
-    "date": "object",  # we'll convert manually
-}
+_DTYPES: Mapping[ColumnKind, Any] = MappingProxyType(
+    {
+        "int": pd.Int64Dtype(),
+        "money_minor": pd.Int64Dtype(),
+        "str": pd.StringDtype(),
+        "bool": pd.BooleanDtype(),
+        "date": "object",  # we'll convert manually
+    }
+)
 
 
 def _column_series(rows: Sequence[Mapping[str, Any]], column: ExportColumn) -> pd.Series[Any]:
