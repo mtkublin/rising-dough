@@ -217,6 +217,7 @@ amount_source_fixed = role("radio", "Fixed value").inside(slideover)
 rule_amount = role("textbox", "Amount", exact=True).inside(slideover)
 formula_pick_sources = role("button", "pick sources").inside(slideover)
 formula_coefficient = label("Coefficient (%)", exact=True).inside(slideover)
+formula_sign_minus = role("radio", "\u2212", exact=True).inside(slideover)  # one per term
 add_term = role("button", "+ Add term").inside(slideover)
 save_rule = role("button", "Save rule").inside(slideover)
 add_rule = role("button", "Add rule").inside(slideover)
