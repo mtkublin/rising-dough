@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-UT12: UI test harness exit gate, ADR-0106 accepted)
+- **T-UT12: the UI behaviour test harness is complete; ADR-0106 is Accepted.** Contract tests cover every app route (route-coverage meta-test, framework routes allowlisted); `tests/ui_map/` maps semantic names to role/label/id locators and no assertion reads raw markup (empty allowlist); a crawler activates every control on every page at 375 and 1440 with a committed inventory; 35 new journeys plus the migrated existing ones run on UI-map names and assert the DB effect; `just test-e2e-browsers` is the opt-in Firefox/WebKit recipe; `just test-visual --reference=handoff` compares against handoff references; `--target=mockup` resolves the Today surface against the designer handoff. Known exceptions and follow-ups (T-D-UT12-1..5) are in `docs/plans/ui-test-harness/tasks.md`.
+
 ## 2026-11-21 (T-UT-FIX3: bcrypt scope, sessions test timezone)
 - **Fix(T-UT-FIX3): contract tests no longer leak the autouse `_fast_bcrypt` fixture session-wide.** `tests/contract/_support.py` re-exported it as a plugin, breaking `test_passwords.py::test_default_rounds_is_twelve_and_honoured` in shared sessions; a contract-scoped autouse fixture now lives in `tests/contract/conftest.py`. `test_sessions_page_lists_own_sessions_by_handle` computed the expiry date in UTC while the page renders Europe/Warsaw (failed 22:00-24:00 UTC). Tests only, no `src/` change.
 ## 2026-11-20 (T-UT04d: plan contract tests and UI-map migration)

@@ -84,13 +84,12 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Notes (2026-11-20)**: `tests/e2e/test_crawl.py` (one test per page route, 21 pages) + helpers in `tests/e2e/crawl/` + `tests/e2e/test_crawl_checker.py` (fixture page proving a broken `hx-get` target, a healthy swap and an inert control). Regenerate the inventory with `CRAWL_UPDATE=1`. Single theme today (no dark mode), so one pass. Controls are activated at 1440; 375 gets load-time overflow / duplicate-id / console / request checks, plus the same checks after every activation at 1440. Skipped with a recorded reason: logout, WebAuthn (passkey add/revoke/register), external links, sr-only / off-screen controls, form- or input-triggered hx elements. Known app bugs (strict xfail in `test_known_bug`):
   - `T-D-UT07-1`: `/budget/yearly` is 2000px wide and scrolls the whole page horizontally at 375 and 1440 (`table > caption > thead` overflow).
 
-### ◻ T-UT08 [P] Journeys on the UI map → T-UT04a..e
+### ✅ T-UT08 [P] Journeys on the UI map → T-UT04a..e
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
 - **Acceptance**: all green on Chromium; no CSS locators; each journey asserts the DB effect as well as the screen.
-- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts screen and read-only scratch-DB effect. 08a (migrating the 8 existing journeys) is separate; T-UT08 stays open.
-- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts the screen and the read-only scratch-DB effect. 08a (migrating the 8 existing journeys) is separate; T-UT08 stays open.
+- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts screen and read-only scratch-DB effect.
 - **Validation**: `just test-e2e`
-- **Progress**: 08a: existing journeys migrated (2026-11-21): the 15 e2e files use UI-map names through `to_playwright`, ids come from the scratch DB (`tests/e2e/db_probe.py`), journeys assert the DB effect; e2e entries removed from the markup allowlist. 08b (new journeys) open.
+- **Progress**: 08a: existing journeys migrated (2026-11-21): the 15 e2e files use UI-map names through `to_playwright`, ids come from the scratch DB (`tests/e2e/db_probe.py`), journeys assert the DB effect; e2e entries removed from the markup allowlist. 08b merged (35 new journeys). T-UT08 done 2026-11-21: 0 `.locator(` calls under tests/e2e.
 
 ### ✅ T-UT09 [P] Mockup target → T-UT01, T-UT02
 - **Deliverables**: `--target=mockup` option that serves `docs/design/rising-dough-frontend/` over HTTP (with `stand-in.js` active) and runs UI-map lookups and click-through journeys against it. Mapping from app routes to handoff pages in `tests/ui_map/mockup_routes.py`.
@@ -114,6 +113,19 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - Every `no board` and `handoff-only` row in `parity.md` gets a decision: derive from the design system, ask the designer for a board, drop (needs an ADR), or new requirement first (for handoff-only features). Decisions copied into `docs/plans/ui-redesign/derived.md`.
 - Status 2026-11-20: change request sent: docs/plans/ui-redesign/designer-change-request.md; awaiting designer; T-UT12 does not block on the answers, only on every gap row having a decision/owner. Operator decision: all 16 gaps go to the designer; every `parity.md` row reads `ask designer (designer-change-request.md)`.
 
-### ◻ T-UT12 [S] Exit gate → all above
+### ✅ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.
 - README exit criteria 1–7 checked; ADR-0106 flipped to Accepted; `docs/CHANGELOG.md` entry; `just ci` green on the work branch.
+- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run outcome follows.
+- **Known exceptions**:
+  - WebKit is unverified on this host (T-UT11).
+  - `T-D-UT07-1`: `/budget/yearly` scrolls horizontally (strict xfail).
+  - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are pending operator acceptance.
+  - T-UT06 stays open (awaiting the designer); every parity row has an owner (`ask designer`).
+
+### Follow-ups (found during the work, not fixed here)
+- `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save.
+- `T-D-UT12-2`: user create/delete writes no `audit_log` row.
+- `T-D-UT12-3`: the formula preview chip/endpoint `/recurring/formula/preview` is not wired into any page.
+- `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins.
+- `T-D-UT12-5`: `tests/contract/web_helpers_t_ut04e.py` `field()` can become `resolve_one` now that `label()` is fixed.
