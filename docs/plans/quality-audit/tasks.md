@@ -612,7 +612,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q231 [S] Test-suite tripwire against touching the prod DB
+### ✅ T-Q231 [S] Test-suite tripwire against touching the prod DB
 - Findings: Q-060 (F-20).
 - Epic: none (test-gap)
 - Band: 3 · Size: S · Tags: none

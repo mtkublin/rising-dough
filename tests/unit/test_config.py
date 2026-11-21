@@ -125,6 +125,7 @@ def test_session_lifetime_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_production_default_db_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BUDGET_DATABASE_URL")  # T-Q231 session fixture sets it
     monkeypatch.setenv("BUDGET_ENV", "production")
     monkeypatch.setenv("BUDGET_COOKIE_SECRET", "x")
     monkeypatch.setenv("BUDGET_WEBAUTHN_RP_ID", "budget.example.eu")
