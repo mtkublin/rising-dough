@@ -7,8 +7,6 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from budget_planner import clock
 from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
@@ -44,9 +42,10 @@ def derived_matches_oracle(conn: sqlite3.Connection, today: date) -> bool:
 
 def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
     s = get_settings()
-    fortune_result = fortune.compute_fortune(conn, U, s)
     converter = fx.converter_for(conn, s, today)
-    _, _, fortune_base = today_data.collect_account_rows(conn, U, converter)
+    fortune_result = fortune.compute_fortune(conn, U, converter)
+    rows, _ = today_data.collect_account_rows(conn, U, converter)
+    fortune_base = sum(r.balance_base_minor for r in rows)
     series = forecast.forecast(conn, U, converter, today, 0, include_budget_overlay=False)
     return {
         "fortune.net_base": fortune_result.net_base,
@@ -64,10 +63,6 @@ def test_pln_only_demo_totals_agree(seeded: sqlite3.Connection) -> None:
     assert t["fortune.net_base"] == t["today_data.fortune_base"] == t["forecast.day0"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-009: fortune.net_base sums native amounts, forecast and today_data convert",
-)
 def test_foreign_currency_account_agrees_across_fortune_and_forecast(
     seeded: sqlite3.Connection,
 ) -> None:

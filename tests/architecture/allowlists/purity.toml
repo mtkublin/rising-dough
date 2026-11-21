@@ -53,13 +53,6 @@ finding = "Q-074"
 epic = "E07"
 
 [[entry]]
-path = "src/budget_planner/services/fortune.py"
-rule = "eff-import"
-count = 1
-finding = "Q-074"
-epic = "E07"
-
-[[entry]]
 path = "src/budget_planner/services/rate_limit.py"
 rule = "eff-import"
 count = 1

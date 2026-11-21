@@ -16,17 +16,20 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import mean_minor
 from budget_planner.domain.periods import month_bounds
-from budget_planner.domain.transactions import TransactionFilter
+from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
+    accounts as accounts_repo,
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.services import fx as fx_svc
 
 Period = Literal["month", "year", "trailing-12"]
 
@@ -99,11 +102,20 @@ def _period_bounds(today: dt.date, period: Period) -> tuple[dt.date, dt.date]:
     return _trailing_12_months(today)
 
 
+def _base_of(
+    conn: sqlite3.Connection, user_id: int, converter: fx_svc.FxConverter
+) -> Callable[[Transaction], int]:
+    """``txn -> base minor`` at the txn's own date (ADR-0006, ADR-0139; Q-008)."""
+    ccy = {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    return fx_svc.txn_base_of(converter, ccy)
+
+
 def _spend_by_category(
     conn: sqlite3.Connection,
     user_id: int,
     start: dt.date,
     end: dt.date,
+    converter: fx_svc.FxConverter,
 ) -> tuple[CategoryTotal, ...]:
     cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
     txns = transactions_repo.list_filtered(
@@ -115,9 +127,10 @@ def _spend_by_category(
             directions=(Direction.EXPENSE,),
         ),
     )
+    base_of = _base_of(conn, user_id, converter)
     totals: dict[int, int] = defaultdict(int)
     for t in txns:
-        totals[t.category_id] += t.amount
+        totals[t.category_id] += base_of(t)
     rows = [
         CategoryTotal(
             category_id=cat_id,
@@ -130,16 +143,11 @@ def _spend_by_category(
     return tuple(rows)
 
 
-def _mean_minor(total: int, months: int) -> int:
-    if months <= 0:
-        return 0
-    return round_div(total, months, mode=HALF_EVEN)
-
-
 def _twelve_month_averages(
     conn: sqlite3.Connection,
     user_id: int,
     today: dt.date,
+    converter: fx_svc.FxConverter,
 ) -> tuple[CategoryTotal, ...]:
     """Mean monthly spend per category over the trailing 12 months.
 
@@ -157,14 +165,15 @@ def _twelve_month_averages(
             directions=(Direction.EXPENSE,),
         ),
     )
+    base_of = _base_of(conn, user_id, converter)
     sums: dict[int, int] = defaultdict(int)
     for t in txns:
-        sums[t.category_id] += t.amount
+        sums[t.category_id] += base_of(t)
     rows = [
         CategoryTotal(
             category_id=cat_id,
             category_name=cats[cat_id].name if cat_id in cats else "?",
-            amount_minor=_mean_minor(amount, _TRAILING_MONTHS),
+            amount_minor=mean_minor(amount, _TRAILING_MONTHS),
         )
         for cat_id, amount in sums.items()
     ]
@@ -176,6 +185,7 @@ def _income_vs_expense_monthly(
     conn: sqlite3.Connection,
     user_id: int,
     today: dt.date,
+    converter: fx_svc.FxConverter,
 ) -> tuple[MonthlyFlow, ...]:
     """Trailing-12 (year, month) → income + expense totals."""
     start, end = _trailing_12_months(today)
@@ -188,15 +198,16 @@ def _income_vs_expense_monthly(
     monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(
         lambda: {"income": 0, "expense": 0}
     )
+    base_of = _base_of(conn, user_id, converter)
     for t in txns:
         cat = cats.get(t.category_id)
         if cat is None:
             continue
         key = (t.operation_date.year, t.operation_date.month)
         if cat.direction is Direction.INCOME:
-            monthly[key]["income"] += t.amount
+            monthly[key]["income"] += base_of(t)
         elif cat.direction is Direction.EXPENSE:
-            monthly[key]["expense"] += t.amount
+            monthly[key]["expense"] += base_of(t)
     out = [
         MonthlyFlow(
             year=year,
@@ -216,6 +227,8 @@ def _largest_items(
     start: dt.date,
     end: dt.date,
     limit: int,
+    *,
+    converter: fx_svc.FxConverter,
 ) -> tuple[LargestItem, ...]:
     cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
     txns = transactions_repo.list_filtered(
@@ -227,14 +240,16 @@ def _largest_items(
             directions=(Direction.EXPENSE,),
         ),
     )
-    ranked = sorted(txns, key=lambda t: (-t.amount, t.operation_date))
+    base_of = _base_of(conn, user_id, converter)
+    base_amounts = {t.id: base_of(t) for t in txns}
+    ranked = sorted(txns, key=lambda t: (-base_amounts[t.id], t.operation_date))
     return tuple(
         LargestItem(
             transaction_id=t.id,
             operation_date=t.operation_date,
             category_name=cats[t.category_id].name if t.category_id in cats else "?",
             description=t.description,
-            amount_minor=t.amount,
+            amount_minor=base_amounts[t.id],
         )
         for t in ranked[:limit]
     )
@@ -243,6 +258,7 @@ def _largest_items(
 def bundle(
     conn: sqlite3.Connection,
     user_id: int,
+    converter: fx_svc.FxConverter,
     *,
     today: dt.date,
     period: Period = "month",
@@ -250,6 +266,8 @@ def bundle(
 ) -> AnalyticsBundle:
     """Return the four-panel analytics bundle for ``period``.
 
+    ``converter`` is the cache-only FX converter (ADR-0139): every amount is in
+    its base currency, each transaction at its own date's rate (Q-008).
     ``today`` is injected (ADR-0007). ``period`` picks the spend-by-category
     + largest-items window; the twelve-month averages + flow trend always
     span the trailing 12 months regardless (that's the whole point of
@@ -260,10 +278,10 @@ def bundle(
         period=period,
         period_start=start,
         period_end=end,
-        spend_by_category=_spend_by_category(conn, user_id, start, end),
-        twelve_month_averages=_twelve_month_averages(conn, user_id, today),
-        income_vs_expense_monthly=_income_vs_expense_monthly(conn, user_id, today),
-        largest_items=_largest_items(conn, user_id, start, end, largest_limit),
+        spend_by_category=_spend_by_category(conn, user_id, start, end, converter),
+        twelve_month_averages=_twelve_month_averages(conn, user_id, today, converter),
+        income_vs_expense_monthly=_income_vs_expense_monthly(conn, user_id, today, converter),
+        largest_items=_largest_items(conn, user_id, start, end, largest_limit, converter=converter),
     )
 
 

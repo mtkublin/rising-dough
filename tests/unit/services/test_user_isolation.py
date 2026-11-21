@@ -24,6 +24,7 @@ from budget_planner.services import (
     analytics,
     budget,
     fortune,
+    fx,
     recurring_formula,
 )
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
@@ -64,7 +65,9 @@ def public_functions_with_user_id(files: dict[str, str]) -> set[tuple[str, str]]
 
 
 def _fortune(conn: sqlite3.Connection, user_id: int) -> int:
-    return fortune.compute_fortune(conn, user_id, Settings(_env_file=None)).net_base
+    return fortune.compute_fortune(
+        conn, user_id, fx.converter_for(conn, Settings(_env_file=None), TODAY)
+    ).net_base
 
 
 def _checked_accounts(conn: sqlite3.Connection, user_id: int) -> set[int]:
@@ -72,7 +75,13 @@ def _checked_accounts(conn: sqlite3.Connection, user_id: int) -> set[int]:
 
 
 def _analytics_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
-    bundle = analytics.bundle(conn, user_id, today=TODAY, period="month")
+    bundle = analytics.bundle(
+        conn,
+        user_id,
+        fx.converter_for(conn, Settings(_env_file=None), TODAY),
+        today=TODAY,
+        period="month",
+    )
     return {r.category_id for r in bundle.spend_by_category}
 
 
