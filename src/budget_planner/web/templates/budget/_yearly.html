@@ -49,14 +49,13 @@
           <tr class="row">
             <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
             {% for cell in row.cells %}
-              {% set m = loop.index %}
               <td class="text-right">
-                <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ m }}"
+                <form hx-post="/budget/one-off/{{ row.category_id }}/{{ year }}/{{ loop.index }}"
                       hx-swap="none"
                       class="budget-yearly-cell budget-yearly-cell--{{ cell.origin }}">
                   <label class="sr-only"
-                         for="y-{{ row.category_id }}-{{ m }}">{{ row.category_name }} {{ month_labels[m - 1] }} {{ year }}</label>
-                  <input id="y-{{ row.category_id }}-{{ m }}"
+                         for="y-{{ row.category_id }}-{{ loop.index }}">{{ row.category_name }} {{ month_labels[loop.index0] }} {{ year }}</label>
+                  <input id="y-{{ row.category_id }}-{{ loop.index }}"
                          type="text"
                          name="amount"
                          value="{{ cell.amount_minor|money_major(base_ccy) if cell.amount_minor is not none else '' }}"

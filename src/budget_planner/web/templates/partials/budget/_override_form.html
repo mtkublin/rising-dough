@@ -2,15 +2,12 @@
    desktop-05-plan-budget.html:9). Three-tier segmented picks between a
    one-off override for a specific month/year, a recurring override that
    fires every given month, and setting the category's new default. #}
-{% set this_year = form_year %}
-{% set this_month = form_month %}
-{% set month_label = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][this_month - 1] %}
 <form class="rd-override"
       hx-post="/budget/rules/{{ category.id if category else 0 }}/overrides"
       hx-swap="none"
       data-override-form
-      data-month-label="{{ month_label }}"
-      data-this-year="{{ this_year }}"
+      data-month-label="{{ period.label }}"
+      data-this-year="{{ period.year }}"
       {% if inline is defined and inline %}data-override-inline{% endif %}
       data-reset-on-submit>
   {% if category %}
@@ -24,15 +21,15 @@
       </label>
       <label class="rd-segmented__item">
         <input type="radio" name="tier" value="recurring" class="sr-only">
-        Every {{ month_label }}
+        Every {{ period.label }}
       </label>
       <label class="rd-segmented__item">
         <input type="radio" name="tier" value="default" class="sr-only">
         New default
       </label>
     </div>
-    <input type="hidden" name="month" value="{{ this_month }}">
-    <input type="hidden" name="year" value="{{ this_year }}">
+    <input type="hidden" name="month" value="{{ period.month }}">
+    <input type="hidden" name="year" value="{{ period.year }}">
     <div class="rd-override__row">
       <span class="rd-override__input">
         <input type="text"
@@ -51,7 +48,7 @@
     </div>
     {% if default_amount_minor is defined and default_amount_minor %}
       <p class="rd-override__hint mut" data-override-hint>
-        Default {{ default_amount_minor|money_num(base_ccy) }} · <span data-override-hint-tail>wins over default for {{ month_label }} {{ this_year }} only</span>
+        Default {{ default_amount_minor|money_num(base_ccy) }} · <span data-override-hint-tail>wins over default for {{ period.label }} {{ period.year }} only</span>
       </p>
     {% endif %}
   {% endif %}

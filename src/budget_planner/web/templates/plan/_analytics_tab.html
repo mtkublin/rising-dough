@@ -13,7 +13,7 @@ endpoint. #}
     ], period, name='period', base_href='/plan?tab=analytics&') }}
   </div>
   <p class="text-muted" style="margin: 0 0 0 1rem; font-size: 0.85rem;">
-    {{ bundle.period_start.strftime("%d %b %Y") }} → {{ bundle.period_end.strftime("%d %b %Y") }}
+    {{ bundle.period_start|date_day_month_year }} → {{ bundle.period_end|date_day_month_year }}
   </p>
 </header>
 {% include "plan/_analytics_bundle.html" %}

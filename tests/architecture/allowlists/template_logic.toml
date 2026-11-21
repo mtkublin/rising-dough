@@ -206,48 +206,6 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/budget/_yearly.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/budget/_yearly.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/budget/index.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/budget/index.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/budget/index.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/budget/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/dev/components.html"
 rule = "tpl-currency-lit"
 count = 1
@@ -430,43 +388,8 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/budget/_override_form.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/budget/_override_form.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/categories/_form.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/forecast/_chart.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/forecast/_chart.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/forecast/_table.html"
-rule = "tpl-format"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -570,132 +493,6 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/plan/_analytics_bundle.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_analytics_bundle.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_analytics_bundle.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_analytics_bundle.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_analytics_tab.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_budget_tab.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_budget_tab.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_budget_tab.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_budget_tab.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_budget_tab.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_year_tab.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/index.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/index.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/recurring/index.html"
 rule = "tpl-set"
 count = 1
@@ -781,62 +578,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/settings/users/list.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/_upcoming.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/_upcoming.html"
-rule = "tpl-domain-if"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/_upcoming.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/_upcoming.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/index.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/index.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/index.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/index.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"

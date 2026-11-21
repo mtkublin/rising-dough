@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.money import parse_amount_str, percent_of, to_minor_units
+from budget_planner.domain.money import parse_amount_str, to_minor_units
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -26,7 +26,7 @@ from budget_planner.services import (
     fx as fx_service,
     today as today_service,
 )
-from budget_planner.web import today_data
+from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
@@ -66,12 +66,7 @@ def today(
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
-    days_left = summary.days_until_next_income
-    bar_pct = 0
-    if summary.totals.budgeted_minor > 0:
-        bar_pct = max(
-            0, min(100, percent_of(summary.totals.spent_minor, summary.totals.budgeted_minor))
-        )
+    budget = view_models.budget_view(summary, today_d)
 
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
@@ -89,14 +84,11 @@ def today(
         fortune=fortune,
         account_rows=account_rows,
         totals_by_ccy=totals_by_ccy,
-        summary=summary,
+        budget=budget,
         pace=pace,
-        days_left=days_left,
-        left_per_day_minor=today_service.daily_share_minor(
-            summary.totals.remaining_minor, days_left
+        upcoming_view=view_models.upcoming_view(
+            upcoming, today_d, categories_by_id, accounts_by_id
         ),
-        bar_pct=bar_pct,
-        upcoming=upcoming,
         window_label=window_label,
         categories_by_id=categories_by_id,
         accounts_by_id=accounts_by_id,
@@ -124,7 +116,9 @@ def today_upcoming_fragment(
     return render(
         request,
         "today/_upcoming.html",
-        upcoming=upcoming,
+        upcoming_view=view_models.upcoming_view(
+            upcoming, today_d, categories_by_id, accounts_by_id
+        ),
         today=today_d,
         window_label=window_label,
         base_ccy=settings.base_currency,
