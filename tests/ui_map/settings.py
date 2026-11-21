@@ -95,3 +95,23 @@ def reset_user(name: str) -> Locator:
 
 def passkey_remove(name: str) -> Locator:
     return role("button", f"Remove passkey {name}")
+
+
+# --- T-UT08b: category form, FX tab, preferences, toast undo ----------------
+form_name = category_name.inside(category_form)
+form_income = category_income.inside(category_form)
+form_expense = category_expense.inside(category_form)
+form_create = role("button", "Create category").inside(category_form)
+edit_form_save = role("button", "Save").inside(by_id("cat-form-slot"))
+edit_form_name = label("Name").inside(by_id("cat-form-slot"))
+fx_table = role("table", "Cached FX rates")
+
+
+def fx_row(pair: str) -> Locator:
+    """A cached-rate row by its ``EUR → PLN`` pair text."""
+    return role("row", pair).inside(fx_table)
+
+
+pref_terms = role("term")
+pref_values = role("definition")
+prefs_panel_heading = role("heading", "Preferences", level=3)

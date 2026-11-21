@@ -188,3 +188,64 @@ def combobox_option(name: str) -> Locator:
 field_default_amount = role("textbox", "Amount", exact=True)  # recurring form (label sr-only)
 
 formula_preview = by_testid("formula-preview")
+
+# --- T-UT08b: add-entry overlay, row menus, Recently deleted -----------------
+add_new = role("button", "+ Add")
+
+
+def entry_tab(name: str) -> Locator:
+    """A chip of the New entry overlay (``Happened`` / ``Planned`` / ``Repeats``)."""
+    return role("tab", name).inside(slideover)
+
+
+def overlay_field(field: Locator) -> Locator:
+    """A form field (label locator) scoped to the open slide-over."""
+    return field.inside(slideover)
+
+
+def combo_option(name: str) -> Locator:
+    """An option of an open combobox list inside the slide-over."""
+    return role("option", name, exact=True).inside(slideover)
+
+
+overlay_add_entry = add_entry.inside(slideover)
+overlay_save = save.inside(slideover)
+overlay_promote = promote.inside(slideover)
+overlay_errors = role("alert").inside(slideover)
+amount_source_formula = role("radio", "Formula").inside(slideover)
+amount_source_fixed = role("radio", "Fixed value").inside(slideover)
+rule_amount = role("textbox", "Amount", exact=True).inside(slideover)
+formula_pick_sources = role("button", "pick sources").inside(slideover)
+formula_coefficient = label("Coefficient (%)", exact=True).inside(slideover)
+add_term = role("button", "+ Add term").inside(slideover)
+save_rule = role("button", "Save rule").inside(slideover)
+add_rule = role("button", "Add rule").inside(slideover)
+
+
+def row_action(name: str) -> Locator:
+    """A kebab menu item (``Edit`` / ``Delete`` / ``Promote`` / ...) once opened."""
+    return role("menuitem", name, exact=True)
+
+
+def planned_promote(planned_id: int) -> Locator:
+    return role("button", "Promote").inside(planned_row(planned_id))
+
+
+def planned_edit(planned_id: int) -> Locator:
+    return role("button", "Edit", exact=True).inside(planned_row(planned_id))
+
+
+def planned_menu(planned_id: int) -> Locator:
+    return role("button", "Row actions").inside(planned_row(planned_id))
+
+
+def recurring_menu(rule_id: int) -> Locator:
+    return role("button", "Row actions").inside(recurring_row(rule_id))
+
+
+recently_deleted_link = role("link", "Recently deleted")
+
+
+def formula_source(category_name: str) -> Locator:
+    """A source-category checkbox of the (open) formula term picker."""
+    return role("checkbox", category_name, exact=True).inside(slideover)

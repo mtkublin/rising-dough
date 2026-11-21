@@ -112,6 +112,28 @@ def rules_override_button(category_name: str) -> Locator:
     return role("button", f"Add override for {category_name}", exact=True)
 
 
+# --- T-UT08b: year-grid override popover and period navigation ---------------
+def tier(cell: Locator, label_text: str) -> Locator:
+    """A tier radio (``This month only`` / ``Every Mar`` / ``New default``) in a cell popover."""
+    return role("radio", label_text).inside(cell)
+
+
+def cell_amount(cell: Locator) -> Locator:
+    return role("textbox").inside(cell)
+
+
+def cell_save(cell: Locator) -> Locator:
+    return role("button", "Save").inside(cell)
+
+
+previous_month = role("link", "Previous month")
+next_month = role("link", "Next month")
+year_nav = role("navigation", "Change year")
+year_nav_previous = role("link", "Previous year").inside(year_nav)
+year_nav_next = role("link", "Next year").inside(year_nav)
+year_nav_label = role("link").inside(year_nav)
+
+
 # --- T-UT08a: existing e2e journeys ---
 budget_region = by_id("plan-budget")
 tier_one_off = label("This month only")
