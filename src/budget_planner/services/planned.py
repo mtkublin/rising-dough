@@ -286,6 +286,17 @@ def undo_batch(
     )
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+find_by_id = planned_repo.find_by_id
+list_filtered = planned_repo.list_filtered
+list_recently_deleted = planned_repo.list_recently_deleted
+create = planned_repo.create
+update = planned_repo.update
+soft_delete = planned_repo.soft_delete
+undelete = planned_repo.undelete
+
+
 __all__ = [
     "AlreadyPromotedError",
     "BatchPromoteResult",
@@ -298,7 +309,14 @@ __all__ = [
     "UnsupportedDirectionError",
     "ValidationError",
     "batch_promote_due",
+    "create",
+    "find_by_id",
+    "list_filtered",
     "list_planned",
+    "list_recently_deleted",
     "promote_to_actual",
+    "soft_delete",
+    "undelete",
     "undo_batch",
+    "update",
 ]
