@@ -19,10 +19,14 @@ import pytest
 
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import AccountStats, NewAccount
+from budget_planner.domain.categories import NewCategory
+from budget_planner.domain.enums import Direction
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
+    budgets as budgets_repo,
+    categories as categories_repo,
     fx as fx_repo,
     transactions as transactions_repo,
 )
@@ -43,9 +47,11 @@ from tests.unit.services.conftest import (
     OTHER_ID,
     OWNER_BALANCE,
     OWNER_ID,
+    WORLD_DAY,
     WORLD_TODAY,
     OwnedRows,
     World,
+    seed_formula_rule,
 )
 
 T = WORLD_TODAY
@@ -86,6 +92,53 @@ def _case_account_stats(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     dead = balance.account_stats(conn, OWNER_ID, world.tombstones.account_id)
     assert (dead.balance, dead.txn_count, dead.last_txn_date) == (9_999, 0, None)
+
+
+@covers("balance.derive_balance")
+def _case_derive_balance(conn: sqlite3.Connection, world: World) -> None:
+    """Edge rows around ``derive_balance`` / ``account_stats``: a second live account, an archived category, a dead account."""
+    assert world.tombstones is not None
+    second = accounts_repo.create(
+        conn, OWNER_ID, NewAccount(name="owner-second", currency=BASE, opening_balance=50)
+    )
+    transactions_repo.create(
+        conn,
+        OWNER_ID,
+        NewTransaction(
+            operation_date=WORLD_DAY,
+            category_id=world.owner.category_id,
+            account_id=second.id,
+            amount=300,
+        ),
+    )
+    archived = categories_repo.create(
+        conn, OWNER_ID, NewCategory(name="owner-archived", direction=Direction.EXPENSE)
+    )
+    transactions_repo.create(
+        conn,
+        OWNER_ID,
+        NewTransaction(
+            operation_date=WORLD_DAY,
+            category_id=archived.id,
+            account_id=world.owner.account_id,
+            amount=100,
+        ),
+    )
+    categories_repo.soft_delete(conn, OWNER_ID, archived.id)
+    # Per-account: the second account's 300 never reaches the first; an archived category's txn still counts.
+    assert balance.derive_balance(conn, OWNER_ID, second.id) == 50 - 300
+    assert (
+        balance.derive_balance(conn, OWNER_ID, world.owner.account_id)
+        == OWNER_BALANCE - 1_000 - 100
+    )
+    stats = balance.account_stats(conn, OWNER_ID, world.owner.account_id)
+    assert (stats.balance, stats.txn_count, stats.avg_outflow_minor) == (
+        OWNER_BALANCE - 1_100,
+        2,
+        550,
+    )
+    # OQ-15 current behaviour: a soft-deleted account still derives its opening balance.
+    assert balance.derive_balance(conn, OWNER_ID, world.tombstones.account_id) == 9_999
 
 
 @covers("balance.balance_series")
@@ -133,6 +186,19 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
         assert summary.period_start == dt.date(2026, 11, 1)
         assert summary.days_until_next_income == 19
         assert summary.left_daily_spend_minor == 42 * user_id  # 800u / 19 days, half-even
+    # A future-dated paycheck does not move the period start; a landed one does.
+    _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 5))
+    _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 20))
+    assert budget.month_summary(conn, OWNER_ID, 2026, 11, today=T).period_start == dt.date(
+        2026, 11, 5
+    )
+    # Zero budget: the anchor is ignored and the cycle runs to the end of the month.
+    budgets_repo.clear_default(conn, OTHER_ID, world.other.category_id)
+    unbudgeted = budget.month_summary(conn, OTHER_ID, 2026, 11, today=T)
+    assert unbudgeted.totals.budgeted_minor == 0
+    assert unbudgeted.next_income_date == dt.date(2026, 11, 30)
+    assert unbudgeted.anchor_category_name is None
+    assert unbudgeted.left_daily_spend_minor is None
 
 
 @covers("budget.resolve_budget")
@@ -156,9 +222,13 @@ def _case_fiscal_month_for(conn: sqlite3.Connection, world: World) -> None:
 @covers("budget.resolve_period_start")
 def _case_resolve_period_start(conn: sqlite3.Connection, world: World) -> None:
     assert budget.resolve_period_start(conn, OWNER_ID, T) == dt.date(2026, 11, 1)
+    # Only paychecks that landed on or before today move the period; a future-dated one is ignored.
+    _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 5))
+    _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 20))
+    assert budget.resolve_period_start(conn, OWNER_ID, T) == dt.date(2026, 11, 5)
     _land_anchor_income(conn, OTHER_ID, world.other, dt.date(2026, 10, 28))
     assert budget.resolve_period_start(conn, OTHER_ID, T) == dt.date(2026, 10, 28)
-    assert budget.resolve_period_start(conn, OWNER_ID, T) == dt.date(2026, 11, 1)
+    assert budget.resolve_period_start(conn, OWNER_ID, T) == dt.date(2026, 11, 5)
 
 
 def _land_anchor_income(conn: sqlite3.Connection, user_id: int, rows: OwnedRows, on: date) -> None:
@@ -184,6 +254,14 @@ def _case_committed_in_window(conn: sqlite3.Connection, world: World) -> None:
         assert (
             total == 1_200 * user_id
         )  # tombstoned planned (8000) and inactive/deleted rules (6000/7000) excluded
+    # A formula rule (10% of the owner's live 700u rule = 70) needs the owner's connection and rules to evaluate.
+    seed_formula_rule(conn, OWNER_ID, world.owner, due=dt.date(2026, 11, 20))
+    assert (
+        budget.committed_in_window(
+            conn, OWNER_ID, start=None, end=END_OF_CYCLE, today=T, base_currency=BASE
+        )
+        == 1_270
+    )
     # The window is half-open: a window ending on the rule's due date excludes the occurrence.
     only_planned = budget.committed_in_window(
         conn, OWNER_ID, start=None, end=EXPENSE_RULE_DUE, today=T, base_currency=BASE

@@ -41,7 +41,13 @@ from budget_planner.domain.budgets import NewBudgetDefault  # noqa: E402
 from budget_planner.domain.categories import NewCategory  # noqa: E402
 from budget_planner.domain.enums import Cadence, Direction  # noqa: E402
 from budget_planner.domain.planned import NewPlannedTransaction  # noqa: E402
-from budget_planner.domain.recurring import NewRecurringRule, RecurringRule  # noqa: E402
+from budget_planner.domain.recurring import (  # noqa: E402
+    AmountFormula,
+    FormulaTerm,
+    NewRecurringRule,
+    PatchRecurringRule,
+    RecurringRule,
+)
 from budget_planner.domain.transactions import NewTransaction  # noqa: E402
 from budget_planner.repositories import (  # noqa: E402
     accounts as _accounts_repo,
@@ -159,6 +165,34 @@ def seed_rule(
     )
     _recurring_repo.set_next_due(conn, user_id, rule.id, next_due=due, last_promoted_date=None)
     return rule
+
+
+def seed_formula_rule(
+    conn: sqlite3.Connection, user_id: int, rows: OwnedRows, *, due: _dt.date
+) -> RecurringRule:
+    """A monthly expense rule on a fresh category whose amount is 10% of ``rows.category_id``'s monthly rules.
+
+    Live source rules only: with the world's 700u rule that is ``70u`` in November (inactive and deleted tombstone
+    rules on the same category must not count).
+    """
+    category = _categories_repo.create(
+        conn, user_id, NewCategory(name=f"cat-formula-{user_id}", direction=Direction.EXPENSE)
+    )
+    rule = seed_rule(conn, user_id, category.id, rows.account_id, due, amount=1)
+    return _recurring_repo.update_rule(
+        conn,
+        user_id,
+        rule.id,
+        PatchRecurringRule(
+            amount_formula=AmountFormula(
+                terms=(
+                    FormulaTerm(
+                        sign="+", coefficient_bps=1_000, source_category_ids=(rows.category_id,)
+                    ),
+                )
+            )
+        ),
+    )
 
 
 def _seed_user(conn: sqlite3.Connection, user_id: int, balance: int) -> OwnedRows:

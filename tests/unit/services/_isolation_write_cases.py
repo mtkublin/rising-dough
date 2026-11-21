@@ -46,6 +46,7 @@ from tests.unit.services.conftest import (
     WORLD_TODAY,
     OwnedRows,
     World,
+    seed_formula_rule,
 )
 
 T = WORLD_TODAY
@@ -89,10 +90,21 @@ def _totals(series: forecast.ForecastSeries, *days: dt.date) -> list[int]:
 _CHECK_DAYS = (T, dt.date(2026, 11, 13), EXPENSE_RULE_DUE, INCOME_RULE_DUE)
 
 
+# Budget overlay (ADR-0042) totals pinned to CURRENT behaviour for days 11-12, 11-13, 11-15, 12-01, 12-07.
+# T-Q206 (Q-002) rewrites the overlay: update these numbers deliberately in that change, keep the isolation shape.
+_OVERLAY_DAYS = (*_CHECK_DAYS, dt.date(2026, 12, 7))
+_OVERLAY_TOTALS = {
+    OWNER_ID: [122_456, 121_912, 121_124, 125_127, 123_156],
+    OTHER_ID: [-1_223, -2_312, -3_890, 4_120, 177],
+}
+
+
 @covers("forecast.forecast")
 def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
-    # The budget overlay is disabled: its numbers are in flux with T-Q206 (Q-002); explicit events are exact.
     with httpx.Client() as http:
+        for user_id in (OWNER_ID, OTHER_ID):
+            series = forecast.forecast(conn, user_id, http, T, HORIZON_DAYS, "PLN")
+            assert _totals(series, *_OVERLAY_DAYS) == _OVERLAY_TOTALS[user_id]
         for user_id, balance in (
             (OWNER_ID, OWNER_BALANCE - 1_000),
             (OTHER_ID, OTHER_BALANCE - 2_000),
@@ -110,6 +122,15 @@ def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
             ]
             accounts = {p.account_id for day in series.days for p in day.by_account}
             assert accounts == {_rows(world, user_id).account_id}  # no dead / foreign accounts
+        # A formula rule (10% of the owner's live 700 rule = 70) is evaluated with the owner's rules only.
+        seed_formula_rule(conn, OWNER_ID, world.owner, due=dt.date(2026, 11, 20))
+        series = forecast.forecast(
+            conn, OWNER_ID, http, T, HORIZON_DAYS, "PLN", include_budget_overlay=False
+        )
+        assert _totals(series, EXPENSE_RULE_DUE, dt.date(2026, 11, 20)) == [
+            OWNER_BALANCE - 1_000 - 1_200,
+            OWNER_BALANCE - 1_000 - 1_200 - 70,
+        ]
 
 
 @covers("forecast.forecast_monthly")

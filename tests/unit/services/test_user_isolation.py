@@ -22,7 +22,6 @@ from budget_planner.services import (
     _passwords,
     accounts,
     analytics,
-    balance,
     budget,
     fortune,
     recurring_formula,
@@ -107,21 +106,6 @@ def _case_yearly_grid(conn: sqlite3.Connection, world: World) -> None:
     assert world.owner.category_id not in _grid_categories(conn, OTHER_ID)
 
 
-@covers("balance.derive_balance")
-def _case_derive_balance(conn: sqlite3.Connection, world: World) -> None:
-    assert balance.derive_balance(conn, OWNER_ID, world.owner.account_id) == OWNER_BALANCE - 1_000
-    assert balance.derive_balance(conn, OTHER_ID, world.other.account_id) == OTHER_BALANCE - 2_000
-    with pytest.raises(balance.AccountNotFoundError):
-        balance.derive_balance(conn, OTHER_ID, world.owner.account_id)
-    with pytest.raises(balance.AccountNotFoundError):
-        balance.derive_balance(conn, OWNER_ID, world.other.account_id)
-    # The soft-deleted 4242 transaction and the 9999 dead account never reach the owner's live account.
-    assert (
-        balance.derive_balance(conn, OWNER_ID, world.owner.account_id, TODAY)
-        == OWNER_BALANCE - 1_000
-    )
-
-
 @pytest.fixture(autouse=True)
 def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
@@ -177,6 +161,10 @@ def collect() -> list[Violation]:
     return missing
 
 
+@pytest.mark.skipif(
+    "mutants" in REPO_ROOT.parts,
+    reason="mutmut copies src/ with mangled function names (x_<fn>__mutmut_N); the registry scan only holds for the real tree",
+)
 def test_isolation_registry_matches_allowlist() -> None:
     assert_ratchet("user_isolation", collect(), TEACH)
 
