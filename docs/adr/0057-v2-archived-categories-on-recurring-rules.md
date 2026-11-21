@@ -47,3 +47,7 @@ Block-on-reference forces the operator to tear down an active income stream to c
 - One new error class (`CategoryArchivedError`) in `services.categories`.
 - No migration (`deleted_at` already exists on `categories` per ADR-0022).
 - `requirements.md` F1.6 unchanged; archive is an existing capability, this ADR pins its interaction surface.
+
+## Addendum 2026-11-21: validation not implemented as written
+
+The repository invariants above name `CategoryArchivedError`, `services.recurring.create_rule` and `services.transactions.create`; none of these exists. `services.categories.archive` sets `deleted_at` (no `archived_at` column), and neither the recurring save path nor the transaction save path rejects an archived category today. The rule "new rules cannot pick an archived category" is a requirement still open; enforcement is owned by the quality-audit remediation (Q-028, T-Q202 for recurring rules). Quality-audit finding Q-052.

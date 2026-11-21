@@ -1,6 +1,6 @@
 # ADR-0051: v2 Rising Dough — Information Architecture (Today · Ledger · Plan · Accounts · Settings)
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0023 (prior IA consolidation), ADR-0028 (Ledger segmented control — full nav), ADR-0031 (Budget page composition v2), ADR-0038 (recurring standalone lifecycle)
 - **Supersedes**: ADR-0023 §Information architecture — v1's Overview · Ledger · Accounts · Budget rail is replaced by Today · Ledger · Plan · Accounts; the Settings slide-over drawer is replaced by a Settings page pinned at the bottom.

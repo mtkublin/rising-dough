@@ -2,10 +2,12 @@
 
 Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for the process.
 
+Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at the end of an ADR corrects drift without deleting prior text. Numbers 0105 and 0121 are each used twice and 0044 is unused; these are grandfathered (not renumbered, to keep references stable) and `tests/architecture/test_adr_index.py` fails on any other duplicate or gap. The next new ADR takes the next free number.
+
 | # | Title |
 |---|-------|
 | 0001 | [Record Architecture Decisions](0001-record-architecture-decisions.md) |
-| 0002 | [Web Stack — FastAPI + HTMX + Jinja2 + Tailwind (CDN) + Plotly](0002-web-stack-fastapi-htmx-jinja.md) |
+| 0002 | [Web Stack — FastAPI + HTMX + Jinja2 + Tailwind (CDN) + Plotly](0002-web-stack-fastapi-htmx-jinja.md) | (addendum 2026-11-21: Tailwind is local, charts are server SVG; see ADR-0027, ADR-0123)
 | 0003 | [Database — SQLite Only in v1, DuckDB Attach Deferred](0003-database-sqlite-only-v1.md) |
 | 0004 | [Package Manager — uv](0004-package-manager-uv.md) |
 | 0005 | [Single User, No Auth, user_id Scaffolded](0005-single-user-no-auth-user-id-scaffold.md) (superseded by ADR-0061) |
@@ -26,10 +28,10 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0020 | [Import Deferred to a later version, Export in v1](0020-import-deferred-export-v1.md) |
 | 0021 | [Functional Style, No Gratuitous OOP](0021-functional-style-no-oop.md) |
 | 0022 | [Repository Layer: Soft-Delete + Audit Discipline](0022-repository-layer-soft-delete-audit-discipline.md) |
-| 0023 | [UX Redesign — Information Architecture Consolidation + Interaction Model](0023-ux-redesign-information-architecture.md) |
+| 0023 | [UX Redesign — Information Architecture Consolidation + Interaction Model](0023-ux-redesign-information-architecture.md) | (addendum 2026-11-21: shipped nav and no FAB)
 | 0024 | [Liability Accounts and Credit Limit](0024-liability-accounts-and-credit-limit.md) |
 | 0025 | [User Preferences and Income Anchor](0025-user-preferences-and-income-anchor.md) |
-| 0026 | [Quick-add FAB Visibility Scope](0026-fab-visibility-scope.md) |
+| 0026 | [Quick-add FAB Visibility Scope](0026-fab-visibility-scope.md) | (addendum 2026-11-21: FAB removed)
 | 0027 | [Frontend Toolchain Hardening — Local Tailwind, Stylelint, Partials, Visual Regression](0027-frontend-toolchain-hardening.md) |
 | 0028 | [Ledger Segmented Control — Full Navigation, Not Partial Swap](0028-ledger-segmented-full-nav.md) |
 | 0029 | [SQLite Connection Threading — `check_same_thread=False`, Per-Request Connection](0029-sqlite-connection-threading.md) |
@@ -39,7 +41,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0033 | [v3 Authentication — Single-User Passkey (WebAuthn) + Fallback Password](0033-v3-auth-single-user-passkey.md) (renumbered v2 → v3 on 2026-10-28) |
 | 0034 | [v3 SQLite Durability — Continuous Replication via Litestream to Scaleway Object Storage](0034-v3-sqlite-replication-litestream.md) (renumbered v2 → v3 on 2026-10-28) |
 | 0035 | [v3 Infrastructure as Code — Terraform (Scaleway Provider) + Cloud-Init Bootstrap](0035-v3-infrastructure-as-code-terraform.md) (renumbered v2 → v3 on 2026-10-28) |
-| 0036 | [v3 Reverse Proxy & TLS — Caddy with Automatic HTTPS](0036-v3-reverse-proxy-caddy-auto-tls.md) (renumbered v2 → v3 on 2026-10-28) |
+| 0036 | [v3 Reverse Proxy & TLS — Caddy with Automatic HTTPS](0036-v3-reverse-proxy-caddy-auto-tls.md) (renumbered v2 → v3 on 2026-10-28) | (Accepted; addendum 2026-11-21: stock caddy:2.8, rate limiting in the app per ADR-0072)
 | 0037 | [v3 Deployment Pipeline — GitHub Actions SSH Deploy with Immutable Image Tags](0037-v3-github-actions-deploy-pipeline.md) (renumbered v2 → v3 on 2026-10-28) |
 | 0038 | [Recurring Rules — Standalone Lifecycle with `next_due` + Direct Promotion](0038-recurring-standalone-lifecycle.md) (supersedes ADR-0013; amends ADR-0012) |
 | 0039 | [Budget "Left to Spend per Day" Includes Recurring Commitments](0039-budget-daily-spend-includes-recurring.md) (amends ADR-0025 §F4.6, ADR-0038) |
@@ -54,12 +56,12 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0049 | [Budget Monthly Summary — Surface Analytics Columns (Avg/mo, YTD avg, Δ prev)](0049-budget-monthly-summary-analytics-columns.md) (amends ADR-0031 §Monthly summary; surfaces F4.5) |
 | 0050 | [v2 Rising Dough — Product Rename and Visual Direction](0050-v2-rising-dough-rename-and-visual-direction.md) (supersedes ADR-0023 §Design direction; amends ADR-0048) |
 | 0051 | [v2 Rising Dough — Information Architecture (Today · Ledger · Plan · Accounts · Settings)](0051-v2-information-architecture-rising-dough.md) (supersedes ADR-0023 §Information architecture) |
-| 0052 | [v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (amends ADR-0027) |
+| 0052 | [v2 Rising Dough — Tailwind v4 Migration, `@theme` Tokens, and Self-Hosted Fonts](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (amends ADR-0027) | (Accepted in part; addendum 2026-11-21: Tailwind v4 not adopted)
 | 0053 | [v2 Rising Dough — Component System and Jinja Macro Inventory](0053-v2-component-system-and-jinja-macros.md) |
 | 0054 | [v2 Rising Dough — Charts Move From Plotly to Server-Rendered SVG](0054-v2-charts-plotly-to-server-svg.md) (supersedes ADR-0002 §Plotly) |
 | 0055 | [v2 Rising Dough — Responsive Layer and Mobile Shell](0055-v2-responsive-layer-mobile-first.md) (supersedes ADR-0023 §"no mobile adaptive nav") |
 | 0056 | [v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions](0056-v2-inline-interactions-and-backend-additions.md) (amends ADR-0026) |
-| 0057 | [v2 — Archived categories on recurring rules (allow, mute, block creation)](0057-v2-archived-categories-on-recurring-rules.md) (amends ADR-0048) |
+| 0057 | [v2 — Archived categories on recurring rules (allow, mute, block creation)](0057-v2-archived-categories-on-recurring-rules.md) (amends ADR-0048) | (addendum 2026-11-21: archived-category validation not implemented)
 | 0058 | [v2 — UI language: English chrome, user data as-typed](0058-v2-ui-language-english-chrome.md) (amends ADR-0051) |
 | 0059 | [v2 — Pace-tag rule for Today hero and pace_tag macro](0059-v2-pace-tag-rule.md) (amends ADR-0041) |
 | 0060 | [v2 — Unified Entry Modal (Happened / Planned / Repeats)](0060-v2-unified-entry-modal.md) (supersedes ADR-0030 §4 per-mode chrome; amends ADR-0047 formula UI) |
@@ -103,20 +105,22 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0098 | [Keep Rendered User-Data Secrets Out of Plan Output](0098-keep-rendered-user-data-secrets-out-of-plan-output.md) (relates to ADR-0032, ADR-0094) |
 | 0100 | [Least-Privilege CI Credentials per Environment, Separate Drill State Bucket, Key-Expiry Monitor](0100-least-privilege-ci-credentials.md) (amends ADR-0096; relates to ADR-0091, ADR-0093, ADR-0099) |
 | 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (amended 2026-11-21: tamper-resistant merge gate, T-Q239; relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |
+| 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |
+| 0100 | [Least-Privilege CI Credentials per Environment, Separate Drill State Bucket, Key-Expiry Monitor](0100-least-privilege-ci-credentials.md) (amends ADR-0096; relates to ADR-0091, ADR-0093, ADR-0099) |
 | 0101 | [Drill Environment Is Tailnet-Only; Drill Apply Is Human-Gated](0101-drill-environment-is-tailnet-only.md) (amends ADR-0092, ADR-0099, ADR-0100; relates to ADR-0036, ADR-0094) |
 | 0102 | [Debian 13 (trixie) Base Image](0102-debian-13-trixie-base-image.md) (amends ADR-0032; relates to ADR-0099) |
 | 0103 | [Image Scan Ignores Unfixed OS CVEs; Runtime Stage Applies Debian Upgrades](0103-image-scan-ignores-unfixed-os-cves.md) (amends ADR-0102; relates to ADR-0032, ADR-0099) |
 | 0104 | [Env-Stack IAM Moves to the Local Bootstrap; CI Loses IAMManager](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md) (amends ADR-0100; relates to ADR-0091, ADR-0092, ADR-0098, ADR-0099) |
 | 0105 | [Committed Includes Every Overdue Unpromoted Item](0105-committed-includes-all-overdue-items.md) (amends ADR-0039; relates to ADR-0043, ADR-0085, ADR-0087, ADR-0089) |
 | 0105 | [CI Identities in the Durability Bucket Policies](0105-ci-principals-in-durability-bucket-policies.md) (amends ADR-0091, ADR-0100; relates to ADR-0099, ADR-0104) |
-| 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) |
-| 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
+| 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) | (Accepted, implementation pending; OQ-23)
+| 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) | (Accepted, implementation pending; OQ-23)
 | 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |
 | 0109 | [Prod Releases Triggered by GitHub Releases on `main`](0109-release-from-github-release-tags.md) (amends ADR-0099) |
 | 0110 | [One Prod Approval per Release](0110-single-prod-approval-per-release.md) (amends ADR-0099; relates to ADR-0100, ADR-0109) |
 | 0111 | [Terraform-Declared Host State, Pulled by a Host Agent](0111-terraform-declared-host-state.md) (supersedes ADR-0037 deploy step and ADR-0110; amends ADR-0099) |
-| 0113 | [CSP-Compatible Frontend — No Inline Script, Vendored Assets](0113-csp-compatible-frontend.md) (amends ADR-0036 `style-src`; relates to ADR-0027, ADR-0111) |
 | 0112 | [Prod-Gated Cleanup of Plaintext Litestream Objects](0112-prod-gated-litestream-plaintext-cleanup.md) (amends ADR-0078 §3; relates to ADR-0099, ADR-0100) |
+| 0113 | [CSP-Compatible Frontend — No Inline Script, Vendored Assets](0113-csp-compatible-frontend.md) (amends ADR-0036 `style-src`; relates to ADR-0027, ADR-0111) |
 | 0114 | [Litestream Replicate Config Carries the Age Identity; One Forced New Generation](0114-litestream-replicate-identity-and-forced-generation.md) (amends ADR-0078 §3; relates to ADR-0111, ADR-0112) |
 | 0115 | [A Drill VM Is Exclusive; Every Drill Workflow Starts With a Drill Lock](0115-drill-vm-is-exclusive-drill-lock.md) (amends ADR-0099; relates to ADR-0101, ADR-0092) |
 | 0116 | [The Drill's Tailnet Name Is Unique Per Run](0116-drill-tailnet-name-unique-per-run.md) (amends ADR-0101; relates to ADR-0094, ADR-0099) |
@@ -131,8 +135,8 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0124 | [Savings Goals — Envelope Allocations and Net-Worth Goals](0124-savings-goals-envelopes-and-net-worth.md) (relates to ADR-0006, ADR-0019, ADR-0042, ADR-0056, ADR-0061, ADR-0081, ADR-0125) |
 | 0125 | [The Sourdough Starter — Feed Signals, Health Score, Milestones, Shelf](0125-sourdough-starter-rules.md) (amended by ADR-0128; amends ADR-0011; relates to ADR-0124, ADR-0123, ADR-0041, ADR-0081) |
 | 0126 | [Goals and Starter UI Built From a Designer Handoff Extending the Redesign](0126-gamification-design-handoff.md) (amended by ADR-0129; relates to ADR-0107, ADR-0123, ADR-0113, ADR-0106) |
-| 0128 | [Starter Tuning From Simulation](0128-starter-tuning-from-simulation.md) (amends ADR-0125; relates to ADR-0124, ADR-0014, ADR-0041) |
 | 0127 | [A Prod VM Replacement Is Safe Unattended](0127-safe-prod-vm-replacement.md) (amended 2026-11-19: drain before the replacing apply, T-D157; the drain-capable agent ships before the first replacing release, T-D158; amends ADR-0071, ADR-0094, ADR-0111, ADR-0118; relates to ADR-0034, ADR-0099, ADR-0110, ADR-0114) |
+| 0128 | [Starter Tuning From Simulation](0128-starter-tuning-from-simulation.md) (amends ADR-0125; relates to ADR-0124, ADR-0014, ADR-0041) |
 | 0129 | [The Goals and Starter Handoff Is Vendored as Its Own Folder, Delivered in One Drop](0129-goals-starter-handoff-vendored-standalone.md) (amends ADR-0126; relates to ADR-0107, ADR-0113, ADR-0123, ADR-0124, ADR-0125, ADR-0106) |
 | 0130 | [Prevention Regime and Full Architectural Compliance](0130-prevention-regime-and-full-architectural-compliance.md) (amends ADR-0007, ADR-0021, ADR-0022, ADR-0066, ADR-0120; relates to ADR-0120, ADR-0097, ADR-0108, ADR-0099, ADR-0107, ADR-0131) |
 | 0131 | [Mutation Testing Policy](0131-mutation-testing-policy.md) (relates to ADR-0130, ADR-0120, ADR-0108) |

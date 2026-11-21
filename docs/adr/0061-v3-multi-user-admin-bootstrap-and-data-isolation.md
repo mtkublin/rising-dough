@@ -1,6 +1,6 @@
 # ADR-0061: v3 Multi-User — Admin Bootstrap, User Admin Panel, Per-User Data Isolation
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-30
 - **Supersedes**: ADR-0005 (single user, no auth, `user_id` scaffolded). The scaffold is now live; the single-user assumption is dropped.
 - **Amends**: ADR-0033 (auth is per-user, not single-user; "fallback password" becomes the per-user password credential). ADR-0022 (repository discipline now requires `user_id` filtering on every query against user-owned tables). ADR-0019 (audit log records the acting `user_id` for every mutation).
