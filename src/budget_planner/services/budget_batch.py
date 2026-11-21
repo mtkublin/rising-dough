@@ -66,7 +66,7 @@ def committed_by_category_windows(
     *,
     windows: Sequence[CommitWindow],
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> list[dict[int, int]]:
     """``budget.committed_by_category`` for many windows with ONE expansion.
 

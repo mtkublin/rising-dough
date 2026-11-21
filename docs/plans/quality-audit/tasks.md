@@ -501,7 +501,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `functional_first`:21 (18 entries) Done 2026-11-21: 16 of the 18 entries deleted; the two `config.py` entries (`hidden-cache`, `setattr-bypass`) stay with T-Q264 (settings caching and the frozen `ResolvedSettings`).
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/functional_first.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings
+### ✅ T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings
 - Findings: Q-074, B-13 (setattr bypass); epic E07; open item from T-Q15b (Settings derived values).
 - Epic: E07
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

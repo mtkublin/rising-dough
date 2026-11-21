@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-22 (T-Q264: pure services take settings and entropy as inputs)
+- **Refactor(T-Q264): services stop importing `config`, calling `get_settings()` and using `secrets` (Q-074, B-13; ADR-0021 amendment 2026-11-22).** New `domain/ports.TokenSource` + `adapters/entropy.SecretsTokenSource` (injected by `web/deps.get_token_source`); settings slices as Protocols in rate_limit, retention, users, auth; `budget.*`, `forecast`, `today.afford` take `base_currency` explicitly; `config.ResolvedSettings` (`Settings.resolve()`) replaces the two `object.__setattr__` bypasses. Deleted allowlist entries: purity 12 (14 violations), functional_first `config.py` setattr-bypass 1 (2); none added. Behaviour unchanged (hash rounds, token length, constant-time compare).
 ## 2026-11-21 (T-Q241: routers never import repositories)
 - **Refactor(T-Q241): CRUD service entry points per entity (ADR-0142, amends ADR-0021; Q-045, OQ-12).** accounts (+snapshots), auth, budget, categories, ledger, planned, recurring, settings, settings_security, settings_users, today and transactions routers call `services/*` only; new `services/budget_overrides.py`, bindings added to `services/{accounts,categories,planned,recurring,transactions,fx,auth,users}`. New `tests/architecture/test_routers_no_repositories.py` (no allowlist). Deleted: 13 `layering` entries (36 imports) and the import-linter `ignore_imports` for the routers contract; `thin_router` `logic-in-router` lowered (helper-in-router raised by reclassification, ADR-0130 amendment, totals fall).
 

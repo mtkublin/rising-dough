@@ -178,7 +178,7 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
         # T-D19 / ADR-0061 §3 / ADR-0069: ensure a live admin exists.
         # Missing credentials with no admin → exit non-zero (fail fast).
         try:
-            users_service.bootstrap_admin_at_startup(cfg)
+            users_service.bootstrap_admin_at_startup(cfg, connect=get_connection)
         except (
             users_service.BootstrapAdminMissingEnv,
             users_service.SchemaNotMigratedError,

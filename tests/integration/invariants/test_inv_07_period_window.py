@@ -23,7 +23,7 @@ TODAY = date(2026, 11, 19)
 
 
 def _snapshot(conn: sqlite3.Connection) -> tuple[int, int, int]:
-    s = budget.month_summary(conn, U, 2026, 11, today=TODAY)
+    s = budget.month_summary(conn, U, 2026, 11, today=TODAY, base_currency="PLN")
     win = account_planned.resolve_window(conn, U, TODAY)
     net1 = account_planned.planned_net_by_account(conn, U, win).get(1, 0)
     committed = s.totals.committed_minor + s.totals.unbudgeted_committed_minor

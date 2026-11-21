@@ -109,7 +109,9 @@ def _render_index(
 ) -> HTMLResponse:
     year, month = _year_month(request, conn, user_id)
     today = clock.today_local(settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+    )
     rules = _rules_rows(conn, user_id)
     yearly = budget_service.yearly_grid(conn, user_id, year)
     return render(
