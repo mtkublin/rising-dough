@@ -85,6 +85,18 @@ def test_label_for_wrapping_and_aria_label() -> None:
     assert _html.resolve_one(PAGE, label("Account")).name == "select"
 
 
+def test_label_returns_only_labelled_controls() -> None:
+    page = (
+        '<label>Email <span class="hint">required</span><input name="e"></label>'
+        '<label for="n">Nick <b>x</b></label><input id="n" name="n">'
+        '<input type="hidden" id="h"><label for="h">Nick</label>'
+        '<div aria-label="Email">box</div>'
+    )
+    emails = _html.resolve(page, label("Email"))
+    assert [e.name for e in emails] == ["input", "div"]
+    assert _html.resolve_one(page, label("Nick"))["name"] == "n"
+
+
 def test_label_exact() -> None:
     assert not _html.exists(PAGE, label("Sear", exact=True))
     assert _html.exists(PAGE, label("Search", exact=True))

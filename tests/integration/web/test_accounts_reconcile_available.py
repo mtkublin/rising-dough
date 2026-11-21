@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from bs4 import Tag
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -12,7 +11,6 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import balance as balance_service
 from tests.ui_map import _html, accounts
-from tests.ui_map.locator import Locator
 
 USER_ID = 1
 
@@ -43,17 +41,11 @@ def _balance(settings: Settings, account_id: int) -> int:
         conn.close()
 
 
-def _control(html: str, loc: Locator) -> Tag:
-    """The form control a label locator names (the resolver also returns wrappers)."""
-    (control,) = (el for el in _html.resolve(html, loc) if el.name in {"input", "select"})
-    return control
-
-
 def test_form_liability_with_limit_asks_available(client: TestClient, _migrated: Settings) -> None:
     card = _make_card(_migrated, limit=500_000)
     r = client.get(f"/accounts/{card}/reconcile")
     assert r.status_code == 200
-    assert _control(r.text, accounts.reconcile_available)["value"] == "3765.44"
+    assert _html.resolve_one(r.text, accounts.reconcile_available)["value"] == "3765.44"
     help_text = _html.text_of(r.text, accounts.reconcile_available_help)
     assert "Limit 5,000.00" in help_text
     assert "1,234.56" in help_text

@@ -315,8 +315,8 @@ def test_edit_transit_form_prefills_dest(
     r = client.get(f"/recurring/{rule.id}/edit", headers=_HTMX)
     assert r.status_code == 200
     # The combobox's hidden value input carries the dest account id.
-    dest_values = {c.get("value") for c in ledger.controls(r.text, ledger.field_dest_account)}
-    assert str(dest.id) in dest_values
+    form = _html.resolve_one(r.text, ledger.recurring_form)
+    assert ledger.named_input(form, "dest_account_id").get("value") == str(dest.id)
 
 
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
