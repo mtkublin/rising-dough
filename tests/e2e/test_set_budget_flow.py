@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e import db_probe
+from tests.ui_map import plan
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -16,7 +18,7 @@ def test_set_budget_shows_remaining_after_spend(
     live_server: tuple[str, Path],
     page: Page,
 ) -> None:
-    base_url, _db_path = live_server
+    base_url, db_path = live_server
 
     # Seed: one account + Groceries category.
     assert page.request.post(
@@ -28,42 +30,40 @@ def test_set_budget_shows_remaining_after_spend(
         form={"name": "Groceries", "direction": "expense"},
     ).ok
 
-    # Discover ids by scraping /accounts and /categories.
-    page.goto(f"{base_url}/accounts")
-    account_id = strip_id_prefix(
-        page.locator("tr[id^='account-']").first.get_attribute("id"),
-        "account-",
-    )
-    page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
-    category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
+    account_id = db_probe.account_id(db_path, "Checking")
+    category_id = db_probe.category_id(db_path, "Groceries")
 
     # Set a default budget of 500.00 for Groceries.
     assert page.request.post(
         f"{base_url}/budget/defaults/{category_id}",
         form={"amount": "500.00"},
     ).ok
+    assert (
+        db_probe.scalar(
+            db_path,
+            "SELECT amount FROM budget_defaults WHERE category_id = ? AND deleted_at IS NULL",
+            category_id,
+        )
+        == 50000
+    )
 
     # Record a 120.00 expense in a known month to query /budget deterministically.
     assert page.request.post(
         f"{base_url}/transactions",
         form={
             "operation_date": "2026-10-15",
-            "category_id": category_id,
-            "account_id": account_id,
+            "category_id": str(category_id),
+            "account_id": str(account_id),
             "amount": "120.00",
             "description": "weekly shop",
         },
     ).ok
 
-    # Visit /budget for the same month. Phase 9 (T-100/T-101) refactored
-    # the summary surface: `#budget-summary` is a `<section>` wrapping a
-    # `<table class="budget-row-table">`; the id no longer sits on the table.
+    assert db_probe.txn_amounts(db_path, "weekly shop") == [12000]
+
+    # Visit /budget for the same month: the summary table has a Groceries row.
     page.goto(f"{base_url}/budget?year=2026&month=10")
-    groceries_row = page.locator(
-        "#budget-summary table.budget-row-table tr",
-        has_text="Groceries",
-    ).first
+    groceries_row = to_playwright(page, plan.summary_row("Groceries")).first
     expect(groceries_row).to_contain_text("Groceries")
     # Budgeted
     expect(groceries_row).to_contain_text("500.00")

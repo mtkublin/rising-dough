@@ -24,6 +24,7 @@ from budget_planner.services.users import (
     SELF_DELETE_MESSAGE,
 )
 from tests.auth_support import issue_session
+from tests.ui_map import _html, settings as ui
 
 HX = {"HX-Request": "true"}
 ADMIN_PATHS_GET = ("/settings/users", "/settings/users/1/edit")
@@ -141,7 +142,7 @@ def test_admin_lists_live_users(admin_client: TestClient, db: sqlite3.Connection
     assert resp.status_code == 200
     soup = BeautifulSoup(resp.text, "html.parser")
     assert soup.find(id="user-row-1") is not None
-    assert "gone@x.test" not in resp.text
+    assert "gone@x.test" not in _html.text_of(resp.text, ui.users_table)
     assert _tag(soup.find(id="tab-users"))["aria-selected"] == "true"
     assert _tag(soup.find(id="user-row-1")).find(string=re.compile("You")) is not None
     # No Remove action on your own row (ADR-0073 §4).
@@ -222,8 +223,8 @@ def test_create_duplicate_email_case_insensitive(
     _add(admin_client, "dup@example.test")
     resp = admin_client.post("/settings/users", data={"email": "DUP@Example.test"}, headers=HX)
     assert resp.status_code == 422
-    assert DUPLICATE_EMAIL_MESSAGE in resp.text
-    assert "new-password-value" not in resp.text
+    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    assert not _html.exists(resp.text, ui.new_password_value)
     n = db.execute("SELECT count(*) FROM users WHERE lower(email) = 'dup@example.test'").fetchone()
     assert n[0] == 1
 
@@ -265,8 +266,7 @@ def test_edit_form_htmx_and_full_page(admin_client: TestClient) -> None:
     assert form["hx-post"] == "/settings/users/1"
     page = admin_client.get("/settings/users/1/edit")
     assert page.status_code == 200
-    assert "<html" in page.text
-    assert 'hx-post="/settings/users/1"' not in page.text
+    assert not _html.resolve_one(page.text, ui.edit_form).has_attr("hx-post")
 
 
 def test_edit_missing_user_is_404(admin_client: TestClient) -> None:
@@ -283,8 +283,8 @@ def test_edit_updates_and_audits(admin_client: TestClient, db: sqlite3.Connectio
         headers=HX,
     )
     assert resp.status_code == 200
-    assert "robert@example.test" in resp.text
-    assert "flash-success" in resp.text
+    assert "robert@example.test" in _html.text_of(resp.text, ui.users_table)
+    assert _html.exists(resp.text, ui.flash_success)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["email"], row["name"], row["is_admin"]) == ("robert@example.test", "Robert", 1)
     audit = db.execute(
@@ -314,13 +314,13 @@ def test_edit_duplicate_email_htmx_retargets_form(
     )
     assert resp.status_code == 422
     assert resp.headers["hx-retarget"] == "#user-edit-form"
-    assert DUPLICATE_EMAIL_MESSAGE in resp.text
+    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(resp.text, ui.add_errors)
 
 
 def test_edit_invalid_email_non_htmx(admin_client: TestClient) -> None:
     resp = admin_client.post("/settings/users/1", data={"email": "bad", "is_admin": "on"})
     assert resp.status_code == 422
-    assert "<html" in resp.text
+    assert _html.exists(resp.text, ui.edit_form)
 
 
 def test_demote_last_admin_refused(admin_client: TestClient, db: sqlite3.Connection) -> None:
@@ -329,7 +329,7 @@ def test_demote_last_admin_refused(admin_client: TestClient, db: sqlite3.Connect
     )
     assert resp.status_code == 409
     assert resp.headers["hx-reswap"] == "none"
-    assert LAST_ADMIN_DEMOTE_MESSAGE.replace("'", "&#39;") in resp.text
+    assert LAST_ADMIN_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
     assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
 
     page = admin_client.post("/settings/users/1", data={"email": "owner@example.test"})
@@ -365,7 +365,7 @@ def test_reset_password_revokes_sessions(admin_client: TestClient, db: sqlite3.C
     assert resp.headers["cache-control"] == "no-store"
     new = _password_from(resp.text)
     assert new != old
-    assert "signed out" in resp.text
+    assert "signed out" in _html.text_of(resp.text, ui.new_password_toast)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["must_change_password"] == 1
     assert _passwords.verify_password(new, row["password_hash"])
@@ -416,7 +416,7 @@ def test_remove_user_soft_deletes_and_revokes(
         "erin@example.test"
         not in _tag(BeautifulSoup(resp.text, "html.parser").find(id="users-table")).get_text()
     )
-    assert "flash-success" in resp.text
+    assert _html.exists(resp.text, ui.flash_success)
     row = db.execute("SELECT deleted_at FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["deleted_at"] is not None
     assert _live_sessions(db, uid) == 0
@@ -447,7 +447,7 @@ def test_remove_self_refused(admin_client: TestClient, db: sqlite3.Connection) -
     _add(admin_client, "other-admin@example.test", admin=True)
     resp = admin_client.post("/settings/users/1/delete", headers=HX)
     assert resp.status_code == 409
-    assert SELF_DELETE_MESSAGE.replace("'", "&#39;") in resp.text
+    assert SELF_DELETE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
     assert db.execute("SELECT deleted_at FROM users WHERE id = 1").fetchone()[0] is None
     assert admin_client.post("/settings/users/1/delete").status_code == 409
 

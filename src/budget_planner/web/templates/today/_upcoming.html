@@ -25,6 +25,7 @@
     {% set is_overdue = row.operation_date < today %}
     {% set is_due_today = row.operation_date == today %}
     <div id="{{ row_id }}"
+         data-status="{{ 'overdue' if is_overdue else ('due' if is_due_today else 'upcoming') }}"
          class="rd-row rd-upcoming__row{% if is_overdue %} rd-upcoming__row--overdue{% elif is_due_today %} rd-upcoming__row--due{% endif %}">
       <span class="num mut rd-upcoming__date">{{ row.operation_date.strftime("%b %d") }}</span>
       <span class="rd-upcoming__desc">

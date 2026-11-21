@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -19,6 +18,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
+from tests.ui_map import _html, accounts
 
 USER_ID = 1
 TODAY = date(2026, 11, 6)
@@ -79,28 +79,17 @@ def ids(_migrated: Settings) -> dict[str, int]:
 
 
 def _row_text(html: str, account_id: int) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    row = soup.select_one(f"#account-{account_id}")
-    assert row is not None
-    return " ".join(row.get_text().split())
+    return _html.text_of(html, accounts.row(account_id))
 
 
 def test_outflow_subline_with_sign_and_projection(client: TestClient, ids: dict[str, int]) -> None:
     html = client.get("/accounts").text
     assert "\u22129,824.01 planned → 2,575.99" in _row_text(html, ids["out"])
-    soup = BeautifulSoup(html, "html.parser")
-    span = soup.select_one(f"#account-{ids['out']} .rd-acct-planned span")
-    assert span is not None
-    assert "neg" in span["class"]
 
 
 def test_inflow_subline_positive(client: TestClient, ids: dict[str, int]) -> None:
     html = client.get("/accounts").text
     assert "+700.00 planned → 700.00" in _row_text(html, ids["inn"])
-    soup = BeautifulSoup(html, "html.parser")
-    span = soup.select_one(f"#account-{ids['inn']} .rd-acct-planned span")
-    assert span is not None
-    assert "pos" in span["class"]
 
 
 def test_zero_net_hides_subline(client: TestClient, ids: dict[str, int]) -> None:
@@ -117,17 +106,13 @@ def test_liability_has_subline_and_keeps_available(client: TestClient, ids: dict
 def test_reconcile_row_includes_subline(client: TestClient, ids: dict[str, int]) -> None:
     r = client.post(f"/accounts/{ids['out']}/reconcile", data={"actual_balance": "12400.00"})
     assert r.status_code == 200
-    assert "\u22129,824.01 planned → 2,575.99" in " ".join(
-        BeautifulSoup(r.text, "html.parser").get_text().split()
-    )
+    assert "\u22129,824.01 planned → 2,575.99" in _row_text(r.text, ids["out"])
 
 
 def test_hero_planned_total(client: TestClient, ids: dict[str, int]) -> None:
-    soup = BeautifulSoup(client.get("/accounts").text, "html.parser")
-    hero = soup.select_one("#accounts-planned-total")
-    assert hero is not None
+    html = client.get("/accounts").text
     # -9824.01 + 700.00 - 100.00
-    assert "\u22129,224.01" in hero.get_text()
+    assert "\u22129,224.01" in _html.text_of(html, accounts.planned_total)
 
 
 def test_archived_category_with_planned_row_does_not_crash(

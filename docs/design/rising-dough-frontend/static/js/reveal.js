@@ -3,6 +3,7 @@
  *   <div data-show-when="amount_mode=formula">…</div>
  *   <p data-show-when="counts_as=liability">…</p>
  *   <div data-show-when="kind=planned|repeats amount_mode=fixed">…</div>
+ *   <p data-show-when="account=Credit%20Card">…</p>      (values are URL-encoded)
  * The element is shown only while every condition holds (space = AND, | = OR) for the current value of the
  * named control in the same form (FormData, so radios, selects, hidden inputs and checkboxes all work).
  * While hidden, the form controls inside it are disabled, so they are neither validated nor submitted.
@@ -14,7 +15,8 @@
     return spec.trim().split(/\s+/).every((cond) => {
       const [name, values] = cond.split('=');
       const current = data.getAll(name).map(String);
-      return values.split('|').some((v) => current.includes(v));
+      // Values are URL-encoded so they can hold spaces: account=Credit%20Card
+      return values.split('|').map(decodeURIComponent).some((v) => current.includes(v));
     });
   }
 

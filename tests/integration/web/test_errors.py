@@ -29,6 +29,7 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
+from tests.ui_map import _html, errors
 
 
 @pytest.fixture
@@ -74,9 +75,8 @@ def error_client(tmp_path: Path) -> Iterator[TestClient]:
 def test_not_found_browser_renders_404_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/not-found")
     assert r.status_code == 404
-    body = r.text
-    assert "Not found" in body
-    assert "transaction" in body
+    assert _html.text_of(r.text, errors.heading) == "Not found"
+    assert "transaction" in _html.text_of(r.text, errors.main)
     # Request id echoed by middleware.
     assert r.headers.get("X-Request-Id")
 
@@ -84,39 +84,39 @@ def test_not_found_browser_renders_404_page(error_client: TestClient) -> None:
 def test_not_found_htmx_renders_flash_fragment(error_client: TestClient) -> None:
     r = error_client.get("/_boom/not-found", headers={"HX-Request": "true"})
     assert r.status_code == 404
-    assert 'role="alert"' in r.text
-    assert 'aria-live="assertive"' in r.text
-    assert 'hx-swap-oob="true"' in r.text
-    assert "Transaction not found" in r.text
+    region = _html.resolve_one(r.text, errors.alert)
+    assert region["aria-live"] == "assertive"
+    assert region["hx-swap-oob"] == "true"
+    assert "Transaction not found" in region.get_text()
 
 
 def test_conflict_browser_renders_409_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/conflict")
     assert r.status_code == 409
-    assert "Can" in r.text and "that" in r.text  # heading, HTML-escaped apostrophe
-    assert "protected row" in r.text
+    heading = _html.text_of(r.text, errors.heading)
+    assert "Can" in heading and "that" in heading
+    assert "protected row" in _html.text_of(r.text, errors.main)
 
 
 def test_conflict_htmx_renders_warning_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/conflict", headers={"HX-Request": "true"})
     assert r.status_code == 409
-    assert 'role="status"' in r.text
-    assert "flash-warning" in r.text
-    assert "protected row" in r.text
+    region = _html.resolve_one(r.text, errors.status)
+    assert any(el.get("data-flash-kind") == "warning" for el in region.find_all(True))
+    assert "protected row" in region.get_text()
 
 
 def test_validation_browser_renders_422_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation")
     assert r.status_code == 422
-    assert "Check the form" in r.text
-    assert "amount" in r.text
+    assert "Check the form" in _html.text_of(r.text, errors.heading)
+    assert "amount" in _html.text_of(r.text, errors.main)
 
 
 def test_validation_htmx_renders_error_flash(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation", headers={"HX-Request": "true"})
     assert r.status_code == 422
-    assert 'role="alert"' in r.text
-    assert "amount must be positive" in r.text
+    assert "amount must be positive" in _html.text_of(r.text, errors.alert)
 
 
 def test_service_error_browser_renders_500_with_request_id(
@@ -127,8 +127,9 @@ def test_service_error_browser_renders_500_with_request_id(
     assert r.status_code == 500
     rid = r.headers.get("X-Request-Id")
     assert rid
-    assert "downstream unavailable" in r.text
-    assert rid in r.text
+    main_text = _html.text_of(r.text, errors.main)
+    assert "downstream unavailable" in main_text
+    assert rid in main_text
     # Correlation id present in log context.
     found = any(getattr(rec, "request_id", None) == rid for rec in caplog.records)
     assert found, "request_id missing from log context"
@@ -137,9 +138,10 @@ def test_service_error_browser_renders_500_with_request_id(
 def test_service_error_htmx_renders_flash_with_reference(error_client: TestClient) -> None:
     r = error_client.get("/_boom/service", headers={"HX-Request": "true"})
     assert r.status_code == 500
-    assert "Reference:" in r.text
+    flash = _html.text_of(r.text, errors.alert)
+    assert "Reference:" in flash
     rid = r.headers["X-Request-Id"]
-    assert rid in r.text
+    assert rid in flash
 
 
 def test_unhandled_exception_falls_back_to_500(
@@ -148,7 +150,7 @@ def test_unhandled_exception_falls_back_to_500(
     with caplog.at_level(logging.ERROR, logger="budget_planner.web"):
         r = error_client.get("/_boom/unhandled")
     assert r.status_code == 500
-    assert "Something went wrong" in r.text
+    assert "Something went wrong" in _html.text_of(r.text, errors.heading)
     rid = r.headers["X-Request-Id"]
     assert rid
     assert any(getattr(rec, "request_id", None) == rid for rec in caplog.records)
@@ -184,7 +186,8 @@ def test_validation_inline_form_render_on_transactions_post(client: TestClient) 
     # Form partial re-renders inline (no Location redirect).
     assert "Location" not in r.headers
     # Server-side error listing is present.
-    assert "unknown account" in r.text or "unknown category" in r.text
+    listed = _html.text_of(r.text, errors.alert)
+    assert "unknown account" in listed or "unknown category" in listed
 
 
 def test_flash_inline_render_does_not_emit_oob_attribute(client: TestClient) -> None:

@@ -17,6 +17,9 @@
  *     data-demo="toast"            toast with data-demo-label
  * - <form data-demo-next="url">  go to url on submit (sign in, sign out, re-authenticate).
  * - <form data-demo-flash="msg"> show the success flash on submit (settings forms, promote all due).
+ * - A dialog <form data-demo-toast="msg"> (optionally data-demo-undo) shows that toast on the page you return to
+ *   instead of the "● Saved" flash (invite sent, user deleted, promoted · undo).
+ * - A dialog <form data-demo-next="url"> goes on to another dialog state (add user → one-time password).
  * - Any other <form action="#"> outside a dialog does nothing on submit instead of reloading the page.
  * Builds markup with DOM methods only (no innerHTML). No data is fetched.
  */
@@ -141,19 +144,31 @@
     }
   }
 
-  function goBack(message) {
+  function announce(note) {
+    if (!note) return;
+    if (note.toast) toast(note.toast, note.undo ? () => {} : null);
+    else flash(note.flash);
+  }
+
+  function goBack(note) {
     const back = store && store.getItem(KEY_RETURN);
-    if (message && store) store.setItem(KEY_FLASH, message);
+    if (note && store) store.setItem(KEY_FLASH, JSON.stringify(note));
     if (back && back !== window.location.href) {
       store.removeItem(KEY_RETURN);
       window.location.href = back;
       return true;
     }
-    if (message) {
+    if (note) {
       if (store) store.removeItem(KEY_FLASH);
-      flash(message);
+      announce(note);
     }
     return false;
+  }
+
+  function noteFor(form) {
+    if (!form) return { flash: 'Saved' };
+    if (form.dataset.demoToast) return { toast: form.dataset.demoToast, undo: form.dataset.demoUndo !== undefined };
+    return { flash: 'Saved' };
   }
 
   // Remember where a dialog was opened from.
@@ -185,7 +200,7 @@
     }
     const dialog = form.closest('dialog');
     if (dialog) {
-      dialog.dataset.demoSaved = '';
+      dialog.demoNote = noteFor(form);
       dialog.close('submit');
     }
   });
@@ -194,18 +209,16 @@
   if (isOverlayPage) {
     document.querySelectorAll('#modal-root dialog').forEach((dialog) => {
       dialog.addEventListener('close', () => {
-        const saved = dialog.dataset.demoSaved !== undefined;
-        delete dialog.dataset.demoSaved;
-        goBack(saved ? 'Saved' : '');
+        const note = dialog.demoNote;
+        dialog.demoNote = null;
+        goBack(note);
       });
     });
   } else {
     document.querySelectorAll('dialog').forEach((dialog) => {
       dialog.addEventListener('close', () => {
-        if (dialog.dataset.demoSaved !== undefined) {
-          delete dialog.dataset.demoSaved;
-          flash('Saved');
-        }
+        announce(dialog.demoNote);
+        dialog.demoNote = null;
       });
     });
   }
@@ -214,6 +227,10 @@
   const pending = store && store.getItem(KEY_FLASH);
   if (pending) {
     store.removeItem(KEY_FLASH);
-    flash(pending);
+    try {
+      announce(JSON.parse(pending));
+    } catch {
+      flash(pending);
+    }
   }
 })();

@@ -12,6 +12,7 @@ from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.services import _passwords
 from budget_planner.web.middleware.must_change_password import password_url
 from tests.auth_support import TEST_PASSWORD, issue_session
+from tests.ui_map import _html, settings as ui
 
 pytestmark = pytest.mark.integration
 
@@ -69,7 +70,7 @@ def test_get_htmx_returns_fragment(forced: TestClient) -> None:
     r = forced.get("/settings/password", headers={"HX-Request": "true"})
     assert r.status_code == 200
     assert r.text.lstrip().startswith("<form")
-    assert "<html" not in r.text
+    assert _html.exists(r.text, ui.password_form)
 
 
 def test_get_carries_safe_next(forced: TestClient) -> None:
@@ -100,8 +101,8 @@ def test_forced_user_cannot_open_other_settings(forced: TestClient) -> None:
 def test_forced_page_is_standalone(forced: TestClient) -> None:
     r = forced.get("/settings/password")
     assert r.status_code == 200
-    assert 'id="tab-security"' not in r.text
-    assert 'id="passkeys"' not in r.text
+    assert not _html.exists(r.text, ui.tabs)
+    assert not _html.exists(r.text, ui.passkeys)
 
 
 def test_anonymous_redirected_to_login(anon_client: TestClient) -> None:
@@ -158,9 +159,9 @@ def test_post_wrong_current_audits_and_keeps_state(
         headers={"User-Agent": "audit-ua"},
     )
     assert r.status_code == 422
-    assert "That isn&#39;t your current password." in r.text or "isn't your current" in r.text
-    assert 'aria-invalid="true"' in r.text
-    assert "definitely-wrong" not in r.text
+    assert "current password" in _html.text_of(r.text, ui.password_error("current_password"))
+    assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
+    assert "definitely-wrong" not in _html.text_of(r.text, ui.password_form)
     row = _user(conn)
     assert row["password_hash"] == before
     assert row["must_change_password"] == 1
@@ -189,9 +190,9 @@ def test_post_policy_errors_render_inline(
     before = _user(conn)["password_hash"]
     r = client.post("/settings/password", data=form)
     assert r.status_code == 422
-    assert snippet in r.text
-    assert "<html" in r.text
-    assert 'id="tab-security"' in r.text
+    assert snippet in _html.text_of(r.text, ui.password_form)
+    assert _html.exists(r.text, ui.security_heading)
+    assert _html.exists(r.text, ui.tabs)
     assert _user(conn)["password_hash"] == before
 
 
@@ -199,7 +200,7 @@ def test_post_error_htmx_returns_fragment(client: TestClient) -> None:
     r = client.post("/settings/password", data=_form(new="short"), headers={"HX-Request": "true"})
     assert r.status_code == 422
     assert r.text.lstrip().startswith("<form")
-    assert 'id="pw-summary"' in r.text
+    assert _html.exists(r.text, ui.password_summary)
 
 
 def test_post_requires_csrf(anon_client: TestClient, session_cookie: tuple[str, str]) -> None:

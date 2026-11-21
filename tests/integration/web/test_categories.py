@@ -13,6 +13,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import categories as categories_repo
+from tests.ui_map import _html, settings as ui
 
 USER_ID = 1
 
@@ -37,15 +38,15 @@ def test_index_redirects_to_settings(client: TestClient, cat_id: int) -> None:
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/categories/new")
+    r = client.get("/categories/new", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    assert 'name="direction"' in r.text
+    assert _html.exists(r.text, ui.category_expense)
 
 
 def test_create(client: TestClient) -> None:
     r = client.post("/categories", data={"name": "Rent", "direction": "expense"})
     assert r.status_code == 200
-    assert "Rent" in r.text
+    assert "Rent" in _html.text_of(r.text, ui.any_category_row)
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
@@ -78,7 +79,7 @@ def test_edit_404(client: TestClient) -> None:
 def test_update(client: TestClient, cat_id: int) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "Food"})
     assert r.status_code == 200
-    assert "Food" in r.text
+    assert "Food" in _html.text_of(r.text, ui.category_row(cat_id))
 
 
 def test_update_404(client: TestClient) -> None:
@@ -234,8 +235,7 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
 
 
 def test_new_form_targets_itself_and_resets_on_submit(client: TestClient) -> None:
-    r = client.get("/categories/new")
-    assert 'id="category-form"' in r.text
-    assert 'hx-target="#category-form"' in r.text
-    assert "table.ledger" not in r.text
-    assert "data-reset-on-submit" in r.text
+    r = client.get("/categories/new", headers={"HX-Request": "true"})
+    form = _html.resolve_one(r.text, ui.category_form)
+    assert form["hx-target"] == "#category-form"
+    assert form.has_attr("data-reset-on-submit")

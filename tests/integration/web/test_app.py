@@ -47,7 +47,7 @@ def test_static_css_is_served(client: TestClient) -> None:
     r = client.get("/static/app.css")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/css")
-    assert "--surface" in r.text
+    assert "--surface" in r.content.decode()  # CSS asset body, not markup
 
 
 def test_jinja_filters_registered() -> None:

@@ -95,6 +95,45 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 
 ---
 
+## Phase 2b — Scope added by the designer answers (2026-11-21, [ADR-0132](../../adr/0132-redesign-scope-decisions-from-the-designer-change-request.md))
+
+These land in the redesign release (ADR-0107 §8). Each needs its own requirement text first (done in `docs/requirements.md`, ADR-0132 Consequences) and the per-surface loop in [README.md](README.md#per-surface-loop-test-first). Not started.
+
+### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
+- Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0132 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0132 §1.
+
+### ◻ T-UR19 [S] Invite email behind a config switch → T-UR18, T-UR20
+- Send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0132 §1, ADR-0099.
+
+### ◻ T-UR20 [P] Invites, add user, user row menu, forced change → T-UR14
+- Invite model (migration), create invite with email and role, pending row with expiry, row menu copy link / resend / revoke; invite pages (AU08 and expired, used, invalid AU09); add user dialog with one-time credential dialog (not toast), duplicate email refused; reset and delete user with confirms (ledger entries stay); forced change page (ST10). Edit user dialog (name and member/admin, email read-only) as the first row-menu item before reset and delete; an admin's own row has no menu. Server-side guards, not only the hidden menu: edit refuses self-demotion and demoting the last admin and does not change the email (today `services/users.edit_user` allows self-demotion with a second admin and edits email; fix with tests asserting DB rows); delete keeps refusing self and last admin. ADR-0132 §10, §11, ADR-0061, ADR-0073.
+
+### ◻ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05
+- Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0132 §9.
+
+### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
+- Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0132 §9, ADR-0099.
+
+### ◻ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08
+- Service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0132 §3.
+
+### ◻ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
+- Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0132 §5.
+
+### ◻ T-UR25 [P] Offline save-failure handling → T-UR04
+- HTMX request failure (no response) keeps an open dialog's typed input and shows the offline state (`errors/offline` markup); no service worker. ADR-0132 §4, ADR-0113.
+
+### ◻ T-UR26 [deferred] Service worker for failed full page loads
+- Deferred beyond the redesign release; needs its own ADR (ADR-0123, ADR-0113 CSP). Tracked here so the offline page is not wired to full-page failures until then. ADR-0132 §4.
+
+### ◻ T-UR27 [P] Theme switch → T-UR13
+- Preferences Appearance control (system, light, dark), default system, per browser, full light set. ADR-0132 §8.
+
+### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
+- `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0132 §2, §6.
+
+---
+
 ## Phase 3 — Cutover
 
 ### ◻ T-UR15 [S] Delete the old frontend (final sweep) → T-UR05..T-UR14

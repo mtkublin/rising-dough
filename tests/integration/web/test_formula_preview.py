@@ -20,6 +20,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -72,13 +73,14 @@ def test_formula_preview_ok(client: TestClient, seed_ids: dict[str, int]) -> Non
         },
     )
     assert r.status_code == 200
-    assert "data-formula-preview-ok" in r.text
+    assert _html.text_of(r.text, ledger.formula_preview).startswith("=")
 
 
 def test_formula_preview_empty_returns_422(client: TestClient) -> None:
     r = client.post("/recurring/formula/preview", data={})
     assert r.status_code == 422
-    assert "data-formula-preview-err" in r.text
+    assert _html.text_of(r.text, ledger.formula_preview)
+    assert _html.resolve_one(r.text, ledger.formula_preview).has_attr("data-code")
 
 
 def test_formula_preview_invalid_source(client: TestClient) -> None:
@@ -91,7 +93,7 @@ def test_formula_preview_invalid_source(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert 'data-code="invalid_source"' in r.text
+    assert _html.resolve_one(r.text, ledger.formula_preview)["data-code"] == "invalid_source"
 
 
 def test_formula_preview_invalid_draft_rule_id(client: TestClient) -> None:

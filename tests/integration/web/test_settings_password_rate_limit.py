@@ -20,6 +20,7 @@ from budget_planner.web.app import create_app
 from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
 from tests.auth_support import TEST_PASSWORD, login_cookie
 from tests.integration.web.conftest import _CSRFAwareTestClient
+from tests.ui_map import _html, settings as ui
 
 pytestmark = pytest.mark.integration
 
@@ -77,8 +78,8 @@ def test_limit_fires_with_429_and_retry_after(client: TestClient, clock: _Clock)
     r = _post(client)
     assert r.status_code == 429
     assert r.headers["retry-after"] == "50"
-    assert THROTTLED_FORM_ERROR in r.text
-    assert "data-throttled" in r.text
+    assert THROTTLED_FORM_ERROR in _html.text_of(r.text, ui.password_summary)
+    assert _html.resolve_one(r.text, ui.password_summary).has_attr("data-throttled")
 
 
 def test_throttled_correct_password_is_not_applied(
@@ -101,7 +102,7 @@ def test_htmx_rerenders_form_fragment(client: TestClient, clock: _Clock) -> None
     r = _post(client, headers=HX)
     assert r.status_code == 429
     assert r.text.lstrip().startswith("<form")
-    assert THROTTLED_FORM_ERROR in r.text
+    assert THROTTLED_FORM_ERROR in _html.text_of(r.text, ui.password_summary)
 
 
 def test_json_gets_rate_limited_error(client: TestClient, clock: _Clock) -> None:
@@ -157,5 +158,5 @@ def test_kill_switch_disables_limit(tmp_path: Path, session_cookie: tuple[str, s
 def test_security_tab_hosts_change_password_form(client: TestClient) -> None:
     r = client.get("/settings/security")
     assert r.status_code == 200
-    assert 'action="/settings/password"' in r.text
-    assert "Change password" in r.text
+    assert _html.resolve_one(r.text, ui.password_form)["action"] == "/settings/password"
+    assert _html.exists(r.text, ui.change_password_button)
