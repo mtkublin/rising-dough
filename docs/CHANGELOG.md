@@ -1227,3 +1227,7 @@
 ## 2026-11-21 (MAIN-SYNC: origin/main merged into feat/ui-test-harness)
 
 - **Chore(MAIN-SYNC): merged origin/main (quality audit, ADR-0130 regime, ADR-0131) into the UI test harness branch.** Conflicts in `tests/conftest.py` (kept both `--target` option and the G10 prod-DB tripwire), `test_auth_sessions.py` (display-timezone expiry via `clock.now_in`), `test_today.py` (harness ui_map version plus main's overdue/due/future row-class test via `today.upcoming_planned`). The harness ADR for the designer change request is renumbered 0134 to 0132 (G14 forbids number gaps; ADR-0132 now); prod-DB file name removed from test docstrings (G10); formula-preview audit record gained screenshot paths (G31).
+
+## 2026-11-21 (T-UT-FIX7: mypy --strict fix)
+
+- **Fix(T-UT-FIX7): annotated the row-class dict in the today upcoming test so `just typecheck` passes under mypy --strict.** Type is `dict[str, str | list[str]]` (bs4 `Tag.get("class")` return type). Test-only change, no behaviour change.
