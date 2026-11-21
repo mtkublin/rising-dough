@@ -248,7 +248,7 @@ runcmd:
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg -o /usr/share/keyrings/tailscale-archive-keyring.gpg
   - curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list -o /etc/apt/sources.list.d/tailscale.list
   - apt-get update
-  - DEBIAN_FRONTEND=noninteractive apt-get install -y tailscale
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y tailscale=1.104.7 && apt-mark hold tailscale
   - systemctl enable --now tailscaled
   - sh -c 'timeout 120 tailscale up --auth-key=file:/run/tailscale-authkey --hostname=${tailscale_hostname} --advertise-tags=${tailscale_tag} --accept-dns=false; rc=$?; rm -f /run/tailscale-authkey; exit $rc'
   - systemctl enable --now unattended-upgrades
