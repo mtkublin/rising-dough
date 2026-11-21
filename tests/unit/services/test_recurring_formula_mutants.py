@@ -360,7 +360,14 @@ class TestRtExpand:
     ) -> None:
         owner = world_with_two_users.owner
         rule = self._rule(conn, world_with_two_users)
-        occs = rt_expand(conn, OWNER_ID, rule, [], dt.date(2026, 11, 1), dt.date(2026, 12, 31))
+        occs = rt_expand(
+            conn,
+            OWNER_ID,
+            rule=rule,
+            overrides=[],
+            range_start=dt.date(2026, 11, 1),
+            range_end=dt.date(2026, 12, 31),
+        )
         assert [(o.occurrence_date, o.amount) for o in occs] == [
             (dt.date(2026, 11, 15), 70),
             (dt.date(2026, 12, 15), 70),
@@ -382,7 +389,14 @@ class TestRtExpand:
         rule = dataclasses.replace(
             self._rule(conn, world_with_two_users), dest_account_id=owner.account_id + 100
         )
-        occs = rt_expand(conn, OWNER_ID, rule, [], dt.date(2026, 11, 1), dt.date(2026, 11, 30))
+        occs = rt_expand(
+            conn,
+            OWNER_ID,
+            rule=rule,
+            overrides=[],
+            range_start=dt.date(2026, 11, 1),
+            range_end=dt.date(2026, 11, 30),
+        )
         assert occs[0].dest_account_id == owner.account_id + 100
 
     def test_override_wins_over_formula_amount(
@@ -399,7 +413,14 @@ class TestRtExpand:
                 amount_override=55,
             ),
         )
-        occs = rt_expand(conn, OWNER_ID, rule, [override], EXPENSE_RULE_DUE, EXPENSE_RULE_DUE)
+        occs = rt_expand(
+            conn,
+            OWNER_ID,
+            rule=rule,
+            overrides=[override],
+            range_start=EXPENSE_RULE_DUE,
+            range_end=EXPENSE_RULE_DUE,
+        )
         assert [(o.amount, o.is_overridden) for o in occs] == [(55, True)]
 
 

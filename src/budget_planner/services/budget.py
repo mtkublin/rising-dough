@@ -276,20 +276,17 @@ def committed_by_category(
     for row in planned_rows:
         out[row.category_id] += base_of(row.account_id, row.amount)
 
-    # Clamp the generator window to [max(rule.next_due, start), end). Rules
-    # advance ``next_due`` on promote; occurrences on-or-before the previous
-    # ``next_due`` have either been promoted (counted in ``spent``) or are
-    # historical no-ops. The generator anchors on ``rule.start_date``, so the
-    # clamp never shifts the cadence (each occurrence is counted once).
+    # Clamp the window to [max(rule.next_due, start), end): earlier occurrences are
+    # promoted (counted in ``spent``) or historical no-ops; the cadence never shifts.
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id not in expense_ids:
             continue
-        rule_start = rule.next_due if start is None else max(rule.next_due, start)
-        if rule_start > inclusive_end:
+        lo = rule.next_due if start is None else max(rule.next_due, start)
+        if lo > inclusive_end:
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         occurrences = recurring_svc.rt_expand(
-            conn, user_id, rule, overrides, rule_start, inclusive_end
+            conn, user_id, rule=rule, overrides=overrides, range_start=lo, range_end=inclusive_end
         )
         out[rule.category_id] += sum(
             base_of(occ.account_id, occ.amount)
@@ -403,9 +400,10 @@ def _anchor_due_on(conn: sqlite3.Connection, user_id: int, anchor: Category, day
     return hit == day
 
 
-def _resolve_period_start(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def _resolve_period_start(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     today: date,
     year: int,
     month: int,
@@ -448,7 +446,9 @@ def resolve_period_start(conn: sqlite3.Connection, user_id: int, today: date) ->
     ``today``'s month. Same logic as the budget's private resolver.
     """
     anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
-    return _resolve_period_start(conn, user_id, today, today.year, today.month, anchor)
+    return _resolve_period_start(
+        conn, user_id, today=today, year=today.year, month=today.month, anchor_category=anchor
+    )
 
 
 def month_summary(  # noqa: PLR0915
@@ -497,7 +497,9 @@ def month_summary(  # noqa: PLR0915
         period_end = today
     else:
         anchor_category = preferences_svc.resolve_income_anchor_category(conn, user_id)
-        period_start = _resolve_period_start(conn, user_id, today, year, month, anchor_category)
+        period_start = _resolve_period_start(
+            conn, user_id, today=today, year=year, month=month, anchor_category=anchor_category
+        )
         period_end = today
     this_txns = _expense_txns_in_range(conn, user_id, period_start, period_end)
     prev_txns = _expense_txns_in_range(conn, user_id, prev_start, prev_end)

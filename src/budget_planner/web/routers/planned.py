@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -30,6 +31,7 @@ from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
+from budget_planner.web.routers.ledger import render_table_for
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -71,8 +73,6 @@ def index() -> RedirectResponse:
 # the dynamic `/{planned_id}` paths.
 # ---------------------------------------------------------------------------
 def _hx_trigger_payload(payload: dict[str, object]) -> str:
-    import json  # noqa: PLC0415
-
     return json.dumps(payload)
 
 
@@ -158,8 +158,6 @@ def table_fragment(
 
     Delegates to the unified ledger fragment with ``view=planned``.
     """
-    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
-
     return render_table_for(request, conn, user_id, "planned")
 
 

@@ -63,7 +63,9 @@ def test_last_checked_reconcile_only(
     two_accounts: tuple[int, int],
 ) -> None:
     _, b = two_accounts
-    reconciliation_svc.reconcile(conn, USER_ID, b, 20_000, date(2026, 2, 15))
+    reconciliation_svc.reconcile(
+        conn, USER_ID, account_id=b, actual_balance_minor=20_000, today=date(2026, 2, 15)
+    )
     rows = {r.account_id: r for r in accounts_svc.last_checked(conn, USER_ID)}
     assert rows[b].source == "reconcile"
     when = rows[b].last_checked_at
@@ -77,7 +79,9 @@ def test_last_checked_picks_newer_signal(
 ) -> None:
     a, _ = two_accounts
     # Reconcile with a past date; snapshot taken now → snapshot wins.
-    reconciliation_svc.reconcile(conn, USER_ID, a, 20_000, date(2020, 1, 1))
+    reconciliation_svc.reconcile(
+        conn, USER_ID, account_id=a, actual_balance_minor=20_000, today=date(2020, 1, 1)
+    )
     snapshots_repo.create(conn, USER_ID, NewAccountSnapshot(account_id=a, balance=20_000, note="x"))
     rows = {r.account_id: r for r in accounts_svc.last_checked(conn, USER_ID)}
     assert rows[a].source == "snapshot"

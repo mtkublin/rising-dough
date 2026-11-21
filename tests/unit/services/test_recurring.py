@@ -307,7 +307,7 @@ def test_orphan_override_dropped(caplog: pytest.LogCaptureFixture) -> None:
     overrides = [
         _override(occurrence_date=date(2026, 5, 15))  # not in canonical schedule
     ]
-    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring"):
+    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring_overrides"):
         out = rec_svc.apply_overrides(occs, overrides)
     assert len(out) == len(occs)  # orphan silently dropped
     assert any("orphan" in r.message.lower() for r in caplog.records)
@@ -368,7 +368,7 @@ def test_duplicate_override_warns_last_wins(caplog: pytest.LogCaptureFixture) ->
             amount_override=30_000,
         ),
     ]
-    with caplog.at_level(logging.WARNING, logger="budget_planner.services.recurring"):
+    with caplog.at_level(logging.WARNING, logger="budget_planner.services.recurring_overrides"):
         out = rec_svc.apply_overrides(occs, overrides)
     feb = next(o for o in out if o.occurrence_date == date(2026, 2, 15))
     assert feb.amount == 30_000

@@ -451,7 +451,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:36 (13 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q243 [S] Break the recurring import cycle; keyword-only service signatures
+### ✅ T-Q243 [S] Break the recurring import cycle; keyword-only service signatures
 - Findings: Q-047 (B-06, B-12, A-21), Q-048 (B-08).
 - Epic: E12, E13
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -461,6 +461,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Operator question blocking it: none.
 - Final-backlog note: Also owns the `PLC0415` ceiling (37 lazy imports) and the 8 service-signature slice of the `PLR0917` ceiling in `suppressions.toml`.
 - Removes allowlist entries: `layering`:4 (4 entries); `suppressions` ceiling `PLC0415`:37; `suppressions` ceiling `PLR0917`:8
+- Outcome (2026-11-21): pure schedule in `domain/recurring_schedule.py` (`initial_next_due` replaces the repository stub copy); `apply_overrides` split into `services/recurring_overrides.py` so `recurring` and `recurring_formula` no longer import each other; all 37 `PLC0415` lazy imports in `src/` removed (ceiling key stays at 0, the guard needs the key); seven service signatures made keyword-only after `conn, user_id` (`expand_unpromoted`, `rt_expand`, `reconcile`, `forecast`, `forecast_monthly`, `_collect_budget_overlay`, `_resolve_period_start`), `PLR0917` ceiling 32 -> 25; `fx.convert` (no `user_id`, owned by T-Q212) left for its migration.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q245 [P] ADR status, bodies, and project-instruction drift
