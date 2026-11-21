@@ -11,7 +11,8 @@
   ``prod_grade = false`` and has no ``main_only`` branch policy (ADR-0132: environments split by data sensitivity; only environments that hold no prod-read or
   prod-write material may stay ungated, and they declare so);
 * ``prod-env-from-branch-trigger``: a gated (or undeclared ``prod*``) environment job in a workflow that a PR or non-main
-  push can trigger, unless the job itself is skipped for pull requests (``if: github.event_name != 'pull_request'``);
+  push can trigger, unless the job's whole ``if`` requires ``github.event_name != 'pull_request'`` (``&&`` only, never ``||``), every other
+  trigger is dispatch/call/schedule/``push`` to main or tags, and the environment is gated or ``main_only``;
 * ``environment-workflow-not-allowed``: an environment with ``only_workflows`` referenced from any other workflow file
   (``prod-restore-read`` is reachable only through ``terraform.yml``, called by ``restore-drill.yml`` alone);
 * ``cosign-identity-unpinned``: the image-signature identity regexp accepts any ref (Q-040).
@@ -83,9 +84,45 @@ def _branch_reachable(triggers: dict[str, Any]) -> bool:
     return "push" in triggers
 
 
-def _skips_pull_requests(job: dict[str, Any]) -> bool:
-    condition = str(job.get("if", ""))
-    return "github.event_name != 'pull_request'" in condition
+PR_SKIP = "github.event_name != 'pull_request'"
+SAFE_NON_PR_TRIGGERS = {"workflow_dispatch", "workflow_call", "schedule"}
+
+
+def _if_excludes_pull_requests(job: dict[str, Any]) -> bool:
+    """True when the job's whole `if` requires `github.event_name != 'pull_request'` (an `&&` conjunct, never `||`)."""
+    condition = " ".join(str(job.get("if", "")).split())
+    if condition.startswith("${{") and condition.endswith("}}"):
+        condition = condition[3:-2].strip()
+    if "||" in condition:
+        return False
+    return PR_SKIP in [part.strip() for part in condition.split("&&")]
+
+
+def _push_is_main_or_tags_only(push: Any) -> bool:
+    if not isinstance(push, dict):
+        return False
+    branches: list[str] = push.get("branches") or []
+    tags = push.get("tags")
+    return (bool(branches) and set(branches) == {"main"}) or (not branches and bool(tags))
+
+
+def _non_pr_triggers_are_safe(triggers: dict[str, Any]) -> bool:
+    for name, value in triggers.items():
+        if name == "pull_request" or name in SAFE_NON_PR_TRIGGERS:
+            continue
+        if name == "push" and _push_is_main_or_tags_only(value):
+            continue
+        return False
+    return True
+
+
+def _skips_pull_requests(
+    job: dict[str, Any], triggers: dict[str, Any], spec: dict[str, Any]
+) -> bool:
+    """Exempt a PR-reachable workflow's job only when the PR path is skipped, no other branch trigger exists and the
+    environment is gated or `main_only` (so the GitHub deployment-branch policy is the backstop)."""
+    backstop = bool(spec.get("gated") or spec.get("main_only"))
+    return backstop and _if_excludes_pull_requests(job) and _non_pr_triggers_are_safe(triggers)
 
 
 def _is_gated_or_prod(env: str, declared: dict[str, Any]) -> bool:
@@ -114,7 +151,7 @@ def scan_workflow(rel: str, text: str, declared: dict[str, Any]) -> list[Violati
             if (
                 _is_gated_or_prod(env, declared)
                 and _branch_reachable(triggers)
-                and not _skips_pull_requests(job)
+                and not _skips_pull_requests(job, triggers, spec)
             ):
                 found.append(Violation(rel, 0, "prod-env-from-branch-trigger", f"{name}: {env}"))
             only = spec.get("only_workflows")
@@ -205,6 +242,41 @@ def test_detects_gated_environment_in_pr_reachable_job_unless_skipped() -> None:
         "prod-env-from-branch-trigger"
     ]
     assert not scan_workflow("wf.yml", skipped, declared)
+
+
+def _pr_job(condition: str, extra_on: str = "") -> str:
+    return (
+        f"on:\n  pull_request:\n{extra_on}jobs:\n  a:\n    if: {condition}\n    environment: g\n"
+        "    steps:\n      - run: ${{ secrets.X }}\n"
+    )
+
+
+_GATED = {"g": {"gated": True, "secrets": ["X"]}}
+_SKIP = "github.event_name != 'pull_request'"
+
+
+def test_pr_skip_exemption_accepts_exact_and_conjunction_only() -> None:
+    assert not scan_workflow("wf.yml", _pr_job(_SKIP), _GATED)
+    assert not scan_workflow("wf.yml", _pr_job("${{ " + _SKIP + " && inputs.x }}"), _GATED)
+
+
+def test_pr_skip_exemption_rejects_or_conditions() -> None:
+    for condition in (f"{_SKIP} || true", f"{_SKIP} || always()", f"(a || b) && {_SKIP}"):
+        rules = [v.rule for v in scan_workflow("wf.yml", _pr_job(condition), _GATED)]
+        assert rules == ["prod-env-from-branch-trigger"], condition
+
+
+def test_pr_skip_exemption_rejects_branch_push_trigger() -> None:
+    wide = "  push:\n    branches: ['**']\n"
+    rules = [v.rule for v in scan_workflow("wf.yml", _pr_job(_SKIP, wide), _GATED)]
+    assert rules == ["prod-env-from-branch-trigger"]
+    main_push = "  push:\n    branches: [main]\n  workflow_dispatch:\n"
+    assert not scan_workflow("wf.yml", _pr_job(_SKIP, main_push), _GATED)
+
+
+def test_pr_skip_exemption_needs_gated_or_main_only_environment() -> None:
+    undeclared = scan_workflow("wf.yml", _pr_job(_SKIP).replace("g\n", "prod-x\n"), {})
+    assert "prod-env-from-branch-trigger" in [v.rule for v in undeclared]
 
 
 def test_comparison_operands_are_not_environment_names() -> None:
