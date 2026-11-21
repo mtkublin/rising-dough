@@ -7,8 +7,10 @@ registered on `env`. See ADR-0021 (functional style) + T-030 plan.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -114,22 +116,26 @@ def _dt_local_factory(tz_name: str) -> Any:
     return _dt_local
 
 
-_DIRECTION_COLORS: dict[str, str] = {
-    Direction.INCOME.value: "pill-income",
-    Direction.EXPENSE.value: "pill-expense",
-    Direction.TRANSIT.value: "pill-transit",
-    Direction.ADJUSTMENT.value: "pill-adjust",
-}
+_DIRECTION_COLORS: Mapping[str, str] = MappingProxyType(
+    {
+        Direction.INCOME.value: "pill-income",
+        Direction.EXPENSE.value: "pill-expense",
+        Direction.TRANSIT.value: "pill-transit",
+        Direction.ADJUSTMENT.value: "pill-adjust",
+    }
+)
 
 # ADR-0048: CSS color used when a category has no override. Keeps the direction
 # palette in a single lookup; the actual oklch values live in app.css under the
 # matching custom properties.
-_DIRECTION_CSS_VARS: dict[str, str] = {
-    Direction.INCOME.value: "var(--income)",
-    Direction.EXPENSE.value: "var(--expense)",
-    Direction.TRANSIT.value: "var(--transit)",
-    Direction.ADJUSTMENT.value: "var(--adjust)",
-}
+_DIRECTION_CSS_VARS: Mapping[str, str] = MappingProxyType(
+    {
+        Direction.INCOME.value: "var(--income)",
+        Direction.EXPENSE.value: "var(--expense)",
+        Direction.TRANSIT.value: "var(--transit)",
+        Direction.ADJUSTMENT.value: "var(--adjust)",
+    }
+)
 
 
 def _direction_badge(direction: Direction | str | None) -> Markup:

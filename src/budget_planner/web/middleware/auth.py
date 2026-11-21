@@ -26,6 +26,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from http import HTTPStatus
+from types import MappingProxyType
 from typing import Final
 from urllib.parse import quote, urlsplit
 
@@ -64,7 +65,7 @@ EXEMPT_PATHS: Final = frozenset(
 #: Path prefixes reachable without a session and never hydrated.
 STATIC_PREFIX: Final = "/static/"
 
-_UNAUTHORIZED_BODY: Final = {"error": "unauthorized"}
+_UNAUTHORIZED_BODY: Final = MappingProxyType({"error": "unauthorized"})
 _log = get_logger("budget_planner.auth")
 
 
@@ -131,12 +132,12 @@ def unauthenticated_response(request: Request) -> Response:
     """Build the ADR-0070 §4 response for an anonymous request."""
     if request.headers.get("hx-request", "").lower() == "true":
         return JSONResponse(
-            _UNAUTHORIZED_BODY,
+            dict(_UNAUTHORIZED_BODY),
             status_code=HTTPStatus.UNAUTHORIZED,
             headers={"HX-Redirect": _login_url(_hx_current_path(request))},
         )
     if _wants_json(request):
-        return JSONResponse(_UNAUTHORIZED_BODY, status_code=HTTPStatus.UNAUTHORIZED)
+        return JSONResponse(dict(_UNAUTHORIZED_BODY), status_code=HTTPStatus.UNAUTHORIZED)
     path = request.url.path
     target = f"{path}?{request.url.query}" if request.url.query else path
     return RedirectResponse(_login_url(target), status_code=HTTPStatus.FOUND)

@@ -10,7 +10,7 @@ import pytest
 import structlog
 from fastapi.testclient import TestClient
 
-from budget_planner.logging import _StripQueryFilter, get_logger, redact_sensitive
+from budget_planner.logging import get_logger, redact_sensitive, strip_access_query
 
 SENTINEL = "ZZ_SENTINEL_42"
 
@@ -19,12 +19,11 @@ SENTINEL = "ZZ_SENTINEL_42"
 def log_stream() -> Iterator[io.StringIO]:
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
-    handler.addFilter(_StripQueryFilter())
     # The TestClient's own httpx request log is a client-side artifact, not app output.
     handler.addFilter(lambda r: not r.name.startswith(("httpx", "httpcore")))
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=[redact_sensitive],
+            foreign_pre_chain=[strip_access_query, redact_sensitive],
             processor=structlog.processors.JSONRenderer(),
         )
     )

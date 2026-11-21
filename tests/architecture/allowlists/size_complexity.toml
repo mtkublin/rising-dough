@@ -17,13 +17,6 @@ finding = "Q-046"
 epic = "E13"
 
 [[entry]]
-path = "src/budget_planner/logging.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/repositories/planned.py"
 rule = "cc>=11"
 count = 1

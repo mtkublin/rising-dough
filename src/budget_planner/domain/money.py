@@ -7,7 +7,9 @@ integer minor units routes through this module.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from types import MappingProxyType
 from typing import Final
 
 # ISO 4217 active currency codes (ADR-0030). Alphabetical order so the combobox
@@ -198,10 +200,12 @@ _ZERO_DECIMAL: Final[frozenset[str]] = frozenset(
     }
 )
 _THREE_DECIMAL: Final[frozenset[str]] = frozenset({"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"})
-CURRENCY_EXPONENTS: Final[dict[str, int]] = {
-    code: 0 if code in _ZERO_DECIMAL else 3 if code in _THREE_DECIMAL else 2
-    for code in ISO_4217_CURRENCIES
-}
+CURRENCY_EXPONENTS: Final[Mapping[str, int]] = MappingProxyType(
+    {
+        code: 0 if code in _ZERO_DECIMAL else 3 if code in _THREE_DECIMAL else 2
+        for code in ISO_4217_CURRENCIES
+    }
+)
 _DEFAULT_EXPONENT: Final = 2
 
 

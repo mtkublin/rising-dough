@@ -8,6 +8,7 @@ import sqlite3
 from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from types import MappingProxyType
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -75,11 +76,13 @@ def _formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[A
     ]
 
 
-_EMPTY_TERM_INPUT: dict[str, Any] = {
-    "sign": "+",
-    "coefficient_percent": "",
-    "source_category_ids": (),
-}
+_EMPTY_TERM_INPUT: Mapping[str, Any] = MappingProxyType(
+    {
+        "sign": "+",
+        "coefficient_percent": "",
+        "source_category_ids": (),
+    }
+)
 
 _TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
 

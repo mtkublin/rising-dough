@@ -32,9 +32,10 @@ import datetime as dt
 import hashlib
 import re
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from budget_planner.config import get_settings
 from budget_planner.db.connection import get_connection
@@ -257,10 +258,12 @@ def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
 # own BEGIN/COMMIT after the migration's SQL commits, but strictly before
 # any later migration runs. The sequence (0006 adds nullable column →
 # backfill populates → 0007 flips to NOT NULL) hangs on this ordering.
-_POST_APPLY_HOOKS: dict[int, Callable[[sqlite3.Connection], None]] = {
-    6: _backfill_recurring_next_due,
-    10: _upgrade_formula_schema_v1_to_v2,
-}
+_POST_APPLY_HOOKS: Mapping[int, Callable[[sqlite3.Connection], None]] = MappingProxyType(
+    {
+        6: _backfill_recurring_next_due,
+        10: _upgrade_formula_schema_v1_to_v2,
+    }
+)
 
 # Migrations that require ``PRAGMA foreign_keys = OFF`` for the duration of
 # their SQL body. Needed for SQLite's 12-step table-rebuild on tables with
