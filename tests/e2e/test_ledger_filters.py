@@ -76,8 +76,14 @@ def _open_filtered(live_server: tuple[str, Path], page: Page, *, use_alpha: bool
     page.on("console", lambda m: messages.append(m.text))
     alpha, beta = _seed(base_url, page)
     page.goto(f"{base_url}/ledger")
-    page.locator("select[name=category_id]").select_option(alpha if use_alpha else beta)
+    page.wait_for_function("typeof window.htmx === 'object'")
+    wanted = alpha if use_alpha else beta
+    # Await the filtered response itself: with Alpha the unfiltered first page
+    # also has 50 rows, so a row count alone cannot tell the two apart (T-Q248).
+    with page.expect_response(lambda r: f"category_id={wanted}" in r.url):
+        page.locator("select[name=category_id]").select_option(wanted)
     expect(page.locator(_ROW_SELECTOR)).to_have_count(_PAGE_SIZE if use_alpha else _ROWS_B)
+    page.wait_for_function("document.querySelector('#ledger-table.htmx-request') === null")
     return messages
 
 
@@ -109,7 +115,8 @@ def test_search_keeps_other_filters(live_server: tuple[str, Path], page: Page) -
 
 def test_pagination_keeps_filters(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=True)
-    page.get_by_role("button", name="Older").click()
+    with page.expect_response(lambda r: "page=2" in r.url):
+        page.get_by_role("button", name="Older").click()
     expect(page.locator(_ROW_SELECTOR)).to_have_count(_ROWS_A - _PAGE_SIZE)
     expect(page.locator("#txn-table")).not_to_contain_text("beta banana")
     _assert_no_include_warning(messages)
