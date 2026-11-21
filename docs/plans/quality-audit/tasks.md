@@ -257,6 +257,17 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `workflow_trust`:23 (9 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/workflow_trust.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### ✅ T-Q277 [S] Per-drill age keypair in Terraform (ADR-0135)
+- Findings: Q-012 (H4-03).
+- Epic: none (ci-trust-boundary)
+- Band: 0 · Size: S · Tags: none
+- Depends on: T-Q218
+- Operator decision 2026-11-21: generate the drill key pair with a third-party Terraform age provider so each pair is bound to one drill; drill GitHub environments hold no age key.
+- Docs-first step: ADR-0135 (amends ADR-0132, ADR-0078).
+- Acceptance: `age_secret_key.drill` (provider `koendelaat/age`, pinned `= 0.1.3`, lock hashes committed for linux_amd64 and darwin_arm64); `litestream_age_*` required only on prod; separate `restore_source_age_identity` delivered only with the restore helper; `tf_env.py`, `preflight.py` and `terraform test` updated; runbooks updated.
+- Operator step after merge: delete `LITESTREAM_AGE_IDENTITY` and `LITESTREAM_AGE_RECIPIENT` from `drill`, `drill-plan`, `drill-teardown`.
+- Done when: the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
 ### ✅ T-Q221 [S] Two-user and tombstone fixtures for the money services
 - Findings: Q-015 (F-09, F-10).
 - Epic: none (test-gap)

@@ -73,6 +73,7 @@ class InputSpec:
     env_name: str
     prefixes: tuple[str, ...] = ()
     any_line: bool = False  # prefix may be on any line (multi-line age key files)
+    only_env: str = ""  # checked for this env only ("" = both)
 
 
 INPUT_SPECS: tuple[InputSpec, ...] = (
@@ -80,8 +81,9 @@ INPUT_SPECS: tuple[InputSpec, ...] = (
     InputSpec("SCW_SECRET_KEY"),
     InputSpec("TF_VAR_tailscale_oauth_client_id"),
     InputSpec("TF_VAR_tailscale_oauth_client_secret", ("tskey-client-",)),
-    InputSpec("TF_VAR_litestream_age_identity", ("AGE-SECRET-KEY-1",), any_line=True),
-    InputSpec("TF_VAR_litestream_age_recipient", ("age1",)),
+    # ADR-0135: prod supplies its own pair; a drill generates one in Terraform state.
+    InputSpec("TF_VAR_litestream_age_identity", ("AGE-SECRET-KEY-1",), True, "prod"),
+    InputSpec("TF_VAR_litestream_age_recipient", ("age1",), False, "prod"),
     InputSpec("TF_VAR_ghcr_pull_pat", ("ghp_", "github_pat_")),
     # T-D103 / ADR-0104: Litestream identity from terraform/bootstrap/ci.
     InputSpec("TF_VAR_app_scw_access_key", ("SCW",)),
@@ -136,8 +138,8 @@ def check_input(spec: InputSpec, environ: Mapping[str, str]) -> CheckResult:
     return CheckResult(name, FAIL, f"len {len(value)}, expected prefix {wanted}")
 
 
-def check_inputs(environ: Mapping[str, str]) -> tuple[CheckResult, ...]:
-    return tuple(check_input(spec, environ) for spec in INPUT_SPECS)
+def check_inputs(environ: Mapping[str, str], env: str = "prod") -> tuple[CheckResult, ...]:
+    return tuple(check_input(spec, environ) for spec in INPUT_SPECS if spec.only_env in ("", env))
 
 
 # --- 2. project match ------------------------------------------------------
@@ -374,7 +376,7 @@ def run_checks(
 ) -> tuple[CheckResult, ...]:
     tfvars = read_tfvars(env, tf_dir)
     return (
-        *check_inputs(environ),
+        *check_inputs(environ, env),
         check_project(env, tfvars, environ),
         check_image(tfvars, environ, http),
         check_tailscale(env, environ, http),

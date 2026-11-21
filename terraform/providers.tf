@@ -7,6 +7,9 @@ provider "scaleway" {
 
 provider "random" {}
 
+# ADR-0135: no configuration, no network; generates the key pair locally.
+provider "age" {}
+
 # T-D67 / ADR-0094: OAuth client (scope auth_keys:write, tag tag:automation; owns prod/drill/ci).
 # `tailnet` is omitted: it defaults to the tailnet that owns the OAuth client.
 provider "tailscale" {

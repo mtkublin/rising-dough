@@ -59,7 +59,7 @@ locals {
     source_endpoint  = var.bucket_endpoint
     source_region    = var.bucket_region
     drill_bucket     = var.bucket_name
-    age_key_file     = "${local.compose_dir}/litestream-age.key"
+    age_key_file     = "${local.compose_dir}/restore-source-age.key"
   }) : ""
 
   docker_config_json = jsonencode({
@@ -90,6 +90,8 @@ locals {
     var.enable_restore_helper ? [
       # T-D41a: drill-only read-only credential for the PROD replica + helper.
       { path = "${local.compose_dir}/restore-source.env", mode = "0600", content = "RESTORE_ACCESS_KEY_ID=${var.scw_access_key_restore}\nRESTORE_SECRET_ACCESS_KEY=${var.scw_secret_key_restore}\n", restart = [] },
+      # ADR-0135: the PROD replica identity, never the host's own litestream-age.key.
+      { path = "${local.compose_dir}/restore-source-age.key", mode = "0600", content = "${trimspace(var.restore_source_age_identity)}\n", restart = [] },
       { path = "/usr/local/bin/restore-from-prod", mode = "0755", content = local.restore_script_rendered, restart = [] },
     ] : [],
   )

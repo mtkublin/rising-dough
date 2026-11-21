@@ -98,3 +98,9 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - `pylint duplicate-code`: dropped, 19 boilerplate hits and none of the semantic duplicates.
 - Report-only guards: rejected, the ratchet gives the same green CI while making regressions fail.
 - A cyclomatic-complexity gate: deferred; the ADR-0107 redesign rewrites most routers.
+
+## Amendment 2026-11-21 (ADR-0134 number held by another branch)
+
+- **Exemption.** `tests/architecture/test_adr_index.py` gains the constant `TEMPORARY_GAPS = {134}` next to `GRANDFATHERED_GAPS` (G14, Q-051). It is temporary, unlike the 0044 gap.
+- **Why.** ADR-0134 was written on `feat/ui-test-harness` (commit abbdc34) by another session and is not on `remediation/quality`. ADR-0135 (T-Q277) was numbered after it to avoid a collision, which leaves a transient gap on this branch. The ADR file must not be copied across branches. Every other gap still fails the guard.
+- **Removal trigger.** When ADR-0134 reaches `main` and `main` is merged into `remediation/quality`, delete the constant. The guard reports `stale-gap-exemption` as soon as an `0134-*.md` file exists, so the exemption cannot outlive its reason and that failure is the reminder.

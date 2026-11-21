@@ -96,6 +96,14 @@ def test_input_fails(name: str, value: str, fragment: str) -> None:
     assert value == "" or value not in bad[0].detail
 
 
+def test_drill_needs_no_age_inputs() -> None:
+    """ADR-0135: the drill generates its own age pair; preflight must not demand one."""
+    environ = {k: v for k, v in ENVIRON.items() if "age" not in k}
+    results = pf.check_inputs(environ, "drill")
+    assert {r.status for r in results} == {"PASS"}
+    assert len(results) == 7
+
+
 def test_input_accepts_github_pat_prefix() -> None:
     env = {**ENVIRON, "TF_VAR_ghcr_pull_pat": "github_pat_FAKE"}
     assert {r.status for r in pf.check_inputs(env)} == {"PASS"}

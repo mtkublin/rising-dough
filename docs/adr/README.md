@@ -140,3 +140,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0131 | [Mutation Testing Policy](0131-mutation-testing-policy.md) (relates to ADR-0130, ADR-0120, ADR-0108) |
 | 0132 | [CI Environments Are Split by Data Sensitivity; Prod Replica Read Material Lives in One Gated Environment](0132-ci-environments-split-by-data-sensitivity.md) (amends ADR-0099, ADR-0100; relates to ADR-0101, ADR-0093, ADR-0104, ADR-0111, ADR-0121, ADR-0130) |
 | 0133 | [Proxy-Set Client Identity and Bounded Auth Audit Text](0133-proxy-set-client-identity-and-bounded-auth-audit-text.md) (amends ADR-0072; relates to ADR-0032, ADR-0036) |
+| 0135 | [Per-Drill Litestream Age Key Pair Generated in Terraform](0135-per-drill-age-keypair-in-terraform.md) (amends ADR-0132, ADR-0078; relates to ADR-0093, ADR-0101, ADR-0111) |

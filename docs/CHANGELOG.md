@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q277: per-drill age key pair in Terraform)
+- **Feat(T-Q277): each drill generates its own Litestream age key pair with the `koendelaat/age` Terraform provider (ADR-0135, amends ADR-0132 and ADR-0078; Q-012 H4-03).** The pair lives in that drill's state (survives VM replacement, dies on teardown); `litestream_age_*` are prod-only inputs, the prod replica identity reaches a drill only as `restore_source_age_identity` from `prod-restore-read`, in its own file. `drill`, `drill-plan`, `drill-teardown` no longer read `LITESTREAM_AGE_*`. Root `.terraform.lock.hcl` is now committed (linux_amd64, darwin_arm64). **Operator half pending:** delete the age secrets from the three drill environments after merge.
+
 ## 2026-11-21 (T-Q220: differential invariant tests close-out)
 - **Test(T-Q220): all 16 Track A differential invariants are accounted for (Q-013).** 15 are tests in `tests/integration/invariants/`; INV-6c (static `/ 100` count) is left to the G6/G27 guards and T-Q216. The `conftest.py` docstring maps each strict `xfail` to its Q-id and fix task. No allowlist entry touched.
 ## 2026-11-21 (T-Q239: tamper-resistant merge gate, code half)

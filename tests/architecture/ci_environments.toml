@@ -29,7 +29,7 @@ only_workflows = ["terraform.yml"]
 secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
 
 [environment.prod-plan]
-# ADR-0132: plan-only; read-only ci-plan key, placeholder age identity and app key, no Tailscale OAuth client.
+# ADR-0132: plan-only; read-only ci-plan key, placeholder age pair and app key, no Tailscale OAuth client.
 gated = false
 prod_grade = false
 secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_ORG_ID", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
@@ -41,7 +41,7 @@ main_only = true
 secrets = ["TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
 
 [environment.drill]
-# ADR-0132: drill-project keys and a synthetic age identity only; no prod-read material.
+# ADR-0132/ADR-0135: drill-project keys only; no age key (the drill generates its own pair in Terraform state), no prod-read material.
 gated = false
 prod_grade = false
 secrets = ["DEPLOY_SSH_PRIVATE_KEY", "OPERATOR_SSH_PUBKEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET", "TS_OAUTH_CLIENT_ID", "TS_OAUTH_SECRET"]

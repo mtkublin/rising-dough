@@ -106,6 +106,8 @@ module "compute" {
   scw_access_key_restore = var.enable_restore_helper ? "SCWDUMMYRESTOREKEY000" : ""
   scw_secret_key_restore = var.enable_restore_helper ? "11111111-dummy-0000-0000-000000000000" : ""
 
+  restore_source_age_identity = var.enable_restore_helper ? "AGE-SECRET-KEY-1RESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTO" : "" # pragma: allowlist secret
+
   litestream_age_identity  = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   litestream_age_recipient = "age1dummydummydummydummydummydummydummydummydummydummydummydummydum"
   backup_max_age_days      = 37

@@ -25,6 +25,10 @@ from tests.architecture._ratchet import REPO_ROOT, Violation
 # Not renumbered, because renumbering would break references (ADR-0130 section 10; OQ-23 default).
 GRANDFATHERED_DUPLICATES = frozenset({"0105", "0121"})
 GRANDFATHERED_GAPS = frozenset({44})
+# TEMPORARY: ADR-0134 is held by feat/ui-test-harness (abbdc34). Delete this constant and its use below when ADR-0134
+# reaches main and main is merged into remediation/quality (ADR-0130 amendment 2026-11-21). `stale-gap-exemption`
+# fails as soon as the file is present, so the exemption cannot outlive its reason.
+TEMPORARY_GAPS = frozenset({134})
 ADR_DIR = REPO_ROOT / "docs" / "adr"
 FILE = re.compile(r"^(\d{4})-.+\.md$")
 ROW = re.compile(r"^\|\s*(\d{4})\s*\|.*?\(([^)]+\.md)\)")
@@ -44,7 +48,12 @@ def scan(files: dict[str, str], readme: str) -> list[Violation]:
         if n > 1 and number not in GRANDFATHERED_DUPLICATES:
             found.append(Violation(f"{rel}{number}", 0, "duplicate-number", f"{n} files"))
     present = sorted(int(n) for n in numbers)
-    gaps = set(range(1, present[-1] + 1)) - set(present) - GRANDFATHERED_GAPS if present else set()
+    for number in sorted(TEMPORARY_GAPS & set(present)):
+        found.append(
+            Violation(f"{rel}{number:04d}", 0, "stale-gap-exemption", "remove TEMPORARY_GAPS")
+        )
+    exempt = GRANDFATHERED_GAPS | TEMPORARY_GAPS
+    gaps = set(range(1, present[-1] + 1)) - set(present) - exempt if present else set()
     for missing in sorted(gaps):
         found.append(Violation(f"{rel}{missing:04d}", 0, "number-gap", "missing number"))
     rows = [(m.group(1), m.group(2)) for line in readme.splitlines() if (m := ROW.match(line))]
@@ -106,3 +115,13 @@ def test_adr_index_accepts_grandfathered_duplicate_and_gap() -> None:
     found = scan(files, readme)
     assert "duplicate-number" not in {v.rule for v in found}
     assert "docs/adr/0044" not in {v.path for v in found}
+
+
+def test_temporary_gap_exemption_goes_stale_when_the_adr_exists() -> None:
+    files = {f"{n:04d}-a.md": "Status: x\n" for n in range(1, 136) if n not in {44, 134}}
+    files["0134-b.md"] = "Status: x\n"
+    readme = "".join(f"| {f[:4]} | [T]({f}) |\n" for f in sorted(files))
+    assert {v.rule for v in scan(files, readme)} == {"stale-gap-exemption"}
+    del files["0134-b.md"]
+    readme = "".join(f"| {f[:4]} | [T]({f}) |\n" for f in sorted(files))
+    assert scan(files, readme) == []

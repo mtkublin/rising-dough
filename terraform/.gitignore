@@ -1,6 +1,8 @@
 # Terraform working files
 .terraform/
 .terraform.lock.hcl
+# T-Q277 / ADR-0135: the root lock file IS committed (pins the age provider hashes).
+!/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
