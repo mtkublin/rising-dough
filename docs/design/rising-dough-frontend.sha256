@@ -1,5 +1,6 @@
 962e2545b1a961a7327cfde137c676961f1194be0a54fb78d27b73abb2c31d50  ./.stylelintrc.json
-fa5dcedc9752cce14494b3c466a717fdc6d84b4b24ff15a2497dc337778a7b0b  ./README.md
+60d0696f93d1b9694e439676fa01131940b12c7b4af424ec1cdf5a0a2b370dae  ./CHANGES-edit-user.md
+22cc31eeba45f2cd26c03e970c3e561309a0ea546d26d4e8961ab15e0e7ec2ee  ./README.md
 0458ce340bad6e0d94458fc15f044d836f4b54506a255961c41df24827da36b6  ./charts/forecast.html
 fb675125b63b03bb35f8bf0ef189fcc382bc7317f1d991bc5dd90eacaf27c82f  ./charts/income-vs-expense.html
 8549fee0475394949e4f40b3bc2c584aad978e77dbdc5805e1fcbe3075942b6e  ./charts/index.html
@@ -7,7 +8,7 @@ fb675125b63b03bb35f8bf0ef189fcc382bc7317f1d991bc5dd90eacaf27c82f  ./charts/incom
 c89d35e6fd2a4e62c73faee4c1e19f9dfb18eb849b7c63adbe75d3b5f0ec9d77  ./charts/spend-by-category.html
 172a96bab237f1135a1add48b94b1672d755db66faccc2de2c77c4a6179f9ece  ./charts/year-grid.html
 31952f6e5947141e47c78750d60fcb3d581e13b5820724a9017eeae1fa168dba  ./components.html
-59b3a74ac7d33d9eaa8e01c9315362ef690ea3ba8d97b8f362ace6e4ba349237  ./index.html
+290a0f42bbdb6c5c9003a6d553c013f59730acef93a0bba9b9d20ce00b6a49ee  ./index.html
 23fe4889bc044330a178993bbbc57a67781860e3806dc44dabbfac0bd9f495f1  ./pages/accounts--empty.html
 db0ea37d8eb7df3008c4ceedd9f8d88e1c4baf250d13de536b07e50b048ae4ca  ./pages/accounts.html
 4433bd2be65bafbd13567ee1cfc0839ea9a3e1bc71458443f6c4ebaaa2cc7d45  ./pages/auth/force-password--error.html
@@ -36,8 +37,8 @@ c0953d91130b251c7192405688fc60653cc6406def5e4043467c9c9509be6f0c  ./pages/errors
 a4395eb962e6c251a8f0a58f1466334e231352ef40ef140e46cdea6b981ab22b  ./pages/ledger/recently-deleted.html
 8ffd7cf1cb6b096fbdcc2a9e22d4e8872d5a5affa6bd528ec37857c52f7cf2c7  ./pages/ledger/recurring--empty.html
 a96428d9549dc728f22c4ba9c95e6fa11d58f0850168cd020cf605b5a8d3b51a  ./pages/ledger/recurring.html
-b374d870b51d9983b1e0e3553ec6b2088872299aa8395064bcdd4329966b4f4d  ./pages/overlays/add-user--error.html
-22b9641cb486534e71873252bebc22a98a6ca210132cda5538437423c526d2cb  ./pages/overlays/add-user.html
+441fea494db5b76f37a7cf919cd896f96bc4b299e6722adca5399785d2bec9fd  ./pages/overlays/add-user--error.html
+e76735c9744458c1be083630e9aaa87e958ccfc9f057e82f89a09b38fcf2d56c  ./pages/overlays/add-user.html
 6204d99277dbe6d349fad97081bc53f0a60d1ca74e5a7fcb15b5787d87b25e7b  ./pages/overlays/archive-category.html
 f7aaf423b2e7bdd305c308a078b74e63338cf12b5961b643638c2078d6300b43  ./pages/overlays/category-picker--no-match.html
 cb3c4dc8c11a96cf5cabe9fc30ee08b6699f5e7d23970bf8d93816b0328a5823  ./pages/overlays/category-picker.html
@@ -47,7 +48,7 @@ cb3c4dc8c11a96cf5cabe9fc30ee08b6699f5e7d23970bf8d93816b0328a5823  ./pages/overla
 5a20fa4a393d1554260ba36d21fa51d3cf9bacaede764ee7d4fb44956b045f5d  ./pages/overlays/delete-account--blocked-planned.html
 64e71f07817215dd7a7d20837af1f6a2bbf34652fdfd1485f4e95402813fc62f  ./pages/overlays/delete-account--blocked.html
 8f1ac831a79d14ae3fc8fa80772231474908a5264203c70eac978ffe3d30844e  ./pages/overlays/delete-account.html
-23ae0cb2fdfd6869467ccbcd280672a4a4fb6d94c9df2915b10adc1bd4ae9610  ./pages/overlays/delete-user.html
+42d0b7148b92da64ca174881cc66b5e82894d6a7e742a130c4f27055e7f739fe  ./pages/overlays/delete-user.html
 5bbf97e62c65792e0c37285836b0545f9416fa8002b866952444e1c6ab0ef236  ./pages/overlays/edit-account--liability.html
 1ef93e434bd16c5f6f8b03a8f396fb456a80aea5a247b3efdd94b2d9bfc5d2fb  ./pages/overlays/edit-account.html
 0cc2440e1cb9ed579c210bfd7218e3924e2272958e04e8f3dca4158f432eba8e  ./pages/overlays/edit-category.html
@@ -60,8 +61,9 @@ e2d711e48f9528cd35eba542bd1fd3e3bacd4147888b88e93d13232a3d0aadf3  ./pages/overla
 caad7a1815b437ae218282f196cd78a5c1958aa77c66dc08701d93b43eac542f  ./pages/overlays/edit-transaction--error.html
 2e777584f42a35f8dc220efc4363644d2f0d9861b02b26b8a3d96af2f5d9d618  ./pages/overlays/edit-transaction--transit.html
 cce66b9985919c5a8492f6c42fd1b12b9888b3ab3fb36cce5bd0fe30b1e19c80  ./pages/overlays/edit-transaction.html
-65b10908321b531db0658cf9f9d76137a37af51955ff90d7e3bedd43e2d48e88  ./pages/overlays/invite-user--error.html
-70ad479c4582ad7f4982e487e8f76a85378c90256e872e7f3a3f5b1cedbc61f9  ./pages/overlays/invite-user.html
+560d67ebe1dce2717a814e67c3d02fad9f5956e3f748153b875f6ed51fcd012e  ./pages/overlays/edit-user.html
+10425356455d92d2b7486832fc21f55f9e5db5939216f8ec9f70b076a4efb0ab  ./pages/overlays/invite-user--error.html
+c3bf214e4b34b76f081bebda35a9a3cbfebf7c02ee38301852e57a4a664fdc73  ./pages/overlays/invite-user.html
 9205850e35df02c253c4f26ecb3a6c3830ac2e9e2c20f55a292c668435d4311a  ./pages/overlays/new-account--error.html
 07e0bffb54f8e459acc70d4af4d83232a3c40c909f7f7a9306ad79880124d754  ./pages/overlays/new-account--filled.html
 2b04e0b2a697c62884f27319fe0a91232c340729a3dea60d740db93abf0e8ee3  ./pages/overlays/new-account.html
@@ -75,7 +77,7 @@ e65e97365bad542295c300ad322144e216a4cc0d58ae75681ee012a6a98f3835  ./pages/overla
 eb61abaecfedcb522c7d2d510ffd9d282f2afbe9a7bd6117afc7b49657a448b1  ./pages/overlays/new-entry--planned.html
 9d0d2978fed4f05cc76bbc5ba582de2badfa079ac20367393bb6fa2a966a628c  ./pages/overlays/new-entry--repeats-fixed.html
 b33757df6806120cf75f03dfd33294c079cee977c6dc42a9682308f8e8ea3ccd  ./pages/overlays/new-entry--repeats-formula.html
-6218bc3bafb51d22d67fa594d2e6e5db832fa0dfd846f43aacc9a594ce532687  ./pages/overlays/one-time-password.html
+94f6430c90234b2ce25da9430d5e2aebf96acb6041093e6659b52a81c968fb2d  ./pages/overlays/one-time-password.html
 ecfe684cdd5113bfb8663302f29050ddc3ed209ea97fc7ff051af1d12ef81156  ./pages/overlays/override--budget-default.html
 35dd75e9f8da06b6c812b81a0c0833e18ea93231632844cd10716e700489fac5  ./pages/overlays/override--budget-every.html
 05825fdf08ee1b5c2021429b1e7e6abeec61a96723bd6e60f5be2219594f65b9  ./pages/overlays/override--budget-month.html
@@ -88,8 +90,8 @@ c1167c01a44d323289a2f43e95688797351049bb1ecf024d04efd8a1c6e9319c  ./pages/overla
 8332ae7add963e3bcbd99211c574ed3862a5d12874a2e771aeeb14a95ee15233  ./pages/overlays/promote--recurring.html
 18e4fc1588b2d8b9f3e993f01214101023d35f29fc4966a9334b21d7f794c276  ./pages/overlays/reconcile--liability.html
 2714ae779be9e7e615cee3d5cd3c83a15ab762ee77ca17c38465352ba3d4c3ae  ./pages/overlays/reconcile.html
-8fa1196b74c837b2b1a407c55e6986ea94bbca5687559f9287aebbdfaa18ec9a  ./pages/overlays/reset-password.html
-bd86fe9d2478be0738addcf510845a555de2028ff525d39c66a6135fc6e986e1  ./pages/overlays/revoke-invite.html
+d241f4c2500b3212e85c0c46ea03ae3980d7ca504384076a601d02197a4843d4  ./pages/overlays/reset-password.html
+32fec49051909fad6ec3aa61920021c51cd2892f64a9cb18c0b31e968ab8ee22  ./pages/overlays/revoke-invite.html
 d37894c33b1a1d52dddd98e4ce0c742c4eb8a4f09493197c913108230394c355  ./pages/overlays/row-menu--account.html
 800025f0129b4a070244db8d65a3a332a35c77b69409cb13dda1d7a5ee48b376  ./pages/overlays/row-menu--budget.html
 dc6a756cb68ba2091018ef5f49234c5bb9a173f41486a80ad1591e41c3882261  ./pages/overlays/row-menu--planned.html
@@ -106,7 +108,7 @@ cb06e6af95a54f521135a8d3d330a844dddb410ab3b5179cbdbc285e34ad5f73  ./pages/plan/y
 2fa9ba90f91a2274b904945e082eca65b1f7bb5b18c4457ef9b1fa139e8c4c5d  ./pages/settings/preferences.html
 7f57ce7912ea8514b6619c94e8c9b50a3e23ec2c994cabfc7faa6e06746ffdc5  ./pages/settings/security--error.html
 c34dbd3ae041be2cd8b8957e487551e36c55fd24e5bdcd29c820568dab977517  ./pages/settings/security.html
-99e2afecb912ebef9b5b0e022e114bf51e93375f3cd40caf1114b55aada31763  ./pages/settings/users.html
+76e346c9219879b2f0bb44b47a0f4fce810732a086cd61a1d9f4869cbaf14bd7  ./pages/settings/users.html
 eb2735e4c562cc8d8faff60b5bbbe67ff645c9dd4852c5ebe5158c303e1e1629  ./pages/today--afford-invalid.html
 b1ce1267cc08613310ae4ad68a13c3ac8ca506fa346ed7de2b3e15260c22e201  ./pages/today--afford-over.html
 3526e3c1f395a57628f7f10c976efede5761541135fa300ab8540c241b3ac3c4  ./pages/today--empty.html
@@ -123,7 +125,7 @@ dc73a14788cef792c7165bd4ff5f583216724a6685b2d209ecbf47cb97223d00  ./static/css/c
 15f4fafd4cd2cadea462091ab44854d4f14bcabaff56297f37a37f692cf8660e  ./static/css/components/chip.css
 bfa02bd3214a8a01373815dd2b0497d0e6497c38d8c6af85caadf960b441b583  ./static/css/components/dialog.css
 a17ac86026f1f5cad149fa4fa9eecf098752ba3592f43fc41ab22e5aeeb189de  ./static/css/components/feedback.css
-a554eb15b4f89d130eee51ac0ab0e9a1c7f60e70168aacddbb61552d7dcd7ce2  ./static/css/components/field.css
+dfcc7ae3b7ddde33a9b92fcb46db6e3dfb1c3a2512f712a604466eb6fcb3d680  ./static/css/components/field.css
 096ac40a54af1fc5f332641c56dd14b808fb40ea0824b9a6e74e192fde523a35  ./static/css/components/hero.css
 84f93e1272600d3e8d8a7b123016fbf66d732cbee8713acb0df19f4d0297f445  ./static/css/components/icon.css
 ce0a1d05a041df3562ea89a1b0f698854dfedb817209a652845ad188e87bc014  ./static/css/components/ledger.css
@@ -137,7 +139,7 @@ a01c0a2109ec50e090d99f0c96f1ea0e94d1b6ca3d71d4315a0cd29c0d5f6245  ./static/css/c
 57711f5f530021e7fd08f4d575bf896cc7a67b8741db10f82563c4e06170d599  ./static/css/layout.css
 fc9f6835a9e6d2b4904cc38688eb9f6087be5613f542b0cfff85a4e32463c5c0  ./static/css/main.css
 76a9159acc8429fdbcaa8ffb38d38eb3721b09c7c87d66e43b52760428e7bc52  ./static/css/pages/accounts.css
-0effb92799fe7cf60b9dd7a2da7a261827e11e7435f3702decb9d2155b88e31e  ./static/css/pages/auth.css
+826545ee64ddbb5f0a57784759c07ef233b4e21d52f16c414414ea0a9abf93b7  ./static/css/pages/auth.css
 75a049332f7565c7be9c4817c3e1aa9c8eea69980ec00610598b418e0e38c7a0  ./static/css/pages/components.css
 5bd7c17a9da36b5e64eb367551171d9e611babcb66d7e74c5d4b47a45dd6e49c  ./static/css/pages/ledger.css
 fd4ad36accd4107012b93dd1f96170efc107ceace6a9dd632235f412fbdea5aa  ./static/css/pages/plan.css

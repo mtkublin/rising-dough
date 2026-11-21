@@ -12,7 +12,7 @@
 
 ## Parity gaps (from `../ui-test-harness/parity.md`, T-UT06)
 
-> **Resolved 2026-11-21.** The designer answered all 16 gaps ([designer-change-request.md](designer-change-request.md)); the operator decided the product questions ([ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md)). One follow-up is open: Edit user (designer).
+> **Resolved 2026-11-21.** The designer answered all 16 gaps ([designer-change-request.md](designer-change-request.md)); the operator decided the product questions ([ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md)). The Edit user follow-up was answered too (ST17, kept).
 
 | Feature / screen | Status | Decision | Date |
 |---|---|---|---|
@@ -27,7 +27,7 @@
 | AU08, AU09, ST16 Invites | app change | invites beside direct add; email behind a switch after cost check (T-UR18..T-UR20) | 2026-11-21 |
 | AU14 Offline | app change, partly deferred | save-failure path in release; service worker deferred (T-UR25, T-UR26) | 2026-11-21 |
 | AC07 Account delete | app change | refuse while referenced (T-UR23) | 2026-11-21 |
-| Edit user (new) | open | designer follow-up | 2026-11-21 |
+| ST17 Edit user | board now exists | kept: name + member/admin, email read-only; first row-menu item; own row has no menu (ADR-0134 §11; T-UR20) | 2026-11-21 |
 
 ## Derived screens
 

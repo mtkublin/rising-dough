@@ -149,14 +149,6 @@
   background: var(--color-rule);
 }
 
-.rd-field--readonly .rd-input {
-  background: var(--color-raised);
-}
-
-.rd-field--readonly .rd-input__control {
-  color: var(--color-ink-muted);
-}
-
 @media (width >= 48rem) {
   .rd-auth {
     grid-template-columns: 1fr 1fr;
