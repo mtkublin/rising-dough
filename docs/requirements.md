@@ -203,6 +203,10 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 
 ---
 
+### 3.10 Per-request bounds (T-Q235, Q-035)
+
+Named maximums live in `domain/limits.py`: ledger `page_size` is clamped to 500 (`PAGE_SIZE_MAX`); a request body above 256 KiB (`MAX_BODY_BYTES`) answers `413` before any handler runs; account and category names are at most 120 characters and transaction descriptions at most 500, otherwise `422` with "must be at most N characters" and nothing stored. Counts and balances use repository `COUNT(*)` / `SUM` queries (`transactions.count_filtered`, `sum_legs_by_direction`), never all-row loads. `GET /ready` (unauthenticated) opens the DB and runs a trivial read; it never runs `integrity_check` per probe and never echoes exception text (logged server-side).
+
 ### 3.8 Out of Scope for v1
 
 - CSV import from banks (deferred past v1; not scheduled for v2 or v3 either; see [ADR-0020](adr/0020-import-deferred-export-v1.md)).
