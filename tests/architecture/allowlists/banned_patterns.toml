@@ -96,7 +96,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/ledger.py"
 rule = "banned-name"
-count = 5
+count = 4
 finding = "Q-007"
 epic = "E01"
 

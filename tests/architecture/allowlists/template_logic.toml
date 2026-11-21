@@ -368,13 +368,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/ledger/index.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/index.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"

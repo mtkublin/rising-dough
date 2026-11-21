@@ -90,7 +90,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/ledger.py"
 rule = "logic-in-router"
-count = 12
+count = 11
 finding = "B-01"
 epic = "E09"
 
