@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 import re
 import sqlite3
 from collections.abc import Mapping
@@ -33,7 +32,6 @@ from budget_planner.repositories import (
 from budget_planner.services import (
     recurring as recurring_svc,
     recurring_formula as formula_svc,
-    recurring_undo,
 )
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db
@@ -392,148 +390,6 @@ async def create_rule(
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
     refresh_unless_on(request, html, "/ledger")
     return html
-
-
-# ---------------------------------------------------------------------------
-# T-R45 — Batch promote-due (ADR-0056 §6, ADR-0038). Registered BEFORE
-# `/{rule_id}` for the same reason as formula/preview.
-# ---------------------------------------------------------------------------
-def _hx_trigger_payload(payload: dict[str, Any]) -> str:
-    """JSON-serialise an HX-Trigger payload mapping event names → data."""
-    return json.dumps(payload)
-
-
-@router.post("/batch/promote-due", response_class=HTMLResponse)
-def recurring_batch_promote_due(
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """Promote every active rule with ``next_due <= today`` in one transaction.
-
-    Returns a 204 with an HX-Trigger carrying the toast + the lists of
-    created transaction ids + advanced rule ids so the frontend can wire
-    the Undo button to :func:`recurring_batch_undo`.
-    """
-    today = dt.date.today()  # noqa: DTZ011
-    try:
-        result = recurring_svc.batch_promote_due(conn, user_id, today)
-    except (
-        recurring_svc.CannotPromoteSkippedError,
-        recurring_svc.InactiveRecurringError,
-        UnsupportedDirectionError,
-        ValidationError,
-    ) as exc:
-        return Response(status_code=422, content=str(exc))
-    resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {
-                "variant": "success",
-                "message": (
-                    f"Promoted {len(result.promoted_txn_ids)} recurring row(s)"
-                    f" (skipped {len(result.skipped_rule_ids)})"
-                ),
-                "undo_url": "/recurring/batch/undo",
-                "undo_payload": {
-                    "promoted_txn_ids": list(result.promoted_txn_ids),
-                    "advance_audit_ids": list(result.advance_audit_ids),
-                },
-            },
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "budget-stale": True,
-            "today-stale": True,
-        }
-    )
-    return resp
-
-
-@router.post("/batch/undo", response_class=HTMLResponse)
-async def recurring_batch_undo(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """Reverse a prior batch recurring promote.
-
-    Expects form fields ``promoted_txn_ids`` and ``advance_audit_ids`` (CSV of
-    ints, parallel). Audited action (ADR-0019 amendment, T-Q228): each rule is
-    restored from the audit row its advance wrote, only if unchanged since.
-    """
-    form = await request.form()
-    try:
-        txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
-        audit_ids = [int(v) for v in str(form.get("advance_audit_ids", "")).split(",") if v]
-    except ValueError:
-        return Response(status_code=422, content="invalid id list")
-    if len(txn_ids) != len(audit_ids):
-        return Response(status_code=422, content="id lists differ in length")
-
-    result = recurring_undo.undo_batch(conn, user_id, list(zip(txn_ids, audit_ids, strict=True)))
-    message = "Undone"
-    if result.skipped_rule_ids:
-        message = f"Undone ({len(result.skipped_rule_ids)} rule(s) changed since, left as is)"
-    resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {"variant": "info", "message": message},
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "budget-stale": True,
-            "today-stale": True,
-        }
-    )
-    return resp
-
-
-# ---------------------------------------------------------------------------
-# T-R41 — Formula preview (ADR-0056 §4). Registered BEFORE `/{rule_id}` so
-# FastAPI's int-path validator does not swallow the literal `formula` segment.
-# ---------------------------------------------------------------------------
-@router.post("/formula/preview", response_class=HTMLResponse)
-async def formula_preview(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    """Return the live-preview chip or inline error for a draft formula.
-
-    No DB write; shares the save-path primitives via
-    ``services.recurring_formula.preview``. Accepts the same
-    ``terms[i][field]`` form shape as the create / update routes.
-    """
-    form = await request.form()
-    draft_rule_id_raw = str(form.get("draft_rule_id", ""))
-    draft_rule_id: int | None = None
-    if draft_rule_id_raw:
-        parsed = _parse_int(draft_rule_id_raw)
-        if parsed is None:
-            return Response(status_code=422, content="invalid draft_rule_id")
-        draft_rule_id = parsed
-    term_inputs = _parse_terms_from_form(form)
-    drafts: list[formula_svc.DraftTerm] = []
-    for row in term_inputs:
-        try:
-            cat_ids = tuple(int(v) for v in row.get("source_category_ids", ()))
-        except (TypeError, ValueError):
-            return Response(status_code=422, content="invalid source_category_ids")
-        drafts.append(
-            formula_svc.DraftTerm(
-                sign=str(row.get("sign", "+")),
-                coefficient_percent=str(row.get("coefficient_percent", "")),
-                source_category_ids=cat_ids,
-            )
-        )
-    today = dt.date.today()  # noqa: DTZ011 — date-only anchor
-    result = formula_svc.preview(conn, user_id, today, draft_rule_id, drafts)
-    status = 200 if isinstance(result, formula_svc.PreviewOk) else 422
-    return render(
-        request,
-        "partials/recurring/_formula_preview.html",
-        result=result,
-        is_ok=isinstance(result, formula_svc.PreviewOk),
-        status_code=status,
-    )
 
 
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)

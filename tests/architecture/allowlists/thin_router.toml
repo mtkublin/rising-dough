@@ -13,7 +13,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/accounts.py"
 rule = "logic-in-router"
-count = 11
+count = 10
 finding = "B-01"
 epic = "E09"
 
@@ -41,7 +41,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/budget.py"
 rule = "logic-in-router"
-count = 6
+count = 5
 finding = "B-01"
 epic = "E09"
 
@@ -111,7 +111,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "helper-in-router"
-count = 5
+count = 4
 finding = "B-02"
 epic = "E08"
 

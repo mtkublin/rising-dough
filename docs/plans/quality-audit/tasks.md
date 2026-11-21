@@ -283,7 +283,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 1 — Before the first non-PLN account (FX and currency)
 
-### T-Q212 [S] Canonical FX converter (`FxConverter`), one missing-rate policy, working live fetch
+### ✅ T-Q212 [S] Canonical FX converter (`FxConverter`), one missing-rate policy, working live fetch
 - Findings: Q-007 (G-01, A-06, C-02, C-17, F-06): live fetch never succeeds (no `base_url`), four converter copies with five missing-rate policies, network I/O during page renders.
 - Epic: E01, E06
 - Band: 1 · Size: L · Tags: `[pre-v4-P3]` `[pre-first-non-PLN]`
@@ -768,7 +768,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 5 — Medium: correctness, security, CI, docs, tests
 
-### T-Q230 [S] Account archive refuses or cascades when references exist
+### ✅ T-Q230 [S] Account archive refuses or cascades when references exist
 - Findings: Q-026 (C-05).
 - Epic: none (scoping-gap)
 - Band: 5 · Size: M · Tags: none
@@ -790,7 +790,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q235 [P] Bound work per request
+### ✅ T-Q235 [P] Bound work per request
 - Findings: Q-035 (C-12, D-04, D-05).
 - Epic: none (security-control)
 - Band: 5 · Size: M · Tags: none
@@ -835,7 +835,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q244 [P] Remove or re-wire routes without a caller
+### ✅ T-Q244 [P] Remove or re-wire routes without a caller
 - Findings: Q-050 (G-13).
 - Epic: none (dead-code)
 - Band: 5 · Size: S · Tags: none
@@ -912,7 +912,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q252 [P] Plan page and `monthly_projection` get tests; `format_money` zero
+### ✅ T-Q252 [P] Plan page and `monthly_projection` get tests; `format_money` zero
 - Findings: Q-021 (F-13), Q-022 (F-01).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -993,7 +993,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q259 [P] Test hygiene
+### ✅ T-Q259 [P] Test hygiene
 - Findings: Q-077 (F-23, F-24, F-25, F-26).
 - Epic: none (test-gap)
 - Band: 6 · Size: S · Tags: none

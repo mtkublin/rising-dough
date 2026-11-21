@@ -13,9 +13,8 @@ from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
-from budget_planner.services import balance, forecast, fortune
+from budget_planner.services import balance, forecast, fortune, fx
 from budget_planner.web import today_data
-from tests.integration.invariants.conftest import offline_http
 
 U = 1
 ORACLE = """
@@ -45,16 +44,9 @@ def derived_matches_oracle(conn: sqlite3.Connection, today: date) -> bool:
 def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
     s = get_settings()
     fortune_result = fortune.compute_fortune(conn, U, s)
-    _, _, fortune_base = today_data.collect_account_rows(conn, U, s.base_currency)
-    series = forecast.forecast(
-        conn,
-        U,
-        http=offline_http(),
-        today=today,
-        horizon_days=0,
-        base_currency=s.base_currency,
-        include_budget_overlay=False,
-    )
+    converter = fx.converter_for(conn, s, today)
+    _, _, fortune_base = today_data.collect_account_rows(conn, U, converter)
+    series = forecast.forecast(conn, U, converter, today, 0, include_budget_overlay=False)
     return {
         "fortune.net_base": fortune_result.net_base,
         "today_data.fortune_base": fortune_base,

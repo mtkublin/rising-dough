@@ -4,27 +4,6 @@
 
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterator
-from pathlib import Path
-
-import pytest
-
-from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
-from tests.db_template import sqlite_url
-
-
-@pytest.fixture
-def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
-    settings = Settings(_env_file=None, database_url=sqlite_url(migrated_db))
-    c = get_connection(settings)
-    try:
-        yield c
-    finally:
-        c.close()
-
-
 # --- S3 (ADR-0130): two-user and tombstone worlds for the user-isolation registry ---------------------------------
 #
 # ``world_with_two_users`` seeds users 1 (the owner) and 2 (the other) with disjoint, fully deterministic data, and
@@ -32,24 +11,26 @@ def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
 # "user 2 and dead rows must never leak into user 1's numbers" builds on these two fixtures (T-Q221, Q-015). To extend:
 # add the new row to ``_seed_user`` (and an id to ``OwnedRows``) or to ``world_with_tombstones`` (and ``Tombstones``),
 # keep every amount a pure function of the user id, and never read the clock: ids and dates are pinned below.
+import datetime as _dt
+import sqlite3
+from dataclasses import dataclass
 
-import datetime as _dt  # noqa: E402
-from dataclasses import dataclass  # noqa: E402
+import pytest
 
-from budget_planner.domain.accounts import NewAccount  # noqa: E402
-from budget_planner.domain.budgets import NewBudgetDefault  # noqa: E402
-from budget_planner.domain.categories import NewCategory  # noqa: E402
-from budget_planner.domain.enums import Cadence, Direction  # noqa: E402
-from budget_planner.domain.planned import NewPlannedTransaction  # noqa: E402
-from budget_planner.domain.recurring import (  # noqa: E402
+from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.budgets import NewBudgetDefault
+from budget_planner.domain.categories import NewCategory
+from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.planned import NewPlannedTransaction
+from budget_planner.domain.recurring import (
     AmountFormula,
     FormulaTerm,
     NewRecurringRule,
     PatchRecurringRule,
     RecurringRule,
 )
-from budget_planner.domain.transactions import NewTransaction  # noqa: E402
-from budget_planner.repositories import (  # noqa: E402
+from budget_planner.domain.transactions import NewTransaction
+from budget_planner.repositories import (
     accounts as _accounts_repo,
     budgets as _budgets_repo,
     categories as _categories_repo,
@@ -57,8 +38,8 @@ from budget_planner.repositories import (  # noqa: E402
     recurring as _recurring_repo,
     transactions as _transactions_repo,
 )
-from budget_planner.repositories._unaudited import set_next_due  # noqa: E402
-from budget_planner.services import preferences as _preferences_svc  # noqa: E402
+from budget_planner.repositories._unaudited import set_next_due
+from budget_planner.services import preferences as _preferences_svc
 
 WORLD_DAY = _dt.date(2026, 11, 10)  # the day of each user's transaction
 WORLD_TODAY = _dt.date(2026, 11, 12)  # the "today" every money-service case injects

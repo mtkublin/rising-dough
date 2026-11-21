@@ -61,68 +61,55 @@ from budget_planner.services import (
 logger = logging.getLogger(__name__)
 
 
-def base_amount_converter(
+def _currency_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, str]:
+    return {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+
+
+def planned_base_amounts(
     conn: sqlite3.Connection,
     user_id: int,
     *,
     today: dt.date | None = None,
     base_currency: str | None = None,
 ) -> Callable[[int, int], int]:
-    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095).
+    """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095, ADR-0139).
 
     Planned / recurring items are future-dated, so the rate is the latest
     cached one on or before ``today`` (never the item's date, never the
-    network). Base-currency accounts are untouched. A missing rate degrades to
-    the native amount (rate 1) with a warning, like the Today account rows.
+    network). Base-currency accounts are untouched. A missing rate raises
+    ``FxUnavailableError``; there is no native-amount fallback.
     """
     ref = today if today is not None else dt.date.today()  # noqa: DTZ011 — ADR-0007
-    base = base_currency or get_settings().base_currency
-    ccy_by_account = {
-        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
-    }
+    fx = fx_svc.converter_for(conn, get_settings(), ref, base_currency=base_currency)
+    ccy_by_account = _currency_by_account(conn, user_id)
 
-    def _convert(account_id: int, amount_minor: int) -> int:
-        ccy = ccy_by_account.get(account_id, base)
-        if ccy == base:
-            return amount_minor
-        try:
-            return fx_svc.convert_cached(conn, amount_minor, ref, ccy, base)
-        except fx_svc.FxUnavailableError:
-            logger.warning("no FX rate %s->%s; committed uses native amount", ccy, base)
-            return amount_minor
+    def _base_of(account_id: int, amount_minor: int) -> int:
+        return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
 
-    return _convert
+    return _base_of
 
 
-def base_txn_converter(
+def txn_base_amounts(
     conn: sqlite3.Connection,
     user_id: int,
     *,
+    today: dt.date,
     base_currency: str | None = None,
 ) -> Callable[[Transaction], int]:
-    """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095).
+    """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095, ADR-0139).
 
     Per ADR-0006 aggregates use historical rates: each transaction converts at
     the latest cached rate on or before its own ``operation_date`` (cache only,
-    no network). Base-currency accounts short-circuit with no lookup. A missing
-    rate degrades to the native amount with a warning.
+    no network). A missing rate raises ``FxUnavailableError``.
     """
-    base = base_currency or get_settings().base_currency
-    ccy_by_account = {
-        a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)
-    }
+    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
+    ccy_by_account = _currency_by_account(conn, user_id)
 
-    def _convert(txn: Transaction) -> int:
-        ccy = ccy_by_account.get(txn.account_id, base)
-        if ccy == base:
-            return txn.amount
-        try:
-            return fx_svc.convert_cached(conn, txn.amount, txn.operation_date, ccy, base)
-        except fx_svc.FxUnavailableError:
-            logger.warning("no FX rate %s->%s; spent uses native amount", ccy, base)
-            return txn.amount
+    def _base_of(txn: Transaction) -> int:
+        ccy = ccy_by_account.get(txn.account_id, fx.base_currency)
+        return fx.to_base(txn.amount, ccy, txn.operation_date)
 
-    return _convert
+    return _base_of
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,11 +204,11 @@ def _expense_txns_in_range(
 
 
 def _sum_by_category(
-    txns: list[Transaction], to_base: Callable[[Transaction], int]
+    txns: list[Transaction], base_of: Callable[[Transaction], int]
 ) -> dict[int, int]:
     out: dict[int, int] = defaultdict(int)
     for t in txns:
-        out[t.category_id] += to_base(t)
+        out[t.category_id] += base_of(t)
     return dict(out)
 
 
@@ -266,7 +253,7 @@ def committed_by_category(
     out: dict[int, int] = defaultdict(int)
     if start is not None and end <= start:
         return out
-    to_base = base_amount_converter(conn, user_id, today=today, base_currency=base_currency)
+    base_of = planned_base_amounts(conn, user_id, today=today, base_currency=base_currency)
 
     expense_ids = {
         cat.id
@@ -287,7 +274,7 @@ def committed_by_category(
         ),
     )
     for row in planned_rows:
-        out[row.category_id] += to_base(row.account_id, row.amount)
+        out[row.category_id] += base_of(row.account_id, row.amount)
 
     # Clamp the window to [max(rule.next_due, start), end): earlier occurrences are
     # promoted (counted in ``spent``) or historical no-ops; the cadence never shifts.
@@ -302,7 +289,7 @@ def committed_by_category(
             conn, user_id, rule=rule, overrides=overrides, range_start=lo, range_end=inclusive_end
         )
         out[rule.category_id] += sum(
-            to_base(occ.account_id, occ.amount)
+            base_of(occ.account_id, occ.amount)
             for occ in occurrences
             if (rule.id, occ.occurrence_date) not in dedup_keys
         )
@@ -519,11 +506,11 @@ def month_summary(  # noqa: PLR0915
     year_txns = _expense_txns_in_range(conn, user_id, year_start, year_end)
     all_txns = _all_expense_txns(conn, user_id)
 
-    txn_to_base = base_txn_converter(conn, user_id)
-    spent_this = _sum_by_category(this_txns, txn_to_base)
-    spent_prev = _sum_by_category(prev_txns, txn_to_base)
-    year_sums = _sum_by_category(year_txns, txn_to_base)
-    overall_sum = _sum_by_category(all_txns, txn_to_base)
+    txn_base = txn_base_amounts(conn, user_id, today=today)
+    spent_this = _sum_by_category(this_txns, txn_base)
+    spent_prev = _sum_by_category(prev_txns, txn_base)
+    year_sums = _sum_by_category(year_txns, txn_base)
+    overall_sum = _sum_by_category(all_txns, txn_base)
     overall_mo = _active_month_counts(all_txns)
 
     elapsed_in_year = month if year_txns else max(month, 1)

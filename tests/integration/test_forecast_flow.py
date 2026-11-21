@@ -12,25 +12,22 @@ from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
-import httpx
 import pytest
 
+from budget_planner.config import Settings
 from budget_planner.domain.enums import Cadence
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.planned import PatchPlannedTransaction
 from budget_planner.repositories import fx as fx_repo, planned as planned_repo
-from budget_planner.services import forecast as forecast_service
+from budget_planner.services import forecast as forecast_service, fx as fx_service
 
 USER_ID = 1
 
 pytestmark = pytest.mark.integration
 
 
-def _offline_client() -> httpx.Client:
-    def _handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("offline", request=request)
-
-    return httpx.Client(transport=httpx.MockTransport(_handler))
+def _fx(conn: sqlite3.Connection, today: date) -> fx_service.FxConverter:
+    return fx_service.converter_for(conn, Settings(_env_file=None), today)
 
 
 def test_forecast_is_deterministic_same_inputs_same_output(
@@ -56,12 +53,11 @@ def test_forecast_is_deterministic_same_inputs_same_output(
         amount=10000,
     )
 
-    client = _offline_client()
     first = forecast_service.forecast(
-        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
     )
     second = forecast_service.forecast(
-        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
     )
     assert first == second
 
@@ -85,10 +81,9 @@ def test_forecast_converts_cross_currency_to_base(
     series = forecast_service.forecast(
         conn,
         USER_ID,
-        http=_offline_client(),
+        _fx(conn, date(2026, 1, 1)),
         today=date(2026, 1, 1),
         horizon_days=0,
-        base_currency="PLN",
     )
 
     # 100.00 EUR @ 4.30 → 430.00 PLN = 43000 minor.
@@ -110,14 +105,13 @@ def test_editing_a_planned_row_changes_forecast_output(
         amount=5000,
         operation_date=date(2026, 1, 20),
     )
-    client = _offline_client()
     before = forecast_service.forecast(
-        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
     )
 
     planned_repo.update(conn, USER_ID, planned_id, PatchPlannedTransaction(amount=9000))
 
     after = forecast_service.forecast(
-        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
     )
     assert before != after

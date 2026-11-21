@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
+from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import to_minor_units
 from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.repositories import (
@@ -130,25 +131,6 @@ def index(
     return render(request, "accounts/index.html", **data)
 
 
-@router.get("/last-checked", response_class=HTMLResponse)
-def last_checked(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """ADR-0056 §6 — latest snapshot or reconcile date per account.
-
-    Powers the Accounts table "last checked" column + any inline
-    freshness indicator. Pure read; no DB write.
-    """
-    rows = accounts_service.last_checked(conn, user_id)
-    return render(
-        request,
-        "partials/accounts/_last_checked.html",
-        rows=rows,
-    )
-
-
 @router.get("/new", response_class=HTMLResponse)
 def new_form(request: Request) -> HTMLResponse:
     # ADR-0030 §4 — wrap in shared slide-over so the New-account form inherits
@@ -204,8 +186,8 @@ def create_account(  # noqa: PLR0917
     except InvalidOperation:
         errors["opening_balance"] = "invalid number"
         opening_dec = Decimal(0)
-    if not name.strip():
-        errors["name"] = "name required"
+    if (bad_name := name_error(name)) is not None:
+        errors["name"] = bad_name
     liability = _parse_liability(is_liability)
     credit_limit_minor: int | None = None
     if liability and not errors.get("currency"):
@@ -297,13 +279,13 @@ def update_account(  # noqa: PLR0917
             errors={"account": "not found"},
             status_code=404,
         )
-    if not name.strip():
+    if (bad_name := name_error(name)) is not None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=acc,
             action=f"/accounts/{account_id}",
-            errors={"name": "name required"},
+            errors={"name": bad_name},
             status_code=422,
         )
     liability = _parse_liability(is_liability)
@@ -351,7 +333,7 @@ def delete_account(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    accounts_repo.soft_delete(conn, user_id, account_id)
+    accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type="text/html")
     resp.headers["HX-Trigger"] = json.dumps(
         {

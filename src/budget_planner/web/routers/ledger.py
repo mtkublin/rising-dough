@@ -15,7 +15,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.limits import PAGE_SIZE_MAX
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
@@ -38,7 +40,6 @@ from budget_planner.web.rendering import render
 router = APIRouter(prefix="/ledger", tags=["ledger"])
 
 _PAGE_SIZE_DEFAULT = 50
-_PAGE_SIZE_MAX = 500
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -66,7 +67,7 @@ def parse_filters(request: Request) -> LedgerFilters:
     category_id = _parse_int(q.get("category_id"))
     page = max(1, _parse_int(q.get("page")) or 1)
     size = _parse_int(q.get("page_size")) or _PAGE_SIZE_DEFAULT
-    size = max(1, min(size, _PAGE_SIZE_MAX))
+    size = max(1, min(size, PAGE_SIZE_MAX))
     description = q.get("q") or None
     return LedgerFilters(
         date_from=_parse_date(q.get("date_from")),
@@ -252,7 +253,7 @@ def _actual_rows(
 
 
 def _actual_day_nets(
-    conn: sqlite3.Connection, base_ccy: str, rows: list[dict[str, Any]]
+    conn: sqlite3.Connection, settings: Settings, rows: list[dict[str, Any]]
 ) -> dict[str, int | None]:
     """Per-day net (base-currency minor units, ISO-date keys) for the Actual view.
 
@@ -269,15 +270,17 @@ def _actual_day_nets(
         for r in rows
     ]
     result: dict[str, int | None] = {}
+    # Cached rates only (ADR-0139): rendering never touches the network. Each row
+    # converts at its own day's rate; the reference day is the newest one shown.
+    fx = fx_service.converter_for(conn, settings, max((i[0] for i in items), default=date.min))
 
-    def convert(amount: int, day: date, ccy: str) -> int:
-        # Cached rates only: rendering must never block on the network.
-        return fx_service.convert_cached(conn, amount, day, ccy, base_ccy)
+    def base_of(amount: int, day: date, ccy: str) -> int:
+        return fx.to_base(amount, ccy, day)
 
     for day in {i[0] for i in items}:
         day_items = [i for i in items if i[0] == day]
         try:
-            result[day.isoformat()] = ledger_totals.day_nets(day_items, convert)[day]
+            result[day.isoformat()] = ledger_totals.day_nets(day_items, base_of)[day]
         except fx_service.FxUnavailableError:
             result[day.isoformat()] = None
     return result
@@ -321,11 +324,7 @@ def _render_table(
     categories_by_id = {
         c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
-    day_nets = (
-        _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
-        if view == "actual"
-        else {}
-    )
+    day_nets = _actual_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
     return render(
         request,
         "ledger/_table.html",
@@ -345,9 +344,7 @@ def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
     active recurring. Keeps logic in one place so the shell + fragments
     always display the same number.
     """
-    actual_total = len(
-        transactions_repo.list_filtered(conn, user_id, TransactionFilter(limit=None, offset=0))
-    )
+    actual_total = transactions_repo.count_filtered(conn, user_id)
     planned_pending = len(planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False)))
     recurring_active = len(recurring_repo.list_rules(conn, user_id, active_only=True))
     return {
@@ -384,9 +381,7 @@ def index(
         views=view_kinds(),
         rows=rows,
         day_nets=(
-            _actual_day_nets(conn, get_settings_dep(request).base_currency, rows)
-            if view == "actual"
-            else {}
+            _actual_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
         ),
         filters=filters,
         categories=categories_repo.list_all(conn, user_id),

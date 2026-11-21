@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.limits import name_error
 from budget_planner.repositories import categories as categories_repo
 from budget_planner.services import categories as categories_service
 from budget_planner.web.deps import current_user_id, get_db
@@ -89,8 +90,8 @@ def create_category(  # noqa: PLR0917
     d = _validate_direction(direction)
     if d is None:
         errors["direction"] = "invalid direction"
-    if not name.strip():
-        errors["name"] = "name required"
+    if (bad_name := name_error(name)) is not None:
+        errors["name"] = bad_name
     resolved_color: str | None = None
     try:
         resolved_color, _ = _resolve_color_form(color, clear_color)
@@ -167,8 +168,8 @@ def update_category(  # noqa: PLR0917
             status_code=404,
         )
     errors: dict[str, str] = {}
-    if not name.strip():
-        errors["name"] = "name required"
+    if (bad_name := name_error(name)) is not None:
+        errors["name"] = bad_name
     resolved_color: str | None = None
     clear_requested = False
     try:
