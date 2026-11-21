@@ -16,21 +16,12 @@ GUARD = "read_filters"
 TEACH = "G24 read filters: add the deleted_at / user_id predicate or an explicit include_deleted flag, and mutate audited tables only through repositories._shared helpers (ADR-0019, ADR-0022; Q-025, epic E10)."
 
 
-# The sanctioned home of audit-free UPDATEs (ADR-0022 amendment 2026-11-21, T-Q228): importable
-# only by services/recurring.py (test_unaudited_imports.py), which writes the paired audit row.
-UNAUDITED_HOME = "src/budget_planner/repositories/_unaudited.py"
-
-
 def collect() -> list[Violation]:
     return violations_from_rows(
         rows("p06-read-filters"), rules=lambda r: r in {"read-no-softdelete", "read-no-user-filter"}
-    ) + [
-        v
-        for v in violations_from_rows(
-            rows("p06-unaudited-mutations"), rules=lambda r: r == "mutation-unaudited"
-        )
-        if v.path != UNAUDITED_HOME
-    ]
+    ) + violations_from_rows(
+        rows("p06-unaudited-mutations"), rules=lambda r: r == "mutation-unaudited"
+    )
 
 
 def test_read_filters_matches_allowlist() -> None:

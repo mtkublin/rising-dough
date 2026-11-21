@@ -24,6 +24,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
+from budget_planner.repositories._unaudited import set_inactive
 from budget_planner.services import recurring_formula as formula_svc
 from budget_planner.services.recurring_formula import (
     DraftTerm,
@@ -444,7 +445,7 @@ class TestValidateFormulaSources:
         self, conn: sqlite3.Connection, world_with_two_users: World
     ) -> None:
         _cat_x, cat_y, rx, ry = self._chain(conn, world_with_two_users)
-        recurring_repo.set_inactive(conn, OWNER_ID, ry)
+        set_inactive(conn, OWNER_ID, ry)
         validate_formula_sources(conn, OWNER_ID, _f(("+", 1000, (cat_y,))), exclude_rule_id=rx)
 
     def test_other_users_rules_are_not_followed(
