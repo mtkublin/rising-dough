@@ -7,17 +7,14 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 
 import pytest
 
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.fx import NewFxRate
+from budget_planner.domain.money import currency_decimals
 from budget_planner.domain.transactions import Transaction
-from budget_planner.repositories import fx as fx_repo
 from budget_planner.services import account_planned, balance, forecast, fx, ledger_totals
-from budget_planner.web import today_data
-from tests.integration.invariants.conftest import offline_http
 
 
 def _transit_txn() -> Transaction:
@@ -64,24 +61,26 @@ def test_4a_adjustment_is_counted_by_balance_and_skipped_by_forecast() -> None:
     )
 
 
-def test_4b_four_fx_arithmetic_copies_agree(seeded: sqlite3.Connection) -> None:
+def test_4b_one_fx_arithmetic_copy(seeded: sqlite3.Connection) -> None:
+    """Q-007 / ADR-0139: the converter is the only FX arithmetic; it matches an independent computation."""
     day = date(2026, 11, 1)
     grid = (
         ("EUR", "PLN", Decimal("4.2655")),
         ("JPY", "PLN", Decimal("0.0275")),
         ("PLN", "JPY", Decimal("36.3636")),
     )
+    wrong = []
     for src, dst, rate in grid:
-        fx_repo.upsert_rate(seeded, NewFxRate(date=day, from_ccy=src, to_ccy=dst, rate=rate))
-    divergent = []
-    for src, dst, rate in grid:
+        converter = fx.build_converter(dst, day, [(src, day, rate)])
         for amount in [*range(-300, 301, 7), 1, 5, 50, 12345, 99_999_999]:
-            results = {
-                fx.convert(seeded, offline_http(), amount, day, src, dst),
-                fx.convert_cached(seeded, amount, day, src, dst),
-                forecast._convert_native_to_base(amount, src, dst, {src: rate}),
-                today_data._convert_minor(amount, src, dst, rate),
-            }
-            if len(results) != 1:
-                divergent.append((src, dst, amount, results))
-    assert not divergent, divergent[:5]
+            expected = int(
+                (
+                    Decimal(amount)
+                    / 10 ** currency_decimals(src)
+                    * rate
+                    * 10 ** currency_decimals(dst)
+                ).quantize(Decimal(1), rounding=ROUND_HALF_EVEN)
+            )
+            if converter.to_base(amount, src, day) != expected:
+                wrong.append((src, dst, amount))
+    assert not wrong, wrong[:5]
