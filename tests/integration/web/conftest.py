@@ -54,6 +54,8 @@ class _CSRFAwareTestClient(TestClient):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("base_url", "https://testserver")
+        # ADR-0133: only IP literals are accepted as the client address.
+        kwargs.setdefault("client", ("127.0.0.1", 50000))
         super().__init__(*args, **kwargs)
         # Priming GET — any safe route works; ``/healthz`` is cheap and
         # always registered. The response-cookie goes into the client's

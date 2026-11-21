@@ -137,3 +137,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0130 | [Prevention Regime and Full Architectural Compliance](0130-prevention-regime-and-full-architectural-compliance.md) (amends ADR-0007, ADR-0021, ADR-0022, ADR-0066, ADR-0120; relates to ADR-0120, ADR-0097, ADR-0108, ADR-0099, ADR-0107, ADR-0131) |
 | 0131 | [Mutation Testing Policy](0131-mutation-testing-policy.md) (relates to ADR-0130, ADR-0120, ADR-0108) |
 | 0132 | [CI Environments Are Split by Data Sensitivity; Prod Replica Read Material Lives in One Gated Environment](0132-ci-environments-split-by-data-sensitivity.md) (amends ADR-0099, ADR-0100; relates to ADR-0101, ADR-0093, ADR-0104, ADR-0111, ADR-0121, ADR-0130) |
+| 0133 | [Proxy-Set Client Identity and Bounded Auth Audit Text](0133-proxy-set-client-identity-and-bounded-auth-audit-text.md) (amends ADR-0072; relates to ADR-0032, ADR-0036) |

@@ -22,6 +22,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from budget_planner.config import Settings
+from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import rate_limit as rate_limit_repo
 from budget_planner.repositories._shared import transaction, write_audit
@@ -203,5 +204,5 @@ def reauth_rules(settings: Settings) -> tuple[RateRule, ...]:
 
 
 def normalise_email(email: str) -> str:
-    """Case-fold + trim so ``A@x`` and ``a@x `` share one counter."""
-    return email.strip().lower()
+    """Case-fold + trim so ``A@x`` and ``a@x `` share one counter (bounded, ADR-0133 §3)."""
+    return email.strip().lower()[:EMAIL_MAX_LENGTH]

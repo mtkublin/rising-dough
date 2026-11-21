@@ -90,7 +90,7 @@ def _build_app_with_stub(settings: Settings) -> TestClient:
         return {"ok": 1}
 
     app.post("/_t_d14/stub")(_stub)
-    return TestClient(app, base_url="https://testserver")
+    return TestClient(app, base_url="https://testserver", client=("127.0.0.1", 50000))
 
 
 def _fetch_latest_audit_row(settings: Settings, entity_type: str) -> dict[str, object | None]:
@@ -117,7 +117,7 @@ def _fetch_latest_audit_row(settings: Settings, entity_type: str) -> dict[str, o
 def test_post_mutation_persists_request_ctx(ctx_settings: Settings) -> None:
     """A POST through FastAPI threads IP + UA into ``audit_log``.
 
-    TestClient's ASGI transport reports the client as ``testclient`` at
+    TestClient's ASGI transport reports the client as ``127.0.0.1`` (conftest, ADR-0133) at
     ``127.0.0.1`` by default. Both must survive the trip to the DB. The
     custom user-agent header overrides httpx's default so we can assert
     on a value this test is in control of.
