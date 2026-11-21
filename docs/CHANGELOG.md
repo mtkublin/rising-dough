@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q253: session and passkey hardening)
+- **Fix(T-Q253): passkey challenges single-use, passkey revoke ends its sessions, no stale cookie from in-flight responses (ADR-0067 amendment, Q-062; OQ-26 defaults pending confirmation).** Migration `0018_passkey_challenges_and_session_credential.sql` adds `passkey_challenges_consumed` and `sessions.credential_id`. CSRF token binding (H3-08) deliberately not changed, recorded in the ADR. No allowlist entry touched.
+
 ## 2026-11-21 (T-Q217: reconcile category must agree with the delta sign)
 - **Fix(T-Q217): reconcile with an income or expense category can no longer misstate the balance (ADR-0008 amendment, Q-005).** `reconcile` now accepts only `adjustment`, `income` with `delta > 0` or `expense` with `delta < 0`; otherwise `CategoryDirectionMismatchError` (a `ValidationError`) is raised inside the transaction before the insert and the existing router mapping returns 422 on the reconcile modal. The docstring's coercion promise is removed. Tests: `tests/unit/services/test_reconciliation.py`, `tests/integration/web/test_reconcile_category_direction.py`. No allowlist entry touched.
 

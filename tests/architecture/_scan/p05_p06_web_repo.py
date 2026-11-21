@@ -232,6 +232,7 @@ def p06() -> None:
     audit_ok_tables = {
         "sessions",
         "auth_rate_limit",
+        "passkey_challenges_consumed",
         "user_preferences",
         "audit_log",
         "schema_meta",
