@@ -440,7 +440,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `template_logic`:42 (42 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/template_logic.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q241 [S] CRUD service layer per entity
+### ✅ T-Q241 [S] CRUD service layer per entity
 - Findings: Q-045 (B-04).
 - Epic: E08
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`
@@ -450,6 +450,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Operator question blocking it: OQ-12.
 - Final-backlog note: Owns the 13 `layering.toml` `routers-not-repositories` entries (36 violations); T-Q265 to T-Q267 own the router thinning that follows.
 - Removes allowlist entries: `layering`:36 (13 entries)
+- Outcome (2026-11-21): ADR-0142; entity services expose the router-facing CRUD (plain bindings over the repository helpers, new `services/budget_overrides.py`); all 12 routers stop importing `repositories`; `test_routers_no_repositories.py` (no allowlist); 13 `layering` entries and their `ignore_imports` deleted; `thin_router` logic-in-router counts lowered, helper-in-router raised by reclassification (ADR-0130 amendment).
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q243 [S] Break the recurring import cycle; keyword-only service signatures

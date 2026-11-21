@@ -611,6 +611,18 @@ def linked_occurrence_keys(
     )
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+find_rule = recurring_repo.find_rule
+list_rules = recurring_repo.list_rules
+list_overrides = recurring_repo.list_overrides
+create_rule = recurring_repo.create_rule
+update_rule = recurring_repo.update_rule
+deactivate_rule = recurring_repo.deactivate_rule
+upsert_override = recurring_repo.upsert_override
+delete_override = recurring_repo.delete_override
+
+
 __all__ = [
     "BatchPromoteResult",
     "CannotPromoteSkippedError",
@@ -621,11 +633,17 @@ __all__ = [
     "advance_next_due",
     "apply_overrides",
     "batch_promote_due",
+    "create_rule",
+    "deactivate_rule",
     "default_day_of_month",
+    "delete_override",
     "expand",
+    "find_rule",
     "first_due_on_or_after",
     "generate_occurrences",
     "linked_occurrence_keys",
+    "list_overrides",
+    "list_rules",
     "occurrence_in_month",
     "pending_occurrences",
     "promote_recurring",
@@ -633,5 +651,7 @@ __all__ = [
     "restore_progress",
     "rt_expand",
     "skip_and_advance",
+    "update_rule",
+    "upsert_override",
     "with_anchor_day",
 ]

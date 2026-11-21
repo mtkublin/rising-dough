@@ -22,11 +22,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories import (
-    categories as categories_repo,
-    fx as fx_repo,
+from budget_planner.services import (
+    categories as categories_service,
+    fx as fx_service,
+    preferences as preferences_svc,
 )
-from budget_planner.services import preferences as preferences_svc
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.rendering import render
 
@@ -59,7 +59,7 @@ def drawer(
     active_tab = _coerce_tab(tab)
     context: dict[str, Any] = {"active_tab": active_tab}
     if active_tab == "categories":
-        all_cats = categories_repo.list_all(conn, user_id)
+        all_cats = categories_service.list_all(conn, user_id)
         context["categories"] = all_cats
         # ADR-0056 §8 — grouped sections (Expense · Income · System).
         context["expense_categories"] = [
@@ -75,12 +75,12 @@ def drawer(
         ]
         context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn, user_id)
     elif active_tab == "fx":
-        context["fx_rates"] = fx_repo.list_recent(conn, limit=_FX_LIMIT)
+        context["fx_rates"] = fx_service.list_recent_rates(conn, limit=_FX_LIMIT)
     elif active_tab == "prefs":
         # ADR-0031 §1 — income anchor selector lives here now (was /budget §2b).
         context["income_categories"] = [
             c
-            for c in categories_repo.list_all(conn, user_id)
+            for c in categories_service.list_all(conn, user_id)
             if c.direction is Direction.INCOME and c.deleted_at is None
         ]
         context["current_anchor_id"] = preferences_svc.get_income_anchor_category_id(conn, user_id)

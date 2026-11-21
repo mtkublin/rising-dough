@@ -29,9 +29,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import users as users_service
-from budget_planner.services.users import UserConflict, UserInputError, UserNotFound
+from budget_planner.services.users import AuthUser, UserConflict, UserInputError, UserNotFound
 from budget_planner.web.deps import current_user, get_db, get_request_ctx, require_recent_auth
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render
