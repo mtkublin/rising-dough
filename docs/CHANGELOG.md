@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q217: reconcile category must agree with the delta sign)
+- **Fix(T-Q217): reconcile with an income or expense category can no longer misstate the balance (ADR-0008 amendment, Q-005).** `reconcile` now accepts only `adjustment`, `income` with `delta > 0` or `expense` with `delta < 0`; otherwise `CategoryDirectionMismatchError` (a `ValidationError`) is raised inside the transaction before the insert and the existing router mapping returns 422 on the reconcile modal. The docstring's coercion promise is removed. Tests: `tests/unit/services/test_reconciliation.py`, `tests/integration/web/test_reconcile_category_direction.py`. No allowlist entry touched.
+
 ## 2026-11-21 (T-Q246: task status reconciled with CHANGELOG and ADRs)
 - **Docs(T-Q246): reconcile task status (Q-054).** v1: T-108 and T-126 closed with commit evidence, T-109 stays open (dropped from backlog). v3: T-D146, T-D147, T-D159 closed; T-D126 and T-D156 stay ◐ with the open step named; T-D21 and T-D22 got commit evidence. `docs/plans/v2/tasks.md` closed as superseded by ADR-0107 with a banner (rows kept; default taken 2026-11-21, pending operator confirmation, OQ-21). T-CS03 (ci-speed plan) not touched, outside this item's files.
 

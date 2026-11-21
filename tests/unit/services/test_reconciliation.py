@@ -17,6 +17,7 @@ from budget_planner.services import balance, reconciliation
 from budget_planner.services.reconciliation import (
     AccountNotFoundError,
     CannotReconcileDeletedAccountError,
+    CategoryDirectionMismatchError,
     MissingSystemCategoryError,
     NoAdjustmentNeededError,
 )
@@ -146,3 +147,64 @@ def test_rollback_on_failure(conn: sqlite3.Connection, seed: dict[str, int]) -> 
         reconciliation.reconcile(conn, USER_ID, seed["checking"], 140_000, _TODAY)
     after = len(transactions.list_filtered(conn, USER_ID, filters=TransactionFilter()))
     assert before == after
+
+
+def _category(conn: sqlite3.Connection, name: str, direction: Direction) -> int:
+    return categories.create(conn, USER_ID, NewCategory(name=name, direction=direction)).id
+
+
+def _count(conn: sqlite3.Connection) -> int:
+    return int(conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
+
+
+@pytest.mark.parametrize(
+    ("direction", "target"),
+    [
+        (Direction.EXPENSE, 150_000),  # delta > 0 with an expense category (Q-005 B1)
+        (Direction.INCOME, 50_000),  # delta < 0 with an income category (Q-005 B2)
+    ],
+)
+def test_category_contradicting_delta_is_rejected(
+    conn: sqlite3.Connection, seed: dict[str, int], direction: Direction, target: int
+) -> None:
+    cat = _category(conn, "Mismatch", direction)
+    before = _count(conn)
+    with pytest.raises(CategoryDirectionMismatchError):
+        reconciliation.reconcile(conn, USER_ID, seed["checking"], target, _TODAY, category_id=cat)
+    assert _count(conn) == before
+    assert balance.derive_balance(conn, USER_ID, seed["checking"]) == 130_000
+
+
+@pytest.mark.parametrize(
+    ("direction", "target", "amount"),
+    [
+        (Direction.INCOME, 150_000, 20_000),
+        (Direction.EXPENSE, 50_000, 80_000),
+    ],
+)
+def test_matching_category_reaches_typed_balance(
+    conn: sqlite3.Connection, seed: dict[str, int], direction: Direction, target: int, amount: int
+) -> None:
+    cat = _category(conn, "Match", direction)
+    txn = reconciliation.reconcile(conn, USER_ID, seed["checking"], target, _TODAY, category_id=cat)
+    assert txn.amount == amount
+    assert balance.derive_balance(conn, USER_ID, seed["checking"]) == target
+
+
+def test_other_users_rows_untouched_on_mismatch(
+    conn: sqlite3.Connection, seed: dict[str, int]
+) -> None:
+    other = conn.execute(
+        "INSERT INTO users (name, email, password_hash) VALUES ('O', 'o@example.com', 'x')"
+    ).lastrowid
+    assert other is not None
+    before = conn.execute(
+        "SELECT COUNT(*) FROM transactions WHERE user_id = ?", (other,)
+    ).fetchone()[0]
+    cat = _category(conn, "Mismatch", Direction.EXPENSE)
+    with pytest.raises(CategoryDirectionMismatchError):
+        reconciliation.reconcile(conn, USER_ID, seed["checking"], 150_000, _TODAY, category_id=cat)
+    after = conn.execute(
+        "SELECT COUNT(*) FROM transactions WHERE user_id = ?", (other,)
+    ).fetchone()[0]
+    assert after == before
