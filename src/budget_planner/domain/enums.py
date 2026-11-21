@@ -26,6 +26,15 @@ class Cadence(StrEnum):
     YEARLY = "yearly"
 
 
+def months_per_cadence(cadence: Cadence) -> int:
+    """Calendar months between two occurrences of ``cadence`` (the one mapping, ADR-0013)."""
+    if cadence is Cadence.QUARTERLY:
+        return 3
+    if cadence is Cadence.YEARLY:
+        return 12
+    return 1
+
+
 class OverrideState(StrEnum):
     """State of a sparse recurring-rule override. See ADR-0013."""
 

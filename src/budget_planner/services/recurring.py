@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from dateutil.relativedelta import relativedelta
 
-from budget_planner.domain.enums import Cadence, OverrideState
+from budget_planner.domain.enums import Cadence, OverrideState, months_per_cadence
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
@@ -35,12 +35,6 @@ from budget_planner.repositories import planned as planned_repo
 logger = logging.getLogger(__name__)
 
 _MAX_ITERATIONS = 10_000
-
-_STEP_MONTHS: dict[Cadence, int] = {
-    Cadence.MONTHLY: 1,
-    Cadence.QUARTERLY: 3,
-    Cadence.YEARLY: 12,
-}
 
 # Horizon used by ``first_due_on_or_after`` / ``advance_next_due`` when
 # computing the next canonical occurrence. 400 days safely covers monthly,
@@ -124,7 +118,7 @@ def generate_occurrences(
     if hard_end < hard_start:
         return ()
 
-    step_months = _STEP_MONTHS[rule.cadence]
+    step_months = months_per_cadence(rule.cadence)
     # Yearly rules honour an optional month_of_year by anchoring the first
     # occurrence to (month_of_year, day_of_month) on-or-after start_date.
     anchor_day = rule.day_of_month or rule.start_date.day

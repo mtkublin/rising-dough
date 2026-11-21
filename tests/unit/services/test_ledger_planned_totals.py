@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.services.ledger_totals import planned_totals, recurring_monthly_totals
 
@@ -13,7 +15,7 @@ def _planned(amount: int, direction: Direction | None, promoted: bool = False) -
     return {"amount_minor": amount, "category": cat, "is_promoted": promoted}
 
 
-def _rule(amount: int, cadence: Cadence | None, direction: Direction | None) -> dict[str, object]:
+def _rule(amount: int, cadence: Cadence, direction: Direction | None) -> dict[str, object]:
     cat = SimpleNamespace(direction=direction) if direction else None
     return {"effective_amount_minor": amount, "cadence": cadence, "category": cat}
 
@@ -52,7 +54,7 @@ def test_recurring_totals_route_by_direction_with_cadence_divisor() -> None:
         _rule(100000, Cadence.MONTHLY, Direction.EXPENSE),
         _rule(30000, Cadence.QUARTERLY, Direction.EXPENSE),
         _rule(120000, Cadence.YEARLY, Direction.INCOME),
-        _rule(400000, None, Direction.INCOME),
+        _rule(400000, Cadence.MONTHLY, Direction.INCOME),
         _rule(1, Cadence.MONTHLY, None),
     ]
     totals = recurring_monthly_totals(rows, "PLN")
@@ -60,3 +62,9 @@ def test_recurring_totals_route_by_direction_with_cadence_divisor() -> None:
     assert totals.monthly_in_minor == 410000
     assert totals.monthly_out_display == "1,100.00 PLN"
     assert totals.monthly_in_display == "4,100.00 PLN"
+
+
+def test_recurring_totals_reject_unknown_cadence() -> None:
+    row = {"effective_amount_minor": 1, "cadence": "weekly", "category": None}
+    with pytest.raises(ValueError, match="weekly"):
+        recurring_monthly_totals([row], "PLN")

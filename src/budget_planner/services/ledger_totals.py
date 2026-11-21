@@ -14,8 +14,8 @@ import datetime as dt
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
-from budget_planner.domain.enums import Cadence, Direction
-from budget_planner.domain.money import format_money
+from budget_planner.domain.enums import Cadence, Direction, months_per_cadence
+from budget_planner.domain.money import divide_minor_units, format_money
 
 # (amount_minor, operation_date, from_ccy) -> base-currency minor units
 Converter = Callable[[int, dt.date, str], int]
@@ -82,16 +82,6 @@ def _direction_of(row: Mapping[str, object]) -> Direction | None:
     return direction if isinstance(direction, Direction) else None
 
 
-def _monthly_equivalent(amount_minor: int, cadence: object) -> int:
-    match Cadence(str(cadence)) if cadence else Cadence.MONTHLY:
-        case Cadence.QUARTERLY:
-            return amount_minor // 3
-        case Cadence.YEARLY:
-            return amount_minor // 12
-        case _:
-            return amount_minor
-
-
 def recurring_monthly_totals(
     rows: Iterable[Mapping[str, object]], currency: str
 ) -> RecurringTotals:
@@ -105,10 +95,13 @@ def recurring_monthly_totals(
     monthly_in = 0
     monthly_out = 0
     for row in rows:
+        cadence = Cadence(str(row.get("cadence")))  # unknown or missing cadence raises
         direction = _direction_of(row)
         if direction is None:
             continue
-        amount = _monthly_equivalent(_int_field(row, "effective_amount_minor"), row.get("cadence"))
+        amount = divide_minor_units(
+            _int_field(row, "effective_amount_minor"), months_per_cadence(cadence)
+        )
         effect = signed_effect(amount, direction)
         if effect >= 0:
             monthly_in += effect

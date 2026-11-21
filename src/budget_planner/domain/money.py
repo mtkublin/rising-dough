@@ -253,3 +253,12 @@ def format_money(amount_minor: int, currency: str) -> str:
     value = abs(value)
     whole, _, frac = f"{value:,.{decimals}f}".partition(".")
     return f"{sign}{whole}{('.' + frac) if frac else ''} {currency.upper()}"
+
+
+def divide_minor_units(amount_minor: int, parts: int) -> int:
+    """Split ``amount_minor`` into ``parts`` equal shares, rounding toward negative infinity.
+
+    The single integer-division rounding point for money; T-Q216 owns the final
+    rounding policy.
+    """
+    return amount_minor // parts

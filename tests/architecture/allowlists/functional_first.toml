@@ -82,13 +82,6 @@ finding = "B-13"
 epic = "E05"
 
 [[entry]]
-path = "src/budget_planner/services/recurring.py"
-rule = "mutable-constant"
-count = 1
-finding = "B-13"
-epic = "E05"
-
-[[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "param-mutation:data"
 count = 1
