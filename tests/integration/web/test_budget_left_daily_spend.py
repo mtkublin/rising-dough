@@ -22,6 +22,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     preferences as preferences_repo,
 )
+from tests.ui_map import _html, plan
 
 USER_ID = 1
 
@@ -71,6 +72,10 @@ def _seed_anchor_and_income(
         conn.close()
 
 
+def _hero(html: str) -> str:
+    return _html.text_of(html, plan.budget_hero)
+
+
 def test_left_daily_spend_card_renders_number_and_caption(
     client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
@@ -78,9 +83,10 @@ def test_left_daily_spend_card_renders_number_and_caption(
     _seed_anchor_and_income(_migrated, world["salary"], world["checking"], date(2027, 1, 15))
     r = client.get("/budget")
     assert r.status_code == 200
-    assert "Left to spend per day" in r.text
-    assert "Salary" in r.text
-    assert "next income" in r.text
+    assert _html.exists(r.text, plan.budget_hero_heading)
+    hero = _hero(r.text)
+    assert "Salary" in hero
+    assert "next income" in hero
 
 
 def test_left_daily_spend_card_renders_dash_when_zero_budget(
@@ -91,17 +97,13 @@ def test_left_daily_spend_card_renders_dash_when_zero_budget(
         categories_repo.create(conn, USER_ID, NewCategory(name="Any", direction=Direction.EXPENSE))
     finally:
         conn.close()
-    r = client.get("/budget")
-    assert r.status_code == 200
-    assert "No budgets set" in r.text
+    assert "No budgets set" in _hero(client.get("/budget").text)
 
 
 def test_left_daily_spend_card_shows_end_of_month_fallback_when_anchor_unset(
     client: TestClient, world: dict[str, int]
 ) -> None:
-    r = client.get("/budget")
-    assert r.status_code == 200
-    assert "end of month" in r.text
+    assert "end of month" in _hero(client.get("/budget").text)
 
 
 def test_settings_prefs_lists_income_categories_in_select(
@@ -110,79 +112,15 @@ def test_settings_prefs_lists_income_categories_in_select(
     """Manual-audit #54 — income anchor lives on Settings · Categories now."""
     r = client.get("/settings?tab=categories")
     assert r.status_code == 200
-    assert "Income anchor" in r.text
-    assert 'id="anchor-select"' in r.text
-    assert ">Salary<" in r.text
+    options = _html.resolve(r.text, plan.option_in(plan.anchor_select))
+    assert "Salary" in [o.get_text(strip=True) for o in options]
 
 
 def test_budget_page_links_to_settings_anchor(client: TestClient, world: dict[str, int]) -> None:
     """ADR-0031 §1 — the hero caption carries a `Change anchor →` link."""
     r = client.get("/budget")
-    assert r.status_code == 200
-    assert "/settings?tab=prefs#income-anchor" in r.text
-
-
-def test_post_anchor_sets_preference(
-    client: TestClient, _migrated: Settings, world: dict[str, int]
-) -> None:
-    r = client.post(
-        "/budget/preferences/income-anchor",
-        data={"category_id": str(world["salary"])},
-    )
-    assert r.status_code == 200
-    assert "budget-stale" in r.headers["HX-Trigger"]
-    conn = get_connection(_migrated)
-    try:
-        row = preferences_repo.get(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID)
-    finally:
-        conn.close()
-    assert row is not None
-    assert row.value == str(world["salary"])
-
-
-def test_post_anchor_empty_clears_preference(
-    client: TestClient, _migrated: Settings, world: dict[str, int]
-) -> None:
-    client.post(
-        "/budget/preferences/income-anchor",
-        data={"category_id": str(world["salary"])},
-    )
-    r = client.post("/budget/preferences/income-anchor", data={"category_id": ""})
-    assert r.status_code == 200
-    conn = get_connection(_migrated)
-    try:
-        row = preferences_repo.get(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID)
-    finally:
-        conn.close()
-    assert row is None
-
-
-def test_post_anchor_rejects_non_income_category(client: TestClient, world: dict[str, int]) -> None:
-    r = client.post(
-        "/budget/preferences/income-anchor",
-        data={"category_id": str(world["groceries"])},
-    )
-    assert r.status_code == 422
-
-
-def test_post_anchor_rejects_unknown_category(client: TestClient) -> None:
-    r = client.post("/budget/preferences/income-anchor", data={"category_id": "9999"})
-    assert r.status_code == 422
-
-
-def test_post_anchor_rejects_non_numeric_category(client: TestClient) -> None:
-    r = client.post("/budget/preferences/income-anchor", data={"category_id": "abc"})
-    assert r.status_code == 422
-
-
-def test_post_anchor_emits_hx_trigger_budget_stale(
-    client: TestClient, world: dict[str, int]
-) -> None:
-    r = client.post(
-        "/budget/preferences/income-anchor",
-        data={"category_id": str(world["salary"])},
-    )
-    assert "budget-stale" in r.headers["HX-Trigger"]
+    link = _html.resolve_one(r.text, plan.change_anchor_link)
+    assert link.get("href") == "/settings?tab=prefs#income-anchor"
 
 
 def test_stale_anchor_renders_fallback_without_500(
@@ -197,4 +135,4 @@ def test_stale_anchor_renders_fallback_without_500(
         conn.close()
     r = client.get("/budget")
     assert r.status_code == 200
-    assert "end of month" in r.text
+    assert "end of month" in _hero(r.text)

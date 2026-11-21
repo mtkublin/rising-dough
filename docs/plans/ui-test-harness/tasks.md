@@ -65,8 +65,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
 - Done 2026-11-20: 43 routes covered in `tests/contract/ledger/` (shared fixtures in its `conftest.py`, helpers in `support.py`; `test_ledger_access.py` is the auth + CSRF matrix over every route, the other files cover status, HX-* headers, redirect targets, DB and `audit_log` effects, and batch undo round trips). `PENDING_T_UT04C` deleted. Seven integration files (`test_ledger`, `test_transactions`, `test_planned`, `test_recurring`, `test_recurring_formula`, `test_same_account_validation`, `test_forms`) moved onto `tests/ui_map/ledger.py` and left the no-markup allowlist; `test_formula_preview` stays at 3 (the preview chip has only data-attributes; a `data-testid` hook was skipped to avoid a template change and its visual audit). The `label` locator also yields a wrapped label's non-control descendants; `ledger.control(s)` filters to the real controls (resolver left untouched).
 
-### ◻ T-UT04d [P] Plan
+### ✅ T-UT04d [P] Plan
 - Budget (lines, overrides, unbudgeted disclosure, left per day), year grid and cell editor, forecast (horizon, table, chart fragment), analytics (range, categories).
+- Done 2026-11-20: all 15 `PENDING_T_UT04D` routes covered by `tests/contract/test_plan_budget.py` and `test_plan_views.py` (fixtures in `test_plan_support.py`); section deleted from the allowlist. `test_budget.py`, `test_budget_left_daily_spend.py`, `test_forecast.py`, `test_plan_analytics.py` rewritten on `tests/ui_map/plan.py` (markup allowlist entries 32/10/17/4 deleted). Only template change: `id="analytics-bundle"` on the analytics bundle root. CSS-class assertions (delta up/down, responsive hide) were dropped; the sign is asserted through the cell text.
 
 ### ◻ T-UT04e [P] Settings
 - Categories (CRUD, archive, colour), currency and FX, preferences, security (password change and its rate limit, passkeys, sessions), users (admin).
