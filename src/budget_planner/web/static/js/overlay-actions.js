@@ -3,7 +3,7 @@
  *   [data-close-on-backdrop]           close when the backdrop itself is clicked
  *   [data-action="dismiss-flash"]      remove the flash banner
  *   [data-refresh-upcoming]            after a successful request, reload /today/upcoming
- *   [data-close-overlay-on-success]    after a successful request, close the overlay
+ *   [data-close-overlay-on-success]    after the form's own successful non-GET request, close the overlay
  *   [data-rec-chev]                    expand/collapse a recurring ledger row
  *   .rd-plan-year__cell popovers       close on outside click / Escape
  * Also hydrates #modal-root from #rd-modal-prerender (standalone slide-over pages). */
@@ -79,7 +79,10 @@
     if (t.closest("[data-refresh-upcoming]") && window.htmx) {
       window.htmx.ajax("GET", "/today/upcoming", { target: "#upcoming-root", swap: "innerHTML" });
     }
-    if (t.closest("[data-close-overlay-on-success]")) {
+    // Only the form's own submit closes the overlay; a GET from a descendant
+    // (e.g. the live limit preview) must not (T-D-UT12-1).
+    var verb = evt.detail.requestConfig && evt.detail.requestConfig.verb;
+    if (t.matches("[data-close-overlay-on-success]") && verb !== "get") {
       clearParentOf(document.querySelector(".slide-over-root"));
     }
   });

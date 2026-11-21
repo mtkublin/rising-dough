@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-D-UT12-1: overlay closes only on its own submit)
+- **T-D-UT12-1: a limit-preview GET no longer closes the transaction edit slide-over.** `overlay-actions.js` closes on success only when the request was issued by the `[data-close-overlay-on-success]` form itself and is not a GET; the e2e edit journey no longer works around the bug and a new test pins the behaviour.
+
 ## 2026-11-21 (T-UT12: UI test harness exit gate, ADR-0106 accepted)
 - **T-UT12: the UI behaviour test harness is complete; ADR-0106 is Accepted.** Contract tests cover every app route (route-coverage meta-test, framework routes allowlisted); `tests/ui_map/` maps semantic names to role/label/id locators and no assertion reads raw markup (empty allowlist); a crawler activates every control on every page at 375 and 1440 with a committed inventory; 35 new journeys plus the migrated existing ones run on UI-map names and assert the DB effect; `just test-e2e-browsers` is the opt-in Firefox/WebKit recipe; `just test-visual --reference=handoff` compares against handoff references; `--target=mockup` resolves the Today surface against the designer handoff. Known exceptions and follow-ups (T-D-UT12-1..5) are in `docs/plans/ui-test-harness/tasks.md`.
 
