@@ -67,9 +67,17 @@ class PlannedNotFoundError(LookupError):
 class AlreadyPromotedError(RuntimeError):
     """Raised when the planned row has already been promoted."""
 
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was already promoted.")
+        self.planned_id = planned_id
+
 
 class CannotPromoteDeletedError(RuntimeError):
     """Raised when attempting to promote a soft-deleted planned row."""
+
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was deleted and cannot be promoted.")
+        self.planned_id = planned_id
 
 
 # ``UnsupportedDirectionError`` + ``ValidationError`` are re-exported from the
