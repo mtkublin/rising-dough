@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-21 (T-UT-FIX6: edit-slideover preview test waits for htmx init)
+- **Test(T-UT-FIX6): `test_limit_preview_does_not_close_edit_slideover_before_save` waits for htmx to wire the slide-over's amount input before typing.** Keys typed before htmx's settle step never fired the preview request under load. Test-only.
 ## 2026-11-21 (T-D-UT07-1: yearly budget crawl artefact)
 - **Fix(T-D-UT07-1): the crawler now visits `/plan?tab=year` instead of the bare htmx fragment `/budget/yearly`.** The 2000px horizontal scroll was a crawler artefact (fragment without page layout); the real page does not scroll at 375, 1024, 1440. `VIEWS` added to `tests/e2e/test_crawl.py`, strict xfail removed, inventory regenerated. Audit `docs/audits/2026-11-21-plan-year-crawl.md`.
 ## 2026-11-21 (T-UT12-DOCS: green CI recorded, framework allowlist accepted)
