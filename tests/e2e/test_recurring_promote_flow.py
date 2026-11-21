@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e import db_probe
+from tests.ui_map import ledger
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -23,7 +25,7 @@ def test_recurring_rule_and_planned_promote_cycle(
     live_server: tuple[str, Path],
     page: Page,
 ) -> None:
-    base_url, _db_path = live_server
+    base_url, db_path = live_server
 
     # Seed account + category.
     assert page.request.post(
@@ -35,14 +37,8 @@ def test_recurring_rule_and_planned_promote_cycle(
         form={"name": "Rent", "direction": "expense"},
     ).ok
 
-    page.goto(f"{base_url}/accounts")
-    account_id = strip_id_prefix(
-        page.locator("tr[id^='account-']").first.get_attribute("id"),
-        "account-",
-    )
-    page.goto(f"{base_url}/categories")
-    rent_row = page.locator("[id^='category-']", has_text="Rent").first
-    category_id = strip_id_prefix(rent_row.get_attribute("id"), "category-")
+    account_id = db_probe.account_id(db_path, "Checking")
+    category_id = db_probe.category_id(db_path, "Rent")
 
     # Create a monthly recurring rule starting 2026-01-15 for 50.00. The rule
     # surfaces only in the Recurring tab now (T-119).
@@ -51,8 +47,8 @@ def test_recurring_rule_and_planned_promote_cycle(
         form={
             "cadence": "monthly",
             "start_date": "2026-01-15",
-            "category_id": category_id,
-            "account_id": account_id,
+            "category_id": str(category_id),
+            "account_id": str(account_id),
             "default_amount": "50.00",
             "default_description": "rent",
         },
@@ -62,27 +58,27 @@ def test_recurring_rule_and_planned_promote_cycle(
     page.goto(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
-    expect(page.locator("tr[id^='planned-v-']")).to_have_count(0)
+    expect(to_playwright(page, ledger.any_virtual_planned_row)).to_have_count(0)
 
     # Create a one-off planned so promotion is a real router call.
     planned_resp = page.request.post(
         f"{base_url}/planned",
         form={
             "operation_date": "2026-01-20",
-            "category_id": category_id,
-            "account_id": account_id,
+            "category_id": str(category_id),
+            "account_id": str(account_id),
             "amount": "25.00",
             "description": "one-off",
         },
     )
     assert planned_resp.ok, planned_resp.text()
 
-    # Scrape the persisted row id.
+    # The persisted row shows in the Planned tab.
+    planned_id = db_probe.planned_id(db_path, "one-off")
     page.goto(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
-    persisted_el = page.locator("tr[id^='planned-p-']").first
-    planned_id = strip_id_prefix(persisted_el.get_attribute("id"), "planned-p-")
+    expect(to_playwright(page, ledger.planned_row(planned_id))).to_be_visible()
 
     # Promote with an edited amount.
     promote_resp = page.request.post(
@@ -95,7 +91,13 @@ def test_recurring_rule_and_planned_promote_cycle(
     )
     assert promote_resp.ok, promote_resp.text()
 
+    # DB: the planned row points at the new transaction, with the edited amount.
+    assert db_probe.txn_amounts(db_path, "promoted one-off") == [2750]
+    assert db_probe.scalar(
+        db_path, "SELECT promoted_to_txn_id FROM planned_transactions WHERE id = ?", planned_id
+    )
+
     # Verify the transaction appears on the unified ledger (Phase 6 — T-064
     # collapsed /transactions, /planned, /recurring into /ledger?view=…).
     page.goto(f"{base_url}/ledger?view=actual")
-    expect(page.get_by_text("27.50").first).to_be_visible()
+    expect(to_playwright(page, ledger.table_container)).to_contain_text("27.50")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from tests.ui_map.locator import Locator, by_id, role
+from tests.ui_map.locator import Locator, by_id, label, role
 
 heading = role("heading", level=1)
 forecast_heading = role("heading", "Projected balance", level=1)
@@ -132,3 +132,15 @@ year_nav = role("navigation", "Change year")
 year_nav_previous = role("link", "Previous year").inside(year_nav)
 year_nav_next = role("link", "Next year").inside(year_nav)
 year_nav_label = role("link").inside(year_nav)
+
+
+# --- T-UT08a: existing e2e journeys ---
+budget_region = by_id("plan-budget")
+tier_one_off = label("This month only")
+tier_recurring = label("Every")
+tier_default = label("New default")
+
+
+def year_cell_open(category_id: int, month: int) -> Locator:
+    """The (single) cell button that opens the override popover of a year cell."""
+    return role("button").inside(year_cell(category_id, month))
