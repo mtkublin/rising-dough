@@ -97,3 +97,14 @@ Decisions:
 3. **Drill-gate skip classifier** is docs only; its verdict is bound to the head SHA (see ADR-0121 amendment 2026-11-21).
 
 Removes the `cosign-identity-unpinned` entry from `tests/architecture/allowlists/workflow_trust.toml`; the G17a guard also reads the `cosign_ref_regexp_prod` local. Relates to ADR-0100, ADR-0109, ADR-0111, ADR-0121.
+
+## Amendment 2026-11-22 (T-Q255, Q-067 / Q-068 / Q-069): pinning policy and workflow privilege
+
+Decisions:
+
+1. **Pinning policy.** Every image a host or build pulls is referenced as `<tag>@sha256:<digest>`: the Dockerfile base (`python:3.12-slim-trixie`, both stages), Caddy and Litestream in the compose template and in `restore-from-prod.tpl`. Digests were resolved read-only from the Docker Hub registry API (the multi-arch index digest). `uv` is installed as `uv==0.11.2` (same version as CI, ADR-0120 amendment) and tailscale as `tailscale=<exact version>` with `apt-mark hold`. Bumps are deliberate edits (re-resolve the digest), reviewed like any other change; Terraform `render.tftest.hcl` fails an unpinned image.
+2. **Least privilege for CI.** `ci.yml` declares `permissions: contents: read`; the `ci` job in `release.yml` is capped at `contents: read` so the called workflow does not inherit `packages: write`, `id-token: write` or `pull-requests: write`.
+3. **Allowlist is read from `main`.** `security.yml` reads `.security-allowlist.yml` from `origin/main` (never from the PR head), validates every id against `^[A-Za-z0-9][A-Za-z0-9._-]{3,63}$`, and passes pip-audit ignore args to `run:` via `env:` (no `${{ }}` interpolation into the script body).
+4. **Operator-only settings** (not code): Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected` (read back by `scripts/check_github_settings.py`).
+
+Relates to ADR-0100, ADR-0111, ADR-0120.

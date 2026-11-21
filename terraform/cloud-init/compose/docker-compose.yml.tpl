@@ -62,7 +62,7 @@ services:
   # (unless allow_empty_db). Writes /data/restore-report.json. Litestream runs
   # as root, so the script hands the files back to the app uid (10001).
   litestream-restore:
-    image: litestream/litestream:0.3.14
+    image: litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5
     container_name: budget-planner-litestream-restore
     restart: "no"
     entrypoint: ["/bin/sh", "/etc/litestream-restore.sh"]
@@ -79,7 +79,7 @@ services:
       - edge
 
   litestream:
-    image: litestream/litestream:0.3.14
+    image: litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5
     container_name: budget-planner-litestream
     restart: unless-stopped
     # T-D136 / ADR-0114: exports the age identity and forces one new generation per host.
@@ -104,7 +104,7 @@ services:
   # status file the app serves at /health/replication. /data is mounted
   # read-only because `litestream generations` stats the DB file.
   litestream-probe:
-    image: litestream/litestream:0.3.14
+    image: litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5
     container_name: budget-planner-litestream-probe
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/etc/litestream-replication-probe.sh"]
@@ -124,7 +124,7 @@ services:
         condition: service_completed_successfully
 
   caddy:
-    image: caddy:2.8
+    image: caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f
     container_name: budget-planner-caddy
     restart: unless-stopped
     # ADR-0133: host networking keeps the real client source address (H4-01).

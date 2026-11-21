@@ -962,7 +962,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q255 [P] Infra pinning and release-workflow hardening
+### 🟡 T-Q255 [P] Infra pinning and release-workflow hardening
 - Findings: Q-067 (D-11), Q-068 (D-10, H1-09, H1-10, H4-04), Q-069 (H1-07, H1-08), Q-078 (H4-02), Q-079 (H4-05), Q-080 (H4-06).
 - Epic: none (dependency, ci-trust-boundary)
 - Band: 6 · Size: M · Tags: none
@@ -970,6 +970,8 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR-0101/0099 amendments (where the port control sits; pinning policy).
 - Acceptance: Caddy/Litestream/base image by `@sha256:` digest, `uv`, tailscale and cloud-init versions pinned; Actions repo settings (`sha_pinning_required`, `allowed_actions: selected`) set by the operator; `permissions: contents: read` default on `ci.yml` and the release `ci` job, `.security-allowlist.yml` read from `origin/main` and passed via `env:` with a validated pattern; drill ports bound to the tailnet address or filtered in `DOCKER-USER`. Terraform changes go through the pipeline only; no prod apply from a laptop.
 - Operator question blocking it: OQ-24 (Tailscale ACL parity), OQ-32.
+- Status 2026-11-22: repo side done. Digest-pinned Caddy, Litestream (compose + restore script) and both Dockerfile base stages; `uv==0.11.2`; tailscale pinned to `1.104.7` with `apt-mark hold`; `permissions: contents: read` on `ci.yml` and the release `ci` job; `security.yml` reads the allowlist from `origin/main`, validates ids, passes args via `env:`; drill port control documented (ADR-0101 amendment) and asserted in `render.tftest.hcl`; `scripts/check_github_settings.py` checks `allowed_actions: selected`.
+- Operator steps left: (1) set Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected`, then run `scripts/check_github_settings.py`; (2) OQ-32 (`tag:ci` ACL): pending operator, ACL source not in repo. Not done: pinning the runner's apt `cloud-init` package in `terraform.yml` (ubuntu-latest image owns the version; the rendered user-data is schema-checked, not installed); re-resolve digests on bump.
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 

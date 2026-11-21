@@ -61,7 +61,7 @@ readonly DRILL_BUCKET='${drill_bucket}'
 readonly DATA_DIR='/data'
 readonly DB_PATH="$${DATA_DIR}/budget.db"
 readonly APP_UID=10001
-readonly LITESTREAM_IMAGE='litestream/litestream:0.3.14'  # same pin as compose (T-D56)
+readonly LITESTREAM_IMAGE='litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5'  # same pin as compose (T-D56)
 readonly AGE_KEY_FILE='${age_key_file}'
 # Caddy only serves a certificate for the host's real name (SNI), so probe by
 # that name pinned to loopback; TLS stays fully verified (no -k).
