@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q226: balance mutant cluster)
+- **Test(T-Q226): kill the `services/balance` mutants and cover `sparkline_points`, `balance_series` and `budget.yearly_grid` (Q-020).** `tests/unit/services/test_balance_mutation_kills.py` (23 tests on the T-Q221 two-user worlds: exact balances and `AccountStats`, include-deleted account and category, series window, sparkline strings, yearly grid tier precedence and totals, error payloads). Mutmut on `services/balance.py`: survivors left are equivalent only (see `mutmut-real-gaps.md`). No src change, no allowlist entry touched.
+
 ## 2026-11-21 (T-Q246: task status reconciled with CHANGELOG and ADRs)
 - **Docs(T-Q246): reconcile task status (Q-054).** v1: T-108 and T-126 closed with commit evidence, T-109 stays open (dropped from backlog). v3: T-D146, T-D147, T-D159 closed; T-D126 and T-D156 stay ◐ with the open step named; T-D21 and T-D22 got commit evidence. `docs/plans/v2/tasks.md` closed as superseded by ADR-0107 with a banner (rows kept; default taken 2026-11-21, pending operator confirmation, OQ-21). T-CS03 (ci-speed plan) not touched, outside this item's files.
 
