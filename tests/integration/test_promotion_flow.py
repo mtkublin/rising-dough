@@ -85,8 +85,8 @@ def test_promote_writes_audit_rows_on_both_planned_and_transaction(
     )
     txn = promote_to_actual(conn, USER_ID, planned_id, PromotionEdits())
 
-    planned_audit = audit_repo.list_entries(conn, "planned_transaction", planned_id)
-    txn_audit = audit_repo.list_entries(conn, "transaction", txn.id)
+    planned_audit = audit_repo.list_entries(conn, 1, "planned_transaction", planned_id)
+    txn_audit = audit_repo.list_entries(conn, 1, "transaction", txn.id)
 
     assert [e.operation.value for e in planned_audit] == ["create", "update"]
     assert [e.operation.value for e in txn_audit] == ["create"]

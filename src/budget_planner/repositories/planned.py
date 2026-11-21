@@ -313,7 +313,48 @@ def stamp_promotion(
     )
 
 
+def clear_promotion(
+    conn: sqlite3.Connection,
+    user_id: int,
+    planned_id: int,
+    *,
+    txn_ids: frozenset[int],
+) -> bool:
+    """Un-stamp a promoted planned row, audited, compare-and-set (T-Q228, Q-024).
+
+    Clears ``promoted_to_txn_id`` only while it still equals one of ``txn_ids``
+    (the transactions of the batch being undone). Returns ``False`` and writes
+    nothing when the row is missing, not stamped, or stamped with another id.
+    """
+    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
+    if prev is None or prev.promoted_to_txn_id not in txn_ids:
+        return False
+
+    def _clear_action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
+        c.execute(
+            "UPDATE planned_transactions SET promoted_to_txn_id = NULL, "
+            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+            "WHERE id = ? AND user_id = ? AND promoted_to_txn_id = ?",
+            (planned_id, user_id, prev.promoted_to_txn_id),
+        )
+        updated = find_by_id(c, user_id, planned_id, include_deleted=True)
+        if updated is None:
+            raise LookupError(f"planned_transaction {planned_id} not found")
+        return planned_id, updated
+
+    mutate(
+        conn,
+        entity_type="planned_transaction",
+        operation="update",
+        prev=prev,
+        action=_clear_action,
+        user_id=user_id,
+    )
+    return True
+
+
 __all__ = [
+    "clear_promotion",
     "create",
     "find_by_id",
     "list_filtered",

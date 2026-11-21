@@ -26,6 +26,7 @@ from budget_planner.repositories import (
     recurring,
     transactions as transactions_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import forecast as forecast_svc, fx as fx_svc
 
 USER_ID = 1
@@ -113,7 +114,7 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
         ),
     ).id
     # create_rule anchors next_due on the wall clock; pin it relative to TODAY (ADR-0087).
-    recurring.set_next_due(conn, USER_ID, rule, next_due=date(2026, 11, 1), last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule, next_due=date(2026, 11, 1), last_promoted_date=None)
     # Cache EUR->PLN rate for TODAY
     fx_repo.upsert_rate(
         conn,

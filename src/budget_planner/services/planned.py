@@ -11,12 +11,13 @@ single DB transaction.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
@@ -67,9 +68,17 @@ class PlannedNotFoundError(LookupError):
 class AlreadyPromotedError(RuntimeError):
     """Raised when the planned row has already been promoted."""
 
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was already promoted.")
+        self.planned_id = planned_id
+
 
 class CannotPromoteDeletedError(RuntimeError):
     """Raised when attempting to promote a soft-deleted planned row."""
+
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was deleted and cannot be promoted.")
+        self.planned_id = planned_id
 
 
 # ``UnsupportedDirectionError`` + ``ValidationError`` are re-exported from the
@@ -84,9 +93,7 @@ class CannotPromoteDeletedError(RuntimeError):
 def _default_window(filters: PlannedFilter) -> tuple[dt.date, dt.date]:
     """Fill in a window if filters don't specify one — defaults to the current month."""
     today = dt.date.today()  # noqa: DTZ011 - naive date, routers inject when needed
-    first = today.replace(day=1)
-    last_day = calendar.monthrange(today.year, today.month)[1]
-    last = today.replace(day=last_day)
+    first, last = month_bounds(today.year, today.month)
     date_from = filters.date_from or first
     date_to = filters.date_to or last
     return date_from, date_to
@@ -233,9 +240,55 @@ def batch_promote_due(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class BatchUndoResult:
+    """Outcome of :func:`undo_batch`: what was reverted and what was left alone."""
+
+    deleted_txn_ids: tuple[int, ...]
+    restored_planned_ids: tuple[int, ...]
+    skipped_planned_ids: tuple[int, ...]
+
+
+def undo_batch(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn_ids: Sequence[int],
+    planned_ids: Sequence[int],
+) -> BatchUndoResult:
+    """Reverse a batch promote-due, as an audited action (ADR-0019 amendment, T-Q228).
+
+    One transaction: soft-delete the batch's own transactions (owner-scoped,
+    each writes its ``delete`` audit row) and un-stamp each planned row by
+    compare-and-set against the batch's transaction ids (writes an ``update``
+    audit row). A planned row re-stamped by another promotion since the batch
+    is left untouched and reported in ``skipped_planned_ids``.
+    """
+    batch = frozenset(txn_ids)
+    deleted: list[int] = []
+    restored: list[int] = []
+    skipped: list[int] = []
+    with db_transaction(conn):
+        for txn_id in txn_ids:
+            if transactions_repo.find_by_id(conn, user_id, txn_id) is None:
+                continue
+            transactions_repo.soft_delete(conn, user_id, txn_id)
+            deleted.append(txn_id)
+        for planned_id in planned_ids:
+            if planned_repo.clear_promotion(conn, user_id, planned_id, txn_ids=batch):
+                restored.append(planned_id)
+            else:
+                skipped.append(planned_id)
+    return BatchUndoResult(
+        deleted_txn_ids=tuple(deleted),
+        restored_planned_ids=tuple(restored),
+        skipped_planned_ids=tuple(skipped),
+    )
+
+
 __all__ = [
     "AlreadyPromotedError",
     "BatchPromoteResult",
+    "BatchUndoResult",
     "CannotPromoteDeletedError",
     "PlannedKind",
     "PlannedNotFoundError",
@@ -246,4 +299,5 @@ __all__ = [
     "batch_promote_due",
     "list_planned",
     "promote_to_actual",
+    "undo_batch",
 ]

@@ -33,12 +33,6 @@ count = 1
 finding = "Q-023"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_07_period_window.py"
-rule = "Q-003"
-count = 2
-finding = "Q-003"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_08_tier_resolution_and_clock.py"
 rule = "Q-031"
 count = 1

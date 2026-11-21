@@ -766,9 +766,9 @@ def test_promote_inactive_rule(conn: sqlite3.Connection, world: dict[str, int]) 
 
 def test_promote_writes_audit(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
-    entries_before = len(audit_repo.list_entries(conn, "recurring_rule", rule_id))
+    entries_before = len(audit_repo.list_entries(conn, 1, "recurring_rule", rule_id))
     rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
-    entries_after = audit_repo.list_entries(conn, "recurring_rule", rule_id)
+    entries_after = audit_repo.list_entries(conn, 1, "recurring_rule", rule_id)
     # Promotion adds one audit entry on the rule mutation (update).
     assert len(entries_after) == entries_before + 1
     assert entries_after[-1].operation == "update"
@@ -866,7 +866,7 @@ def test_promote_rollback_on_set_next_due_failure(
     def _boom(*args: object, **kwargs: object) -> None:
         raise RuntimeError("boom")
 
-    monkeypatch.setattr("budget_planner.repositories.recurring.set_next_due", _boom)
+    monkeypatch.setattr("budget_planner.services.recurring.set_next_due", _boom)
     with pytest.raises(RuntimeError):
         rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
 

@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import calendar
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
+from types import MappingProxyType
 from typing import Final, Literal
 
 from fastapi import Request
@@ -23,13 +25,15 @@ from budget_planner.services import (
 
 PaceKind = Literal["on_track", "pacing_high", "over_budget"]
 
-_PACE_LABELS: Final[dict[str, str]] = {
-    "on_track": "on track",
-    "pacing_high": "pacing high",
-    "over_budget": "over budget",
-}
+_PACE_LABELS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "on_track": "on track",
+        "pacing_high": "pacing high",
+        "over_budget": "over budget",
+    }
+)
 
-_WINDOWS: Final[dict[str, int | None]] = {"7": 7, "30": 30, "all": None}
+_WINDOWS: Final[Mapping[str, int | None]] = MappingProxyType({"7": 7, "30": 30, "all": None})
 _DEFAULT_WINDOW: Final[str] = "30"
 
 

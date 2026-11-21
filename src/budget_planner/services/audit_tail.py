@@ -66,7 +66,7 @@ def audit_tail(
             "prev": _parse(e.prev_json) if _is_own(e, viewer_user_id) else OTHER_USER,
             "new": _parse(e.new_json) if _is_own(e, viewer_user_id) else OTHER_USER,
         }
-        for e in audit_repo.recent(conn, limit)
+        for e in audit_repo.recent(conn, limit, user_id=None)
     ]
 
 

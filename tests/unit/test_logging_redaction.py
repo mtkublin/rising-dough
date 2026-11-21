@@ -6,7 +6,7 @@ import logging
 
 import pytest
 
-from budget_planner.logging import REDACTED, _StripQueryFilter, redact_sensitive
+from budget_planner.logging import REDACTED, redact_sensitive, strip_access_query
 
 
 def test_denied_keys_are_redacted_case_insensitively() -> None:
@@ -44,7 +44,7 @@ def test_recurses_into_dicts_and_lists_without_mutating_input() -> None:
     assert event["ctx"] == {"memo": "m", "ok": 1}
 
 
-def test_uvicorn_access_filter_strips_query_string() -> None:
+def test_uvicorn_access_processor_strips_query_string() -> None:
     record = logging.LogRecord(
         "uvicorn.access",
         logging.INFO,
@@ -54,6 +54,9 @@ def test_uvicorn_access_filter_strips_query_string() -> None:
         ("1.2.3.4", "GET", "/ledger?q=ZZ_SENTINEL_42", "1.1", 200),
         None,
     )
-    assert _StripQueryFilter().filter(record)
-    assert "ZZ_SENTINEL_42" not in record.getMessage()
-    assert "/ledger HTTP" in record.getMessage()
+    event = {"event": record.getMessage(), "_record": record}
+    out = strip_access_query(None, "info", event)
+    assert "ZZ_SENTINEL_42" not in str(out["event"])
+    assert out["event"] == '1.2.3.4 - "GET /ledger HTTP/1.1" 200'
+    assert "ZZ_SENTINEL_42" in record.getMessage()  # record itself is not mutated
+    assert event["event"] == record.getMessage()

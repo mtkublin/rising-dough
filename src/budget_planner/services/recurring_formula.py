@@ -17,10 +17,11 @@ import dataclasses
 import datetime as dt
 import logging
 import sqlite3
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from budget_planner.domain.money import bps_to_percent, format_bps_percent, percent_to_bps
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
     AmountFormula,
@@ -132,15 +133,6 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 # ---------------------------------------------------------------------------
 # Pure compute primitives (future tier B / C leaf operators)
 # ---------------------------------------------------------------------------
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    first = dt.date(year, month, 1)
-    if month == 12:  # noqa: PLR2004
-        last = dt.date(year, 12, 31)
-    else:
-        last = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
-    return first, last
-
-
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
     """Return ``round_half_up(sum_minor * coefficient_bps / 10 000)`` as int."""
     dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
@@ -155,6 +147,9 @@ def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
     return out
 
 
+_Memo = Mapping[tuple[int, int, int], int]
+
+
 def _source_rule_month_value(
     conn: sqlite3.Connection,
     user_id: int,
@@ -163,8 +158,8 @@ def _source_rule_month_value(
     end: dt.date,
     *,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+) -> tuple[int, _Memo]:
     """Sum the effective amounts of ``rule``'s occurrences in ``[start, end]``.
 
     Per ADR-0086 every source rule (fixed or formula) contributes its
@@ -183,9 +178,9 @@ def _source_rule_month_value(
 
     occs = generate_occurrences(rule, start, end)
     if not occs:
-        return 0
+        return 0, cache
     if rule.amount_formula is not None:
-        per_occurrence = _evaluate(
+        per_occurrence, cache = _evaluate(
             conn,
             user_id,
             rule.amount_formula,
@@ -197,7 +192,7 @@ def _source_rule_month_value(
         )
         occs = tuple(dataclasses.replace(occ, amount=per_occurrence) for occ in occs)
     overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
-    return sum(occ.amount for occ in apply_overrides(occs, overrides))
+    return sum(occ.amount for occ in apply_overrides(occs, overrides)), cache
 
 
 def _sum_category_in_month(
@@ -209,13 +204,14 @@ def _sum_category_in_month(
     *,
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+) -> tuple[int, _Memo]:
     """Sum monthly occurrence amounts across rules in ``category_ids``.
 
     Recurses into formula source rules (chaining per ADR-0047). ``in_progress``
     tracks the current ancestor chain for runtime cycle protection; ``cache``
-    memoises child-rule results keyed by ``(rule_id, year, month)`` so diamond
+    memoises child-rule results (an immutable mapping, threaded through and
+    returned, never mutated) keyed by ``(rule_id, year, month)`` so diamond
     deps compute once.
 
     Fixed source rules go through :func:`services.recurring.expand` with
@@ -224,7 +220,7 @@ def _sum_category_in_month(
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
 
-    start, end = _month_bounds(year, month)
+    start, end = month_bounds(year, month)
     cat_set = set(category_ids)
     total = 0
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
@@ -240,7 +236,7 @@ def _sum_category_in_month(
         if key in cache:
             total += cache[key]
             continue
-        value = _source_rule_month_value(
+        value, cache = _source_rule_month_value(
             conn,
             user_id,
             rule,
@@ -249,9 +245,9 @@ def _sum_category_in_month(
             in_progress=in_progress,
             cache=cache,
         )
-        cache[key] = value
+        cache = {**cache, key: value}
         total += value
-    return total
+    return total, cache
 
 
 def _evaluate(
@@ -263,12 +259,12 @@ def _evaluate(
     *,
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+) -> tuple[int, _Memo]:
     """Evaluate the linear-combination formula for ``(year, month)``."""
     total = 0
     for term in formula.terms:
-        term_sum = _sum_category_in_month(
+        term_sum, cache = _sum_category_in_month(
             conn,
             user_id,
             term.source_category_ids,
@@ -280,7 +276,7 @@ def _evaluate(
         )
         magnitude = _apply_coefficient(term_sum, term.coefficient_bps)
         total += magnitude if term.sign == "+" else -magnitude
-    return total
+    return total, cache
 
 
 # ---------------------------------------------------------------------------
@@ -296,11 +292,10 @@ def compute_formula_amount(
     exclude_rule_id: int | None = None,
 ) -> int:
     """Return the computed amount (minor units) for ``formula`` in ``(year, month)``."""
-    cache: dict[tuple[int, int, int], int] = {}
     in_progress: frozenset[int] = (
         frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
     )
-    return _evaluate(
+    total, _ = _evaluate(
         conn,
         user_id,
         formula,
@@ -308,8 +303,9 @@ def compute_formula_amount(
         month,
         exclude_rule_id=exclude_rule_id,
         in_progress=in_progress,
-        cache=cache,
+        cache={},
     )
+    return total
 
 
 def resolve_rule_amount(

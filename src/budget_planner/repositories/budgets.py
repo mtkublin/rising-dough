@@ -113,7 +113,8 @@ def set_default(conn: sqlite3.Connection, user_id: int, data: NewBudgetDefault) 
             )
             new_id = existing.id
         row = c.execute(
-            f"SELECT {_DEFAULT_COLS} FROM budget_defaults WHERE id = ? AND user_id = ?",
+            f"SELECT {_DEFAULT_COLS} FROM budget_defaults "
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_default(row)
@@ -209,7 +210,7 @@ def set_recurring(
             new_id = existing.id
         row = c.execute(
             f"SELECT {_RECURRING_COLS} FROM budget_recurring_overrides "
-            "WHERE id = ? AND user_id = ?",
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_recurring(row)
@@ -314,7 +315,8 @@ def set_one_off(
             )
             new_id = existing.id
         row = c.execute(
-            f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides WHERE id = ? AND user_id = ?",
+            f"SELECT {_ONE_OFF_COLS} FROM budget_one_off_overrides "
+            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_one_off(row)

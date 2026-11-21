@@ -17,7 +17,9 @@ Public surface:
 from __future__ import annotations
 
 import logging
+import re
 import sys
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -26,14 +28,13 @@ if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
 
 
-_CONFIGURED = False
-
 # T-D59 / ADR-0078 §5: keys whose values never reach a log line.
 REDACTED = "[redacted]"
 _DENY_EXACT = frozenset({"description", "name", "memo", "formula", "q", "search", "email"})
 _DENY_PREFIXES = ("amount", "note", "password", "token", "secret")
 _DENY_SUFFIXES = ("_json",)
-_PATH_ARG = 2  # index of the request path in uvicorn.access log args
+#: ``"GET /path?query HTTP/1.1"`` request line of a uvicorn.access message.
+_REQUEST_LINE_QUERY = re.compile(r"(\"[A-Z]+ [^\s?\"]*)\?[^\s\"]*( HTTP/)")
 
 
 def _is_sensitive_key(key: object) -> bool:
@@ -60,18 +61,21 @@ def redact_sensitive(_logger: Any, _method: str, event_dict: Any) -> Any:
     return _redact(dict(event_dict))
 
 
-class _StripQueryFilter(logging.Filter):
-    """Drop the query string from ``uvicorn.access`` request paths."""
+def strip_access_query(
+    _logger: object, _method: str, event_dict: Mapping[str, object]
+) -> Mapping[str, object]:
+    """structlog foreign-record processor: drop the query string from ``uvicorn.access`` paths.
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        args = record.args
-        idx = _PATH_ARG
-        if not (isinstance(args, tuple) and len(args) > idx):
-            return True
-        path = args[idx]
-        if isinstance(path, str):
-            record.args = (*args[:idx], path.split("?", 1)[0], *args[idx + 1 :])
-        return True
+    Works on the already-formatted message (structlog clears ``record.args`` before
+    the pre-chain runs), so the record is never mutated; returns a new dict.
+    """
+    record = event_dict.get("_record")
+    message = event_dict.get("event")
+    if not isinstance(record, logging.LogRecord) or record.name != "uvicorn.access":
+        return event_dict
+    if not isinstance(message, str):
+        return event_dict
+    return {**event_dict, "event": _REQUEST_LINE_QUERY.sub(r"\1\2", message)}
 
 
 def _processors() -> list[Any]:
@@ -93,6 +97,10 @@ def _processors() -> list[Any]:
     ]
 
 
+def _is_our_handler(handler: logging.Handler) -> bool:
+    return isinstance(handler.formatter, structlog.stdlib.ProcessorFormatter)
+
+
 def configure() -> None:
     """Configure structlog + stdlib root logger.
 
@@ -100,8 +108,9 @@ def configure() -> None:
     stdlib root logger is pointed at the same JSON renderer so uvicorn
     access logs and third-party libraries land in the same stream.
     """
-    global _CONFIGURED  # noqa: PLW0603 — module-level idempotence flag
-    if _CONFIGURED:
+    # Idempotence state is the installed handler itself (its structlog formatter
+    # is the marker), not a module-level flag (T-Q263).
+    if any(_is_our_handler(h) for h in logging.getLogger().handlers):
         return
 
     structlog.configure(
@@ -121,17 +130,14 @@ def configure() -> None:
                 structlog.contextvars.merge_contextvars,
                 structlog.stdlib.add_log_level,
                 structlog.processors.TimeStamper(fmt="iso", utc=True),
+                strip_access_query,
                 redact_sensitive,
             ],
             processor=structlog.processors.JSONRenderer(),
         )
     )
-    handler._bp_configured = True  # type: ignore[attr-defined]
 
     root = logging.getLogger()
-    # Replace any pre-existing stdout handler we installed earlier so the
-    # function stays idempotent even when called repeatedly in tests.
-    root.handlers = [h for h in root.handlers if not getattr(h, "_bp_configured", False)]
     root.addHandler(handler)
     root.setLevel(logging.INFO)
 
@@ -141,9 +147,6 @@ def configure() -> None:
         logger = logging.getLogger(name)
         logger.handlers = []
         logger.propagate = True
-    logging.getLogger("uvicorn.access").addFilter(_StripQueryFilter())
-
-    _CONFIGURED = True
 
 
 def get_logger(name: str | None = None) -> BoundLogger:

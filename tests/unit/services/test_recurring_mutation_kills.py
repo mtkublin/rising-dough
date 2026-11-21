@@ -36,6 +36,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import recurring as rec_svc
 from budget_planner.services._promotion import ValidationError
 
@@ -275,9 +276,7 @@ def world(conn: sqlite3.Connection) -> dict[str, int]:
         ),
     )
     # create_rule seeds next_due from the real clock; pin it so dates are deterministic.
-    recurring_repo.set_next_due(
-        conn, USER_ID, rule.id, next_due=date(2026, 1, 5), last_promoted_date=None
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 1, 5), last_promoted_date=None)
     return {
         "checking": checking,
         "savings": savings,
@@ -305,7 +304,7 @@ def _new_rule(
     )
     start = fields["start_date"]
     assert isinstance(start, date)
-    recurring_repo.set_next_due(conn, USER_ID, rule.id, next_due=start, last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule.id, next_due=start, last_promoted_date=None)
     found = recurring_repo.find_rule(conn, USER_ID, rule.id)
     assert found is not None
     return found
@@ -581,9 +580,7 @@ def test_batch_not_due_rule_does_not_stop_later_due_rule(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     """Kills the not-due `continue` -> `break` (rules are ordered by start_date)."""
-    recurring_repo.set_next_due(
-        conn, USER_ID, world["rule"], next_due=date(2026, 9, 1), last_promoted_date=None
-    )
+    set_next_due(conn, USER_ID, world["rule"], next_due=date(2026, 9, 1), last_promoted_date=None)
     later = _new_rule(conn, world, start_date=date(2026, 2, 1), default_amount=777)
     result = rec_svc.batch_promote_due(conn, USER_ID, date(2026, 2, 1))
     assert result.advanced_rule_ids == (later.id,)

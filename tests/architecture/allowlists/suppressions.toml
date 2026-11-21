@@ -4,7 +4,7 @@ guard = "suppressions"
 
 # Inline noqa count per bulk code: exact ratchet, must reach zero (PLC0415: E12, PLR0917: E13, DTZ011: E07).
 [ceilings]
-PLC0415 = 37
+PLC0415 = 26
 PLR0917 = 29
 DTZ011 = 17
 
@@ -33,13 +33,6 @@ epic = "E14"
 path = "src/budget_planner/domain/errors.py"
 rule = "suppress:pragma: no cover"
 count = 3
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/logging.py"
-rule = "suppress:type: ignore"
-count = 1
 finding = "Q-048"
 epic = "E14"
 
@@ -74,7 +67,7 @@ epic = "E14"
 [[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "suppress:noqa"
-count = 9
+count = 8
 finding = "Q-048"
 epic = "E14"
 
@@ -95,13 +88,6 @@ epic = "E14"
 [[entry]]
 path = "src/budget_planner/web/app.py"
 rule = "suppress:pragma: no cover"
-count = 1
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/web/app.py"
-rule = "suppress:type: ignore"
 count = 1
 finding = "Q-048"
 epic = "E14"
@@ -170,23 +156,16 @@ finding = "Q-048"
 epic = "E14"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "suppress:noqa"
-count = 5
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "suppress:noqa"
-count = 9
+count = 6
 finding = "Q-048"
 epic = "E14"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "suppress:noqa"
-count = 12
+count = 9
 finding = "Q-048"
 epic = "E14"
 
@@ -208,12 +187,5 @@ epic = "E14"
 path = "src/budget_planner/web/routers/transactions.py"
 rule = "suppress:noqa"
 count = 5
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/web/templating.py"
-rule = "suppress:noqa"
-count = 2
 finding = "Q-048"
 epic = "E14"

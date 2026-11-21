@@ -17,13 +17,6 @@ finding = "Q-046"
 epic = "E13"
 
 [[entry]]
-path = "src/budget_planner/logging.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/repositories/planned.py"
 rule = "cc>=11"
 count = 1
@@ -199,27 +192,6 @@ finding = "Q-046"
 epic = "E13"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "nesting>4"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "cc>=11"
 count = 2
@@ -229,7 +201,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "func>50"
-count = 4
+count = 3
 finding = "Q-046"
 epic = "E13"
 
@@ -250,7 +222,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "func>50"
-count = 6
+count = 5
 finding = "Q-046"
 epic = "E13"
 

@@ -120,8 +120,13 @@ def create_session(
     lifetime_days: int | None = None,
     absolute_days: int | None = None,
     now: datetime | None = None,
+    credential_id: int | None = None,
 ) -> IssuedSession:
-    """Insert a fresh session for ``user_id``; return it with its raw token."""
+    """Insert a fresh session for ``user_id``; return it with its raw token.
+
+    ``credential_id`` is the ``webauthn_credentials.id`` a passkey login used
+    (T-Q253); revoking that passkey ends this session.
+    """
     current = _now(now)
     token = secrets.token_urlsafe(SESSION_ID_BYTES)
     session = Session(
@@ -149,6 +154,10 @@ def create_session(
                 _iso(session.authenticated_at),
             ),
         )
+        if credential_id is not None:
+            conn.execute(
+                "UPDATE sessions SET credential_id = ? WHERE id = ?", (credential_id, session.id)
+            )
     return IssuedSession(session=session, token=token)
 
 
@@ -192,6 +201,31 @@ def revoke_session_by_id(
             (_iso(_now(now)), session_id),
         )
     return cur.rowcount > 0
+
+
+def revoke_sessions_by_credential(
+    conn: sqlite3.Connection,
+    user_id: int,
+    credential_id: int,
+    *,
+    now: datetime | None = None,
+) -> tuple[str, ...]:
+    """Revoke ``user_id``'s live sessions opened with passkey ``credential_id``.
+
+    Returns the handles of the sessions ended (T-Q253).
+    """
+    with transaction(conn):
+        rows = conn.execute(
+            "SELECT id FROM sessions "
+            "WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL",
+            (user_id, credential_id),
+        ).fetchall()
+        conn.execute(
+            "UPDATE sessions SET revoked_at = ? "
+            "WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL",
+            (_iso(_now(now)), user_id, credential_id),
+        )
+    return tuple(str(r["id"])[:_HANDLE_HEX_CHARS] for r in rows)
 
 
 def revoke_session(conn: sqlite3.Connection, token: str, *, now: datetime | None = None) -> bool:
@@ -299,6 +333,7 @@ __all__ = [
     "revoke_all_user_sessions",
     "revoke_session",
     "revoke_session_by_id",
+    "revoke_sessions_by_credential",
     "rotate_session_token",
     "session_handle",
     "touch_session",

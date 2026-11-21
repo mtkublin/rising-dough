@@ -23,6 +23,7 @@ from budget_planner.domain.recurring import (
     NewRecurringRule,
 )
 from budget_planner.repositories import accounts, categories, planned, recurring
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import forecast as forecast_svc, fx as fx_svc
 from budget_planner.services.recurring import PromotionEdits, promote_recurring
 
@@ -75,9 +76,7 @@ def _rule(
         ),
     )
     # create_rule anchors next_due on the wall clock; pin it for determinism.
-    recurring.set_next_due(
-        conn, USER_ID, rule.id, next_due=date(2026, 11, day), last_promoted_date=None
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 11, day), last_promoted_date=None)
     return rule.id
 
 
