@@ -186,7 +186,10 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
   The orchestrator picks one lock name per effort and session, `/tmp/<effort>-heavy.lock`
   (e.g. `/tmp/remediation-heavy.lock`), and states it in EVERY brief. A lock name must never be
   shared with another session or effort. If load allows, the orchestrator may open a second slot,
-  `/tmp/<effort>-heavy-2.lock`, and says so in the brief; the acquire loop then tries both:
+  `/tmp/<effort>-heavy-2.lock`, and says so in the brief. It opens the second slot only while the
+  5-minute load average stays below 2x the core count (`sysctl -n hw.ncpu`), and closes it again
+  (stops granting it in briefs) when load rises above that; the default is one slot. With two slots
+  open the acquire loop tries both:
   `while :; do mkdir /tmp/<effort>-heavy.lock 2>/dev/null && { echo SLOT=/tmp/<effort>-heavy.lock; break; }; mkdir /tmp/<effort>-heavy-2.lock 2>/dev/null && { echo SLOT=/tmp/<effort>-heavy-2.lock; break; }; sleep 20; done`
   (drop the second `mkdir` when only one slot is open) and prints the slot it took.
   The worktree sandbox refuses a combined lock + git Bash command, so use THREE separate Bash

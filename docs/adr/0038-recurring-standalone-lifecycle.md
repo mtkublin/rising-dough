@@ -116,3 +116,10 @@ Both kinds carry a `kind` field (`"planned"` | `"recurring"`) so templates can r
 - **Keep virtual-union + add "Promote next" button that materialises on click.** Rejected: still conflates two concepts in the Ledger; `next_due` still has no durable home.
 - **Materialise occurrences on rule create for N years ahead.** Rejected on the same grounds as ADR-0013's rejection — arbitrary horizon, drift risk, scheduler creep.
 - **Keep `next_due` virtual (compute on every query from `start_date + cadence × (promoted_count)`).** Workable but couples `transactions` + `recurring_rules` in every list query; a persisted column is cheaper and lets overrides stay sparse.
+
+## Amendment 2026-11-21 (T-Q211, Q-006): schedule anchor and start-date boundary
+
+- **Anchor is persisted.** The create path defaults `day_of_month` to `start_date.day` when the form leaves it blank (`services.recurring.create_rule`), so the end-of-month clamp never rewrites the anchor (Jan 31 -> Feb 28 -> Mar 31, not Mar 28).
+- **`advance_next_due` takes the rule.** Signature `advance_next_due(rule, from_date)`: the next canonical occurrence strictly after `from_date` is read from the rule's own schedule, anchored on `rule.start_date` (plus `day_of_month`, `month_of_year`, `end_date`), not from a stub whose `start_date` is `from_date`. `_build_lookup_stub` is removed.
+- **Start-date boundary.** `generate_occurrences` never emits an occurrence dated before `rule.start_date` (a `day_of_month` earlier than the start day skips the first month's slot).
+- **Data fix.** None by default. OQ-5 (blank day-of-month after the 28th, or day-of-month earlier than start day in prod) is unanswerable without prod; default taken 2026-11-21, pending operator data check.
