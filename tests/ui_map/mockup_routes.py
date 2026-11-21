@@ -76,7 +76,8 @@ ROUTES: dict[str, str] = {
     "/settings/password": "pages/settings/security.html",  # pragma: allowlist secret
     "/settings/security": "pages/settings/security.html",
     "/settings/users": "pages/settings/users.html",
-    "/settings/users/{user_id}/edit": "pages/overlays/edit-user.html",
+    # "/settings/users/{user_id}/edit": no handoff page (Edit user dialog
+    # removed by the 2026-11-21 handoff, T-UT06).
 }
 
 _PARAM = re.compile(r"/\d+(?=/|$|\?)")

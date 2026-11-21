@@ -10,9 +10,9 @@ Pre-commit fixers (`trailing-whitespace`, `end-of-file-fixer`, `mixed-line-endin
 |---|---|
 | What | "Rising Dough · Sourdough redesign" static frontend: every page, overlay and state, components, chart examples, CSS, JS, fonts, icons |
 | Source canvases | *Rising Dough · Sourdough redesign* (dark page + light page); *Rising Dough Frontend Handoff Spec* |
-| Delivered | 2026-11-14 (file dates of the delivery) |
-| Vendored | 2026-11-16, T-UT01, copied unchanged from the untracked `data/rising-dough-frontend/` |
-| Contents | 157 files, 99 HTML, about 3.1 MB |
+| Delivered | 2026-11-21 (updated package answering change request T-UT06; first delivery 2026-11-14) |
+| Vendored | 2026-11-16, T-UT01, copied unchanged from the untracked `data/rising-dough-frontend/`; re-vendored 2026-11-21 (T-UT06-HANDOFF) unchanged from `data/rising-dough-frontend.zip`, which answers change request T-UT06 (see its README, "What changed in this update") |
+| Contents | 171 files, 113 HTML, about 3.4 MB (re-vendor: 15 files added, 85 changed, 1 removed: `pages/overlays/edit-user.html`) |
 | Checksums | [`rising-dough-frontend.sha256`](rising-dough-frontend.sha256), verify with `cd docs/design/rising-dough-frontend && shasum -a 256 -c ../rising-dough-frontend.sha256` |
 | Entry point | `rising-dough-frontend/index.html` (opens from disk, no server); handoff notes in `rising-dough-frontend/README.md` |
 | Consumed by | `docs/plans/ui-test-harness/` (T-UT05, T-UT09, T-UT10), `docs/plans/ui-redesign/` |
