@@ -559,3 +559,18 @@ Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 
   - `account_stats` #46 (`>` to `>=` on `last_date`): equal dates assign the same date, so the output is identical.
 - `balance_series` #23 (`current - 1 day`): infinite loop, reported as timeout, i.e. detected.
 - `budget.yearly_grid` is covered by the same file; its own mutants belong to the budget cluster and were not measured here.
+
+## T-Q224 re-run (2026-11-21)
+
+`mutmut run "budget_planner.services.budget.*" --max-children 2` (mutmut 3.7.0, `mutants/` deleted first) over `services/budget.py` after T-Q208 (`domain/periods`) and T-Q212 (`FxConverter`). Before the new tests (T-Q221 suite and existing `test_budget*.py`): 87 survivors + 7 no-tests (`yearly_grid_totals`). After `tests/unit/services/test_budget_mutation_kills.py` (76 tests: exact `month_summary` totals per user with tombstones; `committed_*` start-inclusive / end-exclusive boundaries, last day and day after; averages including one-item, empty, HALF_EVEN ties and distinct-month counting; `fiscal_month_for`, `resolve_period_start` and payday detection; picker parsing, neighbours and non-fiscal summaries; `base_currency` / `today` propagation into the converter; `FxUnavailableError` for missing rates; `yearly_grid_totals`): 22 survivors, 0 no-tests. Every remaining survivor is equivalent:
+
+- `txn_base_amounts` #4 and `month_summary` #115 (`converter_for(..., today=None)`): `to_base` is always called with the transaction's own `operation_date`, so the converter's `today` is never read.
+- `_expense_txns_in_range` #9, #12 and `_all_expense_txns` #7 (`directions` dropped): results are only looked up per expense-category id, so income/transit rows in the extra set are never read.
+- `_mean_minor` #6, #8 and `month_summary` #282, #284 (`rounding=None` / omitted): the default `Decimal` context rounding is `ROUND_HALF_EVEN`, the same value.
+- `committed_by_category` #5 (`end <= start` to `<`): with `end == start` the inclusive end is `start - 1`; the planned query and every rule window are empty, so the result is `{}` either way.
+- `committed_by_category` #57, #60, #61 (`list_rules(active_only=...)`): `rt_expand` returns `()` for an inactive rule, so inactive rules add nothing either way (the `_anchor_day_for_picker` twins are killed: they read `day_of_month` directly).
+- `fiscal_month_for` #16, #19 and `_resolve_period_start` #27, #30 (`directions` dropped): the filter is already restricted to the anchor category, whose transactions all carry its (income) direction.
+- `month_summary` #146 (`max(month, 1)` to `2`): only reached when there are no year transactions, so every year sum is 0 and the mean is 0.
+- `month_summary` #164, #166, #167, #172 (defaults of `overall_sum.get` / `overall_mo.get`): a category missing from one dict is missing from the other, and `_mean_minor` returns 0 for a zero count.
+
+Real bugs found: none.

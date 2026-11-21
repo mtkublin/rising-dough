@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from budget_planner.db.connection import get_connection
 from budget_planner.services import replication_health
 
 if TYPE_CHECKING:
@@ -45,9 +46,6 @@ def ready(request: Request) -> JSONResponse:
     unauthenticated probe, and failures are logged, never echoed.
     """
     cfg: Settings = request.app.state.settings
-    # Local import keeps the import graph flat (no circular pull from ``web.app``).
-    from budget_planner.db.connection import get_connection  # noqa: PLC0415
-
     try:
         conn = get_connection(cfg)
         try:

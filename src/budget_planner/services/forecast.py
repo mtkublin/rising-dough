@@ -40,6 +40,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import (
+    balance as balance_svc,
     budget as budget_svc,
     fx as fx_svc,
     recurring as recurring_svc,
@@ -230,7 +231,12 @@ def _collect_events(
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
         for occ in recurring_svc.expand_unpromoted(
-            conn, user_id, rule, overrides, event_start, end_date
+            conn,
+            user_id,
+            rule=rule,
+            overrides=overrides,
+            window_start=event_start,
+            window_end=end_date,
         ):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
@@ -359,9 +365,10 @@ def _distribute_overlay(
     return events
 
 
-def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def _collect_budget_overlay(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     today: dt.date,
     end_date: dt.date,
     directions_by_cat: dict[int, Direction],
@@ -372,9 +379,7 @@ def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0
     if event_start > end_date:
         return []
 
-    expense_cat_ids = [
-        cat_id for cat_id, direction in directions_by_cat.items() if direction is Direction.EXPENSE
-    ]
+    expense_cat_ids = [c for c, d in directions_by_cat.items() if d is Direction.EXPENSE]
     if not expense_cat_ids:
         return []
 
@@ -421,8 +426,6 @@ def _anchor_balances(
     accounts: tuple[Account, ...],
 ) -> dict[int, int]:
     """Day-0 native balance per account via ``services.balance.derive_balance``."""
-    from budget_planner.services import balance as balance_svc  # noqa: PLC0415
-
     return {
         a.id: balance_svc.derive_balance(conn, user_id, a.id, as_of_date=today) for a in accounts
     }
@@ -511,7 +514,12 @@ def forecast(
     if include_budget_overlay:
         primary_account_id = min(a.id for a in active_accounts)
         overlay_events = _collect_budget_overlay(
-            conn, user_id, today, end_date, directions_by_cat, primary_account_id
+            conn,
+            user_id,
+            today=today,
+            end_date=end_date,
+            directions_by_cat=directions_by_cat,
+            primary_account_id=primary_account_id,
         )
         for ev in overlay_events:
             events.setdefault(ev.on_date, []).append(ev)
@@ -643,14 +651,14 @@ def _month_flow_sums(
         bucket = sums.setdefault(key, [0, 0])
         bucket[idx] += delta
 
-    event_start = today + dt.timedelta(days=1)
-    if event_start > end_date:
+    start = today + dt.timedelta(days=1)
+    if start > end_date:
         return {}
 
     persisted = planned_repo.list_filtered(
         conn,
         user_id,
-        PlannedFilter(date_from=event_start, date_to=end_date, promoted=False),
+        PlannedFilter(date_from=start, date_to=end_date, promoted=False),
     )
     dedup_keys = recurring_svc.linked_occurrence_keys(conn, user_id)
 
@@ -666,7 +674,7 @@ def _month_flow_sums(
             _add(row.operation_date, 1, base)
 
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if _rule_outside_window(rule, event_start, end_date):
+        if _rule_outside_window(rule, start, end_date):
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         direction = directions_by_cat[rule.category_id]
@@ -674,7 +682,7 @@ def _month_flow_sums(
         if ccy is None:
             continue
         for occ in recurring_svc.expand_unpromoted(
-            conn, user_id, rule, overrides, event_start, end_date
+            conn, user_id, rule=rule, overrides=overrides, window_start=start, window_end=end_date
         ):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue

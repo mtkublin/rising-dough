@@ -183,7 +183,7 @@ def test_no_warning_without_duplicate_overrides(caplog: pytest.LogCaptureFixture
         _override(1, date(2026, 1, 15), amount=1),
         _override(2, date(2026, 2, 15), amount=2),
     ]
-    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring"):
+    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring_overrides"):
         out = rec_svc.apply_overrides(occs, overrides)
     assert [r for r in caplog.records if r.levelno == logging.WARNING] == []
     assert [o.amount for o in out] == [1, 2, 12_345]
@@ -196,7 +196,7 @@ def test_duplicate_override_warning_message_is_exact(caplog: pytest.LogCaptureFi
         _override(1, date(2026, 1, 15), amount=1),
         _override(2, date(2026, 1, 15), amount=2),
     ]
-    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring"):
+    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring_overrides"):
         out = rec_svc.apply_overrides(occs, overrides)
     warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert warnings == ["overrides collide on (rule_id=7, occurrence_date=2026-01-15); last-wins"]
@@ -212,7 +212,7 @@ def test_orphan_override_debug_message_and_later_override_still_applies(
         _override(1, date(2026, 1, 20), amount=5),  # orphan, sorts first
         _override(2, date(2026, 1, 15), amount=6),
     ]
-    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring"):
+    with caplog.at_level(logging.DEBUG, logger="budget_planner.services.recurring_overrides"):
         out = rec_svc.apply_overrides(occs, overrides)
     debug = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
     assert debug == ["orphan override dropped: rule_id=7 date=2026-01-20"]
@@ -619,10 +619,25 @@ def test_expand_unpromoted_window_end_equal_to_start_is_inclusive(
     """Kills `start > window_end` -> `>=`."""
     rule = recurring_repo.find_rule(conn, USER_ID, world["rule"])
     assert rule is not None
-    occs = rec_svc.expand_unpromoted(conn, USER_ID, rule, [], date(2026, 1, 1), date(2026, 1, 5))
+    occs = rec_svc.expand_unpromoted(
+        conn,
+        USER_ID,
+        rule=rule,
+        overrides=[],
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 1, 5),
+    )
     assert [o.occurrence_date for o in occs] == [date(2026, 1, 5)]
     assert (
-        rec_svc.expand_unpromoted(conn, USER_ID, rule, [], date(2026, 1, 1), date(2026, 1, 4)) == ()
+        rec_svc.expand_unpromoted(
+            conn,
+            USER_ID,
+            rule=rule,
+            overrides=[],
+            window_start=date(2026, 1, 1),
+            window_end=date(2026, 1, 4),
+        )
+        == ()
     )
 
 
