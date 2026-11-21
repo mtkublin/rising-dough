@@ -340,7 +340,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:1 (1 entry); `invariants`:3 (2 entries); `money_scope`:16 (10 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-6 (Q-011, Q-029) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
+### ✅ T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
 - Findings: Q-005 (C-01, F-07).
 - Epic: none (money-arith, latent)
 - Band: 1 · Size: S · Tags: none
