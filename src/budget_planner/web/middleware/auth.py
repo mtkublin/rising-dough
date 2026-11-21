@@ -26,6 +26,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from http import HTTPStatus
+from types import MappingProxyType
 from typing import Final
 from urllib.parse import quote, urlsplit
 
@@ -64,7 +65,7 @@ EXEMPT_PATHS: Final = frozenset(
 #: Path prefixes reachable without a session and never hydrated.
 STATIC_PREFIX: Final = "/static/"
 
-_UNAUTHORIZED_BODY: Final = {"error": "unauthorized"}
+_UNAUTHORIZED_BODY: Final = MappingProxyType({"error": "unauthorized"})
 _log = get_logger("budget_planner.auth")
 
 
@@ -109,6 +110,18 @@ def _resolve(settings: Settings, session_id: str) -> tuple[CurrentUser, datetime
     return CurrentUser.from_auth_user(loaded[1]), loaded[0].expires_at
 
 
+def _is_live(settings: Settings, session_id: str) -> bool:
+    """True while *session_id* still resolves to a live session (no expiry slide)."""
+    conn = get_connection(settings)
+    try:
+        return auth_service.load_session_user(conn, session_id, touch=False) is not None
+    except sqlite3.Error as exc:
+        _log.error("session_lookup_failed", error=str(exc))
+        return False
+    finally:
+        conn.close()
+
+
 def _login_url(next_path: str) -> str:
     target = safe_next(next_path)
     return f"{LOGIN_PATH}?next={quote(target, safe='')}"
@@ -131,15 +144,29 @@ def unauthenticated_response(request: Request) -> Response:
     """Build the ADR-0070 §4 response for an anonymous request."""
     if request.headers.get("hx-request", "").lower() == "true":
         return JSONResponse(
-            _UNAUTHORIZED_BODY,
+            dict(_UNAUTHORIZED_BODY),
             status_code=HTTPStatus.UNAUTHORIZED,
             headers={"HX-Redirect": _login_url(_hx_current_path(request))},
         )
     if _wants_json(request):
-        return JSONResponse(_UNAUTHORIZED_BODY, status_code=HTTPStatus.UNAUTHORIZED)
+        return JSONResponse(dict(_UNAUTHORIZED_BODY), status_code=HTTPStatus.UNAUTHORIZED)
     path = request.url.path
     target = f"{path}?{request.url.query}" if request.url.query else path
     return RedirectResponse(_login_url(target), status_code=HTTPStatus.FOUND)
+
+
+async def _refresh_cookie(
+    response: Response, settings: Settings, session_id: str, expires_at: datetime | None
+) -> None:
+    """Slide or clear the session cookie after the handler ran.
+
+    Sends nothing when the token was rotated or revoked while the request was in
+    flight: the browser already holds the newer cookie (T-Q253, Q-062 H3-04).
+    """
+    if expires_at is None:
+        clear_session_cookie(response, settings)
+    elif await run_in_threadpool(_is_live, settings, session_id):
+        set_session_cookie(response, settings, session_id, expires_at=expires_at)
 
 
 class AuthRequiredMiddleware(BaseHTTPMiddleware):
@@ -169,10 +196,7 @@ class AuthRequiredMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         if session_id and not response_sets_cookie(response, cookie_name):
-            if expires_at is not None:
-                set_session_cookie(response, settings, session_id, expires_at=expires_at)
-            else:
-                clear_session_cookie(response, settings)
+            await _refresh_cookie(response, settings, session_id, expires_at)
         return response
 
 

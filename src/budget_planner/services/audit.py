@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, Literal, cast
 
 from budget_planner.domain.request_ctx import RequestCtx
@@ -43,12 +44,14 @@ class AuditShapeError(ValueError):
 
 
 # ``prev_required`` / ``new_required`` per operation, matching ADR-0019.
-_SHAPE_RULES: dict[str, tuple[bool, bool]] = {
-    "create": (False, True),
-    "update": (True, True),
-    "delete": (True, False),
-    "undelete": (False, True),
-}
+_SHAPE_RULES: Mapping[str, tuple[bool, bool]] = MappingProxyType(
+    {
+        "create": (False, True),
+        "update": (True, True),
+        "delete": (True, False),
+        "undelete": (False, True),
+    }
+)
 
 
 def _check_shape(

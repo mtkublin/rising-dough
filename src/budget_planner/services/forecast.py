@@ -29,7 +29,7 @@ import httpx
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import currency_decimals
+from budget_planner.domain.money import currency_decimals, major_float
 from budget_planner.domain.periods import month_bounds, shift_month
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
@@ -924,7 +924,7 @@ def monthly_projection(
         MonthlyProjectionPoint(
             month=point.month,
             label=point.month.strftime("%b %Y"),
-            value_major=point.end_balance_base_minor / 100.0,
+            value_major=major_float(point.end_balance_base_minor, base_ccy),
             income_minor=point.income_base_minor,
             expense_minor=point.expense_base_minor,
             planned_budget_minor=point.planned_budget_base_minor,
@@ -956,7 +956,7 @@ __all__ = [
 class ProjectionSummary:
     """NOW / END / PEAK strip of the forecast tab."""
 
-    now_value: float
+    now_value: int
     end_point: MonthlyProjectionPoint
     peak_point: MonthlyProjectionPoint
 
@@ -966,7 +966,7 @@ def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> Projec
     if not projection:
         return None
     return ProjectionSummary(
-        now_value=projection[0].value_major,
+        now_value=projection[0].end_balance_minor,
         end_point=projection[-1],
         peak_point=max(projection, key=lambda p: p.value_major),
     )

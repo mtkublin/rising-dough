@@ -29,6 +29,7 @@ from budget_planner.repositories import (
     recurring,
     transactions as transactions_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import budget as budget_svc, forecast as forecast_svc
 
 USER_ID = 1
@@ -153,9 +154,7 @@ def test_expense_sum_in_month_includes_recurring(
             default_description="rent",
         ),
     )
-    recurring.set_next_due(
-        conn, USER_ID, rule.id, next_due=date(2026, 11, 1), last_promoted_date=None
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 11, 1), last_promoted_date=None)
     planned.create(
         conn,
         USER_ID,

@@ -8,6 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import strip_id_prefix
+from tests.e2e.forms import PANEL, add_happened, wait_for_htmx
 
 pytestmark = pytest.mark.e2e
 
@@ -34,27 +35,28 @@ def test_reconcile_creates_adjustment_transaction(
         "account-",
     )
 
-    page.goto(f"{base_url}/categories")
-    food_row = page.locator("[id^='category-']", has_text="Food").first
-    category_id = strip_id_prefix(food_row.get_attribute("id"), "category-")
-
-    assert page.request.post(
-        f"{base_url}/transactions",
-        form={
-            "operation_date": "2026-01-15",
-            "category_id": category_id,
-            "account_id": account_id,
-            "amount": "40.00",
-            "description": "snack",
-        },
-    ).ok
-
-    # Reconcile: user asserts actual 70.00 → delta +10.00 adjustment.
-    reconcile_resp = page.request.post(
-        f"{base_url}/accounts/{account_id}/reconcile",
-        form={"actual_balance": "70.00"},
+    page.goto(f"{base_url}/ledger?view=actual")
+    add_happened(
+        page,
+        category="Food",
+        account="Checking",
+        amount="40.00",
+        day="2026-01-15",
+        note="snack",
     )
-    assert reconcile_resp.ok, reconcile_resp.text()
+
+    # Reconcile through the account row's form: bank says 70.00 -> +10.00 adjustment.
+    page.goto(f"{base_url}/accounts")
+    wait_for_htmx(page)
+    page.locator(f"#account-{account_id}").get_by_role("button", name="Reconcile").click()
+    panel = page.locator(PANEL)
+    expect(panel).to_be_visible()
+    panel.locator("input[name='actual_balance']").fill("70.00")
+    with page.expect_response(
+        lambda r: r.url.endswith("/reconcile") and r.request.method == "POST"
+    ) as resp:
+        panel.get_by_role("button", name="Record").click()
+    assert resp.value.ok, resp.value.text()
 
     # Account card now shows 70.00.
     page.goto(f"{base_url}/accounts")

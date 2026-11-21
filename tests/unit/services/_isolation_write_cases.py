@@ -35,6 +35,7 @@ from budget_planner.services import (
     reconciliation,
     recurring,
     recurring_formula as formula_svc,
+    recurring_undo,
     transactions as transactions_service,
 )
 from tests.unit.services._isolation_registry import covers
@@ -265,6 +266,40 @@ def _case_recurring_batch_promote_due(conn: sqlite3.Connection, world: World) ->
     assert _rule(conn, OTHER_ID, world.other.rule_id).next_due == EXPENSE_RULE_DUE
 
 
+@covers("recurring_undo.undo_batch")
+def _case_recurring_undo_batch(conn: sqlite3.Connection, world: World) -> None:
+    mine = recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
+    theirs = recurring.batch_promote_due(conn, OTHER_ID, PROMOTE_DAY)
+    advanced_other = _rule(conn, OTHER_ID, world.other.rule_id).next_due
+    other_txns = _count_txns(conn, OTHER_ID)
+    assert advanced_other != EXPENSE_RULE_DUE
+    other_steps = list(zip(theirs.promoted_txn_ids, theirs.advance_audit_ids, strict=True))
+    foreign = recurring_undo.undo_batch(
+        conn, OWNER_ID, other_steps
+    )  # user 2's audit rows are invisible
+    assert (foreign.deleted_txn_ids, foreign.restored_rule_ids) == ((), ())
+    assert _rule(conn, OTHER_ID, world.other.rule_id).next_due == advanced_other
+    assert _count_txns(conn, OTHER_ID) == other_txns
+    own = recurring_undo.undo_batch(
+        conn, OWNER_ID, list(zip(mine.promoted_txn_ids, mine.advance_audit_ids, strict=True))
+    )
+    assert own.restored_rule_ids == (world.owner.rule_id,)
+    assert own.deleted_txn_ids == mine.promoted_txn_ids
+    assert _rule(conn, OWNER_ID, world.owner.rule_id).next_due == EXPENSE_RULE_DUE
+    assert _rule(conn, OTHER_ID, world.other.rule_id).next_due == advanced_other
+
+
+@covers("recurring.restore_progress")
+def _case_recurring_restore_progress(conn: sqlite3.Connection, world: World) -> None:
+    recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
+    advanced = _rule(conn, OWNER_ID, world.owner.rule_id).next_due
+    prev = {"next_due": EXPENSE_RULE_DUE.isoformat(), "last_promoted_date": None, "active": True}
+    recurring.restore_progress(conn, OTHER_ID, world.owner.rule_id, prev)  # not user 2's rule
+    assert _rule(conn, OWNER_ID, world.owner.rule_id).next_due == advanced
+    recurring.restore_progress(conn, OWNER_ID, world.owner.rule_id, prev)
+    assert _rule(conn, OWNER_ID, world.owner.rule_id).next_due == EXPENSE_RULE_DUE
+
+
 # --- planned -----------------------------------------------------------------------------------------------------
 
 
@@ -316,6 +351,25 @@ def _case_planned_batch_promote_due(conn: sqlite3.Connection, world: World) -> N
     assert _count_txns(conn, OTHER_ID) == before_other
     still_open = planned_repo.list_filtered(conn, OTHER_ID, PlannedFilter(promoted=False))
     assert [r.id for r in still_open] == [world.other.planned_id]
+
+
+@covers("planned.undo_batch")
+def _case_planned_undo_batch(conn: sqlite3.Connection, world: World) -> None:
+    mine = planned.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
+    theirs = planned.batch_promote_due(conn, OTHER_ID, PROMOTE_DAY)
+    other_txns = _count_txns(conn, OTHER_ID)
+    foreign = planned.undo_batch(
+        conn, OWNER_ID, theirs.promoted_txn_ids, theirs.promoted_planned_ids
+    )  # user 2's rows are not the owner's
+    assert (foreign.deleted_txn_ids, foreign.restored_planned_ids) == ((), ())
+    assert _count_txns(conn, OTHER_ID) == other_txns
+    own = planned.undo_batch(conn, OWNER_ID, mine.promoted_txn_ids, mine.promoted_planned_ids)
+    assert own.restored_planned_ids == (world.owner.planned_id,)
+    assert own.deleted_txn_ids == mine.promoted_txn_ids
+    restored = planned_repo.find_by_id(conn, OWNER_ID, world.owner.planned_id)
+    assert restored is not None and restored.promoted_to_txn_id is None
+    stamped = planned_repo.find_by_id(conn, OTHER_ID, world.other.planned_id)
+    assert stamped is not None and stamped.promoted_to_txn_id == theirs.promoted_txn_ids[0]
 
 
 # --- recurring_formula -------------------------------------------------------------------------------------------
@@ -453,7 +507,12 @@ def _case_reconcile(conn: sqlite3.Connection, world: World) -> None:
         reconciliation.reconcile(conn, OWNER_ID, world.tombstones.account_id, 1, T)
     target = OWNER_BALANCE
     txn = reconciliation.reconcile(
-        conn, OWNER_ID, world.owner.account_id, target, T, category_id=world.owner.category_id
+        conn,
+        OWNER_ID,
+        world.owner.account_id,
+        target,
+        T,
+        category_id=world.owner.income_category_id,  # positive delta needs income (Q-005)
     )
     assert (txn.user_id, txn.account_id, txn.amount) == (OWNER_ID, world.owner.account_id, 1_000)
     other_txns = transactions_repo.list_filtered(conn, OTHER_ID, TransactionFilter())

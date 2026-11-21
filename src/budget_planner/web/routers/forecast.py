@@ -28,7 +28,6 @@ router = APIRouter(prefix="/forecast", tags=["forecast"])
 _DEFAULT_HORIZON_MONTHS = 12
 _MIN_HORIZON_MONTHS = 1
 _MAX_HORIZON_MONTHS = 60
-_MINOR_UNITS_PER_MAJOR = 100.0
 
 
 def _parse_horizon_months(request: Request) -> int:
@@ -52,15 +51,6 @@ def _compute(
         )
 
 
-def _series_to_chart(monthly: forecast_service.MonthlySeries) -> charts.LineAreaChart:
-    points = tuple(
-        (float(i), m.end_balance_base_minor / _MINOR_UNITS_PER_MAJOR)
-        for i, m in enumerate(monthly.months)
-    )
-    labels = tuple(m.month.strftime("%b %Y") for m in monthly.months)
-    return charts.line_area(points, x_labels=labels)
-
-
 @router.get("", response_class=HTMLResponse)
 def index(
     request: Request,
@@ -70,7 +60,11 @@ def index(
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
     monthly = _compute(conn, user_id, settings, horizon_months)
-    chart = _series_to_chart(monthly)
+    chart = charts.line_area_minor(
+        tuple(m.end_balance_base_minor for m in monthly.months),
+        settings.base_currency,
+        tuple(m.month.strftime("%b %Y") for m in monthly.months),
+    )
     return render(
         request,
         "forecast/index.html",
@@ -89,7 +83,11 @@ def view_fragment(
 ) -> HTMLResponse:
     horizon_months = _parse_horizon_months(request)
     monthly = _compute(conn, user_id, settings, horizon_months)
-    chart = _series_to_chart(monthly)
+    chart = charts.line_area_minor(
+        tuple(m.end_balance_base_minor for m in monthly.months),
+        settings.base_currency,
+        tuple(m.month.strftime("%b %Y") for m in monthly.months),
+    )
     return render(
         request,
         "partials/forecast/_view.html",

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e.forms import add_happened, wait_for_htmx
 
 pytestmark = pytest.mark.e2e
 
@@ -28,33 +28,28 @@ def test_set_budget_shows_remaining_after_spend(
         form={"name": "Groceries", "direction": "expense"},
     ).ok
 
-    # Discover ids by scraping /accounts and /categories.
-    page.goto(f"{base_url}/accounts")
-    account_id = strip_id_prefix(
-        page.locator("tr[id^='account-']").first.get_attribute("id"),
-        "account-",
-    )
-    page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
-    category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
-
-    # Set a default budget of 500.00 for Groceries.
-    assert page.request.post(
-        f"{base_url}/budget/defaults/{category_id}",
-        form={"amount": "500.00"},
-    ).ok
-
     # Record a 120.00 expense in a known month to query /budget deterministically.
-    assert page.request.post(
-        f"{base_url}/transactions",
-        form={
-            "operation_date": "2026-10-15",
-            "category_id": category_id,
-            "account_id": account_id,
-            "amount": "120.00",
-            "description": "weekly shop",
-        },
-    ).ok
+    page.goto(f"{base_url}/ledger?view=actual")
+    add_happened(
+        page,
+        category="Groceries",
+        account="Checking",
+        amount="120.00",
+        day="2026-10-15",
+        note="weekly shop",
+    )
+
+    # Set a default budget of 500.00 for Groceries through the inline rule form.
+    page.goto(f"{base_url}/budget?year=2026&month=10")
+    wait_for_htmx(page)
+    page.get_by_label("Default budget for Groceries").fill("500.00")
+    with page.expect_response(
+        lambda r: "/budget/defaults/" in r.url and r.request.method == "POST"
+    ) as resp:
+        page.locator("form.budget-rule-form", has_text="Save").get_by_role(
+            "button", name="Save"
+        ).click()
+    assert resp.value.ok, resp.value.text()
 
     # Visit /budget for the same month. Phase 9 (T-100/T-101) refactored
     # the summary surface: `#budget-summary` is a `<section>` wrapping a

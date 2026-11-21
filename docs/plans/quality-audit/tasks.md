@@ -328,7 +328,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q216 [S] One money renderer and a complete currency exponent table
+### ✅ T-Q216 [S] One money renderer and a complete currency exponent table
 - Findings: Q-011 (A-01, C-03, E-03), Q-029 (A-09, C-15).
 - Epic: E11
 - Band: 1 · Size: M · Tags: `[pre-first-non-PLN]`
@@ -340,7 +340,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:1 (1 entry); `invariants`:3 (2 entries); `money_scope`:16 (10 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-6 (Q-011, Q-029) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
+### ✅ T-Q217 [S] Reconcile with an income or expense category cannot misstate the balance
 - Findings: Q-005 (C-01, F-07).
 - Epic: none (money-arith, latent)
 - Band: 1 · Size: S · Tags: none
@@ -378,7 +378,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `invariants`:2 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/invariants.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-3c and INV-9 (Q-030) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q228 [S] `repo-bypass`: undo endpoints and audit-free repository helpers
+### ✅ T-Q228 [S] `repo-bypass`: undo endpoints and audit-free repository helpers
 - Findings: Q-024 (B-03, B-11, C-16, H2-03), Q-049 (B-10).
 - Epic: E10
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -487,7 +487,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `layering`:5 (5 entries); `sql_sites`:4 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/layering.toml`, `allowlists/sql_sites.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q263 [P] Immutable module constants, no hidden caches or globals
+### ✅ T-Q263 [P] Immutable module constants, no hidden caches or globals
 - Findings: Q-074 (B-13); epic E05.
 - Epic: E05
 - Band: 2 · Size: S · Tags: `[pre-v4-P3-rec]`
@@ -495,7 +495,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR-0021 sentence (framework classes and memo parameters) is T-Q258; this task needs none beyond a CHANGELOG line.
 - Acceptance: Failing guard first: `functional_first.toml` entries with `epic = "E05"` (18 entries, 21 violations). Convert module `dict`/`list`/`set` constants to `MappingProxyType`, tuples or frozensets (`db/migrate.py`, `domain/money.py`, `repositories/_shared.py`, `services/audit.py`, `export.py`, `recurring.py`, `web/templating.py`, `web/today_data.py`, `web/routers/recurring.py`, middleware); replace the two `global` statements (`logging.py`, `web/app.py`) with an explicit state object; remove the `lru_cache` hidden caches by passing the object explicitly (`config.get_settings` caching moves with T-Q264); stop mutating `data` parameters in `logging.py` and `recurring_formula.py`.
 - Operator question blocking it: none.
-- Removes allowlist entries: `functional_first`:21 (18 entries)
+- Removes allowlist entries: `functional_first`:21 (18 entries) Done 2026-11-21: 16 of the 18 entries deleted; the two `config.py` entries (`hidden-cache`, `setattr-bypass`) stay with T-Q264 (settings caching and the frozen `ResolvedSettings`).
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/functional_first.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings
@@ -569,7 +569,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q222 [S] Kill the `recurring_formula` mutant cluster
+### ✅ T-Q222 [S] Kill the `recurring_formula` mutant cluster
 - Findings: Q-016 (F-02).
 - Epic: none (test-gap)
 - Band: 3 · Size: M · Tags: none
@@ -867,7 +867,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q248 [P] Browser e2e drives real forms; ledger pagination race
+### ✅ T-Q248 [P] Browser e2e drives real forms; ledger pagination race
 - Findings: Q-056 (F-15), Q-057 (F-16).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -889,7 +889,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
+### ✅ T-Q250 [P] Strengthen status-only HTTP tests and the vacuous rollback test
 - Findings: Q-059 (F-18, F-19).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -922,7 +922,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
+### ✅ T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
 - Findings: tooling (T-Q15b left bandit pinned at 1.7.10); new findings B105 `repositories/users.py:250`, B704 `web/templating.py:124` and `:161`; epic E15.
 - Epic: E15
 - Band: 5 · Size: S · Tags: none
@@ -937,7 +937,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 6 — Low
 
-### T-Q253 [P] Session and passkey hardening
+### ✅ T-Q253 [P] Session and passkey hardening
 - Findings: Q-062 (H3-02, H3-04, H3-06, H3-08).
 - Epic: none (security-control)
 - Band: 6 · Size: M · Tags: none

@@ -21,6 +21,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
 )
+from budget_planner.repositories._unaudited import set_next_due
 
 USER_ID = 1
 
@@ -74,9 +75,7 @@ def test_recurring_batch_promote_with_due_rule(
                 default_description="",
             ),
         )
-        recurring_repo.set_next_due(
-            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
-        )
+        set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None)
     finally:
         conn.close()
     r = client.post("/recurring/batch/promote-due")
@@ -136,20 +135,18 @@ def test_recurring_batch_undo_restores_state(
                 default_description="",
             ),
         )
-        recurring_repo.set_next_due(
-            conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None
-        )
+        set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None)
     finally:
         conn.close()
     r = client.post("/recurring/batch/promote-due")
     payload = json.loads(r.headers["HX-Trigger"])
     txn_ids = payload["toast"]["undo_payload"]["promoted_txn_ids"]
-    rule_ids = payload["toast"]["undo_payload"]["advanced_rule_ids"]
+    audit_ids = payload["toast"]["undo_payload"]["advance_audit_ids"]
     undo = client.post(
         "/recurring/batch/undo",
         data={
             "promoted_txn_ids": ",".join(str(i) for i in txn_ids),
-            "advanced_rule_ids": ",".join(str(i) for i in rule_ids),
+            "advance_audit_ids": ",".join(str(i) for i in audit_ids),
         },
     )
     assert undo.status_code == 204
@@ -207,6 +204,6 @@ def test_planned_batch_undo_restores_state(
 def test_batch_undo_invalid_ids_422(client: TestClient) -> None:
     r = client.post(
         "/recurring/batch/undo",
-        data={"promoted_txn_ids": "x,y", "advanced_rule_ids": ""},
+        data={"promoted_txn_ids": "x,y", "advance_audit_ids": ""},
     )
     assert r.status_code == 422

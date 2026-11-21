@@ -66,3 +66,13 @@ Runtime deps add `bcrypt>=4.2` and `webauthn>=2.7,<3`. `[tool.uv] constraint-dep
 - **Server-side challenge table**: needs TTL cleanup and couples the service to storage. Rejected for v3's ≤ 10 users.
 - **`itsdangerous`-wrapped session payload**: adds nothing over a 256-bit random id with a server-side lookup. Rejected.
 - **Pre-signature sign-count check (library default)**: lets an attacker revoke credentials with forged data. Rejected.
+
+## Amendment 2026-11-21 (T-Q253, Q-062): single-use challenges, credential-bound sessions, no lost cookie on rotation
+
+Defaults taken 2026-11-21, pending operator confirmation (OQ-26).
+
+1. **Challenges are single-use (amends §1).** The signed challenge cookie stays the carrier (300 s TTL is now only an upper bound), but the service layer records `sha256(challenge)` in `passkey_challenges_consumed` (migration `0018`, `INSERT` of a primary key) before it verifies any `*_finish` (register, login, re-auth). The first attempt consumes the challenge whatever its outcome; a second finish with the same challenge fails with the generic failure and writes nothing else. The insert is atomic, so two concurrent finishes cannot both win. Rows older than twice the TTL are pruned on each consume. A captured login assertion plus its challenge cookie therefore cannot be replayed, including for authenticators that report counter 0.
+2. **Sessions remember their passkey (amends §6).** `sessions.credential_id` (nullable, migration `0018`) holds the `webauthn_credentials.id` a passkey login used. `revoke_passkey` ends, in the same transaction, every live session of that user with that `credential_id` and audits one `session_revoked` row per call. Sessions created before the migration, or by password, carry NULL and are not touched.
+3. **Sign counter (confirms §3).** A stored and reported counter of 0 is accepted (synced passkeys report 0); a non-zero counter that does not strictly increase is rejected and the credential revoked.
+4. **No cookie re-set from an in-flight response.** `AuthRequiredMiddleware` re-issues the sliding session cookie after the handler only while the token it resolved is still live. A request that was in flight while a re-auth rotated the token (or a revoke ended the session) no longer overwrites the browser's new cookie with the old one. Concurrent HTMX requests during re-auth are assumed possible (OQ-26).
+5. **CSRF token binding: decision.** The double-submit token stays an unsigned random cookie value (H3-08 not changed). In production the `__Host-` prefix blocks cookie tossing from sibling origins, which is what makes an attacker-chosen cookie unreachable; the HMAC-bound, login-rotated token is deferred and tracked with Q-062 follow-up, not implemented here.

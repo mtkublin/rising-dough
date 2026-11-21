@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+from collections.abc import Iterator
 from datetime import date
 
 import pytest
@@ -23,6 +25,19 @@ from budget_planner.repositories import (
 from budget_planner.services import balance as balance_service
 
 USER_ID = 1
+
+
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _count(db: sqlite3.Connection, table: str) -> int:
+    return int(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608 — test-only fixed table names
 
 
 @pytest.fixture
@@ -71,20 +86,26 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
     assert "currency" in r.text
 
 
-def test_create_rejects_blank_name(client: TestClient) -> None:
+def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _count(db, "accounts")
     r = client.post(
         "/accounts",
         data={"name": "   ", "currency": "PLN", "opening_balance": "0"},
     )
     assert r.status_code == 422
+    assert "<strong>name:</strong> name required" in r.text
+    assert _count(db, "accounts") == before
 
 
-def test_create_rejects_bad_opening(client: TestClient) -> None:
+def test_create_rejects_bad_opening(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _count(db, "accounts")
     r = client.post(
         "/accounts",
         data={"name": "A", "currency": "PLN", "opening_balance": "nan!"},
     )
     assert r.status_code == 422
+    assert "<strong>opening_balance:</strong> invalid number" in r.text
+    assert _count(db, "accounts") == before
 
 
 def test_edit_and_update(client: TestClient, acc_id: int) -> None:
@@ -96,16 +117,26 @@ def test_edit_and_update(client: TestClient, acc_id: int) -> None:
 
 
 def test_edit_404(client: TestClient) -> None:
-    assert client.get("/accounts/9999/edit").status_code == 404
+    r = client.get("/accounts/9999/edit")
+    assert r.status_code == 404
+    assert "<strong>account:</strong> not found" in r.text
 
 
-def test_update_404(client: TestClient) -> None:
-    assert client.post("/accounts/9999", data={"name": "X"}).status_code == 404
+def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _count(db, "accounts")
+    r = client.post("/accounts/9999", data={"name": "X"})
+    assert r.status_code == 404
+    assert "<strong>account:</strong> not found" in r.text
+    assert _count(db, "accounts") == before
 
 
-def test_update_blank_name(client: TestClient, acc_id: int) -> None:
+def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
+    assert "<strong>name:</strong> name required" in r.text
+    stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
+    assert stored is not None
+    assert stored.name == "Main"
 
 
 def test_delete(client: TestClient, acc_id: int, _migrated: Settings) -> None:
@@ -143,8 +174,12 @@ def test_snapshot(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     assert "<li>" in r.text
 
 
-def test_snapshot_404(client: TestClient) -> None:
-    assert client.post("/accounts/9999/snapshot").status_code == 404
+def test_snapshot_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _count(db, "audit_log")
+    r = client.post("/accounts/9999/snapshot")
+    assert r.status_code == 404
+    assert r.text == "not found"
+    assert _count(db, "audit_log") == before
 
 
 def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
@@ -154,7 +189,9 @@ def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
 
 
 def test_reconcile_form_404(client: TestClient) -> None:
-    assert client.get("/accounts/9999/reconcile").status_code == 404
+    r = client.get("/accounts/9999/reconcile")
+    assert r.status_code == 404
+    assert "<strong>account:</strong> not found" in r.text or "not found" in r.text
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -164,20 +201,35 @@ def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
     assert hx == {"balance-stale": True, "forecast-stale": True}
 
 
-def test_reconcile_submit_bad_number(client: TestClient, acc_id: int) -> None:
+def test_reconcile_submit_bad_number(
+    client: TestClient, acc_id: int, db: sqlite3.Connection
+) -> None:
+    before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
+    assert "<strong>actual_balance:</strong> invalid number" in r.text
+    assert _count(db, "transactions") == before
 
 
-def test_reconcile_submit_404(client: TestClient) -> None:
-    assert client.post("/accounts/9999/reconcile", data={"actual_balance": "1"}).status_code == 404
+def test_reconcile_submit_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _count(db, "transactions")
+    r = client.post("/accounts/9999/reconcile", data={"actual_balance": "1"})
+    assert r.status_code == 404
+    assert r.text == "not found"
+    assert _count(db, "transactions") == before
 
 
-def test_reconcile_zero_delta_still_200(client: TestClient, acc_id: int) -> None:
+def test_reconcile_zero_delta_still_200(
+    client: TestClient, acc_id: int, db: sqlite3.Connection
+) -> None:
     # Opening balance 0 - submitting 0 means no delta; the service raises
     # NoAdjustmentNeededError which the router swallows.
+    before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "0"})
     assert r.status_code == 200
+    assert f'id="account-{acc_id}"' in r.text
+    assert _count(db, "transactions") == before
+    assert balance_service.derive_balance(db, USER_ID, acc_id) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +360,10 @@ def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
     assert "credit_limit" in r.text
 
 
-def test_create_liability_with_zero_limit_rejected(client: TestClient) -> None:
+def test_create_liability_with_zero_limit_rejected(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    before = _count(db, "accounts")
     r = client.post(
         "/accounts",
         data={
@@ -320,6 +375,8 @@ def test_create_liability_with_zero_limit_rejected(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
+    assert "<strong>credit_limit:</strong> positive credit limit required" in r.text
+    assert _count(db, "accounts") == before
 
 
 def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int) -> None:

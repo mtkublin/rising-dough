@@ -119,6 +119,9 @@ def verify_passkey_reauth(
     if stored is None or stored.user_id != user_id:
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "unknown_credential")
         return False
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        _fail(conn, ctx, user_id, METHOD_PASSKEY, "challenge_replayed")
+        return False
     try:
         verified = verify_authentication_response(
             credential=parsed,

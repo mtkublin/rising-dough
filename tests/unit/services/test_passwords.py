@@ -79,3 +79,14 @@ def test_dummy_hash_is_cached_per_cost(monkeypatch: pytest.MonkeyPatch) -> None:
     assert first == dummy_hash()
     assert first.startswith("$2b$04$")
     assert verify_password("anything", first) is False
+
+
+def test_dummy_hash_table_entries_match_their_cost() -> None:
+    for rounds, hashed in _passwords._DUMMY_HASHES.items():
+        assert hashed.startswith(f"$2b${rounds:02d}$")
+        assert verify_password("anything", hashed) is False
+
+
+def test_dummy_hash_computes_for_cost_outside_table(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 5)
+    assert dummy_hash().startswith("$2b$05$")

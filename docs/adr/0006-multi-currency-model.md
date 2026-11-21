@@ -34,3 +34,11 @@ The user operates accounts in different currencies and wants a unified fortune /
 - **`currency` on transaction**: necessary only if accounts hold mixed currencies (rare); over-models the common case.
 - **Live rate for all conversions**: wrong signal; historical charts would wiggle on today's FX moves.
 - **Manual rate entry**: operationally painful.
+
+## Amendment 2026-11-21 (T-Q216, Q-011, Q-029): one renderer and a complete exponent table
+
+- `domain/money.py:minor_to_major(amount, currency)` is the only minor-to-major conversion. Templates use the `money` / `money_num(currency)` filters; services and routers call `minor_to_major` (or `major_float` for chart geometry only). Literal `/ 100`, `/ 100.0`, `* 100` and two-decimal money formats are banned outside `domain/money.py` (guards G6, G27).
+- The exponent table is `CURRENCY_EXPONENTS`, built beside `ISO_4217_CURRENCIES` from ISO 4217: every offered code has an explicit entry (0 for BIF, CLP, DJF, GNF, ISK, JPY, KMF, KRW, PYG, RWF, UGX, VND, VUV, XAF, XOF, XPF; 3 for BHD, IQD, JOD, KWD, LYD, OMR, TND; otherwise 2). Codes outside the list fall back to 2. A unit test fails when an offered code lacks an entry.
+- Rounding policy: major to minor rounds half up (`Decimal.ROUND_HALF_UP`) at the currency exponent; minor to major is exact (no rounding); integer splits of a minor amount go through `divide_minor_units` (floor). T-Q229 may refine the clock/period side but not these rules.
+- Percent and basis-point scaling (`bps_to_percent`, `percent_to_bps`) lives in the same module because it is the only other `x100` scale in the app.
+- OQ-1 default: prod is PLN-only with no fx rows, so no data migration is needed; the exponent changes only affect codes that are not yet in use.

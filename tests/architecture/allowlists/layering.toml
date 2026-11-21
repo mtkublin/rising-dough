@@ -104,14 +104,14 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "contract:routers-not-repositories"
-count = 5
+count = 3
 finding = "Q-045"
 epic = "E08"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "contract:routers-not-repositories"
-count = 6
+count = 3
 finding = "Q-045"
 epic = "E08"
 

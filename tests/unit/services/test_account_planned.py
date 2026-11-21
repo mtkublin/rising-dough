@@ -26,6 +26,7 @@ from budget_planner.repositories import (
     recurring,
     transactions,
 )
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import account_planned as svc, preferences
 from budget_planner.services.recurring import PromotionEdits, promote_recurring
 
@@ -118,7 +119,7 @@ def _rule(
             amount_formula=formula,
         ),
     )
-    recurring.set_next_due(conn, USER_ID, rule.id, next_due=next_due, last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule.id, next_due=next_due, last_promoted_date=None)
     return rule.id
 
 

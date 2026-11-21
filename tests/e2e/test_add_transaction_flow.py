@@ -8,6 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e.conftest import strip_id_prefix
+from tests.e2e.forms import add_happened
 
 pytestmark = pytest.mark.e2e
 
@@ -46,23 +47,16 @@ def test_add_transaction_updates_account_balance(
     account_el = page.locator("tr[id^='account-']").first
     account_id = strip_id_prefix(account_el.get_attribute("id"), "account-")
 
-    # Find the category id by posting a form POST that reads back the row.
-    page.goto(f"{base_url}/categories")
-    groceries_row = page.locator("[id^='category-']", has_text="Groceries").first
-    category_id = strip_id_prefix(groceries_row.get_attribute("id"), "category-")
-
-    # 4. Post a 20.00 expense transaction.
-    txn_resp = page.request.post(
-        f"{base_url}/transactions",
-        form={
-            "operation_date": "2026-01-15",
-            "category_id": category_id,
-            "account_id": account_id,
-            "amount": "20.00",
-            "description": "milk",
-        },
+    # 4. Add a 20.00 expense through the real overlay form.
+    page.goto(f"{base_url}/ledger?view=actual")
+    add_happened(
+        page,
+        category="Groceries",
+        account="Checking",
+        amount="20.00",
+        day="2026-01-15",
+        note="milk",
     )
-    assert txn_resp.ok, txn_resp.text()
 
     # 5. Confirm balance on /accounts flipped to 80.00.
     page.goto(f"{base_url}/accounts")

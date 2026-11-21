@@ -13,6 +13,7 @@ from __future__ import annotations
 import signal
 import sqlite3
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -37,9 +38,11 @@ from budget_planner.web.templating import build_jinja_env
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
     from contextlib import AbstractAsyncContextManager
+    from types import FrameType
+
+    from structlog.stdlib import BoundLogger
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_SIGTERM_INSTALLED = False
 
 
 def _assert_production_pragmas(cfg: Settings) -> None:
@@ -83,28 +86,34 @@ def _install_sigterm_observer() -> None:
     Idempotent across repeated ``create_app`` calls (tests). No-op on
     platforms without SIGTERM.
     """
-    global _SIGTERM_INSTALLED  # noqa: PLW0603 — module-level idempotence flag
-    if _SIGTERM_INSTALLED:
-        return
     if not hasattr(signal, "SIGTERM"):
         return
 
-    log = get_logger("budget_planner.lifespan")
     previous = signal.getsignal(signal.SIGTERM)
+    # The installed handler is a ``partial`` of ``_on_sigterm``; seeing one in
+    # the slot is the idempotence state (no module-level flag, T-Q263).
+    if isinstance(previous, partial) and previous.func is _on_sigterm:
+        return
 
-    def _on_sigterm(signum: int, frame: object | None) -> None:
-        log.info("sigterm_received", signum=signum)
-        # Chain the previous handler so uvicorn's drain still runs.
-        if callable(previous):
-            previous(signum, frame)  # type: ignore[arg-type]
-
+    log = get_logger("budget_planner.lifespan")
     try:
-        signal.signal(signal.SIGTERM, _on_sigterm)
+        signal.signal(signal.SIGTERM, partial(_on_sigterm, log, previous))
     except ValueError:
         # ``signal.signal`` only works on the main thread; TestClient
         # paths that import the app from a worker thread hit this.
         return
-    _SIGTERM_INSTALLED = True
+
+
+def _on_sigterm(
+    log: BoundLogger,
+    previous: Callable[[int, FrameType | None], object] | int | signal.Handlers | None,
+    signum: int,
+    frame: FrameType | None,
+) -> None:
+    log.info("sigterm_received", signum=signum)
+    # Chain the previous handler so uvicorn's drain still runs.
+    if callable(previous):
+        previous(signum, frame)
 
 
 def _close_app_connections(app: FastAPI) -> None:

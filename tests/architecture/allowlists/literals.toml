@@ -157,13 +157,6 @@ finding = "Q-038"
 epic = "E03"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "domain-literal"
-count = 2
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "domain-literal"
 count = 19

@@ -74,6 +74,11 @@ def _pace_tag_for(
     return "on_track"
 
 
+def daily_share_minor(remaining_minor: int, days_left: int) -> int:
+    """Per-day share of ``remaining_minor`` (not clamped), same rounding as :func:`afford`."""
+    return _div_round_half_even(remaining_minor, max(days_left, 1))
+
+
 def afford(
     conn: sqlite3.Connection,
     user_id: int,
@@ -110,4 +115,4 @@ def afford(
     )
 
 
-__all__ = ["AffordResult", "PaceTag", "afford"]
+__all__ = ["AffordResult", "PaceTag", "afford", "daily_share_minor"]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
@@ -20,6 +20,7 @@ from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
     forecast as forecast_service,
+    today as today_service,
 )
 from budget_planner.web import charts, plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
@@ -31,39 +32,6 @@ PlanTab = Literal["budget", "year", "forecast", "analytics"]
 _VALID: tuple[PlanTab, ...] = ("budget", "year", "forecast", "analytics")
 
 _FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
-_MINOR_UNITS_PER_MAJOR = 100.0
-
-
-class AnalyticsCharts(TypedDict):
-    spend_chart: charts.HorizontalBarsChart
-    flow_chart: charts.GroupedBarsChart
-
-
-def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> AnalyticsCharts:
-    """Compute SVG geometry for the Analytics tab charts.
-
-    Returns a dict with ``spend_chart`` (horizontal bars) and ``flow_chart``
-    (grouped bars) so the template can render inline SVG without doing any
-    math itself. All amounts converted to major units for display.
-    """
-    spend_items = tuple(
-        (row.category_name, row.amount_minor / _MINOR_UNITS_PER_MAJOR)
-        for row in bundle.spend_by_category
-    )
-    flow_groups = tuple(
-        {
-            "label": point.label[-5:],  # YYYY-MM → MM-?; keep tail for density
-            "bars": [
-                ("income", point.income_minor / _MINOR_UNITS_PER_MAJOR),
-                ("expense", point.expense_minor / _MINOR_UNITS_PER_MAJOR),
-            ],
-        }
-        for point in bundle.income_vs_expense_monthly
-    )
-    return AnalyticsCharts(
-        spend_chart=charts.horizontal_bars(spend_items),
-        flow_chart=charts.grouped_bars(flow_groups),
-    )
 
 
 @router.get("/plan", response_class=HTMLResponse)
@@ -84,6 +52,9 @@ def plan(
     ctx: dict[str, Any] = plan_data.base_context(tab_norm, today_d, settings.base_currency, picked)
     if tab_norm == "budget":
         ctx["summary"] = budget_service.month_summary_for_picker(conn, user_id, picked, today_d)
+        ctx["per_day_minor"] = today_service.daily_share_minor(
+            ctx["summary"].totals.remaining_minor, ctx["summary"].days_until_next_income
+        )
     elif tab_norm == "year":
         ctx.update(plan_data.year_context(conn, user_id, today_d, request.query_params.get("year")))
     elif tab_norm == "forecast":
@@ -107,7 +78,10 @@ def plan(
         bundle, derived = plan_data.analytics_bundle(
             conn, user_id, today_d, picked, request.query_params.get("period")
         )
-        ctx.update(derived, **_analytics_charts(bundle))
+        ctx.update(derived)
+        ctx["spend_chart"], ctx["flow_chart"] = charts.analytics_charts(
+            bundle, settings.base_currency
+        )
     return render(request, "plan/index.html", **ctx)
 
 
@@ -127,13 +101,15 @@ def plan_analytics(
     period_norm = analytics_service.normalize_period(period)
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
     data = analytics_service.bundle(conn, user_id, today=today_d, period=period_norm)
+    spend_chart, flow_chart = charts.analytics_charts(data, settings.base_currency)
     return render(
         request,
         "plan/_analytics_bundle.html",
         bundle=data,
         base_ccy=settings.base_currency,
         period=period_norm,
-        **_analytics_charts(data),
+        spend_chart=spend_chart,
+        flow_chart=flow_chart,
     )
 
 

@@ -251,6 +251,15 @@ def test_promote_already_blocked(conn: sqlite3.Connection, world: dict[str, int]
         pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits())
 
 
+def test_promotion_errors_have_readable_messages_and_keep_id() -> None:
+    already = AlreadyPromotedError(7)
+    deleted = CannotPromoteDeletedError(7)
+    assert str(already) == "This planned transaction was already promoted."
+    assert already.planned_id == 7
+    assert str(deleted) == "This planned transaction was deleted and cannot be promoted."
+    assert deleted.planned_id == 7
+
+
 def test_promote_deleted_raises(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.soft_delete(conn, USER_ID, world["p1"])
     with pytest.raises(CannotPromoteDeletedError):

@@ -355,7 +355,7 @@ epic = "E15"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "any-annotation"
-count = 11
+count = 9
 finding = "Q-073"
 epic = "E15"
 
@@ -384,13 +384,6 @@ epic = "E15"
 path = "src/budget_planner/web/routers/settings_users.py"
 rule = "any-annotation"
 count = 4
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/today.py"
-rule = "silent-except"
-count = 1
 finding = "Q-073"
 epic = "E15"
 

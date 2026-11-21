@@ -53,7 +53,7 @@
     </div>
     {% if default_amount_minor is defined and default_amount_minor %}
       <p class="rd-override__hint mut" data-override-hint>
-        Default {{ "{:,.2f}".format(default_amount_minor / 100.0) }} · <span data-override-hint-tail>wins over default for {{ month_label }} {{ this_year }} only</span>
+        Default {{ default_amount_minor|money_num(base_ccy) }} · <span data-override-hint-tail>wins over default for {{ month_label }} {{ this_year }} only</span>
       </p>
     {% endif %}
   {% endif %}

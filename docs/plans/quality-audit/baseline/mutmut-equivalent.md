@@ -38,3 +38,18 @@ Total: 50 mutants.
 | fx:142 | `convert` #33, #35 | `quantised = converted.quantize(Decimal("1"), round` -> `quantised = converted.quantize(Decimal("1"), round` | quantize rounding=None uses default context = ROUND_HALF_EVEN (no setcontext in src) |
 | fx:164 | `convert_cached` #37, #39 | `return int(converted.quantize(Decimal("1"), roundi` -> `return int(converted.quantize(Decimal("1"), roundi` | quantize rounding=None uses default context = ROUND_HALF_EVEN (no setcontext in src) |
 | balance:118 | `_mean` #10, #12 | `quantised = (total / count).quantize(Decimal("1"),` -> `quantised = (total / count).quantize(Decimal("1"),` | quantize rounding=None uses default context = ROUND_HALF_EVEN (no setcontext in src) |
+
+## T-Q222 - `services/recurring_formula` after the kill tests (2026-11-21)
+
+Survivors in this module: 141 (baseline, `mutmut.txt`; 71 real-gap rows 234-304) -> 20 survivors + 2 timeouts (infinite-loop kills) after `tests/unit/services/test_recurring_formula_mutants.py` (59 tests). All 20 are equivalent:
+
+| Function and mutants | Reason |
+|---|---|
+| `parse_percent_to_bps` #34 | `_BPS_MIN / 101` formats to `0.01` under `:.2f`, same message |
+| `build_formula` #8 | dropping `schema_version=` falls back to the identical dataclass default `FORMULA_SCHEMA_VERSION` |
+| `_sum_category_in_month` #12, #15, #16 | `active_only` is redundant: `generate_occurrences` returns `()` for an inactive rule, so it contributes 0 either way |
+| `validate_formula_sources` #3 | sentinel `-1` vs `-2`: no rule has a negative id |
+| `validate_formula_sources` #40 | `next(..., None)` default unreachable: `rid` always comes from `all_rules` |
+| `compute_savable_amount` #25, #31 | `exclude_rule_id` only matters when the excluded rule sits in a referenced category, which `validate_formula_sources` rejects first |
+| `preview` #48-#55 | `except FormulaError` around `build_formula` is unreachable (terms are non-empty by then) |
+| `preview` #78, #84 | same as `compute_savable_amount` #25: a self-referencing draft raises in validate before compute |
