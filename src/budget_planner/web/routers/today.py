@@ -23,6 +23,7 @@ from budget_planner.repositories import (
 from budget_planner.services import (
     budget as budget_service,
     fortune as fortune_service,
+    fx as fx_service,
     today as today_service,
 )
 from budget_planner.web import today_data
@@ -54,7 +55,7 @@ def today(
     base_ccy = settings.base_currency
 
     account_rows, totals_by_ccy, fortune_base = today_data.collect_account_rows(
-        conn, user_id, base_ccy
+        conn, user_id, fx_service.converter_for(conn, settings, today_d)
     )
     fortune = fortune_service.compute_fortune(conn, user_id, settings)
     summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)

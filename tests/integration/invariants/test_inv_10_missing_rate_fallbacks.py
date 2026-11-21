@@ -1,40 +1,40 @@
 # Guard docstrings and teaching messages are prose; long lines are intentional.
 # ruff: noqa: E501
-"""INV-10: one missing FX rate (EUR to PLN, nothing cached, network down) degrades the same way everywhere (Q-007)."""
+"""INV-10: one missing FX rate (EUR to PLN, nothing cached) degrades the same way everywhere (Q-007, ADR-0139)."""
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from datetime import date
 
-import pytest
-
+from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
-from budget_planner.services import budget, forecast
+from budget_planner.services import budget, forecast, fx
 from budget_planner.web import today_data
-from tests.integration.invariants.conftest import offline_http
 
 U = 1
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-007: budget and today degrade silently to the native amount, forecast raises (HTTP 500)",
-)
 def test_missing_rate_degrades_consistently(seeded: sqlite3.Connection) -> None:
     today = date.today()  # noqa: DTZ011
     eur = accounts_repo.create(
         seeded, U, NewAccount(name="EUR", currency="EUR", opening_balance=100_000)
     ).id
+    converter = fx.converter_for(seeded, get_settings(), today)
+    surfaces: dict[str, Callable[[], object]] = {
+        "budget": lambda: budget.planned_base_amounts(seeded, U, today=today)(eur, 100_000),
+        "today": lambda: today_data.collect_account_rows(seeded, U, converter),
+        "forecast": lambda: forecast.forecast(
+            seeded, U, converter, today, 0, include_budget_overlay=False
+        ),
+    }
     outcomes: dict[str, str] = {}
-    converted = budget.base_amount_converter(seeded, U, today=today)(eur, 100_000)
-    outcomes["budget"] = f"returns {converted}"
-    _, _, fortune_base = today_data.collect_account_rows(seeded, U, "PLN")
-    outcomes["today"] = f"returns {fortune_base}"
-    try:
-        forecast.forecast(seeded, U, offline_http(), today, 0, "PLN", include_budget_overlay=False)
-        outcomes["forecast"] = "returns ok"
-    except Exception as exc:
-        outcomes["forecast"] = f"raises {type(exc).__name__}"
-    assert len({v.split()[0] for v in outcomes.values()}) == 1, outcomes
+    for name, call in surfaces.items():
+        try:
+            call()
+            outcomes[name] = "returns"
+        except Exception as exc:
+            outcomes[name] = type(exc).__name__
+    assert set(outcomes.values()) == {"FxUnavailableError"}, outcomes

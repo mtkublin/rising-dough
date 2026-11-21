@@ -67,53 +67,11 @@ finding = "Q-074"
 epic = "E07"
 
 [[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "eff-import"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "eff-net"
-count = 2
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "eff-net-reach"
-count = 3
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
 path = "src/budget_planner/services/fortune.py"
 rule = "eff-import"
 count = 1
 finding = "Q-074"
 epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/services/fx.py"
-rule = "eff-import"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/services/fx.py"
-rule = "eff-net"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/services/fx.py"
-rule = "eff-net-reach"
-count = 2
-finding = "Q-007"
-epic = "E06"
 
 [[entry]]
 path = "src/budget_planner/services/planned.py"
@@ -151,50 +109,8 @@ finding = "Q-074"
 epic = "E07"
 
 [[entry]]
-path = "src/budget_planner/web/routers/forecast.py"
-rule = "eff-net-reach-web"
-count = 2
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "eff-net-reach-web"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/web/routers/today.py"
-rule = "eff-net-reach-web"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
 path = "src/budget_planner/web/templating.py"
 rule = "eff-clock"
 count = 1
 finding = "Q-031"
 epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
-epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "eff-import"
-count = 1
-finding = "Q-007"
-epic = "E06"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "eff-net"
-count = 2
-finding = "Q-007"
-epic = "E06"

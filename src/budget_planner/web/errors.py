@@ -22,6 +22,7 @@ from budget_planner.domain.errors import (
     ServiceError,
     ValidationError,
 )
+from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
 
 logger = logging.getLogger("budget_planner.web")
@@ -135,6 +136,15 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+async def handle_missing_quote(request: Request, exc: Exception) -> HTMLResponse:
+    """ADR-0139: a missing FX rate is a visible 503, never a substituted number."""
+    logger.warning("fx rate unavailable on %s %s: %s", request.method, request.url.path, exc)
+    message = f"Exchange rate unavailable: {exc}"
+    if _is_htmx(request):
+        return _flash_fragment(request, "error", message, status=503)
+    return _render(request, "errors/500.html", status=503, message=message)
+
+
 def handle_reauth_required(_request: Request, exc: Exception) -> Response:
     """Return the stale-session response built by ``require_recent_auth``."""
     assert isinstance(exc, ReauthRequired)  # narrowing for the type checker
@@ -152,5 +162,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)
     app.add_exception_handler(ValidationError, handle_validation)
+    app.add_exception_handler(FxUnavailableError, handle_missing_quote)
     app.add_exception_handler(ServiceError, handle_server_error)
     app.add_exception_handler(Exception, handle_server_error)

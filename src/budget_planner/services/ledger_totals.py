@@ -34,7 +34,7 @@ def signed_effect(amount_minor: int, direction: Direction) -> int:
 
 def day_nets(
     rows: Iterable[tuple[dt.date, int, Direction | None, str]],
-    convert: Converter,
+    base_of: Converter,
 ) -> dict[dt.date, int]:
     """Sum signed base-currency effects per operation date.
 
@@ -49,7 +49,7 @@ def day_nets(
         if effect == 0:
             out.setdefault(day, 0)
             continue
-        out[day] = out.get(day, 0) + convert(effect, day, ccy)
+        out[day] = out.get(day, 0) + base_of(effect, day, ccy)
     return out
 
 

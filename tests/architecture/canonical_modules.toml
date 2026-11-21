@@ -13,9 +13,8 @@
 [[row]]
 concept = "FX conversion and rate lookup"
 module = "services/fx.py"
-symbol = "convert"
-status = "exists-migrating"
-migration_task = "T-Q212"
+symbol = "converter_for"
+status = "exists"
 finding = "Q-007"
 epic = "E01"
 search = ["convert", "to_base", "fx_rate", "get_rate"]
