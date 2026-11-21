@@ -767,7 +767,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 5 — Medium: correctness, security, CI, docs, tests
 
-### T-Q230 [S] Account archive refuses or cascades when references exist
+### ✅ T-Q230 [S] Account archive refuses or cascades when references exist
 - Findings: Q-026 (C-05).
 - Epic: none (scoping-gap)
 - Band: 5 · Size: M · Tags: none

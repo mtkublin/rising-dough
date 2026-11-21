@@ -17,6 +17,7 @@ from datetime import date
 import pytest
 
 from budget_planner.config import Settings
+from budget_planner.domain.errors import ConflictError
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
 from budget_planner.services import (
     _passwords,
@@ -92,6 +93,21 @@ def _case_fortune(conn: sqlite3.Connection, world: World) -> None:
 def _case_last_checked(conn: sqlite3.Connection, world: World) -> None:
     assert world.other.account_id not in _checked_accounts(conn, OWNER_ID)
     assert world.owner.account_id not in _checked_accounts(conn, OTHER_ID)
+
+
+@covers("accounts.archive_account")
+def _case_archive_account(conn: sqlite3.Connection, world: World) -> None:
+    # The owner cannot archive (or even see) the other user's account: a no-op, nothing leaks or changes.
+    accounts.archive_account(conn, OWNER_ID, world.other.account_id)
+    assert world.other.account_id in _checked_accounts(conn, OTHER_ID)
+    # The owner's own account carries a balance, rules and planned rows: refused, still live.
+    with pytest.raises(ConflictError) as err:
+        accounts.archive_account(conn, OWNER_ID, world.owner.account_id)
+    assert err.value.message == (
+        "Cannot archive account: Balance is not zero; 2 recurring rules use this account; "
+        "1 planned transaction uses this account"
+    )
+    assert world.owner.account_id in _checked_accounts(conn, OWNER_ID)
 
 
 @covers("analytics.bundle")

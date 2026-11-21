@@ -331,7 +331,7 @@ def delete_account(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    accounts_repo.soft_delete(conn, user_id, account_id)
+    accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type="text/html")
     resp.headers["HX-Trigger"] = json.dumps(
         {
