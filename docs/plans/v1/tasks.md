@@ -512,11 +512,13 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - README's "Prerequisites" table + Quick start now mention the Node + npm setup; the daily-commands table lists `just css` / `just css-watch` / `just test-visual` / `just test-visual-update`.
 - `CLAUDE.md` "Frontend validation" cross-links ADR-0027 (committed in the earlier docs commit).
 
-### T-108 [M] Jinja partial extraction — remaining call sites → T-104
+### ✅ T-108 [M] Jinja partial extraction — remaining call sites → T-104
+- Reconciled 2026-11-21 (T-Q246): landed 2026-10-27 in 1877d9d with a narrowed scope: `segmented` and `slide_over_header` applied; `card` and `chip` scaffolds dropped (design decision, needs a follow-up ADR; CHANGELOG 2026-10-27 T-108 line). The bullets below are the original plan.
 - Replace open-coded duplicates for `card`, `segmented`, `chip`, and `slide_over_header` across Overview, Ledger, Accounts, Budget, Settings drawer, Transaction form, Planned, Recurring templates.
 - Each swap must leave the visual-regression suite green; refresh baselines only when the design intentionally changes.
 
 ### T-109 [S] Visual-regression pixelmatch tolerance → T-105
+- Reconciled 2026-11-21 (T-Q246): stays open, not done. The CHANGELOG 2026-10-27 T-108 line records it as dropped from the backlog; `tests/visual/test_snapshots.py` is still byte-equal.
 - Wire `pixelmatch`'s Node CLI into `tests/visual/test_snapshots.py` so the suite tolerates ≤ 0.1 pixel ratio diffs per ADR-0027 §4. Current implementation is byte-equal and is a strict first baseline, which is fine until anti-aliasing drift between CI and local shows up.
 
 ### ✅ T-107 [S] Ledger segmented control → full-page nav → ADR-0028
@@ -667,7 +669,8 @@ Web-layer only. No service, repository, or data-model changes. Tasks follow ADR-
 - Tests pin anchor mid-month, no-prior-anchor fallback, zero-budget fallback, no-anchor-configured fallback, and formula consistency.
 - Test shape per `phase-12/T-125-budget-anchor-window.md`.
 
-### T-126 [S] Forecast budget overlay → ADR-0042, T-025, T-120
+### ✅ T-126 [S] Forecast budget overlay → ADR-0042, T-025, T-120
+- Reconciled 2026-11-21 (T-Q246): landed (merge 7d72608, 2026-10-27; CHANGELOG T-126 line, ADR-0042).
 - `services/forecast.budget_overlay_events(...)` computes per-category per-month unaccounted budget (`resolved_budget − spent_so_far − committed_future`, clamped ≥ 0) and emits `_CashEvent`s distributed evenly across the month window `[max(today+1, month_start), min(month_end, horizon_end)]` on the first active account (lowest id).
 - `services/forecast.forecast(...)` gains `include_budget_overlay: bool = True` and merges overlay events into `_collect_events` output ahead of day-walk accumulation. Existing dedup for persisted ↔ virtual recurring preserved.
 - Pre-overlay projection remains reachable via `include_budget_overlay=False` for the pure planned+recurring regression tests. `forecast` router + home mini-chart adopt the default (`True`) with no API change.

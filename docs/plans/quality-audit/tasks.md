@@ -845,14 +845,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q246 [P] Reconcile task status with CHANGELOG and ADRs
+### ✅ T-Q246 [P] Reconcile task status with CHANGELOG and ADRs
 - Findings: Q-054 (G-10).
 - Epic: none (doc-drift)
 - Band: 5 · Size: M · Tags: none
 - Depends on: T-Q245
 - Docs-first step: this is the docs change.
 - Acceptance: listed rows in `docs/plans/v1/tasks.md`, `docs/plans/v3/tasks.md` reconciled; `docs/plans/v2/tasks.md` closed as superseded by ADR-0107 or its open rows triaged.
-- Operator question blocking it: OQ-21.
+- Operator question blocking it: OQ-21 (default taken 2026-11-21, pending operator confirmation).
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 

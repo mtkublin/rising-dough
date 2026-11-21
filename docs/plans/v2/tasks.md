@@ -1,5 +1,14 @@
 # Rising Dough v2 — Tasks
 
+> **CLOSED, superseded by [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md) (2026-11-21, T-Q246, OQ-21 default).**
+> The Rising Dough v2 chrome (ADR-0050..0056) is replaced by the Sourdough redesign built solely from the designer handoff. No row below is worked or reconciled any more; every row is kept untouched for history, so the 60 open rows stay open on purpose.
+> Rows whose intent survives are carried by `docs/plans/ui-redesign/tasks.md` (T-UR*); raise them there, not here:
+> - Open decisions T-R71 (archived categories on recurring rules), T-R72 (UI language), T-R73 (pace-tag rule): still unresolved; settle under T-UR00 (operator decisions) before T-UR07, T-UR10 and T-UR13.
+> - Backend additions T-R40 to T-R46 (afford, formula preview, last-checked, analytics bundle, category archive, batch promote, HTMX event audit): needed by the new screens; re-scope inside the owning surface tasks T-UR07 to T-UR14.
+> - Cleanup T-R57 to T-R60 (redirects, FAB, `#drawer-root`, dead CSS): covered by T-UR15.
+> - Everything else (T-R01 to T-R10 foundations, T-R11 to T-R24 primitives, T-R25 to T-R39 screens, T-R47 to T-R51, T-R61 to T-R64, T-R68): superseded by T-UR01 to T-UR14.
+> Pending operator confirmation (default taken 2026-11-21, `docs/plans/quality-audit/findings.md` OQ-21).
+
 > Flat index. Full detail per task lives in the matching `phase-N-*/T-Rxx-*.md` file.
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-Rxx` depends on upstream task.
 > Acceptance = ADR referenced + tests + `frontend-visual-audit` sweep (D 1440 / T 1024 / M 375) + validation hook from the task file passes + `✅` prefix added here.
