@@ -23,7 +23,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433 # v4.1.0
         with:
-          version: "latest"
+          version: "0.11.2"  # ADR-0120 amendment: pinned (T-Q240)
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 

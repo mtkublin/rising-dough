@@ -821,7 +821,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q240 [P] Dev-dependency provenance and CI/pre-commit parity
+### ✅ T-Q240 [P] Dev-dependency provenance and CI/pre-commit parity
 - Findings: Q-043 (G-07), Q-044 (G-05, G-06).
 - Epic: none (dependency, config-drift)
 - Band: 5 · Size: S · Tags: none
