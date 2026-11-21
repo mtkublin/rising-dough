@@ -9,7 +9,7 @@
     {% endif %}
     {% if view.is_promoted %}<span class="pill pill-income">promoted</span>{% endif %}
   </td>
-  <td class="text-right tabular-nums">{{ view.amount_minor|money(view.currency|default('PLN')) }}</td>
+  <td class="text-right tabular-nums">{{ view.amount_minor|money(view.currency) }}</td>
   <td class="text-muted">{{ view.description }}</td>
   <td class="text-right space-x-2 text-sm">
     {% if view.kind == "persisted" %}
