@@ -4,34 +4,6 @@
 guard = "layering"
 
 [[entry]]
-path = "budget_planner/repositories/recurring.py"
-rule = "cycle"
-count = 1
-finding = "Q-047"
-epic = "E12"
-
-[[entry]]
-path = "budget_planner/services/recurring.py"
-rule = "cycle"
-count = 1
-finding = "Q-047"
-epic = "E12"
-
-[[entry]]
-path = "budget_planner/services/recurring_formula.py"
-rule = "cycle"
-count = 1
-finding = "Q-047"
-epic = "E12"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "contract:repositories-not-services"
-count = 1
-finding = "Q-047"
-epic = "E12"
-
-[[entry]]
 path = "src/budget_planner/web/app.py"
 rule = "contract:web-not-db"
 count = 1
@@ -118,7 +90,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "contract:routers-not-repositories"
-count = 6
+count = 5
 finding = "Q-045"
 epic = "E08"
 

@@ -106,14 +106,22 @@ _OVERLAY_TOTALS = {
 def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
     with httpx.Client() as http:
         for user_id in (OWNER_ID, OTHER_ID):
-            series = forecast.forecast(conn, user_id, http, T, HORIZON_DAYS, "PLN")
+            series = forecast.forecast(
+                conn, user_id, http=http, today=T, horizon_days=HORIZON_DAYS, base_currency="PLN"
+            )
             assert _totals(series, *_OVERLAY_DAYS) == _OVERLAY_TOTALS[user_id]
         for user_id, balance in (
             (OWNER_ID, OWNER_BALANCE - 1_000),
             (OTHER_ID, OTHER_BALANCE - 2_000),
         ):
             series = forecast.forecast(
-                conn, user_id, http, T, HORIZON_DAYS, "PLN", include_budget_overlay=False
+                conn,
+                user_id,
+                http=http,
+                today=T,
+                horizon_days=HORIZON_DAYS,
+                base_currency="PLN",
+                include_budget_overlay=False,
             )
             u = user_id
             assert len(series.days) == HORIZON_DAYS + 1
@@ -128,7 +136,13 @@ def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
         # A formula rule (10% of the owner's live 700 rule = 70) is evaluated with the owner's rules only.
         seed_formula_rule(conn, OWNER_ID, world.owner, due=dt.date(2026, 11, 20))
         series = forecast.forecast(
-            conn, OWNER_ID, http, T, HORIZON_DAYS, "PLN", include_budget_overlay=False
+            conn,
+            OWNER_ID,
+            http=http,
+            today=T,
+            horizon_days=HORIZON_DAYS,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         assert _totals(series, EXPENSE_RULE_DUE, dt.date(2026, 11, 20)) == [
             OWNER_BALANCE - 1_000 - 1_200,
@@ -141,7 +155,9 @@ def _case_forecast_monthly(conn: sqlite3.Connection, world: World) -> None:
     with httpx.Client() as http:
         for user_id in (OWNER_ID, OTHER_ID):
             u = user_id
-            months = forecast.forecast_monthly(conn, user_id, http, T, 2, "PLN").months
+            months = forecast.forecast_monthly(
+                conn, user_id, http=http, today=T, horizon_months=2, base_currency="PLN"
+            ).months
             assert [(m.month, m.income_base_minor, m.expense_base_minor) for m in months] == [
                 (dt.date(2026, 11, 1), 0, 1_200 * u),
                 (dt.date(2026, 12, 1), 5_000 * u, 700 * u),
@@ -168,7 +184,9 @@ def _case_expand_unpromoted(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _rows(world, user_id)
         rule = _rule(conn, user_id, rows.rule_id)
-        occs = recurring.expand_unpromoted(conn, user_id, rule, [], *window)
+        occs = recurring.expand_unpromoted(
+            conn, user_id, rule=rule, overrides=[], window_start=window[0], window_end=window[1]
+        )
         assert [(o.occurrence_date, o.amount, o.account_id) for o in occs] == [
             (EXPENSE_RULE_DUE, 700 * user_id, rows.account_id),
             (dt.date(2026, 12, 15), 700 * user_id, rows.account_id),
@@ -176,7 +194,15 @@ def _case_expand_unpromoted(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     inactive = _rule(conn, OWNER_ID, world.tombstones.inactive_rule_id)
     assert (
-        recurring.expand_unpromoted(conn, OWNER_ID, inactive, [], *window) == ()
+        recurring.expand_unpromoted(
+            conn,
+            OWNER_ID,
+            rule=inactive,
+            overrides=[],
+            window_start=window[0],
+            window_end=window[1],
+        )
+        == ()
     )  # inactive rules expand to nothing
 
 
@@ -356,11 +382,20 @@ def _case_rt_expand(conn: sqlite3.Connection, world: World) -> None:
         fixed, amount_formula=_income_formula(world.owner.income_category_id)
     )
     window = (dt.date(2026, 12, 1), dt.date(2026, 12, 31))
-    owner = formula_svc.rt_expand(conn, OWNER_ID, with_formula, [], *window)
+    owner = formula_svc.rt_expand(
+        conn, OWNER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+    )
     assert [(o.occurrence_date, o.amount) for o in owner] == [(dt.date(2026, 12, 15), 5_000)]
-    other = formula_svc.rt_expand(conn, OTHER_ID, with_formula, [], *window)
+    other = formula_svc.rt_expand(
+        conn, OTHER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+    )
     assert [(o.occurrence_date, o.amount) for o in other] == [(dt.date(2026, 12, 15), 0)]
-    assert [o.amount for o in formula_svc.rt_expand(conn, OWNER_ID, fixed, [], *window)] == [700]
+    assert [
+        o.amount
+        for o in formula_svc.rt_expand(
+            conn, OWNER_ID, rule=fixed, overrides=[], range_start=window[0], range_end=window[1]
+        )
+    ] == [700]
 
 
 @covers("recurring_formula.validate_formula_sources")
@@ -448,12 +483,21 @@ def _case_restore(conn: sqlite3.Connection, world: World) -> None:
 def _case_reconcile(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     with pytest.raises(reconciliation.AccountNotFoundError):
-        reconciliation.reconcile(conn, OTHER_ID, world.owner.account_id, 1, T)
+        reconciliation.reconcile(
+            conn, OTHER_ID, account_id=world.owner.account_id, actual_balance_minor=1, today=T
+        )
     with pytest.raises(reconciliation.CannotReconcileDeletedAccountError):
-        reconciliation.reconcile(conn, OWNER_ID, world.tombstones.account_id, 1, T)
+        reconciliation.reconcile(
+            conn, OWNER_ID, account_id=world.tombstones.account_id, actual_balance_minor=1, today=T
+        )
     target = OWNER_BALANCE
     txn = reconciliation.reconcile(
-        conn, OWNER_ID, world.owner.account_id, target, T, category_id=world.owner.category_id
+        conn,
+        OWNER_ID,
+        account_id=world.owner.account_id,
+        actual_balance_minor=target,
+        today=T,
+        category_id=world.owner.category_id,
     )
     assert (txn.user_id, txn.account_id, txn.amount) == (OWNER_ID, world.owner.account_id, 1_000)
     other_txns = transactions_repo.list_filtered(conn, OTHER_ID, TransactionFilter())

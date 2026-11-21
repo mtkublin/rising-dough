@@ -58,10 +58,10 @@ def test_forecast_is_deterministic_same_inputs_same_output(
 
     client = _offline_client()
     first = forecast_service.forecast(
-        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     second = forecast_service.forecast(
-        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     assert first == second
 
@@ -85,7 +85,7 @@ def test_forecast_converts_cross_currency_to_base(
     series = forecast_service.forecast(
         conn,
         USER_ID,
-        _offline_client(),
+        http=_offline_client(),
         today=date(2026, 1, 1),
         horizon_days=0,
         base_currency="PLN",
@@ -112,12 +112,12 @@ def test_editing_a_planned_row_changes_forecast_output(
     )
     client = _offline_client()
     before = forecast_service.forecast(
-        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
 
     planned_repo.update(conn, USER_ID, planned_id, PatchPlannedTransaction(amount=9000))
 
     after = forecast_service.forecast(
-        conn, USER_ID, client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
+        conn, USER_ID, http=client, today=date(2026, 1, 1), horizon_days=30, base_currency="PLN"
     )
     assert before != after

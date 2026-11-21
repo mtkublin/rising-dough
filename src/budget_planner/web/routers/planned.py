@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -20,7 +21,9 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     planned as planned_repo,
+    transactions as transactions_repo,
 )
+from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import (
     export as export_service,
     planned as planned_service,
@@ -30,6 +33,7 @@ from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
+from budget_planner.web.routers.ledger import render_table_for
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -71,8 +75,6 @@ def index() -> RedirectResponse:
 # the dynamic `/{planned_id}` paths.
 # ---------------------------------------------------------------------------
 def _hx_trigger_payload(payload: dict[str, object]) -> str:
-    import json  # noqa: PLC0415
-
     return json.dumps(payload)
 
 
@@ -124,9 +126,6 @@ async def planned_batch_undo(
     ``promoted_to_txn_id`` on each planned row (so the row re-appears as
     "unpromoted" in Upcoming).
     """
-    from budget_planner.repositories import transactions as transactions_repo  # noqa: PLC0415
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-
     form = await request.form()
     try:
         txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
@@ -152,8 +151,6 @@ async def planned_batch_undo(
             ).fetchone()
             if row is None or row["prev_json"] is None:
                 continue
-            import json  # noqa: PLC0415
-
             prev = json.loads(row["prev_json"])
             prev_txn_id = prev.get("promoted_to_txn_id")
             conn.execute(
@@ -185,8 +182,6 @@ def table_fragment(
 
     Delegates to the unified ledger fragment with ``view=planned``.
     """
-    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
-
     return render_table_for(request, conn, user_id, "planned")
 
 

@@ -47,7 +47,12 @@ def _compute(
     today = date.today()  # noqa: DTZ011
     with httpx.Client(timeout=5.0) as client:
         return forecast_service.forecast_monthly(
-            conn, user_id, client, today, horizon_months, settings.base_currency
+            conn,
+            user_id,
+            http=client,
+            today=today,
+            horizon_months=horizon_months,
+            base_currency=settings.base_currency,
         )
 
 

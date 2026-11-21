@@ -59,5 +59,12 @@ def test_reconcile_with_transit_category_stores_nothing(conn: sqlite3.Connection
     a = _acct(conn, "A")
     tr = categories.create(conn, USER_ID, NewCategory(name="Move", direction=Direction.TRANSIT))
     with pytest.raises(ValidationError, match="requires a destination"):
-        reconciliation.reconcile(conn, USER_ID, a.id, 5000, date(2026, 11, 21), category_id=tr.id)
+        reconciliation.reconcile(
+            conn,
+            USER_ID,
+            account_id=a.id,
+            actual_balance_minor=5000,
+            today=date(2026, 11, 21),
+            category_id=tr.id,
+        )
     assert conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 0

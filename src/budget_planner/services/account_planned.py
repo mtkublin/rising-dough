@@ -106,7 +106,12 @@ def _collect_legs(
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         occs = recurring_svc.expand_unpromoted(
-            conn, user_id, rule, overrides, window.start, last_day
+            conn,
+            user_id,
+            rule=rule,
+            overrides=overrides,
+            window_start=window.start,
+            window_end=last_day,
         )
         for occ in occs:
             if occ.is_skipped or (rule.id, occ.occurrence_date) in dedup:

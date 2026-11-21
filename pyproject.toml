@@ -374,7 +374,6 @@ forbidden_modules = ["budget_planner.services", "budget_planner.web"]
 allow_indirect_imports = true
 ignore_imports = [
   # E12 / Q-047: repository imports upward; remove each line as the remediation lands.
-  "budget_planner.repositories.recurring -> budget_planner.services.recurring",
 ]
 
 # ---------------------------------------------------------------------------

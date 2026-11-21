@@ -101,7 +101,9 @@ def test_horizon_days_for_months_spans_full_month() -> None:
 def test_shape_single_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=1, base_currency="PLN"
+        )
     assert monthly.base_currency == "PLN"
     assert len(monthly.months) == 1
     assert monthly.months[0].month == date(2026, 10, 1)
@@ -111,7 +113,9 @@ def test_shape_single_month(conn: sqlite3.Connection, world: dict[str, int]) -> 
 def test_shape_multi_month(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 4, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=4, base_currency="PLN"
+        )
     expected = [date(2026, 10, 1), date(2026, 11, 1), date(2026, 12, 1), date(2027, 1, 1)]
     assert [r.month for r in monthly.months] == expected
     assert monthly.start_month == date(2026, 10, 1)
@@ -131,7 +135,9 @@ def test_income_sum_in_month(conn: sqlite3.Connection, world: dict[str, int]) ->
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=3, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 800_000
     assert nov.expense_base_minor == 0
@@ -168,7 +174,9 @@ def test_expense_sum_in_month_includes_recurring(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=3, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     # Rent 300_000 (recurring) + groceries 10_000 (planned)
     assert nov.expense_base_minor == 310_000
@@ -192,7 +200,9 @@ def test_transit_excluded_from_income_expense(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 0
     assert nov.expense_base_minor == 0
@@ -212,15 +222,17 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     with _dead_client() as http:
         daily = forecast_svc.forecast(
             conn,
             USER_ID,
-            http,
-            TODAY,
-            forecast_svc.horizon_days_for_months(TODAY, 2),
-            "PLN",
+            http=http,
+            today=TODAY,
+            horizon_days=forecast_svc.horizon_days_for_months(TODAY, 2),
+            base_currency="PLN",
         )
     eom_nov = next(d for d in daily.days if d.on_date == date(2026, 11, 30))
     nov = _row_for(monthly, date(2026, 11, 1))
@@ -229,7 +241,9 @@ def test_end_balance_matches_daily_eom(conn: sqlite3.Connection, world: dict[str
 
 def test_empty_accounts_returns_zero_rows(conn: sqlite3.Connection) -> None:
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=3, base_currency="PLN"
+        )
     assert len(monthly.months) == 3
     assert all(r.income_base_minor == 0 for r in monthly.months)
     assert all(r.expense_base_minor == 0 for r in monthly.months)
@@ -255,7 +269,9 @@ def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[
         return httpx.Response(500)
 
     with _mock_client(_h) as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     # 1_000 EUR minor * 4.30 = 4_300 PLN minor.
     assert nov.income_base_minor == 4_300
@@ -264,7 +280,9 @@ def test_fx_conversion_on_foreign_account(conn: sqlite3.Connection, world: dict[
 
 def test_negative_horizon_months_raises(conn: sqlite3.Connection) -> None:
     with _dead_client() as http, pytest.raises(ValueError, match="horizon_months"):
-        forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 0, "PLN")
+        forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=0, base_currency="PLN"
+        )
 
 
 def test_planned_budget_sums_default_budget_across_expense_cats(
@@ -277,7 +295,9 @@ def test_planned_budget_sums_default_budget_across_expense_cats(
         conn, USER_ID, NewBudgetDefault(category_id=world["rent"], amount=300_000)
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     for row in monthly.months:
         assert row.planned_budget_base_minor == 350_000
 
@@ -296,7 +316,9 @@ def test_planned_budget_one_off_override_wins_for_that_month(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=3, base_currency="PLN"
+        )
     oct_row = _row_for(monthly, date(2026, 10, 1))
     nov_row = _row_for(monthly, date(2026, 11, 1))
     dec_row = _row_for(monthly, date(2026, 12, 1))
@@ -321,7 +343,9 @@ def test_net_subtracts_planned_budget(conn: sqlite3.Connection, world: dict[str,
         conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=50_000)
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.income_base_minor == 800_000
     assert nov.expense_base_minor == 0
@@ -334,7 +358,9 @@ def test_planned_budget_zero_when_no_budgets_set(
 ) -> None:
     _ = world
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     for row in monthly.months:
         assert row.planned_budget_base_minor == 0
 
@@ -346,7 +372,9 @@ def test_planned_budget_ignores_income_categories(
         conn, USER_ID, NewBudgetDefault(category_id=world["salary"], amount=999_999)
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     for row in monthly.months:
         assert row.planned_budget_base_minor == 0
 
@@ -370,7 +398,9 @@ def test_planned_budget_clamped_when_committed_exceeds_resolved(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=1, base_currency="PLN"
+        )
     row = _row_for(monthly, date(2026, 10, 1))
     assert row.planned_budget_base_minor == 0
 
@@ -413,7 +443,9 @@ def test_current_month_row_mirrors_budget_month_summary(
     )
     summary = budget_svc.month_summary(conn, USER_ID, TODAY.year, TODAY.month, today=TODAY)
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert (
         oct_row.expense_base_minor
@@ -441,7 +473,9 @@ def test_future_month_row_keeps_calendar_logic(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     nov = _row_for(monthly, date(2026, 11, 1))
     assert nov.expense_base_minor == 30_000  # calendar-month event sum
     # Resolved 100_000 - already-committed 30_000 = residual 70_000.
@@ -459,15 +493,17 @@ def test_current_month_eom_absorbs_remaining_budget_overlay(
         conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=100_000)
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=1, base_currency="PLN"
+        )
     with _dead_client() as http:
         pre_overlay = forecast_svc.forecast(
             conn,
             USER_ID,
-            http,
-            TODAY,
-            forecast_svc.horizon_days_for_months(TODAY, 1),
-            "PLN",
+            http=http,
+            today=TODAY,
+            horizon_days=forecast_svc.horizon_days_for_months(TODAY, 1),
+            base_currency="PLN",
             include_budget_overlay=False,
         )
     oct_row = _row_for(monthly, date(2026, 10, 1))
@@ -509,9 +545,13 @@ def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
     )
     today = date(2026, 11, 1)
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, today, 1, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=today, horizon_months=1, base_currency="PLN"
+        )
     with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, USER_ID, http, today, 0, "PLN")
+        daily = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=today, horizon_days=0, base_currency="PLN"
+        )
     current_net_worth = daily.days[0].totals_base_minor
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert oct_row.end_balance_base_minor == current_net_worth + oct_row.net_base_minor
@@ -544,9 +584,13 @@ def test_eom_chain_each_row_equals_prev_eom_plus_net(
         ),
     )
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 3, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=3, base_currency="PLN"
+        )
     with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, USER_ID, http, TODAY, 0, "PLN")
+        daily = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=0, base_currency="PLN"
+        )
     prev = daily.days[0].totals_base_minor
     for row in monthly.months:
         assert row.end_balance_base_minor == prev + row.net_base_minor, (
@@ -600,7 +644,9 @@ def test_current_row_expenses_include_overdue_planned_and_recurring(
     _planned_expense(conn, world, "groceries", date(2026, 10, 29), 8_000)  # upcoming
     _overdue_rule(conn, world, "groceries", date(2026, 10, 10), 16_000)  # overdue recurring
     with _dead_client() as http:
-        monthly = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 2, "PLN")
+        monthly = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=2, base_currency="PLN"
+        )
     oct_row = _row_for(monthly, date(2026, 10, 1))
     assert oct_row.expense_base_minor == 31_000
     assert oct_row.planned_budget_base_minor == 500_000 - 31_000
@@ -614,11 +660,15 @@ def test_current_row_unbudgeted_overdue_lowers_eom(
         conn, USER_ID, NewBudgetDefault(category_id=world["groceries"], amount=500_000)
     )
     with _dead_client() as http:
-        before = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+        before = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=1, base_currency="PLN"
+        )
     _planned_expense(conn, world, "rent", date(2026, 9, 15), 3_000)
     _overdue_rule(conn, world, "rent", date(2026, 10, 15), 5_000)
     with _dead_client() as http:
-        after = forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, 1, "PLN")
+        after = forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=1, base_currency="PLN"
+        )
     oct_before, oct_after = before.months[0], after.months[0]
     assert oct_after.expense_base_minor - oct_before.expense_base_minor == 8_000
     assert oct_before.end_balance_base_minor - oct_after.end_balance_base_minor == 8_000

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import re
 import sqlite3
 from collections.abc import Mapping
@@ -27,7 +28,9 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     recurring as recurring_repo,
+    transactions as transactions_repo,
 )
+from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import recurring as recurring_svc, recurring_formula as formula_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db
@@ -392,8 +395,6 @@ async def create_rule(
 # ---------------------------------------------------------------------------
 def _hx_trigger_payload(payload: dict[str, Any]) -> str:
     """JSON-serialise an HX-Trigger payload mapping event names → data."""
-    import json  # noqa: PLC0415
-
     return json.dumps(payload)
 
 
@@ -455,12 +456,6 @@ async def recurring_batch_undo(
     + reverts each rule's ``next_due`` from its most recent
     audit_log entry.
     """
-    from budget_planner.repositories import (  # noqa: PLC0415
-        recurring as recurring_repo_mod,
-        transactions as transactions_repo,
-    )
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-
     form = await request.form()
     try:
         txn_ids = [int(v) for v in str(form.get("promoted_txn_ids", "")).split(",") if v]
@@ -484,8 +479,6 @@ async def recurring_batch_undo(
             ).fetchone()
             if row is None or row["prev_json"] is None:
                 continue
-            import json  # noqa: PLC0415
-
             prev = json.loads(row["prev_json"])
             prev_next_due_raw = prev.get("next_due")
             prev_last_promoted = prev.get("last_promoted_date")
@@ -495,7 +488,7 @@ async def recurring_batch_undo(
             prev_last_promoted_date = (
                 date.fromisoformat(prev_last_promoted) if prev_last_promoted else None
             )
-            recurring_repo_mod.set_next_due(
+            recurring_repo.set_next_due(
                 conn,
                 user_id,
                 rule_id,

@@ -47,7 +47,13 @@ def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
     fortune_result = fortune.compute_fortune(conn, U, s)
     _, _, fortune_base = today_data.collect_account_rows(conn, U, s.base_currency)
     series = forecast.forecast(
-        conn, U, offline_http(), today, 0, s.base_currency, include_budget_overlay=False
+        conn,
+        U,
+        http=offline_http(),
+        today=today,
+        horizon_days=0,
+        base_currency=s.base_currency,
+        include_budget_overlay=False,
     )
     return {
         "fortune.net_base": fortune_result.net_base,

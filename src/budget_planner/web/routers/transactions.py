@@ -36,6 +36,7 @@ from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
+from budget_planner.web.routers.ledger import render_table_for
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,8 +194,6 @@ def table_fragment(
     HTMX scripts keep working. The response shape (``#txn-table`` container,
     row ids ``#txn-{id}``) is preserved by the ledger template.
     """
-    from budget_planner.web.routers.ledger import render_table_for  # noqa: PLC0415
-
     return render_table_for(request, conn, user_id, "actual")
 
 

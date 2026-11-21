@@ -486,7 +486,12 @@ def reconcile_submit(  # noqa: PLR0917
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
         try:
             reconciliation_service.reconcile(
-                conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
+                conn,
+                user_id,
+                account_id=account_id,
+                actual_balance_minor=actual_minor,
+                today=_today(),
+                category_id=chosen_cat_id,
             )
         except reconciliation_service.ValidationError as exc:
             return _reject(str(exc))

@@ -7,6 +7,8 @@ service helpers and renders a v2 template.
 
 from __future__ import annotations
 
+import calendar
+import dataclasses
 import sqlite3
 from datetime import datetime
 from typing import Any, Literal
@@ -16,10 +18,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from budget_planner.config import Settings
+from budget_planner.repositories import recurring as recurring_repo
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
     forecast as forecast_service,
+    preferences as preferences_service,
     today as today_service,
 )
 from budget_planner.web import charts
@@ -86,12 +90,6 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
     }
 
     if tab_norm == "budget":
-        import calendar as _cal  # noqa: PLC0415
-        import dataclasses as _dc  # noqa: PLC0415
-
-        from budget_planner.repositories import recurring as _rec_repo  # noqa: PLC0415
-        from budget_planner.services import preferences as _prefs  # noqa: PLC0415
-
         # "Current" means the fiscal cycle anchored in (year, month)
         # contains today (ADR-0064). On the active cycle, keep anchor-window
         # math honest — spent runs from last_anchor_date through today. On
@@ -101,7 +99,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             ref = today_d
             window_override: tuple[Any, Any] | None = None
         else:
-            ref_last = _cal.monthrange(year, month)[1]
+            ref_last = calendar.monthrange(year, month)[1]
             ref = today_d.replace(year=year, month=month, day=min(today_d.day, ref_last))
             window_override = (
                 today_d.replace(year=year, month=month, day=1),
@@ -115,16 +113,16 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
         # Anchor day comes from the anchor category's active monthly recurring
         # rule; fall back to the first-of-month when no rule exists.
         if not is_current:
-            anchor = _prefs.resolve_income_anchor_category(conn, user_id)
+            anchor = preferences_service.resolve_income_anchor_category(conn, user_id)
             anchor_day = 1
             if anchor is not None:
-                for rule in _rec_repo.list_rules(conn, user_id, active_only=True):
+                for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
                     if rule.category_id == anchor.id and rule.day_of_month:
                         anchor_day = max(1, min(28, rule.day_of_month))
                         break
             next_m_year, next_m = _shift_month(year, month, 1)
-            start_day = min(anchor_day, _cal.monthrange(year, month)[1])
-            end_day = min(anchor_day, _cal.monthrange(next_m_year, next_m)[1])
+            start_day = min(anchor_day, calendar.monthrange(year, month)[1])
+            end_day = min(anchor_day, calendar.monthrange(next_m_year, next_m)[1])
             new_start = ref.replace(year=year, month=month, day=start_day)
             new_end = ref.replace(year=next_m_year, month=next_m, day=end_day)
             # Future month: show full period length; past month: 0.
@@ -135,13 +133,13 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             # apply to the picker. Zero it out + rebuild totals.
             new_committed = 0
             new_remaining = summary.totals.budgeted_minor - summary.totals.spent_minor
-            new_totals = _dc.replace(
+            new_totals = dataclasses.replace(
                 summary.totals,
                 committed_minor=new_committed,
                 unbudgeted_committed_minor=0,
                 remaining_minor=new_remaining,
             )
-            summary = _dc.replace(
+            summary = dataclasses.replace(
                 summary,
                 totals=new_totals,
                 period_start=new_start,
@@ -206,12 +204,10 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
         # Analytics month selector feeds the service a synthetic "today"
         # anchored to the selected month-end so period math respects the
         # picker instead of pinning to real today.
-        import calendar as _cal  # noqa: PLC0415
-
         if (year, month) == (today_d.year, today_d.month):
             ref_today = today_d
         else:
-            ref_last = _cal.monthrange(year, month)[1]
+            ref_last = calendar.monthrange(year, month)[1]
             ref_today = today_d.replace(year=year, month=month, day=ref_last)
         bundle = analytics_service.bundle(conn, user_id, today=ref_today, period=period_norm)
         ctx["bundle"] = bundle

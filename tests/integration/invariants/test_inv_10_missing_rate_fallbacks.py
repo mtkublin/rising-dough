@@ -33,7 +33,15 @@ def test_missing_rate_degrades_consistently(seeded: sqlite3.Connection) -> None:
     _, _, fortune_base = today_data.collect_account_rows(seeded, U, "PLN")
     outcomes["today"] = f"returns {fortune_base}"
     try:
-        forecast.forecast(seeded, U, offline_http(), today, 0, "PLN", include_budget_overlay=False)
+        forecast.forecast(
+            seeded,
+            U,
+            http=offline_http(),
+            today=today,
+            horizon_days=0,
+            base_currency="PLN",
+            include_budget_overlay=False,
+        )
         outcomes["forecast"] = "returns ok"
     except Exception as exc:
         outcomes["forecast"] = f"raises {type(exc).__name__}"

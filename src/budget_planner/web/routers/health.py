@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from budget_planner.db.connection import get_connection
 from budget_planner.services import replication_health
 
 if TYPE_CHECKING:
@@ -47,11 +48,6 @@ def ready(request: Request) -> JSONResponse:
     uptime monitor rely on the shape.
     """
     cfg: Settings = request.app.state.settings
-    # Local import — the router is imported during app construction and we
-    # want to keep the import graph flat (no circular pull from
-    # ``web.app`` through ``db.connection``).
-    from budget_planner.db.connection import get_connection  # noqa: PLC0415
-
     try:
         conn = get_connection(cfg)
     except Exception as exc:  # pragma: no cover — surface via the 503 shape

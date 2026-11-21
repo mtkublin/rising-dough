@@ -104,7 +104,9 @@ def _plan_remaining(conn: sqlite3.Connection, world: dict[str, int], cat: str) -
 
 def _monthly(conn: sqlite3.Connection, months: int = 3) -> forecast_svc.MonthlySeries:
     with _dead_client() as http:
-        return forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, months, "PLN")
+        return forecast_svc.forecast_monthly(
+            conn, USER_ID, http=http, today=TODAY, horizon_months=months, base_currency="PLN"
+        )
 
 
 def _row(series: forecast_svc.MonthlySeries, month: date) -> forecast_svc.MonthlyPoint:
@@ -220,7 +222,9 @@ def test_daily_eom_balance_counts_early_promoted_once(
     rid = _rule(conn, world, cat="salary", day=7, amount=SALARY)
     _promote_early(conn, rid)
     with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        daily = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     by_date = {d.on_date: d.totals_base_minor for d in daily.days}
     # Promoted salary is already in the balance; 11-07 adds nothing.
     assert by_date[date(2026, 11, 8)] == by_date[TODAY] == SALARY

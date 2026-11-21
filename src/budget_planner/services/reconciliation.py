@@ -61,9 +61,10 @@ def available_to_target_balance(credit_limit_minor: int, available_minor: int) -
     return available_minor - credit_limit_minor
 
 
-def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
+def reconcile(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,

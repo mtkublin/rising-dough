@@ -15,14 +15,11 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
-import logging
 import sqlite3
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from dateutil.relativedelta import relativedelta
-
-from budget_planner.domain.enums import Cadence, OverrideState, months_per_cadence
+from budget_planner.domain.enums import OverrideState
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
@@ -31,17 +28,24 @@ from budget_planner.domain.recurring import (
     RecurringOverride,
     RecurringRule,
 )
+from budget_planner.domain.recurring_schedule import (
+    advance_next_due,
+    first_due_on_or_after,
+    generate_occurrences,
+    occurrence_in_month,
+)
 from budget_planner.domain.transactions import NewTransaction, Transaction
-from budget_planner.repositories import planned as planned_repo
-
-logger = logging.getLogger(__name__)
-
-_MAX_ITERATIONS = 10_000
-
-# Horizon used by ``first_due_on_or_after`` / ``advance_next_due`` when
-# computing the next canonical occurrence. 400 days safely covers monthly,
-# quarterly, and yearly cadences in a single generator pass.
-_LOOKAHEAD_DAYS = 400
+from budget_planner.repositories import (
+    categories as categories_repo,
+    planned as planned_repo,
+    recurring as recurring_repo,
+    transactions as transactions_repo,
+)
+from budget_planner.repositories._shared import transaction as db_transaction
+from budget_planner.services import audit as audit_svc
+from budget_planner.services._promotion import ValidationError, validate_promotion
+from budget_planner.services.recurring_formula import resolve_rule_amount, rt_expand
+from budget_planner.services.recurring_overrides import apply_overrides
 
 
 # ---------------------------------------------------------------------------
@@ -72,149 +76,6 @@ class CannotPromoteSkippedError(RuntimeError):
     """
 
 
-# ---------------------------------------------------------------------------
-# Pure cadence helpers
-# ---------------------------------------------------------------------------
-def _step_date(start: dt.date, idx: int, step_months: int, anchor_day: int) -> dt.date:
-    """Return ``start + idx * step_months`` anchored on ``anchor_day``.
-
-    ``relativedelta(day=anchor)`` performs the end-of-month clamp automatically.
-    For yearly rules with Feb-29 anchor, Feb 28 is produced in non-leap years;
-    the cycle recovers to Feb 29 the next time it is possible.
-    """
-    return start + relativedelta(months=step_months * idx, day=anchor_day)
-
-
-def _mk_occurrence(rule: RecurringRule, occ_date: dt.date) -> Occurrence:
-    return Occurrence(
-        rule_id=rule.id,
-        occurrence_date=occ_date,
-        effective_date=occ_date,
-        category_id=rule.category_id,
-        account_id=rule.account_id,
-        dest_account_id=rule.dest_account_id,
-        amount=rule.default_amount,
-        description=rule.default_description,
-        is_overridden=False,
-        is_skipped=False,
-    )
-
-
-def generate_occurrences(
-    rule: RecurringRule,
-    range_start: dt.date,
-    range_end: dt.date,
-) -> tuple[Occurrence, ...]:
-    """Return the canonical schedule intersected with ``[range_start, range_end]``.
-
-    Both bounds inclusive. The rule's own ``start_date`` is a candidate
-    occurrence. ``active=False`` short-circuits to ``()``. Monthly /
-    quarterly / yearly cadences clamp to the end of the month when the
-    anchor day exceeds the target month's day count.
-    """
-    if not rule.active:
-        return ()
-
-    hard_end = min(range_end, rule.end_date) if rule.end_date else range_end
-    hard_start = max(range_start, rule.start_date)
-    if hard_end < hard_start:
-        return ()
-
-    step_months = months_per_cadence(rule.cadence)
-    # Yearly rules honour an optional month_of_year by anchoring the first
-    # occurrence to (month_of_year, day_of_month) on-or-after start_date.
-    anchor_day = rule.day_of_month or rule.start_date.day
-    base_date = rule.start_date
-    if rule.cadence is Cadence.YEARLY and rule.month_of_year is not None:
-        candidate = base_date + relativedelta(month=rule.month_of_year, day=anchor_day)
-        if candidate < rule.start_date:
-            candidate = candidate + relativedelta(years=1)
-        base_date = candidate
-
-    out: list[Occurrence] = []
-    for idx in range(_MAX_ITERATIONS):
-        occ_date = _step_date(base_date, idx, step_months, anchor_day)
-        if occ_date > hard_end:
-            break
-        if occ_date >= hard_start:
-            out.append(_mk_occurrence(rule, occ_date))
-    else:  # pragma: no cover - safety guard
-        raise RuntimeError("occurrence generator did not terminate")
-    return tuple(out)
-
-
-def _apply_single_override(occ: Occurrence, override: RecurringOverride) -> Occurrence | None:
-    """Return the overridden occurrence, or ``None`` if ``state=skipped``."""
-    if override.state is OverrideState.SKIPPED:
-        return None
-    new_amount = override.amount_override if override.amount_override is not None else occ.amount
-    new_description = (
-        override.description_override
-        if override.description_override is not None
-        else occ.description
-    )
-    new_effective = (
-        override.date_override if override.date_override is not None else occ.occurrence_date
-    )
-    return Occurrence(
-        rule_id=occ.rule_id,
-        occurrence_date=occ.occurrence_date,  # canonical key preserved
-        effective_date=new_effective,
-        category_id=occ.category_id,
-        account_id=occ.account_id,
-        dest_account_id=occ.dest_account_id,
-        amount=new_amount,
-        description=new_description,
-        is_overridden=True,
-        is_skipped=False,
-    )
-
-
-def apply_overrides(
-    occurrences: Sequence[Occurrence],
-    overrides: Iterable[RecurringOverride],
-) -> tuple[Occurrence, ...]:
-    """Apply the ``(skipped | overridden)`` state machine.
-
-    Keyed by the ORIGINAL ``occurrence_date``, not the overridden one. Orphan
-    overrides (no matching canonical occurrence) are dropped with a DEBUG log.
-    Duplicates on the same key log a WARNING; last-wins by sort order on ``id``.
-    """
-    # Group overrides by occurrence_date, warn on duplicates.
-    by_date: dict[dt.date, RecurringOverride] = {}
-    seen: set[dt.date] = set()
-    canonical_dates = {o.occurrence_date for o in occurrences}
-    for override in sorted(overrides, key=lambda o: o.id):
-        if override.occurrence_date in seen:
-            logger.warning(
-                "overrides collide on (rule_id=%s, occurrence_date=%s); last-wins",
-                override.rule_id,
-                override.occurrence_date,
-            )
-        seen.add(override.occurrence_date)
-        if override.occurrence_date not in canonical_dates:
-            logger.debug(
-                "orphan override dropped: rule_id=%s date=%s",
-                override.rule_id,
-                override.occurrence_date,
-            )
-            continue
-        by_date[override.occurrence_date] = override
-
-    out: list[Occurrence] = []
-    for occ in occurrences:
-        match = by_date.get(occ.occurrence_date)
-        if match is None:
-            out.append(occ)
-            continue
-        updated = _apply_single_override(occ, match)
-        if updated is not None:
-            out.append(updated)
-    # Sort by effective_date (overrides may shift dates), stable on occurrence_date.
-    out.sort(key=lambda o: (o.effective_date, o.occurrence_date))
-    return tuple(out)
-
-
 def expand(
     rule: RecurringRule,
     overrides: Iterable[RecurringOverride],
@@ -240,58 +101,6 @@ def with_anchor_day(data: NewRecurringRule) -> NewRecurringRule:
     return dataclasses.replace(
         data, day_of_month=default_day_of_month(data.start_date, data.day_of_month)
     )
-
-
-def advance_next_due(rule: RecurringRule, from_date: dt.date) -> dt.date | None:
-    """Return the next canonical occurrence strictly after ``from_date``.
-
-    Reads the rule's own schedule (anchored on ``rule.start_date`` and
-    ``day_of_month``), so the end-of-month clamp never drifts the anchor.
-    Returns ``None`` when the next step would exceed ``rule.end_date``.
-    """
-    end_date = rule.end_date
-    hard_end = end_date if end_date is not None else from_date + dt.timedelta(days=_LOOKAHEAD_DAYS)
-    if hard_end <= from_date:
-        return None
-    occs = generate_occurrences(
-        dataclasses.replace(rule, active=True),
-        from_date + dt.timedelta(days=1),
-        hard_end,
-    )
-    return occs[0].occurrence_date if occs else None
-
-
-def first_due_on_or_after(rule: RecurringRule, today: dt.date) -> dt.date:
-    """Return the earliest canonical occurrence on-or-after ``max(start, today)``.
-
-    Used by ``repositories.recurring.create_rule`` to seed ``next_due`` on
-    insert and by the T-117 migration backfill. Terminal rules (``end_date``
-    already in the past) return ``rule.start_date`` as a sentinel — the
-    repository is responsible for toggling ``active=False`` in that case.
-    """
-    range_start = max(rule.start_date, today)
-    range_end = range_start + dt.timedelta(days=_LOOKAHEAD_DAYS)
-    occs = generate_occurrences(rule, range_start, range_end)
-    if occs:
-        return occs[0].occurrence_date
-    return rule.start_date
-
-
-def occurrence_in_month(rule: RecurringRule, year: int, month: int) -> dt.date | None:
-    """Return the canonical occurrence_date that falls in ``(year, month)``.
-
-    Supports the generic override UI (year + month + amount): the user picks
-    a target month, the server resolves which canonical occurrence_date to
-    key the override on by intersecting the schedule with that calendar
-    month. Returns ``None`` if the rule has no occurrence in that month.
-    """
-    range_start = dt.date(year, month, 1)
-    if month == 12:  # noqa: PLR2004 — calendar literal
-        range_end = dt.date(year, 12, 31)
-    else:
-        range_end = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
-    occs = generate_occurrences(rule, range_start, range_end)
-    return occs[0].occurrence_date if occs else None
 
 
 # ---------------------------------------------------------------------------
@@ -333,21 +142,6 @@ def promote_recurring(
        - Audit entry on the rule mutation.
     7. Return the new ``Transaction``.
     """
-    # Lazy imports — ``repositories.recurring`` imports ``services.recurring``
-    # for ``generate_occurrences`` at module load, so top-level imports here
-    # would introduce a circular dependency.
-    from budget_planner.repositories import (  # noqa: PLC0415
-        categories as categories_repo,
-        recurring as recurring_repo,
-        transactions as transactions_repo,
-    )
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-    from budget_planner.services import audit as audit_svc  # noqa: PLC0415
-    from budget_planner.services._promotion import (  # noqa: PLC0415
-        ValidationError,
-        validate_promotion,
-    )
-
     # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
         rule = recurring_repo.find_rule(conn, user_id, rule_id)
@@ -362,10 +156,6 @@ def promote_recurring(
 
         # Defaults start from the rule. Formula rules recompute from the
         # live source-rule state for the next_due month (ADR-0045).
-        from budget_planner.services.recurring_formula import (  # noqa: PLC0415
-            resolve_rule_amount,
-        )
-
         default_amount = resolve_rule_amount(conn, user_id, rule, due_date)
         default_description = rule.default_description
         effective_date = due_date
@@ -462,10 +252,6 @@ def skip_and_advance(
     ``last_promoted_date`` is unchanged (a skip is not a promotion).
     Returns the new ``next_due`` or ``None`` when the rule was deactivated.
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-    from budget_planner.services import audit as audit_svc  # noqa: PLC0415
-
     # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
         rule = recurring_repo.find_rule(conn, user_id, rule_id)
@@ -545,9 +331,6 @@ def batch_promote_due(
     :func:`skip_and_advance` so the caller does not have to re-run the
     batch after a skip.
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.repositories._shared import transaction as db_transaction  # noqa: PLC0415
-
     promoted: list[int] = []
     advanced: list[int] = []
     skipped: list[int] = []
@@ -558,8 +341,6 @@ def batch_promote_due(
             override = _resolve_override_for_next_due(
                 recurring_repo.list_overrides(conn, user_id, rule.id), rule.next_due
             )
-            from budget_planner.domain.enums import OverrideState  # noqa: PLC0415
-
             if override is not None and override.state is OverrideState.SKIPPED:
                 # Advance past the skip without creating a transaction.
                 skip_and_advance(conn, user_id, rule.id)
@@ -575,17 +356,10 @@ def batch_promote_due(
     )
 
 
-# Re-export the runtime-aware expand so callers that need formula substitution
-# can grab it from the main service module alongside the pure helpers.
-from budget_planner.services.recurring_formula import (  # noqa: E402
-    resolve_rule_amount,
-    rt_expand,
-)
-
-
-def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def expand_unpromoted(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     rule: RecurringRule,
     overrides: Sequence[RecurringOverride],
     window_start: dt.date,
@@ -599,7 +373,9 @@ def expand_unpromoted(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §
     start = max(rule.next_due, window_start)
     if start > window_end:
         return ()
-    return rt_expand(conn, user_id, rule, overrides, start, window_end)
+    return rt_expand(
+        conn, user_id, rule=rule, overrides=overrides, range_start=start, range_end=window_end
+    )
 
 
 def linked_occurrence_keys(

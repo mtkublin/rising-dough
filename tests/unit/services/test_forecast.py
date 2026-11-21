@@ -166,7 +166,9 @@ def _day_for(series: forecast_svc.ForecastSeries, on: date) -> forecast_svc.DayP
 def test_series_length_matches_horizon(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 60, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=60, base_currency="PLN"
+        )
     assert len(series.days) == 61
     assert series.start_date == TODAY
     assert series.end_date == TODAY + timedelta(days=60)
@@ -178,7 +180,9 @@ def test_horizon_zero_returns_single_anchor_day(
 ) -> None:
     _ = world
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 0, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=0, base_currency="PLN"
+        )
     assert len(series.days) == 1
     assert series.days[0].on_date == TODAY
 
@@ -186,7 +190,9 @@ def test_horizon_zero_returns_single_anchor_day(
 def test_end_of_horizon_date(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 60, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=60, base_currency="PLN"
+        )
     assert series.days[-1].on_date == TODAY + timedelta(days=60)
 
 
@@ -197,7 +203,9 @@ def test_day_zero_anchor_matches_derive_balance(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     day0 = series.days[0]
     p = _point_for(day0, world["a1"])
     assert p.native_minor == 100_000  # A1 opening_balance
@@ -211,7 +219,9 @@ def test_day_zero_total_sums_per_account_base(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 10, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=10, base_currency="PLN"
+        )
     day0 = series.days[0]
     expected = (
         _point_for(day0, world["a1"]).base_minor
@@ -230,7 +240,9 @@ def test_expense_drops_balance_on_operation_date(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 10, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=10, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 24)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 10, 25)), world["a1"]).native_minor
     assert prev - curr == 10_000
@@ -240,7 +252,9 @@ def test_transit_moves_funds_on_operation_date(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev_a1 = _point_for(_day_for(series, date(2026, 11, 4)), world["a1"]).native_minor
     curr_a1 = _point_for(_day_for(series, date(2026, 11, 5)), world["a1"]).native_minor
     prev_a2 = _point_for(_day_for(series, date(2026, 11, 4)), world["a2"]).native_minor
@@ -251,7 +265,9 @@ def test_transit_moves_funds_on_operation_date(
 
 def test_income_adds_on_operation_date(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 11, 14)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 15)), world["a1"]).native_minor
     assert curr - prev == 800_000
@@ -259,7 +275,9 @@ def test_income_adds_on_operation_date(conn: sqlite3.Connection, world: dict[str
 
 def test_virtual_recurring_applied(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 31)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 1)), world["a1"]).native_minor
     assert prev - curr == 300_000
@@ -286,7 +304,9 @@ def test_dedup_prefers_persisted_planned_over_virtual(
         ),
     )
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 31)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 1)), world["a1"]).native_minor
     # Only one 300_000 drop, not two.
@@ -298,7 +318,9 @@ def test_dedup_prefers_persisted_planned_over_virtual(
 # ---------------------------------------------------------------------------
 def test_fx_aggregates_eur_account_to_base(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 10, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=10, base_currency="PLN"
+        )
     day0 = series.days[0]
     a3 = _point_for(day0, world["a3"])
     assert a3.native_minor == 50_000
@@ -321,7 +343,9 @@ def test_fx_fallback_uses_latest_cached_rate(
         ),
     )
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 5, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=5, base_currency="PLN"
+        )
     a3 = _point_for(series.days[0], world["a3"])
     assert a3.base_minor == 200_000  # 50_000 * 4.00
 
@@ -337,7 +361,9 @@ def test_base_currency_identity_no_fx_calls(
         return httpx.Response(500)
 
     with _mock_client(_h) as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 5, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=5, base_currency="PLN"
+        )
     # Only EUR->PLN would need remote; today's rate is already cached. For a1/a2 (PLN)
     # the identity short-circuit must prevent http hits.
     assert hits == []
@@ -350,7 +376,9 @@ def test_base_currency_identity_no_fx_calls(
 def test_soft_deleted_planned_excluded(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     planned.soft_delete(conn, USER_ID, world["p1"])
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 10, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=10, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 24)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 10, 25)), world["a1"]).native_minor
     assert prev == curr  # no drop
@@ -359,7 +387,9 @@ def test_soft_deleted_planned_excluded(conn: sqlite3.Connection, world: dict[str
 def test_deactivated_rule_excluded(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     recurring.deactivate_rule(conn, USER_ID, world["rule"])
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 31)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 1)), world["a1"]).native_minor
     assert prev == curr
@@ -378,7 +408,9 @@ def test_skipped_override_removes_occurrence(
         ),
     )
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 31)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 1)), world["a1"]).native_minor
     assert prev == curr
@@ -390,16 +422,22 @@ def test_skipped_override_removes_occurrence(
 def test_deterministic_output(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http:
-        s1 = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        s1 = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     with _dead_client() as http:
-        s2 = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        s2 = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     assert s1 == s2
 
 
 def test_no_events_account_is_flat_line(conn: sqlite3.Connection) -> None:
     accounts.create(conn, USER_ID, NewAccount(name="Idle", currency="PLN", opening_balance=42_000))
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 15, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=15, base_currency="PLN"
+        )
     acct_id = series.days[0].by_account[0].account_id
     values = {_point_for(d, acct_id).native_minor for d in series.days}
     assert values == {42_000}
@@ -409,7 +447,9 @@ def test_difference_equals_signed_event_sum(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=30, base_currency="PLN"
+        )
     # (d1, d2] = (Oct 24, Nov 15]: expense -10_000 on Oct 25, transit -20_000 Nov 5,
     # recurring rent -300_000 Nov 1, income +800_000 Nov 15.
     d1 = _point_for(_day_for(series, date(2026, 10, 24)), world["a1"]).native_minor
@@ -423,12 +463,16 @@ def test_difference_equals_signed_event_sum(
 def test_negative_horizon_raises(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _ = world
     with _dead_client() as http, pytest.raises(ValueError, match="horizon_days"):
-        forecast_svc.forecast(conn, USER_ID, http, TODAY, -1, "PLN")
+        forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=-1, base_currency="PLN"
+        )
 
 
 def test_empty_db_returns_zero_filled_series(conn: sqlite3.Connection) -> None:
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 3, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=3, base_currency="PLN"
+        )
     assert len(series.days) == 4
     assert all(d.totals_base_minor == 0 for d in series.days)
     assert all(d.by_account == () for d in series.days)
@@ -463,7 +507,9 @@ def test_rule_outside_window_skipped(conn: sqlite3.Connection, world: dict[str, 
         ),
     )
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 60, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=60, base_currency="PLN"
+        )
     # Original rent rule still fires on 2026-11-01.
     prev = _point_for(_day_for(series, date(2026, 10, 31)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 11, 1)), world["a1"]).native_minor
@@ -485,7 +531,9 @@ def test_adjustment_planned_row_ignored(conn: sqlite3.Connection, world: dict[st
         ),
     )
     with _dead_client() as http:
-        series = forecast_svc.forecast(conn, USER_ID, http, TODAY, 10, "PLN")
+        series = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=10, base_currency="PLN"
+        )
     prev = _point_for(_day_for(series, date(2026, 10, 25)), world["a1"]).native_minor
     curr = _point_for(_day_for(series, date(2026, 10, 26)), world["a1"]).native_minor
     # Only the Oct 25 groceries drop applied; adjustment ignored, so Oct 26 == Oct 25.
@@ -511,10 +559,22 @@ def test_overlay_off_matches_pre_overlay_projection(
     budgets_repo.set_default(conn, USER_ID, NewBudgetDefault(category_id=dining, amount=60_000))
     with _dead_client() as http:
         off_a = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 30, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=30,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         off_b = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 30, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=30,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
     assert off_a == off_b
     # Day-0 anchor + Oct 25 drop must match the pre-overlay invariants.
@@ -542,10 +602,22 @@ def test_overlay_spreads_unaccounted_budget_evenly_over_future_month(
 
     with _dead_client() as http:
         baseline = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 60, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=60,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         with_overlay = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 60, "PLN", include_budget_overlay=True
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=60,
+            base_currency="PLN",
+            include_budget_overlay=True,
         )
 
     # Oct 23..31: no Nov overlay yet, no Oct budget → zero diff on A1.
@@ -596,10 +668,22 @@ def test_overlay_clamps_when_planned_exceeds_budget(
 
     with _dead_client() as http:
         baseline = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 45, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=45,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         with_overlay = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 45, "PLN", include_budget_overlay=True
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=45,
+            base_currency="PLN",
+            include_budget_overlay=True,
         )
 
     for d in (date(2026, 11, 1), date(2026, 11, 15), date(2026, 11, 30)):
@@ -636,10 +720,22 @@ def test_overlay_subtracts_spent_so_far_in_current_month(
     a1 = world["a1"]
     with _dead_client() as http:
         baseline = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 20, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=20,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         with_overlay = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 20, "PLN", include_budget_overlay=True
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=20,
+            base_currency="PLN",
+            include_budget_overlay=True,
         )
     # Oct 24..31 is 8 days; residual 8_000 → 1_000/day.
     for i, day_of_month in enumerate(range(24, 32), start=1):
@@ -666,10 +762,22 @@ def test_overlay_rounding_residual_absorbed_by_last_day(
     a1 = world["a1"]
     with _dead_client() as http:
         baseline = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 50, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=50,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         with_overlay = forecast_svc.forecast(
-            conn, USER_ID, http, TODAY, 50, "PLN", include_budget_overlay=True
+            conn,
+            USER_ID,
+            http=http,
+            today=TODAY,
+            horizon_days=50,
+            base_currency="PLN",
+            include_budget_overlay=True,
         )
     end_of_nov_baseline = _point_for(_day_for(baseline, date(2026, 11, 30)), a1).native_minor
     end_of_nov_overlay = _point_for(_day_for(with_overlay, date(2026, 11, 30)), a1).native_minor
@@ -686,8 +794,12 @@ def test_overlay_deterministic_across_runs(conn: sqlite3.Connection, world: dict
     ).id
     budgets_repo.set_default(conn, USER_ID, NewBudgetDefault(category_id=dining, amount=90_000))
     with _dead_client() as http:
-        a = forecast_svc.forecast(conn, USER_ID, http, TODAY, 60, "PLN")
-        b = forecast_svc.forecast(conn, USER_ID, http, TODAY, 60, "PLN")
+        a = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=60, base_currency="PLN"
+        )
+        b = forecast_svc.forecast(
+            conn, USER_ID, http=http, today=TODAY, horizon_days=60, base_currency="PLN"
+        )
     assert a == b
 
 
@@ -713,10 +825,22 @@ def test_overlay_skipped_when_today_is_last_day_of_month(
     a1 = world["a1"]
     with _dead_client() as http:
         baseline = forecast_svc.forecast(
-            conn, USER_ID, http, today, 15, "PLN", include_budget_overlay=False
+            conn,
+            USER_ID,
+            http=http,
+            today=today,
+            horizon_days=15,
+            base_currency="PLN",
+            include_budget_overlay=False,
         )
         with_overlay = forecast_svc.forecast(
-            conn, USER_ID, http, today, 15, "PLN", include_budget_overlay=True
+            conn,
+            USER_ID,
+            http=http,
+            today=today,
+            horizon_days=15,
+            base_currency="PLN",
+            include_budget_overlay=True,
         )
     # Nov 1..15 falls into horizon; Nov has no budget → no overlay anywhere.
     for d in (today, date(2026, 11, 1), date(2026, 11, 15)):
