@@ -42,10 +42,17 @@ def test_limit_preview_does_not_close_edit_slideover_before_save(world: World) -
     _menu_action(world, ledger.row_menu(txn), "Edit")
     expect(world.find(ledger.slideover)).to_be_visible()
     amount = world.find(ledger.overlay_field(ledger.field_amount))
+    # The slide-over is visible at swap time, but htmx wires the fragment's hx-trigger
+    # listeners only after its settle step; keys typed earlier never fire the preview.
+    world.page.wait_for_function(
+        "el => el['htmx-internal-data'] !== undefined && !document.querySelector('.htmx-settling')",
+        arg=amount.element_handle(),
+    )
     amount.fill("")
     with world.page.expect_response(lambda r: "/transactions/_limit_preview" in r.url):
         amount.press_sequentially("45.67")  # real keystrokes fire the keyup preview trigger
     world.settle()
+    expect(amount).to_have_value("45.67")
     expect(world.find(ledger.slideover)).to_be_visible()
     assert world.rows("SELECT 1 FROM transactions WHERE id = ? AND amount = 1234", (txn,))
 
