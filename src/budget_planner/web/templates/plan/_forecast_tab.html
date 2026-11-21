@@ -12,17 +12,17 @@
     <aside class="rd-forecast__summary" aria-label="Projection summary">
       <div class="rd-forecast__sum-item">
         <span class="rd-eyebrow">Now</span>
-        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.now_value) }}</strong>
+        <strong class="num rd-forecast__sum-value">{{ summary.now_value|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
       <div class="rd-forecast__sum-item">
         <span class="rd-eyebrow">End · {{ summary.end_point.label }}</span>
-        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.end_point.value_major) }}</strong>
+        <strong class="num rd-forecast__sum-value">{{ summary.end_point.end_balance_minor|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
       <div class="rd-forecast__sum-item">
         <span class="rd-eyebrow">Peak · {{ summary.peak_point.label }}</span>
-        <strong class="num rd-forecast__sum-value">{{ "{:,.0f}".format(summary.peak_point.value_major) }}</strong>
+        <strong class="num rd-forecast__sum-value">{{ summary.peak_point.end_balance_minor|money_whole(base_ccy) }}</strong>
         <span class="cur num">{{ base_ccy }}</span>
       </div>
     </aside>
@@ -82,11 +82,11 @@
           {% set net = p.net_minor|int %}
           <tr data-month="{{ p.month.isoformat() }}">
             <td>{{ p.label }}</td>
-            <td class="num">{{ "{:,.0f}".format((p.income_minor or 0) / 100.0) }}</td>
-            <td class="num">{{ "{:,.0f}".format((p.expense_minor or 0) / 100.0) }}</td>
-            <td class="num">{{ "{:,.0f}".format((p.planned_budget_minor or 0) / 100.0) }}</td>
-            <td class="num {% if net < 0 %}rd-forecast__net--neg{% endif %}">{{ "{:,.0f}".format(net / 100.0) }}</td>
-            <td class="num rd-forecast__eom"><strong>{{ "{:,.2f}".format(p.value_major) }}</strong></td>
+            <td class="num">{{ (p.income_minor or 0)|money_whole(base_ccy) }}</td>
+            <td class="num">{{ (p.expense_minor or 0)|money_whole(base_ccy) }}</td>
+            <td class="num">{{ (p.planned_budget_minor or 0)|money_whole(base_ccy) }}</td>
+            <td class="num {% if net < 0 %}rd-forecast__net--neg{% endif %}">{{ net|money_whole(base_ccy) }}</td>
+            <td class="num rd-forecast__eom"><strong>{{ p.end_balance_minor|money_num(base_ccy) }}</strong></td>
           </tr>
         {% else %}
           <tr>

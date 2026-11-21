@@ -25,8 +25,8 @@ the same change; this package owns no entry). State after T-Q206 and T-Q208 were
 | INV-3b committed with a linked row (test_inv_03)         | Q-002 | T-Q206   | flipped, plain passing test        |
 | INV-3c overdue planned item (test_inv_03)                | Q-030 | T-Q227   | strict xfail                       |
 | INV-5 amount parsers (test_inv_05)                       | Q-023 | T-Q233   | strict xfail                       |
-| INV-6a exponent table, 2 tests (test_inv_06)             | Q-029 | T-Q216   | strict xfail                       |
-| INV-6b /today JPY render (test_inv_06)                   | Q-011 | T-Q216   | strict xfail                       |
+| INV-6a exponent table, 2 tests (test_inv_06)             | Q-029 | T-Q216   | flipped, plain passing tests       |
+| INV-6b /today JPY render (test_inv_06)                   | Q-011 | T-Q216   | flipped, plain passing test        |
 | INV-7 period window, 2 tests (test_inv_07)               | Q-003 | T-Q208   | strict xfail (T-Q208 in flight)    |
 | INV-8b display-timezone today (test_inv_08)              | Q-031 | T-Q229   | strict xfail                       |
 | INV-9 archived category scope (test_inv_09)              | Q-030 | T-Q227   | strict xfail                       |

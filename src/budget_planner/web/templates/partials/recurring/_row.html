@@ -37,7 +37,7 @@
     {% if amount_overridden %}
       <em data-amount-overridden>{{ display_amount|money(account.currency if account else 'PLN') }}</em>
     {% elif is_formula %}
-      <span data-formula-amount title="{% for t in rule.amount_formula.terms %}{{ t.sign }} {{ (t.coefficient_bps / 100)|round(2) }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
+      <span data-formula-amount title="{% for t in rule.amount_formula.terms %}{{ t.sign }} {{ t.coefficient_bps|bps_percent }}% of {{ t.source_category_ids|length }} categor{{ 'y' if t.source_category_ids|length == 1 else 'ies' }}{% if not loop.last %} {% endif %}{% endfor %}">
         {{ display_amount|money(account.currency if account else 'PLN') }}
         <span class="formula-chip" aria-label="computed amount">ƒ</span>
       </span>

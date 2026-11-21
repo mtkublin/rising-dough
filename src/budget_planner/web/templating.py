@@ -19,9 +19,13 @@ from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import (
     ISO_4217_CURRENCIES,
+    bps_to_percent,
     currency_decimals,
+    format_major,
     format_money,
-    from_minor_units,
+    format_whole,
+    major_float,
+    minor_to_major,
 )
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -43,7 +47,7 @@ def _money_num_filter(
     """
     if amount_minor is None:
         return ""
-    value = from_minor_units(int(amount_minor), currency)
+    value = minor_to_major(int(amount_minor), currency)
     if abs_value:
         value = abs(value)
     spec = f"{'+' if signed else ''},.{currency_decimals(currency)}f"
@@ -58,9 +62,24 @@ def _money_major_filter(amount_minor: int | None, currency: str) -> str:
     """
     if amount_minor is None:
         return ""
-    decimals = currency_decimals(currency)
-    value = from_minor_units(int(amount_minor), currency)
-    return f"{value:.{decimals}f}"
+    return format_major(int(amount_minor), currency)
+
+
+def _money_whole_filter(amount_minor: int | None, currency: str, grouped: bool = True) -> str:
+    """Whole major units for dense tables (ADR-0006 amendment 2026-11-21)."""
+    if amount_minor is None:
+        return ""
+    return format_whole(int(amount_minor), currency, grouped=grouped)
+
+
+def _major_float_filter(amount_minor: int | None, currency: str) -> float:
+    """Major-unit float for visual scales (heat weights), never for display text."""
+    return major_float(int(amount_minor or 0), currency)
+
+
+def _bps_percent_filter(bps: int) -> str:
+    """Basis points as a plain percent number (``150`` -> ``1.5``)."""
+    return format(bps_to_percent(int(bps)).normalize(), "f")
 
 
 def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-%d") -> str:
@@ -207,6 +226,9 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["money"] = _money_filter
     env.filters["money_num"] = _money_num_filter
     env.filters["currency_decimals"] = currency_decimals
+    env.filters["money_whole"] = _money_whole_filter
+    env.filters["major_float"] = _major_float_filter
+    env.filters["bps_percent"] = _bps_percent_filter
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)

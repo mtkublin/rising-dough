@@ -36,7 +36,7 @@ from budget_planner.domain.fx import FxRate, NewFxRate
 from budget_planner.domain.money import (
     currency_decimals,
     format_money,
-    from_minor_units,
+    minor_to_major,
     to_minor_units,
 )
 from budget_planner.domain.planned import (
@@ -108,6 +108,6 @@ __all__ = [
     "TransactionFilter",
     "currency_decimals",
     "format_money",
-    "from_minor_units",
+    "minor_to_major",
     "to_minor_units",
 ]

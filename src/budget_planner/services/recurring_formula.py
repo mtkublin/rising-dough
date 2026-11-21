@@ -20,6 +20,7 @@ import sqlite3
 from collections.abc import Iterable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from budget_planner.domain.money import bps_to_percent, format_bps_percent, percent_to_bps
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
     AmountFormula,
@@ -37,7 +38,6 @@ logger = logging.getLogger(__name__)
 # (coefficient_bps=120 ≠ 1200 confusion). Floor is 1 bps (0.01%).
 _BPS_MIN = 1
 _BPS_MAX = 1_000_000
-_PERCENT_TO_BPS = Decimal("100")
 
 
 class FormulaError(ValueError):
@@ -65,13 +65,25 @@ def parse_percent_to_bps(percent_str: str) -> int:
         dec = Decimal(normalised)
     except InvalidOperation as exc:
         raise FormulaError("coefficient must be a decimal number") from exc
-    bps_dec = (dec * _PERCENT_TO_BPS).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    bps = int(bps_dec)
+    bps = percent_to_bps(dec)
     if bps < _BPS_MIN or bps > _BPS_MAX:
         raise FormulaError(
-            f"coefficient must be between {_BPS_MIN / 100:.2f}% and {_BPS_MAX / 100:.2f}%"
+            f"coefficient must be between {format_bps_percent(_BPS_MIN)}% "
+            f"and {format_bps_percent(_BPS_MAX)}%"
         )
     return bps
+
+
+def term_input_rows(formula: AmountFormula) -> list[dict[str, object]]:
+    """Persisted formula terms as form-shaped rows (percent string, sign, category ids)."""
+    return [
+        {
+            "sign": term.sign,
+            "coefficient_percent": format(bps_to_percent(term.coefficient_bps).normalize(), "f"),
+            "source_category_ids": tuple(term.source_category_ids),
+        }
+        for term in formula.terms
+    ]
 
 
 def _parse_sign(raw: str) -> TermSign:

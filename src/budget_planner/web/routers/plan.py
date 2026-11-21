@@ -20,6 +20,7 @@ from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
     forecast as forecast_service,
+    today as today_service,
 )
 from budget_planner.web import charts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
@@ -33,35 +34,7 @@ _VALID_PERIODS: tuple[analytics_service.Period, ...] = ("month", "year", "traili
 
 _FORECAST_HORIZON_MONTHS = 12
 _FORECAST_HORIZON_CHOICES: tuple[int, ...] = (6, 12, 24, 60)
-_MINOR_UNITS_PER_MAJOR = 100.0
 _MONTHS_IN_YEAR = 12
-
-
-def _analytics_charts(bundle: analytics_service.AnalyticsBundle) -> dict[str, Any]:
-    """Compute SVG geometry for the Analytics tab charts.
-
-    Returns a dict with ``spend_chart`` (horizontal bars) and ``flow_chart``
-    (grouped bars) so the template can render inline SVG without doing any
-    math itself. All amounts converted to major units for display.
-    """
-    spend_items = tuple(
-        (row.category_name, row.amount_minor / _MINOR_UNITS_PER_MAJOR)
-        for row in bundle.spend_by_category
-    )
-    flow_groups = tuple(
-        {
-            "label": point.label[-5:],  # YYYY-MM → MM-?; keep tail for density
-            "bars": [
-                ("income", point.income_minor / _MINOR_UNITS_PER_MAJOR),
-                ("expense", point.expense_minor / _MINOR_UNITS_PER_MAJOR),
-            ],
-        }
-        for point in bundle.income_vs_expense_monthly
-    )
-    return {
-        "spend_chart": charts.horizontal_bars(spend_items),
-        "flow_chart": charts.grouped_bars(flow_groups),
-    }
 
 
 @router.get("/plan", response_class=HTMLResponse)
@@ -176,6 +149,9 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
                 days_until_next_income=days_left,
             )
         ctx["summary"] = summary
+        ctx["per_day_minor"] = today_service.daily_share_minor(
+            summary.totals.remaining_minor, summary.days_until_next_income
+        )
     elif tab_norm == "year":
         year_param = request.query_params.get("year")
         selected_year = year
@@ -210,7 +186,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
         ctx["forecast_chart"] = charts.line_area(chart_points, x_labels=chart_labels)
         # Summary strip: NOW / END / PEAK.
         if projection:
-            start_value = projection[0].value_major
+            start_value = projection[0].end_balance_minor
             end_point = projection[-1]
             peak_point = max(projection, key=lambda p: p.value_major)
             ctx["forecast_summary"] = {
@@ -246,7 +222,7 @@ def plan(  # noqa: PLR0912, PLR0915 — one dispatcher per tab, kept flat for re
             row.category_id: row.amount_minor for row in bundle.twelve_month_averages
         }
         ctx["spend_total_minor"] = sum(r.amount_minor for r in bundle.spend_by_category)
-        ctx.update(_analytics_charts(bundle))
+        ctx["spend_chart"], ctx["flow_chart"] = charts.analytics_charts(bundle, base_ccy)
 
     return render(request, "plan/index.html", **ctx)
 
@@ -271,13 +247,15 @@ def plan_analytics(
             break
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
     data = analytics_service.bundle(conn, user_id, today=today_d, period=period_norm)
+    spend_chart, flow_chart = charts.analytics_charts(data, settings.base_currency)
     return render(
         request,
         "plan/_analytics_bundle.html",
         bundle=data,
         base_ccy=settings.base_currency,
         period=period_norm,
-        **_analytics_charts(data),
+        spend_chart=spend_chart,
+        flow_chart=flow_chart,
     )
 
 

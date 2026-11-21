@@ -30,7 +30,7 @@ import httpx
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import currency_decimals
+from budget_planner.domain.money import currency_decimals, major_float
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
@@ -931,7 +931,7 @@ def monthly_projection(
         MonthlyProjectionPoint(
             month=point.month,
             label=point.month.strftime("%b %Y"),
-            value_major=point.end_balance_base_minor / 100.0,
+            value_major=major_float(point.end_balance_base_minor, base_ccy),
             income_minor=point.income_base_minor,
             expense_minor=point.expense_base_minor,
             planned_budget_minor=point.planned_budget_base_minor,

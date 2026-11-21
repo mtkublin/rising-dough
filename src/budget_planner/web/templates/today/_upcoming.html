@@ -40,7 +40,7 @@
           <span class="rd-pill rd-pill--muted">—</span>
         {% endif %}
       </span>
-      <span class="num {{ 'pos' if is_income else '' }} rd-upcoming__amt">{{ '+' if is_income else '' }}{{ "{:,.2f}".format(row.amount_minor / 100.0) }}<span class="cur">{{ base_ccy }}</span></span>
+      <span class="num {{ 'pos' if is_income else '' }} rd-upcoming__amt">{{ '+' if is_income else '' }}{{ row.amount_minor|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span></span>
       <span class="rd-upcoming__actions">
         {% if row.kind == "planned" %}
           <button type="button"

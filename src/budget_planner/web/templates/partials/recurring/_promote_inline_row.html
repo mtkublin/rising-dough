@@ -35,7 +35,7 @@
           <input type="text"
                  class="num rd-promote-inline__input rd-promote-inline__input--amount"
                  name="amount"
-                 value="{{ (prefill_amount_minor / 100)|round(2) if prefill_amount_minor else '' }}"
+                 value="{{ prefill_amount_minor|money_major(account.currency if account else base_ccy) if prefill_amount_minor else '' }}"
                  inputmode="decimal"
                  placeholder="0.00">
           <span class="cur">{{ account.currency if account else base_ccy }}</span>

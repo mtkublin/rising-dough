@@ -3,7 +3,7 @@
 """INV-5: every user-amount parser gives the same verdict for the same text (Q-023).
 
 Parsers compared: transactions._validate_amount (canonical: domain.money.parse_amount_str), planned._validate_amount,
-accounts._parse_credit_limit, budget._parse_decimal + to_minor_units, today._parse_amount_arg. An uncaught exception
+accounts._parse_credit_limit, budget._parse_decimal + to_minor_units, today._afford_amount_minor. An uncaught exception
 is an HTTP 500 at the router.
 """
 
@@ -38,8 +38,8 @@ def _budget_parser(raw: str, ccy: str) -> Any:
     return None if dec is None else to_minor_units(dec, ccy)
 
 
-def _today_parser(raw: str, _ccy: str) -> Any:
-    return today._parse_amount_arg(raw)
+def _today_parser(raw: str, ccy: str) -> Any:
+    return today._afford_amount_minor(raw, ccy)
 
 
 PARSERS: dict[str, Callable[[str, str], Any]] = {

@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-21 (T-Q216: one money renderer, complete exponent table)
+- **Fix(T-Q216): one minor-to-major conversion and a complete ISO 4217 exponent table (ADR-0006 amendment; Q-011, Q-029).** `domain.money.minor_to_major` replaces every `/ 100.0` and two-decimal format in templates, charts and routers (`money_num`/`money_whole` filters, `major_float`, `percent_of`, `bps_to_percent`); a JPY or ISK balance no longer renders 100x too small. `CURRENCY_EXPONENTS` lists every offered code (16 zero-decimal, 7 three-decimal). OQ-1: prod is PLN-only, no data migration. INV-6a/6b flipped to plain tests; 13 allowlist entries deleted from `banned_patterns`, `invariants`, `money_scope`, plus incidental decrements in `hygiene`, `literals`, `thin_router`, `template_logic`; canonical row "Money format, parse, exponent" is now `exists`.
 ## 2026-11-21 (T-Q277: per-drill age key pair in Terraform)
 - **Feat(T-Q277): each drill generates its own Litestream age key pair with the `koendelaat/age` Terraform provider (ADR-0135, amends ADR-0132 and ADR-0078; Q-012 H4-03).** The pair lives in that drill's state (survives VM replacement, dies on teardown); `litestream_age_*` are prod-only inputs, the prod replica identity reaches a drill only as `restore_source_age_identity` from `prod-restore-read`, in its own file. `drill`, `drill-plan`, `drill-teardown` no longer read `LITESTREAM_AGE_*`. Root `.terraform.lock.hcl` is now committed (linux_amd64, darwin_arm64). **Operator half pending:** delete the age secrets from the three drill environments after merge.
 

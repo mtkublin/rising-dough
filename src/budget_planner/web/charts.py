@@ -25,6 +25,10 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+from budget_planner.domain.enums import Direction
+from budget_planner.domain.money import format_axis_number, major_float
+from budget_planner.services.analytics import AnalyticsBundle
+
 # ---------------------------------------------------------------------------
 # Shared primitives
 # ---------------------------------------------------------------------------
@@ -32,7 +36,6 @@ from typing import Any, Literal, cast
 _NUM_FMT = "{:.3f}"
 _NICE_FRACTIONS: tuple[float, ...] = (1.0, 2.0, 2.5, 5.0, 10.0)
 _DEFAULT_TARGET_TICKS = 5
-_INT_LABEL_EPSILON = 1e-9
 
 
 def _fmt(value: float) -> str:
@@ -68,7 +71,7 @@ def _nice_axis(
     span = data_max - data_min
     rough_step = span / target_ticks
     exponent = math.floor(math.log10(rough_step)) if rough_step > 0 else 0
-    base = 10**exponent
+    base = math.pow(10.0, exponent)
     normalized = rough_step / base
     nice_fraction = next(f for f in _NICE_FRACTIONS if normalized <= f)
     step = nice_fraction * base
@@ -131,14 +134,6 @@ _LINE_AREA_PAD_LEFT = 48.0
 _LINE_AREA_PAD_RIGHT = 16.0
 _LINE_AREA_PAD_TOP = 16.0
 _LINE_AREA_PAD_BOTTOM = 32.0
-
-
-def _format_label(value: float) -> str:
-    """Format a numeric axis label with thousands separators."""
-    rounded = round(value)
-    if abs(value - rounded) < _INT_LABEL_EPSILON:
-        return f"{int(rounded):,}"
-    return f"{value:,.2f}"
 
 
 def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for cohesion
@@ -231,7 +226,7 @@ def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for c
     y_axis: list[AxisTick] = []
     for value in _axis_ticks(nice_y_min, nice_y_max, y_step):
         sy = inner_bottom - ((value - nice_y_min) / y_span) * inner_height
-        y_axis.append(AxisTick(position=sy, label=_format_label(value)))
+        y_axis.append(AxisTick(position=sy, label=format_axis_number(value)))
 
     return LineAreaChart(
         line_d=line_d,
@@ -383,7 +378,7 @@ def grouped_bars(
     y_axis = tuple(
         AxisTick(
             position=inner_bottom - ((value - nice_min) / y_span) * inner_height,
-            label=_format_label(value),
+            label=format_axis_number(value),
         )
         for value in _axis_ticks(nice_min, nice_max, y_step)
     )
@@ -485,7 +480,7 @@ def horizontal_bars(
                 bar_x=bar_x,
                 bar_width=bar_width,
                 bar_height=_HORIZONTAL_BAR_HEIGHT,
-                value_label=_format_label(value),
+                value_label=format_axis_number(value),
             )
         )
 
@@ -599,3 +594,32 @@ __all__ = [
     "line_area",
     "sparkline",
 ]
+
+
+def line_area_minor(
+    values_minor: Sequence[int], currency: str, labels: Sequence[str]
+) -> LineAreaChart:
+    """Line-area chart of minor-unit balances, scaled by the currency exponent."""
+    points = tuple((float(i), major_float(v, currency)) for i, v in enumerate(values_minor))
+    return line_area(points, x_labels=labels)
+
+
+def analytics_charts(
+    bundle: AnalyticsBundle, currency: str
+) -> tuple[HorizontalBarsChart, GroupedBarsChart]:
+    """Spend-by-category bars and income/expense grouped bars for the Analytics tab."""
+    spend_items = tuple(
+        (row.category_name, major_float(row.amount_minor, currency))
+        for row in bundle.spend_by_category
+    )
+    flow_groups = tuple(
+        {
+            "label": point.label[-5:],  # YYYY-MM -> MM-?; keep tail for density
+            "bars": [
+                (Direction.INCOME.value, major_float(point.income_minor, currency)),
+                (Direction.EXPENSE.value, major_float(point.expense_minor, currency)),
+            ],
+        }
+        for point in bundle.income_vs_expense_monthly
+    )
+    return horizontal_bars(spend_items), grouped_bars(flow_groups)

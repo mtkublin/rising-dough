@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.money import parse_amount_str, percent_of, to_minor_units
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -63,8 +64,9 @@ def today(
     days_left = summary.days_until_next_income
     bar_pct = 0
     if summary.totals.budgeted_minor > 0:
-        ratio = 100 * summary.totals.spent_minor / summary.totals.budgeted_minor
-        bar_pct = max(0, min(100, int(ratio)))
+        bar_pct = max(
+            0, min(100, percent_of(summary.totals.spent_minor, summary.totals.budgeted_minor))
+        )
 
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
@@ -85,6 +87,9 @@ def today(
         summary=summary,
         pace=pace,
         days_left=days_left,
+        left_per_day_minor=today_service.daily_share_minor(
+            summary.totals.remaining_minor, days_left
+        ),
         bar_pct=bar_pct,
         upcoming=upcoming,
         window_label=window_label,
@@ -123,22 +128,16 @@ def today_upcoming_fragment(
     )
 
 
-def _parse_amount_arg(raw: str) -> int | None:
-    """Parse the ``amount=`` query arg into minor units.
+def _afford_amount_minor(raw: str, currency: str) -> int | None:
+    """Parse the ``amount=`` query arg (a major-unit decimal) into minor units.
 
-    The afford input in `today/index.html` is `<input type="number"
-    step="0.01">` — users type a MAJOR-unit decimal. Treat every value
-    as major units and multiply by 100 to minor. Returns ``None`` on
-    invalid input so the router can surface a 422.
+    Returns ``None`` on invalid input so the router can surface a 422.
     """
     stripped = (raw or "").strip()
     if stripped == "":
         return 0
-    try:
-        major = float(stripped)
-    except (TypeError, ValueError):
-        return None
-    return round(major * 100)
+    dec = parse_amount_str(stripped, currency)
+    return None if dec is None else to_minor_units(dec, currency)
 
 
 @router.get("/today/afford", response_class=HTMLResponse)
@@ -154,7 +153,7 @@ def afford(
     Returns the ``today/_afford_preview.html`` fragment with the recomputed
     per-day figure + signed delta + pace tag. Pure read; no DB write.
     """
-    amount_minor = _parse_amount_arg(amount)
+    amount_minor = _afford_amount_minor(amount, settings.base_currency)
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
     today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
