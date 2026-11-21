@@ -613,7 +613,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q226 [S] Kill the `balance` mutant cluster; cover series and yearly grid
+### ✅ T-Q226 [S] Kill the `balance` mutant cluster; cover series and yearly grid
 - Findings: Q-020 (F-08, F-27).
 - Epic: none (test-gap)
 - Band: 3 · Size: M · Tags: none
