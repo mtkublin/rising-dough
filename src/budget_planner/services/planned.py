@@ -14,6 +14,7 @@ from __future__ import annotations
 import calendar
 import datetime as dt
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -233,9 +234,55 @@ def batch_promote_due(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class BatchUndoResult:
+    """Outcome of :func:`undo_batch`: what was reverted and what was left alone."""
+
+    deleted_txn_ids: tuple[int, ...]
+    restored_planned_ids: tuple[int, ...]
+    skipped_planned_ids: tuple[int, ...]
+
+
+def undo_batch(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn_ids: Sequence[int],
+    planned_ids: Sequence[int],
+) -> BatchUndoResult:
+    """Reverse a batch promote-due, as an audited action (ADR-0019 amendment, T-Q228).
+
+    One transaction: soft-delete the batch's own transactions (owner-scoped,
+    each writes its ``delete`` audit row) and un-stamp each planned row by
+    compare-and-set against the batch's transaction ids (writes an ``update``
+    audit row). A planned row re-stamped by another promotion since the batch
+    is left untouched and reported in ``skipped_planned_ids``.
+    """
+    batch = frozenset(txn_ids)
+    deleted: list[int] = []
+    restored: list[int] = []
+    skipped: list[int] = []
+    with db_transaction(conn):
+        for txn_id in txn_ids:
+            if transactions_repo.find_by_id(conn, user_id, txn_id) is None:
+                continue
+            transactions_repo.soft_delete(conn, user_id, txn_id)
+            deleted.append(txn_id)
+        for planned_id in planned_ids:
+            if planned_repo.clear_promotion(conn, user_id, planned_id, txn_ids=batch):
+                restored.append(planned_id)
+            else:
+                skipped.append(planned_id)
+    return BatchUndoResult(
+        deleted_txn_ids=tuple(deleted),
+        restored_planned_ids=tuple(restored),
+        skipped_planned_ids=tuple(skipped),
+    )
+
+
 __all__ = [
     "AlreadyPromotedError",
     "BatchPromoteResult",
+    "BatchUndoResult",
     "CannotPromoteDeletedError",
     "PlannedKind",
     "PlannedNotFoundError",
@@ -246,4 +293,5 @@ __all__ = [
     "batch_promote_due",
     "list_planned",
     "promote_to_actual",
+    "undo_batch",
 ]

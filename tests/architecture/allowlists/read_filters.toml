@@ -25,13 +25,6 @@ epic = "E10"
 
 [[entry]]
 path = "src/budget_planner/repositories/recurring.py"
-rule = "mutation-unaudited"
-count = 2
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
 rule = "read-no-softdelete"
 count = 5
 finding = "B-14"
