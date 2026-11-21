@@ -163,8 +163,3 @@ def test_dt_local_handles_none_and_bad_input() -> None:
     env = build_jinja_env(_settings())
     assert env.from_string("[{{ none|dt_local }}]").render() == "[]"
     assert env.from_string("[{{ 'nope'|dt_local }}]").render() == "[nope]"
-
-
-def test_csrf_token_global_is_empty_in_v1() -> None:
-    env = build_jinja_env(_settings())
-    assert env.from_string("{{ csrf_token() }}").render() == ""

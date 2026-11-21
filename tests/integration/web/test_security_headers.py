@@ -65,12 +65,13 @@ def _app_with_echo_route(cfg: Settings, cookie: tuple[str, str]) -> TestClient:
 def test_csp_nonce_from_header_reaches_jinja_context(
     _migrated: Settings, session_cookie: tuple[str, str]
 ) -> None:
-    """When Caddy forwards ``X-CSP-Nonce``, Jinja templates see the same value."""
+    """T-Q254: a proxy- or client-supplied ``X-CSP-Nonce`` is ignored; the app mints its own."""
     client = _app_with_echo_route(_migrated, session_cookie)
     with client:
         r = client.get("/_test/nonce", headers={"X-CSP-Nonce": "abc123"})
     assert r.status_code == 200
-    assert r.text == "nonce:abc123"
+    assert r.text.startswith("nonce:")
+    assert r.text != "nonce:abc123"
 
 
 def test_csp_nonce_generated_when_header_absent(

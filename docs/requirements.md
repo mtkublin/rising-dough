@@ -363,7 +363,7 @@ Release and environment policy (ADR-0099):
 
 ### 6.7 Security (new NFR)
 
-- CSP with per-request nonce: Caddy sets the header (`terraform/cloud-init/compose/Caddyfile.tpl`); the app-side nonce propagation to Jinja (`csp_nonce` in `web/rendering.py`) is not wired, so the nonce is empty today (ADR-0113 keeps the frontend CSP-compatible; closing the gap is quality-audit Q-065).
+- CSP with per-request nonce: emitted by the app's outermost `SecurityHeadersMiddleware` (app-minted nonce in `request.state.csp_nonce`, client `X-CSP-Nonce` ignored; every response incl. 500 carries the baseline headers); Caddy is a second layer with non-fetch directives only (ADR-0036 addendum 2026-11-21, T-Q254). Host header enforced from `BUDGET_TRUSTED_HOSTS`; `/docs`, `/openapi.json`, `/dev/components` are off in production.
 - HSTS preload, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy minimal.
 - `trivy` + `pip-audit` block on HIGH/CRITICAL in CI.
 - `testssl.sh` grade A and Mozilla Observatory ≥ A+ are the pre-go-live targets; neither is run by a pipeline today.

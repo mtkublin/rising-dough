@@ -46,20 +46,14 @@ def test_csp_lives_in_handle_response_with_html_response_matcher() -> None:
     assert "copy_response" in block.group(1)
 
 
-def test_csp_policy_uses_the_nonce_sent_upstream() -> None:
+def test_caddy_csp_is_a_non_fetch_second_layer() -> None:
+    """T-Q254: the app owns the nonce CSP; Caddy must not add script-src/default-src
+    (two CSP headers intersect, so a Caddy nonce would block the app's)."""
     text = _text()
-    assert "header_up X-CSP-Nonce {vars.nonce}" in text
     (line,) = _csp_lines(text)
-    assert "script-src 'self' 'nonce-{vars.nonce}'" in line
-    # ADR-0113: a nonce in style-src would make browsers ignore 'unsafe-inline'.
-    assert "style-src 'self' 'unsafe-inline';" in line
-    assert "style-src 'self' 'nonce-" not in line
     assert "frame-ancestors 'none'" in line
-
-
-def test_csp_script_src_stays_strict() -> None:
-    (line,) = _csp_lines(_text())
-    script_src = next(d for d in line.split(";") if "script-src" in d)
-    assert "'unsafe-inline'" not in script_src
-    assert "'unsafe-eval'" not in script_src
-    assert "http" not in script_src
+    assert "script-src" not in line
+    assert "default-src" not in line
+    assert "{vars.nonce}" not in text
+    assert "header_up X-CSP-Nonce {" not in text
+    assert "header_up -X-CSP-Nonce" in text
