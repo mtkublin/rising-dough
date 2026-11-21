@@ -20,6 +20,15 @@ Routes: `/ledger` Add-entry slide-over, Repeats tab, Formula amount source (the 
 - Layout: the chip sits in the formula footer next to "+ Add term"; the footer now wraps (`flex-wrap`), so the note drops below the chip on narrow widths. The error text wraps inside the chip (`white-space: normal`).
 - Console note: an error chip is a deliberate `422` from `POST /recurring/formula/preview` (contract unchanged); Chromium logs "Failed to load resource ... 422" for it. Triaged as expected, no JS error. Changing the status to 200 would break the route contract (`tests/contract/ledger/test_recurring.py`).
 
+## Screenshots
+
+Full-page captures (not committed; diagnostics JSON alongside), ok and error chip per viewport:
+
+- 1440: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-desktop-ok.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-desktop-err.png`
+- 1024: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-tablet-ok.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-tablet-err.png`
+- 375: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-mobile-ok.png`, `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-mobile-err.png`
+- Diagnostics: `/private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/f55cfa19-70ba-47cb-8b3e-828600770d83/scratchpad/fp-audit.json`
+
 ## Step 3b: behaviour contract and template logic
 
 - No arithmetic or `float` added to templates; the amount is formatted by the existing preview partial.

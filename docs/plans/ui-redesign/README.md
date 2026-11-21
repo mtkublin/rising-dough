@@ -50,6 +50,7 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 - **Behaviour is pinned by the harness.** If a contract test needs to change, stop: that is a behaviour change and needs a requirement or ADR first.
 - **Parity, not features.** Handoff-only screens are wired only after a requirement exists (`derived.md` records the decision).
 - **No mixed chrome in prod.** Release once, after T-UR15 (ADR-0107 §8). Prod only via GitHub Actions from `main` (ADR-0099).
+- **Reuse check** (ADR-0130, CLAUDE.md "Canonical modules"): search before writing a helper, reuse the canonical module, report `Searched / Reused / New helper` in every surface handoff; new templates start at zero on the template-logic guards (no allowlist entries).
 - **Prod DB hands off.** All work on scratch DBs or `data/demo.sqlite`.
 - **Orchestrator mode** (ADR-0066) for Phase 2, one worktree and branch per surface; merge `ui/sourdough` into the item branch to resolve conflicts, never rebase. Check `MERGE_HEAD` and the branch tip before every merge (other sessions merge too).
 - **Long-lived branch hygiene.** Merge `v3` (later `main`) into `ui/sourdough` at least at the end of every phase.

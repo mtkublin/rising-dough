@@ -1,6 +1,6 @@
 # Change request for the designer: 16 places where the app and the "rising dough" handoff disagree
 
-> Task T-UT06. Status: **answered 2026-11-21**; operator decisions recorded below and in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md). The Edit user follow-up was answered the same day (see the end of this file). The sections below are the original questions, unchanged.
+> Task T-UT06. Status: **answered 2026-11-21**; operator decisions recorded below and in [ADR-0132](../../adr/0132-redesign-scope-decisions-from-the-designer-change-request.md). The Edit user follow-up was answered the same day (see the end of this file). The sections below are the original questions, unchanged.
 
 ## Why you are getting this
 
@@ -161,7 +161,7 @@ Handoff reference screenshots for the Part B boards (frozen handoff, 1440 wide, 
 
 ## Operator decisions (2026-11-21)
 
-Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md).
+Recorded in [ADR-0132](../../adr/0132-redesign-scope-decisions-from-the-designer-change-request.md).
 
 1. **ST16 invite email**: real email sending behind a config switch (default off). Before enabling, the operator evaluates the added cost (mail provider, Terraform, secret) as its own task. If too high, the switch stays off, the code is kept, and invites use copy-link only.
 2. **AU14**: keep all offline pages and states; the service worker is deferred (failed full page loads keep the browser error until then). The save-failure path (dialog keeps typed input, shows the offline state) is in the redesign release.
@@ -170,10 +170,10 @@ Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer
 5. **AU07**: first-run page on a new path (`/setup`), only while there are no users and no bootstrap admin is configured, and only with a single-use setup token (404 otherwise). Drills stop bootstrapping an admin by default (capability kept, off by default for drills); on explore drills the operator creates the admin through `/setup` using the token surfaced in the drill workflow output. Prod keeps its users.
 6. **SH13**: export stays on phone.
 7. The Feedback handoff, Goals, Gamification with Starter and App-Walkthrough are separate packages, implemented after the redesign migration. The command palette stays during the redesign.
-8. **Edit user**: asked the designer; kept, see ADR-0134 §11 (below).
+8. **Edit user**: asked the designer; kept, see ADR-0132 §11 (below).
 
 ## Follow-up for the designer (2026-11-21)
 
 **Edit user dialog.** The Edit user dialog is gone from Settings, Users (the handoff page `overlays/edit-user` was removed). Should the user row menu get an "edit name / role" entry, or is editing intentionally dropped (changing a role would then mean delete and re-add)? Until you answer, the app has no way to edit an existing user's name or role.
 
-**Answered 2026-11-21 (ST17).** "Keep editing; leaving it out was an oversight. Drawn: edit user is now the first item in the member row menu and opens an Edit user dialog with name and member/admin; the email stays fixed. An admin's own row has no menu, so they can't demote or delete themselves and there is always at least one admin." Delivered as a delta package (`pages/overlays/edit-user.html`, Users page and overlays, CSS move), vendored in T-UT06-EDITUSER (ADR-0107). Decision: ADR-0134 §11.
+**Answered 2026-11-21 (ST17).** "Keep editing; leaving it out was an oversight. Drawn: edit user is now the first item in the member row menu and opens an Edit user dialog with name and member/admin; the email stays fixed. An admin's own row has no menu, so they can't demote or delete themselves and there is always at least one admin." Delivered as a delta package (`pages/overlays/edit-user.html`, Users page and overlays, CSS move), vendored in T-UT06-EDITUSER (ADR-0107). Decision: ADR-0132 §11.

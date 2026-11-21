@@ -1,4 +1,4 @@
-# ADR-0134: Redesign scope decisions from the T-UT06 designer change request
+# ADR-0132: Redesign scope decisions from the T-UT06 designer change request
 
 - **Status**: Accepted
 - **Date**: 2026-11-21

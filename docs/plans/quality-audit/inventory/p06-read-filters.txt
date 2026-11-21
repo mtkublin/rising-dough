@@ -1,0 +1,30 @@
+# P6 SELECT in repositories/ touching a soft-delete table without 'deleted_at' (or a user-owned table without 'user_id')
+# anywhere in the same top-level function's SQL. '-flag' suffix = function has include_deleted/only_deleted parameter
+# (intentional). Heuristic: function-level, not statement-level.
+# Soft-delete tables: accounts, budget_defaults, budget_one_off_overrides, budget_recurring_overrides, categories, planned_transactions, recurring_rules, transactions, users, webauthn_credentials
+# User-owned tables: accounts, audit_log, budget_defaults, budget_one_off_overrides, budget_recurring_overrides, categories, planned_transactions, recurring_rules, sessions, transactions, user_preferences, webauthn_credentials
+# rows: 24
+src/budget_planner/repositories/_shared.py:203	read-no-softdelete	require_owned: accounts
+src/budget_planner/repositories/_shared.py:209	read-no-softdelete	require_owned: categories
+src/budget_planner/repositories/audit.py:36	read-no-user-filter	list_entries: audit_log
+src/budget_planner/repositories/audit.py:46	read-no-user-filter	recent: audit_log
+src/budget_planner/repositories/budgets.py:116	read-no-softdelete	set_default: budget_defaults
+src/budget_planner/repositories/budgets.py:211	read-no-softdelete	set_recurring: budget_recurring_overrides
+src/budget_planner/repositories/budgets.py:317	read-no-softdelete	set_one_off: budget_one_off_overrides
+src/budget_planner/repositories/planned.py:115	read-no-softdelete-flag	list_filtered: categories
+src/budget_planner/repositories/planned.py:115	read-no-softdelete-flag	list_filtered: planned_transactions
+src/budget_planner/repositories/recurring.py:388	read-no-softdelete	list_overrides: recurring_rules
+src/budget_planner/repositories/recurring.py:433	read-no-softdelete	upsert_override: recurring_rules
+src/budget_planner/repositories/recurring.py:446	read-no-softdelete	upsert_override: recurring_rules
+src/budget_planner/repositories/recurring.py:484	read-no-softdelete	upsert_override: recurring_rules
+src/budget_planner/repositories/recurring.py:509	read-no-softdelete	delete_override: recurring_rules
+src/budget_planner/repositories/sessions.py:239	read-no-user-filter	touch_session: sessions
+src/budget_planner/repositories/sessions.py:280	read-no-user-filter	rotate_session_token: sessions
+src/budget_planner/repositories/snapshots.py:38	read-no-softdelete	list_for_account: accounts
+src/budget_planner/repositories/snapshots.py:51	read-no-softdelete	create: accounts
+src/budget_planner/repositories/snapshots.py:63	read-no-softdelete	create: accounts
+src/budget_planner/repositories/transactions.py:123	read-no-softdelete-flag	list_filtered: categories
+src/budget_planner/repositories/transactions.py:123	read-no-softdelete-flag	list_filtered: transactions
+src/budget_planner/repositories/users.py:147	read-no-softdelete	owns_accounts: accounts
+src/budget_planner/repositories/webauthn.py:88	read-no-softdelete	_get_by_id: webauthn_credentials
+src/budget_planner/repositories/webauthn.py:111	read-no-user-filter	get_by_credential_id: webauthn_credentials

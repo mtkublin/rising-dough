@@ -1,0 +1,67 @@
+# P6 SQL / txn control outside repositories/. :real = DML/SELECT that belongs in a repository; :bootstrap = PRAGMA/VACUUM/health
+# (db/ package and health/app startup); :enum-false-positive = text match in domain/enums.py.
+# rows: 64
+src/budget_planner/db/connection.py:53	sql-exec:bootstrap	[db] _apply_pragmas: conn.execute('PRAGMA journal_mode = WAL;')
+src/budget_planner/db/connection.py:53	sql-literal:bootstrap	[db] PRAGMA journal_mode = WAL;
+src/budget_planner/db/connection.py:54	sql-exec:bootstrap	[db] _apply_pragmas: conn.execute('PRAGMA synchronous = NORMAL;')
+src/budget_planner/db/connection.py:54	sql-literal:bootstrap	[db] PRAGMA synchronous = NORMAL;
+src/budget_planner/db/connection.py:55	sql-exec:bootstrap	[db] _apply_pragmas: conn.execute('PRAGMA wal_autocheckpoint = 0;')
+src/budget_planner/db/connection.py:55	sql-literal:bootstrap	[db] PRAGMA wal_autocheckpoint = 0;
+src/budget_planner/db/connection.py:56	sql-exec:bootstrap	[db] _apply_pragmas: conn.execute('PRAGMA busy_timeout = 5000;')
+src/budget_planner/db/connection.py:56	sql-literal:bootstrap	[db] PRAGMA busy_timeout = 5000;
+src/budget_planner/db/connection.py:57	sql-exec:bootstrap	[db] _apply_pragmas: conn.execute('PRAGMA secure_delete = ON;')
+src/budget_planner/db/connection.py:57	sql-literal:bootstrap	[db] PRAGMA secure_delete = ON;
+src/budget_planner/db/connection.py:74	sql-exec:bootstrap	[db] get_connection: conn.execute('PRAGMA foreign_keys = ON;')
+src/budget_planner/db/connection.py:74	sql-literal:bootstrap	[db] PRAGMA foreign_keys = ON;
+src/budget_planner/db/migrate.py:128	sql-exec:bootstrap	[db] applied_versions: conn.execute('SELECT version, checksum FROM schema_migrations')
+src/budget_planner/db/migrate.py:128	sql-literal:bootstrap	[db] SELECT version, checksum FROM schema_migrations
+src/budget_planner/db/migrate.py:146	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('SELECT id, user_id, cadence, start_date, end_date, ca...
+src/budget_planner/db/migrate.py:147	sql-literal:bootstrap	[db] SELECT id, user_id, cadence, start_date, end_date, category_id, accoun
+src/budget_planner/db/migrate.py:161	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('BEGIN')
+src/budget_planner/db/migrate.py:197	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('UPDATE recurring_rules SET next_due = ? WHERE id = ?'...
+src/budget_planner/db/migrate.py:198	sql-literal:bootstrap	[db] UPDATE recurring_rules SET next_due = ? WHERE id = ?
+src/budget_planner/db/migrate.py:205	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('UPDATE recurring_rules SET next_due = ?, active = 0 W...
+src/budget_planner/db/migrate.py:206	sql-literal:bootstrap	[db] UPDATE recurring_rules SET next_due = ?, active = 0 WHERE id = ?
+src/budget_planner/db/migrate.py:209	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('COMMIT')
+src/budget_planner/db/migrate.py:211	sql-exec:bootstrap	[db] _backfill_recurring_next_due: conn.execute('ROLLBACK')
+src/budget_planner/db/migrate.py:225	sql-exec:bootstrap	[db] _upgrade_formula_schema_v1_to_v2: conn.execute('SELECT id, amount_formula FROM recurring_rules WHERE ...
+src/budget_planner/db/migrate.py:226	sql-literal:bootstrap	[db] SELECT id, amount_formula FROM recurring_rules WHERE amount_formula IS
+src/budget_planner/db/migrate.py:228	sql-exec:bootstrap	[db] _upgrade_formula_schema_v1_to_v2: conn.execute('BEGIN')
+src/budget_planner/db/migrate.py:246	sql-exec:bootstrap	[db] _upgrade_formula_schema_v1_to_v2: conn.execute('UPDATE recurring_rules SET amount_formula = ? WHERE i...
+src/budget_planner/db/migrate.py:247	sql-literal:bootstrap	[db] UPDATE recurring_rules SET amount_formula = ? WHERE id = ?
+src/budget_planner/db/migrate.py:250	sql-exec:bootstrap	[db] _upgrade_formula_schema_v1_to_v2: conn.execute('COMMIT')
+src/budget_planner/db/migrate.py:252	sql-exec:bootstrap	[db] _upgrade_formula_schema_v1_to_v2: conn.execute('ROLLBACK')
+src/budget_planner/db/migrate.py:317	sql-exec:bootstrap	[db] apply_migrations: conn.execute('PRAGMA foreign_keys = OFF')
+src/budget_planner/db/migrate.py:317	sql-literal:bootstrap	[db] PRAGMA foreign_keys = OFF
+src/budget_planner/db/migrate.py:323	sql-exec:bootstrap	[db] apply_migrations: conn.execute('BEGIN')
+src/budget_planner/db/migrate.py:326	sql-exec:bootstrap	[db] apply_migrations: conn.execute(statement)
+src/budget_planner/db/migrate.py:327	sql-exec:bootstrap	[db] apply_migrations: conn.execute('INSERT INTO schema_migrations(version, filename, chec...
+src/budget_planner/db/migrate.py:328	sql-literal:bootstrap	[db] INSERT INTO schema_migrations(version, filename, checksum) VALUES (?,
+src/budget_planner/db/migrate.py:331	sql-exec:bootstrap	[db] apply_migrations: conn.execute('COMMIT')
+src/budget_planner/db/migrate.py:333	sql-exec:bootstrap	[db] apply_migrations: conn.execute('ROLLBACK')
+src/budget_planner/db/migrate.py:335	sql-exec:bootstrap	[db] apply_migrations: conn.execute('PRAGMA foreign_keys = ON')
+src/budget_planner/db/migrate.py:335	sql-literal:bootstrap	[db] PRAGMA foreign_keys = ON
+src/budget_planner/db/migrate.py:339	sql-exec:bootstrap	[db] apply_migrations: conn.execute('PRAGMA foreign_key_check')
+src/budget_planner/db/migrate.py:339	sql-literal:bootstrap	[db] PRAGMA foreign_key_check
+src/budget_planner/db/migrate.py:341	sql-exec:bootstrap	[db] apply_migrations: conn.execute('PRAGMA foreign_keys = ON')
+src/budget_planner/db/migrate.py:341	sql-literal:bootstrap	[db] PRAGMA foreign_keys = ON
+src/budget_planner/db/migrate.py:346	sql-exec:bootstrap	[db] apply_migrations: conn.execute('PRAGMA foreign_keys = ON')
+src/budget_planner/db/migrate.py:346	sql-literal:bootstrap	[db] PRAGMA foreign_keys = ON
+src/budget_planner/db/startup_migrate.py:98	sql-exec:bootstrap	[db] backup_database: conn.execute('VACUUM INTO ?', (str(dest),))
+src/budget_planner/db/startup_migrate.py:98	sql-literal:bootstrap	[db] VACUUM INTO ?
+src/budget_planner/services/accounts.py:35	sql-exec:real	[services] _latest_snapshot_by_account: conn.execute('\n SELECT s.account_id AS account_id, MAX(s.taken_at)...
+src/budget_planner/services/accounts.py:36	sql-literal:real	[services] SELECT s.account_id AS account_id, MAX(s.taken_at) AS taken_at FROM ac
+src/budget_planner/services/accounts.py:63	sql-exec:real	[services] _latest_reconcile_by_account: conn.execute('\n SELECT account_id, MAX(operation_date) AS d\n FROM...
+src/budget_planner/services/accounts.py:64	sql-literal:real	[services] SELECT account_id, MAX(operation_date) AS d FROM transactions WHERE us
+src/budget_planner/services/users.py:112	sql-exec:real	[services] _assert_schema: conn.execute('PRAGMA table_info(users)')
+src/budget_planner/services/users.py:112	sql-literal:real	[services] PRAGMA table_info(users)
+src/budget_planner/web/app.py:59	sql-exec:bootstrap	[web] _assert_production_pragmas: conn.execute('PRAGMA wal_autocheckpoint;')
+src/budget_planner/web/app.py:59	sql-literal:real	[web] PRAGMA wal_autocheckpoint;
+src/budget_planner/web/routers/health.py:64	sql-exec:bootstrap	[web.routers] ready: conn.execute('PRAGMA integrity_check;')
+src/budget_planner/web/routers/health.py:64	sql-literal:real	[web.routers] PRAGMA integrity_check;
+src/budget_planner/web/routers/planned.py:140	sql-exec:real	[web.routers] planned_batch_undo: conn.execute("\n SELECT prev_json FROM audit_log\n WHERE entity_typ...
+src/budget_planner/web/routers/planned.py:141	sql-literal:real	[web.routers] SELECT prev_json FROM audit_log WHERE entity_type = 'planned_transacti
+src/budget_planner/web/routers/planned.py:155	sql-exec:real	[web.routers] planned_batch_undo: conn.execute("UPDATE planned_transactions SET promoted_to_txn_id = ...
+src/budget_planner/web/routers/planned.py:156	sql-literal:real	[web.routers] UPDATE planned_transactions SET promoted_to_txn_id = ?, updated_at = (
+src/budget_planner/web/routers/recurring.py:501	sql-exec:real	[web.routers] recurring_batch_undo: conn.execute("\n SELECT prev_json FROM audit_log\n WHERE entity_typ...
+src/budget_planner/web/routers/recurring.py:502	sql-literal:real	[web.routers] SELECT prev_json FROM audit_log WHERE entity_type = 'recurring_rule' A

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 _spec = importlib.util.spec_from_file_location("tf_env", ROOT / "scripts/ci/tf_env.py")

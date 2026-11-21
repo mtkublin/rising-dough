@@ -5,7 +5,7 @@ CSRF-aware) so contract tests run on the same temp-DB harness, and adds a raw
 client that never attaches ``X-CSRF-Token``. Loaded with ``pytest_plugins``;
 helpers live in ``web_helpers_t_ut04b`` (importing them here would defeat
 assertion rewriting). Never re-export an autouse fixture: it would apply to
-the whole session. Never touches ``data/budget.sqlite``.
+the whole session. Never touches the production database.
 """
 
 from __future__ import annotations

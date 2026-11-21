@@ -7,9 +7,9 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: end-of-file-fixer
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
@@ -17,7 +17,7 @@ repos:
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*|docs/application_redesign_handoff/.*)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
@@ -50,12 +50,14 @@ repos:
           - playwright>=1.47
           - structlog>=24.4
           - sqlglot>=25.0
+          - pyyaml>=6
+          - types-pyyaml>=6
         args: [--config-file=pyproject.toml]
         pass_filenames: false
         files: ^(src|tests)/
 
   - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.1.1
+    rev: 4.4.0
     hooks:
       # Scope to migrations only. tests/fixtures/*.sql is auto-generated
       # by scripts/dump_schema.sh and must stay byte-for-byte identical to
@@ -67,12 +69,17 @@ repos:
         files: ^migrations/.*\.sql$
 
   - repo: https://github.com/djlint/djLint
-    rev: v1.35.2
+    rev: v1.47.0
     hooks:
       - id: djlint-jinja
-        files: \.html$
+        # Upstream hook is `types_or: [jinja]` (.jinja/.j2 only), so a bare
+        # `files: \.html$` matched nothing ("no files to check"). Override the
+        # type filter and mirror `just lint` (format check on the app templates).
+        types_or: [html]
+        files: ^src/budget_planner/web/templates/.*\.html$
+        args: [--check]
         # Designer handoff is vendored byte-identical (ADR-0106, T-UT01).
-        exclude: ^docs/design/
+        exclude: ^(docs/design|docs/application_redesign_handoff)/
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.10
@@ -86,6 +93,8 @@ repos:
     hooks:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline]
+        # Vendored designer output (ADR-0129): public SRI hashes, not secrets.
+        exclude: ^docs/application_redesign_handoff/
 
   - repo: local
     hooks:
@@ -97,6 +106,15 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+      - id: lint-imports
+        name: lint-imports (layering contracts, ADR-0130)
+        # Only when Python sources or the contracts change; ~1-2 s (measured in
+        # docs/plans/quality-audit/baseline/precommit-timing.md).
+        entry: uv run --quiet lint-imports
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml)$
 
       - id: stylelint
         name: stylelint (hand-authored CSS)

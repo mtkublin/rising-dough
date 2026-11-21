@@ -4,7 +4,7 @@ Re-exports the integration-web client fixtures (never the autouse
 ``_fast_bcrypt``: it would become session-wide) and adds an admin client,
 raw clients that never attach ``X-CSRF-Token``, and a ``db`` connection on
 the same scratch file. Helpers live in ``web_helpers_t_ut04e``. Never
-touches ``data/budget.sqlite``.
+touches the production database.
 """
 
 from __future__ import annotations

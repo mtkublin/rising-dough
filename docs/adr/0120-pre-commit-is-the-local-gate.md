@@ -3,6 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-18
 - **Amends**: [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) §4 (gates table), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) §§1, 2, 5, 7 (item-agent checks, batch CI, single-agent handoff, fast-subset hook); compatible with and extends the ADR-0097 amendment of 2026-11-18 (orchestrator pre-PR checks) to single-agent work
+- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: CI additionally runs `pre-commit run --all-files` with `SKIP=pytest-fast`)
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0027](0027-frontend-toolchain-hardening.md)
 
 ## Context

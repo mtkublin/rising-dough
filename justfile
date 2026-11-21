@@ -119,6 +119,7 @@ test-visual-update:
 # lint error still fails because the string check only matches the empty case.
 lint:
     uv run ruff check src tests
+    uv run lint-imports
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
     npm run stylelint --silent
@@ -139,6 +140,30 @@ typecheck:
 # item agents use 2). PYTEST_WORKERS=0 runs serially.
 test:
     uv run pytest -n "${PYTEST_WORKERS:-auto}" --dist loadgroup
+
+# --- mutation testing + guards (ADR-0131, ADR-0130) --------------------------
+
+# Mutation run over domain + services (advisory, never a gate). 20-35 min: run
+# it in the background. PYTEST_WORKERS=2 keeps the test side light.
+mutate:
+    PYTEST_WORKERS=2 uv run mutmut run --max-children 4
+
+# Scores per package + survivors by module, post-filtered (equivalent and
+# low-value string mutants dropped). Pass --check to compare with the baseline.
+mutate-report *args:
+    uv run python scripts/mutate_report.py {{args}}
+
+# Drop the mutmut workspace and results.
+mutate-clean:
+    rm -rf mutants .mutmut-cache
+
+# Architecture guards (tests/architecture). Run in the pytest suite and CI.
+guards:
+    uv run pytest tests/architecture tests/unit/services/test_user_isolation.py -q --no-cov
+
+# Import-linter layering contracts (ADR-0130 §1).
+lint-imports:
+    uv run lint-imports
 
 # Everything CI runs. Keep deterministic — no network except frankfurter mocks.
 ci: lint typecheck test

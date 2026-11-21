@@ -1,0 +1,85 @@
+T-Q03b mutmut baseline
+AUDIT_SHA 9fb18cbca26ef305855efc8fc106d896edc82631 (worktree merged with audit/quality docs only; src/ and tests/ identical)
+Tool: mutmut 3.7.0 (uv run --with 'mutmut>=3' --with 'libcst<1.9'); nothing committed to pyproject/uv.lock.
+
+COMMAND (temporary [tool.mutmut] in pyproject.toml, reverted before commit)
+  paths_to_mutate = ["src/budget_planner/domain/", "src/budget_planner/services/"]
+  tests_dir       = ["tests/unit/domain/", "tests/unit/services/", "tests/unit/repositories/"]
+  pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+  also_copy       = ["tests/", "src/budget_planner/", "migrations/"]
+  PYTEST_WORKERS=2 uv run --with 'mutmut>=3' --with 'libcst<1.9' mutmut run --max-children 4
+  uv run ... mutmut results --all true   (parsed for the numbers below)
+Safety: data/budget.sqlite absent from the worktree (data/ holds demo.sqlite only); the grep check of the spike was re-run, only isolated tmp_path/Settings(database_url=...) uses on the selected unit dirs; no BUDGET_DATABASE_URL set.
+
+WALL TIME (measured, date +%s at launch vs mtime of the final log write): 2092 s = 34.9 min for generate + stats + 7120 mutants,
+  --max-children 4, machine load about 450 on 8 cores from other agents (spike measured 18.2 min on a quieter machine).
+  Triage tooling (diff extraction + classification) additional, not timed.
+
+PACKAGE SCORES
+package    mutants  killed  survived  timeout  no-tests  %killed(testable)  %killed(all)
+domain          77      74         3        0         0       96.1%            96.1%
+services      7043    5098       944        6       995       84.3%            72.4%
+TOTAL         7120    5172       947        6       995       84.4%            72.6%
+(%killed(testable) = killed / (killed + survived + timeout); timeouts counted as not killed here, mutmut counts them as caught.
+ With timeouts as killed, services is 84.4%.)
+Spike comparison: identical to the probe (7043 / 5099 / 943 / 6 / 995 +-1 mutant: nondeterministic mutant).
+
+PER MODULE (services; domain: money 69 mutants / 2 survived, categories 8 / 1)
+package/module               killed survived timeout no-tests  %killed
+services._passwords              33        6       0        0    84.6%
+services._promotion              22       14       0        0    61.1%
+services.account_pair             3        0       0        0   100.0%
+services.account_planned        184        9       0        0    95.3%
+services.accounts                95       13       0        0    88.0%
+services.analytics              259       61       1        0    80.7%
+services.audit                   37       10       0        0    78.7%
+services.audit_tail              41       11       0        0    78.8%
+services.auth                     0        0       0      535      n/a
+services.balance                148       23       0       65    86.5%
+services.budget                 608       85       0       95    87.7%
+services.categories              63       13       0        0    82.9%
+services.export                  78       21       0        0    78.8%
+services.forecast               951      156       4       51    85.6%
+services.fortune                 60        5       0        0    92.3%
+services.fx                     151       23       0        0    86.8%
+services.income                  55       12       0        0    82.1%
+services.ledger_totals           30        4       0        0    88.2%
+services.password_change        194        5       0        0    97.5%
+services.planned                155       36       0        0    81.2%
+services.preferences             54       22       0        0    71.1%
+services.rate_limit             132        1       0       12    99.2%
+services.reauth                   0        0       0      237      n/a
+services.reconciliation          60       27       0        0    69.0%
+services.recurring              538      105       0        0    83.7%
+services.recurring_formula      361      141       1        0    71.8%
+services.replication_health      93       28       0        0    76.9%
+services.retention               28        7       0        0    80.0%
+services.today                   82       20       0        0    80.4%
+services.upcoming               133       22       0        0    85.8%
+services.users                  450       64       0        0    87.5%
+
+NO-TESTS MUTANTS (995): NOT SCORED
+  auth 535, reauth 237, budget 95, balance 65, forecast 51, rate_limit 12 (also: none in other modules).
+  Reason: these functions are exercised only by tests/integration and tests/e2e. Scoring them means re-running mutmut with the
+  integration dirs in tests_dir (DB + app-client fixtures, longer per-mutant time) for about 995 mutants. Skipped because the machine
+  load was about 450 on 8 cores and the orchestrator reserved CPU for the other audit tracks; the 45 min extra-runtime cap could not be
+  met safely. Recommended follow-up (Phase 4 or a quiet window): tests_dir += tests/integration, restrict paths_to_mutate to
+  services/auth.py, reauth.py and run with mutmut run "budget_planner.services.auth*" so only these are executed.
+
+TRIAGE (947 survivors)
+  Real gap      693 mutants  -> mutmut-real-gaps.md   (516 rows; 418 mutants / 304 rows in priority modules, severity High)
+  Equivalent     50 mutants  -> mutmut-equivalent.md
+  Low value     204 mutants  -> mutmut-exclusions.md
+  Method: a script rebuilt the textual diff of every survivor from mutants/ (orig vs mutant function, AST based) and mapped it to
+  src line numbers. Priority modules (reconciliation, balance, fx, budget, recurring, recurring_formula, forecast, domain/money, 562
+  survivors): ALL diffs read one by one (grouped by source line), rules then applied with per-line overrides for equivalents
+  (recurring.advance_next_due hard_end boundary, budget._committed_by_category end==start, quantize rounding=None vs default
+  ROUND_HALF_EVEN with no setcontext in src, partition on a non-matching separator, stub placeholder fields never read by the generator).
+  Low value = message/log/raise text, string-case mutations of human-readable messages, exception __init__ plumbing, preview message=.
+  Remaining modules (385 survivors): low-value and equivalents auto-classified by the same rules (sqlite3.Row case-insensitive keys,
+  codec alias); everything else defaults to real gap. Sampled for review: every 3rd non-low survivor (about 33%, about 85 mutants over all
+  modules, i.e. at least 25% per module with 3+ survivors; modules with 1-2 survivors read in full). The sample led to extra rules (uppercase message strings, codec alias, Row case-insensitivity, logger names) which were then applied to all modules; but the non-priority real-gap list is rule-defaulted, not individually proven, and is rated Medium/Low.
+  Caveats: (1) real-gap rows cluster mutants per source line + mutation shape, not one row per mutant; (2) severities: priority modules High
+  per plan 5.1, others Medium (money-adjacent: fortune, ledger_totals, analytics, planned, upcoming, today, income, accounts, auth-adjacent
+  scoping) or Low (export, replication_health, preferences, categories); (3) mutmut 3.7 does not mutate dataclass methods/properties, so
+  domain dataclasses are invisible to this score.

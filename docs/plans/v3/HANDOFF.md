@@ -25,7 +25,7 @@ v3 is on origin at `3777898`. Phase 1 is mostly landed; remaining tasks and know
 - T-D13 CI security scans (`pip-audit`, `trivy fs`, `trivy image`) + `.security-allowlist.yml`
 - T-D14 audit log request-ctx (migration `0013_audit_request_ctx.sql`, `RequestCtx` dataclass, `get_request_ctx` dep, `write_audit(..., request_ctx=...)` kwarg)
 - T-D15 graceful shutdown via lifespan + SIGTERM observer
-- T-D16a multi-user migration `0012_multi_user.sql` (users grows `email`/`password_hash`/`is_admin`/`must_change_password`/`updated_at`/`deleted_at`; every user-owned table rebuilt without `DEFAULT 1` sentinel; `audit_log` gets `actor_user_id`)
+- T-D16a multi-user migration `0012_multi_user.sql` (users grows `email`/`password_hash`/`is_admin`/`must_change_password`/`updated_at`/`deleted_at`; every user-owned table rebuilt without `DEFAULT 1` sentinel; `audit_log` gets `actor_user_id`) <!-- pragma: allowlist secret -->
 
 **Phase 2 Terraform IaC:**
 - T-D20..T-D24, T-D28 full `terraform/` tree + `.github/workflows/terraform.yml`
@@ -88,7 +88,7 @@ Full brief:
 - Admin-only routes under `/settings/users`: list, add (shows auto-generated password once via HTMX toast), edit (email, name, `is_admin` toggle), reset password, remove (soft-delete + session revoke in one tx).
 - `AdminRequiredMiddleware` returns **404** (not 403) to non-admins to avoid admin-surface fingerprinting.
 - Service invariants: last-admin cannot be deleted or demoted; email must be unique among live users (case-insensitive); creating a user seeds the two per-user system categories (`Transit`, `Reconciliation`) in the same tx.
-- Auto-generated password: `secrets.token_urlsafe(16)` (~128 bits). Rendered once via HTMX toast with copy-to-clipboard. Server never persists plaintext.
+- Auto-generated password: `secrets.token_urlsafe(16)` (~128 bits). Rendered once via HTMX toast with copy-to-clipboard. Server never persists plaintext. <!-- pragma: allowlist secret -->
 - Templates: `templates/settings/users/{list,edit,_row,_password-toast}.html`.
 - Audit: every mutation writes `audit_log` row with `entity_type='users'`, `entity_id=<target_user_id>`, `actor_user_id=<admin_user_id>` (`actor_user_id` column added by T-D16a).
 - Reference: `docs/adr/0061-v3-multi-user-admin-bootstrap-and-data-isolation.md` §4.

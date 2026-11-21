@@ -3,7 +3,7 @@
 Seeding goes through the app's own HTTP routes (the ``page`` fixture carries
 the session and CSRF header), so no journey writes SQL. The DB handle is
 opened read-only against the scratch database the ``live_server`` uses; it
-must never point at ``data/budget.sqlite``.
+must never point at the production database.
 """
 
 from __future__ import annotations

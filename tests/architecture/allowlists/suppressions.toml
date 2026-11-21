@@ -1,0 +1,226 @@
+# G4 suppressions: inline suppressions without a same-line reason, plus exact per-code ceilings (ADR-0130 section 6).
+
+guard = "suppressions"
+
+# Inline noqa count per bulk code: exact ratchet, must reach zero (PLC0415: E12, PLR0917: E13, DTZ011: E07).
+[ceilings]
+PLC0415 = 37
+PLR0917 = 32
+DTZ011 = 18
+
+[[entry]]
+path = "src/budget_planner/config.py"
+rule = "suppress:type: ignore"
+count = 2
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/db/migrate.py"
+rule = "suppress:pragma: no cover"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/db/seed.py"
+rule = "suppress:pragma: no cover"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/domain/errors.py"
+rule = "suppress:pragma: no cover"
+count = 3
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/logging.py"
+rule = "suppress:type: ignore"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/balance.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/budget.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/forecast.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/fx.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/recurring.py"
+rule = "suppress:noqa"
+count = 12
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "suppress:noqa"
+count = 9
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/services/recurring_formula.py"
+rule = "suppress:type: ignore"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/app.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/app.py"
+rule = "suppress:pragma: no cover"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/app.py"
+rule = "suppress:type: ignore"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/deps.py"
+rule = "suppress:noqa"
+count = 2
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/accounts.py"
+rule = "suppress:noqa"
+count = 3
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/auth.py"
+rule = "suppress:fmt: skip"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/auth.py"
+rule = "suppress:noqa"
+count = 7
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/budget.py"
+rule = "suppress:noqa"
+count = 4
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/categories.py"
+rule = "suppress:noqa"
+count = 2
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/forecast.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/health.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/ledger.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/plan.py"
+rule = "suppress:noqa"
+count = 5
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/planned.py"
+rule = "suppress:noqa"
+count = 9
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/recurring.py"
+rule = "suppress:noqa"
+count = 12
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/settings_password.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/today.py"
+rule = "suppress:noqa"
+count = 1
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/routers/transactions.py"
+rule = "suppress:noqa"
+count = 5
+finding = "Q-048"
+epic = "E14"
+
+[[entry]]
+path = "src/budget_planner/web/templating.py"
+rule = "suppress:noqa"
+count = 2
+finding = "Q-048"
+epic = "E14"

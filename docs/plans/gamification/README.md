@@ -70,6 +70,7 @@ v4: before or after, either way (schema is v4-ready; see "Encryption" below)
 - **UI from the handoff only** (ADR-0126, ADR-0107). Never invent markup or art; missing states go back to the designer.
 - **Contract tests first** for every new route; the redesign's per-surface loop for every new screen.
 - **Never reward spending or volume.** Any new signal must be reviewed against ADR-0125's principles in an ADR amendment.
+- **Reuse check** (ADR-0130, CLAUDE.md "Canonical modules"): search before writing a helper, reuse the canonical module, report `Searched / Reused / New helper` in every task handoff; re-read the ADRs the task touches.
 - **Prod DB hands off.** Scratch DBs or `data/demo.sqlite` only. The demo builder (`data/scripts/build_demo_db.py`) gets goals and allocations so demos have data (T-GS05).
 - **Frontend validation**: `frontend-visual-audit` at 1440 / 1024 / 375 on every touched route, both themes.
 - **Release** only through the ADR-0099 pipeline; each release needs a green `drill-gate`.

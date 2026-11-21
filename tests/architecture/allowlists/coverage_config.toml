@@ -1,0 +1,10 @@
+# G5 coverage_config: exclude_lines outside the approved set (Q-014; ADR-0130 section 10).
+
+guard = "coverage_config"
+
+[[entry]]
+path = "pyproject.toml"
+rule = "\\.\\.\\."
+count = 1
+finding = "Q-014"
+epic = "E14"
