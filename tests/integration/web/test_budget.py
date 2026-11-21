@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -618,7 +619,7 @@ def test_budget_hero_unbudgeted_info_line_not_counted(
             conn,
             USER_ID,
             NewPlannedTransaction(
-                operation_date=datetime.now(UTC).date() + timedelta(days=1),
+                operation_date=clock.today_local(Settings()) + timedelta(days=1),
                 category_id=rent,
                 account_id=acc,
                 amount=35_000,

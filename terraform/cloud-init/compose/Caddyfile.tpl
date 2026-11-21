@@ -27,10 +27,6 @@ ${hostname} {
         -Server
     }
 
-    # Per-request nonce exported to upstream for the app's CSP middleware (ADR-0036 §3).
-    vars nonce {http.request.uuid}
-    request_header X-CSP-Nonce {vars.nonce}
-
     # ADR-0111: host agent convergence status for the CI release monitor
     # (generation, image refs, state; no secrets).
     handle /.well-known/bp-deploy-status.json {
@@ -47,14 +43,18 @@ ${hostname} {
             header_up X-Forwarded-Proto {scheme}
             header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
-            header_up X-CSP-Nonce {vars.nonce}
+            # T-Q254: the app mints its own nonce and CSP; never forward a client value.
+            header_up -X-CSP-Nonce
 
             # T-D132 / ADR-0036: inside reverse_proxy a named matcher is a RESPONSE
             # matcher. A site-level `@html` + `header @html` tests the request and never
             # matches; `match {}` inside `header` is unsupported in Caddy 2.8.
             @html header Content-Type text/html*
             handle_response @html {
-                header Content-Security-Policy "default-src 'self'; script-src 'self' 'nonce-{vars.nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+                # T-Q254 / ADR-0036 addendum: second layer, non-fetch directives only. The app
+                # sends the full nonce CSP; two CSP headers intersect, so no default-src /
+                # script-src here (a different nonce would block the app's inline scripts).
+                header Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
                 copy_response
             }
         }

@@ -23,11 +23,10 @@ import datetime as dt
 import logging
 import sqlite3
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import major_float
+from budget_planner.domain.money import HALF_EVEN, major_float, round_div
 from budget_planner.domain.periods import month_bounds, shift_month
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
@@ -306,7 +305,7 @@ def _committed_future_for_category(
     window_start: dt.date,
     window_end_inclusive: dt.date,
     *,
-    today: dt.date | None = None,
+    today: dt.date,
 ) -> int:
     """Sum unpromoted planned + active recurring expense amounts for one category.
 
@@ -336,17 +335,13 @@ def _distribute_overlay(
 ) -> list[_CashEvent]:
     """Spread ``unaccounted_minor`` evenly as expense events, residual on last day.
 
-    Per-day amount via ``ROUND_HALF_EVEN``; the final day absorbs any
+    Per-day amount via ``HALF_EVEN`` (``round_div``); the final day absorbs any
     rounding delta so the window sum equals ``unaccounted_minor`` exactly.
     Zero-amount days are omitted. Caller guarantees ``unaccounted_minor > 0``
     and ``window_end_inclusive >= window_start``.
     """
     day_count = (window_end_inclusive - window_start).days + 1
-    per_day_minor = int(
-        (Decimal(unaccounted_minor) / Decimal(day_count)).quantize(
-            Decimal("1"), rounding=ROUND_HALF_EVEN
-        )
-    )
+    per_day_minor = round_div(unaccounted_minor, day_count, mode=HALF_EVEN)
     distributed_before_last = per_day_minor * (day_count - 1)
     last_day_minor = unaccounted_minor - distributed_before_last
 

@@ -61,7 +61,7 @@ epic = "E02"
 [[entry]]
 path = "src/budget_planner/repositories/planned.py"
 rule = "clone-group"
-count = 7
+count = 6
 finding = "P1"
 epic = "E02"
 

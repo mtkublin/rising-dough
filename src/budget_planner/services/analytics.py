@@ -17,10 +17,10 @@ import datetime as dt
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.money import HALF_EVEN, round_div
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
@@ -133,8 +133,7 @@ def _spend_by_category(
 def _mean_minor(total: int, months: int) -> int:
     if months <= 0:
         return 0
-    quantised = (Decimal(total) / Decimal(months)).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    return int(quantised)
+    return round_div(total, months, mode=HALF_EVEN)
 
 
 def _twelve_month_averages(

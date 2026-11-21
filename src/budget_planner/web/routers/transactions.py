@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -34,7 +34,7 @@ from budget_planner.services import (
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
@@ -514,7 +514,7 @@ def export(
         export_service.ExportColumn(key="account", header="account", kind="str"),
         export_service.ExportColumn(key="dest_account", header="dest_account", kind="str"),
     ]
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
+    stamp = today_for(request).strftime("%Y%m%d")
     if fmt == "parquet":
         body = export_service.export_parquet(export_rows, columns)
         return Response(

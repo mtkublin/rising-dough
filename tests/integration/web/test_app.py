@@ -8,6 +8,7 @@ import pkgutil
 
 import pytest
 from bs4 import BeautifulSoup
+from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
 
@@ -150,11 +151,6 @@ def test_dt_local_handles_none_and_bad_input() -> None:
     assert env.from_string("[{{ 'nope'|dt_local }}]").render() == "[nope]"
 
 
-def test_csrf_token_global_is_empty_in_v1() -> None:
-    env = build_jinja_env(_settings())
-    assert env.from_string("{{ csrf_token() }}").render() == ""
-
-
 _EXPECTED_ROUTER_MODULES = frozenset(
     {
         "accounts",
@@ -179,16 +175,39 @@ _EXPECTED_ROUTER_MODULES = frozenset(
 )
 
 
+def _included_routers(app: FastAPI) -> list[object]:
+    return [r.original_router for r in app.routes if hasattr(r, "original_router")]
+
+
 def test_every_router_module_is_registered() -> None:
-    """T-Q257 (Q-073): the router set is exact and every module's routes are mounted."""
+    """T-Q257 (Q-073): the router set is exact and every module's router is mounted once."""
     on_disk = {
         m.name for m in pkgutil.iter_modules(routers_pkg.__path__) if not m.name.startswith("_")
     }
     assert on_disk == _EXPECTED_ROUTER_MODULES
 
-    included = [r.original_router for r in create_app().routes if hasattr(r, "original_router")]
+    included = _included_routers(
+        create_app(Settings(_env_file=None, env="dev", cookie_secret="x" * 48))
+    )
     for name in sorted(on_disk):
         module = importlib.import_module(f"budget_planner.web.routers.{name}")
         assert module.router.routes, name
         assert sum(1 for r in included if r is module.router) == 1, name
     assert len(included) == len(on_disk)
+
+
+def test_dev_components_router_is_not_registered_in_production() -> None:
+    included = _included_routers(
+        create_app(
+            Settings(
+                _env_file=None,
+                env="production",
+                cookie_secret="x" * 48,
+                webauthn_rp_id="example.com",
+                webauthn_origin="https://example.com",
+            )
+        )
+    )
+    dev = importlib.import_module("budget_planner.web.routers.dev_components")
+    assert all(r is not dev.router for r in included)
+    assert len(included) == len(_EXPECTED_ROUTER_MODULES) - 1

@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
 from budget_planner.domain.limits import name_error
@@ -44,14 +45,12 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 _ISO_CCY_LEN = 3
 
 
-def _today() -> date:
-    return date.today()  # noqa: DTZ011 — intentional naive local date
-
-
 def _planned_now(
     conn: sqlite3.Connection, user_id: int, settings: Settings
 ) -> planned_service.AccountsPlanned:
-    return planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
+    return planned_service.compute_accounts_planned(
+        conn, user_id, clock.today_local(settings), settings
+    )
 
 
 _SPARKLINE_WIDTH = 120
@@ -63,13 +62,14 @@ def _card_context(
     user_id: int,
     account_id: int,
     planned: planned_service.AccountsPlanned,
+    today: date,
 ) -> dict[str, Any]:
     """Build the full context dict a single `_card.html` / `_row.html` needs."""
     acc = accounts_repo.find_by_id(conn, user_id, account_id)
     assert acc is not None
     bal = balance_service.derive_balance(conn, user_id, account_id)
     stats = balance_service.account_stats(conn, user_id, account_id)
-    series = balance_service.balance_series(conn, user_id, account_id)
+    series = balance_service.balance_series(conn, user_id, account_id, today=today)
     series_values = [v for _, v in series]
     sparkline = balance_service.sparkline_points(
         series_values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT
@@ -98,8 +98,12 @@ def _card_context(
 
 def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, Any]:
     accs = accounts_repo.list_all(conn, user_id)
-    planned = planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
-    cards: list[dict[str, Any]] = [_card_context(conn, user_id, a.id, planned) for a in accs]
+    planned = planned_service.compute_accounts_planned(
+        conn, user_id, clock.today_local(settings), settings
+    )
+    cards: list[dict[str, Any]] = [
+        _card_context(conn, user_id, a.id, planned, clock.today_local(settings)) for a in accs
+    ]
     # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
     # to the bottom. Assets land first, biggest first; liabilities land last,
     # smallest-liability-first so the credit card with the largest balance
@@ -117,7 +121,7 @@ def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict
         "base_ccy": settings.base_currency,
         "totals_by_ccy": fortune.net_by_ccy,
         "fortune_base": fortune.net_base,
-        "today_date": _today(),
+        "today_date": clock.today_local(settings),
         "planned_base": planned.base_net_minor,
     }
 
@@ -221,7 +225,13 @@ def create_account(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, acc.id, _planned_now(conn, user_id, settings)),
+        card=_card_context(
+            conn,
+            user_id,
+            acc.id,
+            _planned_now(conn, user_id, settings),
+            clock.today_local(settings),
+        ),
     )
     trigger(html, "balance-stale")
     # T-D150: the form targets itself and the accounts list has no region that
@@ -323,7 +333,13 @@ def update_account(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
+        card=_card_context(
+            conn,
+            user_id,
+            account_id,
+            _planned_now(conn, user_id, settings),
+            clock.today_local(settings),
+        ),
     )
     trigger(html, "balance-stale")
     return html
@@ -469,7 +485,7 @@ def reconcile_submit(  # noqa: PLR0917
                 user_id,
                 account_id=account_id,
                 actual_balance_minor=actual_minor,
-                today=_today(),
+                today=clock.today_local(settings),
                 category_id=chosen_cat_id,
             )
         except reconciliation_service.ValidationError as exc:
@@ -484,8 +500,14 @@ def reconcile_submit(  # noqa: PLR0917
     html = render(
         request,
         "partials/accounts/_row.html",
-        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
-        today_date=_today(),
+        card=_card_context(
+            conn,
+            user_id,
+            account_id,
+            _planned_now(conn, user_id, settings),
+            clock.today_local(settings),
+        ),
+        today_date=clock.today_local(settings),
     )
     trigger(html, "balance-stale", "forecast-stale")
     return html

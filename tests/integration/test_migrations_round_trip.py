@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import MIGRATIONS_DIR, apply_migrations, discover
@@ -148,7 +149,7 @@ def test_backfill_populates_next_due_for_preexisting_rules(tmp_path: Path) -> No
                 (staging / mig.filename).write_bytes(mig.sql.encode("utf-8"))
         apply_migrations(conn, staging)
 
-        today = dt.date.today()  # noqa: DTZ011
+        today = clock.utc_now().date()
         # Rule A: start_date in the past, no end_date → next_due should be
         # the first monthly occurrence on-or-after today (anchored on the
         # start_date's day-of-month). Users row (id=1) is already seeded

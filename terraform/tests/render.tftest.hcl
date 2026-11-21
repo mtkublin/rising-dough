@@ -940,23 +940,24 @@ run "host_config_pins_image_and_policy" {
     error_message = "Caddy must set the CSP via a handle_response response matcher (T-D132)."
   }
 
-  # T-D140a / ADR-0113: strict script-src, style-src without a nonce.
+  # T-Q254 / ADR-0036 addendum: the app owns the nonce CSP (script-src/style-src per ADR-0113);
+  # Caddy is a second layer with non-fetch directives only (two CSPs intersect).
   assert {
     condition = (
       strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "style-src 'self' 'unsafe-inline';"
+        "header Content-Security-Policy \"frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'\""
       )
       && !strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "style-src 'self' 'nonce-"
+        "script-src"
       )
       && !strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "script-src 'self' 'unsafe"
+        "{vars.nonce}"
       )
     )
-    error_message = "CSP: script-src must stay strict; style-src must be 'self' 'unsafe-inline' with no nonce (ADR-0113)."
+    error_message = "Caddy CSP must be the non-fetch second layer with no script-src and no Caddy nonce (T-Q254)."
   }
 
   assert {

@@ -9,7 +9,8 @@ from decimal import Decimal
 
 import pytest
 
-from budget_planner.config import get_settings
+from budget_planner import clock
+from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
@@ -55,11 +56,11 @@ def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
 
 
 def test_derive_balance_equals_sql_oracle(seeded: sqlite3.Connection) -> None:
-    assert derived_matches_oracle(seeded, date.today())  # noqa: DTZ011
+    assert derived_matches_oracle(seeded, clock.today_local(Settings()))
 
 
 def test_pln_only_demo_totals_agree(seeded: sqlite3.Connection) -> None:
-    t = totals(seeded, date.today())  # noqa: DTZ011
+    t = totals(seeded, clock.today_local(Settings()))
     assert t["fortune.net_base"] == t["today_data.fortune_base"] == t["forecast.day0"]
 
 
@@ -70,7 +71,7 @@ def test_pln_only_demo_totals_agree(seeded: sqlite3.Connection) -> None:
 def test_foreign_currency_account_agrees_across_fortune_and_forecast(
     seeded: sqlite3.Connection,
 ) -> None:
-    today = date.today()  # noqa: DTZ011
+    today = clock.today_local(Settings())
     accounts_repo.create(
         seeded, U, NewAccount(name="EUR Wallet", currency="EUR", opening_balance=100_000)
     )

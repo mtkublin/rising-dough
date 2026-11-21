@@ -10,9 +10,10 @@ every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
+from budget_planner import clock
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
@@ -251,11 +252,12 @@ def list_recently_deleted(
     sql = (
         f"SELECT {_COLUMNS} FROM planned_transactions "
         "WHERE user_id = ? AND deleted_at IS NOT NULL "
-        "AND deleted_at > datetime('now', ?) "
+        "AND deleted_at > ? "
         "ORDER BY deleted_at DESC "
         "LIMIT ?"
     )
-    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
+    cutoff = clock.iso_utc(clock.utc_now() - timedelta(days=days))  # same text format as deleted_at
+    rows = conn.execute(sql, (user_id, cutoff, limit)).fetchall()
     return [_row_to_planned(r) for r in rows]
 
 

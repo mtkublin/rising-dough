@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
@@ -33,7 +34,7 @@ from budget_planner.web.middleware.cache_control import CacheControlMiddleware
 from budget_planner.web.middleware.csrf import CSRFMiddleware
 from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
 from budget_planner.web.middleware.request_id import RequestIdMiddleware
-from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
+from budget_planner.web.middleware.security_headers import security_headers_middleware
 from budget_planner.web.routers import (
     accounts,
     auth,
@@ -64,6 +65,17 @@ if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
 
 _STATIC_DIR = Path(__file__).parent / "static"
+
+# ADR-0036 addendum 2026-11-21: loopback is always a legal Host (container
+# healthcheck, loopback-only bind); test/IPv6 names only outside production.
+_LOOPBACK_HOSTS = ("localhost", "127.0.0.1")
+_NON_PRODUCTION_HOSTS = ("testserver", "[::1]")
+
+
+def allowed_hosts(cfg: Settings) -> list[str]:
+    """Host allow-list: ``BUDGET_TRUSTED_HOSTS`` plus loopback (and test hosts off prod)."""
+    extra = () if cfg.env == "production" else _NON_PRODUCTION_HOSTS
+    return list(dict.fromkeys((*cfg.trusted_hosts, *_LOOPBACK_HOSTS, *extra)))
 
 
 def _assert_production_pragmas(cfg: Settings) -> None:
@@ -189,21 +201,11 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
     return _lifespan
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    cfg = settings or get_settings()
-    _configure_logging()
-    app = FastAPI(
-        title="Budget Planner",
-        version="0.1.0",
-        docs_url="/docs",
-        redoc_url=None,
-        lifespan=_make_lifespan(cfg),
-    )
-    app.state.settings = cfg
-    app.state.jinja_env = build_jinja_env(cfg)
-
+def _install_middleware(app: FastAPI, cfg: Settings) -> None:
+    """Register the user middleware stack (innermost first, see the order below)."""
     # Middleware order, outermost first (ADR-0033 §5 as amended by ADR-0070 §6):
-    #   RequestId → SecurityHeaders → AuthRequired → MustChangePassword →
+    #   SecurityHeaders (outermost, wraps the stack) → RequestId → TrustedHost →
+    #   body limit → AuthRequired → MustChangePassword →
     #   AdminRequired → CSRF → routers (ADR-0074 §3, ADR-0073 §1).
     # Starlette's ``add_middleware`` wraps each new layer *around* the ones
     # already registered, so registration runs innermost-first:
@@ -225,19 +227,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # (user hydrated), outside MustChangePassword so its redirects are covered.
     app.add_middleware(CacheControlMiddleware)
     app.add_middleware(AuthRequiredMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(body_limit_middleware)  # T-Q235: 413 above MAX_BODY_BYTES
+    # T-Q254: Host allow-list, inside RequestId so a 400 still carries X-Request-Id.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts(cfg))
     app.add_middleware(RequestIdMiddleware)
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    cfg = settings or get_settings()
+    _configure_logging()
+    # OQ-20 default (2026-11-21): interactive docs and the schema are dev-only.
+    is_production = cfg.env == "production"
+    app = FastAPI(
+        title="Budget Planner",
+        version="0.1.0",
+        docs_url=None if is_production else "/docs",
+        openapi_url=None if is_production else "/openapi.json",
+        redoc_url=None,
+        lifespan=_make_lifespan(cfg),
+    )
+    app.state.settings = cfg
+    app.state.jinja_env = build_jinja_env(cfg)
+
+    _install_middleware(app, cfg)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    _register_routers(app)
+    _register_routers(app, include_dev=not is_production)
     register_exception_handlers(app)
+
+    # T-Q254: SecurityHeaders is the outermost layer, outside ServerErrorMiddleware,
+    # so unhandled-exception 500 pages carry the headers. ``add_middleware`` cannot
+    # place a layer there, so wrap the finished stack (built here, once, after all
+    # routers and handlers are registered).
+    app.middleware_stack = security_headers_middleware(app.build_middleware_stack())
 
     return app
 
 
-def _register_routers(app: FastAPI) -> None:
+def _register_routers(app: FastAPI, *, include_dev: bool) -> None:
     """Include every router explicitly; a router that fails to import fails startup."""
     # Health first: it must be registered before any auth middleware so
     # /health + /ready stay publicly reachable (ADR-0033 §5).
@@ -258,7 +286,8 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(ledger.router)
     app.include_router(today.router)
     app.include_router(plan.router)
-    app.include_router(dev_components.router)
+    if include_dev:  # ADR-0053, OQ-20: dev surfaces never ship in production
+        app.include_router(dev_components.router)
 
 
 app = create_app()

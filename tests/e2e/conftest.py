@@ -29,10 +29,9 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
-from tests.e2e.csp import TEST_NONCE, prod_csp
 
 try:
-    from playwright.sync_api import Browser, Page, Playwright, Route, sync_playwright
+    from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore[assignment]
 
@@ -218,20 +217,10 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     assert any(c["name"] == SESSION_DEV_COOKIE_NAME for c in context.cookies()), (
         "browser did not store the session cookie (ADR-0070)"
     )
-    # ADR-0113 / T-D140c: run under the real prod CSP. Dev has no Caddy, so
-    # send the nonce header and add the CSP to HTML responses ourselves.
-    context.set_extra_http_headers({CSRF_HEADER_NAME: token, "X-CSP-Nonce": TEST_NONCE})
-    csp = prod_csp()
+    # ADR-0113 / T-D140c / T-Q254: the app itself sends the prod CSP (app-minted
+    # nonce) in every environment, so the browser enforces it with no injection.
+    context.set_extra_http_headers({CSRF_HEADER_NAME: token})
     violations: list[str] = []
-
-    def _add_csp(route: Route) -> None:
-        response = route.fetch(max_redirects=0)
-        headers = dict(response.headers)
-        if "text/html" in headers.get("content-type", ""):
-            headers["content-security-policy"] = csp
-        route.fulfill(response=response, headers=headers)
-
-    context.route(f"{base_url}/**", _add_csp)
 
     def _record(message: str) -> None:
         violations.append(message)

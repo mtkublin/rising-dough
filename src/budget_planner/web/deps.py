@@ -7,13 +7,15 @@ import ipaddress
 import logging
 import sqlite3
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import date, datetime, timedelta
 from http import HTTPStatus
+from typing import Annotated
 from urllib.parse import quote, urlsplit
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings, get_settings as _get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.client_ip import USER_AGENT_MAX_LENGTH, bound_text
@@ -35,6 +37,16 @@ def get_settings_dep(request: Request) -> Settings:
     if isinstance(override, Settings):
         return override
     return _get_settings()
+
+
+def get_today(settings: Annotated[Settings, Depends(get_settings_dep)]) -> date:
+    """FastAPI dependency: today's date in the display timezone (ADR-0140)."""
+    return clock.today_local(settings)
+
+
+def today_for(request: Request) -> date:
+    """Today's display-zone date for helpers that already hold the request (ADR-0140)."""
+    return clock.today_local(get_settings_dep(request))
 
 
 def get_db(request: Request) -> Iterator[sqlite3.Connection]:
@@ -120,8 +132,8 @@ class ReauthRequired(Exception):  # noqa: N818  # control-flow signal, handled i
 
 def reauth_now(request: Request) -> datetime:
     """Current time for re-auth checks; tests inject ``app.state.reauth_clock``."""
-    clock: Callable[[], datetime] | None = getattr(request.app.state, "reauth_clock", None)
-    return clock() if clock is not None else datetime.now(UTC)
+    override: Callable[[], datetime] | None = getattr(request.app.state, "reauth_clock", None)
+    return override() if override is not None else clock.utc_now()
 
 
 def _same_origin_path(url: str, request: Request) -> str | None:

@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.budgets import (
     NewBudgetDefault,
@@ -40,7 +39,7 @@ from budget_planner.repositories import (
 from budget_planner.services import budget as budget_service, preferences as preferences_svc
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import trigger
 from budget_planner.web.rendering import render
 
@@ -63,7 +62,7 @@ class RulesRow:
 def _year_month(request: Request, conn: sqlite3.Connection, user_id: int) -> tuple[int, int]:
     """Default landing month = fiscal cycle (ADR-0064); overridable via query."""
     q = request.query_params
-    today = date.today()  # noqa: DTZ011
+    today = today_for(request)
     fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, user_id, today)
     year = int(q.get("year", fiscal_year))
     month = int(q.get("month", fiscal_month))
@@ -108,7 +107,7 @@ def _render_index(
     settings: Settings,
 ) -> HTMLResponse:
     year, month = _year_month(request, conn, user_id)
-    today = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today = clock.today_local(settings)
     summary = budget_service.month_summary(conn, user_id, year, month, today=today)
     rules = _rules_rows(conn, user_id)
     yearly = budget_service.yearly_grid(conn, user_id, year)
@@ -140,7 +139,7 @@ def yearly_fragment(
     force a full-page reload.
     """
     q = request.query_params
-    today = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today = clock.today_local(settings)
     year = int(q.get("year", today.year))
     yearly = budget_service.yearly_grid(conn, user_id, year)
     return render(
@@ -167,7 +166,7 @@ def new_override_form(
     form is opened from the Year heatmap (ADR-0051 §5.3).
     """
     cat = categories_repo.find_by_id(conn, user_id, category_id)
-    tz_now = datetime.now(ZoneInfo(settings.display_timezone))
+    tz_now = clock.today_local(settings)
     q = request.query_params
     try:
         preset_month = int(q["month"]) if "month" in q else None

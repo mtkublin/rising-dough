@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -36,7 +37,7 @@ def _seed(settings: Settings) -> None:
         exp = categories_repo.create(
             conn, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
         )
-        soon = date.today() + timedelta(days=5)  # noqa: DTZ011 — mirrors ledger server-date window
+        soon = clock.today_local(Settings()) + timedelta(days=5)
         for cat, amount in ((inc, 500000), (exp, 120050)):
             planned_repo.create(
                 conn,
