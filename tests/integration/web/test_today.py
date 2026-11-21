@@ -75,7 +75,7 @@ def test_today_upcoming_row_tint_overdue_due_future(
 
     r = client.get("/today/upcoming")
     assert r.status_code == 200
-    classes = {
+    classes: dict[str, str | list[str]] = {
         key: _html.resolve_one(r.text, today.upcoming_planned(pid)).get("class") or []
         for key, pid in ids.items()
     }
