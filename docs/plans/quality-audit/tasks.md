@@ -188,7 +188,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q206 [S] Hotfix: forecast overlay stops double-counting linked recurring occurrences
+### ✅ T-Q206 [S] Hotfix: forecast overlay stops double-counting linked recurring occurrences
 - Findings: Q-002 step 1 (A-04).
 - Epic: E01
 - Band: 0 · Size: S · Tags: `[pre-v4-P3]`

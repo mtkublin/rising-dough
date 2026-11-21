@@ -354,42 +354,20 @@ def _committed_future_for_category(
     """Sum unpromoted planned + active recurring expense amounts for one category.
 
     Window is ``[window_start, window_end_inclusive]`` (both inclusive).
-    Mirrors ``services.budget.committed_in_window`` but filtered to a single
-    category and inclusive on the right — matches "events on days > today
-    through month_end" semantics the overlay needs.
+    Delegates to ``services.budget.committed_by_category`` (one implementation,
+    ADR-0087 linked-occurrence dedup); the inclusive right edge is converted to
+    the half-open ``[start, end)`` that function takes.
     """
     if window_end_inclusive < window_start:
         return 0
-
-    total = 0
-    to_base = budget_svc.base_amount_converter(conn, user_id, today=today)
-
-    planned_rows = planned_repo.list_filtered(
+    by_cat = budget_svc.committed_by_category(
         conn,
         user_id,
-        PlannedFilter(
-            date_from=window_start,
-            date_to=window_end_inclusive,
-            category_ids=(category_id,),
-            directions=(Direction.EXPENSE,),
-            promoted=False,
-        ),
+        start=window_start,
+        end=window_end_inclusive + dt.timedelta(days=1),
+        today=today,
     )
-    total += sum(to_base(r.account_id, r.amount) for r in planned_rows)
-
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if rule.category_id != category_id:
-            continue
-        rule_start = max(rule.next_due, window_start)
-        if rule_start > window_end_inclusive:
-            continue
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
-        for occ in recurring_svc.rt_expand(
-            conn, user_id, rule, overrides, rule_start, window_end_inclusive
-        ):
-            total += to_base(occ.account_id, occ.amount)
-
-    return total
+    return by_cat.get(category_id, 0)
 
 
 def _distribute_overlay(

@@ -91,7 +91,7 @@ _CHECK_DAYS = (T, dt.date(2026, 11, 13), EXPENSE_RULE_DUE, INCOME_RULE_DUE)
 
 
 # Budget overlay (ADR-0042) totals pinned to CURRENT behaviour for days 11-12, 11-13, 11-15, 12-01, 12-07.
-# T-Q206 (Q-002) rewrites the overlay: update these numbers deliberately in that change, keep the isolation shape.
+# T-Q206 (Q-002): the overlay now dedups linked occurrences; this world has none, so the totals are unchanged.
 _OVERLAY_DAYS = (*_CHECK_DAYS, dt.date(2026, 12, 7))
 _OVERLAY_TOTALS = {
     OWNER_ID: [122_456, 121_912, 121_124, 125_127, 123_156],
