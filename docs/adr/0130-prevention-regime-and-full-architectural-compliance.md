@@ -110,3 +110,13 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - **Decision D3.** The Sourdough redesign ([ADR-0107](0107-sourdough-redesign-from-designer-handoff.md)) deletes the old templates, so remediation does **not** burn down `tests/architecture/allowlists/template_logic.toml` entries for templates the redesign replaces. Remediation stops at templates that survive the redesign (T-Q237 and T-Q273 are re-scoped accordingly; their Q-ids stay traceable).
 - **After the redesign, `tests/architecture/allowlists/template_logic.toml` must be empty** (burned to zero; the zero-violation policy of Decision 1 is unchanged). New redesign templates add no entries. The removal/cleanup task of the redesign plan (T-UR15) is not done while the file still holds an entry.
 - **Decisions D1 and D2 (operator, 2026-11-21):** defaults taken (D1: only `[pre-v4-P3]` gates T-E00; D2: T-Q260 stays after Phase 3, Band 4). Moot in practice because all remediation waves run before v4 Phase 3.
+
+## Tooling note 2026-11-21 (T-Q275): bandit 1.9.4
+
+- **Pin.** bandit is pinned `==1.9.4` in `pyproject.toml` dev dependencies and `uv.lock`; the local pre-commit hook (`uv run`, ADR-0120, T-Q240) and CI therefore share one version. 1.9.4 added three findings (B105 on the audit key `password_changed`, two B704 on `Markup(f"...")` in `web/templating.py`). All three are fixed in code; no `# nosec` was added.
+- **`# nosec` convention.** A `# nosec` names the rule id and carries the reason on the same line (`# nosec B105 - <reason>`); it still needs an amendment line here and must satisfy G4. Prefer a code fix.
+
+## Amendment 2026-11-21 (T-Q228): permanent entry for the fenced audit-free helpers
+
+- **Entry.** `tests/architecture/allowlists/read_filters.toml` gains one `[[permanent]]` row: `src/budget_planner/repositories/_unaudited.py`, rule `mutation-unaudited`, count 3.
+- **Reason.** These UPDATEs skip `audit_log` by design. The module is importable only by `services/recurring.py` (`tests/architecture/test_unaudited_imports.py`), and that caller writes the paired audit row in the same transaction ([ADR-0022](0022-repository-layer-soft-delete-audit-discipline.md) amendment 2026-11-21). It replaces the burn-down entry on `repositories/recurring.py` (deleted), so it is a lasting, justified category, not new debt.

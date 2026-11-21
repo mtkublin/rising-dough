@@ -13,6 +13,7 @@ from budget_planner.domain.recurring import (
     PatchRecurringRule,
 )
 from budget_planner.repositories import audit, recurring
+from budget_planner.repositories._unaudited import set_inactive, set_next_due
 
 USER_ID = 1
 
@@ -182,9 +183,7 @@ def test_set_next_due_round_trip(
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     new_date = dt.date(2027, 6, 15)
     promoted_on = dt.date(2027, 5, 15)
-    recurring.set_next_due(
-        conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=promoted_on
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=promoted_on)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.next_due == new_date
@@ -197,7 +196,7 @@ def test_set_next_due_accepts_null_last_promoted(
 
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     new_date = dt.date(2027, 6, 15)
-    recurring.set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=None)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.next_due == new_date
@@ -209,7 +208,7 @@ def test_set_inactive_marks_rule_inactive(
 ) -> None:
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     assert rule.active is True
-    recurring.set_inactive(conn, USER_ID, rule.id)
+    set_inactive(conn, USER_ID, rule.id)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.active is False

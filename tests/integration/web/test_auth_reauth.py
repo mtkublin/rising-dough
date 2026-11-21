@@ -64,6 +64,15 @@ def _go_stale(client: TestClient) -> _Clock:
     return clock
 
 
+def _freeze_rate_limit_window(client: TestClient) -> None:
+    """Pin the limiter clock mid-minute: the windows are fixed, so a wall-clock
+    minute rollover between attempts would reset the counter and flake (T-Q248)."""
+    now = datetime.now(UTC)
+    clock = _Clock()
+    clock.now = now.replace(second=30, microsecond=0)
+    client.app.state.rate_limit_clock = clock  # type: ignore[attr-defined]
+
+
 def _token(client: TestClient, name: str) -> str | None:
     """Latest value of cookie ``name`` (server-set cookies shadow the fixture's)."""
     cookies = [c for c in client.cookies.jar if c.name == name]
@@ -280,6 +289,7 @@ def test_success_is_audited_with_session_handle(
 
 
 def test_reauth_rate_limit_returns_429(client: TestClient, db: sqlite3.Connection) -> None:
+    _freeze_rate_limit_window(client)
     codes = [
         client.post("/auth/reauth", data={"password": WRONG_PASSWORD}).status_code for _ in range(4)
     ]
@@ -292,6 +302,7 @@ def test_reauth_rate_limit_returns_429(client: TestClient, db: sqlite3.Connectio
 
 
 def test_reauth_finish_rate_limited_as_json(client: TestClient) -> None:
+    _freeze_rate_limit_window(client)
     codes = [client.post("/auth/reauth/finish", json={}).status_code for _ in range(4)]
     assert codes[-1] == 429
 
