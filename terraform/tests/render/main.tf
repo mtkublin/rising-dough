@@ -65,6 +65,12 @@ variable "allow_empty_db" {
   default     = false
 }
 
+variable "allow_branch_builds" {
+  description = "Render the drill cosign identity (any branch) instead of the prod one (main or release tag), T-Q238."
+  type        = bool
+  default     = false
+}
+
 locals {
   dummy_digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
 }
@@ -91,6 +97,8 @@ module "compute" {
   cookie_secret     = "dummy-cookie-secret"  # pragma: allowlist secret
   trusted_hosts_csv = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"
   tailnet_only      = var.tailnet_only
+
+  allow_branch_builds = var.allow_branch_builds
 
   tailscale_authkey  = "tskey-auth-DUMMY" # pragma: allowlist secret
   tailscale_hostname = "render-check"

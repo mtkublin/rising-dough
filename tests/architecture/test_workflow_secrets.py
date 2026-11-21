@@ -169,7 +169,7 @@ def scan_workflow(rel: str, text: str, declared: dict[str, Any]) -> list[Violati
 
 
 def cosign_violations(rel: str, text: str) -> list[Violation]:
-    match = re.search(r'identity_regexp\s*=\s*"([^"]*)"', text)
+    match = re.search(r'(?:identity_regexp|cosign_ref_regexp_prod)\s*=\s*"([^"]*)"', text)
     if match and not PINNED.search(match.group(1)):
         return [Violation(rel, 0, "cosign-identity-unpinned", match.group(1))]
     return []

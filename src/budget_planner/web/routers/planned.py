@@ -21,7 +21,11 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from budget_planner.services import export as export_service, planned as planned_service
+from budget_planner.services import (
+    export as export_service,
+    planned as planned_service,
+    transactions as transactions_service,
+)
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import refresh_unless_on, trigger
@@ -249,6 +253,22 @@ def create_planned(  # noqa: PLR0917
                 errors["dest_account_id"] = "unknown dest account"
             elif (same := validate_distinct_accounts(account_id, dest_id)) is not None:
                 errors["dest_account_id"] = same
+    if (
+        cat is not None
+        and acc is not None
+        and "dest_account_id" not in errors
+        and (
+            shape := transactions_service.transit_shape_error(
+                conn,
+                user_id,
+                direction=cat.direction,
+                account_id=account_id,
+                dest_account_id=dest_id,
+            )
+        )
+        is not None
+    ):
+        errors["dest_account_id"] = shape
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)
@@ -365,6 +385,22 @@ def update_planned(  # noqa: PLR0917
     )
     if same is not None:
         errors["dest_account_id"] = same
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    if cat is None:
+        errors["category_id"] = "unknown category"
+    elif acc is not None and same is None:
+        try:
+            transactions_service.check_transit_shape(
+                conn,
+                user_id,
+                direction=cat.direction,
+                account_id=account_id,
+                dest_account_id=submitted_dest
+                if submitted_dest is not None
+                else pl.dest_account_id,
+            )
+        except transactions_service.ValidationError as exc:
+            errors["dest_account_id"] = str(exc)
     minor: int | None = None
     if acc is not None:
         minor, err = _validate_amount(amount, acc.currency)

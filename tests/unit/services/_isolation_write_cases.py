@@ -15,11 +15,13 @@ import httpx
 import pytest
 
 from budget_planner.config import Settings
+from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
 from budget_planner.domain.recurring import AmountFormula, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
+    accounts as accounts_repo,
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
@@ -33,6 +35,7 @@ from budget_planner.services import (
     reconciliation,
     recurring,
     recurring_formula as formula_svc,
+    transactions as transactions_service,
 )
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import (
@@ -471,8 +474,38 @@ def _case_validate_promotion(conn: sqlite3.Connection, world: World) -> None:
             amount=5,
         )
 
-    transit(world.owner.account_id)  # own account on both legs: valid
+    sibling = accounts_repo.create(conn, OWNER_ID, NewAccount(name="sibling", currency="PLN"))
+    transit(sibling.id)  # a second own account of the same currency: valid
+    with pytest.raises(_promotion.ValidationError):
+        transit(world.owner.account_id)  # same account on both legs: invalid (T-Q210)
     with pytest.raises(_promotion.ValidationError):
         transit(world.other.account_id)  # user 2's account is invisible to user 1
     with pytest.raises(_promotion.ValidationError):
         transit(world.tombstones.account_id)  # a soft-deleted account is not a valid destination
+
+
+@covers("transactions.check_transit_shape")
+def _case_check_transit_shape(conn: sqlite3.Connection, world: World) -> None:
+    def check(dest: int) -> None:
+        transactions_service.check_transit_shape(
+            conn,
+            OWNER_ID,
+            direction=Direction.TRANSIT,
+            account_id=world.owner.account_id,
+            dest_account_id=dest,
+        )
+
+    with pytest.raises(transactions_service.ValidationError):
+        check(world.other.account_id)  # user 2's account is invisible to user 1
+
+
+@covers("transactions.transit_shape_error")
+def _case_transit_shape_error(conn: sqlite3.Connection, world: World) -> None:
+    message = transactions_service.transit_shape_error(
+        conn,
+        OWNER_ID,
+        direction=Direction.TRANSIT,
+        account_id=world.owner.account_id,
+        dest_account_id=world.other.account_id,  # user 2's account is invisible to user 1
+    )
+    assert message == "unknown destination"

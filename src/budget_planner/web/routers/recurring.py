@@ -355,18 +355,20 @@ async def create_rule(
     rule = recurring_repo.create_rule(
         conn,
         user_id,
-        NewRecurringRule(
-            cadence=c,
-            start_date=start,
-            end_date=end,
-            category_id=category_id,
-            account_id=account_id,
-            dest_account_id=dest_id,
-            default_amount=minor,
-            default_description=default_description,
-            day_of_month=_parse_int(day_of_month),
-            amount_formula=formula,
-            active=initial_active,
+        recurring_svc.with_anchor_day(
+            NewRecurringRule(
+                cadence=c,
+                start_date=start,
+                end_date=end,
+                category_id=category_id,
+                account_id=account_id,
+                dest_account_id=dest_id,
+                default_amount=minor,
+                default_description=default_description,
+                day_of_month=_parse_int(day_of_month),
+                amount_formula=formula,
+                active=initial_active,
+            )
         ),
     )
     html = render(

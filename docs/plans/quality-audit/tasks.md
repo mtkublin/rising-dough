@@ -125,7 +125,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 **`[pre-first-non-PLN]`:** T-Q212, T-Q213, T-Q214, T-Q215, T-Q216 (Q-007 to Q-011, Q-029). Prod is PLN-only today (OQ-1 asks the operator to confirm with a read-only count on a copy); nothing in this set may be skipped before the first non-PLN, non-base or zero-decimal account exists.
 
-**Open decisions for the operator.** D1: promote `[pre-v4-P3-rec]` to a T-E00 gate (default: no, only `[pre-v4-P3]` gates). D2: do E02 (T-Q260, repository CRUD helpers) before v4 Phase 3, which shrinks the Phase 3 repository sweep but adds a large mechanical diff (default: after, Band 4). D3: template-logic (T-Q237, T-Q273): burn the old templates down in place, or let the Sourdough redesign delete them (`docs/plans/ui-redesign/`, whose surface tasks flip `removal.md` rows to `deleted`); default is in place for the budget views and whichever lands first for the rest. D4: E04 and the logging-in-services question (compliance-inventory section 17 questions 1 and 2) are settled in the ADRs of T-Q274 and T-Q264; defaults proposed there.
+**Decisions (operator, 2026-11-21).** D1 answered: default taken, only `[pre-v4-P3]` gates T-E00. D2 answered: default taken, T-Q260 stays after Phase 3 (Band 4); moot because all waves run before Phase 3. D3 answered: the redesign deletes the old templates, so remediation burns down `template_logic.toml` only for templates that survive the redesign; after the redesign the allowlist must be burned to zero (ADR-0130 amendment 2026-11-21; T-Q237 and T-Q273 re-scoped, the remainder transfers to `docs/plans/ui-redesign/`). D4 (open): E04 and the logging-in-services question (compliance-inventory section 17 questions 1 and 2) are settled in the ADRs of T-Q274 and T-Q264; defaults proposed there.
 
 ---
 
@@ -223,7 +223,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q210 [S] Transit shape is validated on every write path
+### ✅ T-Q210 [S] Transit shape is validated on every write path
 - Findings: Q-004 (B-02).
 - Epic: E08
 - Band: 0 · Size: M · Tags: none
@@ -234,14 +234,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q211 [S] Recurring schedule anchor day and start-date boundary
+### ✅ T-Q211 [S] Recurring schedule anchor day and start-date boundary
 - Findings: Q-006 (C-06, C-13).
 - Epic: none (date-boundary)
 - Band: 0 · Size: M · Tags: none
 - Depends on: none
 - Docs-first step: ADR amendment (recurrence anchor): `day_of_month` defaults to `start_date.day` at create, `advance_next_due` takes the rule and anchors on `rule.start_date`.
 - Acceptance: failing tests first from `repro/C/repro_recurrence_boundaries.py` and `repro/verify/V1/v_c06_c13.py` (drift after a clamped month; occurrences before the start date); then the create-service default, `advance_next_due(rule, ...)` (`services/recurring.py:130,272-306`), and a one-off data-fix step only if OQ-5 shows affected prod rules (read-only check on a copy; prod write only on explicit in-session go).
-- Operator question blocking it: OQ-5.
+- Operator question blocking it: OQ-5 (default taken 2026-11-21: no data-fix migration, pending operator data check).
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
@@ -275,7 +275,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Depends on: none
 - Docs-first step: none.
 - Acceptance: add a two-user fixture and `world_with_tombstones` (soft-deleted and inactive rows) to `tests/unit/services/conftest.py`; one parametrised test per money service function (balance, budget, forecast, analytics, recurring, planned, upcoming, today); re-run `just mutate` on the 40 listed mutants (`user_id`/`conn` as `None`, `include_deleted`, `active_only`) and record that they are killed (rows 5, 7, 22, 30, 43, 51, 60, 78, 101 of `baseline/mutmut-real-gaps.md`).
-- Operator question blocking it: OQ-15 (archived and inactive policy per service).
+- Operator question blocking it: none (OQ-15 answered 2026-11-21, ADR-0136).
 - Removes allowlist entries: `user_isolation`:54 (54 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/user_isolation.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
@@ -435,6 +435,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Acceptance: failing test first: a rendered Today/Plan/Budget page shows the same left-per-day and percent-used as the service value (float template arithmetic removed); then add `left_per_day_minor`, `spent_pct`, `committed_pct`, `remaining_after` to `MonthSummary` (or a `BudgetView`) and delete the template `set` blocks (`today/index.html:28-36`, `plan/_budget_tab.html`, `_period_header.html`, `budget/index.html`). Visual audit.
 - Operator question blocking it: none.
 - Final-backlog note: Scope for allowlist ownership: templates under `today`, `plan`, `budget`, `partials/budget`, `partials/forecast` (42 entries); T-Q273 owns the rest.
+- **Re-scope (decision D3, operator 2026-11-21, ADR-0130 amendment):** burn down only entries for templates that survive the redesign; entries for templates the Sourdough redesign (ADR-0107) replaces are left in place and transfer to the redesign plan, where `template_logic.toml` must reach zero. The service-side work (`MonthSummary` fields, failing value test) still lands. Q-ids stay as above.
 - Removes allowlist entries: `template_logic`:42 (42 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/template_logic.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
@@ -739,15 +740,16 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `suppressions`:94 (31 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q273 [P] Template-logic burn-down outside the budget views (or deletion through the Sourdough redesign)
+### T-Q273 [P] Template-logic burn-down outside the budget views, only for templates that survive the redesign
 - Findings: Q-039 (rest of template-logic rows; E-05, A-15), Q-070 (card utilisation defaults), Q-011 (template math); epic E16.
 - Epic: E16
 - Band: 4 · Size: M · Tags: none
 - Depends on: T-Q216, T-Q237
 - Docs-first step: None beyond ADR-0130 (template guard) and ADR-0107; if the redesign surface task for a template ships first, its `removal.md` row flips to `deleted` and this task only verifies.
 - Acceptance: Failing guard first: `template_logic.toml` entries outside `today`, `plan`, `budget`, `partials/budget` and `partials/forecast` (106 entries, 106 violations: `tpl-set`, `tpl-arith`, `tpl-format`, `tpl-scale`, `tpl-float`, `tpl-domain-if`, `tpl-currency-lit`). Move each computation into the view model or a filter/macro (`money`, `money_num`, `pct`), drop `set` blocks, replace literal currency codes with the row currency. If the old tree is scheduled for deletion by T-UR surface tasks, the order of the redesign decides which of the two paths removes each entry (decision D3). Visual audit on every touched route.
-- Operator question blocking it: none.
-- Removes allowlist entries: `template_logic`:106 (106 entries)
+- **Re-scope (decision D3, operator 2026-11-21, ADR-0130 amendment):** the redesign deletes the old templates, so this task burns down only entries for templates that survive the redesign. The remainder transfers to `docs/plans/ui-redesign/tasks.md`, which must leave `template_logic.toml` empty; the count below is an upper bound and entries for redesign-replaced templates stay. Q-ids stay as above.
+- Operator question blocking it: none (D3 answered).
+- Removes allowlist entries: `template_logic`:106 (106 entries, upper bound)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/template_logic.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### T-Q274 [S] ASGI middleware and framework-class decision (E04)
@@ -798,7 +800,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q238 [P] Signed-image identity pinned to `main`; stricter skip classifier
+### ✅ T-Q238 [P] Signed-image identity pinned to `main`; stricter skip classifier
 - Findings: Q-040 (H1-02), Q-042 (H1-04, H1-05).
 - Epic: none (ci-trust-boundary)
 - Band: 5 · Size: S · Tags: none
@@ -821,7 +823,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q240 [P] Dev-dependency provenance and CI/pre-commit parity
+### ✅ T-Q240 [P] Dev-dependency provenance and CI/pre-commit parity
 - Findings: Q-043 (G-07), Q-044 (G-05, G-06).
 - Epic: none (dependency, config-drift)
 - Band: 5 · Size: S · Tags: none
@@ -1017,6 +1019,17 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
+- Findings: Q-030, Q-015 (OQ-15, answered 2026-11-21).
+- Epic: E01
+- Band: 2 · Size: M · Tags: none
+- Depends on: T-Q227, T-Q221, T-Q268
+- Docs-first step: [ADR-0136](../../adr/0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md) (written with T-Q-DECISIONS); update `docs/requirements.md` where account deletion is described.
+- Acceptance: failing tests first, each asserting exact values: (1) a soft-deleted account's balance is absent from net worth and fortune (`compute_fortune`) and from the account balances list; (2) it is absent from stats and analytics totals; (3) it is absent from converter account lists; (4) an archived category's transactions are still counted in budget, stats and totals; (5) two-user isolation: a second user's deleted and live accounts neither leak into nor change the first user's figures. Undo of the account delete restores all figures. One predicate per read path in the canonical owner (no per-caller copies).
+- Operator question blocking it: none (OQ-15 answered).
+- Removes allowlist entries: none
+- Wave: 11 (after T-Q227 in wave 8, T-Q234 in wave 9 and T-Q260 in wave 10, to avoid conflicts in `services/balance.py`, `services/aggregates.py` and account read helpers).
+
 
 ## Allowlist ownership and reconciliation
 
@@ -1183,7 +1196,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 | 8 | T-Q227, T-Q233, T-Q223, T-Q268, T-Q251, T-Q254, T-Q259 | `banned_patterns` (233); `invariants` (227/233); `money_scope` (233); `read_filters` (268) | categories/balance/aggregates; `web/params.py` + parsers; repository read filters; middleware; visual workflow | T-Q233 and T-Q254 both touch routers or middleware lightly; keep T-Q233 first in merge order. |
 | 9 | T-Q229, T-Q237, T-Q234, T-Q230, T-Q247 | `banned_patterns` (229); `functional_first` (229); `invariants` (229); `money_scope` (229); `purity` (229); `suppressions` (229); `template_logic` (237) | clock, rounding, DTZ across services and routers; `MonthSummary` + budget templates; balance series | T-Q229 is the widest sweep (clock, rounding); T-Q237 stays in `templates/{today,plan,budget}`. |
 | 10 | T-Q241, T-Q260, T-Q263 | `clones` (260); `functional_first` (263); `layering` (241) | CRUD services + router imports; `repositories/*` CRUD helpers; module constants | T-Q241 owns routers and new services; T-Q260 owns `repositories/`. |
-| 11 | T-Q236, T-Q258, T-Q264, T-Q244 | `banned_patterns` (236); `functional_first` (264); `htmx_events` (236); `layering` (258); `purity` (264); `sql_sites` (258) | `web/htmx.py`, events; layering facade; `config.py`/entropy; dead routes | T-Q236 owns `web/htmx.py`, `app-init.js` and event emitters; T-Q244 deletes dead routes first. |
+| 11 | T-Q236, T-Q258, T-Q264, T-Q244, T-Q276 | `banned_patterns` (236); `functional_first` (264); `htmx_events` (236); `layering` (258); `purity` (264); `sql_sites` (258) | `web/htmx.py`, events; layering facade; `config.py`/entropy; dead routes; account soft-delete predicate in balance, aggregates and converters (T-Q276, no allowlist TOML) | T-Q236 owns `web/htmx.py`, `app-init.js` and event emitters; T-Q244 deletes dead routes first. |
 | 12 | T-Q265, T-Q266, T-Q267 | `suppressions` (265/266/267); `thin_router` (265/266/267) | router groups: transactions/planned/ledger/today; accounts/budget/categories/recurring; auth/settings* | Three router groups with disjoint router files (thin_router.toml and the `PLR0917` ceiling are path-disjoint; resolve any adjacent-hunk conflict by union). |
 | 13 | T-Q242, T-Q261, T-Q256, T-Q257, T-Q235 | `literals` (261); `size_complexity` (242) | recurring router and forecast split; literal registry; accounts template/passkeys.js; app.py router imports; bounds | T-Q242 owns `recurring.py` router and `forecast.py`; T-Q261 owns literal replacement elsewhere. |
 | 14 | T-Q262, T-Q273, T-Q274 | `clones` (262); `template_logic` (273) | same-name helpers in services/web; remaining templates; ASGI middleware | After the router rewrites; T-Q262 owns remaining same-name helpers, T-Q273 templates, T-Q274 middleware. |

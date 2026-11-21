@@ -32,3 +32,15 @@ The image copies only `pyproject.toml`, `uv.lock`, `src`, `migrations` and `depl
 
 - Path filters in `on.pull_request.paths-ignore`: a skipped workflow posts no status, which is the blocking problem.
 - Denylist of deploy paths: a new deploy-relevant path would silently skip.
+
+## Amendment 2026-11-21 (T-Q238, Q-042 / H1-04, H1-05): docs-only allowlist, verdict bound to the head SHA
+
+Finding: the allowlist treated `.claude/` (agent hooks and instructions), `tests/` (run by the release `ci` job and `terraform.yml`'s `render_check.py`), top-level `*.md` and `LICENSE*` as inert, and `docs/plans/v3/runbooks/restore-log.md` gates the prod plaintext cleanup. The skip status was also posted for the event's head SHA without checking that the file list belonged to it. Evidence: `docs/plans/quality-audit/repro/H1/classifier_probe.out`.
+
+Decisions:
+
+1. **The skip allowlist is `docs/` only.** `scripts/ci/drill_gate_skip.py` keeps a single safe directory; `.claude/`, `tests/`, top-level markdown and `LICENSE*` need the real gate. `docs/plans/v3/runbooks/restore-log.md` (read by `litestream-plaintext-cleanup.yml`) is carved out and gates.
+2. **No pipeline file may consume a skippable path.** `tests/unit/deploy/test_drill_gate_skip.py` greps `.github/` and `scripts/ci/` for `docs/` paths and fails unless each is in `DOCS_CONSUMED_BY_PIPELINE` (gate) or the reference-only set.
+3. **Verdict bound to the head SHA.** Before posting `success`, `drill-gate-skip.yml` reads the live PR head (`gh api repos/.../pulls/<n> --jq .head.sha`) and posts nothing when it differs from the event's SHA, so a push between the file listing and the status cannot inherit a skip.
+
+Amends [ADR-0099](0099-release-and-environment-policy.md) amendment 2026-11-21.
