@@ -246,5 +246,6 @@ def test_csrf_token_available_in_jinja_context(
     with client:
         r = client.get("/_test/csrf-echo")
     assert r.status_code == 200, r.text
-    assert r.text.startswith("token:")
-    assert r.text != "token:"
+    body = r.content.decode()  # plain-text echo route, not markup
+    assert body.startswith("token:")
+    assert body != "token:"

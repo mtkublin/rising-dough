@@ -23,8 +23,10 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
+_HTMX = {"HX-Request": "true"}
 
 
 @pytest.fixture
@@ -59,9 +61,9 @@ def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> N
 
 
 def test_new_form(client: TestClient) -> None:
-    r = client.get("/recurring/new")
+    r = client.get("/recurring/new", headers=_HTMX)
     assert r.status_code == 200
-    assert 'name="cadence"' in r.text
+    assert ledger.controls(r.text, ledger.field_cadence)
 
 
 def test_new_form_single_term_consistent_indices(client: TestClient, ctx: dict[str, int]) -> None:
@@ -213,7 +215,7 @@ def test_create_transit_without_dest_rejected(
         },
     )
     assert r.status_code == 422
-    assert "destination" in r.text.lower()
+    assert "destination" in _html.text_of(r.text, ledger.form_errors).lower()
 
 
 def test_create_transit_cross_currency_rejected(
@@ -239,7 +241,7 @@ def test_create_transit_cross_currency_rejected(
         },
     )
     assert r.status_code == 422
-    assert "currenc" in r.text.lower()
+    assert "currenc" in _html.text_of(r.text, ledger.form_errors).lower()
 
 
 def test_update_transit_persists_dest_account(
@@ -310,17 +312,17 @@ def test_edit_transit_form_prefills_dest(
         )
     finally:
         conn.close()
-    r = client.get(f"/recurring/{rule.id}/edit")
+    r = client.get(f"/recurring/{rule.id}/edit", headers=_HTMX)
     assert r.status_code == 200
-    # Hidden combobox value carries the dest account id.
-    assert 'name="dest_account_id"' in r.text
-    assert f'value="{dest.id}"' in r.text
+    # The combobox's hidden value input carries the dest account id.
+    form = _html.resolve_one(r.text, ledger.recurring_form)
+    assert ledger.named_input(form, "dest_account_id").get("value") == str(dest.id)
 
 
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/edit")
+    r = client.get(f"/recurring/{ctx['rule']}/edit", headers=_HTMX)
     assert r.status_code == 200
-    assert 'name="default_amount"' in r.text and 'value="500.00"' in r.text
+    assert ledger.control(r.text, ledger.field_amount).get("value") == "500.00"
 
 
 def test_edit_404(client: TestClient) -> None:
@@ -459,10 +461,12 @@ def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
 
 
 def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/promote")
+    r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r.status_code == 200
-    assert "Promote recurring" in r.text
-    assert f"/recurring/{ctx['rule']}/promote" in r.text
+    assert _html.exists(r.text, ledger.promote_dialog)
+    form = _html.resolve_one(r.text, ledger.promote).find_parent("form")
+    assert form is not None
+    assert form.get("hx-post") == f"/recurring/{ctx['rule']}/promote"
 
 
 def test_promote_form_404(client: TestClient) -> None:
@@ -499,7 +503,7 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
         data={"amount": "not-a-number"},
     )
     assert r.status_code == 422
-    assert "amount" in r.text.lower()
+    assert "amount" in _html.text_of(r.text, ledger.form_errors).lower()
 
 
 def test_promote_submit_zero_amount_422(client: TestClient, ctx: dict[str, int]) -> None:
@@ -580,21 +584,21 @@ def test_recurring_row_renders_next_due_column(
     # Table headers include the mockup column set (manual-audit #25 removed
     # the separate Cadence + Active columns — Cadence is now a group header
     # and Active status folds into the description column).
-    for header in ("Next due", "Account", "Category", "Amount", "Overrides"):
-        assert f'<th scope="col">{header}</th>' in r.text or '<th scope="col" ' in r.text
-    # Row carries data-next-due with the rule's next_due date (not start_date).
+    for header in ("Next due", "Rule", "Category", "Amount", "Overrides"):
+        assert _html.exists(r.text, ledger.column_header(header)), header
+    # The skip action names the rule's next_due date (not start_date).
     expected_next = _get_rule_next_due(_migrated, ctx["rule"]).isoformat()
-    assert expected_next in r.text
+    actions = ledger.menu_actions(r.text, ledger.recurring_row(ctx["rule"]))
+    assert actions["Skip next"].get("hx-confirm") == f"Skip {expected_next}?"
     # Five action buttons (promote / override-next / skip-next / edit / delete).
-    row_fragment_markers = [
-        f"/recurring/{ctx['rule']}/promote",
-        f"/recurring/{ctx['rule']}/overrides/new",
-        f"/recurring/{ctx['rule']}/skip-next",
-        f"/recurring/{ctx['rule']}/edit",
-        f"/recurring/{ctx['rule']}/deactivate",
-    ]
-    for marker in row_fragment_markers:
-        assert marker in r.text, marker
+    rid = ctx["rule"]
+    assert {label: (b.get("hx-get") or b.get("hx-post")) for label, b in actions.items()} == {
+        "Promote": f"/recurring/{rid}/promote",
+        "Override": f"/recurring/{rid}/overrides/new",
+        "Skip next": f"/recurring/{rid}/skip-next",
+        "Edit": f"/recurring/{rid}/edit",
+        "Delete": f"/recurring/{rid}/deactivate",
+    }
 
 
 def test_recurring_promote_modal_shows_override_banner(
@@ -604,17 +608,17 @@ def test_recurring_promote_modal_shows_override_banner(
     banner iff an override exists for the current next_due."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
     # Baseline: no override yet, no banner.
-    r_before = client.get(f"/recurring/{ctx['rule']}/promote")
+    r_before = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r_before.status_code == 200
-    assert "Override applied" not in r_before.text
+    assert not _html.exists(r_before.text, ledger.override_applied)
     # Install an override on next_due.
     client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": next_due.year, "month": next_due.month, "amount": "123.45"},
     )
-    r_after = client.get(f"/recurring/{ctx['rule']}/promote")
+    r_after = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
     assert r_after.status_code == 200
-    assert "Override applied" in r_after.text
+    assert _html.exists(r_after.text, ledger.override_applied)
 
 
 def test_recurring_promote_submit_advances_and_fires_triggers(
@@ -689,13 +693,13 @@ def test_recurring_delete_hides_from_ledger_view(client: TestClient, ctx: dict[s
     """ADR-0038 §Ledger-UI: deactivated rules are not 'live' and must not
     appear in the Ledger Recurring tab."""
     before = client.get("/ledger?view=recurring")
-    assert f'id="recurring-{ctx["rule"]}"' in before.text
+    assert _html.exists(before.text, ledger.recurring_row(ctx["rule"]))
 
     client.post(f"/recurring/{ctx['rule']}/deactivate")
 
     after = client.get("/ledger?view=recurring")
     assert after.status_code == 200
-    assert f'id="recurring-{ctx["rule"]}"' not in after.text
+    assert not _html.exists(after.text, ledger.recurring_row(ctx["rule"]))
 
 
 def test_recurring_overrides_new_form_renders(
@@ -704,11 +708,12 @@ def test_recurring_overrides_new_form_renders(
     """GET /recurring/{id}/overrides/new returns the generic override form
     with year + month pre-filled from the rule's current ``next_due``."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
-    r = client.get(f"/recurring/{ctx['rule']}/overrides/new")
+    r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
     assert r.status_code == 200
-    assert f"/recurring/{ctx['rule']}/overrides" in r.text
-    assert f'value="{next_due.year}"' in r.text
-    assert "Override occurrence" in r.text
+    assert _html.exists(r.text, ledger.override_dialog)
+    form = ledger.form_in(r.text, ledger.override_dialog)
+    assert form.get("hx-post") == f"/recurring/{ctx['rule']}/overrides"
+    assert ledger.named_input(form, "year").get("value") == str(next_due.year)
 
 
 def test_recurring_overrides_new_form_404(client: TestClient) -> None:
@@ -721,9 +726,10 @@ def test_recurring_overrides_new_form_defaults_to_next_due(
 ) -> None:
     """The year input defaults to the rule's current ``next_due`` year."""
     next_due = _get_rule_next_due(_migrated, ctx["rule"])
-    r = client.get(f"/recurring/{ctx['rule']}/overrides/new")
+    r = client.get(f"/recurring/{ctx['rule']}/overrides/new", headers=_HTMX)
     assert r.status_code == 200
-    assert f'value="{next_due.year}"' in r.text
+    form = ledger.form_in(r.text, ledger.override_dialog)
+    assert ledger.named_input(form, "year").get("value") == str(next_due.year)
 
 
 def test_recurring_row_amount_italic_when_override_amount_set(
@@ -738,8 +744,8 @@ def test_recurring_row_amount_italic_when_override_amount_set(
     )
     r = client.get("/ledger?view=recurring")
     assert r.status_code == 200
-    assert "data-amount-overridden" in r.text
-    assert "data-override-present" in r.text
+    row_text = _html.text_of(r.text, ledger.recurring_row(ctx["rule"]))
+    assert "99.00" in row_text  # the overridden amount replaces the default
 
 
 def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Settings) -> None:
@@ -826,7 +832,7 @@ def test_create_end_date_before_start_rejected(client: TestClient, ctx: dict[str
         },
     )
     assert r.status_code == 422
-    assert "end_date" in r.text
+    assert "end_date" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_end_date_in_past_marks_inactive(
@@ -991,9 +997,8 @@ def test_create_on_ledger_does_not_refresh_page(client: TestClient, ctx: dict[st
 
 
 def test_new_form_targets_itself_not_ledger_table(client: TestClient) -> None:
-    r = client.get("/recurring/new")
-    assert 'hx-target="#recurring-form"' in r.text
-    assert "table.ledger" not in r.text
+    r = client.get("/recurring/new", headers=_HTMX)
+    assert _html.resolve_one(r.text, ledger.recurring_form).get("hx-target") == "#recurring-form"
 
 
 _ON_TODAY = {"HX-Request": "true", "HX-Current-URL": "http://testserver/today"}
@@ -1003,10 +1008,10 @@ _ON_LEDGER = {"HX-Request": "true", "HX-Current-URL": "http://testserver/ledger?
 def test_edit_form_targets_itself_and_closes_on_success(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/edit")
-    assert 'hx-target="#recurring-form"' in r.text
-    assert f"#recurring-{ctx['rule']}" not in r.text
-    assert "data-close-overlay-on-success" in r.text
+    r = client.get(f"/recurring/{ctx['rule']}/edit", headers=_HTMX)
+    form = _html.resolve_one(r.text, ledger.recurring_form)
+    assert form.get("hx-target") == "#recurring-form"
+    assert form.has_attr("data-close-overlay-on-success")
 
 
 def test_update_off_ledger_refreshes_and_on_ledger_does_not(
@@ -1025,11 +1030,14 @@ def test_update_off_ledger_refreshes_and_on_ledger_does_not(
 def test_promote_and_override_forms_target_their_own_panel(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    for path in (f"/recurring/{ctx['rule']}/promote", f"/recurring/{ctx['rule']}/overrides/new"):
-        r = client.get(path)
-        assert 'hx-target="closest .slide-over-root"' in r.text
-        assert "data-close-overlay-on-success" in r.text
-        assert f"#recurring-{ctx['rule']}" not in r.text
+    for path, dialog in (
+        (f"/recurring/{ctx['rule']}/promote", ledger.promote_dialog),
+        (f"/recurring/{ctx['rule']}/overrides/new", ledger.override_dialog),
+    ):
+        r = client.get(path, headers=_HTMX)
+        form = ledger.form_in(r.text, dialog)
+        assert form.get("hx-target") == "closest .slide-over-root"
+        assert form.has_attr("data-close-overlay-on-success")
 
 
 def test_promote_off_ledger_refreshes_and_on_ledger_does_not(
@@ -1068,5 +1076,5 @@ def test_override_errors_rerender_form_with_message(
     ):
         r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
         assert r.status_code == 422
-        assert "slide-over-root" in r.text
-        assert text in r.text
+        assert _html.exists(r.text, ledger.override_dialog)
+        assert text in _html.text_of(r.text, ledger.form_errors)

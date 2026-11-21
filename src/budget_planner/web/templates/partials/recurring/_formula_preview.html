@@ -1,10 +1,13 @@
 {# ADR-0056 §4 — Live formula preview chip. #}
 {% if is_ok %}
-  <span class="rd-chip rd-chip--ok" data-formula-preview-ok>
+  <span class="rd-chip rd-chip--ok"
+        data-testid="formula-preview"
+        data-formula-preview-ok>
     = <strong>{{ "{:,.2f}".format(result.amount_minor / 100.0) }}</strong>
   </span>
 {% else %}
   <span class="rd-chip rd-chip--err"
+        data-testid="formula-preview"
         data-formula-preview-err
         data-code="{{ result.code }}"
         data-term-index="{{ result.offending_term_index if result.offending_term_index is not none else '' }}">

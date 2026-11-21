@@ -113,6 +113,44 @@
     }
   });
 
+  /* Live formula preview (ADR-0056 §4): term edits ask the out-of-form trigger
+   * (see _form.html) to POST the draft to /recurring/formula/preview. */
+  function requestFormulaPreview(form) {
+    var panel = form.querySelector('[data-amount-source-panel="formula"]');
+    var trigger = form.parentElement && form.parentElement.querySelector("[data-formula-preview-trigger]");
+    if (!panel || panel.hasAttribute("hidden") || !trigger || !window.htmx) return;
+    window.htmx.trigger(trigger, "rd-formula-change");
+  }
+
+  function onFormulaEdit(evt) {
+    var t = evt.target;
+    if (!(t instanceof Element)) return;
+    var form = formOf(t);
+    if (!form) return;
+    if (t.closest("[data-term-row]") || t.matches("[data-amount-source-radio]")) {
+      requestFormulaPreview(form);
+    }
+  }
+  document.addEventListener("input", onFormulaEdit);
+  document.addEventListener("change", onFormulaEdit);
+  document.addEventListener("click", function (evt) {
+    var t = evt.target;
+    var rm = t instanceof Element && t.closest("[data-term-remove]");
+    var form = rm && formOf(rm);
+    if (form) requestFormulaPreview(form);
+  }, true); /* capture: runs before the row is removed from the form */
+
+  /* The preview endpoint answers 422 with the error chip; htmx drops 4xx by
+   * default, so let this one swap. */
+  document.addEventListener("htmx:beforeSwap", function (evt) {
+    var d = evt.detail;
+    if (d && d.xhr && d.xhr.status === 422 && d.requestConfig
+        && d.requestConfig.path === "/recurring/formula/preview") {
+      d.shouldSwap = true;
+      d.isError = false;
+    }
+  });
+
   rdWire("[data-recurring-form]", function (form) {
     syncPanels(form);
     form.querySelectorAll("[data-src-select]").forEach(syncSrcSummary);

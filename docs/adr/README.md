@@ -109,7 +109,7 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0104 | [Env-Stack IAM Moves to the Local Bootstrap; CI Loses IAMManager](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md) (amends ADR-0100; relates to ADR-0091, ADR-0092, ADR-0098, ADR-0099) |
 | 0105 | [Committed Includes Every Overdue Unpromoted Item](0105-committed-includes-all-overdue-items.md) (amends ADR-0039; relates to ADR-0043, ADR-0085, ADR-0087, ADR-0089) |
 | 0105 | [CI Identities in the Durability Bucket Policies](0105-ci-principals-in-durability-bucket-policies.md) (amends ADR-0091, ADR-0100; relates to ADR-0099, ADR-0104) |
-| 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097) |
+| 0106 | [UI Behaviour Test Harness Ahead of the Sourdough Redesign](0106-ui-behaviour-test-harness.md) (amends ADR-0027 §4; relates to ADR-0107, ADR-0066, ADR-0097); accepted 2026-11-21 |
 | 0107 | [Sourdough Redesign Built Solely From the Designer Handoff](0107-sourdough-redesign-from-designer-handoff.md) (supersedes ADR-0052, ADR-0053, ADR-0055, ADR-0050 visual direction; amends ADR-0027 §1–§3, ADR-0054, ADR-0056; relates to ADR-0106, ADR-0099) |
 | 0108 | [Faster CI — Parallel Tests, Change-Based Inner Loop, Full Suite at the Gates](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) (amends ADR-0097, ADR-0018; relates to ADR-0066, ADR-0099, ADR-0106) |
 | 0109 | [Prod Releases Triggered by GitHub Releases on `main`](0109-release-from-github-release-tags.md) (amends ADR-0099) |
@@ -136,3 +136,4 @@ Numbered, append-only. See [ADR-0001](0001-record-architecture-decisions.md) for
 | 0129 | [The Goals and Starter Handoff Is Vendored as Its Own Folder, Delivered in One Drop](0129-goals-starter-handoff-vendored-standalone.md) (amends ADR-0126; relates to ADR-0107, ADR-0113, ADR-0123, ADR-0124, ADR-0125, ADR-0106) |
 | 0130 | [Prevention Regime and Full Architectural Compliance](0130-prevention-regime-and-full-architectural-compliance.md) (amends ADR-0007, ADR-0021, ADR-0022, ADR-0066, ADR-0120; relates to ADR-0120, ADR-0097, ADR-0108, ADR-0099, ADR-0107, ADR-0131) |
 | 0131 | [Mutation Testing Policy](0131-mutation-testing-policy.md) (relates to ADR-0130, ADR-0120, ADR-0108) |
+| 0132 | [Redesign scope decisions from the T-UT06 designer change request](0132-redesign-scope-decisions-from-the-designer-change-request.md) (relates to ADR-0061, ADR-0099, ADR-0107, ADR-0113, ADR-0123, ADR-0106) |
