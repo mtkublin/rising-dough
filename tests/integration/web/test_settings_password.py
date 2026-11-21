@@ -12,7 +12,6 @@ from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.services import _passwords
 from budget_planner.web.middleware.must_change_password import password_url
 from tests.auth_support import TEST_PASSWORD, issue_session
-from tests.contract.web_helpers_t_ut04e import field
 from tests.ui_map import _html, settings as ui
 
 pytestmark = pytest.mark.integration
@@ -161,7 +160,7 @@ def test_post_wrong_current_audits_and_keeps_state(
     )
     assert r.status_code == 422
     assert "current password" in _html.text_of(r.text, ui.password_error("current_password"))
-    assert field(r.text, ui.current_password)["aria-invalid"] == "true"
+    assert _html.resolve_one(r.text, ui.current_password)["aria-invalid"] == "true"
     assert "definitely-wrong" not in _html.text_of(r.text, ui.password_form)
     row = _user(conn)
     assert row["password_hash"] == before

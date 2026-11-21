@@ -27,3 +27,18 @@ def upcoming_recurring(rule_id: int) -> Locator:
 
 # Handoff promote is a link into the promote overlay page, not a button.
 promote = role("link", "promote", exact=True)
+
+# The handoff shows the afford result as one ``<output>``: per-day and delta share it.
+afford_per_day = by_id("afford-result")
+afford_delta = by_id("afford-result")
+upcoming_rows = role("listitem").inside(upcoming)
+promote_all_due = role("button", "promote all due")
+
+# Names the handoff ``today.html`` does not render (the add buttons live in the
+# app's Today toolbar; the confirm button is on the promote overlay page). They
+# keep the app locator so ``surface("today", "mockup")`` stays total;
+# ``test_name_resolves_in_handoff`` skips them.
+NO_HANDOFF_TWIN = frozenset({"add_planned", "add_recurring", "confirm_promote"})
+add_planned = role("button", "+ Planned")
+add_recurring = role("button", "+ Recurring")
+confirm_promote = role("button", "Confirm")

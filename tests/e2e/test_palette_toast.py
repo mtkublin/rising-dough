@@ -15,7 +15,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
-from tests.ui_map import ledger, shell, today, today_app
+from tests.ui_map import ledger, shell, today
 from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
@@ -76,7 +76,7 @@ def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: 
     page.goto(f"{base_url}/today")
     expect(to_playwright(page, planned_row)).to_be_visible()
 
-    to_playwright(page, today_app.promote_all_due).click()
+    to_playwright(page, today.promote_all_due).click()
     toast_undo = to_playwright(page, shell.undo_button)
     expect(toast_undo).to_have_count(1)
     expect(to_playwright(page, planned_row)).to_have_count(0)

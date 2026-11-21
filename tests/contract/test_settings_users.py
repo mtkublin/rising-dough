@@ -20,7 +20,7 @@ from budget_planner.services.users import (
 )
 from tests.auth_support import FAST_ROUNDS, issue_session
 from tests.contract.conftest import covers
-from tests.contract.web_helpers_t_ut04e import HX, field, live_sessions
+from tests.contract.web_helpers_t_ut04e import HX, live_sessions
 from tests.ui_map import _html, settings as ui
 
 pytest_plugins = ["tests.contract.web_support_t_ut04e"]  # admin_client, client, anon_client, db
@@ -235,7 +235,7 @@ def test_create_invalid_email_non_htmx_rerenders_page_with_value(admin_client: T
     r = admin_client.post("/settings/users", data={"email": "nope", "name": "N"})
     assert r.status_code == 422
     assert _html.exists(r.text, ui.users_heading)
-    assert field(r.text, ui.user_email)["value"] == "nope"
+    assert _html.resolve_one(r.text, ui.user_email)["value"] == "nope"
 
 
 @covers("POST /settings/users")
@@ -257,7 +257,7 @@ def test_edit_form_htmx_slideover_and_full_page(admin_client: TestClient) -> Non
     assert frag.status_code == 200
     form = _html.resolve_one(frag.text, ui.edit_form)
     assert form["hx-post"] == "/settings/users/1"
-    assert field(frag.text, ui.user_email)["value"] == "owner@example.test"
+    assert _html.resolve_one(frag.text, ui.user_email)["value"] == "owner@example.test"
     page = admin_client.get("/settings/users/1/edit")
     assert page.status_code == 200
     assert not _html.resolve_one(page.text, ui.edit_form).has_attr("hx-post")
