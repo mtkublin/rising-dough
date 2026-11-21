@@ -125,7 +125,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ### Follow-ups (found during the work, not fixed here)
 - ✅ `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save. Fixed 2026-11-21: only the form's own non-GET request closes the overlay; the T-UT08b workaround is removed.
-- `T-D-UT12-2`: user create/delete writes no `audit_log` row.
+- ✅ `T-D-UT12-2`: user create/delete writes no `audit_log` row. Result: not reproducible; `repositories/users.py` `create_user` and `soft_delete` already write `entity_type = 'users'` audit rows with the acting admin as actor (F1.5, ADR-0019/ADR-0022/ADR-0073 §5). The contract test now pins exactly one row per create and delete.
 - `T-D-UT12-3`: the formula preview chip/endpoint `/recurring/formula/preview` is not wired into any page.
 - `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins.
 - `T-D-UT12-5`: `tests/contract/web_helpers_t_ut04e.py` `field()` can become `resolve_one` now that `label()` is fixed.
