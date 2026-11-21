@@ -37,13 +37,7 @@ skip = _load()
         ["docs/adr/0121-x.md"],
         ["docs/plans/v3/tasks.md", "docs/CHANGELOG.md"],
         ["docs/diagram.png"],
-        ["README.md"],
-        ["CLAUDE.md", "docs/requirements.md"],
-        ["notes/idea.md"],
-        [".claude/skills/x/SKILL.md", ".claude/settings.json"],
-        ["tests/unit/deploy/test_x.py"],
-        ["tests/conftest.py", "tests/fixtures/data.json"],
-        ["LICENSE", "LICENSE.txt"],
+        ["docs/requirements.md", "docs/plans/v3/runbooks/drill.md"],
     ],
 )
 def test_non_deploy_changes_skip(paths: list[str]) -> None:
@@ -79,6 +73,20 @@ def test_non_deploy_changes_skip(paths: list[str]) -> None:
         "docs/../src/x.py",
         "/etc/passwd",
         "licensefile",
+        # T-Q238 (Q-042): previously treated as inert, each changes pipeline or agent behaviour.
+        ".claude/settings.json",
+        ".claude/skills/orchestrator-mode/SKILL.md",
+        "tests/render/render_check.py",
+        "tests/conftest.py",
+        "tests/unit/deploy/test_x.py",
+        "CLAUDE.md",
+        "README.md",
+        "LICENSE",
+        "LICENSE_run.sh",
+        "notes/idea.md",
+        "./docs/x.md",
+        "SRC/x.md",
+        "docs/plans/v3/runbooks/restore-log.md",
     ],
 )
 def test_deploy_relevant_paths_gate(path: str) -> None:
@@ -88,7 +96,7 @@ def test_deploy_relevant_paths_gate(path: str) -> None:
 
 
 def test_mixed_docs_and_src_gates_and_lists_only_offenders() -> None:
-    verdict, offenders = skip.classify(["docs/a.md", "src/x.py", "tests/t.py"])
+    verdict, offenders = skip.classify(["docs/a.md", "src/x.py", "docs/b.md"])
     assert verdict == "gate"
     assert offenders == ["src/x.py"]
 
@@ -241,3 +249,40 @@ def test_missing_classifier_yields_gate_and_exits_zero(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     assert "verdict=gate" in out.read_text()
     assert "classifier not on base; real gate required" in summary.read_text()
+
+
+# --- T-Q238: allowlist is docs only; verdict bound to the head SHA ----------
+
+# docs/ paths that appear only in comments or messages of .github/ and scripts/ci/.
+REFERENCE_ONLY_DOCS = {
+    "docs/plans/v3/runbooks/disaster-recovery.md",
+    "docs/plans/v3/runbooks/drill.md",
+    "docs/plans/v3/runbooks/key-rotation.md",
+}
+
+
+def test_allowlist_is_docs_only() -> None:
+    assert skip.SAFE_DIR == "docs"
+    assert not hasattr(skip, "SAFE_DIRS")
+
+
+def test_no_pipeline_file_reads_a_skippable_docs_path() -> None:
+    referenced: set[str] = set()
+    for root in (ROOT / ".github", ROOT / "scripts" / "ci"):
+        for f in root.rglob("*"):
+            if f.is_file() and f != SCRIPT and f.suffix in {".yml", ".yaml", ".py", ".sh", ""}:
+                referenced |= set(re.findall(r"docs/[A-Za-z0-9_./-]*[A-Za-z0-9_]", f.read_text()))
+    referenced = {r for r in referenced if r.endswith((".md", ".toml", ".json", ".txt", ".yml"))}
+    unclassified = referenced - set(skip.DOCS_CONSUMED_BY_PIPELINE) - REFERENCE_ONLY_DOCS
+    assert not unclassified, f"classify these as consumed (gate) or reference-only: {unclassified}"
+    for path in skip.DOCS_CONSUMED_BY_PIPELINE:
+        assert skip.classify([path])[0] == "gate"
+
+
+def test_workflow_binds_verdict_to_live_head_sha() -> None:
+    text = (WORKFLOWS / SKIP_WORKFLOW).read_text()
+    assert re.search(r"pulls/\$\{PR\}\"? *--jq '?\.head\.sha", text)
+    post = text.split("Post drill-gate success")[1]
+    assert "live" in post
+    assert post.index("head.sha") < post.index("state=success")
+    assert "exit 0" in post.split("state=success")[0]

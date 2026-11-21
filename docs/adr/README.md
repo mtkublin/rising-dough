@@ -103,8 +103,8 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0096 | [Terraform State Bucket Bootstrapped by a Separate Terraform Root Stack](0096-terraform-state-bootstrap-stack.md) (amends ADR-0035 §4; relates to ADR-0091, ADR-0093) |
 | 0097 | [Per-Batch CI in Orchestrator Mode; Fast Pre-commit Pytest](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) (amends ADR-0066; relates to ADR-0027) |
 | 0098 | [Keep Rendered User-Data Secrets Out of Plan Output](0098-keep-rendered-user-data-secrets-out-of-plan-output.md) (relates to ADR-0032, ADR-0094) |
-| 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (amended 2026-11-21: tamper-resistant merge gate, T-Q239; required merge checks amended by ADR-0121; relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |
-| 0100 | [Least-Privilege CI Credentials per Environment, Separate Drill State Bucket, Key-Expiry Monitor](0100-least-privilege-ci-credentials.md) (amends ADR-0096; relates to ADR-0091, ADR-0093, ADR-0099) |
+| 0099 | [Release and Environment Policy](0099-release-and-environment-policy.md) (amended 2026-11-21: tamper-resistant merge gate, T-Q239; signed-image identity pinned to main and rollback ancestry, T-Q238; required merge checks amended by ADR-0121; relates to ADR-0035, ADR-0037, ADR-0094, ADR-0096, ADR-0097, ADR-0098) |
+| 0100 | [Least-Privilege CI Credentials per Environment, Separate Drill State Bucket, Key-Expiry Monitor](0100-least-privilege-ci-credentials.md) (amends ADR-0096; amended 2026-11-21: image-signing identity, T-Q238; relates to ADR-0091, ADR-0093, ADR-0099) |
 | 0101 | [Drill Environment Is Tailnet-Only; Drill Apply Is Human-Gated](0101-drill-environment-is-tailnet-only.md) (amends ADR-0092, ADR-0099, ADR-0100; relates to ADR-0036, ADR-0094) |
 | 0102 | [Debian 13 (trixie) Base Image](0102-debian-13-trixie-base-image.md) (amends ADR-0032; relates to ADR-0099) |
 | 0103 | [Image Scan Ignores Unfixed OS CVEs; Runtime Stage Applies Debian Upgrades](0103-image-scan-ignores-unfixed-os-cves.md) (amends ADR-0102; relates to ADR-0032, ADR-0099) |
@@ -126,7 +126,7 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0118 | [The VM Root Volume Is Local SSD, Declared Explicitly](0118-local-ssd-root-volume.md) (amends ADR-0032; relates to ADR-0035, ADR-0084, ADR-0099, ADR-0111, ADR-0114) |
 | 0119 | [A Replication Freshness Health Path for the External Monitor](0119-replication-freshness-health-path.md) (relates to ADR-0033, ADR-0034, ADR-0078, ADR-0111, ADR-0114) |
 | 0120 | [Pre-commit Is the Local Gate; the Full Suite Runs Only in PR CI](0120-pre-commit-is-the-local-gate.md) (amends ADR-0108 §4, ADR-0097; relates to ADR-0066, ADR-0099, ADR-0027) |
-| 0121 | [Drill-Gate Skip for Non-Deploy PRs](0121-drill-gate-skip-for-non-deploy-prs.md) (amends ADR-0099; relates to ADR-0115) |
+| 0121 | [Drill-Gate Skip for Non-Deploy PRs](0121-drill-gate-skip-for-non-deploy-prs.md) (amends ADR-0099; amended 2026-11-21: docs-only allowlist, head-SHA-bound verdict, T-Q238; relates to ADR-0115) |
 | 0121 | [Path-Filtered Workflows Are Not Required Checks](0121-path-filtered-workflows-are-not-required-checks.md) (amends ADR-0099; relates to ADR-0115, ADR-0120) |
 | 0122 | [Domain Audit Rows Record Owner and Actor](0122-domain-audit-rows-record-owner-and-actor.md) (amends ADR-0019, ADR-0022, ADR-0061, ADR-0073; relates to ADR-0078) |
 | 0123 | [Frontend Stays Server-Rendered (Jinja + HTMX); No SPA Framework; Animation via CSS and Web APIs](0123-frontend-stays-server-rendered-no-spa-framework.md) (renumbered from 0112; relates to ADR-0107, ADR-0027, ADR-0080, ADR-0081) |
