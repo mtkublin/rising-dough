@@ -283,7 +283,7 @@ def test_register_finish_rejects_duplicate(
     auth.register_passkey_finish(conn, uid, _registration_json(), challenge=b"c", rp=RP, label="a")
     with pytest.raises(auth.PasskeyRegistrationError) as exc:
         auth.register_passkey_finish(
-            conn, uid, _registration_json(), challenge=b"c", rp=RP, label="b"
+            conn, uid, _registration_json(), challenge=b"c2", rp=RP, label="b"
         )
     assert exc.value.reason == "duplicate_credential"
 

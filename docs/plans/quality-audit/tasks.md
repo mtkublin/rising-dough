@@ -937,7 +937,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 6 — Low
 
-### T-Q253 [P] Session and passkey hardening
+### ✅ T-Q253 [P] Session and passkey hardening
 - Findings: Q-062 (H3-02, H3-04, H3-06, H3-08).
 - Epic: none (security-control)
 - Band: 6 · Size: M · Tags: none
