@@ -3,6 +3,8 @@ and the current user id surface (T-D16 / ADR-0061 §5)."""
 
 from __future__ import annotations
 
+import ipaddress
+import logging
 import sqlite3
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
@@ -14,12 +16,14 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings, get_settings as _get_settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.client_ip import USER_AGENT_MAX_LENGTH, bound_text
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.sessions import session_handle
 from budget_planner.web.auth_cookies import safe_next
 from budget_planner.web.middleware.auth import CurrentUser
 
+_LOG = logging.getLogger(__name__)
 REAUTH_PATH = "/auth/reauth"
 REAUTH_REQUIRED = "reauth_required"
 _FALLBACK_NEXT = "/settings/security"
@@ -43,6 +47,27 @@ def get_db(request: Request) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def parse_client_ip(raw: str | None) -> str | None:
+    """Canonical IP literal for ``raw``, or ``None`` when it is not an address."""
+    if raw is None:
+        return None
+    try:
+        return str(ipaddress.ip_address(raw.strip()))
+    except ValueError:
+        _LOG.debug("client address is not an IP literal")
+        return None
+
+
+def client_ip(request: Request) -> str | None:
+    """Validated proxy-set client address, ``None`` if absent or not an IP (ADR-0133 §1)."""
+    return parse_client_ip(request.client.host if request.client else None)
+
+
+def request_user_agent(request: Request) -> str | None:
+    """User agent truncated for persistence (ADR-0133 §4)."""
+    return bound_text(request.headers.get("user-agent"), USER_AGENT_MAX_LENGTH)
+
+
 def get_request_ctx(request: Request) -> RequestCtx:
     """Build a :class:`RequestCtx` from the inbound request (T-D14, T-D02b).
 
@@ -54,8 +79,8 @@ def get_request_ctx(request: Request) -> RequestCtx:
     The ``getattr`` probes keep this usable on exempt routes (``/auth/login``)
     where no user is attached yet.
     """
-    ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
+    ip = client_ip(request)
+    user_agent = request_user_agent(request)
     user = getattr(request.state, "user", None)
     raw_session_id = getattr(request.state, "session_id", None)
     user_id = None if user is None else int(user.id)

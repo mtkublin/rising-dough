@@ -29,13 +29,18 @@ services:
       # T-D144 / ADR-0119: freshness file written by litestream-probe.
       BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
       TZ: "Europe/Warsaw"
+      # ADR-0133: trust X-Forwarded-For only from the edge bridge gateway, the
+      # address the app sees for Caddy's loopback connection (never "*").
+      FORWARDED_ALLOW_IPS: "172.28.0.1"
     volumes:
       - /data:/data:rw
       - /var/lib/budget-planner/replication:/replication:ro
     networks:
       - edge
-    expose:
-      - "8000"
+    # ADR-0133: Caddy runs on the host network (real client address), so the app
+    # is published on host loopback only; no public or tailnet exposure.
+    ports:
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).status==200 else 1)"]
       interval: 30s
@@ -122,12 +127,9 @@ services:
     image: caddy:2.8
     container_name: budget-planner-caddy
     restart: unless-stopped
-    ports:
-%{~ if !tailnet_only }
-      - "80:80"
-%{~ endif }
-      - "443:443"
-      - "443:443/udp"
+    # ADR-0133: host networking keeps the real client source address (H4-01).
+    # `ports:` is meaningless here; Caddy binds 80/443 on the host directly.
+    network_mode: "host"
     volumes:
       - /etc/budget-planner/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -142,8 +144,6 @@ services:
       # accepts for cert requests; a non-root Caddy would need TS_PERMIT_CERT_UID.
       - /var/run/tailscale:/var/run/tailscale
 %{~ endif }
-    networks:
-      - edge
     depends_on:
       app:
         condition: service_started
@@ -152,6 +152,10 @@ services:
 networks:
   edge:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
 
 volumes:
   caddy-data:

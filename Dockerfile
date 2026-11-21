@@ -101,8 +101,12 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 # see ADR-0071. The entrypoint `exec`s CMD so uvicorn stays PID 1.
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
+# ADR-0133: uvicorn trusts X-Forwarded-For only from one pinned proxy address,
+# read from FORWARDED_ALLOW_IPS (never `*`). The compose files override this
+# default with the address of their proxy hop.
+ENV FORWARDED_ALLOW_IPS=127.0.0.1
+
 CMD ["uvicorn", "budget_planner.web.app:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
-     "--proxy-headers", \
-     "--forwarded-allow-ips=*"]
+     "--proxy-headers"]

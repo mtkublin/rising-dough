@@ -188,7 +188,7 @@ def test_throttled_login_writes_audit_row(
     events = [json.loads(r[0]) for r in rows]
     throttled = [e for e in events if e["event"] == "rate_limited"]
     assert throttled == [{"event": "rate_limited", "scope": "login", "email": TEST_EMAIL}]
-    assert all(r[1] == "testclient" for r in rows)
+    assert all(r[1] == "127.0.0.1" for r in rows)
 
 
 def test_rate_limit_disabled_never_throttles(tmp_path: Path, login_user: int) -> None:

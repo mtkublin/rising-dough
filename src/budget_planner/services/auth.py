@@ -83,6 +83,7 @@ from webauthn.helpers.structs import (
 )
 
 from budget_planner.config import Settings, get_settings
+from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
@@ -159,7 +160,7 @@ def _audit_login_failure(
 ) -> None:
     payload: dict[str, Any] = {"event": "login_failed", "method": method, "reason": reason}
     if email is not None:
-        payload["email"] = email.strip().lower()
+        payload["email"] = email.strip().lower()[:EMAIL_MAX_LENGTH]
     with transaction(conn):
         write_audit(
             conn,

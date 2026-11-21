@@ -68,7 +68,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/deps.py"
 rule = "repeated-literal"
-count = 6
+count = 5
 finding = "Q-038"
 epic = "E03"
 

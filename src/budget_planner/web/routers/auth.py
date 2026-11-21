@@ -33,6 +33,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.client_ip import UNKNOWN_IP
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import webauthn as webauthn_repo
 from budget_planner.repositories.sessions import IssuedSession, session_handle
@@ -53,6 +54,7 @@ from budget_planner.web.auth_cookies import (
 )
 from budget_planner.web.deps import (
     REAUTH_PATH,
+    client_ip,
     current_user,
     get_db,
     get_request_ctx,
@@ -60,6 +62,7 @@ from budget_planner.web.deps import (
     is_recently_authenticated,
     reauth_now,
     reauth_required_response,
+    request_user_agent,
     require_recent_auth,
 )
 from budget_planner.web.middleware.auth import CurrentUser
@@ -82,10 +85,6 @@ _HANDLE_RE: Final = re.compile(r"^[0-9a-f]{16}$")
 _SEE_OTHER: Final = HTTPStatus.SEE_OTHER
 
 
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
-
-
 # ---------------------------------------------------------------------------
 # Rate limiting (T-D09, ADR-0072)
 # ---------------------------------------------------------------------------
@@ -97,7 +96,7 @@ def _rate_limit_now(request: Request) -> datetime:
 
 
 def _ip_identity(request: Request) -> str:
-    return f"ip={_client_ip(request) or 'unknown'}"
+    return f"ip={client_ip(request) or UNKNOWN_IP}"
 
 
 def _wants_json(request: Request) -> bool:
@@ -361,8 +360,8 @@ def login_password(  # noqa: PLR0917
             conn,
             email,
             password,
-            ip=_client_ip(request),
-            user_agent=request.headers.get("user-agent"),
+            ip=client_ip(request),
+            user_agent=request_user_agent(request),
             request_ctx=ctx,
         )
     if session is None:
@@ -414,8 +413,8 @@ async def login_passkey_finish(  # noqa: PLR0917
             body,
             challenge=envelope.challenge,
             rp=_rp(settings, request),
-            ip=_client_ip(request),
-            user_agent=request.headers.get("user-agent"),
+            ip=client_ip(request),
+            user_agent=request_user_agent(request),
             request_ctx=ctx,
         )
     if session is None:

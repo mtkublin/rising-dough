@@ -155,7 +155,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q203 [S] Authentication abuse controls: trusted proxy identity, bounded audit text, per-IP lockout
+### ✅ T-Q203 [S] Authentication abuse controls: trusted proxy identity, bounded audit text, per-IP lockout
 - Findings: Q-027 (D-06, H3-01, H3-05, H3-07, H2-04, H4-01).
 - Epic: none (security-control)
 - Band: 0 · Size: M · Tags: `[before-2nd-user]`

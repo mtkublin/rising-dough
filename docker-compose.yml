@@ -43,6 +43,8 @@ services:
       BUDGET_PLANNER_ADMIN_EMAIL: "admin@prodsim.test"
       BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD: "prodsim-only-admin-password"  # pragma: allowlist secret
       TZ: "Europe/Warsaw"
+      # ADR-0133: trust X-Forwarded-For only from Caddy's pinned address (never "*").
+      FORWARDED_ALLOW_IPS: "172.29.0.2"
     volumes:
       - data:/data:rw
     networks:
@@ -153,7 +155,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks:
-      - edge
+      edge:
+        ipv4_address: 172.29.0.2
     depends_on:
       app:
         condition: service_started
@@ -210,6 +213,10 @@ services:
 networks:
   edge:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+          gateway: 172.29.0.1
 
 volumes:
   data:

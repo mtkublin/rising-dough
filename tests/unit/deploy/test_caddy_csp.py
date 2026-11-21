@@ -36,7 +36,7 @@ def test_csp_is_not_in_unsupported_match_block() -> None:
 
 def test_csp_lives_in_handle_response_with_html_response_matcher() -> None:
     text = _text()
-    proxy = re.search(r"reverse_proxy app:8000 \{(.*?)\n        \}\n", text, re.DOTALL)
+    proxy = re.search(r"reverse_proxy 127.0.0.1:8000 \{(.*?)\n        \}\n", text, re.DOTALL)
     assert proxy is not None
     body = proxy.group(1)
     assert re.search(r"^\s*@html header Content-Type text/html\*\s*$", body, re.MULTILINE)

@@ -71,7 +71,9 @@ def test_caddy_templates_prod_acme_and_drill_tailscaled_socket() -> None:
     assert caddy.index("Strict-Transport-Security") > caddy.index("${hostname} {")
     assert "%{~ if tailnet_only }\n      # ADR-0101" in compose
     assert "- /var/run/tailscale:/var/run/tailscale" in compose
-    assert '%{~ if !tailnet_only }\n      - "80:80"' in compose
+    assert (
+        'network_mode: "host"' in compose
+    )  # ADR-0133: Caddy binds 80/443 directly (port 80 only in the non-tailnet Caddyfile)
 
 
 def test_ci_drill_has_no_dns_permission_on_prod() -> None:

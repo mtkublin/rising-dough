@@ -360,6 +360,7 @@ Release and environment policy (ADR-0099):
 - `trivy` + `pip-audit` block on HIGH/CRITICAL in CI.
 - `testssl.sh` grade A, Mozilla Observatory ≥ A+ required pre-go-live.
 - UFW default-deny; only 22/80/443 allowed. `fail2ban` jails on `sshd` + `caddy-auth`.
+- Auth abuse controls ([ADR-0133](adr/0133-proxy-set-client-identity-and-bounded-auth-audit-text.md), amends ADR-0072): the rate-limit identity is the proxy-set client address (Caddy overwrites `X-Forwarded-For`/`X-Real-IP`, uvicorn trusts one pinned proxy address, never `*`), validated as an IP literal; buckets are (IP, email) plus a per-IP ceiling; request text persisted to `audit_log` (email, user agent) is truncated.
 
 ### 6.8 Non-goals for v3
 

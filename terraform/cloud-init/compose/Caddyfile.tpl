@@ -41,8 +41,11 @@ ${hostname} {
     }
 
     handle {
-        reverse_proxy app:8000 {
+        # ADR-0133: Caddy shares the host network, the app listens on host loopback.
+        # Caddy is the first hop: it overwrites (never trusts) the client's forwarded headers.
+        reverse_proxy 127.0.0.1:8000 {
             header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-For {remote_host}
             header_up X-Real-IP {remote_host}
             header_up X-CSP-Nonce {vars.nonce}
 

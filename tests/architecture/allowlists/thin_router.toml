@@ -20,7 +20,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/auth.py"
 rule = "helper-in-router"
-count = 23
+count = 22
 finding = "B-02"
 epic = "E08"
 
