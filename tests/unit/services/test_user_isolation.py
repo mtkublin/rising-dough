@@ -12,24 +12,27 @@ from __future__ import annotations
 
 import ast
 import sqlite3
-from collections.abc import Callable
 from datetime import date
 
 import pytest
 
 from budget_planner.config import Settings
-from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
 from budget_planner.services import (
+    _passwords,
     accounts,
     analytics,
-    balance,
     budget,
     fortune,
-    planned,
     recurring_formula,
 )
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
+from tests.unit.services import (  # noqa: F401 - importing registers the cases
+    _isolation_account_cases,
+    _isolation_read_cases,
+    _isolation_write_cases,
+)
+from tests.unit.services._isolation_registry import COVERED, covers
 from tests.unit.services.conftest import (
     OTHER_BALANCE,
     OTHER_ID,
@@ -64,10 +67,6 @@ def _fortune(conn: sqlite3.Connection, user_id: int) -> int:
     return fortune.compute_fortune(conn, user_id, Settings(_env_file=None)).net_base
 
 
-def _planned_ids(conn: sqlite3.Connection, user_id: int) -> set[int | None]:
-    return {v.persisted_id for v in planned.list_planned(conn, user_id, PlannedFilter())}
-
-
 def _checked_accounts(conn: sqlite3.Connection, user_id: int) -> set[int]:
     return {r.account_id for r in accounts.last_checked(conn, user_id)}
 
@@ -81,43 +80,12 @@ def _grid_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
     return {r.category_id for r in budget.yearly_grid(conn, user_id, 2026)}
 
 
-def _derived(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
-    try:
-        return balance.derive_balance(conn, user_id, account_id)
-    except Exception:
-        return 0
-
-
-# function id ("module.function") -> case; registry below must list exactly these ids
-COVERED: dict[str, Callable[[sqlite3.Connection, World], None]] = {}
-
-
-def covers(
-    function_id: str,
-) -> Callable[
-    [Callable[[sqlite3.Connection, World], None]], Callable[[sqlite3.Connection, World], None]
-]:
-    def register(
-        case: Callable[[sqlite3.Connection, World], None],
-    ) -> Callable[[sqlite3.Connection, World], None]:
-        COVERED[function_id] = case
-        return case
-
-    return register
-
-
 @covers("fortune.compute_fortune")
 def _case_fortune(conn: sqlite3.Connection, world: World) -> None:
     own = _fortune(conn, OWNER_ID)
     other = _fortune(conn, OTHER_ID)
     assert own == OWNER_BALANCE - 1_000
     assert other == OTHER_BALANCE - 2_000
-
-
-@covers("planned.list_planned")
-def _case_planned(conn: sqlite3.Connection, world: World) -> None:
-    assert _planned_ids(conn, OWNER_ID) == {world.owner.planned_id}
-    assert _planned_ids(conn, OTHER_ID) == {world.other.planned_id}
 
 
 @covers("accounts.last_checked")
@@ -138,10 +106,9 @@ def _case_yearly_grid(conn: sqlite3.Connection, world: World) -> None:
     assert world.owner.category_id not in _grid_categories(conn, OTHER_ID)
 
 
-@covers("balance.derive_balance")
-def _case_derive_balance(conn: sqlite3.Connection, world: World) -> None:
-    assert _derived(conn, OWNER_ID, world.owner.account_id) == OWNER_BALANCE - 1_000
-    assert _derived(conn, OTHER_ID, world.owner.account_id) != OWNER_BALANCE - 1_000
+@pytest.fixture(autouse=True)
+def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
 
 
 @covers("recurring_formula.invalid_source_ids")
@@ -170,9 +137,9 @@ def _case_compute_savable_amount(conn: sqlite3.Connection, world: World) -> None
 
 @pytest.mark.parametrize("function_id", sorted(COVERED))
 def test_user_data_never_crosses_users(
-    function_id: str, conn: sqlite3.Connection, world_with_two_users: World
+    function_id: str, conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
-    COVERED[function_id](conn, world_with_two_users)
+    COVERED[function_id](conn, world_with_tombstones)
 
 
 def test_soft_deleted_rows_stay_out_of_the_owners_results(
@@ -194,6 +161,10 @@ def collect() -> list[Violation]:
     return missing
 
 
+@pytest.mark.skipif(
+    "mutants" in REPO_ROOT.parts,
+    reason="mutmut copies src/ with mangled function names (x_<fn>__mutmut_N); the registry scan only holds for the real tree",
+)
 def test_isolation_registry_matches_allowlist() -> None:
     assert_ratchet("user_isolation", collect(), TEACH)
 

@@ -524,3 +524,14 @@ Totals: 693 mutants in 516 rows.
 | 514 | users:470 | `edit_user` #28 | `request_ctx=request_ctx, / )` -> `)` | No assertion covers this expression result. | Medium | Assert the value of this expression directly in a unit test. |
 | 515 | users:499 | `reset_password` #21 | `request_ctx=request_ctx, / )` -> `)` | No assertion covers this expression result. | Medium | Assert the value of this expression directly in a unit test. |
 | 516 | users:525 | `soft_delete_user` #20 | `conn, user_id, actor_user_id=actor_user_id, request_ctx=requ` -> `conn, user_id, actor_user_id=actor_user_id, )` | No assertion covers this expression result. | Medium | Assert the value of this expression directly in a unit test. |
+
+## T-Q221 targeted re-run (2026-11-21)
+
+Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 mutants plus the `include_deleted` / converter rows 1, 4, 6, 11, 14), after adding `world_with_two_users` / `world_with_tombstones` and the 54 isolation cases in `tests/unit/services/`. Source unchanged since the audit SHA, so mutant ids are stable. Delete `mutants/` before a re-run: mutmut caches which tests cover a function, and a stale cache hides new tests.
+
+- Killed (22): `_directions_by_id` #3 #6 #7; `derive_balance` #5 #9 #10; `account_stats` #5 #9 #10; `base_amount_converter` #8 #11 #12; `base_txn_converter` #6 #9 #10; `_committed_by_category` #80 #81; `resolve_period_start` #8; `month_summary` #70 #230; `_collect_events` #59; `_committed_future_for_category` #38.
+- Survived, judged equivalent (6):
+  - `derive_balance` #21 and `account_stats` #21 (rows 5 and 7): `_txns_affecting(..., None)` fetches every live txn of the user, but both loops then keep only the legs whose `account_id` matches, so the result is identical. The `account_or_dest` filter is only an optimisation. A two-account owner case is in the suite and cannot distinguish them.
+  - `_all_expense_txns` #7 (row 22): `directions=None` only adds non-expense txns, and every consumer keys by expense category, so the extra rows are never read.
+  - `_committed_future_for_category` #39 #42 #43 (row 101): `active_only` off includes inactive rules, but `rt_expand` -> `generate_occurrences` already returns no occurrences for an inactive rule, so the inactive 6000 rule in the tombstone world contributes 0 either way. The `active_only` argument is redundant defence at this site.
+- `tests/unit/services/test_user_isolation.py::test_isolation_registry_matches_allowlist` is skipped inside `mutants/` (it scans the mangled `x_<fn>__mutmut_N` names and fails the stats run).
