@@ -2,7 +2,7 @@
 """Fixtures for the ledger-surface contract tests (T-UT04c).
 
 Re-uses the web-integration client stack (temp DB, session cookie, CSRF-aware
-client) so contract tests never touch ``data/budget.sqlite``.
+client) so contract tests never touch the production database.
 """
 
 from __future__ import annotations

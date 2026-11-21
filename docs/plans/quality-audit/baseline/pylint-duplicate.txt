@@ -1,0 +1,322 @@
+# pylint duplicate-code, min-similarity-lines=6 src
+Installed 8 packages in 14ms
+************* Module budget_planner.services.reauth
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.routers.ledger:[79:110]
+==budget_planner.web.routers.transactions:[86:121]
+    )
+
+
+def _hydrate_rows(conn: sqlite3.Connection, user_id: int, rows: list[Any]) -> list[dict[str, Any]]:
+    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        cat = cats.get(r.category_id)
+        acc = accts.get(r.account_id)
+        dest = accts.get(r.dest_account_id) if r.dest_account_id is not None else None
+        out.append(
+            {
+                "id": r.id,
+                "operation_date": r.operation_date,
+                "amount": r.amount,
+                "description": r.description,
+                "category": cat,
+                "account": acc,
+                "dest_account": dest,
+                "currency": acc.currency if acc else "",
+            }
+        )
+    return ou
+
+
+@router.get("")
+def list_page() -> RedirectResponse:
+    """Legacy page URL (T-070).
+
+    Redirects to the unified ledger with the ``actual`` view selected. Kept a
+    ``302`` for one release per ADR-0023; a follow-up task flips to ``301``.
+    The HTMX fragment alias ``/transactions/table`` and the CRUD sub-routes
+    (``/transactions/new``, ``/transactions/{id}/edit``, etc.) remain live.
+    """ (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.routers.ledger:[44:66]
+==budget_planner.web.routers.transactions:[55:77]
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _parse_int(value: str | None) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_filters(request: Request) -> LedgerFilters:
+    """Parse the shared ledger filter from the request's query params."""
+    q = request.query_params
+    account_id = _parse_int(q.get("account_id"))
+    category_id = _parse_int(q.get("category_id")) (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.routers.recurring:[40:65]
+==budget_planner.web.routers.transactions:[55:74]
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _parse_int(value: str | None) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get("")
+def index() -> RedirectResponse:
+    """Legacy page URL (T-070).
+
+    Redirects to the unified ledger with the ``recurring`` view selected. The
+    CRUD sub-routes (``/recurring/new``, ``/recurring/{id}/edit``, etc.)
+    remain live for the FAB and settings tooling.
+    """ (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.planned:[191:204]
+==budget_planner.repositories.transactions:[204:217]
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    )
+    changes = _normalise_patch(data.as_dict())
+
+    def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
+        if changes:
+            sets = [f"{field} = ?" for field in changes]
+            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
+            c.execute( (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.services.auth:[437:450]
+==budget_planner.services.reauth:[121:132]
+    try:
+        verified = verify_authentication_response(
+            credential=parsed,
+            expected_challenge=challenge,
+            expected_rp_id=rp.rp_id,
+            expected_origin=rp.origin,
+            credential_public_key=stored.public_key,
+            # 0 disables the library's pre-signature counter check; we compare
+            # after the signature is proven valid (ADR-0067 §3).
+            credential_current_sign_count=0,
+            require_user_verification=True,
+        )
+    except WebAuthnException: (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.routers.planned:[230:240]
+==budget_planner.web.routers.transactions:[249:259]
+    errors: dict[str, str] = {}
+    op_date = _parse_date(operation_date)
+    if op_date is None:
+        errors["operation_date"] = "invalid date"
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    if acc is None:
+        errors["account_id"] = "unknown account"
+    if cat is None:
+        errors["category_id"] = "unknown category" (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.accounts:[176:188]
+==budget_planner.repositories.categories:[173:185]
+        operation="undelete",
+        prev=prev,
+        action=_action,
+        user_id=user_id,
+    )
+
+
+__all__ = [
+    "create",
+    "find_by_id",
+    "find_by_name",
+    "list_all", (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.planned:[309:321]
+==budget_planner.repositories.transactions:[293:305]
+        prev=prev,
+        action=_action,
+        user_id=user_id,
+    )
+
+
+__all__ = [
+    "create",
+    "find_by_id",
+    "list_filtered",
+    "list_recently_deleted",
+    "soft_delete", (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.domain.planned:[49:63]
+==budget_planner.domain.transactions:[60:74]
+    operation_date: date | None = None
+    category_id: int | None = None
+    account_id: int | None = None
+    dest_account_id: int | None = None
+    amount: int | None = None
+    description: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            f.name: getattr(self, f.name) for f in fields(self) if getattr(self, f.name) is not None
+        }
+
+
+@dataclass(frozen=True, slots=True, kw_only=True) (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.services.auth:[162:183]
+==budget_planner.services.rate_limit:[131:149]
+    with transaction(conn):
+        write_audit(
+            conn,
+            entity_type=AUTH_EVENT_ENTITY,
+            entity_id=UNKNOWN_USER_ENTITY_ID if user_id is None else user_id,
+            operation="create",
+            prev=None,
+            new=payload,
+            request_ctx=replace(ctx, user_id=user_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Rule sets from settings (empty when the kill switch is off)
+# ---------------------------------------------------------------------------
+
+
+def _rules(settings: Settings, *pairs: tuple[int, int]) -> tuple[RateRule, ...]: (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.recurring:[214:226]
+==budget_planner.repositories.transactions:[143:157]
+        else:
+            norm[key] = value
+    return norm
+
+
+def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) -> RecurringRule:
+    require_owned(
+        conn,
+        user_id,
+        account_ids=(data.account_id, data.dest_account_id),
+        category_ids=(data.category_id,),
+    ) (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.accounts:[176:186]
+==budget_planner.repositories.transactions:[292:302]
+        operation="undelete",
+        prev=prev,
+        action=_action,
+        user_id=user_id,
+    )
+
+
+__all__ = [
+    "create",
+    "find_by_id", (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.planned:[32:40]
+==budget_planner.repositories.transactions:[33:41]
+        id=row["id"],
+        user_id=row["user_id"],
+        operation_date=date.fromisoformat(row["operation_date"]),
+        category_id=row["category_id"],
+        account_id=row["account_id"],
+        dest_account_id=row["dest_account_id"],
+        amount=row["amount"],
+        description=row["description"], (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.repositories.planned:[145:153]
+==budget_planner.repositories.transactions:[163:171]
+            (
+                user_id,
+                data.operation_date.isoformat(),
+                data.category_id,
+                data.account_id,
+                data.dest_account_id,
+                data.amount,
+                data.description, (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.domain.planned:[15:23]
+==budget_planner.domain.transactions:[25:33]
+    id: in
+    user_id: in
+    operation_date: date
+    category_id: in
+    account_id: in
+    dest_account_id: int | None
+    amount: in
+    description: str (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.routers.planned:[352:361]
+==budget_planner.web.routers.transactions:[382:390]
+    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    errors: dict[str, str] = {}
+    op_date = _parse_date(operation_date)
+    if op_date is None:
+        errors["operation_date"] = "invalid date"
+    if acc is None:
+        errors["account_id"] = "unknown account"
+    # The submitted destination wins; otherwise the stored one still applies
+    # (editing the source onto the stored destination trips the CHECK). (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.web.middleware.auth:[119:133]
+==budget_planner.web.middleware.must_change_password:[59:73]
+    if not parts.path or (parts.netloc and parts.netloc != request.url.netloc):
+        return DEFAULT_LANDING
+    return f"{parts.path}?{parts.query}" if parts.query else parts.path
+
+
+def _wants_json(request: Request) -> bool:
+    accept = request.headers.get("accept", "").lower()
+    return "application/json" in accept and "text/html" not in accep
+
+
+def unauthenticated_response(request: Request) -> Response:
+    """Build the ADR-0070 §4 response for an anonymous request."""
+    if request.headers.get("hx-request", "").lower() == "true":
+        return JSONResponse( (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.db.migrate:[177:184]
+==budget_planner.repositories.recurring:[106:113]
+                category_id=row["category_id"],
+                account_id=row["account_id"],
+                dest_account_id=row["dest_account_id"],
+                default_amount=row["default_amount"],
+                default_description=row["default_description"],
+                day_of_month=row["day_of_month"],
+                month_of_year=row["month_of_year"], (duplicate-code)
+src/budget_planner/services/reauth.py:1:0: R0801: Similar lines in 2 files
+==budget_planner.services.password_change:[106:113]
+==budget_planner.services.reauth:[54:61]
+    with transaction(conn):
+        write_audit(
+            conn,
+            entity_type=AUTH_EVENT_ENTITY,
+            entity_id=user_id,
+            operation="create",
+            prev=None, (duplicate-code)
+
+-----------------------------------
+Your code has been rated at 9.98/10
+
+exit=8

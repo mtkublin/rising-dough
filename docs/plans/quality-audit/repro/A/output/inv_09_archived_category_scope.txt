@@ -1,0 +1,3 @@
+{'overlay (daily series) total': 670627, 'monthly planned_budget': 570627, 'budget summary budgeted_minor': 572157}
+{'archived-category budget effect: overlay': 100000, 'monthly': 0}
+[FAIL] archived category budget affects both forecast paths equally

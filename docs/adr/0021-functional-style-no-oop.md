@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-23
+- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: pure layers defined and enforced by guards)
 
 ## Decision
 

@@ -5,7 +5,7 @@ Re-exports the CSRF-aware, session-aware web-test clients from
 on the same app wiring, plus a ``db`` connection on the same scratch file and
 small audit-log helpers. The autouse ``_fast_bcrypt`` fixture is NOT re-exported
 (a plugin would apply it session-wide); ``tests/contract/conftest.py`` supplies a
-contract-scoped one. Never points at ``data/budget.sqlite``.
+contract-scoped one. Never points at the production database.
 """
 
 from __future__ import annotations

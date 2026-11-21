@@ -1,0 +1,196 @@
+# S1: canonical-modules registry (ADR-0130 section 3, prevention.md S1). Machine-readable source of truth.
+#
+# status = "exists": module and symbol resolve and NO banned-copy violation remains (test_canonical_modules.py).
+# status = "exists-migrating": module and symbol resolve, but copies still exist (banned_patterns allowlist);
+#   `migration_task` (T-Q2xx) removes them. Call the canonical symbol; never add a copy.
+# status = "target": not yet extracted. `interim` = the ONE public existing copy callers use until extraction, or
+#   "none - extract via T-Q2xx": then do that extraction as the registered `migration_task`, migrating every copy in
+#   the same change. Never import another module's private `_name` (G30); never create the canonical module
+#   without migrating the copies (a row may only become `exists` at zero copies).
+# banned = fnmatch patterns for function names that must not be defined outside `module` (guard G6,
+#   allowlists/banned_patterns.toml). search = terms to run against the tree before writing a helper.
+
+[[row]]
+concept = "FX conversion and rate lookup"
+module = "services/fx.py"
+symbol = "convert"
+status = "exists-migrating"
+migration_task = "T-Q212"
+finding = "Q-007"
+epic = "E01"
+search = ["convert", "to_base", "fx_rate", "get_rate"]
+banned = ["*convert*", "*to_base*"]
+
+[[row]]
+concept = "Money format, parse, exponent, minor and major units"
+module = "domain/money.py"
+symbol = "parse_amount_str"
+status = "exists-migrating"
+migration_task = "T-Q216"
+finding = "Q-011"
+epic = "E11"
+search = ["parse_amount", "format_money", "to_minor_units", "currency_decimals"]
+banned = ["_parse_amount*", "parse_amount*", "_parse_money*", "*minor_per_major*"]
+
+[[row]]
+concept = "Periods and month windows"
+module = "domain/periods.py"
+symbol = "month_bounds"
+status = "target"
+migration_task = "T-Q208"
+interim = "none - extract via T-Q208"
+finding = "Q-003"
+epic = "E01"
+search = ["month_bounds", "end_of_month", "month_range", "shift_month"]
+banned = ["*month_bounds*", "end_of_month", "_month_range", "*month_range*", "_shift_month"]
+
+[[row]]
+concept = "Recurring occurrence expansion"
+module = "services/recurring.py"
+symbol = "pending_occurrences"
+status = "target"
+migration_task = "T-Q207"
+interim = "services/recurring.generate_occurrences"
+finding = "Q-002"
+epic = "E01"
+search = ["pending_occurrences", "generate_occurrences", "next_due"]
+banned = ["*occurrences_between*", "_expand_occurrences*"]
+
+[[row]]
+concept = "Direction to sign"
+module = "domain/transactions.py"
+symbol = "signed_legs"
+status = "target"
+migration_task = "T-Q227"
+interim = "services/ledger_totals.signed_effect"
+finding = "Q-036"
+epic = "E01"
+search = ["signed", "direction", "sign"]
+banned = ["*signed_amount*", "_signed_legs*", "_sign_for*"]
+
+[[row]]
+concept = "Net worth and fortune"
+module = "services/fortune.py"
+symbol = "compute_fortune"
+status = "exists"
+finding = "Q-009"
+epic = "E01"
+search = ["fortune", "net_worth", "total_balance"]
+banned = ["*net_worth*"]
+
+[[row]]
+concept = "Sum by category in base currency"
+module = "services/aggregates.py"
+symbol = "sum_by_category"
+status = "target"
+migration_task = "T-Q227"
+interim = "none - extract via T-Q227"
+finding = "Q-008"
+epic = "E01"
+search = ["sum_by_category", "_mean_minor", "category_total"]
+banned = ["_mean_minor", "_mean", "*sum_by_category*"]
+
+[[row]]
+concept = "Ledger, recurring and planned totals"
+module = "services/ledger_totals.py"
+symbol = "day_nets"
+status = "exists-migrating"
+migration_task = "T-Q209"
+finding = "Q-010"
+epic = "E09"
+search = ["day_nets", "totals", "recurring_summary"]
+banned = ["_recurring_summary", "_actual_day_nets"]
+
+[[row]]
+concept = "Clock (UTC now, local today)"
+module = "clock.py"
+symbol = "utc_now"
+status = "exists-migrating"
+migration_task = "T-Q229"
+finding = "Q-031"
+epic = "E07"
+search = ["utc_now", "today_local", "date.today", "datetime.now"]
+banned = ["_today_local*", "_utc_now*", "_now_utc*"]
+
+[[row]]
+concept = "Request parameter parsing"
+module = "web/params.py"
+symbol = "parse_date"
+status = "target"
+migration_task = "T-Q233"
+interim = "none - extract via T-Q233"
+finding = "Q-023"
+epic = "E03"
+search = ["_parse_date", "_parse_int", "parse_date", "parse_int"]
+banned = ["_parse_date", "_parse_int", "_parse_date_param", "_parse_int_param"]
+
+[[row]]
+concept = "HTMX events and toast payloads"
+module = "web/htmx.py"
+symbol = "trigger"
+status = "exists-migrating"
+migration_task = "T-Q236"
+finding = "Q-038"
+epic = "E03"
+search = ["HX-Trigger", "trigger_from_iterable", "toast", "stale"]
+banned = ["_toast_trigger", "_hx_trigger*"]
+
+[[row]]
+concept = "Transit validation"
+module = "services/transactions.py"
+symbol = "validate_transit_shape"
+status = "target"
+migration_task = "T-Q210"
+interim = "none - extract via T-Q210"
+finding = "Q-004"
+epic = "E08"
+search = ["transit", "validate_transit"]
+banned = ["_validate_transit*"]
+
+[[row]]
+concept = "Balance as of a date"
+module = "services/balance.py"
+symbol = "as_of_today"
+status = "target"
+migration_task = "T-Q227"
+interim = "none - extract via T-Q227"
+finding = "Q-032"
+epic = "E01"
+search = ["as_of", "balance_series", "account_balance"]
+banned = ["_balance_as_of*"]
+
+[[row]]
+concept = "Category selection (expense category ids)"
+module = "services/categories.py"
+symbol = "expense_category_ids"
+status = "target"
+migration_task = "T-Q227"
+interim = "none - extract via T-Q227"
+finding = "Q-030"
+epic = "E01"
+search = ["expense_category_ids", "category_ids", "archived"]
+banned = ["_expense_category_ids*", "_live_category_ids*"]
+
+[[row]]
+concept = "Budget tier resolution"
+module = "services/budget.py"
+symbol = "pick_tier"
+status = "target"
+migration_task = "T-Q227"
+interim = "services/budget.resolve_budget"
+finding = "Q-075"
+epic = "E01"
+search = ["resolve_budget", "pick_tier", "yearly_grid"]
+banned = ["_pick_tier*", "_resolve_tier*"]
+
+[[row]]
+concept = "Template view-model values (left per day, percentages)"
+module = "web/view_models.py"
+symbol = "left_per_day"
+status = "target"
+migration_task = "T-Q237"
+interim = "none - extract via T-Q237"
+finding = "Q-039"
+epic = "E09"
+search = ["left_per_day", "percent", "view_model"]
+banned = ["_left_per_day*", "*left_per_day*"]

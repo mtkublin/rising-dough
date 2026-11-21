@@ -2,6 +2,8 @@
 
 **Status**: accepted (2026-10-23)
 
+**Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: the deferred static-analysis rule for SQL outside repositories is now a guard)
+
 **Context**
 
 `docs/tasks.md` references **ADR-0022** from T-013 and T-028, but the ADR

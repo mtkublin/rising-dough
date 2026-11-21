@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
+from budget_planner.config import Settings
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
 from budget_planner.repositories.sessions import session_handle
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
@@ -34,7 +35,11 @@ def _passkey(conn: sqlite3.Connection, user_id: int, label: str, raw: bytes) -> 
 
 
 def test_sessions_page_lists_own_sessions_by_handle(
-    client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection, other_user: int
+    client: TestClient,
+    session_cookie: tuple[str, str],
+    conn: sqlite3.Connection,
+    other_user: int,
+    settings: Settings,
 ) -> None:
     second = issue_session(conn)
     foreign = issue_session(conn, user_id=other_user)
@@ -50,10 +55,8 @@ def test_sessions_page_lists_own_sessions_by_handle(
     assert "This device" in html
     assert html.count("This device") == 1
     assert "Expires" in html
-    # The page renders in the display timezone (Europe/Warsaw, ADR-0007), which
-    # is on a different calendar day than UTC for part of every day.
-    expiry = datetime.now(UTC) + timedelta(days=30)
-    expected = expiry.astimezone(ZoneInfo("Europe/Warsaw")).strftime("%d %b %Y")
+    # The page renders expiry in the display timezone (ADR-0007), so derive it the same way.
+    expected = (clock.now_in(settings.display_timezone) + timedelta(days=30)).strftime("%d %b %Y")
     assert expected in html  # absolute expiry = created_at + 30 days (ADR-0076)
 
 

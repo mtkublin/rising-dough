@@ -1,0 +1,33 @@
+# G17a: declared intent for GitHub environments (ADR-0130 section 9, prevention.md G17, CLAUDE.md Releases & environments).
+#
+# secrets = the only repository/environment secrets a job under this environment may reference (GITHUB_TOKEN excluded).
+# gated   = required reviewers plus a branch policy are configured. `gated = false` environments that hold secrets are
+#           reported by test_workflow_secrets.py (rule ungated-environment, Q-012) until they are gated and flipped here.
+#
+# A new environment or secret needs an entry here AND an operator go. Flipping `gated` to true is declared intent only:
+# verify the live setting with `scripts/ci/check_github_settings.py` (operator-run, reads `gh api`).
+# Declared from the workflows at the audit tree; `prod` gating is per ADR-0099 (approval on terraform apply prod).
+
+[environment.prod]
+gated = true
+secrets = ["APP_SCW_ACCESS_KEY", "APP_SCW_SECRET_KEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
+
+[environment.prod-plan]
+gated = false
+secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_ORG_ID", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
+
+[environment.prod-tailnet]
+gated = false
+secrets = ["TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
+
+[environment.drill]
+gated = false
+secrets = ["DEPLOY_SSH_PRIVATE_KEY", "OPERATOR_SSH_PUBKEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET", "TS_OAUTH_CLIENT_ID", "TS_OAUTH_SECRET"]
+
+[environment.drill-plan]
+gated = false
+secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
+
+[environment.drill-teardown]
+gated = false
+secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET", "TS_OAUTH_CLIENT_ID", "TS_OAUTH_SECRET"]

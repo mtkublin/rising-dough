@@ -1,0 +1,20 @@
+# unused-templates: template file names never referenced by string anywhere in src/*.py or templates (render/include/import/extends/from/TemplateResponse)
+## total template files: 111
+## unreferenced by full relative path: 16
+.gitkeep   (referenced in tests: False)
+_partials/components/_period_header.html   (referenced in tests: False)
+_partials/components/_table_row.html   (referenced in tests: False)
+budget/manage.html   (referenced in tests: False)
+categories/index.html   (referenced in tests: False)
+partials/_cheatsheet.html   (referenced in tests: False)
+partials/_direction_badge.html   (referenced in tests: False)
+partials/_money.html   (referenced in tests: False)
+partials/_pagination.html   (referenced in tests: False)
+partials/accounts/_fortune_split.html   (referenced in tests: False)
+partials/accounts/_totals.html   (referenced in tests: False)
+planned/index.html   (referenced in tests: False)
+recurring/index.html   (referenced in tests: False)
+settings/_fx.html   (referenced in tests: False)
+settings/_prefs.html   (referenced in tests: False)
+transactions/index.html   (referenced in tests: False)
+## note: dynamic names (f-strings building template paths) can cause false positives; verify in Track G

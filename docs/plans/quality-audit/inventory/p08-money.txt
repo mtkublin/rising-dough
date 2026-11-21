@@ -1,0 +1,166 @@
+# P8 money. Script: repro/inventory/p08_money.py
+# Rules: money-scale, money-float, money-round, money-format, money-parse, fx-def, fx-call, fx-arith.
+# Suffix :canonical = inside the file that is the canonical home today (domain/money.py, domain/fx.py, services/fx.py, web/templating.py).
+# rows: 162
+src/budget_planner/domain/money.py:206	money-round:canonical	[domain] ROUND_HALF_UP
+src/budget_planner/domain/money.py:206	money-round:canonical	[domain] to_minor_units: amount.quantize(quant, rounding=ROUND_HALF_UP)
+src/budget_planner/domain/money.py:210	money-parse:canonical	[domain] def parse_amount_str
+src/budget_planner/domain/money.py:254	money-format:canonical	[domain] format_money: {value:,.f}
+src/budget_planner/repositories/fx.py:15	fx-def:canonical	[repositories] def _row_to_rate
+src/budget_planner/repositories/fx.py:26	fx-def:canonical	[repositories] def find_rate
+src/budget_planner/repositories/fx.py:39	fx-def:canonical	[repositories] def latest_rate
+src/budget_planner/repositories/fx.py:70	fx-def:canonical	[repositories] def upsert_rate
+src/budget_planner/repositories/fx.py:71	fx-call:canonical	[repositories] upsert_rate: find_rate(conn, data.date, data.from_ccy, data.to_ccy)
+src/budget_planner/services/analytics.py:141	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/balance.py:116	money-parse	[services] _mean: Decimal(sum(values))
+src/budget_planner/services/balance.py:117	money-parse	[services] _mean: Decimal(len(values))
+src/budget_planner/services/balance.py:118	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/balance.py:185	money-round	[services] sparkline_points: round(i * width / denom, 2)
+src/budget_planner/services/balance.py:186	money-round	[services] sparkline_points: round(height - (v - vmin) / span * height, 2)
+src/budget_planner/services/budget.py:55	fx-def	[services] def base_amount_converter
+src/budget_planner/services/budget.py:75	fx-def	[services] def _convert
+src/budget_planner/services/budget.py:80	fx-call	[services] base_amount_converter._convert: fx_svc.convert_cached(conn, amount_minor, ref, ccy, base)
+src/budget_planner/services/budget.py:88	fx-def	[services] def base_txn_converter
+src/budget_planner/services/budget.py:106	fx-def	[services] def _convert
+src/budget_planner/services/budget.py:111	fx-call	[services] base_txn_converter._convert: fx_svc.convert_cached(conn, txn.amount, txn.operation_date, ccy, base)
+src/budget_planner/services/budget.py:243	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/budget.py:585	money-parse	[services] month_summary: Decimal(totals.remaining_minor)
+src/budget_planner/services/budget.py:586	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/forecast.py:204	fx-def	[services] def _collect_fx_rates
+src/budget_planner/services/forecast.py:217	fx-call	[services] _collect_fx_rates: fx_svc.get_rate(conn, http, today, ccy, base_currency)
+src/budget_planner/services/forecast.py:221	fx-def	[services] def _convert_native_to_base
+src/budget_planner/services/forecast.py:238	money-parse	[services] _convert_native_to_base: Decimal(amount_native_minor)
+src/budget_planner/services/forecast.py:239	fx-arith	[services] _convert_native_to_base: major * rate
+src/budget_planner/services/forecast.py:239	fx-arith	[services] _convert_native_to_base: major * rate * dst_scale
+src/budget_planner/services/forecast.py:240	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/forecast.py:240	money-round	[services] _convert_native_to_base: converted.quantize(Decimal('1'), rounding=ROUND_HALF_EVEN)
+src/budget_planner/services/forecast.py:411	money-parse	[services] _distribute_overlay: Decimal(unaccounted_minor)
+src/budget_planner/services/forecast.py:412	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/forecast.py:924	money-float	[services] <module>: field value_major: float
+src/budget_planner/services/forecast.py:956	money-float	[services] monthly_projection: float literal in point.end_balance_base_minor / 100.0
+src/budget_planner/services/forecast.py:956	money-scale	[services] monthly_projection: point.end_balance_base_minor / 100.0
+src/budget_planner/services/fx.py:34	fx-def:canonical	[services] def _parse_remote_rate
+src/budget_planner/services/fx.py:46	money-parse:canonical	[services] _parse_remote_rate: Decimal(str(value))
+src/budget_planner/services/fx.py:70	fx-call:canonical	[services] _fallback: fx_repo.latest_rate(conn, from_ccy, to_ccy, on_or_before=on_date)
+src/budget_planner/services/fx.py:83	fx-def:canonical	[services] def get_rate
+src/budget_planner/services/fx.py:103	fx-call:canonical	[services] get_rate: fx_repo.find_rate(conn, on_date, from_ccy, to_ccy)
+src/budget_planner/services/fx.py:119	fx-def:canonical	[services] def convert
+src/budget_planner/services/fx.py:134	fx-call:canonical	[services] convert: get_rate(conn, http, on_date, from_ccy, to_ccy)
+src/budget_planner/services/fx.py:140	money-parse:canonical	[services] convert: Decimal(amount_minor)
+src/budget_planner/services/fx.py:141	fx-arith:canonical	[services] convert: major * rate
+src/budget_planner/services/fx.py:141	fx-arith:canonical	[services] convert: major * rate * dst_scale
+src/budget_planner/services/fx.py:142	money-round:canonical	[services] ROUND_HALF_EVEN
+src/budget_planner/services/fx.py:142	money-round:canonical	[services] convert: converted.quantize(Decimal('1'), rounding=ROUND_HALF_EVEN)
+src/budget_planner/services/fx.py:146	fx-def:canonical	[services] def convert_cached
+src/budget_planner/services/fx.py:160	fx-call:canonical	[services] convert_cached: fx_repo.find_rate(conn, on_date, from_ccy, to_ccy)
+src/budget_planner/services/fx.py:162	money-parse:canonical	[services] convert_cached: Decimal(amount_minor)
+src/budget_planner/services/fx.py:163	fx-arith:canonical	[services] convert_cached: major * rate
+src/budget_planner/services/fx.py:163	fx-arith:canonical	[services] convert_cached: major * rate * Decimal(10) ** currency_decimals(to_ccy)
+src/budget_planner/services/fx.py:164	money-round:canonical	[services] ROUND_HALF_EVEN
+src/budget_planner/services/fx.py:164	money-round:canonical	[services] convert_cached: converted.quantize(Decimal('1'), rounding=ROUND_HALF_EVEN)
+src/budget_planner/services/ledger_totals.py:50	fx-call	[services] day_nets: convert(effect, day, ccy)
+src/budget_planner/services/rate_limit.py:83	money-round	[services] _retry_after: math.ceil(remaining)
+src/budget_planner/services/recurring_formula.py:40	money-scale	[services] <module>: Decimal('100')
+src/budget_planner/services/recurring_formula.py:68	money-round	[services] ROUND_HALF_UP
+src/budget_planner/services/recurring_formula.py:72	money-format	[services] parse_percent_to_bps: {_BPS_MAX / 100:.2f}
+src/budget_planner/services/recurring_formula.py:72	money-format	[services] parse_percent_to_bps: {_BPS_MIN / 100:.2f}
+src/budget_planner/services/recurring_formula.py:72	money-scale	[services] parse_percent_to_bps: _BPS_MAX / 100
+src/budget_planner/services/recurring_formula.py:72	money-scale	[services] parse_percent_to_bps: _BPS_MIN / 100
+src/budget_planner/services/recurring_formula.py:134	money-parse	[services] _apply_coefficient: Decimal(sum_minor)
+src/budget_planner/services/recurring_formula.py:135	money-round	[services] ROUND_HALF_UP
+src/budget_planner/services/recurring_formula.py:135	money-round	[services] _apply_coefficient: dec.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+src/budget_planner/services/today.py:50	money-round	[services] ROUND_HALF_EVEN
+src/budget_planner/services/today.py:71	money-parse	[services] _pace_tag_for: Decimal(baseline_per_day_minor)
+src/budget_planner/services/today.py:72	money-parse	[services] _pace_tag_for: Decimal(per_day_minor)
+src/budget_planner/web/auth_cookies.py:132	float-other	[web] sign_challenge: param now: float | None
+src/budget_planner/web/auth_cookies.py:173	float-other	[web] verify_challenge: param now: float | None
+src/budget_planner/web/charts.py:38	float-other	[web] _fmt: param value: float
+src/budget_planner/web/charts.py:48	float-other	[web] _nice_axis: param data_min: float
+src/budget_planner/web/charts.py:49	float-other	[web] _nice_axis: param data_max: float
+src/budget_planner/web/charts.py:66	float-other	[web] _nice_axis: float literal in delta * 0.5
+src/budget_planner/web/charts.py:67	float-other	[web] _nice_axis: float literal in delta * 0.5
+src/budget_planner/web/charts.py:70	money-round	[web] _nice_axis: math.floor(math.log10(rough_step))
+src/budget_planner/web/charts.py:71	money-scale	[web] _nice_axis: 10 ** exponent
+src/budget_planner/web/charts.py:75	money-round	[web] _nice_axis: math.floor(data_min / step)
+src/budget_planner/web/charts.py:76	money-round	[web] _nice_axis: math.ceil(data_max / step)
+src/budget_planner/web/charts.py:80	float-other	[web] _axis_ticks: param nice_max: float
+src/budget_planner/web/charts.py:80	float-other	[web] _axis_ticks: param nice_min: float
+src/budget_planner/web/charts.py:80	float-other	[web] _axis_ticks: param step: float
+src/budget_planner/web/charts.py:87	float-other	[web] _axis_ticks: float literal in step * 0.5
+src/budget_planner/web/charts.py:88	money-round	[web] _axis_ticks: round(current, 10)
+src/budget_planner/web/charts.py:102	float-other	[web] <module>: field position: float
+src/budget_planner/web/charts.py:110	float-other	[web] <module>: field x: float
+src/budget_planner/web/charts.py:111	float-other	[web] <module>: field y: float
+src/budget_planner/web/charts.py:123	float-other	[web] <module>: field width: float
+src/budget_planner/web/charts.py:124	float-other	[web] <module>: field height: float
+src/budget_planner/web/charts.py:136	float-other	[web] _format_label: param value: float
+src/budget_planner/web/charts.py:138	money-round	[web] _format_label: round(value)
+src/budget_planner/web/charts.py:140	money-format	[web] _format_label: {int(rounded):,}
+src/budget_planner/web/charts.py:141	money-format	[web] _format_label: {value:,.2f}
+src/budget_planner/web/charts.py:147	float-other	[web] line_area: param width: float
+src/budget_planner/web/charts.py:148	float-other	[web] line_area: param height: float
+src/budget_planner/web/charts.py:190	float-other	[web] line_area: float literal in inner_width * 0.5
+src/budget_planner/web/charts.py:227	float-other	[web] line_area: float literal in inner_width * 0.5
+src/budget_planner/web/charts.py:260	float-other	[web] <module>: field x: float
+src/budget_planner/web/charts.py:261	float-other	[web] <module>: field y: float
+src/budget_planner/web/charts.py:262	float-other	[web] <module>: field width: float
+src/budget_planner/web/charts.py:263	float-other	[web] <module>: field height: float
+src/budget_planner/web/charts.py:264	float-other	[web] <module>: field value: float
+src/budget_planner/web/charts.py:272	float-other	[web] <module>: field center_x: float
+src/budget_planner/web/charts.py:283	float-other	[web] <module>: field width: float
+src/budget_planner/web/charts.py:284	float-other	[web] <module>: field height: float
+src/budget_planner/web/charts.py:300	float-other	[web] grouped_bars: param width: float
+src/budget_planner/web/charts.py:301	float-other	[web] grouped_bars: param height: float
+src/budget_planner/web/charts.py:328	float-other	[web] grouped_bars: float(value)
+src/budget_planner/web/charts.py:351	float-other	[web] grouped_bars: float literal in group_slot * _GROUPED_GROUP_GAP_RATIO * 0.5
+src/budget_planner/web/charts.py:356	float-other	[web] grouped_bars: float literal in group_slot * 0.5
+src/budget_planner/web/charts.py:410	float-other	[web] <module>: field value: float
+src/budget_planner/web/charts.py:411	float-other	[web] <module>: field y: float
+src/budget_planner/web/charts.py:412	float-other	[web] <module>: field bar_x: float
+src/budget_planner/web/charts.py:413	float-other	[web] <module>: field bar_width: float
+src/budget_planner/web/charts.py:414	float-other	[web] <module>: field bar_height: float
+src/budget_planner/web/charts.py:423	float-other	[web] <module>: field max_label_width: float
+src/budget_planner/web/charts.py:425	float-other	[web] <module>: field width: float
+src/budget_planner/web/charts.py:426	float-other	[web] <module>: field height: float
+src/budget_planner/web/charts.py:440	float-other	[web] horizontal_bars: param width: float
+src/budget_planner/web/charts.py:441	float-other	[web] horizontal_bars: param row_height: float
+src/budget_planner/web/charts.py:479	float-other	[web] horizontal_bars: float literal in (row_height - _HORIZONTAL_BAR_HEIGHT) * 0.5
+src/budget_planner/web/charts.py:513	float-other	[web] <module>: field width: float
+src/budget_planner/web/charts.py:514	float-other	[web] <module>: field height: float
+src/budget_planner/web/charts.py:522	float-other	[web] sparkline: param width: float
+src/budget_planner/web/charts.py:523	float-other	[web] sparkline: param height: float
+src/budget_planner/web/charts.py:546	float-other	[web] sparkline: float literal in height * 0.5
+src/budget_planner/web/charts.py:547	float-other	[web] sparkline: float literal in width * 0.5
+src/budget_planner/web/retention_task.py:22	float-other	[web] run_forever: param interval_seconds: float
+src/budget_planner/web/routers/budget.py:316	money-parse	[web.routers] def _parse_decimal
+src/budget_planner/web/routers/budget.py:318	money-parse	[web.routers] _parse_decimal: Decimal(value)
+src/budget_planner/web/routers/forecast.py:31	money-scale	[web.routers] const _MINOR_UNITS_PER_MAJOR = 100.0
+src/budget_planner/web/routers/forecast.py:57	float-other	[web.routers] _series_to_chart: float(i)
+src/budget_planner/web/routers/ledger.py:273	fx-def	[web.routers] def convert
+src/budget_planner/web/routers/ledger.py:275	fx-call	[web.routers] _actual_day_nets.convert: fx_service.convert_cached(conn, amount, day, ccy, base_ccy)
+src/budget_planner/web/routers/ledger.py:363	money-round	[web.routers] _recurring_summary: amt // divisor
+src/budget_planner/web/routers/plan.py:36	money-scale	[web.routers] const _MINOR_UNITS_PER_MAJOR = 100.0
+src/budget_planner/web/routers/plan.py:98	money-round	[web.routers] plan._shift_month: total // _MONTHS_IN_YEAR
+src/budget_planner/web/routers/plan.py:208	float-other	[web.routers] plan: float(i)
+src/budget_planner/web/routers/planned.py:211	money-parse	[web.routers] _validate_amount: Decimal(amount)
+src/budget_planner/web/routers/recurring.py:232	money-parse	[web.routers] _resolve_amount_inputs: Decimal(default_amount)
+src/budget_planner/web/routers/recurring.py:401	money-scale	[web.routers] _formula_prefill: Decimal(100)
+src/budget_planner/web/routers/recurring.py:796	money-format	[web.routers] new_override_form: {Decimal(rule.default_amount) / Decima...:.2f}
+src/budget_planner/web/routers/recurring.py:796	money-parse	[web.routers] new_override_form: Decimal(rule.default_amount)
+src/budget_planner/web/routers/recurring.py:796	money-scale	[web.routers] new_override_form: Decimal(100)
+src/budget_planner/web/routers/recurring.py:846	money-parse	[web.routers] add_override: Decimal(amount.replace(',', '.'))
+src/budget_planner/web/routers/recurring.py:1043	money-parse	[web.routers] promote_submit: Decimal(amount)
+src/budget_planner/web/routers/today.py:66	money-scale	[web.routers] today: 100 * summary.totals.spent_minor
+src/budget_planner/web/routers/today.py:126	money-parse	[web.routers] def _parse_amount_arg
+src/budget_planner/web/routers/today.py:138	float-other	[web.routers] _parse_amount_arg: float(stripped)
+src/budget_planner/web/routers/today.py:141	money-round	[web.routers] _parse_amount_arg: round(major * 100)
+src/budget_planner/web/routers/today.py:141	money-scale	[web.routers] _parse_amount_arg: major * 100
+src/budget_planner/web/templating.py:63	money-format:canonical	[web] _money_major_filter: {value:.f}
+src/budget_planner/web/today_data.py:90	fx-def	[web] def _convert_minor
+src/budget_planner/web/today_data.py:101	money-parse	[web] _convert_minor: Decimal(amount_minor)
+src/budget_planner/web/today_data.py:102	fx-arith	[web] _convert_minor: major * rate
+src/budget_planner/web/today_data.py:102	fx-arith	[web] _convert_minor: major * rate * dst_scale
+src/budget_planner/web/today_data.py:103	money-round	[web] ROUND_HALF_EVEN
+src/budget_planner/web/today_data.py:103	money-round	[web] _convert_minor: converted.quantize(Decimal('1'), rounding=ROUND_HALF_EVEN)
+src/budget_planner/web/today_data.py:127	fx-call	[web] collect_account_rows: fx_service.get_rate(conn, http, today, ccy, base_ccy)
+src/budget_planner/web/today_data.py:157	money-round	[web] pace_tag: budgeted * elapsed // days_in_month

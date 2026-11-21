@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-03
-- **Amended by**: ADR-0097 (verification policy: scoped checks per item, one full `just ci` per merge batch)
+- **Amended by**: ADR-0097 (verification policy: scoped checks per item, one full `just ci` per merge batch); [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: search-before-write, shared-helper carve-out, merge-step duplication check)
 - **Related**: ADR-0027 (frontend toolchain / `frontend-visual-audit` skill)
 
 ## Context

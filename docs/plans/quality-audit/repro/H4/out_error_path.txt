@@ -1,0 +1,49 @@
+### POST with non-ASCII csrf token
+HTTP/1.1 500 Internal Server Error
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 10656
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-c4143cc5-3143-47fe-ac67-7bb46796d7bf'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
+Content-Type: text/html; charset=utf-8
+Cross-Origin-Opener-Policy: same-origin
+Date: Thu, 19 Nov 2026 20:53:17 GMT
+Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: d43559645a0f
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="htmx-config"
+          content='{"includeIndicatorStyles": false, "allowEval": false}'>
+    <meta name="csrf-token"
+          content="<csrf-redacted>">
+    <title>Something went wrong — Budget Planner</title>
+    <link rel="icon"
+### POST without csrf token
+HTTP/1.1 403 Forbidden
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 25
+Content-Type: application/json
+Cross-Origin-Opener-Policy: same-origin
+Date: Thu, 19 Nov 2026 20:53:17 GMT
+Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: 402253bf7565
+
+{"detail":"invalid_csrf"}### oversize header / bad method
+HTTP/1.1 405 Method Not Allowed
+Allow: GET
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 31
+Content-Type: application/json
+Cross-Origin-Opener-Policy: same-origin
+Date: Thu, 19 Nov 2026 20:53:18 GMT
+Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()

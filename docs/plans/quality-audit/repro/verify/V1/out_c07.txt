@@ -1,0 +1,6 @@
+/accounts  status=200 statements=  2959 wall=1.62s
+/today     status=200 statements=   224 wall=0.15s
+/forecast  status=200 statements=  2770 wall=0.55s
+/budget    status=200 statements=   116 wall=0.08s
+/plan      status=200 statements=   110 wall=0.15s
+/ledger    status=200 statements=     9 wall=0.10s

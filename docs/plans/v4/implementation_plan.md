@@ -155,7 +155,9 @@ T-E00 ─▶ T-E01 ┐
 Same as v3 (`docs/plans/v3/implementation_plan.md` §Handoff shape): Context, Deliverables, Acceptance, Dependencies, Validation hook. The handoff also records:
 - the ADR sections it implements;
 - for frontend tasks, the frontend-visual-audit routes and findings;
-- for crypto tasks, the parameters actually used (Argon2 params, library versions).
+- for crypto tasks, the parameters actually used (Argon2 params, library versions);
+- **Reuse check** (ADR-0130): `Searched: <queries>; Reused: <canonical symbols>; New helper: <name> (why none fits; registered in canonical_modules.toml: yes/no)`;
+- **ADRs re-read**: the ADRs the task touches are re-read and still true (status or amendment updated), no new allowlist entry or suppression without an ADR-0130 amendment, and allowlist entries for violations the task fixed are deleted.
 
 ## Guardrails
 

@@ -1,0 +1,36 @@
+# xenon --max-absolute B --max-modules B --max-average A src (report only; exit code is nonzero on violations)
+Installed 11 packages in 19ms
+ERROR:xenon:block "src/budget_planner/web/auth_cookies.py:219 safe_next" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/charts.py:144 line_area" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/charts.py:297 grouped_bars" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/plan.py:68 plan" has a rank of E
+ERROR:xenon:block "src/budget_planner/web/routers/recurring.py:633 update_rule_handler" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/recurring.py:269 create_rule" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/recurring.py:1016 promote_submit" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/recurring.py:149 _resolve_dest_account" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/recurring.py:470 recurring_batch_undo" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/accounts.py:186 create_account" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/planned.py:220 create_planned" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/planned.py:338 update_planned" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/budget.py:170 new_override_form" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/budget.py:235 create_override" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/transactions.py:238 create_txn" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/transactions.py:358 update_txn" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/ledger.py:140 _hydrate_recurring_rows" has a rank of D
+ERROR:xenon:block "src/budget_planner/web/routers/ledger.py:395 index" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/routers/settings.py:52 drawer" has a rank of C
+ERROR:xenon:block "src/budget_planner/web/middleware/auth.py:145 AuthRequiredMiddleware" has a rank of C
+ERROR:xenon:block "src/budget_planner/repositories/planned.py:68 _append_filter_clauses" has a rank of C
+ERROR:xenon:block "src/budget_planner/repositories/transactions.py:69 _append_filter_clauses" has a rank of C
+ERROR:xenon:block "src/budget_planner/db/startup_migrate.py:102 prune_backups" has a rank of C
+ERROR:xenon:block "src/budget_planner/db/migrate.py:86 _split_sql_statements" has a rank of C
+ERROR:xenon:block "src/budget_planner/db/migrate.py:280 apply_migrations" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/forecast.py:710 _month_flow_sums" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/forecast.py:530 forecast" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/recurring.py:356 promote_recurring" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/recurring.py:107 generate_occurrences" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/budget.py:454 month_summary" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/budget.py:253 _committed_by_category" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/budget.py:603 yearly_grid" has a rank of C
+ERROR:xenon:block "src/budget_planner/services/recurring_formula.py:384 validate_formula_sources" has a rank of C
+exit=1
