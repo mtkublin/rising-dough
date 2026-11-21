@@ -25,7 +25,7 @@ def test_create_sets_prev_null(conn: sqlite3.Connection) -> None:
             new={"a": 1},
             user_id=None,
         )
-    rows = audit_repo.list_entries(conn, "transaction", 1)
+    rows = audit_repo.list_entries(conn, None, "transaction", 1)
     assert len(rows) == 1
     assert rows[0].prev_json is None
     assert json.loads(rows[0].new_json or "{}") == {"a": 1}
@@ -42,7 +42,7 @@ def test_update_populates_both(conn: sqlite3.Connection) -> None:
             new={"name": "new"},
             user_id=None,
         )
-    rows = audit_repo.list_entries(conn, "account", 2)
+    rows = audit_repo.list_entries(conn, None, "account", 2)
     assert rows[0].prev_json is not None
     assert rows[0].new_json is not None
 
@@ -58,7 +58,7 @@ def test_delete_sets_new_null(conn: sqlite3.Connection) -> None:
             new=None,
             user_id=None,
         )
-    rows = audit_repo.list_entries(conn, "account", 3)
+    rows = audit_repo.list_entries(conn, None, "account", 3)
     assert rows[0].new_json is None
     assert rows[0].prev_json is not None
 
@@ -74,7 +74,7 @@ def test_undelete_sets_prev_null(conn: sqlite3.Connection) -> None:
             new={"name": "restored"},
             user_id=None,
         )
-    rows = audit_repo.list_entries(conn, "account", 4)
+    rows = audit_repo.list_entries(conn, None, "account", 4)
     assert rows[0].prev_json is None
     assert rows[0].new_json is not None
 
@@ -138,7 +138,7 @@ def test_dataclass_prev_serialised(conn: sqlite3.Connection) -> None:
             new=_D(name="z"),
             user_id=None,
         )
-    row = audit_repo.list_entries(conn, "x", 1)[0]
+    row = audit_repo.list_entries(conn, None, "x", 1)[0]
     assert json.loads(row.new_json or "{}") == {"name": "z"}
 
 
@@ -157,4 +157,4 @@ def test_rollback_leaves_no_audit_row(conn: sqlite3.Connection) -> None:
             raise RuntimeError("boom")
     except RuntimeError:
         pass
-    assert audit_repo.list_entries(conn, "x", 99) == []
+    assert audit_repo.list_entries(conn, None, "x", 99) == []

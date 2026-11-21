@@ -11,7 +11,6 @@ import dataclasses
 import datetime as dt
 import sqlite3
 
-import httpx
 import pytest
 
 from budget_planner.config import Settings
@@ -31,6 +30,7 @@ from budget_planner.services import (
     _promotion,
     categories,
     forecast,
+    fx,
     planned,
     reconciliation,
     recurring,
@@ -105,48 +105,58 @@ _OVERLAY_TOTALS = {
 
 @covers("forecast.forecast")
 def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
-    with httpx.Client() as http:
-        for user_id in (OWNER_ID, OTHER_ID):
-            series = forecast.forecast(conn, user_id, http, T, HORIZON_DAYS, "PLN")
-            assert _totals(series, *_OVERLAY_DAYS) == _OVERLAY_TOTALS[user_id]
-        for user_id, balance in (
-            (OWNER_ID, OWNER_BALANCE - 1_000),
-            (OTHER_ID, OTHER_BALANCE - 2_000),
-        ):
-            series = forecast.forecast(
-                conn, user_id, http, T, HORIZON_DAYS, "PLN", include_budget_overlay=False
-            )
-            u = user_id
-            assert len(series.days) == HORIZON_DAYS + 1
-            assert _totals(series, *_CHECK_DAYS) == [
-                balance,
-                balance - 500 * u,
-                balance - 500 * u - 700 * u,
-                balance - 500 * u - 700 * u + 5_000 * u,
-            ]
-            accounts = {p.account_id for day in series.days for p in day.by_account}
-            assert accounts == {_rows(world, user_id).account_id}  # no dead / foreign accounts
-        # A formula rule (10% of the owner's live 700 rule = 70) is evaluated with the owner's rules only.
-        seed_formula_rule(conn, OWNER_ID, world.owner, due=dt.date(2026, 11, 20))
+    fx_conv = fx.converter_for(conn, Settings(_env_file=None), T)
+    for user_id in (OWNER_ID, OTHER_ID):
+        series = forecast.forecast(conn, user_id, fx_conv, T, HORIZON_DAYS)
+        assert _totals(series, *_OVERLAY_DAYS) == _OVERLAY_TOTALS[user_id]
+    for user_id, balance in (
+        (OWNER_ID, OWNER_BALANCE - 1_000),
+        (OTHER_ID, OTHER_BALANCE - 2_000),
+    ):
         series = forecast.forecast(
-            conn, OWNER_ID, http, T, HORIZON_DAYS, "PLN", include_budget_overlay=False
+            conn, user_id, fx_conv, T, HORIZON_DAYS, include_budget_overlay=False
         )
-        assert _totals(series, EXPENSE_RULE_DUE, dt.date(2026, 11, 20)) == [
-            OWNER_BALANCE - 1_000 - 1_200,
-            OWNER_BALANCE - 1_000 - 1_200 - 70,
+        u = user_id
+        assert len(series.days) == HORIZON_DAYS + 1
+        assert _totals(series, *_CHECK_DAYS) == [
+            balance,
+            balance - 500 * u,
+            balance - 500 * u - 700 * u,
+            balance - 500 * u - 700 * u + 5_000 * u,
         ]
+        accounts = {p.account_id for day in series.days for p in day.by_account}
+        assert accounts == {_rows(world, user_id).account_id}  # no dead / foreign accounts
+    # A formula rule (10% of the owner's live 700 rule = 70) is evaluated with the owner's rules only.
+    seed_formula_rule(conn, OWNER_ID, world.owner, due=dt.date(2026, 11, 20))
+    series = forecast.forecast(
+        conn, OWNER_ID, fx_conv, T, HORIZON_DAYS, include_budget_overlay=False
+    )
+    assert _totals(series, EXPENSE_RULE_DUE, dt.date(2026, 11, 20)) == [
+        OWNER_BALANCE - 1_000 - 1_200,
+        OWNER_BALANCE - 1_000 - 1_200 - 70,
+    ]
 
 
 @covers("forecast.forecast_monthly")
 def _case_forecast_monthly(conn: sqlite3.Connection, world: World) -> None:
-    with httpx.Client() as http:
-        for user_id in (OWNER_ID, OTHER_ID):
-            u = user_id
-            months = forecast.forecast_monthly(conn, user_id, http, T, 2, "PLN").months
-            assert [(m.month, m.income_base_minor, m.expense_base_minor) for m in months] == [
-                (dt.date(2026, 11, 1), 0, 1_200 * u),
-                (dt.date(2026, 12, 1), 5_000 * u, 700 * u),
-            ]
+    fx_conv = fx.converter_for(conn, Settings(_env_file=None), T)
+    for user_id in (OWNER_ID, OTHER_ID):
+        u = user_id
+        months = forecast.forecast_monthly(conn, user_id, fx_conv, T, 2).months
+        assert [(m.month, m.income_base_minor, m.expense_base_minor) for m in months] == [
+            (dt.date(2026, 11, 1), 0, 1_200 * u),
+            (dt.date(2026, 12, 1), 5_000 * u, 700 * u),
+        ]
+
+
+@covers("forecast.monthly_for_settings")
+def _case_monthly_for_settings(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        months = forecast.monthly_for_settings(conn, user_id, Settings(_env_file=None), T, 2).months
+        assert [(m.month, m.income_base_minor, m.expense_base_minor) for m in months] == [
+            (dt.date(2026, 11, 1), 0, 1_200 * user_id),
+            (dt.date(2026, 12, 1), 5_000 * user_id, 700 * user_id),
+        ]
 
 
 @covers("forecast.monthly_projection")

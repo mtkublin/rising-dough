@@ -196,7 +196,7 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     budgets_repo.clear_default(conn, OTHER_ID, world.other.category_id)
     unbudgeted = budget.month_summary(conn, OTHER_ID, 2026, 11, today=T)
     assert unbudgeted.totals.budgeted_minor == 0
-    assert unbudgeted.next_income_date == dt.date(2026, 11, 30)
+    assert unbudgeted.next_income_date == dt.date(2026, 12, 1)
     assert unbudgeted.anchor_category_name is None
     assert unbudgeted.left_daily_spend_minor is None
 
@@ -223,10 +223,40 @@ def _case_resolve_budget(conn: sqlite3.Connection, world: World) -> None:
 def _case_fiscal_month_for(conn: sqlite3.Connection, world: World) -> None:
     assert budget.fiscal_month_for(conn, OWNER_ID, T) == (2026, 11)
     assert budget.fiscal_month_for(conn, OTHER_ID, T) == (2026, 11)
-    # Only user 2 lands an anchor paycheck in October: user 1's cycle must not move.
-    _land_anchor_income(conn, OTHER_ID, world.other, dt.date(2026, 10, 28))
-    assert budget.fiscal_month_for(conn, OTHER_ID, T) == (2026, 10)
+    # Only user 2 lands an anchor paycheck (Oct 5 to the next anchor on Dec 1 is mostly November, ADR-0138):
+    # the label stays November for both and user 1's cycle must not move.
+    _land_anchor_income(conn, OTHER_ID, world.other, dt.date(2026, 10, 5))
+    assert budget.fiscal_month_for(conn, OTHER_ID, T) == (2026, 11)
     assert budget.fiscal_month_for(conn, OWNER_ID, T) == (2026, 11)
+
+
+@covers("budget.resolve_picker_month")
+def _case_resolve_picker_month(conn: sqlite3.Connection, world: World) -> None:
+    _land_anchor_income(conn, OTHER_ID, world.other, dt.date(2026, 10, 5))
+    for user_id in (OWNER_ID, OTHER_ID):
+        picked = budget.resolve_picker_month(conn, user_id, T)
+        assert (picked.year, picked.month, picked.is_fiscal) == (2026, 11, True)
+        assert (picked.prev_year, picked.prev_month) == (2026, 10)
+        assert (picked.next_year, picked.next_month) == (2026, 12)
+    shifted = budget.resolve_picker_month(conn, OWNER_ID, T, year_raw="2027", month_raw="1")
+    assert (shifted.year, shifted.month, shifted.is_fiscal) == (2027, 1, False)
+
+
+@covers("budget.month_summary_for_picker")
+def _case_month_summary_for_picker(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        current = budget.resolve_picker_month(conn, user_id, T)
+        assert budget.month_summary_for_picker(conn, user_id, current, T).totals == (
+            _expected_summary_totals(user_id)
+        )
+        december = budget.resolve_picker_month(conn, user_id, T, month_raw="12")
+        summary = budget.month_summary_for_picker(conn, user_id, december, T)
+        assert [line.category_id for line in summary.lines] == [_own(world, user_id).category_id]
+        assert summary.totals.budgeted_minor == 3_000 * user_id
+        assert summary.totals.spent_minor == 0  # the Nov 10 expense is outside December
+        assert summary.totals.committed_minor == 0
+        assert summary.period_start == dt.date(2026, 12, 1)
+        assert summary.next_income_date == dt.date(2027, 1, 1)
 
 
 @covers("budget.resolve_period_start")
@@ -316,12 +346,12 @@ def _eur_account_with_rate(conn: sqlite3.Connection, user_id: int, *, deleted: b
     return account.id
 
 
-@covers("budget.base_amount_converter")
-def _case_base_amount_converter(conn: sqlite3.Connection, world: World) -> None:
+@covers("budget.planned_base_amounts")
+def _case_planned_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     eur = _eur_account_with_rate(conn, OWNER_ID, deleted=False)
     gone = _eur_account_with_rate(conn, OWNER_ID, deleted=True)
-    owner = budget.base_amount_converter(conn, OWNER_ID, today=T, base_currency=BASE)
-    other = budget.base_amount_converter(conn, OTHER_ID, today=T, base_currency=BASE)
+    owner = budget.planned_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)
+    other = budget.planned_base_amounts(conn, OTHER_ID, today=T, base_currency=BASE)
     assert owner(eur, 1_000) == 4_000
     # OQ-15 current behaviour: archived accounts keep converting (their currency is still resolved).
     assert owner(gone, 1_000) == 4_000
@@ -330,8 +360,8 @@ def _case_base_amount_converter(conn: sqlite3.Connection, world: World) -> None:
     assert other(eur, 1_000) == 1_000
 
 
-@covers("budget.base_txn_converter")
-def _case_base_txn_converter(conn: sqlite3.Connection, world: World) -> None:
+@covers("budget.txn_base_amounts")
+def _case_txn_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     eur = _eur_account_with_rate(conn, OWNER_ID, deleted=False)
     eur_txn = transactions_repo.create(
         conn,
@@ -340,13 +370,13 @@ def _case_base_txn_converter(conn: sqlite3.Connection, world: World) -> None:
             operation_date=T, category_id=world.owner.category_id, account_id=eur, amount=1_000
         ),
     )
-    owner = budget.base_txn_converter(conn, OWNER_ID, base_currency=BASE)
-    other = budget.base_txn_converter(conn, OTHER_ID, base_currency=BASE)
+    owner = budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)
+    other = budget.txn_base_amounts(conn, OTHER_ID, today=T, base_currency=BASE)
     assert owner(eur_txn) == 4_000
     assert other(eur_txn) == 1_000  # the other user cannot see the account's currency
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
     # OQ-15 current behaviour: a soft-deleted account keeps converting its (still listed) transactions.
-    assert budget.base_txn_converter(conn, OWNER_ID, base_currency=BASE)(eur_txn) == 4_000
+    assert budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)(eur_txn) == 4_000
     live = transactions_repo.find_by_id(conn, OWNER_ID, world.owner.transaction_id)
     assert live is not None
     assert owner(live) == 1_000

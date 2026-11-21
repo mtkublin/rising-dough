@@ -68,7 +68,7 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "cc>=11"
-count = 2
+count = 1
 finding = "Q-046"
 epic = "E13"
 
@@ -187,27 +187,6 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/ledger.py"
 rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "nesting>4"
 count = 1
 finding = "Q-046"
 epic = "E13"

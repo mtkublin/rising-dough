@@ -13,7 +13,6 @@ All amounts are minor units; template layer handles currency formatting.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import sqlite3
 from collections import defaultdict
@@ -22,6 +21,7 @@ from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     categories as categories_repo,
@@ -81,13 +81,8 @@ class AnalyticsBundle:
     largest_items: tuple[LargestItem, ...]
 
 
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    last_day = calendar.monthrange(year, month)[1]
-    return dt.date(year, month, 1), dt.date(year, month, last_day)
-
-
 def _trailing_12_months(today: dt.date) -> tuple[dt.date, dt.date]:
-    end = _month_bounds(today.year, today.month)[1]
+    end = month_bounds(today.year, today.month)[1]
     start_month = today.month - (_TRAILING_MONTHS - 1)
     year = today.year
     while start_month <= 0:
@@ -98,7 +93,7 @@ def _trailing_12_months(today: dt.date) -> tuple[dt.date, dt.date]:
 
 def _period_bounds(today: dt.date, period: Period) -> tuple[dt.date, dt.date]:
     if period == "month":
-        return _month_bounds(today.year, today.month)
+        return month_bounds(today.year, today.month)
     if period == "year":
         return dt.date(today.year, 1, 1), dt.date(today.year, 12, 31)
     return _trailing_12_months(today)
@@ -280,4 +275,39 @@ __all__ = [
     "MonthlyFlow",
     "Period",
     "bundle",
+    "normalize_period",
+    "reference_today",
+    "spend_total_minor",
+    "twelve_month_avg_by_category",
 ]
+
+
+def twelve_month_avg_by_category(bundle: AnalyticsBundle) -> dict[int, int]:
+    """Return ``category_id -> 12-month average minor`` for the spend list deltas."""
+    return {row.category_id: row.amount_minor for row in bundle.twelve_month_averages}
+
+
+def spend_total_minor(bundle: AnalyticsBundle) -> int:
+    """Return the total of the spend-by-category rows."""
+    return sum(row.amount_minor for row in bundle.spend_by_category)
+
+
+def reference_today(today: dt.date, year: int, month: int) -> dt.date:
+    """Return the "today" the analytics math uses for the picked month (ADR-0138).
+
+    The current month keeps real ``today``; any other month is pinned to its last day.
+    """
+    if (year, month) == (today.year, today.month):
+        return today
+    return month_bounds(year, month)[1]
+
+
+_VALID_PERIODS: tuple[Period, ...] = ("month", "year", "trailing-12")
+
+
+def normalize_period(raw: str | None) -> Period:
+    """Return the requested analytics period, defaulting to ``"month"`` on unknown input."""
+    for candidate in _VALID_PERIODS:
+        if raw == candidate:
+            return candidate
+    return "month"

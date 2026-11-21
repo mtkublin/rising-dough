@@ -35,7 +35,7 @@ def figures(conn: sqlite3.Connection) -> dict[str, int]:
     spend = next(
         (r.amount_minor for r in bundle.spend_by_category if r.category_id == GROCERIES), 0
     )
-    base = get_settings().base_currency
+    converter = fx_svc.converter_for(conn, get_settings(), END)
     rows = txn_repo.list_filtered(
         conn,
         U,
@@ -49,9 +49,7 @@ def figures(conn: sqlite3.Connection) -> dict[str, int]:
     ccy = {a.id: a.currency for a in accounts_repo.list_all(conn, U, include_deleted=True)}
     items = [(t.operation_date, t.amount, Direction.EXPENSE, ccy[t.account_id]) for t in rows]
     ledger = -sum(
-        ledger_totals.day_nets(
-            items, lambda a, d, c: fx_svc.convert_cached(conn, a, d, c, base)
-        ).values()
+        ledger_totals.day_nets(items, lambda a, d, c: converter.to_base(a, c, d)).values()
     )
     return {"budget.spent": line.spent_minor, "analytics.spend": spend, "ledger.total": ledger}
 

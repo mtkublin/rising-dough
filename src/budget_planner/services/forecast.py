@@ -19,18 +19,16 @@ tests remain tz-independent.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import logging
 import sqlite3
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
 
-import httpx
-
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import currency_decimals, major_float
+from budget_planner.domain.money import major_float
+from budget_planner.domain.periods import month_bounds, shift_month
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
@@ -199,48 +197,6 @@ def _events_from_occurrence(
 
 
 # ---------------------------------------------------------------------------
-# FX helpers
-# ---------------------------------------------------------------------------
-def _collect_fx_rates(
-    conn: sqlite3.Connection,
-    http: httpx.Client,
-    today: dt.date,
-    currencies: set[str],
-    base_currency: str,
-) -> dict[str, Decimal]:
-    """Fetch today's rate ``ccy -> base_currency`` once per distinct currency."""
-    out: dict[str, Decimal] = {}
-    for ccy in currencies:
-        if ccy == base_currency:
-            out[ccy] = Decimal("1")
-            continue
-        out[ccy] = fx_svc.get_rate(conn, http, today, ccy, base_currency)
-    return out
-
-
-def _convert_native_to_base(
-    amount_native_minor: int,
-    from_ccy: str,
-    base_currency: str,
-    fx_rates: dict[str, Decimal],
-) -> int:
-    """Scale ``amount_native_minor`` to ``base_currency`` minor units.
-
-    Uses ``ROUND_HALF_EVEN`` and preserves sign. Short-circuits on identity.
-    """
-    if from_ccy == base_currency:
-        return amount_native_minor
-    rate = fx_rates[from_ccy]
-    src_decimals = currency_decimals(from_ccy)
-    dst_decimals = currency_decimals(base_currency)
-    src_scale = Decimal(10) ** src_decimals
-    dst_scale = Decimal(10) ** dst_decimals
-    major = Decimal(amount_native_minor) / src_scale
-    converted = (major * rate) * dst_scale
-    return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
-
-
-# ---------------------------------------------------------------------------
 # event collection
 # ---------------------------------------------------------------------------
 def _collect_events(
@@ -312,11 +268,6 @@ def _iter_months(start: dt.date, end: dt.date) -> list[tuple[int, int]]:
             month = 1
             year += 1
     return out
-
-
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    last = calendar.monthrange(year, month)[1]
-    return dt.date(year, month, 1), dt.date(year, month, last)
 
 
 def _spent_so_far(
@@ -429,7 +380,7 @@ def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0
 
     events: list[_CashEvent] = []
     for year, month in _iter_months(event_start, end_date):
-        month_start, month_end = _month_bounds(year, month)
+        month_start, month_end = month_bounds(year, month)
         window_start = max(event_start, month_start)
         window_end = min(end_date, month_end)
         if window_start > window_end:
@@ -484,17 +435,14 @@ def _build_day(
     on_date: dt.date,
     accounts: tuple[Account, ...],
     running_native: dict[int, int],
-    fx_rates: dict[str, Decimal],
-    base_currency: str,
+    fx: fx_svc.FxConverter,
 ) -> DayPoint:
     points = tuple(
         AccountBalancePoint(
             account_id=a.id,
             on_date=on_date,
             native_minor=running_native[a.id],
-            base_minor=_convert_native_to_base(
-                running_native[a.id], a.currency, base_currency, fx_rates
-            ),
+            base_minor=fx.to_base(running_native[a.id], a.currency),
         )
         for a in accounts
     )
@@ -505,13 +453,12 @@ def _build_day(
 # ---------------------------------------------------------------------------
 # public API
 # ---------------------------------------------------------------------------
-def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def forecast(
     conn: sqlite3.Connection,
     user_id: int,
-    http: httpx.Client,
+    fx: fx_svc.FxConverter,
     today: dt.date,
     horizon_days: int,
-    base_currency: str,
     *,
     include_budget_overlay: bool = True,
 ) -> ForecastSeries:
@@ -519,11 +466,10 @@ def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
 
     Args:
         conn: Open SQLite connection (read-only usage).
-        http: Shared ``httpx.Client`` for FX fallback (only hit on cache miss).
+        fx: Cache-only converter (ADR-0139); a missing rate raises ``FxUnavailableError``.
         today: Day 0 of the series. Routers inject the date in the display
             timezone so the forecast is tz-independent and deterministic.
         horizon_days: Non-negative count of additional days to project.
-        base_currency: ISO 4217 code to aggregate ``totals_base_minor`` into.
         include_budget_overlay: When ``True`` (default), inject synthetic
             expense events for the per-category per-month residual budget
             (ADR-0042). Pass ``False`` for the pre-overlay projection used
@@ -542,6 +488,7 @@ def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     """
     if horizon_days < 0:
         raise ValueError(f"horizon_days must be >= 0, got {horizon_days}")
+    base_currency = fx.base_currency
 
     end_date = today + dt.timedelta(days=horizon_days)
     active_accounts = tuple(accounts_repo.list_all(conn, user_id))
@@ -569,24 +516,14 @@ def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
         for ev in overlay_events:
             events.setdefault(ev.on_date, []).append(ev)
 
-    fx_rates = _collect_fx_rates(
-        conn,
-        http,
-        today,
-        {a.currency for a in active_accounts},
-        base_currency,
-    )
-
     running_native = dict(_anchor_balances(conn, user_id, today, active_accounts))
-    days: list[DayPoint] = [
-        _build_day(today, active_accounts, running_native, fx_rates, base_currency)
-    ]
+    days: list[DayPoint] = [_build_day(today, active_accounts, running_native, fx)]
 
     for offset in range(1, horizon_days + 1):
         on_date = today + dt.timedelta(days=offset)
         for ev in events.get(on_date, ()):
             running_native[ev.account_id] = running_native.get(ev.account_id, 0) + ev.amount_minor
-        days.append(_build_day(on_date, active_accounts, running_native, fx_rates, base_currency))
+        days.append(_build_day(on_date, active_accounts, running_native, fx))
 
     return ForecastSeries(
         base_currency=base_currency,
@@ -598,13 +535,11 @@ def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
 
 def _month_offset(anchor: dt.date, months: int) -> dt.date:
     """Return the first day of ``anchor``'s month shifted by ``months``."""
-    year = anchor.year + (anchor.month - 1 + months) // 12
-    month = (anchor.month - 1 + months) % 12 + 1
-    return dt.date(year, month, 1)
+    return dt.date(*shift_month(anchor.year, anchor.month, months), 1)
 
 
 def _last_day_of_month(month: dt.date) -> dt.date:
-    return dt.date(month.year, month.month, calendar.monthrange(month.year, month.month)[1])
+    return month_bounds(month.year, month.month)[1]
 
 
 def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
@@ -693,8 +628,7 @@ def _month_flow_sums(
     end_date: dt.date,
     accounts: tuple[Account, ...],
     directions_by_cat: dict[int, Direction],
-    fx_rates: dict[str, Decimal],
-    base_currency: str,
+    fx: fx_svc.FxConverter,
 ) -> dict[dt.date, tuple[int, int]]:
     """Sum signed income + expense events per calendar month, in base currency.
 
@@ -725,7 +659,7 @@ def _month_flow_sums(
         ccy = acct_ccy.get(row.account_id)
         if ccy is None:
             continue
-        base = _convert_native_to_base(row.amount, ccy, base_currency, fx_rates)
+        base = fx.to_base(row.amount, ccy)
         if direction is Direction.INCOME:
             _add(row.operation_date, 0, base)
         elif direction is Direction.EXPENSE:
@@ -744,7 +678,7 @@ def _month_flow_sums(
         ):
             if (rule.id, occ.occurrence_date) in dedup_keys:
                 continue
-            base = _convert_native_to_base(occ.amount, ccy, base_currency, fx_rates)
+            base = fx.to_base(occ.amount, ccy)
             if direction is Direction.INCOME:
                 _add(occ.effective_date, 0, base)
             elif direction is Direction.EXPENSE:
@@ -753,13 +687,12 @@ def _month_flow_sums(
     return {month: (bucket[0], bucket[1]) for month, bucket in sums.items()}
 
 
-def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def forecast_monthly(
     conn: sqlite3.Connection,
     user_id: int,
-    http: httpx.Client,
+    fx: fx_svc.FxConverter,
     today: dt.date,
     horizon_months: int,
-    base_currency: str,
 ) -> MonthlySeries:
     """Monthly aggregate projection over ``horizon_months`` months (ADR-0043).
 
@@ -779,6 +712,7 @@ def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     """
     if horizon_months < 1:
         raise ValueError(f"horizon_months must be >= 1, got {horizon_months}")
+    base_currency = fx.base_currency
 
     # Start the series at the fiscal cycle, not the calendar month, so the
     # "current" row of the Forecast table lines up with the Plan hub's
@@ -789,7 +723,7 @@ def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     last_month = _month_offset(start_month, horizon_months - 1)
     end_date = _last_day_of_month(last_month)
     horizon_days = max((end_date - today).days, 0)
-    series = forecast(conn, user_id, http, today, horizon_days, base_currency)
+    series = forecast(conn, user_id, fx, today, horizon_days)
 
     planned_budget_by_month = _planned_budget_per_month(
         conn, user_id, today, horizon_months, start_month=start_month
@@ -820,9 +754,6 @@ def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     directions_by_cat = {
         c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
-    fx_rates = _collect_fx_rates(
-        conn, http, today, {a.currency for a in active_accounts}, base_currency
-    )
     flows = _month_flow_sums(
         conn,
         user_id,
@@ -830,8 +761,7 @@ def forecast_monthly(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
         end_date=end_date,
         accounts=active_accounts,
         directions_by_cat=directions_by_cat,
-        fx_rates=fx_rates,
-        base_currency=base_currency,
+        fx=fx,
     )
 
     fiscal_month_start = start_month
@@ -907,26 +837,33 @@ class MonthlyProjectionPoint:
     end_balance_minor: int = 0
 
 
+def monthly_for_settings(
+    conn: sqlite3.Connection,
+    user_id: int,
+    settings: fx_svc.HasBaseCurrency,
+    today: dt.date,
+    horizon_months: int,
+) -> MonthlySeries:
+    """:func:`forecast_monthly` with the request's cache-only converter (ADR-0139)."""
+    return forecast_monthly(
+        conn, user_id, fx_svc.converter_for(conn, settings, today), today, horizon_months
+    )
+
+
 def monthly_projection(
     conn: sqlite3.Connection,
     user_id: int,
-    settings: object,
+    settings: fx_svc.HasBaseCurrency,
     today: dt.date,
     horizon: int = 12,
 ) -> tuple[MonthlyProjectionPoint, ...]:
     """Return the per-month end-of-month projection series for the Plan tab.
 
-    Thin composer over :func:`forecast_monthly`: picks ``base_currency``
-    from ``settings``, opens a short-lived ``httpx.Client`` for FX
-    fallback, and reshapes the result into points the chart templates can
-    consume directly (no further template-side math).
-
-    ``settings`` is typed as ``object`` to avoid an import cycle with the
-    web layer; it must expose ``base_currency: str``.
+    Thin composer over :func:`monthly_for_settings`; reshapes the result into
+    points the chart templates can consume directly (no further template-side math).
     """
-    base_ccy = str(getattr(settings, "base_currency", "PLN"))
-    with httpx.Client(timeout=5.0) as client:
-        series = forecast_monthly(conn, user_id, client, today, horizon, base_ccy)
+    base_ccy = settings.base_currency
+    series = monthly_for_settings(conn, user_id, settings, today, horizon)
     return tuple(
         MonthlyProjectionPoint(
             month=point.month,
@@ -949,8 +886,42 @@ __all__ = [
     "MonthlyPoint",
     "MonthlyProjectionPoint",
     "MonthlySeries",
+    "ProjectionSummary",
     "forecast",
     "forecast_monthly",
     "horizon_days_for_months",
+    "monthly_for_settings",
     "monthly_projection",
+    "normalize_horizon",
+    "projection_summary",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectionSummary:
+    """NOW / END / PEAK strip of the forecast tab."""
+
+    now_value: int
+    end_point: MonthlyProjectionPoint
+    peak_point: MonthlyProjectionPoint
+
+
+def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> ProjectionSummary | None:
+    """Return the summary strip for a projection, or ``None`` when it is empty."""
+    if not projection:
+        return None
+    return ProjectionSummary(
+        now_value=projection[0].end_balance_minor,
+        end_point=projection[-1],
+        peak_point=max(projection, key=lambda p: p.value_major),
+    )
+
+
+_DEFAULT_HORIZON_MONTHS = 12
+
+
+def normalize_horizon(raw: str | None, choices: tuple[int, ...]) -> int:
+    """Return the requested forecast horizon when it is one of ``choices``, else 12 months."""
+    if raw is None or not raw.isdigit() or int(raw) not in choices:
+        return _DEFAULT_HORIZON_MONTHS
+    return int(raw)
