@@ -250,7 +250,7 @@ def _all_expense_txns(conn: sqlite3.Connection, user_id: int) -> list[Transactio
     )
 
 
-def _committed_by_category(
+def committed_by_category(
     conn: sqlite3.Connection,
     user_id: int,
     *,
@@ -332,7 +332,7 @@ def committed_in_window(
     (all overdue items, ADR-0105). This is the unfiltered total; the
     budget "left" math uses :func:`committed_split_in_window` (ADR-0085).
     """
-    by_cat = _committed_by_category(
+    by_cat = committed_by_category(
         conn, user_id, start=start, end=end, today=today, base_currency=base_currency
     )
     return sum(by_cat.values())
@@ -353,7 +353,7 @@ def committed_split_in_window(
     ADR-0085: only commitments in categories with a resolved budget reduce
     "left"; the rest is surfaced as an informational figure.
     """
-    by_cat = _committed_by_category(
+    by_cat = committed_by_category(
         conn, user_id, start=start, end=end, today=today, base_currency=base_currency
     )
     budgeted = sum(v for k, v in by_cat.items() if k in budgeted_category_ids)

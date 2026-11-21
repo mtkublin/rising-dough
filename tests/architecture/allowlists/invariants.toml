@@ -16,12 +16,6 @@ finding = "Q-009"
 
 [[entry]]
 path = "tests/integration/invariants/test_inv_03_budget_vs_forecast.py"
-rule = "Q-002"
-count = 1
-finding = "Q-002"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_03_budget_vs_forecast.py"
 rule = "Q-008"
 count = 1
 finding = "Q-008"

@@ -60,7 +60,7 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
 
 def _committed_pair(conn: sqlite3.Connection) -> tuple[int, int]:
     win_start = TODAY + timedelta(days=1)
-    b = budget._committed_by_category(
+    b = budget.committed_by_category(
         conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY
     ).get(6, 0)
     f = forecast._committed_future_for_category(conn, U, 6, win_start, M_END, today=TODAY)
@@ -72,10 +72,6 @@ def test_3b_committed_agrees_before_a_planned_row_is_linked(seeded: sqlite3.Conn
     assert b == f
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-002: forecast double counts a recurring occurrence that has a linked planned row (ADR-0087 dedup)",
-)
 def test_3b_committed_agrees_after_a_planned_row_is_linked(seeded: sqlite3.Connection) -> None:
     planned_repo.create(
         seeded,
@@ -108,7 +104,7 @@ def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
             operation_date=date(2026, 11, 5), category_id=7, account_id=1, amount=5000
         ),
     )
-    budget_counts = budget._committed_by_category(
+    budget_counts = budget.committed_by_category(
         seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY
     ).get(7, 0)
     directions = {

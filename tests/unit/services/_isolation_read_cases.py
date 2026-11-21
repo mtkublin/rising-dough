@@ -201,6 +201,16 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     assert unbudgeted.left_daily_spend_minor is None
 
 
+@covers("budget.committed_by_category")
+def _case_committed_by_category(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        by_category = budget.committed_by_category(
+            conn, user_id, start=None, end=dt.date(2026, 12, 1), today=T
+        )
+        # planned 500u + the monthly rule's 11-15 occurrence 700u, own category only
+        assert by_category == {_own(world, user_id).category_id: 1_200 * user_id}
+
+
 @covers("budget.resolve_budget")
 def _case_resolve_budget(conn: sqlite3.Connection, world: World) -> None:
     assert budget.resolve_budget(conn, OWNER_ID, world.owner.category_id, 2026, 11) == 3_000
