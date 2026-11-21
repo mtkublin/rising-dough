@@ -1,6 +1,6 @@
 # Change request for the designer: 16 places where the app and the "rising dough" handoff disagree
 
-> Task T-UT06. Status: **sent, awaiting designer**. Nothing in this document is a product decision. The harness only records that each of these 16 items is waiting on the designer.
+> Task T-UT06. Status: **answered 2026-11-21**; operator decisions recorded below and in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md). One follow-up for the designer is open (see the end of this file). The sections below are the original questions, unchanged.
 
 ## Why you are getting this
 
@@ -115,22 +115,22 @@ Here the app has nothing to match your board, so building it is new product work
 
 | ID | Title | Part | The ask | Designer answer |
 |---|---|---|---|---|
-| SH13 | Export CSV / Parquet from the Ledger | A | Draw a board, or confirm drop | |
-| TD10 | Net-worth card on Today | A | Draw a board, or confirm drop | |
-| L11 | Monthly cash-flow strip above Recurring | A | Draw a board, or confirm drop | |
-| L18 | Credit-limit hint while entering a transaction | A | Draw a board, or confirm drop | |
-| L23b | Inline promote row | A | Confirm the drop was intentional, or draw it | |
-| ST10 | Forced password change after admin reset | A | Draw a board, or confirm drop | |
-| ST15 | Add a user directly, one-time password shown once | A | Draw a board, or confirm drop | |
-| ST18 | Reset a user's password | A | Draw a board, or confirm drop | |
-| ST19 | Delete a user | A | Draw a board, or confirm drop | |
-| SH12 | Theme switch (system, light, dark) | B | First release or later; missing states | |
-| AU07 | First-run registration | B | First release or later; missing states | |
-| AU08 | Accept an invitation | B | First release or later; missing states; invite vs direct add | |
-| AU09 | Invitation expired | B | First release or later; missing states | |
-| ST16 | Invite by email and role | B | First release or later; replace or sit beside direct add (ST15) | |
-| AU14 | Offline page | B | First release or later; missing states | |
-| AC07 | Delete account blocked while it has transactions | B | First release or later; missing states | |
+| SH13 | Export CSV / Parquet from the Ledger | A | Draw a board, or confirm drop | Draw. `export` menu beside the Ledger tabs (actual, planned): csv or parquet, current tab and filters; none on Recurring; kept on phone, wrapped under the tabs. |
+| TD10 | Net-worth card on Today | A | Draw a board, or confirm drop | Already drawn on the Today board (total, assets and liabilities, all N accounts, forecast); per-account list dropped on purpose. Our parity row was wrong. |
+| L11 | Monthly cash-flow strip above Recurring | A | Draw a board, or confirm drop | Covered by the Recurring hero (out, in, net per month); no separate strip. |
+| L18 | Credit-limit hint while entering a transaction | A | Draw a board, or confirm drop | Draw. One line under the account in new entry / edit / phone sheet: left of limit, left after this entry; over limit turns pink with a warning mark (`role=alert`), saving allowed. |
+| L23b | Inline promote row | A | Confirm the drop was intentional, or draw it | Intentional drop; promote is dialog-only. |
+| ST10 | Forced password change after admin reset | A | Draw a board, or confirm drop | Keep. "Set a new password" (desktop, error, phone) after sign-in for users added directly or reset; nothing else reachable; sign out is the only way out. |
+| ST15 | Add a user directly, one-time password shown once | A | Draw a board, or confirm drop | Keep beside invites. Add user dialog (email, name, member/admin); one-time credential shown once in a dialog, not a toast; duplicate email refused. |
+| ST18 | Reset a user's password | A | Draw a board, or confirm drop | Keep. Row menu, reset, confirm, one-time credential dialog, forced change. |
+| ST19 | Delete a user | A | Draw a board, or confirm drop | Keep. Row menu, delete user, destructive confirm; their ledger entries stay. |
+| SH12 | Theme switch (system, light, dark) | B | First release or later; missing states | Part of the redesign release (ships only when the whole migration is done); default system; full light set drawn. |
+| AU07 | First-run registration | B | First release or later; missing states | First visit only, while the app has no users; the account becomes admin; once any user exists it redirects to sign in. Errors: invalid email, under 12 characters, mismatch. |
+| AU08 | Accept an invitation | B | First release or later; missing states; invite vs direct add | Same release; email fixed by the invite; the person adds name and credential. |
+| AU09 | Invitation expired | B | First release or later; missing states | Expired page asks to get an admin to resend; also already-used and invalid-link states. |
+| ST16 | Invite by email and role | B | First release or later; replace or sit beside direct add (ST15) | Keep beside direct add; the app sends the email; pending row menu: copy link, resend (new link and expiry), revoke (confirm). Reset stays for recovery; forced change stays for direct adds and resets. |
+| AU14 | Offline page | B | First release or later; missing states | Same release; shown when a page load or save cannot reach the server; an open dialog keeps what was typed. |
+| AC07 | Delete account blocked while it has transactions | B | First release or later; missing states | Same release; refuse delete while any transaction, planned or recurring item points at the account; dialog links to them (view N transactions / view recurring rules); otherwise final confirm. New state: blocked by recurring only. |
 
 ---
 
@@ -156,3 +156,22 @@ Here the app has nothing to match your board, so building it is new product work
 | ST19 | `POST /settings/users/{user_id}/delete` | none |
 
 Handoff reference screenshots for the Part B boards (frozen handoff, 1440 wide, light) are in `tests/visual/reference/`: `auth/register`, `auth/invite`, `auth/invite--expired`, `errors/offline`, `settings/preferences`, `settings/users`. Overlay boards (such as `overlays/delete-account--blocked`) are rendered locally with `just visual-reference` but not committed.
+
+---
+
+## Operator decisions (2026-11-21)
+
+Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md).
+
+1. **ST16 invite email**: real email sending behind a config switch (default off). Before enabling, the operator evaluates the added cost (mail provider, Terraform, secret) as its own task. If too high, the switch stays off, the code is kept, and invites use copy-link only.
+2. **AU14**: keep all offline pages and states; the service worker is deferred (failed full page loads keep the browser error until then). The save-failure path (dialog keeps typed input, shows the offline state) is in the redesign release.
+3. **AC07**: adopt the designer's rule (requirements change; today delete is soft and unconditional).
+4. **L23b**: drop the inline promote row; remove `GET /planned/{planned_id}/promote/inline` and `GET /recurring/{rule_id}/promote/inline`; amend the promote-in-place requirement.
+5. **AU07**: first-run page on a new path (`/setup`), only while there are no users and no bootstrap admin is configured, and only with a single-use setup token (404 otherwise). Drills stop bootstrapping an admin by default (capability kept, off by default for drills); on explore drills the operator creates the admin through `/setup` using the token surfaced in the drill workflow output. Prod keeps its users.
+6. **SH13**: export stays on phone.
+7. The Feedback handoff, Goals, Gamification with Starter and App-Walkthrough are separate packages, implemented after the redesign migration. The command palette stays during the redesign.
+8. **Edit user**: ask the designer (below).
+
+## Follow-up for the designer (2026-11-21)
+
+**Edit user dialog.** The Edit user dialog is gone from Settings, Users (the handoff page `overlays/edit-user` was removed). Should the user row menu get an "edit name / role" entry, or is editing intentionally dropped (changing a role would then mean delete and re-add)? Until you answer, the app has no way to edit an existing user's name or role.

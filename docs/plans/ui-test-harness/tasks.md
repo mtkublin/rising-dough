@@ -109,9 +109,10 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ## Phase 3 — Gate
 
-### ◻ T-UT06 [S] Operator decisions on parity gaps → T-UT05
+### ✅ T-UT06 [S] Operator decisions on parity gaps → T-UT05
 - Every `no board` and `handoff-only` row in `parity.md` gets a decision: derive from the design system, ask the designer for a board, drop (needs an ADR), or new requirement first (for handoff-only features). Decisions copied into `docs/plans/ui-redesign/derived.md`.
 - Status 2026-11-20: change request sent: docs/plans/ui-redesign/designer-change-request.md; awaiting designer; T-UT12 does not block on the answers, only on every gap row having a decision/owner. Operator decision: all 16 gaps go to the designer; every `parity.md` row reads `ask designer (designer-change-request.md)`.
+- **Result 2026-11-21**: all 16 answered by the designer, decisions in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md), resolutions in `parity.md` and `../ui-redesign/derived.md`; one follow-up open (Edit user), tracked in the redesign plan (`../ui-redesign/designer-change-request.md`); app work is T-UR18..T-UR28.
 
 ### ✅ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.
@@ -121,7 +122,7 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
   - WebKit is unverified on this host (T-UT11).
   - ✅ `T-D-UT07-1` resolved (crawler artefact, `/plan?tab=year` does not scroll); no known app bugs remain in the crawl.
   - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are accepted by the operator 2026-11-21 (framework-owned docs/static routes, not app pages).
-  - T-UT06 stays open (awaiting the designer); every parity row has an owner (`ask designer`).
+  - T-UT06 closed 2026-11-21 (see its result line).
 
 ### Follow-ups (found during the work, not fixed here)
 - ✅ `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save. Fixed 2026-11-21: only the form's own non-GET request closes the overlay; the T-UT08b workaround is removed.
