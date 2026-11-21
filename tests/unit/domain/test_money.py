@@ -7,6 +7,7 @@ import pytest
 from budget_planner.domain.money import (
     currency_decimals,
     format_money,
+    format_whole,
     minor_to_major,
     parse_amount_str,
     to_minor_units,
@@ -54,6 +55,28 @@ def test_format_money_negative() -> None:
 
 def test_format_money_zero_decimals_currency() -> None:
     assert format_money(1234, "JPY") == "1,234 JPY"
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected"), [("PLN", "0.00 PLN"), ("JPY", "0 JPY")], ids=["PLN", "JPY"]
+)
+def test_format_money_zero(currency: str, expected: str) -> None:
+    assert format_money(0, currency) == expected
+
+
+def test_format_money_minus_one_jpy_keeps_sign() -> None:
+    assert format_money(-1, "JPY") == "-1 JPY"
+
+
+@pytest.mark.parametrize("amount_minor", [-49, -1, 0, 49])
+def test_format_whole_rounds_to_zero_without_sign(amount_minor: int) -> None:
+    assert format_whole(amount_minor, "PLN") == "0"
+    assert format_whole(amount_minor, "PLN", grouped=False) == "0"
+
+
+def test_format_whole_keeps_sign_when_nonzero() -> None:
+    assert format_whole(-50, "PLN") == "-1"
+    assert format_whole(-150, "PLN") == "-2"
 
 
 def test_format_money_uppercases_currency() -> None:
