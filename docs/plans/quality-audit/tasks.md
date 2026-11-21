@@ -992,7 +992,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q259 [P] Test hygiene
+### ✅ T-Q259 [P] Test hygiene
 - Findings: Q-077 (F-23, F-24, F-25, F-26).
 - Epic: none (test-gap)
 - Band: 6 · Size: S · Tags: none

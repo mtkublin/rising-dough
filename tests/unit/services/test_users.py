@@ -31,11 +31,6 @@ OTHER_PASSWORD = "x-other-pw"  # noqa: S105  # pragma: allowlist secret
 KEPT_HASH = "keep"
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 def _settings(env: str = "test", **kwargs: Any) -> Settings:
     return Settings(
         _env_file=None,

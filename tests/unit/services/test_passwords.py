@@ -29,6 +29,7 @@ def test_hash_is_salted() -> None:
 
 
 def test_default_rounds_is_twelve_and_honoured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.undo()  # drop the autouse fast-bcrypt patch (tests/conftest.py)
     assert _passwords.DEFAULT_ROUNDS == 12
     monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 5)
     assert hash_password(SECRET).startswith("$2b$05$")
