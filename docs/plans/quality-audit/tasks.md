@@ -922,7 +922,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
+### ✅ T-Q275 [P] Bandit bump to 1.9.4 and its three new findings
 - Findings: tooling (T-Q15b left bandit pinned at 1.7.10); new findings B105 `repositories/users.py:250`, B704 `web/templating.py:124` and `:161`; epic E15.
 - Epic: E15
 - Band: 5 · Size: S · Tags: none
