@@ -36,3 +36,11 @@ last_checked_row = role("listitem")
 
 # --- snapshot fragment (bare list item) ---
 snapshot_item = role("listitem")
+
+
+# --- T-UT08b: reconcile + create from the page -------------------------------
+def reconcile_button(account_id: int) -> Locator:
+    return role("button", "Reconcile").inside(row(account_id))
+
+
+reconcile_record = role("button", "Record").inside(reconcile_dialog)

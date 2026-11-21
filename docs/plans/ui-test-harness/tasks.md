@@ -87,6 +87,8 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 ### ◻ T-UT08 [P] Journeys on the UI map → T-UT04a..e
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
 - **Acceptance**: all green on Chromium; no CSS locators; each journey asserts the DB effect as well as the screen.
+- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts screen and read-only scratch-DB effect. 08a (migrating the 8 existing journeys) is separate; T-UT08 stays open.
+- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts the screen and the read-only scratch-DB effect. 08a (migrating the 8 existing journeys) is separate; T-UT08 stays open.
 - **Validation**: `just test-e2e`
 
 ### ✅ T-UT09 [P] Mockup target → T-UT01, T-UT02
