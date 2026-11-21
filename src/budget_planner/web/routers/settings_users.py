@@ -30,9 +30,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.domain.ports import TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
-from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import users as users_service
-from budget_planner.services.users import UserConflict, UserInputError, UserNotFound
+from budget_planner.services.users import AuthUser, UserConflict, UserInputError, UserNotFound
 from budget_planner.web.deps import (
     current_user,
     get_db,
