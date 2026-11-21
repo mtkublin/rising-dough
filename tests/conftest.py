@@ -29,7 +29,8 @@ from typing import Any
 import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
-from tests.db_template import build_template, copy_template
+from budget_planner.config import Settings, get_settings
+from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
 # endpoint signature on that app's first request (~35% of ~87 ms CPU per app).
@@ -68,6 +69,32 @@ def _prod_db_tripwire() -> Iterator[None]:
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(sqlite3, "connect", _guarded_connect)
         yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _session_db_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """T-Q231: default every test to a session temp DB, never the production DB.
+
+    Sets ``BUDGET_DATABASE_URL`` to a session scratch path, unsets the
+    ``BUDGET_PLANNER_ADMIN_*`` bootstrap vars, and fails loudly if the settings
+    still resolve to the production file. Tests with their own temp DB override
+    via ``monkeypatch`` as before.
+    """
+    scratch = tmp_path_factory.mktemp("session_db") / "session.sqlite"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("BUDGET_DATABASE_URL", sqlite_url(scratch))
+        for key in [k for k in os.environ if k.startswith("BUDGET_PLANNER_ADMIN_")]:
+            mp.delenv(key)
+        get_settings.cache_clear()
+        resolved = db_path_of(Settings()).resolve()
+        if resolved == _PROD_DB:
+            pytest.exit(
+                f"T-Q231: test settings resolve to the production DB {_PROD_DB} "
+                "(CLAUDE.md Databases); refusing to run the suite.",
+                returncode=2,
+            )
+        yield
+        get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session")
