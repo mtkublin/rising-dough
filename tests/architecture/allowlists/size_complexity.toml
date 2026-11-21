@@ -281,10 +281,3 @@ rule = "func>50"
 count = 2
 finding = "Q-046"
 epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/transactions.py"
-rule = "nesting>4"
-count = 1
-finding = "Q-046"
-epic = "E13"

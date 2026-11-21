@@ -482,16 +482,14 @@ def reconcile_submit(  # noqa: PLR0917
             )
         except reconciliation_service.InvalidAvailableError as exc:
             return _reject(str(exc))
-    chosen_cat_id: int | None = None
-    if category_id.strip():
-        try:
-            chosen_cat_id = int(category_id)
-        except ValueError:
-            chosen_cat_id = None
+    chosen_cat_id = int(category_id) if category_id.strip().isdigit() else None
     with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
-        reconciliation_service.reconcile(
-            conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
-        )
+        try:
+            reconciliation_service.reconcile(
+                conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
+            )
+        except reconciliation_service.ValidationError as exc:
+            return _reject(str(exc))
     if save_snapshot.strip().lower() in ("1", "on", "true", "yes"):
         bal = balance_service.derive_balance(conn, user_id, account_id)
         snapshots_repo.create(

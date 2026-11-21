@@ -52,7 +52,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)` | exists-migrating (T-Q229) | - |
 | Request parameter parsing | `web/params.py` `parse_date`, `parse_int` | **target** (Q-023) | none - extract via T-Q233 |
 | HTMX events and toast payloads | `web/htmx.py` `trigger` | exists-migrating (T-Q236) | - |
-| Transit validation | `services/transactions.validate_transit_shape` | **target** (Q-004) | none - extract via T-Q210 |
+| Transit validation | `services/transactions.validate_transit_shape` | exists (Q-004) | - |
 | Balance as of a date | `services/balance.as_of_today` | **target** (Q-032) | none - extract via T-Q227 |
 | Category selection (expense category ids) | `services/categories.expense_category_ids` | **target** (Q-030) | none - extract via T-Q227 |
 | Budget tier resolution | `services/budget.pick_tier` | **target** (Q-075) | `services/budget.resolve_budget` |
