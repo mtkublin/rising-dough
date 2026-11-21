@@ -78,6 +78,44 @@ def strip_access_query(
     return {**event_dict, "event": _REQUEST_LINE_QUERY.sub(r"\1\2", message)}
 
 
+#: Final ``Type: message`` line(s) of a formatted traceback (T-Q254): the message
+#: may carry amounts, names or SQL parameters, so only the type name is kept.
+_EXC_HEADER_PREFIXES = ("Traceback", "During handling", "The above exception", "...")
+_EXC_TYPE_LINE = re.compile(r"^([A-Za-z_][\w.]*)(: .*)?$")
+
+
+def _scrub_traceback(text: str) -> str:
+    out: list[str] = []
+    dropping = False
+    for line in text.split("\n"):
+        if not line or line[0] in " \t" or line.startswith(_EXC_HEADER_PREFIXES):
+            dropping = False
+            out.append(line)
+            continue
+        if dropping:
+            continue
+        match = _EXC_TYPE_LINE.match(line)
+        if match is None:
+            out.append(line)
+            continue
+        out.append(f"{match.group(1)}: {REDACTED}" if match.group(2) is not None else line)
+        dropping = match.group(2) is not None
+    return "\n".join(out)
+
+
+def scrub_exception_text(
+    _logger: object, _method: str, event_dict: Mapping[str, object]
+) -> Mapping[str, object]:
+    """structlog processor: keep exception types and frames, drop exception messages.
+
+    Runs after ``format_exc_info``; returns a new dict, never mutates the input.
+    """
+    text = event_dict.get("exception")
+    if not isinstance(text, str):
+        return event_dict
+    return {**event_dict, "exception": _scrub_traceback(text)}
+
+
 def _processors() -> list[Any]:
     """Shared processor chain. Order matters.
 
@@ -92,6 +130,7 @@ def _processors() -> list[Any]:
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
+        scrub_exception_text,
         redact_sensitive,
         structlog.processors.JSONRenderer(),
     ]
@@ -131,6 +170,8 @@ def configure() -> None:
                 structlog.stdlib.add_log_level,
                 structlog.processors.TimeStamper(fmt="iso", utc=True),
                 strip_access_query,
+                structlog.processors.format_exc_info,
+                scrub_exception_text,
                 redact_sensitive,
             ],
             processor=structlog.processors.JSONRenderer(),
