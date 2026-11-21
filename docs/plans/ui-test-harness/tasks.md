@@ -69,8 +69,9 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - Budget (lines, overrides, unbudgeted disclosure, left per day), year grid and cell editor, forecast (horizon, table, chart fragment), analytics (range, categories).
 - Done 2026-11-20: all 15 `PENDING_T_UT04D` routes covered by `tests/contract/test_plan_budget.py` and `test_plan_views.py` (fixtures in `test_plan_support.py`); section deleted from the allowlist. `test_budget.py`, `test_budget_left_daily_spend.py`, `test_forecast.py`, `test_plan_analytics.py` rewritten on `tests/ui_map/plan.py` (markup allowlist entries 32/10/17/4 deleted). Only template change: `id="analytics-bundle"` on the analytics bundle root. CSS-class assertions (delta up/down, responsive hide) were dropped; the sign is asserted through the cell text.
 
-### ◻ T-UT04e [P] Settings
+### ✅ T-UT04e [P] Settings
 - Categories (CRUD, archive, colour), currency and FX, preferences, security (password change and its rate limit, passkeys, sessions), users (admin).
+- Done 2026-11-21: `tests/contract/test_{categories,settings,settings_password,settings_users}.py` cover all 19 `PENDING_T_UT04E` routes (section deleted); the five integration files (`test_categories`, `test_settings*`) now assert through `tests/ui_map/settings.py` (allowlist entries deleted, 0 markup assertions; the four skipped v1-drawer tests were dropped, their behaviour is in the contract files). Own plugin `tests/contract/web_support_t_ut04e.py` (no autouse re-export; password and users modules pin bcrypt cost locally). No template or `src/` change, so no visual audit.
 
 ---
 
