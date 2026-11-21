@@ -11,12 +11,12 @@ single DB transaction.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 from typing import Literal
 
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
@@ -84,9 +84,7 @@ class CannotPromoteDeletedError(RuntimeError):
 def _default_window(filters: PlannedFilter) -> tuple[dt.date, dt.date]:
     """Fill in a window if filters don't specify one — defaults to the current month."""
     today = dt.date.today()  # noqa: DTZ011 - naive date, routers inject when needed
-    first = today.replace(day=1)
-    last_day = calendar.monthrange(today.year, today.month)[1]
-    last = today.replace(day=last_day)
+    first, last = month_bounds(today.year, today.month)
     date_from = filters.date_from or first
     date_to = filters.date_to or last
     return date_from, date_to

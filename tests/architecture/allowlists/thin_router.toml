@@ -97,7 +97,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/plan.py"
 rule = "logic-in-router"
-count = 2
+count = 1
 finding = "B-01"
 epic = "E09"
 

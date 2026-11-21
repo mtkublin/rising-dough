@@ -19,7 +19,6 @@ tests remain tz-independent.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import logging
 import sqlite3
@@ -31,6 +30,7 @@ import httpx
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import currency_decimals
+from budget_planner.domain.periods import month_bounds, shift_month
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import Occurrence, RecurringRule
 from budget_planner.domain.transactions import TransactionFilter
@@ -314,11 +314,6 @@ def _iter_months(start: dt.date, end: dt.date) -> list[tuple[int, int]]:
     return out
 
 
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    last = calendar.monthrange(year, month)[1]
-    return dt.date(year, month, 1), dt.date(year, month, last)
-
-
 def _spent_so_far(
     conn: sqlite3.Connection,
     user_id: int,
@@ -429,7 +424,7 @@ def _collect_budget_overlay(  # noqa: PLR0917 — user_id gates isolation; ADR-0
 
     events: list[_CashEvent] = []
     for year, month in _iter_months(event_start, end_date):
-        month_start, month_end = _month_bounds(year, month)
+        month_start, month_end = month_bounds(year, month)
         window_start = max(event_start, month_start)
         window_end = min(end_date, month_end)
         if window_start > window_end:
@@ -598,13 +593,11 @@ def forecast(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
 
 def _month_offset(anchor: dt.date, months: int) -> dt.date:
     """Return the first day of ``anchor``'s month shifted by ``months``."""
-    year = anchor.year + (anchor.month - 1 + months) // 12
-    month = (anchor.month - 1 + months) % 12 + 1
-    return dt.date(year, month, 1)
+    return dt.date(*shift_month(anchor.year, anchor.month, months), 1)
 
 
 def _last_day_of_month(month: dt.date) -> dt.date:
-    return dt.date(month.year, month.month, calendar.monthrange(month.year, month.month)[1])
+    return month_bounds(month.year, month.month)[1]
 
 
 def horizon_days_for_months(today: dt.date, horizon_months: int) -> int:
@@ -949,8 +942,41 @@ __all__ = [
     "MonthlyPoint",
     "MonthlyProjectionPoint",
     "MonthlySeries",
+    "ProjectionSummary",
     "forecast",
     "forecast_monthly",
     "horizon_days_for_months",
     "monthly_projection",
+    "normalize_horizon",
+    "projection_summary",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectionSummary:
+    """NOW / END / PEAK strip of the forecast tab."""
+
+    now_value: float
+    end_point: MonthlyProjectionPoint
+    peak_point: MonthlyProjectionPoint
+
+
+def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> ProjectionSummary | None:
+    """Return the summary strip for a projection, or ``None`` when it is empty."""
+    if not projection:
+        return None
+    return ProjectionSummary(
+        now_value=projection[0].value_major,
+        end_point=projection[-1],
+        peak_point=max(projection, key=lambda p: p.value_major),
+    )
+
+
+_DEFAULT_HORIZON_MONTHS = 12
+
+
+def normalize_horizon(raw: str | None, choices: tuple[int, ...]) -> int:
+    """Return the requested forecast horizon when it is one of ``choices``, else 12 months."""
+    if raw is None or not raw.isdigit() or int(raw) not in choices:
+        return _DEFAULT_HORIZON_MONTHS
+    return int(raw)

@@ -20,6 +20,7 @@ import sqlite3
 from collections.abc import Iterable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
     AmountFormula,
@@ -120,15 +121,6 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 # ---------------------------------------------------------------------------
 # Pure compute primitives (future tier B / C leaf operators)
 # ---------------------------------------------------------------------------
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    first = dt.date(year, month, 1)
-    if month == 12:  # noqa: PLR2004
-        last = dt.date(year, 12, 31)
-    else:
-        last = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
-    return first, last
-
-
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
     """Return ``round_half_up(sum_minor * coefficient_bps / 10 000)`` as int."""
     dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
@@ -212,7 +204,7 @@ def _sum_category_in_month(
     """
     from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
 
-    start, end = _month_bounds(year, month)
+    start, end = month_bounds(year, month)
     cat_set = set(category_ids)
     total = 0
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):

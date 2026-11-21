@@ -332,13 +332,6 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/web/routers/plan.py"
-rule = "any-annotation"
-count = 1
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "any-annotation"
 count = 4

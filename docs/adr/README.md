@@ -143,3 +143,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0135 | [Per-Drill Litestream Age Key Pair Generated in Terraform](0135-per-drill-age-keypair-in-terraform.md) (amends ADR-0132, ADR-0078; relates to ADR-0093, ADR-0101, ADR-0111) |
 | 0136 | [Soft-Deleted Accounts Are Excluded From Balances, Stats and Converters](0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md) (relates to ADR-0130, ADR-0008) |
 | 0137 | [Write Transactions Begin IMMEDIATE and Guard Reads Live Inside Them](0137-begin-immediate-and-guard-reads-inside-the-transaction.md) (amends ADR-0019, ADR-0022; relates to ADR-0061, ADR-0073) |
+| 0138 | [The Budget Period Is a Half-Open `[start, end)` Window Owned by `domain/periods.py`](0138-half-open-budget-period-window.md) (amends ADR-0041, ADR-0064, ADR-0085; relates to ADR-0130) |

@@ -491,14 +491,14 @@ def test_fiscal_row_eom_equals_current_plus_net_after_calendar_boundary(
     The fix anchors EOM to ``current_net_worth + net`` for the fiscal row so
     the user-visible identity ``current + Net = EOM`` always holds.
     """
-    # Anchor on salary; promoted paycheck on Oct 25 so fiscal_month_for(Nov 1)
-    # returns (2026, 10).
+    # Anchor on salary; promoted paycheck on Oct 5 so the cycle Oct 5..Nov 5 is
+    # mostly October and fiscal_month_for(Nov 1) returns (2026, 10) (ADR-0138).
     preferences_repo.upsert(conn, 1, PREF_INCOME_ANCHOR_CATEGORY_ID, str(world["salary"]))
     transactions_repo.create(
         conn,
         USER_ID,
         NewTransaction(
-            operation_date=date(2026, 10, 25),
+            operation_date=date(2026, 10, 5),
             category_id=world["salary"],
             account_id=world["a1"],
             amount=500_000,
