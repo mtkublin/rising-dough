@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q246: task status reconciled with CHANGELOG and ADRs)
+- **Docs(T-Q246): reconcile task status (Q-054).** v1: T-108 and T-126 closed with commit evidence, T-109 stays open (dropped from backlog). v3: T-D146, T-D147, T-D159 closed; T-D126 and T-D156 stay ◐ with the open step named; T-D21 and T-D22 got commit evidence. `docs/plans/v2/tasks.md` closed as superseded by ADR-0107 with a banner (rows kept; default taken 2026-11-21, pending operator confirmation, OQ-21). T-CS03 (ci-speed plan) not touched, outside this item's files.
+
 ## 2026-11-21 (T-Q277: per-drill age key pair in Terraform)
 - **Feat(T-Q277): each drill generates its own Litestream age key pair with the `koendelaat/age` Terraform provider (ADR-0135, amends ADR-0132 and ADR-0078; Q-012 H4-03).** The pair lives in that drill's state (survives VM replacement, dies on teardown); `litestream_age_*` are prod-only inputs, the prod replica identity reaches a drill only as `restore_source_age_identity` from `prod-restore-read`, in its own file. `drill`, `drill-plan`, `drill-teardown` no longer read `LITESTREAM_AGE_*`. Root `.terraform.lock.hcl` is now committed (linux_amd64, darwin_arm64). **Operator half pending:** delete the age secrets from the three drill environments after merge.
 
