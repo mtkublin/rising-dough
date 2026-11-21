@@ -534,7 +534,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 3 — Test-gap Highs and test infrastructure
 
-### T-Q219 [S] Coverage config stops excluding every line containing `...`
+### ✅ T-Q219 [S] Coverage config stops excluding every line containing `...`
 - Findings: Q-014 (F-12).
 - Epic: E14
 - Band: 3 · Size: M · Tags: `[pre-v4-P3-rec]`
