@@ -124,43 +124,6 @@ def test_set_default_negative(client: TestClient, cat_id: int, db: sqlite3.Conne
     assert _audit_count(db) == audit_before
 
 
-def test_set_recurring(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
-    r = client.post(f"/budget/recurring/{cat_id}/5", data={"amount": "200"})
-    assert r.status_code == 200
-    assert r.text == "ok"
-    stored = budgets_repo.get_recurring(db, USER_ID, cat_id, 5)
-    assert stored is not None
-    assert stored.amount == 20_000
-    assert _budget_rows(db) == (0, 1, 0)
-
-
-def test_set_recurring_404(client: TestClient, db: sqlite3.Connection) -> None:
-    audit_before = _audit_count(db)
-    r = client.post("/budget/recurring/9999/5", data={"amount": "1"})
-    assert r.status_code == 404
-    assert r.text == "not found"
-    assert _budget_rows(db) == (0, 0, 0)
-    assert _audit_count(db) == audit_before
-
-
-def test_set_recurring_bad_month(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
-    audit_before = _audit_count(db)
-    r = client.post(f"/budget/recurring/{cat_id}/13", data={"amount": "1"})
-    assert r.status_code == 422
-    assert r.text == "invalid month"
-    assert _budget_rows(db) == (0, 0, 0)
-    assert _audit_count(db) == audit_before
-
-
-def test_set_recurring_bad_amount(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
-    audit_before = _audit_count(db)
-    r = client.post(f"/budget/recurring/{cat_id}/5", data={"amount": "nope"})
-    assert r.status_code == 422
-    assert r.text == "invalid amount"
-    assert _budget_rows(db) == (0, 0, 0)
-    assert _audit_count(db) == audit_before
-
-
 def test_set_one_off(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/budget/one-off/{cat_id}/2026/10", data={"amount": "99"})
     assert r.status_code == 200

@@ -344,34 +344,6 @@ def set_default(
     return resp
 
 
-@router.post("/recurring/{category_id}/{month}")
-def set_recurring(  # noqa: PLR0917
-    category_id: int,
-    month: int,
-    amount: str = Form(...),
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
-    if cat is None:
-        return Response(status_code=404, content="not found")
-    if month < 1 or month > _MONTHS_IN_YEAR:
-        return Response(status_code=422, content="invalid month")
-    dec = _parse_decimal(amount)
-    if dec is None or dec < 0:
-        return Response(status_code=422, content="invalid amount")
-    minor = to_minor_units(dec, settings.base_currency)
-    budgets_repo.set_recurring(
-        conn,
-        user_id,
-        NewBudgetRecurringOverride(category_id=category_id, month=month, amount=minor),
-    )
-    resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
-    return resp
-
-
 @router.post("/preferences/income-anchor")
 def set_income_anchor(
     category_id: str = Form(""),

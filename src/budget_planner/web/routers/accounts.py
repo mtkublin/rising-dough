@@ -28,7 +28,6 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import (
     account_planned as planned_service,
-    accounts as accounts_service,
     balance as balance_service,
     fortune as fortune_service,
     reconciliation as reconciliation_service,
@@ -128,25 +127,6 @@ def index(
 ) -> HTMLResponse:
     data = _hydrate(conn, user_id, settings)
     return render(request, "accounts/index.html", **data)
-
-
-@router.get("/last-checked", response_class=HTMLResponse)
-def last_checked(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """ADR-0056 §6 — latest snapshot or reconcile date per account.
-
-    Powers the Accounts table "last checked" column + any inline
-    freshness indicator. Pure read; no DB write.
-    """
-    rows = accounts_service.last_checked(conn, user_id)
-    return render(
-        request,
-        "partials/accounts/_last_checked.html",
-        rows=rows,
-    )
 
 
 @router.get("/new", response_class=HTMLResponse)

@@ -416,13 +416,6 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/accounts/_last_checked.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/accounts/_reconcile_modal.html"
 rule = "tpl-format"
 count = 1

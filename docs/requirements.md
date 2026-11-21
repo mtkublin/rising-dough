@@ -259,11 +259,9 @@ v2 keeps v1's functional surface and data model unchanged and layers a full UI/U
 | Endpoint | Purpose | Notes |
 |---|---|---|
 | `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. |
-| `POST /recurring/formula/preview` | Returns computed value for a draft formula term list | Used by Add-entry formula builder; validates cycles / non-positive before save. |
-| `GET /accounts/last-checked` | Latest snapshot or reconcile date per account | Powers the "last checked" column on Accounts. |
-| `GET /plan/analytics` | Spend by category for selected period + 12-month averages + income-vs-expense + largest items | Replaces Plotly-backed `/analytics` with server-rendered SVG + table. |
 | `POST /categories/{id}/archive` + `POST /categories/{id}/restore` | Archive / restore category | Soft-delete via existing repository helper. |
-| `POST /recurring/batch/promote-due` | Promote every rule due today or overdue | Returns a toast with Undo (soft-delete makes undo safe). |
+
+Routes removed by T-Q244 (Q-050; no caller, ADR-0107 redesign owns any future UI): `POST /recurring/formula/preview`, `GET /accounts/last-checked`, `GET /plan/analytics` (the Plan analytics tab renders inline), `POST /budget/recurring/{category_id}/{month}`, `POST /recurring/batch/promote-due` and `POST /recurring/batch/undo` (the Today page uses `/planned/batch/promote-due`).
 
 All endpoints follow the existing router → service → repository → SQL stack. No new persistence tables.
 

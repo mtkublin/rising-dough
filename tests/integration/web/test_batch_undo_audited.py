@@ -32,6 +32,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.repositories._unaudited import set_next_due
+from budget_planner.services import recurring as recurring_svc, recurring_undo
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
 from tests.integration.web.conftest import _CSRFAwareTestClient
@@ -90,6 +91,25 @@ def _planned(conn: sqlite3.Connection, user_id: int) -> int:
     ).id
 
 
+def _promote_recurring(conn: sqlite3.Connection, user_id: int) -> dict[str, list[int]]:
+    """Run the recurring batch promote through the service (its HTTP route was removed)."""
+    result = recurring_svc.batch_promote_due(conn, user_id, DUE)
+    return {
+        "promoted_txn_ids": list(result.promoted_txn_ids),
+        "advance_audit_ids": list(result.advance_audit_ids),
+    }
+
+
+def _undo_recurring(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn_ids: list[int],
+    audit_ids: list[int],
+) -> recurring_undo.BatchUndoResult:
+    """Undo a recurring batch through the service (its HTTP route was removed)."""
+    return recurring_undo.undo_batch(conn, user_id, list(zip(txn_ids, audit_ids, strict=True)))
+
+
 def _payload(headers: Mapping[str, str]) -> dict[str, list[int]]:
     payload: dict[str, list[int]] = json.loads(headers["HX-Trigger"])["toast"]["undo_payload"]
     return payload
@@ -106,25 +126,17 @@ def _audit(conn: sqlite3.Connection, entity_type: str) -> list[sqlite3.Row]:
 
 
 def test_recurring_undo_restores_full_state_and_writes_its_own_audit_row(
-    client: TestClient, _migrated: Settings
+    _migrated: Settings,
 ) -> None:
     conn = get_connection(_migrated)
     rule_id = _rule(conn, USER)
-    promote = client.post("/recurring/batch/promote-due")
-    payload = _payload(promote.headers)
+    payload = _promote_recurring(conn, USER)
     advanced = recurring_repo.find_rule(conn, USER, rule_id)
     assert advanced is not None and advanced.next_due != DUE
     before = len(_audit(conn, "recurring_rule"))
 
-    undo = client.post(
-        "/recurring/batch/undo",
-        data={
-            "promoted_txn_ids": _csv(payload["promoted_txn_ids"]),
-            "advance_audit_ids": _csv(payload["advance_audit_ids"]),
-        },
-    )
+    _undo_recurring(conn, USER, payload["promoted_txn_ids"], payload["advance_audit_ids"])
 
-    assert undo.status_code == 204
     restored = recurring_repo.find_rule(conn, USER, rule_id)
     assert restored is not None
     assert (restored.next_due, restored.last_promoted_date, restored.active) == (DUE, None, True)
@@ -147,22 +159,15 @@ def test_recurring_undo_refuses_a_rule_edited_since_the_batch(
 ) -> None:
     conn = get_connection(_migrated)
     rule_id = _rule(conn, USER)
-    payload = _payload(client.post("/recurring/batch/promote-due").headers)
+    payload = _promote_recurring(conn, USER)
     recurring_repo.update_rule(conn, USER, rule_id, PatchRecurringRule(default_amount=2_222))
     edited = recurring_repo.find_rule(conn, USER, rule_id)
     assert edited is not None
     audit_before = len(_audit(conn, "recurring_rule"))
 
-    undo = client.post(
-        "/recurring/batch/undo",
-        data={
-            "promoted_txn_ids": _csv(payload["promoted_txn_ids"]),
-            "advance_audit_ids": _csv(payload["advance_audit_ids"]),
-        },
-    )
+    result = _undo_recurring(conn, USER, payload["promoted_txn_ids"], payload["advance_audit_ids"])
 
-    assert undo.status_code == 204
-    assert "changed since" in json.loads(undo.headers["HX-Trigger"])["toast"]["message"]
+    assert result.skipped_rule_ids == (rule_id,)
     after = recurring_repo.find_rule(conn, USER, rule_id)
     assert after == edited
     assert len(_audit(conn, "recurring_rule")) == audit_before
@@ -178,18 +183,12 @@ def test_recurring_undo_ignores_an_audit_row_of_another_entity(
 ) -> None:
     conn = get_connection(_migrated)
     rule_id = _rule(conn, USER)
-    payload = _payload(client.post("/recurring/batch/promote-due").headers)
+    payload = _promote_recurring(conn, USER)
     advanced = recurring_repo.find_rule(conn, USER, rule_id)
     txn_audit_id = _audit(conn, "transaction")[-1]["id"]
     audit_before = len(_audit(conn, "recurring_rule"))
 
-    client.post(
-        "/recurring/batch/undo",
-        data={
-            "promoted_txn_ids": _csv(payload["promoted_txn_ids"]),
-            "advance_audit_ids": str(txn_audit_id),
-        },
-    )
+    _undo_recurring(conn, USER, payload["promoted_txn_ids"], [txn_audit_id])
 
     assert recurring_repo.find_rule(conn, USER, rule_id) == advanced
     assert len(_audit(conn, "recurring_rule")) == audit_before
@@ -201,19 +200,12 @@ def test_recurring_undo_by_another_user_touches_nothing(
 ) -> None:
     conn = get_connection(_migrated)
     rule_id = _rule(conn, USER)
-    payload = _payload(client.post("/recurring/batch/promote-due").headers)
+    payload = _promote_recurring(conn, USER)
     advanced = recurring_repo.find_rule(conn, USER, rule_id)
     audit_before = len(_audit(conn, "recurring_rule"))
 
-    r = user_two_client.post(
-        "/recurring/batch/undo",
-        data={
-            "promoted_txn_ids": _csv(payload["promoted_txn_ids"]),
-            "advance_audit_ids": _csv(payload["advance_audit_ids"]),
-        },
-    )
+    _undo_recurring(conn, OTHER, payload["promoted_txn_ids"], payload["advance_audit_ids"])
 
-    assert r.status_code == 204
     assert recurring_repo.find_rule(conn, USER, rule_id) == advanced
     assert len(_audit(conn, "recurring_rule")) == audit_before
     txn = conn.execute(
@@ -221,13 +213,6 @@ def test_recurring_undo_by_another_user_touches_nothing(
     ).fetchone()
     assert txn["deleted_at"] is None
     conn.close()
-
-
-def test_recurring_undo_rejects_mismatched_id_lists(client: TestClient) -> None:
-    r = client.post(
-        "/recurring/batch/undo", data={"promoted_txn_ids": "1,2", "advance_audit_ids": "3"}
-    )
-    assert r.status_code == 422
 
 
 def test_planned_undo_unstamps_with_an_audit_row(client: TestClient, _migrated: Settings) -> None:

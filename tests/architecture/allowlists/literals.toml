@@ -117,7 +117,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/budget.py"
 rule = "domain-literal"
-count = 6
+count = 5
 finding = "Q-038"
 epic = "E03"
 
@@ -159,14 +159,14 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "repeated-literal"
-count = 3
+count = 2
 finding = "Q-038"
 epic = "E03"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "domain-literal"
-count = 24
+count = 16
 finding = "Q-038"
 epic = "E03"
 
