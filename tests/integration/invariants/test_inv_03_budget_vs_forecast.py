@@ -53,7 +53,9 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
             date_from=M_START, date_to=TODAY, category_ids=(7,), directions=(Direction.EXPENSE,)
         ),
     )
-    b_spent = budget._sum_by_category(txns, budget.base_txn_converter(seeded, U)).get(7, 0)
+    b_spent = budget._sum_by_category(txns, budget.txn_base_amounts(seeded, U, today=TODAY)).get(
+        7, 0
+    )
     f_spent = forecast._spent_so_far(seeded, U, 7, M_START, TODAY)
     assert b_spent == f_spent, (b_spent, f_spent)
 

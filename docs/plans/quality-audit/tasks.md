@@ -283,7 +283,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 1 — Before the first non-PLN account (FX and currency)
 
-### T-Q212 [S] Canonical FX converter (`FxConverter`), one missing-rate policy, working live fetch
+### ✅ T-Q212 [S] Canonical FX converter (`FxConverter`), one missing-rate policy, working live fetch
 - Findings: Q-007 (G-01, A-06, C-02, C-17, F-06): live fetch never succeeds (no `base_url`), four converter copies with five missing-rate policies, network I/O during page renders.
 - Epic: E01, E06
 - Band: 1 · Size: L · Tags: `[pre-v4-P3]` `[pre-first-non-PLN]`

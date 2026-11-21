@@ -94,7 +94,7 @@ Planned transactions and recurring rules are two independent concepts with two i
 - **F7.1** Each account has an immutable `currency` set at creation.
 - **F7.2** Transactions inherit the currency of their account (not stored on the transaction row).
 - **F7.3** A `base_currency` configured in the application config (default: `PLN`). All aggregates (fortune, budget, forecast, analytics) converted into base currency for display.
-- **F7.4** FX rates fetched from the ECB via `frankfurter.app` on demand, cached in a local `fx_rates(date, from_ccy, to_ccy, rate)` table. **Historical rates used for historical transaction conversion** (a transaction on 2026-01-15 converts at the 2026-01-15 rate, not today's). Fallback to the last-known rate if the API is unreachable.
+- **F7.4** FX rates fetched from the ECB via `frankfurter.app` on demand, cached in a local `fx_rates(date, from_ccy, to_ccy, rate)` table. **Historical rates used for historical transaction conversion** (a transaction on 2026-01-15 converts at the 2026-01-15 rate, not today's). **One converter** (`services/fx.FxConverter`, ADR-0139): reads the `fx_rates` cache only (exact date, else latest on or before it); page renders never touch the network. A missing rate raises `FxUnavailableError` (HTTP 503 page); there is no rate-1 or native-amount fallback. Live rates are fetched by an explicit refresh path (`python -m budget_planner.cli.refresh_fx`), through one httpx client factory with `base_url=settings.fx_api_url`; rates must be `> 0`.
 - **F7.5** Transits across currencies are **blocked at the validation layer** in v1.
 
 ---
