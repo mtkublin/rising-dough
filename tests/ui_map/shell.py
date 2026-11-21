@@ -33,3 +33,9 @@ def nav_link(label: str) -> Locator:
 def palette_option(label: str) -> Locator:
     """Command-palette row by its visible label (``Go to Today``)."""
     return role("option", label).inside(palette)
+
+
+# --- T-UT08a: existing e2e journeys ---
+add_button = role("button", "+ Add")  # top-bar add (opens the New entry slide-over)
+slideover = role("dialog").inside(modal_root)
+undo_button = role("button", "Undo").inside(toast_root)
