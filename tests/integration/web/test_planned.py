@@ -299,7 +299,8 @@ def test_promote_already_promoted(
         data={"operation_date": "2026-10-20", "amount": "500"},
     )
     assert r.status_code == 422
-    assert "<strong>promotion:</strong>" in r.text
+    assert "This planned transaction was already promoted." in r.text
+    assert "<strong>promotion:</strong> 1" not in r.text
     assert _txn_count(db) == txns
 
 
