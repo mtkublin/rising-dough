@@ -340,40 +340,6 @@ def _render_table(
     )
 
 
-def _recurring_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
-    """Monthly in/out totals (ADR-0056 §4) for the Recurring tab strip.
-
-    Rolls up every active rule into a monthly-equivalent minor-unit amount:
-      - monthly rules contribute full `effective_amount_minor`.
-      - quarterly rules contribute `effective_amount_minor / 3`.
-      - yearly rules contribute `effective_amount_minor / 12`.
-    Direction routes the sum to `income` or `expense`.
-    """
-    monthly_in = 0
-    monthly_out = 0
-    for r in rows:
-        cat = r.get("category")
-        amt = r.get("effective_amount_minor") or 0
-        cadence = r.get("cadence")
-        if cadence is None:
-            cadence_val = "monthly"
-        else:
-            cadence_val = cadence.value if hasattr(cadence, "value") else str(cadence)
-        divisor = {"monthly": 1, "quarterly": 3, "yearly": 12}.get(cadence_val, 1)
-        contribution = amt // divisor
-        if cat is None:
-            continue
-        direction = getattr(cat, "direction", None)
-        if direction is None:
-            continue
-        direction_value = direction.value if hasattr(direction, "value") else str(direction)
-        if direction_value == "income":
-            monthly_in += contribution
-        elif direction_value == "expense":
-            monthly_out += contribution
-    return {"monthly_in_minor": monthly_in, "monthly_out_minor": monthly_out}
-
-
 def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
     """Ledger tab counts (ADR-0056 §4): total actual + unpromoted planned +
     active recurring. Keeps logic in one place so the shell + fragments
@@ -405,12 +371,11 @@ def index(
         rows = _planned_rows(conn, user_id, filters)
     else:
         rows = _hydrate_recurring_rows(conn, user_id, filters)
-    recurring_summary = _recurring_summary(rows) if view == "recurring" else None
-    planned_total_minor = (
-        sum(r.get("amount_minor") or 0 for r in rows if not r.get("is_promoted"))
-        if view == "planned"
-        else 0
+    base_ccy = get_settings_dep(request).base_currency
+    recurring_summary = (
+        ledger_totals.recurring_monthly_totals(rows, base_ccy) if view == "recurring" else None
     )
+    planned_summary = ledger_totals.planned_totals(rows, base_ccy) if view == "planned" else None
     cats_list = categories_repo.list_all(conn, user_id, include_deleted=True)
     return render(
         request,
@@ -432,7 +397,7 @@ def index(
         tab_counts=_tab_counts(conn, user_id),
         today_date=date.today(),  # noqa: DTZ011
         recurring_summary=recurring_summary,
-        planned_total_minor=planned_total_minor,
+        planned_summary=planned_summary,
         categories_by_id={c.id: c for c in cats_list},
     )
 

@@ -212,7 +212,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:4 (3 entries); `invariants`:2 (1 entry); `thin_router`:2 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-7 (Q-003, 2 xfails) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q209 [S] Planned strip and formula-source sums are signed by direction
+### ✅ T-Q209 [S] Planned strip and formula-source sums are signed by direction
 - Findings: Q-010 sign part (B-01, C-04, E-04).
 - Epic: E09
 - Band: 0 · Size: S · Tags: `[pre-v4-P3]`
