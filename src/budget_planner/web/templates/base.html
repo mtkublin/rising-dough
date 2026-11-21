@@ -24,7 +24,8 @@
     <link rel="stylesheet"
           href="{{ url_for('static', path='auth.css') }}?v=auth1">
     <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}?v=t140c"></script>
-    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
+    <script src="{{ url_for('static', path='csrf.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf3" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
   <body class="rd min-h-screen"

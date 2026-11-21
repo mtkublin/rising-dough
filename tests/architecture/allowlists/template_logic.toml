@@ -200,13 +200,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/accounts/index.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/accounts/index.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"
@@ -382,13 +375,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/partials/accounts/_card.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/accounts/_card.html"
 rule = "tpl-float"
 count = 1
 finding = "Q-039"
@@ -397,13 +383,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/accounts/_card.html"
 rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/accounts/_card.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -432,13 +411,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/accounts/_row.html"
 rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/accounts/_row.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -501,21 +473,7 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/partials/planned/_form.html"
-rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_form.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_promote_inline_row.html"
-rule = "tpl-currency-lit"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -530,20 +488,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/planned/_promote_inline_row.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_promote_modal.html"
-rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/planned/_row.html"
-rule = "tpl-currency-lit"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -571,13 +515,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_form.html"
-rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_form.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"
@@ -586,13 +523,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_override_form.html"
 rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_override_form.html"
-rule = "tpl-currency-lit"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -619,29 +549,8 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_promote_modal.html"
-rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_row.html"
-rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_row.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/transactions/_form.html"
-rule = "tpl-currency-lit"
 count = 1
 finding = "Q-039"
 epic = "E16"

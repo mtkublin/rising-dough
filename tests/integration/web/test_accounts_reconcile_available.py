@@ -85,3 +85,15 @@ def test_asset_enters_balance(client: TestClient, _migrated: Settings) -> None:
     assert ">Available<" not in client.get(f"/accounts/{acc}/reconcile").text
     client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": "50.00"})
     assert _balance(_migrated, acc) == 5_000
+
+
+def test_accounts_index_renders_service_utilisation(
+    client: TestClient, _migrated: Settings
+) -> None:
+    """T-Q256: /accounts shows the precomputed utilisation, not template math."""
+    _make_card(_migrated, limit=500_000)
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    assert "Used 24%" in r.text
+    assert "Available 3,765.44" in r.text
+    assert "--used-pct: 24%" in r.text

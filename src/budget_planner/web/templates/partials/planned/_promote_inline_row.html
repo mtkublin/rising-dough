@@ -36,7 +36,7 @@
           <input type="text"
                  class="num rd-promote-inline__input rd-promote-inline__input--amount"
                  name="amount"
-                 value="{{ planned.amount|money_major(account.currency if account else 'PLN') }}"
+                 value="{{ planned.amount|money_major(account.currency if account else base_ccy) }}"
                  inputmode="decimal"
                  required>
           <span class="cur">{{ account.currency if account else base_ccy }}</span>
