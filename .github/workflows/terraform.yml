@@ -65,6 +65,13 @@ on:
         type: string
         required: false
         default: l_ssd
+      restore_source:
+        description: >-
+          Drill only (ADR-0132) - restore drill apply: run in the gated `prod-restore-read` environment and
+          render the prod replica read key into the drill host. Only restore-drill.yml sets it; ignored for prod.
+        type: boolean
+        required: false
+        default: false
       drill_allow_empty_db:
         description: Drill only (ADR-0127 §7, replace-rehearsal.yml) - "false" proves the restore guard refuses an empty replica. Ignored for prod.
         type: string
@@ -321,9 +328,11 @@ jobs:
     # gate before apply). A drill destroy must never wait for approval (sweeper
     # cron, drill-destroy, end-of-pipeline teardown), so it runs in the ungated
     # `drill-teardown` environment, which holds the same drill secrets/vars.
-    # Prod destroy keeps the gated `prod` environment.
+    # Prod destroy keeps the gated `prod` environment. ADR-0132: the restore
+    # drill apply (restore_source) runs in the gated, main-only `prod-restore-read`
+    # environment, the only place the prod replica read key and prod age identity live.
     environment:
-      name: ${{ (inputs.destroy && inputs.env == 'drill') && 'drill-teardown' || inputs.env }}
+      name: ${{ (inputs.restore_source && !inputs.destroy) && 'prod-restore-read' || (inputs.destroy && inputs.env == 'drill') && 'drill-teardown' || inputs.env }}
     defaults:
       run:
         working-directory: terraform
@@ -370,6 +379,7 @@ jobs:
         uses: ./.github/actions/terraform-env
         with:
           env: ${{ inputs.env }}
+          restore-source: ${{ inputs.restore_source && !inputs.destroy && inputs.env == 'drill' }}
           secrets-json: ${{ toJSON(secrets) }}
           vars-json: ${{ toJSON(vars) }}
 

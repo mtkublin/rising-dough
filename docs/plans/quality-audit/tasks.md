@@ -245,7 +245,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q218 [S] Gate the CI environments that hold prod-grade secrets
+### 🟡 T-Q218 [S] Gate the CI environments that hold prod-grade secrets
 - Findings: Q-012 (H1-01, H1-06, H4-03). Also drop `restore-source.env` and the prod age identity from explore drills (H4-03).
 - Epic: none (ci-trust-boundary)
 - Band: 0 · Size: M · Tags: none
@@ -253,6 +253,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR (next free number; amends ADR-0099/0100): split by data sensitivity (new `prod-restore-read` environment with required reviewers and `main`-only branch policy for `restore-drill` only; drill and teardown environments keep no prod-read material); update the runbook. Re-check against current `terraform.yml`/`drill.yml` first (audit branch absorbed T-D158 changes).
 - Acceptance: **GitHub environment and branch-policy changes are made by the operator in repository settings** (agents have no admin credentials; this is a settings change, not code). Verification by evidence: `repro/H1/collect_gh_config.sh` re-run and the new `gh_api/environments.json` committed under the audit folder or the runbook showing required reviewers and `main`-only policies; workflow edits (environment names, `scripts/ci/tf_env.py`) land as normal code with a test that no workflow outside `main` can reference the gated environments; rotate the secrets listed in OQ-24 if they were real prod values.
 - Operator question blocking it: OQ-24 (Sev).
+- Status 2026-11-21: code half done (ADR-0132, workflows, `tf_env.py`, `main.tf`, guard, 9 allowlist entries deleted). Operator GitHub settings and rotation pending (ADR-0132 "Operator checklist").
 - Removes allowlist entries: `workflow_trust`:23 (9 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/workflow_trust.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 

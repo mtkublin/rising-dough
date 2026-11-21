@@ -13,8 +13,11 @@ Each `Entry(var, source, name, default, only_env)`:
   only_env   the value is emitted only for that env, otherwise it is empty
              (replaces `env == 'drill' && vars.X || ''`; keeps drill-only inputs
              out of prod, T-D137)
+  restore_only  the value is emitted only with `--restore-source` (ADR-0132): the
+             prod replica read key reaches a drill only from the restore drill's
+             apply, which runs in the gated `prod-restore-read` environment
 
-Usage: python3 tf_env.py --env drill|prod. Reads SECRETS_JSON, VARS_JSON,
+Usage: python3 tf_env.py --env drill|prod [--restore-source]. Reads SECRETS_JSON, VARS_JSON,
 GITHUB_REPOSITORY_OWNER, GITHUB_RUN_ID and GITHUB_ENV from the environment.
 """
 
@@ -39,6 +42,7 @@ class Entry:
     name: str = ""
     default: str = ""
     only_env: str = ""
+    restore_only: bool = False
 
 
 # Order follows the old `env:` blocks. `var` is the Terraform variable name;
@@ -69,8 +73,9 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("tailnet_dns_name", "var", "TAILNET_DNS_NAME", only_env="drill"),
     # T-D139 / ADR-0116: unique tailnet name (and TLS certificate name) per drill run.
     Entry("drill_run_id", "run_id", only_env="drill"),
-    Entry("scw_access_key_restore", "secret", "PROD_REPLICA_RO_ACCESS_KEY", only_env="drill"),
-    Entry("scw_secret_key_restore", "secret", "PROD_REPLICA_RO_SECRET_KEY", only_env="drill"),
+    # ADR-0132: prod replica read key, restore drill only (H4-03).
+    Entry("scw_access_key_restore", "secret", "PROD_REPLICA_RO_ACCESS_KEY", "", "drill", True),
+    Entry("scw_secret_key_restore", "secret", "PROD_REPLICA_RO_SECRET_KEY", "", "drill", True),
     # T-D103 / ADR-0104: IAM identities from terraform/bootstrap/ci (per-env values).
     Entry("app_application_id", "secret", "APP_APPLICATION_ID"),
     Entry("app_scw_access_key", "secret", "APP_SCW_ACCESS_KEY"),
@@ -93,6 +98,7 @@ def build_env(
     *,
     owner: str,
     run_id: str,
+    restore_source: bool = False,
 ) -> dict[str, str]:
     """`TF_VAR_*` name -> value for `target` (pure; no I/O)."""
     if target not in ENVS:
@@ -101,7 +107,9 @@ def build_env(
     fixed = {"env": target, "owner": owner, "run_id": run_id}
     out: dict[str, str] = {}
     for entry in ENTRIES:
-        if entry.only_env and entry.only_env != target:
+        if (entry.only_env and entry.only_env != target) or (
+            entry.restore_only and not restore_source
+        ):
             value = ""
         elif entry.source in fixed:
             value = fixed[entry.source]
@@ -139,6 +147,11 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
     environ = os.environ if environ is None else environ
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", required=True, choices=ENVS)
+    parser.add_argument(
+        "--restore-source",
+        action="store_true",
+        help="emit the prod replica read key (restore drill apply only, ADR-0132)",
+    )
     args = parser.parse_args(argv)
     try:
         values = build_env(
@@ -147,6 +160,7 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
             _parse("VARS_JSON", environ.get("VARS_JSON", "")),
             owner=environ.get("GITHUB_REPOSITORY_OWNER", ""),
             run_id=environ.get("GITHUB_RUN_ID", ""),
+            restore_source=args.restore_source,
         )
         target = environ.get("GITHUB_ENV", "")
         if not target:

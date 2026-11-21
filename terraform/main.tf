@@ -184,7 +184,8 @@ module "compute" {
   expires_at = var.drill_expires_at
 
   # T-D41a: restore-from-prod helper, drill env only.
-  enable_restore_helper  = var.env == "drill"
+  # ADR-0132 / H4-03: only the restore drill supplies the prod read key; explore drills get no restore-source.env.
+  enable_restore_helper  = var.env == "drill" && var.scw_access_key_restore != ""
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
   scw_access_key_restore = var.env == "drill" ? var.scw_access_key_restore : ""
   scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
