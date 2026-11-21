@@ -69,7 +69,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/forecast.py"
 rule = "logic-in-router"
-count = 2
+count = 1
 finding = "B-01"
 epic = "E09"
 
@@ -97,7 +97,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/plan.py"
 rule = "logic-in-router"
-count = 2
+count = 1
 finding = "B-01"
 epic = "E09"
 
@@ -125,7 +125,7 @@ epic = "E08"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "logic-in-router"
-count = 20
+count = 19
 finding = "B-01"
 epic = "E09"
 

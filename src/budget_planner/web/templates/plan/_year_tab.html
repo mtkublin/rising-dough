@@ -39,12 +39,12 @@
                         hx-target="#yc-{{ row.category_id }}-{{ loop.index }} .rd-year-popover-slot"
                         hx-swap="innerHTML"
                         aria-label="Edit {{ row.category_name }} · {{ months[loop.index0] }} {{ year_selected }}">
-                  {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                  {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default"), currency=base_ccy) }}
                 </button>
                 <div class="rd-year-popover-slot"></div>
               </td>
             {% endfor %}
-            <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>
+            <td class="num"><strong>{{ row.total_minor|money_whole(base_ccy) }}</strong></td>
           </tr>
         {% endfor %}
         {% if not with_rows %}
@@ -58,9 +58,9 @@
           <tr>
             <td><strong>Total</strong></td>
             {% for ct in year_column_totals %}
-              <td class="num"><strong>{{ "{:,.0f}".format(ct / 100.0) }}</strong></td>
+              <td class="num"><strong>{{ ct|money_whole(base_ccy) }}</strong></td>
             {% endfor %}
-            <td class="num"><strong>{{ "{:,.0f}".format(year_grand_total / 100.0) }}</strong></td>
+            <td class="num"><strong>{{ year_grand_total|money_whole(base_ccy) }}</strong></td>
           </tr>
         </tfoot>
       {% endif %}
@@ -72,7 +72,7 @@
       <article class="rd-year-card" id="year-card-{{ row.category_id }}">
         <header class="rd-year-card__head">
           <span class="rd-year-card__name">{{ row.category_name }}</span>
-          <span class="rd-year-card__total numeric">{{ "{:,.0f}".format(row.total_minor / 100.0) }}</span>
+          <span class="rd-year-card__total numeric">{{ row.total_minor|money_whole(base_ccy) }}</span>
         </header>
         <ol class="rd-year-card__strip"
             aria-label="12-month breakdown for {{ row.category_name }}">
@@ -84,7 +84,7 @@
                       hx-target="#modal-root"
                       hx-swap="innerHTML">
                 <span class="rd-year-card__m">{{ months[loop.index0][0] }}</span>
-                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default"), currency=base_ccy) }}
               </button>
             </li>
           {% endfor %}

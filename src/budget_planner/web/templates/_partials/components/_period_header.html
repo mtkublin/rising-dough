@@ -1,11 +1,11 @@
 {# period_header(label, range_start, range_end, spent_minor, budget_minor, committed_minor, days_left, currency)
    Shared between Today hero and Plan tabs. #}
 {%- macro period_header(label, range_start, range_end, spent_minor, budget_minor, committed_minor, days_left, currency) -%}
-  {%- set budget_f = (budget_minor|int) / 100.0 -%}
-  {%- set spent_f = (spent_minor|int) / 100.0 -%}
-  {%- set comm_f = (committed_minor|int) / 100.0 -%}
-  {%- set spent_pct = (100.0 * spent_f / budget_f) if budget_f > 0 else 0 -%}
-  {%- set comm_pct = (100.0 * comm_f / budget_f) if budget_f > 0 else 0 -%}
+  {%- set budget_i = budget_minor|int -%}
+  {%- set spent_i = spent_minor|int -%}
+  {%- set comm_i = committed_minor|int -%}
+  {%- set spent_pct = (100.0 * spent_i / budget_i) if budget_i > 0 else 0 -%}
+  {%- set comm_pct = (100.0 * comm_i / budget_i) if budget_i > 0 else 0 -%}
   <section class="rd-period">
     <div>
       <div class="rd-eyebrow">{{ label }}</div>
@@ -20,8 +20,8 @@
       {%- endif %}
     </div>
     <div class="rd-period__amt">
-      {{ "{:,.2f}".format((budget_f - spent_f) / (days_left or 1)) }}
-      <small>{{ currency }} / day · {{ "{:,.2f}".format(comm_f) }} committed · {{ days_left }} days left</small>
+      {{ ((budget_i - spent_i) // (days_left or 1))|money_num(currency) }}
+      <small>{{ currency }} / day · {{ comm_i|money_num(currency) }} committed · {{ days_left }} days left</small>
     </div>
   </section>
 {%- endmacro -%}

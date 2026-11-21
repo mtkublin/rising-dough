@@ -33,18 +33,6 @@ count = 1
 finding = "Q-023"
 
 [[entry]]
-path = "tests/integration/invariants/test_inv_06_currency_exponent.py"
-rule = "Q-011"
-count = 1
-finding = "Q-011"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_06_currency_exponent.py"
-rule = "Q-029"
-count = 2
-finding = "Q-029"
-
-[[entry]]
 path = "tests/integration/invariants/test_inv_07_period_window.py"
 rule = "Q-003"
 count = 2

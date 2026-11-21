@@ -75,7 +75,7 @@ epic = "E01"
 [[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "money-primitive"
-count = 5
+count = 2
 finding = "Q-076"
 epic = "E11"
 
@@ -120,20 +120,6 @@ rule = "banned-name"
 count = 3
 finding = "Q-038"
 epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "money-primitive"
-count = 2
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/web/routers/today.py"
-rule = "banned-name"
-count = 1
-finding = "Q-011"
-epic = "E11"
 
 [[entry]]
 path = "src/budget_planner/web/routers/transactions.py"

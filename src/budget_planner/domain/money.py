@@ -10,18 +10,6 @@ from __future__ import annotations
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Final
 
-# Minor-unit decimals for currencies we care about in v1. Default is 2.
-_CURRENCY_DECIMALS: Final[dict[str, int]] = {
-    "JPY": 0,
-    "KRW": 0,
-    "HUF": 2,
-    "PLN": 2,
-    "EUR": 2,
-    "USD": 2,
-    "GBP": 2,
-    "CHF": 2,
-}
-
 # ISO 4217 active currency codes (ADR-0030). Alphabetical order so the combobox
 # surfaces predictable results. Not exhaustive — the subset below covers every
 # currency the app is expected to see in v1 while giving the user a familiar
@@ -187,12 +175,42 @@ ISO_4217_CURRENCIES: Final[tuple[str, ...]] = (
 )
 
 
-def currency_decimals(currency: str) -> int:
-    """Return the number of minor-unit decimals for ``currency``.
+# ISO 4217 minor-unit exponents (ADR-0006 amendment 2026-11-21). Every offered
+# code has an explicit entry; the groups below are the non-default exponents.
+_ZERO_DECIMAL: Final[frozenset[str]] = frozenset(
+    {
+        "BIF",
+        "CLP",
+        "DJF",
+        "GNF",
+        "ISK",
+        "JPY",
+        "KMF",
+        "KRW",
+        "PYG",
+        "RWF",
+        "UGX",
+        "VND",
+        "VUV",
+        "XAF",
+        "XOF",
+        "XPF",
+    }
+)
+_THREE_DECIMAL: Final[frozenset[str]] = frozenset({"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"})
+CURRENCY_EXPONENTS: Final[dict[str, int]] = {
+    code: 0 if code in _ZERO_DECIMAL else 3 if code in _THREE_DECIMAL else 2
+    for code in ISO_4217_CURRENCIES
+}
+_DEFAULT_EXPONENT: Final = 2
 
-    Defaults to 2 for currencies not listed above.
-    """
-    return _CURRENCY_DECIMALS.get(currency.upper(), 2)
+
+_BPS_PER_PERCENT: Final = Decimal(100)
+
+
+def currency_decimals(currency: str) -> int:
+    """Return the ISO 4217 minor-unit exponent for ``currency`` (2 for unknown codes)."""
+    return CURRENCY_EXPONENTS.get(currency.upper(), _DEFAULT_EXPONENT)
 
 
 def to_minor_units(amount: Decimal, currency: str) -> int:
@@ -236,7 +254,7 @@ def parse_amount_str(raw: str, currency: str) -> Decimal | None:
     return dec
 
 
-def from_minor_units(amount_minor: int, currency: str) -> Decimal:
+def minor_to_major(amount_minor: int, currency: str) -> Decimal:
     """Convert signed minor units back to a ``Decimal`` major-unit amount."""
     decimals = currency_decimals(currency)
     return Decimal(amount_minor) / (Decimal(10) ** decimals)
@@ -248,11 +266,61 @@ def format_money(amount_minor: int, currency: str) -> str:
     Preserves sign for negative values. Zero renders without a sign.
     """
     decimals = currency_decimals(currency)
-    value = from_minor_units(amount_minor, currency)
+    value = minor_to_major(amount_minor, currency)
     sign = "-" if value < 0 else ""
     value = abs(value)
     whole, _, frac = f"{value:,.{decimals}f}".partition(".")
     return f"{sign}{whole}{('.' + frac) if frac else ''} {currency.upper()}"
+
+
+def bps_to_percent(bps: int) -> Decimal:
+    """Basis points as a percent ``Decimal`` (150 -> 1.5); not a currency amount."""
+    return Decimal(bps) / _BPS_PER_PERCENT
+
+
+_INT_LABEL_EPSILON: Final = 1e-9
+
+
+def format_axis_number(value: float) -> str:
+    """Chart axis label: grouped integer when whole, else two decimals."""
+    rounded = round(value)
+    if abs(value - rounded) < _INT_LABEL_EPSILON:
+        return f"{int(rounded):,}"
+    return f"{value:,.2f}"
+
+
+def percent_of(part_minor: int, total_minor: int) -> int:
+    """Whole percent ``part / total`` (floored; 0 when ``total_minor`` is not positive)."""
+    if total_minor <= 0:
+        return 0
+    return part_minor * 100 // total_minor
+
+
+def format_major(amount_minor: int, currency: str) -> str:
+    """Bare major-unit decimal at the currency exponent, for edit forms."""
+    decimals = currency_decimals(currency)
+    return f"{minor_to_major(amount_minor, currency):.{decimals}f}"
+
+
+def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:
+    """Whole major units (half up), for dense tables; sign preserved."""
+    value = minor_to_major(amount_minor, currency).quantize(Decimal(1), rounding=ROUND_HALF_UP)
+    return format(value, ",.0f" if grouped else ".0f")
+
+
+def format_bps_percent(bps: int) -> str:
+    """Basis points as a two-decimal percent string (1 -> ``'0.01'``)."""
+    return f"{bps_to_percent(bps):.2f}"
+
+
+def percent_to_bps(percent: Decimal) -> int:
+    """Percent ``Decimal`` as whole basis points, rounded half up."""
+    return int((percent * _BPS_PER_PERCENT).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def major_float(amount_minor: int, currency: str) -> float:
+    """Major-unit float for chart geometry only (never for stored or displayed money)."""
+    return float(minor_to_major(amount_minor, currency))
 
 
 def divide_minor_units(amount_minor: int, parts: int) -> int:

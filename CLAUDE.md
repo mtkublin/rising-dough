@@ -42,7 +42,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Concept | Owner | Status | Interim (target rows) |
 |---|---|---|---|
 | FX conversion and rate lookup | `services/fx.py` `convert` (one converter factory is the target) | exists-migrating (T-Q212) | - |
-| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`); one rounding helper | exists-migrating (T-Q216) | - |
+| Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`, `minor_to_major`); one rounding helper (T-Q229) | exists (Q-011, T-Q216) | - |
 | Periods and month windows | `domain/periods.py` `month_bounds` | **target** (Q-003) | none - extract via T-Q208 |
 | Recurring occurrence expansion | `services/recurring.pending_occurrences` | **target** (Q-002) | `services/recurring.generate_occurrences` |
 | Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) | `services/ledger_totals.signed_effect` |

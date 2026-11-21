@@ -46,13 +46,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/_partials/components/_heatmap_cell.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/_partials/components/_heatmap_cell.html"
 rule = "tpl-scale"
 count = 1
 finding = "Q-039"
@@ -326,21 +319,7 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
 rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/_table.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -494,13 +473,6 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/partials/budget/_override_form.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/budget/_override_form.html"
 rule = "tpl-set"
 count = 1
 finding = "Q-039"
@@ -619,13 +591,6 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_formula_preview.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_override_form.html"
 rule = "tpl-arith"
 count = 1
@@ -648,21 +613,7 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html"
 rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_promote_inline_row.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -684,20 +635,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/recurring/_row.html"
 rule = "tpl-currency-lit"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_row.html"
-rule = "tpl-float"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/recurring/_row.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -823,21 +760,7 @@ epic = "E16"
 
 [[entry]]
 path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_forecast_tab.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/plan/_year_tab.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"
@@ -962,13 +885,6 @@ finding = "Q-039"
 epic = "E16"
 
 [[entry]]
-path = "src/budget_planner/web/templates/today/_afford_preview.html"
-rule = "tpl-scale"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
 path = "src/budget_planner/web/templates/today/_upcoming.html"
 rule = "tpl-arith"
 count = 1
@@ -985,13 +901,6 @@ epic = "E16"
 [[entry]]
 path = "src/budget_planner/web/templates/today/_upcoming.html"
 rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-
-[[entry]]
-path = "src/budget_planner/web/templates/today/_upcoming.html"
-rule = "tpl-scale"
 count = 1
 finding = "Q-039"
 epic = "E16"

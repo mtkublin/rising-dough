@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import FormData
 
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
-from budget_planner.domain.money import to_minor_units
+from budget_planner.domain.money import format_major, to_minor_units
 from budget_planner.domain.recurring import (
     AmountFormula,
     NewRecurringOverride,
@@ -386,29 +386,6 @@ async def create_rule(
     return html
 
 
-def _formula_prefill(rule: Any) -> tuple[str, list[dict[str, Any]]]:
-    """Return (amount_source, term_input_rows) from a persisted rule.
-
-    Fixed-amount rules get a seed empty term so the formula branch can
-    receive input immediately on toggle. Formula rules return each term in
-    persisted order as a dict shape matching :func:`_parse_terms_from_form`.
-    """
-    if rule is None or rule.amount_formula is None:
-        return "fixed", [dict(_EMPTY_TERM_INPUT)]
-    rows: list[dict[str, Any]] = []
-    for term in rule.amount_formula.terms:
-        pct = (Decimal(term.coefficient_bps) / Decimal(100)).normalize()
-        pct_str = format(pct, "f")
-        rows.append(
-            {
-                "sign": term.sign,
-                "coefficient_percent": pct_str,
-                "source_category_ids": tuple(term.source_category_ids),
-            }
-        )
-    return "formula", rows
-
-
 # ---------------------------------------------------------------------------
 # T-R45 — Batch promote-due (ADR-0056 §6, ADR-0038). Registered BEFORE
 # `/{rule_id}` for the same reason as formula/preview.
@@ -610,7 +587,11 @@ def edit_form(
             errors={"rule": "not found"},
             status_code=404,
         )
-    amount_source, terms = _formula_prefill(rule)
+    amount_source, terms = (
+        ("fixed", [dict(_EMPTY_TERM_INPUT)])
+        if rule is None or rule.amount_formula is None
+        else ("formula", formula_svc.term_input_rows(rule.amount_formula))
+    )
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
@@ -792,7 +773,7 @@ def new_override_form(
             status_code=404,
         )
     account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    default_amount_str = f"{Decimal(rule.default_amount) / Decimal(100):.2f}" if account else ""
+    default_amount_str = format_major(rule.default_amount, account.currency) if account else ""
     return render(
         request,
         "partials/recurring/_override_form.html",

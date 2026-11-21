@@ -7,7 +7,7 @@ import pytest
 from budget_planner.domain.money import (
     currency_decimals,
     format_money,
-    from_minor_units,
+    minor_to_major,
     parse_amount_str,
     to_minor_units,
 )
@@ -36,10 +36,10 @@ def test_to_minor_units(major: Decimal, currency: str, expected_minor: int) -> N
     assert to_minor_units(major, currency) == expected_minor
 
 
-def test_from_minor_units_round_trip() -> None:
+def test_minor_to_major_round_trip() -> None:
     for amount in [-999999, -1, 0, 1, 500, 12345, 999999]:
         for ccy in ("PLN", "EUR", "USD", "JPY"):
-            back = from_minor_units(amount, ccy)
+            back = minor_to_major(amount, ccy)
             fwd = to_minor_units(back, ccy)
             assert fwd == amount, f"{ccy}:{amount} -> {back} -> {fwd}"
 

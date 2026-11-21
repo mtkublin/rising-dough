@@ -14,7 +14,7 @@
       <h2 class="rd-panel__title">Spend by category</h2>
       {% if spend_total_minor is defined %}
         <span class="rd-analytics__badge num">
-          {{ "{:,.2f}".format(spend_total_minor / 100.0) }}
+          {{ spend_total_minor|money_num(base_ccy) }}
           <span class="cur">{{ base_ccy }} actual</span>
         </span>
       {% endif %}
@@ -40,10 +40,10 @@
                 <span class="rd-analytics__bar"
                       style="--pct: {{ bar_pct }}%"
                       aria-hidden="true"></span>
-                <strong class="num">{{ "{:,.2f}".format(row.amount_minor / 100.0) }}</strong>
+                <strong class="num">{{ row.amount_minor|money_num(base_ccy) }}</strong>
                 {% if avg_minor > 0 %}
                   <span class="num rd-analytics__delta rd-analytics__delta--{{ 'over' if delta_minor > 0 else 'under' if delta_minor < 0 else 'flat' }}">
-                    {{ '+' if delta_minor > 0 else '' }}{{ "{:,.2f}".format(delta_minor / 100.0) }}
+                    {{ '+' if delta_minor > 0 else '' }}{{ delta_minor|money_num(base_ccy) }}
                   </span>
                 {% else %}
                   <span class="mut">—</span>
@@ -107,7 +107,7 @@
               <strong>{{ item.description or item.category_name }}</strong>
               <span class="mut" style="font-size: 0.75rem;">· {{ item.operation_date.strftime("%-d %b") }}</span>
             </span>
-            <span class="num">{{ "{:,.2f}".format(item.amount_minor / 100.0) }}</span>
+            <span class="num">{{ item.amount_minor|money_num(base_ccy) }}</span>
           </li>
         {% else %}
           <li class="text-muted" style="padding: 0.75rem 1rem;">No expense transactions this period.</li>

@@ -141,7 +141,7 @@ Deduplicated from the Questions sections of all tracks and verification files. *
 
 | # | Question | Sev | Affects |
 |---|---|---|---|
-| OQ-1 | Does prod hold any non-PLN or non-base account, a JPY/KRW/ISK account, or fx_rates rows? (A Q-03, C Q-2, E Q1, G Q1). Needs a read-only count on a copy; I did not open prod. Operator facts say PLN only. | Sev | Q-007, Q-008, Q-009, Q-010, Q-011, Q-029: High (latent) to Critical if yes |
+| OQ-1 | Does prod hold any non-PLN or non-base account, a JPY/KRW/ISK account, or fx_rates rows? (A Q-03, C Q-2, E Q1, G Q1). Needs a read-only count on a copy; I did not open prod. Operator facts say PLN only. | Answered by operator data profile 2026-11-19: PLN only (no non-PLN accounts, no fx rows); no data migration for T-Q216. | Q-007, Q-008, Q-009, Q-010, Q-011, Q-029: High (latent) to Critical if yes |
 | OQ-2 | Is more than one active user planned or present, and when? (D, H2 Q1) | Sev | Q-001 High to Critical on the second user |
 | OQ-3 | Does the prod image contain `/usr/share/zoneinfo/Europe/Warsaw` (so `TZ` works)? (A Q-04, C Q-1) | Sev | Q-031 Medium to Low if yes; live if no |
 | OQ-4 | Has any reconciliation used an income/expense category? (answered: no) |  | Q-005 stays High latent |

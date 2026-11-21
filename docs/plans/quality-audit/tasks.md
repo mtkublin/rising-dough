@@ -328,7 +328,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q216 [S] One money renderer and a complete currency exponent table
+### ✅ T-Q216 [S] One money renderer and a complete currency exponent table
 - Findings: Q-011 (A-01, C-03, E-03), Q-029 (A-09, C-15).
 - Epic: E11
 - Band: 1 · Size: M · Tags: `[pre-first-non-PLN]`
