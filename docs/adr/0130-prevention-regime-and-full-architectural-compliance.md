@@ -104,3 +104,9 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - **Exemption.** `tests/architecture/test_adr_index.py` gains the constant `TEMPORARY_GAPS = {134}` next to `GRANDFATHERED_GAPS` (G14, Q-051). It is temporary, unlike the 0044 gap.
 - **Why.** ADR-0134 was written on `feat/ui-test-harness` (commit abbdc34) by another session and is not on `remediation/quality`. ADR-0135 (T-Q277) was numbered after it to avoid a collision, which leaves a transient gap on this branch. The ADR file must not be copied across branches. Every other gap still fails the guard.
 - **Removal trigger.** When ADR-0134 reaches `main` and `main` is merged into `remediation/quality`, delete the constant. The guard reports `stale-gap-exemption` as soon as an `0134-*.md` file exists, so the exemption cannot outlive its reason and that failure is the reminder.
+
+## Amendment 2026-11-21 (operator): template-logic burn-down is finished by the redesign
+
+- **Decision D3.** The Sourdough redesign ([ADR-0107](0107-sourdough-redesign-from-designer-handoff.md)) deletes the old templates, so remediation does **not** burn down `tests/architecture/allowlists/template_logic.toml` entries for templates the redesign replaces. Remediation stops at templates that survive the redesign (T-Q237 and T-Q273 are re-scoped accordingly; their Q-ids stay traceable).
+- **After the redesign, `tests/architecture/allowlists/template_logic.toml` must be empty** (burned to zero; the zero-violation policy of Decision 1 is unchanged). New redesign templates add no entries. The removal/cleanup task of the redesign plan (T-UR15) is not done while the file still holds an entry.
+- **Decisions D1 and D2 (operator, 2026-11-21):** defaults taken (D1: only `[pre-v4-P3]` gates T-E00; D2: T-Q260 stays after Phase 3, Band 4). Moot in practice because all remediation waves run before v4 Phase 3.

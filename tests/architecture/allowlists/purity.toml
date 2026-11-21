@@ -130,13 +130,6 @@ finding = "Q-074"
 epic = "E07"
 
 [[entry]]
-path = "src/budget_planner/services/recurring.py"
-rule = "eff-clock"
-count = 1
-finding = "Q-031"
-epic = "E07"
-
-[[entry]]
 path = "src/budget_planner/services/retention.py"
 rule = "eff-import"
 count = 1

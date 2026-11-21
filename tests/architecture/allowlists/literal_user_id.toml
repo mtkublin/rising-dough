@@ -1,10 +1,3 @@
 # G7b literal_user_id: int literal passed as user_id in web/ or services/ (Q-001).
 
 guard = "literal_user_id"
-
-[[entry]]
-path = "src/budget_planner/services/recurring.py"
-rule = "literal-user-id"
-count = 1
-finding = "Q-002"
-epic = "E01"

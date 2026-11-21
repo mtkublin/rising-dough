@@ -13,6 +13,7 @@ recurring repository, the transactions repository, and the audit log.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import logging
 import sqlite3
@@ -25,6 +26,7 @@ from budget_planner.domain.enums import Cadence, OverrideState, months_per_caden
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
+    NewRecurringRule,
     Occurrence,
     RecurringOverride,
     RecurringRule,
@@ -134,7 +136,7 @@ def generate_occurrences(
         occ_date = _step_date(base_date, idx, step_months, anchor_day)
         if occ_date > hard_end:
             break
-        if occ_date >= range_start:
+        if occ_date >= hard_start:
             out.append(_mk_occurrence(rule, occ_date))
     else:  # pragma: no cover - safety guard
         raise RuntimeError("occurrence generator did not terminate")
@@ -226,78 +228,37 @@ def expand(
 # ---------------------------------------------------------------------------
 # T-118: pure next-due helpers
 # ---------------------------------------------------------------------------
-def _build_lookup_stub(
-    *,
-    cadence: Cadence,
-    start_date: dt.date,
-    end_date: dt.date | None,
-    day_of_month: int | None,
-    month_of_year: int | None,
-) -> RecurringRule:
-    """Build a synthetic ``RecurringRule`` for pure cadence calculations.
+# T-118 / T-Q211: pure next-due helpers (ADR-0038 amendment 2026-11-21)
+# ---------------------------------------------------------------------------
+def default_day_of_month(start_date: dt.date, day_of_month: int | None) -> int:
+    """Return the persisted schedule anchor: explicit day, else the start day."""
+    return day_of_month if day_of_month is not None else start_date.day
 
-    The stub carries only the fields the generator reads; the DB-tied
-    columns (``user_id``, timestamps, ``id``) take placeholder values that
-    never surface because the stub is thrown away after one pass.
-    """
-    now = dt.datetime.now(dt.UTC)
-    return RecurringRule(
-        id=0,
-        user_id=0,
-        cadence=cadence,
-        start_date=start_date,
-        end_date=end_date,
-        category_id=0,
-        account_id=0,
-        dest_account_id=None,
-        default_amount=0,
-        default_description="",
-        day_of_month=day_of_month,
-        month_of_year=month_of_year,
-        active=True,
-        next_due=start_date,
-        last_promoted_date=None,
-        created_at=now,
-        updated_at=now,
-        deleted_at=None,
+
+def with_anchor_day(data: NewRecurringRule) -> NewRecurringRule:
+    """Return ``data`` with ``day_of_month`` defaulted to ``start_date.day`` (Q-006)."""
+    return dataclasses.replace(
+        data, day_of_month=default_day_of_month(data.start_date, data.day_of_month)
     )
 
 
-def advance_next_due(
-    cadence: Cadence,
-    from_date: dt.date,
-    end_date: dt.date | None,
-    day_of_month: int | None,
-    month_of_year: int | None,
-) -> dt.date | None:
+def advance_next_due(rule: RecurringRule, from_date: dt.date) -> dt.date | None:
     """Return the next canonical occurrence strictly after ``from_date``.
 
-    End-of-month clamp (31 → 28/29/30) and the Feb-29 leap-year anchor are
-    delegated to ``generate_occurrences`` so the cadence maths lives in one
-    place. Returns ``None`` when the next step would exceed ``end_date``.
+    Reads the rule's own schedule (anchored on ``rule.start_date`` and
+    ``day_of_month``), so the end-of-month clamp never drifts the anchor.
+    Returns ``None`` when the next step would exceed ``rule.end_date``.
     """
-    # The generator's canonical schedule anchors on the rule's ``start_date``.
-    # To return "strictly after from_date", shift the stub's start_date to
-    # from_date so the generator produces the right cadence; then look for
-    # the first candidate strictly > from_date.
-    stub = _build_lookup_stub(
-        cadence=cadence,
-        start_date=from_date,
-        end_date=end_date,
-        day_of_month=day_of_month,
-        month_of_year=month_of_year,
-    )
+    end_date = rule.end_date
     hard_end = end_date if end_date is not None else from_date + dt.timedelta(days=_LOOKAHEAD_DAYS)
     if hard_end <= from_date:
         return None
     occs = generate_occurrences(
-        stub,
+        dataclasses.replace(rule, active=True),
         from_date + dt.timedelta(days=1),
         hard_end,
     )
-    if not occs:
-        return None
-    return occs[0].occurrence_date
+    return occs[0].occurrence_date if occs else None
 
 
 def first_due_on_or_after(rule: RecurringRule, today: dt.date) -> dt.date:
@@ -454,13 +415,7 @@ def promote_recurring(
         promoted_from_recurring_date=due_date,
     )
 
-    new_next_due = advance_next_due(
-        rule.cadence,
-        due_date,
-        rule.end_date,
-        rule.day_of_month,
-        rule.month_of_year,
-    )
+    new_next_due = advance_next_due(rule, due_date)
 
     with db_transaction(conn):
         txn = transactions_repo.create(conn, user_id, new_txn)
@@ -517,13 +472,7 @@ def skip_and_advance(
         raise InactiveRecurringError(rule_id)
 
     due_date = rule.next_due
-    new_next_due = advance_next_due(
-        rule.cadence,
-        due_date,
-        rule.end_date,
-        rule.day_of_month,
-        rule.month_of_year,
-    )
+    new_next_due = advance_next_due(rule, due_date)
 
     with db_transaction(conn):
         # Record the skip (audit emitted by the override upsert path).
@@ -677,6 +626,7 @@ __all__ = [
     "advance_next_due",
     "apply_overrides",
     "batch_promote_due",
+    "default_day_of_month",
     "expand",
     "expand_unpromoted",
     "first_due_on_or_after",
@@ -687,4 +637,5 @@ __all__ = [
     "resolve_rule_amount",
     "rt_expand",
     "skip_and_advance",
+    "with_anchor_day",
 ]
