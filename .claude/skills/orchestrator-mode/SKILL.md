@@ -90,8 +90,16 @@ Write down `MAIN=<branch>`. Every item branch starts from it and merges back int
 
 ## 4. Step 2: dispatch
 
-Launch **every item in the current wave in one message** (several `Agent` calls),
-so they run at the same time.
+Launch the wave's items in one message (several `Agent` calls) so they can run at
+the same time. Size the number of concurrent agents to **live machine load**, not to
+the plan's item count. Other sessions share this machine.
+
+- Before each dispatch, check `uptime` (load average vs `sysctl -n hw.ncpu`) and
+  `memory_pressure`.
+- Cap heavy jobs (full suite, Mutmut, e2e, Playwright) at ~1 at a time, using the
+  shared mkdir lock. Keep ~4-5 agents running in total.
+- If load is above ~2x cores, hold back or stop the least critical agent.
+- Queue the remaining items and dispatch them as slots free up.
 
 Per agent:
 
@@ -192,6 +200,26 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
 - anything left undone, assumptions you made, or changes you needed in files you do not own
 ```
 
+## 4b. Supervise running agents
+
+- Check in periodically, not by sleeping or polling in a loop: on each completion
+  notification and at natural pauses. For each in-flight item, look at
+  `git -C <worktree> log --oneline <MAIN>..HEAD`, `git -C <worktree> status --short`,
+  the newest mtime of the changed files, and `pgrep -fl pytest` / `ps` for its processes.
+- Long-running is not stuck. Treat an agent as stuck only with evidence: no new commits,
+  no file changes and no live processes for a long stretch, or a hook/test process hung
+  (e.g. waiting on a lock held by a dead process). A stale `/tmp/*-heavy.lock` whose
+  owner is gone may be removed by the orchestrator.
+- Stuck agent: stop it (`TaskStop`), but never drop its work. Keep the worktree and
+  branch, including uncommitted changes. Do not `git worktree remove`, `git checkout .`,
+  `git stash` or `git reset`.
+- Hand over: dispatch a fresh agent into that same worktree. Tell it the path and branch,
+  and that it must `cd` there and must not create a new worktree. The brief is the original
+  brief plus a summary of what is done (`git log`, `git diff --stat`, `git status`) and
+  what remains.
+- A second stall on the same item: escalate per the model rules in §4 and mention it in
+  the final report.
+
 ## 5. Step 3: merge back
 
 Merge each item as soon as it finishes. Do not wait for the whole wave, because
@@ -253,4 +281,5 @@ early merges keep later conflicts small.
 - All items merged, GitHub CI green on `<MAIN>`, no stray worktrees or branches.
 - Report to the user: items done (id, merge sha, model used), CI result, frontend audit summaries
   from agents, deferred or blocked items, follow-ups.
+- Report any agents stopped as stuck, and how their work was handed over (§4b).
 - Do not push or open a PR unless asked.

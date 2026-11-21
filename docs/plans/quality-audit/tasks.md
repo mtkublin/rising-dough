@@ -131,7 +131,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 0 — Before a second user is onboarded, and Highs that bite current PLN data
 
-### T-Q201 [S] Income-anchor endpoint uses the signed-in user
+### ✅ T-Q201 [S] Income-anchor endpoint uses the signed-in user
 - Findings: Q-001 (D-01, H2-01).
 - Epic: E09
 - Band: 0 · Size: S · Tags: `[pre-v4-P3]` `[before-2nd-user]`
@@ -143,7 +143,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `literal_user_id`:2 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/literal_user_id.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q202 [S] Recurring-rule save path validates source categories and positive amounts
+### ✅ T-Q202 [S] Recurring-rule save path validates source categories and positive amounts
 - Findings: Q-028 (H2-02).
 - Epic: E08
 - Band: 0 · Size: S · Tags: `[before-2nd-user]`

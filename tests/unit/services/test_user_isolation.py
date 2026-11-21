@@ -17,7 +17,16 @@ from datetime import date
 import pytest
 
 from budget_planner.config import Settings
-from budget_planner.services import _passwords, accounts, analytics, balance, budget, fortune
+from budget_planner.domain.recurring import AmountFormula, FormulaTerm
+from budget_planner.services import (
+    _passwords,
+    accounts,
+    analytics,
+    balance,
+    budget,
+    fortune,
+    recurring_formula,
+)
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
 from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_account_cases,
@@ -116,6 +125,30 @@ def _case_derive_balance(conn: sqlite3.Connection, world: World) -> None:
 @pytest.fixture(autouse=True)
 def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
+
+
+@covers("recurring_formula.invalid_source_ids")
+def _case_invalid_source_ids(conn: sqlite3.Connection, world: World) -> None:
+    mine, theirs = world.owner.category_id, world.other.category_id
+    assert recurring_formula.invalid_source_ids(conn, OWNER_ID, [(mine,)]) is None
+    assert recurring_formula.invalid_source_ids(conn, OWNER_ID, [(mine,), (theirs,)]) == (1, theirs)
+    assert recurring_formula.invalid_source_ids(conn, OTHER_ID, [(mine,)]) == (0, mine)
+
+
+@covers("recurring_formula.compute_savable_amount")
+def _case_compute_savable_amount(conn: sqlite3.Connection, world: World) -> None:
+    def formula(category_id: int) -> AmountFormula:
+        term = FormulaTerm(sign="+", coefficient_bps=10_000, source_category_ids=(category_id,))
+        return AmountFormula(terms=(term,))
+
+    with pytest.raises(recurring_formula.FormulaError):
+        recurring_formula.compute_savable_amount(
+            conn, OWNER_ID, formula(world.other.category_id), 2026, 11
+        )
+    with pytest.raises(recurring_formula.FormulaError):
+        recurring_formula.compute_savable_amount(
+            conn, OTHER_ID, formula(world.owner.category_id), 2026, 11
+        )
 
 
 @pytest.mark.parametrize("function_id", sorted(COVERED))
