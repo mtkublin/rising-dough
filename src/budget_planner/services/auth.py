@@ -181,9 +181,12 @@ def _issue_session(
     method: str,
     ip: str | None,
     user_agent: str | None,
+    credential_id: int | None = None,
 ) -> IssuedSession:
     with transaction(conn):
-        issued = sessions_repo.create_session(conn, user.id, ip=ip, user_agent=user_agent)
+        issued = sessions_repo.create_session(
+            conn, user.id, ip=ip, user_agent=user_agent, credential_id=credential_id
+        )
         session = issued.session
         write_audit(
             conn,
@@ -353,6 +356,8 @@ def register_passkey_finish(
     """
     if users_repo.get_live_by_id(conn, user_id) is None:
         raise PasskeyRegistrationError("unknown_user")
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        raise PasskeyRegistrationError("challenge_expired")
     try:
         parsed = parse_registration_credential_json(credential)
         verified = verify_registration_response(
@@ -390,9 +395,28 @@ def revoke_passkey(
 ) -> bool:
     """Soft-delete one of ``user_id``'s own passkeys."""
     ctx = request_ctx or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None)
-    return webauthn_repo.revoke_credential(
-        conn, user_id, credential_row_id, reason="user_request", request_ctx=ctx
-    )
+    with transaction(conn):
+        if not webauthn_repo.revoke_credential(
+            conn, user_id, credential_row_id, reason="user_request", request_ctx=ctx
+        ):
+            return False
+        ended = sessions_repo.revoke_sessions_by_credential(conn, user_id, credential_row_id)
+        if ended:
+            write_audit(
+                conn,
+                entity_type=SESSION_ENTITY,
+                entity_id=user_id,
+                operation="delete",
+                prev={
+                    "event": "session_revoked",
+                    "reason": "passkey_revoked",
+                    "credential": credential_row_id,
+                    "sessions": list(ended),
+                },
+                new=None,
+                request_ctx=ctx,
+            )
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +460,11 @@ def authenticate_passkey_finish(
     if stored is None or user is None:
         _audit_login_failure(conn, ctx, method="passkey", reason="unknown_credential", user_id=None)
         return None
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        _audit_login_failure(
+            conn, ctx, method="passkey", reason="challenge_replayed", user_id=user.id
+        )
+        return None
     try:
         verified = verify_authentication_response(
             credential=parsed,
@@ -467,7 +496,15 @@ def authenticate_passkey_finish(
         return None
     with transaction(conn):
         webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
-        return _issue_session(conn, user, ctx, method="passkey", ip=ip, user_agent=user_agent)
+        return _issue_session(
+            conn,
+            user,
+            ctx,
+            method="passkey",
+            ip=ip,
+            user_agent=user_agent,
+            credential_id=stored.id,
+        )
 
 
 __all__ = [

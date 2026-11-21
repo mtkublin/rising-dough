@@ -19,7 +19,7 @@ a thin SQL wrapper (ADR-0022) and bounded loops are fine for v1 volumes.
 
 from __future__ import annotations
 
-import calendar
+import dataclasses
 import datetime as dt
 import logging
 import sqlite3
@@ -32,6 +32,15 @@ from decimal import ROUND_HALF_EVEN, Decimal
 from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.periods import (
+    MONTHS_IN_YEAR,
+    PeriodWindow,
+    clamp_day,
+    month_bounds,
+    next_month_start,
+    shift_month,
+    window_label_month,
+)
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
@@ -173,13 +182,6 @@ class YearlyRow:
     total_minor: int
 
 
-def prev_year_month(year: int, month: int) -> tuple[int, int]:
-    """Return the previous ``(year, month)`` tuple handling January rollover."""
-    if month == 1:
-        return year - 1, 12
-    return year, month - 1
-
-
 def resolve_budget(
     conn: sqlite3.Connection,
     user_id: int,
@@ -198,11 +200,6 @@ def resolve_budget(
     if default is not None:
         return default.amount
     return None
-
-
-def _month_range(year: int, month: int) -> tuple[date, date]:
-    last_day = calendar.monthrange(year, month)[1]
-    return date(year, month, 1), date(year, month, last_day)
 
 
 def _expense_txns_in_range(
@@ -292,25 +289,17 @@ def committed_by_category(
     for row in planned_rows:
         out[row.category_id] += to_base(row.account_id, row.amount)
 
-    # Clamp the generator window to [max(rule.next_due, start), end). Rules
-    # advance ``next_due`` on promote; occurrences on-or-before the previous
-    # ``next_due`` have either been promoted (counted in ``spent``) or are
-    # historical no-ops. The generator anchors on ``rule.start_date``, so the
-    # clamp never shifts the cadence (each occurrence is counted once).
+    # Clamp the window to [max(rule.next_due, start), end): earlier occurrences are
+    # promoted (counted in ``spent``) or historical no-ops; the cadence never shifts.
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
         if rule.category_id not in expense_ids:
             continue
-        rule_start = rule.next_due if start is None else max(rule.next_due, start)
-        if rule_start > inclusive_end:
+        lo = rule.next_due if start is None else max(rule.next_due, start)
+        if lo > inclusive_end:
             continue
         overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
         occurrences = recurring_svc.rt_expand(
-            conn,
-            user_id,
-            rule=rule,
-            overrides=overrides,
-            range_start=rule_start,
-            range_end=inclusive_end,
+            conn, user_id, rule=rule, overrides=overrides, range_start=lo, range_end=inclusive_end
         )
         out[rule.category_id] += sum(
             to_base(occ.account_id, occ.amount)
@@ -371,27 +360,32 @@ def _resolve_anchor(
     user_id: int,
     today: date,
     budgeted_total: int,
-    end_of_month: date,
+    fallback_end: date,
 ) -> tuple[str | None, date]:
     """Return (anchor_name, next_income_date) for the daily-spend math.
 
-    Zero-budget months and missing/stale anchors fall back to end-of-month
-    per F4.6. Pulled out of ``month_summary`` to keep its statement count
-    under PLR0915.
+    ``next_income_date`` is the exclusive end of the period (ADR-0138).
+    Zero-budget months and missing/stale anchors fall back to
+    ``fallback_end``, the first day of the next month (half-open window).
+    Pulled out of ``month_summary`` to keep its statement count under PLR0915.
     """
     if budgeted_total == 0:
-        return None, end_of_month
+        return None, fallback_end
     anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
     if anchor is None:
-        return None, end_of_month
+        return None, fallback_end
     hit = income_svc.next_anchor_date(conn, user_id, anchor.id, after=today)
     if hit is None:
-        return None, end_of_month
+        return None, fallback_end
     return anchor.name, hit
 
 
 def fiscal_month_for(conn: sqlite3.Connection, user_id: int, today: date) -> tuple[int, int]:
-    """Return the ``(year, month)`` of the cycle whose paycheck most recently landed."""
+    """Return the ``(year, month)`` label of the cycle containing ``today``.
+
+    ADR-0138: the period starts at the most recent landed anchor income and is
+    labelled by the calendar month holding most of its days (tie: later month).
+    """
     anchor_category = preferences_svc.resolve_income_anchor_category(conn, user_id)
     if anchor_category is None:
         return today.year, today.month
@@ -406,8 +400,17 @@ def fiscal_month_for(conn: sqlite3.Connection, user_id: int, today: date) -> tup
     )
     if not rows:
         return today.year, today.month
-    last_anchor_date = max(row.operation_date for row in rows)
-    return last_anchor_date.year, last_anchor_date.month
+    start = max(row.operation_date for row in rows)
+    end = income_svc.next_anchor_date(conn, user_id, anchor_category.id, after=start)
+    if end is None:
+        end = clamp_day(*shift_month(start.year, start.month, 1), start.day)
+    return window_label_month(PeriodWindow(start=start, end=end))
+
+
+def _anchor_due_on(conn: sqlite3.Connection, user_id: int, anchor: Category, day: date) -> bool:
+    """Return True when the anchor income is scheduled for ``day`` (payday)."""
+    hit = income_svc.next_anchor_date(conn, user_id, anchor.id, after=day - dt.timedelta(days=1))
+    return hit == day
 
 
 def _resolve_period_start(
@@ -431,6 +434,8 @@ def _resolve_period_start(
     month_start = date(year, month, 1)
     if anchor_category is None:
         return month_start
+    if _anchor_due_on(conn, user_id, anchor_category, today):
+        return today  # payday opens the new period (ADR-0138, OQ-14)
     rows = transactions_repo.list_filtered(
         conn,
         user_id,
@@ -482,10 +487,9 @@ def month_summary(  # noqa: PLR0915
     """
     cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
 
-    prev_y, prev_m = prev_year_month(year, month)
-    prev_start, prev_end = _month_range(prev_y, prev_m)
+    prev_start, prev_end = month_bounds(*shift_month(year, month, -1))
     year_start = date(year, 1, 1)
-    year_end = _month_range(year, 12)[1]
+    year_end = month_bounds(year, 12)[1]
 
     # Resolve budgets up front so zero-budget months can short-circuit the
     # paycheck-window shift (ADR-0041 keeps those on month-start to preserve
@@ -553,9 +557,8 @@ def month_summary(  # noqa: PLR0915
     spent_total = sum(line.spent_minor for line in lines if line.budgeted_minor is not None)
     pre_commit_remaining = sum(line.remaining_minor or 0 for line in lines)
 
-    end_of_month = _month_range(year, month)[1]
     anchor_category_name, next_income_date = _resolve_anchor(
-        conn, user_id, today, budgeted_total, end_of_month
+        conn, user_id, today, budgeted_total, next_month_start(year, month)
     )
     left_daily_spend_minor: int | None = None
     days_until_next_income = max((next_income_date - today).days, 1)
@@ -610,6 +613,126 @@ def month_summary(  # noqa: PLR0915
     )
 
 
+@dataclass(frozen=True, slots=True)
+class PickerMonth:
+    """The month selected on the Plan page plus its neighbours (ADR-0064)."""
+
+    year: int
+    month: int
+    fiscal_year: int
+    fiscal_month: int
+    prev_year: int
+    prev_month: int
+    next_year: int
+    next_month: int
+
+    @property
+    def is_fiscal(self) -> bool:
+        """Return True when the selection is the current fiscal cycle."""
+        return (self.year, self.month) == (self.fiscal_year, self.fiscal_month)
+
+
+def _parse_picker_month(
+    year_raw: str | None, month_raw: str | None, fallback: tuple[int, int]
+) -> tuple[int, int]:
+    if year_raw is None and month_raw is None:
+        return fallback
+    try:
+        year = int(year_raw) if year_raw is not None else fallback[0]
+        month = int(month_raw) if month_raw is not None else fallback[1]
+    except ValueError:
+        return fallback
+    if not 1 <= month <= MONTHS_IN_YEAR or not date.min.year <= year <= date.max.year:
+        return fallback
+    return year, month
+
+
+def resolve_picker_month(
+    conn: sqlite3.Connection,
+    user_id: int,
+    today: date,
+    *,
+    year_raw: str | None = None,
+    month_raw: str | None = None,
+) -> PickerMonth:
+    """Resolve the Plan page month: raw ``?year=&month=`` override, else the fiscal cycle."""
+    fiscal = fiscal_month_for(conn, user_id, today)
+    year, month = _parse_picker_month(year_raw, month_raw, fiscal)
+    prev_year, prev_month = shift_month(year, month, -1)
+    next_year, next_month = shift_month(year, month, 1)
+    return PickerMonth(
+        year=year,
+        month=month,
+        fiscal_year=fiscal[0],
+        fiscal_month=fiscal[1],
+        prev_year=prev_year,
+        prev_month=prev_month,
+        next_year=next_year,
+        next_month=next_month,
+    )
+
+
+def _anchor_day_for_picker(conn: sqlite3.Connection, user_id: int) -> int:
+    """Return the day of month the anchor income recurs on (1 when no monthly rule)."""
+    anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
+    if anchor is None:
+        return 1
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
+        if rule.category_id == anchor.id and rule.day_of_month:
+            return max(1, rule.day_of_month)
+    return 1
+
+
+def month_summary_for_picker(
+    conn: sqlite3.Connection,
+    user_id: int,
+    picked: PickerMonth,
+    today: date,
+) -> MonthSummary:
+    """Return the Plan · Budget summary for the picked month (ADR-0138).
+
+    The fiscal cycle uses the live anchor-window math. Any other month is
+    shown over ``[anchor_day(month), anchor_day(month+1))`` with the day
+    clamped per month (never capped at 28), committed zeroed (future: nothing
+    scheduled; past: already actuals) and spent clamped to that calendar month.
+    """
+    year, month = picked.year, picked.month
+    if picked.is_fiscal:
+        return month_summary(conn, user_id, year, month, today=today)
+    month_first, month_last = month_bounds(year, month)
+    ref = today.replace(year=year, month=month, day=min(today.day, month_last.day))
+    summary = month_summary(
+        conn, user_id, year, month, today=ref, period_window=(month_first, month_last)
+    )
+    anchor_day = _anchor_day_for_picker(conn, user_id)
+    window = PeriodWindow(
+        start=clamp_day(year, month, anchor_day),
+        end=clamp_day(picked.next_year, picked.next_month, anchor_day),
+    )
+    days_left = window.length_days if window.end > today else 0
+    totals = dataclasses.replace(
+        summary.totals,
+        committed_minor=0,
+        unbudgeted_committed_minor=0,
+        remaining_minor=summary.totals.budgeted_minor - summary.totals.spent_minor,
+    )
+    return dataclasses.replace(
+        summary,
+        totals=totals,
+        period_start=window.start,
+        next_income_date=window.end,
+        days_until_next_income=days_left,
+    )
+
+
+def yearly_grid_totals(rows: tuple[YearlyRow, ...]) -> tuple[tuple[int, ...], int]:
+    """Return ``(per-month column totals, grand total)`` for the yearly grid rows."""
+    columns = tuple(
+        sum((row.cells[i].amount_minor or 0) for row in rows) for i in range(MONTHS_IN_YEAR)
+    )
+    return columns, sum(row.total_minor for row in rows)
+
+
 def yearly_grid(conn: sqlite3.Connection, user_id: int, year: int) -> tuple[YearlyRow, ...]:
     """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets."""
     cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
@@ -661,14 +784,17 @@ __all__ = [
     "CategoryBudgetLine",
     "MonthSummary",
     "MonthTotals",
+    "PickerMonth",
     "YearlyCell",
     "YearlyRow",
     "committed_in_window",
     "committed_split_in_window",
     "fiscal_month_for",
     "month_summary",
-    "prev_year_month",
+    "month_summary_for_picker",
     "resolve_budget",
     "resolve_period_start",
+    "resolve_picker_month",
     "yearly_grid",
+    "yearly_grid_totals",
 ]

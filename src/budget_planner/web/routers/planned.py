@@ -21,9 +21,7 @@ from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     planned as planned_repo,
-    transactions as transactions_repo,
 )
-from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import (
     export as export_service,
     planned as planned_service,
@@ -122,9 +120,9 @@ async def planned_batch_undo(
 ) -> Response:
     """Reverse a prior batch planned promote.
 
-    Soft-deletes each promoted transaction and clears the corresponding
-    ``promoted_to_txn_id`` on each planned row (so the row re-appears as
-    "unpromoted" in Upcoming).
+    Audited action (ADR-0019 amendment, T-Q228): soft-deletes each promoted
+    transaction and clears ``promoted_to_txn_id`` on each planned row that is
+    still stamped with one of this batch's transactions.
     """
     form = await request.form()
     try:
@@ -133,36 +131,14 @@ async def planned_batch_undo(
     except ValueError:
         return Response(status_code=422, content="invalid id list")
 
-    with db_transaction(conn):
-        for txn_id in txn_ids:
-            transactions_repo.soft_delete(conn, user_id, txn_id)
-        for pid in planned_ids:
-            # Replay audit: find the entry right before the batch stamping
-            # (operation="update" with prev_json carrying the pre-batch state)
-            # and restore ``promoted_to_txn_id``.
-            row = conn.execute(
-                """
-                SELECT prev_json FROM audit_log
-                WHERE entity_type = 'planned_transaction' AND entity_id = ?
-                  AND operation = 'update'
-                ORDER BY id DESC LIMIT 1
-                """,
-                (pid,),
-            ).fetchone()
-            if row is None or row["prev_json"] is None:
-                continue
-            prev = json.loads(row["prev_json"])
-            prev_txn_id = prev.get("promoted_to_txn_id")
-            conn.execute(
-                "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
-                "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ? AND user_id = ?",
-                (prev_txn_id, pid, user_id),
-            )
+    result = planned_service.undo_batch(conn, user_id, txn_ids, planned_ids)
+    message = "Undone"
+    if result.skipped_planned_ids:
+        message = f"Undone ({len(result.skipped_planned_ids)} row(s) changed since, left as is)"
     resp = Response(status_code=204)
     resp.headers["HX-Trigger"] = _hx_trigger_payload(
         {
-            "toast": {"variant": "info", "message": "Undone"},
+            "toast": {"variant": "info", "message": message},
             "ledger-stale": True,
             "forecast-stale": True,
             "balance-stale": True,

@@ -68,3 +68,7 @@ discipline is enforced in Python.
   rejects raw `UPDATE` / `INSERT` strings outside `_shared.mutate`.
 - Future multi-user auth (not planned for v2 or v3) will need to extend `mutate(...)` with a
   `user_id`-aware audit author field; we accept this debt knowingly.
+
+## Amendments
+
+- 2026-11-21 (T-Q228, Q-024, Q-049): the three audit-free helpers (`set_next_due`, `set_inactive`, `mark_override_promoted`, plus `restore_rule_progress`) live in `repositories/_unaudited.py`, imported only by `services/recurring.py`, which writes the paired audit row in the same transaction (`tests/architecture/test_unaudited_imports.py`). Routers hold no SQL for undo; `services/planned.undo_batch` and `services/recurring.undo_batch` own it. `repositories/audit.py` reads are `user_id`-scoped. See ADR-0019 amendment of the same date.

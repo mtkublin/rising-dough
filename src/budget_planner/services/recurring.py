@@ -16,7 +16,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import sqlite3
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from budget_planner.domain.enums import OverrideState
@@ -36,12 +36,19 @@ from budget_planner.domain.recurring_schedule import (
 )
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
+    audit as audit_repo,
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
 from budget_planner.repositories._shared import transaction as db_transaction
+from budget_planner.repositories._unaudited import (
+    mark_override_promoted,
+    restore_rule_progress,
+    set_inactive,
+    set_next_due,
+)
 from budget_planner.services import audit as audit_svc
 from budget_planner.services._promotion import ValidationError, validate_promotion
 from budget_planner.services.recurring_formula import resolve_rule_amount, rt_expand
@@ -211,9 +218,9 @@ def promote_recurring(
 
         txn = transactions_repo.create(conn, user_id, new_txn)
         if new_next_due is None:
-            recurring_repo.set_inactive(conn, user_id, rule_id)
+            set_inactive(conn, user_id, rule_id)
         else:
-            recurring_repo.set_next_due(
+            set_next_due(
                 conn,
                 user_id,
                 rule_id,
@@ -224,7 +231,7 @@ def promote_recurring(
             # ADR-0046: soft-consume the override by stamping the new txn id
             # instead of deleting the row. Keeps the override visible to
             # historical reads (formula compute per ADR-0045).
-            recurring_repo.mark_override_promoted(conn, user_id, match.id, txn_id=txn.id)
+            mark_override_promoted(conn, user_id, match.id, txn_id=txn.id)
         updated_rule = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
         audit_svc.write_audit(
             conn,
@@ -274,9 +281,9 @@ def skip_and_advance(
             ),
         )
         if new_next_due is None:
-            recurring_repo.set_inactive(conn, user_id, rule_id)
+            set_inactive(conn, user_id, rule_id)
         else:
-            recurring_repo.set_next_due(
+            set_next_due(
                 conn,
                 user_id,
                 rule_id,
@@ -308,7 +315,9 @@ class BatchPromoteResult:
 
     ``promoted_txn_ids`` carries the id of every transaction created.
     ``advanced_rule_ids`` carries the id of every rule whose ``next_due``
-    was advanced (one per promotion). ``skipped_rule_ids`` carries the id
+    was advanced (one per promotion) and ``advance_audit_ids`` the id of the
+    ``audit_log`` row each advance wrote (parallel to ``promoted_txn_ids``;
+    the undo targets exactly these rows). ``skipped_rule_ids`` carries the id
     of every active due rule that was intentionally not promoted (e.g. a
     skipped override on next_due).
     """
@@ -316,6 +325,7 @@ class BatchPromoteResult:
     promoted_txn_ids: tuple[int, ...]
     advanced_rule_ids: tuple[int, ...]
     skipped_rule_ids: tuple[int, ...]
+    advance_audit_ids: tuple[int, ...] = ()
 
 
 def batch_promote_due(
@@ -333,6 +343,7 @@ def batch_promote_due(
     """
     promoted: list[int] = []
     advanced: list[int] = []
+    advance_audits: list[int] = []
     skipped: list[int] = []
     with db_transaction(conn):
         for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
@@ -349,10 +360,37 @@ def batch_promote_due(
             txn = promote_recurring(conn, user_id, rule.id, PromotionEdits())
             promoted.append(txn.id)
             advanced.append(rule.id)
+            audit_id = audit_repo.latest_entry_id(conn, user_id, "recurring_rule", rule.id)
+            if audit_id is None:
+                raise LookupError(f"no audit row for recurring_rule {rule.id}")
+            advance_audits.append(audit_id)
     return BatchPromoteResult(
         promoted_txn_ids=tuple(promoted),
         advanced_rule_ids=tuple(advanced),
         skipped_rule_ids=tuple(skipped),
+        advance_audit_ids=tuple(advance_audits),
+    )
+
+
+def restore_progress(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule_id: int,
+    prev: Mapping[str, object],
+) -> None:
+    """Restore a rule's ``next_due`` / ``last_promoted_date`` / ``active`` from a prior state.
+
+    Audit-free by itself: ``services/recurring_undo.undo_batch`` writes the paired
+    audit row in the same transaction (T-Q228).
+    """
+    last_promoted = prev.get("last_promoted_date")
+    restore_rule_progress(
+        conn,
+        user_id,
+        rule_id,
+        next_due=dt.date.fromisoformat(str(prev["next_due"])),
+        last_promoted_date=dt.date.fromisoformat(str(last_promoted)) if last_promoted else None,
+        active=bool(prev["active"]),
     )
 
 
@@ -413,6 +451,7 @@ __all__ = [
     "occurrence_in_month",
     "promote_recurring",
     "resolve_rule_amount",
+    "restore_progress",
     "rt_expand",
     "skip_and_advance",
     "with_anchor_day",

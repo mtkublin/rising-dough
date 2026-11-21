@@ -71,7 +71,7 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0064 | [Plan / Today / Overview Default Landing Month Follows the Fiscal Cycle](0064-plan-default-fiscal-month.md) (amends ADR-0041; surfaces F4.6) |
 | 0065 | [CSRF Cookie Name Is Env-Dependent; HTMX Reads the Token From a `<meta>` Tag](0065-csrf-dev-cookie-name-and-meta-token.md) (amends ADR-0033 §4) |
 | 0066 | [Orchestrator Mode Skill for Parallel Multi-Agent Work](0066-orchestrator-mode-skill.md) |
-| 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6) |
+| 0067 | [Auth Backend — Opaque Server-Side Sessions, Caller-Held Passkey Challenges](0067-auth-backend-sessions-and-passkey-challenges.md) (amends ADR-0033 §1, §3, §6; amended 2026-11-21 T-Q253) |
 | 0068 | [User-Scoping Static Check — Scope, Rules, and Allowlist Policy](0068-user-scoping-static-check-policy.md) (extends ADR-0022, ADR-0061 §5) |
 | 0069 | [Admin Bootstrap — Per-Environment Policy, Legacy-Row Adoption, Operator Password CLI](0069-admin-bootstrap-env-policy-and-operator-cli.md) (amends ADR-0061 §3) |
 | 0070 | [Auth Web Layer — Cookie Names, Unauthenticated Responses, Middleware Order](0070-auth-web-layer-cookies-middleware-order.md) (amends ADR-0033 §3, §5) |
@@ -143,3 +143,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0135 | [Per-Drill Litestream Age Key Pair Generated in Terraform](0135-per-drill-age-keypair-in-terraform.md) (amends ADR-0132, ADR-0078; relates to ADR-0093, ADR-0101, ADR-0111) |
 | 0136 | [Soft-Deleted Accounts Are Excluded From Balances, Stats and Converters](0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md) (relates to ADR-0130, ADR-0008) |
 | 0137 | [Write Transactions Begin IMMEDIATE and Guard Reads Live Inside Them](0137-begin-immediate-and-guard-reads-inside-the-transaction.md) (amends ADR-0019, ADR-0022; relates to ADR-0061, ADR-0073) |
+| 0138 | [The Budget Period Is a Half-Open `[start, end)` Window Owned by `domain/periods.py`](0138-half-open-budget-period-window.md) (amends ADR-0041, ADR-0064, ADR-0085; relates to ADR-0130) |

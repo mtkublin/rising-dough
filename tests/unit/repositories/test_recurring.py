@@ -13,6 +13,7 @@ from budget_planner.domain.recurring import (
     PatchRecurringRule,
 )
 from budget_planner.repositories import audit, recurring
+from budget_planner.repositories._unaudited import set_inactive, set_next_due
 
 USER_ID = 1
 
@@ -35,7 +36,7 @@ def test_create_rule_round_trip(
     assert recurring.find_rule(conn, USER_ID, rule.id) == rule
     rules = recurring.list_rules(conn, USER_ID)
     assert any(r.id == rule.id for r in rules)
-    assert audit.list_entries(conn, "recurring_rule", rule.id)[0].operation.value == ("create")
+    assert audit.list_entries(conn, 1, "recurring_rule", rule.id)[0].operation.value == ("create")
 
 
 def test_update_rule_fields(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
@@ -182,9 +183,7 @@ def test_set_next_due_round_trip(
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     new_date = dt.date(2027, 6, 15)
     promoted_on = dt.date(2027, 5, 15)
-    recurring.set_next_due(
-        conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=promoted_on
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=promoted_on)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.next_due == new_date
@@ -197,7 +196,7 @@ def test_set_next_due_accepts_null_last_promoted(
 
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     new_date = dt.date(2027, 6, 15)
-    recurring.set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule.id, next_due=new_date, last_promoted_date=None)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.next_due == new_date
@@ -209,7 +208,7 @@ def test_set_inactive_marks_rule_inactive(
 ) -> None:
     rule = recurring.create_rule(conn, USER_ID, _new_rule(account_id, category_id))
     assert rule.active is True
-    recurring.set_inactive(conn, USER_ID, rule.id)
+    set_inactive(conn, USER_ID, rule.id)
     refreshed = recurring.find_rule(conn, USER_ID, rule.id)
     assert refreshed is not None
     assert refreshed.active is False

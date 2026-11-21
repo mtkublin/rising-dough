@@ -240,41 +240,6 @@ def create_rule(conn: sqlite3.Connection, user_id: int, data: NewRecurringRule) 
     )
 
 
-def set_next_due(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule_id: int,
-    *,
-    next_due: date,
-    last_promoted_date: date | None,
-) -> None:
-    """Thin helper for the T-118 promotion service.
-
-    Audit-free: the orchestrating service writes the paired audit entry.
-    """
-    conn.execute(
-        "UPDATE recurring_rules SET next_due = ?, last_promoted_date = ?, "
-        "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-        "WHERE id = ? AND user_id = ?",
-        (
-            next_due.isoformat(),
-            last_promoted_date.isoformat() if last_promoted_date is not None else None,
-            rule_id,
-            user_id,
-        ),
-    )
-
-
-def set_inactive(conn: sqlite3.Connection, user_id: int, rule_id: int) -> None:
-    """Thin helper for the T-118 promotion service — mark a rule inactive."""
-    conn.execute(
-        "UPDATE recurring_rules SET active = 0, "
-        "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-        "WHERE id = ? AND user_id = ?",
-        (rule_id, user_id),
-    )
-
-
 def update_rule(
     conn: sqlite3.Connection,
     user_id: int,
@@ -361,7 +326,7 @@ def list_overrides(
     sql = (
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND r.user_id = ?"
+        "WHERE o.rule_id = ? AND r.user_id = ? AND r.deleted_at IS NULL"
     )
     if not include_consumed:
         sql += " AND o.promoted_to_txn_id IS NULL"
@@ -377,28 +342,6 @@ def list_overrides_all(
     return list_overrides(conn, user_id, rule_id, include_consumed=True)
 
 
-def mark_override_promoted(
-    conn: sqlite3.Connection,
-    user_id: int,
-    override_id: int,
-    *,
-    txn_id: int,
-) -> None:
-    """Stamp ``promoted_to_txn_id = txn_id`` on an override (ADR-0046 step 6e).
-
-    FK-scoped: the UPDATE joins through ``recurring_rules.user_id`` so a
-    leaked override id for a different user is a no-op.
-    """
-    conn.execute(
-        "UPDATE recurring_rule_overrides AS o "
-        "SET promoted_to_txn_id = ? "
-        "WHERE o.id = ? "
-        "AND EXISTS (SELECT 1 FROM recurring_rules r "
-        "            WHERE r.id = o.rule_id AND r.user_id = ?)",
-        (txn_id, override_id, user_id),
-    )
-
-
 def upsert_override(
     conn: sqlite3.Connection, user_id: int, data: NewRecurringOverride
 ) -> RecurringOverride:
@@ -406,7 +349,8 @@ def upsert_override(
     existing = conn.execute(
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ? "
+        "AND r.deleted_at IS NULL",
         (data.rule_id, data.occurrence_date.isoformat(), user_id),
     ).fetchone()
     prev = _row_to_override(existing) if existing is not None else None
@@ -417,7 +361,7 @@ def upsert_override(
             # parent rule — if the caller's user_id does not own rule_id the
             # lookup returns NULL and the insert aborts via the assertion.
             parent = c.execute(
-                "SELECT 1 FROM recurring_rules WHERE id = ? AND user_id = ?",
+                "SELECT 1 FROM recurring_rules WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
                 (data.rule_id, user_id),
             ).fetchone()
             if parent is None:
@@ -457,7 +401,7 @@ def upsert_override(
         row = conn.execute(
             f"SELECT {cols} FROM recurring_rule_overrides o "
             "JOIN recurring_rules r ON r.id = o.rule_id "
-            "WHERE o.id = ? AND r.user_id = ?",
+            "WHERE o.id = ? AND r.user_id = ? AND r.deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_override(row)
@@ -482,7 +426,8 @@ def delete_override(
     existing = conn.execute(
         f"SELECT {cols} FROM recurring_rule_overrides o "
         "JOIN recurring_rules r ON r.id = o.rule_id "
-        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ?",
+        "WHERE o.rule_id = ? AND o.occurrence_date = ? AND r.user_id = ? "
+        "AND r.deleted_at IS NULL",
         (rule_id, occurrence_date.isoformat(), user_id),
     ).fetchone()
     if existing is None:
@@ -517,9 +462,6 @@ __all__ = [
     "list_overrides",
     "list_overrides_all",
     "list_rules",
-    "mark_override_promoted",
-    "set_inactive",
-    "set_next_due",
     "soft_delete_rule",
     "update_rule",
     "upsert_override",

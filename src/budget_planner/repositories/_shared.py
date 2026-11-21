@@ -28,6 +28,7 @@ from budget_planner.domain.request_ctx import RequestCtx
 # ``RequestCtx`` is frozen so sharing one instance is safe. Ruff B008
 # forbids inlining the ``RequestCtx.empty()`` call in parameter defaults.
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
+_SAVEPOINT = "bp_nested"
 
 
 def utc_now_iso() -> str:
@@ -95,21 +96,6 @@ def write_audit(
     )
 
 
-_TX_DEPTH: dict[int, int] = {}
-
-
-def _depth(conn: sqlite3.Connection) -> int:
-    return _TX_DEPTH.get(id(conn), 0)
-
-
-def _set_depth(conn: sqlite3.Connection, value: int) -> None:
-    key = id(conn)
-    if value == 0:
-        _TX_DEPTH.pop(key, None)
-    else:
-        _TX_DEPTH[key] = value
-
-
 @contextmanager
 def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     """Explicit transaction context manager.
@@ -123,28 +109,28 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     (e.g. planned promotion) and keep the whole operation atomic.
     Requires ``isolation_level=None`` on the connection.
     """
-    depth = _depth(conn)
-    if depth == 0:
+    # Nesting is read from the connection itself (no module-level depth map):
+    # an open transaction means this entry is nested. SQLite resolves a repeated
+    # savepoint name to the innermost one, so a single name nests correctly.
+    is_outermost = not conn.in_transaction
+    if is_outermost:
         conn.execute("BEGIN IMMEDIATE")
     else:
-        conn.execute(f"SAVEPOINT sp_{depth}")
-    _set_depth(conn, depth + 1)
+        conn.execute(f"SAVEPOINT {_SAVEPOINT}")
     try:
         yield conn
     except Exception:
-        if depth == 0:
+        if is_outermost:
             conn.execute("ROLLBACK")
         else:
-            conn.execute(f"ROLLBACK TO sp_{depth}")
-            conn.execute(f"RELEASE sp_{depth}")
-        _set_depth(conn, depth)
+            conn.execute(f"ROLLBACK TO {_SAVEPOINT}")
+            conn.execute(f"RELEASE {_SAVEPOINT}")
         raise
     else:
-        if depth == 0:
+        if is_outermost:
             conn.execute("COMMIT")
         else:
-            conn.execute(f"RELEASE sp_{depth}")
-        _set_depth(conn, depth)
+            conn.execute(f"RELEASE {_SAVEPOINT}")
 
 
 def mutate[T](
@@ -194,23 +180,26 @@ def require_owned(
     *,
     account_ids: Iterable[int | None] = (),
     category_ids: Iterable[int | None] = (),
+    include_deleted: bool = True,
 ) -> None:
     """Raise :class:`LookupError` unless every referenced FK row belongs to ``user_id``.
 
     Guards writes against cross-user FK linking (T-D16 / ADR-0061 §5): a
     leaked ``account_id`` / ``category_id`` from another user must not be
     attachable to the caller's rows. ``None`` ids are skipped. Soft-deleted
-    parents still count as owned — liveness is the service layer's concern.
+    parents still count as owned by default (``include_deleted=True``);
+    liveness is the service layer's concern (ADR-0019 note, T-Q268).
     """
+    live = "" if include_deleted else " AND deleted_at IS NULL"
     for account_id in {a for a in account_ids if a is not None}:
         row = conn.execute(
-            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?", (account_id, user_id)
+            f"SELECT 1 FROM accounts WHERE id = ? AND user_id = ?{live}", (account_id, user_id)
         ).fetchone()
         if row is None:
             raise LookupError(f"account {account_id} not found")
     for category_id in {c for c in category_ids if c is not None}:
         row = conn.execute(
-            "SELECT 1 FROM categories WHERE id = ? AND user_id = ?", (category_id, user_id)
+            f"SELECT 1 FROM categories WHERE id = ? AND user_id = ?{live}", (category_id, user_id)
         ).fetchone()
         if row is None:
             raise LookupError(f"category {category_id} not found")

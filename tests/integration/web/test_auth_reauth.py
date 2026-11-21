@@ -15,6 +15,8 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from fastapi import Request
+from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -431,3 +433,56 @@ def test_password_change_rotates_token_and_keeps_created_at(
     assert (
         SESSION_COOKIE_NAME not in r.headers.get("set-cookie", "") or new in r.headers["set-cookie"]
     )
+
+
+# ---------------------------------------------------------------------------
+# In-flight responses never overwrite a rotated cookie (T-Q253, Q-062 H3-04)
+# ---------------------------------------------------------------------------
+
+
+def _install_slow_route(client: TestClient, settings: Settings, action: str) -> None:
+    """A route that rotates or revokes the caller's own session while 'in flight'."""
+
+    def _slow(request: Request) -> PlainTextResponse:
+        token = request.state.session_id
+        conn = get_connection(settings)
+        try:
+            if action == "rotate":
+                sessions_repo.rotate_session_token(conn, token)
+            else:
+                sessions_repo.revoke_session(conn, token)
+        finally:
+            conn.close()
+        return PlainTextResponse("ok")
+
+    client.app.add_api_route("/_t/slow", _slow, methods=["GET"])  # type: ignore[attr-defined]
+
+
+def test_in_flight_response_does_not_reset_a_rotated_token(
+    client: TestClient, settings: Settings, session_cookie: tuple[str, str]
+) -> None:
+    name, _old_token = session_cookie
+    _install_slow_route(client, settings, "rotate")
+
+    r = client.get("/_t/slow")
+
+    assert r.status_code == 200
+    set_cookie = [v for k, v in r.headers.multi_items() if k.lower() == "set-cookie"]
+    assert [c for c in set_cookie if c.startswith(f"{name}=")] == []
+
+
+def test_in_flight_response_does_not_resurrect_a_revoked_session(
+    client: TestClient, settings: Settings, session_cookie: tuple[str, str]
+) -> None:
+    name, old_token = session_cookie
+    _install_slow_route(client, settings, "revoke")
+
+    r = client.get("/_t/slow")
+
+    set_cookie = [v for k, v in r.headers.multi_items() if k.lower() == "set-cookie"]
+    assert [c for c in set_cookie if c.startswith(f"{name}=")] == []
+    conn = get_connection(settings)
+    try:
+        assert sessions_repo.get_session(conn, old_token) is None
+    finally:
+        conn.close()

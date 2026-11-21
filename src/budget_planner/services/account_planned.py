@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
-from calendar import monthrange
 from dataclasses import dataclass
 
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.periods import PeriodWindow, fiscal_window
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -30,15 +30,7 @@ from budget_planner.services import (
     recurring as recurring_svc,
 )
 
-_ONE_DAY = dt.timedelta(days=1)
-
-
-@dataclass(frozen=True, slots=True)
-class PlannedWindow:
-    """Half-open fiscal window ``[start, end)``."""
-
-    start: dt.date
-    end: dt.date
+PlannedWindow = PeriodWindow  # half-open fiscal window ``[start, end)`` (ADR-0138)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,14 +53,15 @@ class AccountsPlanned:
 
 
 def resolve_window(conn: sqlite3.Connection, user_id: int, today: dt.date) -> PlannedWindow:
-    """Return the fiscal window; end falls back to end-of-month only without a next income."""
+    """Return the half-open fiscal window; end falls back to first-of-next-month (ADR-0138)."""
     start = budget_svc.resolve_period_start(conn, user_id, today)
-    end_of_month = today.replace(day=monthrange(today.year, today.month)[1]) + _ONE_DAY
     anchor = preferences_svc.resolve_income_anchor_category(conn, user_id)
-    if anchor is None:
-        return PlannedWindow(start=start, end=end_of_month)
-    hit = income_svc.next_anchor_date(conn, user_id, anchor.id, after=today)
-    return PlannedWindow(start=start, end=hit if hit is not None else end_of_month)
+    hit = (
+        income_svc.next_anchor_date(conn, user_id, anchor.id, after=today)
+        if anchor is not None
+        else None
+    )
+    return fiscal_window(today, period_start=start, next_income=hit)
 
 
 def _legs(
@@ -87,7 +80,7 @@ def _legs(
 def _collect_legs(
     conn: sqlite3.Connection, user_id: int, window: PlannedWindow
 ) -> list[tuple[int, int]]:
-    last_day = window.end - _ONE_DAY
+    last_day = window.last_day
     # Archived categories keep their unpromoted items; count them by direction (ADR-0089).
     directions = {
         c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)

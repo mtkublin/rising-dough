@@ -37,13 +37,6 @@ finding = "Q-048"
 epic = "E14"
 
 [[entry]]
-path = "src/budget_planner/logging.py"
-rule = "suppress:type: ignore"
-count = 1
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
 path = "src/budget_planner/services/balance.py"
 rule = "suppress:noqa"
 count = 1
@@ -67,7 +60,7 @@ epic = "E14"
 [[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "suppress:noqa"
-count = 3
+count = 2
 finding = "Q-048"
 epic = "E14"
 
@@ -81,13 +74,6 @@ epic = "E14"
 [[entry]]
 path = "src/budget_planner/web/app.py"
 rule = "suppress:pragma: no cover"
-count = 1
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/web/app.py"
-rule = "suppress:type: ignore"
 count = 1
 finding = "Q-048"
 epic = "E14"

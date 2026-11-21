@@ -70,7 +70,7 @@ def test_mutate_writes_audit_and_rolls_back_on_failure(
         return 7, {"x": 1}
 
     mutate(conn, entity_type="test", operation="create", prev=None, action=_ok, user_id=None)
-    rows = audit.list_entries(conn, "test", 7)
+    rows = audit.list_entries(conn, None, "test", 7)
     assert len(rows) == 1
     assert rows[0].operation.value == "create"
     assert json.loads(rows[0].new_json or "{}") == {"x": 1}
@@ -80,7 +80,7 @@ def test_mutate_writes_audit_and_rolls_back_on_failure(
 
     with pytest.raises(ValueError):
         mutate(conn, entity_type="test", operation="update", prev=None, action=_bad, user_id=None)
-    assert audit.list_entries(conn, "test", 7) == rows
+    assert audit.list_entries(conn, None, "test", 7) == rows
 
 
 def test_nested_savepoint_rolls_back_inner_only(conn: sqlite3.Connection) -> None:
@@ -110,6 +110,6 @@ def test_write_audit_directly(conn: sqlite3.Connection) -> None:
     except Exception:
         conn.execute("ROLLBACK")
         raise
-    rows = audit.list_entries(conn, "t", 1)
+    rows = audit.list_entries(conn, None, "t", 1)
     assert len(rows) == 1
     assert rows[0].new_json is not None

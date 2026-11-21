@@ -13,6 +13,7 @@ import pytest
 
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction, OverrideState
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     AmountFormula,
     FormulaTerm,
@@ -24,6 +25,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
+from budget_planner.repositories._unaudited import set_inactive
 from budget_planner.services import recurring_formula as formula_svc
 from budget_planner.services.recurring_formula import (
     DraftTerm,
@@ -32,7 +34,6 @@ from budget_planner.services.recurring_formula import (
     PreviewError,
     PreviewOk,
     _apply_coefficient,
-    _month_bounds,
     _parse_sign,
     build_formula,
     build_term,
@@ -117,7 +118,7 @@ class TestMonthBounds:
         ],
     )
     def test_bounds(self, year: int, month: int, first: dt.date, last: dt.date) -> None:
-        assert _month_bounds(year, month) == (first, last)
+        assert month_bounds(year, month) == (first, last)
 
 
 class TestApplyCoefficientHalfUp:
@@ -465,7 +466,7 @@ class TestValidateFormulaSources:
         self, conn: sqlite3.Connection, world_with_two_users: World
     ) -> None:
         _cat_x, cat_y, rx, ry = self._chain(conn, world_with_two_users)
-        recurring_repo.set_inactive(conn, OWNER_ID, ry)
+        set_inactive(conn, OWNER_ID, ry)
         validate_formula_sources(conn, OWNER_ID, _f(("+", 1000, (cat_y,))), exclude_rule_id=rx)
 
     def test_other_users_rules_are_not_followed(

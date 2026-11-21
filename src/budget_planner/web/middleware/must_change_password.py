@@ -15,6 +15,7 @@ Anonymous requests pass through untouched.
 from __future__ import annotations
 
 from http import HTTPStatus
+from types import MappingProxyType
 from typing import Final
 from urllib.parse import quote, urlsplit
 
@@ -34,7 +35,7 @@ EXEMPT_PATHS: Final = frozenset(
 )
 
 ERROR_CODE: Final = "password_change_required"
-_BODY: Final = {"error": ERROR_CODE, "location": PASSWORD_PATH}
+_BODY: Final = MappingProxyType({"error": ERROR_CODE, "location": PASSWORD_PATH})
 
 
 def is_exempt(path: str) -> bool:
@@ -71,12 +72,12 @@ def rotation_required_response(request: Request) -> Response:
     """Build the ADR-0074 §3 response for a gated request."""
     if request.headers.get("hx-request", "").lower() == "true":
         return JSONResponse(
-            _BODY,
+            dict(_BODY),
             status_code=HTTPStatus.FORBIDDEN,
             headers={"HX-Redirect": password_url(_hx_target(request))},
         )
     if _wants_json(request):
-        return JSONResponse(_BODY, status_code=HTTPStatus.FORBIDDEN)
+        return JSONResponse(dict(_BODY), status_code=HTTPStatus.FORBIDDEN)
     return RedirectResponse(password_url(_request_target(request)), status_code=HTTPStatus.FOUND)
 
 

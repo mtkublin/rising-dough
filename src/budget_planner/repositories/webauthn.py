@@ -10,13 +10,15 @@ covered by the login audit row the service writes (ADR-0067 §4).
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, Final
 
 from webauthn.helpers import bytes_to_base64url
 
+from budget_planner import clock
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories._shared import (
     parse_dt,
@@ -32,6 +34,8 @@ _COLUMNS = (
     "created_at, last_used_at, deleted_at"
 )
 _EMPTY_CTX = RequestCtx.empty()
+#: Consumed-challenge rows older than this are pruned (twice the 300 s cookie TTL).
+CHALLENGE_RETENTION: Final = timedelta(seconds=600)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -83,9 +87,12 @@ def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
     )
 
 
-def _get_by_id(conn: sqlite3.Connection, user_id: int, row_id: int) -> WebAuthnCredential | None:
+def _get_by_id(
+    conn: sqlite3.Connection, user_id: int, row_id: int, *, include_deleted: bool = True
+) -> WebAuthnCredential | None:
+    live = "" if include_deleted else " AND deleted_at IS NULL"
     row = conn.execute(
-        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?",
+        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?{live}",
         (row_id, user_id),
     ).fetchone()
     return None if row is None else _hydrate(row)
@@ -204,10 +211,39 @@ def revoke_credential(
     return True
 
 
+def _challenge_stamp(value: datetime) -> str:
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def consume_challenge(
+    conn: sqlite3.Connection, challenge: bytes, *, now: datetime | None = None
+) -> bool:
+    """Mark a passkey ``challenge`` used; ``True`` iff this is its first use.
+
+    Stores ``sha256(challenge)`` in ``passkey_challenges_consumed``; the primary
+    key makes the first attempt win atomically (ADR-0067 amendment 2026-11-21,
+    T-Q253). Rows past :data:`CHALLENGE_RETENTION` are pruned on each call.
+    """
+    current = clock.utc_now() if now is None else now
+    with transaction(conn):
+        conn.execute(
+            "DELETE FROM passkey_challenges_consumed WHERE consumed_at < ?",
+            (_challenge_stamp(current - CHALLENGE_RETENTION),),
+        )
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO passkey_challenges_consumed (challenge_hash, consumed_at) "
+            "VALUES (?, ?)",
+            (hashlib.sha256(challenge).hexdigest(), _challenge_stamp(current)),
+        )
+    return cur.rowcount == 1
+
+
 __all__ = [
+    "CHALLENGE_RETENTION",
     "ENTITY_TYPE",
     "WebAuthnCredential",
     "audit_view",
+    "consume_challenge",
     "create_credential",
     "get_by_credential_id",
     "list_credentials",

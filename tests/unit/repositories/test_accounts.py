@@ -16,7 +16,7 @@ def test_create_round_trip(conn: sqlite3.Connection) -> None:
     fetched = accounts.find_by_id(conn, USER_ID, acc.id)
     assert fetched == acc
     assert accounts.find_by_name(conn, USER_ID, "ING") == acc
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     assert len(entries) == 1
     assert entries[0].operation.value == "create"
 
@@ -27,14 +27,14 @@ def test_update_patch(conn: sqlite3.Connection) -> None:
     assert updated.name == "Y"
     assert updated.type == "bank"
     assert updated.updated_at >= acc.updated_at
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     assert [e.operation.value for e in entries] == ["create", "update"]
 
 
 def test_update_noop_still_audits(conn: sqlite3.Connection) -> None:
     acc = accounts.create(conn, USER_ID, NewAccount(name="N", currency="PLN"))
     accounts.update(conn, USER_ID, acc.id, PatchAccount())
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     assert [e.operation.value for e in entries] == ["create", "update"]
 
 
@@ -57,7 +57,7 @@ def test_soft_delete_round_trip(conn: sqlite3.Connection) -> None:
     assert restored.deleted_at is None
     assert accounts.find_by_id(conn, USER_ID, acc.id) == restored
 
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     assert [e.operation.value for e in entries] == [
         "create",
         "delete",
@@ -68,7 +68,7 @@ def test_soft_delete_round_trip(conn: sqlite3.Connection) -> None:
 def test_soft_delete_on_missing_is_noop(conn: sqlite3.Connection) -> None:
     accounts.soft_delete(conn, USER_ID, 999)
     # Should not have audited anything.
-    assert audit.list_entries(conn, "account", 999) == []
+    assert audit.list_entries(conn, 1, "account", 999) == []
 
 
 def test_undelete_missing_raises(conn: sqlite3.Connection) -> None:
@@ -117,7 +117,7 @@ def test_patch_set_credit_limit(conn: sqlite3.Connection) -> None:
     )
     updated = accounts.update(conn, USER_ID, acc.id, PatchAccount(credit_limit_minor=2_000_000))
     assert updated.credit_limit_minor == 2_000_000
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     new_json = json.loads(entries[-1].new_json or "{}")
     assert new_json["credit_limit_minor"] == 2_000_000
 
@@ -136,7 +136,7 @@ def test_patch_clear_credit_limit(conn: sqlite3.Connection) -> None:
     )
     assert updated.is_liability is False
     assert updated.credit_limit_minor is None
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     new_json = json.loads(entries[-1].new_json or "{}")
     assert new_json["credit_limit_minor"] is None
     assert new_json["is_liability"] is False
@@ -192,7 +192,7 @@ def test_audit_log_captures_both_new_fields_on_create_and_update(
         NewAccount(name="V", currency="PLN", is_liability=True, credit_limit_minor=1_000_000),
     )
     accounts.update(conn, USER_ID, acc.id, PatchAccount(credit_limit_minor=2_000_000))
-    entries = audit.list_entries(conn, "account", acc.id)
+    entries = audit.list_entries(conn, 1, "account", acc.id)
     create_new = json.loads(entries[0].new_json or "{}")
     update_new = json.loads(entries[1].new_json or "{}")
     assert create_new["is_liability"] is True

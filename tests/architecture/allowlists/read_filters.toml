@@ -2,79 +2,30 @@
 
 guard = "read_filters"
 
-[[entry]]
-path = "src/budget_planner/repositories/_shared.py"
-rule = "read-no-softdelete"
-count = 2
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/audit.py"
-rule = "read-no-user-filter"
-count = 2
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/budgets.py"
-rule = "read-no-softdelete"
-count = 3
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
+[[permanent]]
+path = "src/budget_planner/repositories/_unaudited.py"
 rule = "mutation-unaudited"
-count = 2
-finding = "B-14"
-epic = "E10"
+count = 3
+finding = "Q-049"
+reason = "fenced audit-free UPDATEs, importable only by services/recurring.py (test_unaudited_imports.py); the caller writes the paired audit row in the same transaction (ADR-0022 amendment 2026-11-21, T-Q228)"
 
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "read-no-softdelete"
-count = 5
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
+[[permanent]]
 path = "src/budget_planner/repositories/sessions.py"
 rule = "read-no-user-filter"
 count = 2
 finding = "B-14"
-epic = "E10"
+reason = "touch_session and rotate_session_token are keyed by the hash of the bearer token; possession of the secret is the authorization and the user is not known beforehand (ADR-0130 amendment 2026-11-21, T-Q268)"
 
-[[entry]]
-path = "src/budget_planner/repositories/snapshots.py"
-rule = "read-no-softdelete"
-count = 3
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/users.py"
-rule = "read-no-softdelete"
-count = 1
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/webauthn.py"
-rule = "mutation-unaudited"
-count = 1
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/repositories/webauthn.py"
-rule = "read-no-softdelete"
-count = 1
-finding = "B-14"
-epic = "E10"
-
-[[entry]]
+[[permanent]]
 path = "src/budget_planner/repositories/webauthn.py"
 rule = "read-no-user-filter"
 count = 1
 finding = "B-14"
-epic = "E10"
+reason = "get_by_credential_id is the login lookup by the authenticator's credential id (secret-keyed, user unknown until it resolves) (ADR-0130 amendment 2026-11-21, T-Q268)"
+
+[[permanent]]
+path = "src/budget_planner/repositories/webauthn.py"
+rule = "mutation-unaudited"
+count = 1
+finding = "B-14"
+reason = "update_sign_count is per-login counter bookkeeping, same class as the exempt sessions table; create/revoke stay audited (ADR-0130 amendment 2026-11-21, T-Q268)"

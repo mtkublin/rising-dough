@@ -106,5 +106,5 @@ def test_reconcile_writes_audit_row(
         actual_balance_minor=12000,
         today=date(2026, 1, 15),
     )
-    entries = audit_repo.list_entries(conn, "transaction", txn.id)
+    entries = audit_repo.list_entries(conn, 1, "transaction", txn.id)
     assert [e.operation.value for e in entries] == ["create"]
