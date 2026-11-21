@@ -5,19 +5,14 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from bs4 import Tag
-
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import categories as categories_repo
-from tests.ui_map import _html
-from tests.ui_map.locator import Locator
 
 USER_ID = 1
 HX = {"HX-Request": "true"}
-_CONTROLS = frozenset({"input", "select", "textarea"})
 
 
 def fetch_all(settings: Settings, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -56,14 +51,6 @@ def system_category_id(settings: Settings, *, name: str) -> int:
         conn.close()
     assert cat is not None
     return cat.id
-
-
-def field(html: str, label_loc: Locator) -> Tag:
-    """The single form control a ``label`` locator names."""
-    controls = [el for el in _html.resolve(html, label_loc) if el.name in _CONTROLS]
-    if len(controls) != 1:
-        raise LookupError(f"expected one control for {label_loc!r}, found {len(controls)}")
-    return controls[0]
 
 
 def live_sessions(db: sqlite3.Connection, user_id: int) -> int:

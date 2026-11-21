@@ -19,8 +19,9 @@ from budget_planner.services.users import (
     SELF_DELETE_MESSAGE,
 )
 from tests.auth_support import FAST_ROUNDS, issue_session
+from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
-from tests.contract.web_helpers_t_ut04e import HX, field, live_sessions
+from tests.contract.web_helpers_t_ut04e import HX, live_sessions
 from tests.ui_map import _html, settings as ui
 
 pytest_plugins = ["tests.contract.web_support_t_ut04e"]  # admin_client, client, anon_client, db
@@ -178,6 +179,9 @@ def test_create_shows_password_once_oob_table_and_audits_actor(
     assert _passwords.verify_password(password, row["password_hash"])
     audit = _audit(db, uid, "create")
     assert (audit["actor_user_id"], audit["user_id"]) == (1, 1)
+    assert audit["entity_type"] == "users"
+    only_this_user = "SELECT COUNT(*) FROM audit_log WHERE entity_type = 'users' AND entity_id = ?"
+    assert db.execute(only_this_user, (uid,)).fetchone()[0] == 1
     assert "password_hash" not in json.loads(audit["new_json"])
     assert password not in "\n".join(db.iterdump())
     assert password not in admin_client.get("/settings/users").text
@@ -235,7 +239,7 @@ def test_create_invalid_email_non_htmx_rerenders_page_with_value(admin_client: T
     r = admin_client.post("/settings/users", data={"email": "nope", "name": "N"})
     assert r.status_code == 422
     assert _html.exists(r.text, ui.users_heading)
-    assert field(r.text, ui.user_email)["value"] == "nope"
+    assert _html.resolve_one(r.text, ui.user_email)["value"] == "nope"
 
 
 @covers("POST /settings/users")
@@ -257,7 +261,7 @@ def test_edit_form_htmx_slideover_and_full_page(admin_client: TestClient) -> Non
     assert frag.status_code == 200
     form = _html.resolve_one(frag.text, ui.edit_form)
     assert form["hx-post"] == "/settings/users/1"
-    assert field(frag.text, ui.user_email)["value"] == "owner@example.test"
+    assert _html.resolve_one(frag.text, ui.user_email)["value"] == "owner@example.test"
     page = admin_client.get("/settings/users/1/edit")
     assert page.status_code == 200
     assert not _html.resolve_one(page.text, ui.edit_form).has_attr("hx-post")
@@ -422,6 +426,8 @@ def test_delete_soft_deletes_revokes_sessions_and_blocks_login(
     assert live_sessions(db, uid) == 0
     audit = _audit(db, uid, "delete")
     assert (audit["actor_user_id"], audit["new_json"]) == (1, None)
+    assert audit["entity_type"] == "users"
+    assert audit_count(db, "users", "delete") == 1
     login = anon_client.post(
         "/auth/login",
         data={"email": "erin@example.test", "password": password},

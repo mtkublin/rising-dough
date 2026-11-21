@@ -81,8 +81,14 @@ def _open_filtered(live_server: tuple[str, Path], page: Page, *, use_alpha: bool
     page.on("console", lambda m: messages.append(m.text))
     alpha, beta = _seed(base_url, db_path, page)
     page.goto(f"{base_url}/ledger")
-    to_playwright(page, ledger.filter_category).select_option(alpha if use_alpha else beta)
+    # The unfiltered first page also has _PAGE_SIZE rows, so wait for the filtered
+    # response (not just a matching count) before the caller interacts further.
+    with page.expect_response(lambda r: "/ledger/table" in r.url and "category" in r.url):
+        to_playwright(page, ledger.filter_category).select_option(alpha if use_alpha else beta)
     expect(_rows(page, "actual")).to_have_count(_PAGE_SIZE if use_alpha else _ROWS_B)
+    expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text(
+        "beta banana" if use_alpha else "alpha apple"
+    )
     return messages
 
 

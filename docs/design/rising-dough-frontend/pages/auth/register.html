@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>First-run registration · Rising Dough</title>
+<title>First account (first visit only) · Rising Dough</title>
 <link rel="icon" href="../../static/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../static/css/main.css">
 <script src="../../static/js/theme.js"></script>
@@ -42,11 +42,12 @@
 <div id="flash-region" class="rd-flash-region"></div>
 <main id="main" class="rd-main rd-main--auth">
 <div class="rd-auth">
-<header class="rd-auth__bake"><a class="rd-auth__brand" href="../../pages/auth/login.html">Rising Dough</a><p class="rd-auth__headline">Your money, <i>proofed</i> and rising.</p><span></span></header>
-<div class="rd-auth__side"><div class="rd-auth__form"><p class="rd-caption rd-caption--upper">first run · you’ll be the admin</p>
-<h1 class="rd-auth__title">Set up Rising Dough</h1>
+<header class="rd-auth__bake"><a class="rd-auth__brand" href="../../pages/auth/login.html">Rising Dough</a><p class="rd-auth__headline rd-auth__headline--wide">Your money, <i>proofed</i> and rising.</p><span class="rd-auth__spacer"></span></header>
+<div class="rd-auth__side"><div class="rd-auth__form"><h1 class="rd-auth__title">Create the first account</h1>
+<p class="rd-auth__lede">Only shown while the app has no users. You’ll be its admin.</p>
 <form class="rd-form" method="post" action="#" data-demo-next="../../pages/today.html">
 <div class="rd-field"><label class="rd-field__label" for="reg-email">email</label><span class="rd-input"><input class="rd-input__control" id="reg-email" name="reg_email" type="email" placeholder="name@example.com" autocomplete="username" required></span></div>
+<div class="rd-field"><label class="rd-field__label" for="reg-name">name</label><span class="rd-input"><input class="rd-input__control" id="reg-name" name="reg_name" type="text" placeholder="Your name" autocomplete="name" required></span></div>
 <div class="rd-field"><label class="rd-field__label" for="reg-password">password</label><span class="rd-input"><input class="rd-input__control" id="reg-password" name="reg_password" type="password" aria-describedby="reg-password-hint" autocomplete="new-password" minlength="12" required></span><p class="rd-field__hint" id="reg-password-hint">12+ characters</p></div>
 <div class="rd-field"><label class="rd-field__label" for="reg-confirm">confirm password</label><span class="rd-input"><input class="rd-input__control" id="reg-confirm" name="reg_confirm" type="password" autocomplete="new-password" required></span></div>
 <button type="submit" class="rd-btn rd-btn--primary rd-btn--block">[ create account ]</button>

@@ -570,33 +570,6 @@
       "via": "Add override for Groceries"
     }
   ],
-  "/budget/yearly": [
-    {
-      "kind": "hx-get",
-      "name": "Yearly budget year selector",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/yearly"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Groceries {month}",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/one-off/{id}/{id}/{id}"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Groceries {month}",
-      "skipped": "off-screen or visually hidden (skip link, sr-only)",
-      "target": "/budget/one-off/{id}/{id}/{id}"
-    },
-    {
-      "kind": "submit-get",
-      "name": "Go",
-      "target": ""
-    }
-  ],
   "/categories": [
     {
       "kind": "hx-get",
@@ -1089,6 +1062,92 @@
       "kind": "link",
       "name": "Groceries 54.50 \u2014",
       "target": "/ledger?view=actual&category_id={n}&date_from={date}&date_to={date}"
+    }
+  ],
+  "/plan?tab=year": [
+    {
+      "kind": "disclosure",
+      "name": "Show 1 category without a budget",
+      "target": ""
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "Budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "Forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Next year",
+      "target": "/plan?tab=year&year={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Previous year",
+      "target": "/plan?tab=year&year={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Year",
+      "target": "/plan?tab=year"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Set budget",
+      "target": "/budget/rules/{id}/overrides/new?year={n}",
+      "via": "Show 1 category without a budget"
     }
   ],
   "/planned": [

@@ -26,9 +26,6 @@ def test_edit_transaction_updates_row_and_db(world: World) -> None:
     _menu_action(world, ledger.row_menu(txn), "Edit")
     expect(world.find(ledger.slideover)).to_be_visible()
     world.find(ledger.overlay_field(ledger.field_note)).fill("edited")
-    # Amount last, then Save at once: a finished limit-preview GET from inside the
-    # edit form would close the overlay (data-close-overlay-on-success matches any
-    # successful request of a descendant), so do not wait between the two.
     world.find(ledger.overlay_field(ledger.field_amount)).fill("99.00")
     world.find(ledger.overlay_save).click()
 
@@ -37,6 +34,25 @@ def test_edit_transaction_updates_row_and_db(world: World) -> None:
     row = world.wait_rows("SELECT * FROM transactions WHERE id = ? AND amount = 9900", (txn,))[0]
     assert (row["description"], row["deleted_at"]) == ("edited", None)
     assert world.audit_ops("transaction", txn) == ["create", "update"]
+
+
+def test_limit_preview_does_not_close_edit_slideover_before_save(world: World) -> None:
+    txn = world.transaction(world.account(), world.category(), "12.34", "keep-open")
+    world.goto(LEDGER.format(view="actual"))
+    _menu_action(world, ledger.row_menu(txn), "Edit")
+    expect(world.find(ledger.slideover)).to_be_visible()
+    amount = world.find(ledger.overlay_field(ledger.field_amount))
+    amount.fill("")
+    with world.page.expect_response(lambda r: "/transactions/_limit_preview" in r.url):
+        amount.press_sequentially("45.67")  # real keystrokes fire the keyup preview trigger
+    world.settle()
+    expect(world.find(ledger.slideover)).to_be_visible()
+    assert world.rows("SELECT 1 FROM transactions WHERE id = ? AND amount = 1234", (txn,))
+
+    world.find(ledger.overlay_save).click()
+    expect(world.find(ledger.slideover)).to_have_count(0)
+    row = world.wait_rows("SELECT * FROM transactions WHERE id = ? AND amount = 4567", (txn,))[0]
+    assert row["deleted_at"] is None
 
 
 def test_delete_transaction_then_undo_from_recently_deleted(world: World) -> None:
