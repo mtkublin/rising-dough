@@ -49,9 +49,3 @@ path = "tests/integration/invariants/test_inv_09_archived_category_scope.py"
 rule = "Q-030"
 count = 1
 finding = "Q-030"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_10_missing_rate_fallbacks.py"
-rule = "Q-007"
-count = 1
-finding = "Q-007"

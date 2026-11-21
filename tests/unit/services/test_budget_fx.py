@@ -28,6 +28,7 @@ from budget_planner.repositories import (
     transactions,
 )
 from budget_planner.services import budget as bs, forecast
+from budget_planner.services.fx import FxUnavailableError
 
 USER_ID = 1
 TODAY = date(2026, 2, 15)
@@ -130,12 +131,13 @@ def test_month_summary_split_and_remaining_converted(
     assert s.left_daily_spend_minor == 6_000  # 60_000 / 10 days
 
 
-def test_missing_rate_degrades_to_native_amount(
+def test_missing_rate_raises_not_native_amount(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    """No cached rate: same graceful degradation as the Today account rows (rate 1)."""
+    """ADR-0139: no cached rate raises (never the native amount or rate 1)."""
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    assert _committed(conn) == 12_000
+    with pytest.raises(FxUnavailableError):
+        _committed(conn)
 
 
 def test_forecast_overlay_committed_converted(
@@ -180,11 +182,10 @@ def test_pln_spent_unchanged(conn: sqlite3.Connection, world: dict[str, int]) ->
     assert _groceries_line(conn, world).spent_minor == 10_000
 
 
-def test_spent_missing_rate_falls_back_to_native(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
+def test_spent_missing_rate_raises(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 10))
-    assert _groceries_line(conn, world).spent_minor == 10_000
+    with pytest.raises(FxUnavailableError):
+        _groceries_line(conn, world)
 
 
 def test_spent_uses_rate_of_each_transaction_date(

@@ -33,7 +33,7 @@ epic = "E11"
 [[entry]]
 path = "src/budget_planner/services/budget.py"
 rule = "banned-name"
-count = 7
+count = 3
 finding = "Q-007"
 epic = "E01"
 
@@ -47,21 +47,14 @@ epic = "E11"
 [[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "banned-name"
-count = 2
+count = 1
 finding = "Q-003"
 epic = "E01"
 
 [[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "money-primitive"
-count = 4
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/fx.py"
-rule = "money-primitive"
-count = 4
+count = 2
 finding = "Q-076"
 epic = "E11"
 
@@ -96,7 +89,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/ledger.py"
 rule = "banned-name"
-count = 4
+count = 3
 finding = "Q-007"
 epic = "E01"
 
@@ -134,17 +127,3 @@ rule = "banned-name"
 count = 2
 finding = "Q-031"
 epic = "E07"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "banned-name"
-count = 1
-finding = "Q-007"
-epic = "E01"
-
-[[entry]]
-path = "src/budget_planner/web/today_data.py"
-rule = "money-primitive"
-count = 2
-finding = "Q-076"
-epic = "E11"

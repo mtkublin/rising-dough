@@ -10,13 +10,10 @@ import calendar
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Literal
 
-import httpx
 from fastapi import Request
 
-from budget_planner.domain.money import currency_decimals
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
@@ -87,26 +84,10 @@ class UpcomingRow:
     dest_account_id: int | None
 
 
-def _convert_minor(
-    amount_minor: int,
-    from_ccy: str,
-    to_ccy: str,
-    rate: Decimal,
-) -> int:
-    """Convert ``amount_minor`` using a pre-fetched rate (ROUND_HALF_EVEN)."""
-    if from_ccy == to_ccy:
-        return amount_minor
-    src_scale = Decimal(10) ** currency_decimals(from_ccy)
-    dst_scale = Decimal(10) ** currency_decimals(to_ccy)
-    major = Decimal(amount_minor) / src_scale
-    converted = (major * rate) * dst_scale
-    return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
-
-
 def collect_account_rows(
     conn: sqlite3.Connection,
     user_id: int,
-    base_ccy: str,
+    fx: fx_service.FxConverter,
 ) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...], int]:
     """Return (per-account rows, per-currency totals, fortune in base)."""
     accs = accounts_repo.list_all(conn, user_id)
@@ -117,17 +98,6 @@ def collect_account_rows(
         per_ccy[a.currency] = per_ccy.get(a.currency, 0) + bal
         native.append((a.id, a.name, a.type, a.currency, bal))
 
-    non_base = {ccy for ccy in per_ccy if ccy != base_ccy}
-    rates: dict[str, Decimal] = {base_ccy: Decimal("1")}
-    if non_base:
-        today = date.today()  # noqa: DTZ011 — ADR-0007: naive dates
-        with httpx.Client(timeout=5.0) as http:
-            for ccy in non_base:
-                try:
-                    rates[ccy] = fx_service.get_rate(conn, http, today, ccy, base_ccy)
-                except fx_service.FxUnavailableError:
-                    rates[ccy] = Decimal("1")  # degrade gracefully; UI shows native only
-
     rows = tuple(
         AccountRow(
             id=aid,
@@ -135,7 +105,7 @@ def collect_account_rows(
             type=atype,
             currency=ccy,
             balance_minor=bal,
-            balance_base_minor=_convert_minor(bal, ccy, base_ccy, rates[ccy]),
+            balance_base_minor=fx.to_base(bal, ccy),
         )
         for (aid, name, atype, ccy, bal) in native
     )

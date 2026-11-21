@@ -1,5 +1,7 @@
 # Changelog
 
+- **Fix(T-Q212): one cache-only FX converter, one missing-rate policy, working live fetch** (2026-11-21, ADR-0139 amends ADR-0006, Q-007, OQ-13/OQ-17/OQ-1 defaults pending operator confirmation): `services/fx.FxConverter` built by `converter_for(conn, settings, today)` replaces the four copies (today, forecast router, budget, ledger/analytics); a missing rate raises `FxUnavailableError` (HTTP 503), never rate 1 or the native amount; page renders do no network I/O; live fetch moved to `adapters/fx/frankfurter.py` (client factory with `base_url=settings.fx_api_url`) behind `fx.refresh_rates` and `python -m budget_planner.cli.refresh_fx`; `NewFxRate` rejects `rate <= 0`. Deleted allowlist entries: banned_patterns 3, invariants 1, money_scope 11, purity 11.
+
 ## 2026-11-21 (T-Q246: task status reconciled with CHANGELOG and ADRs)
 - **Docs(T-Q246): reconcile task status (Q-054).** v1: T-108 and T-126 closed with commit evidence, T-109 stays open (dropped from backlog). v3: T-D146, T-D147, T-D159 closed; T-D126 and T-D156 stay ◐ with the open step named; T-D21 and T-D22 got commit evidence. `docs/plans/v2/tasks.md` closed as superseded by ADR-0107 with a banner (rows kept; default taken 2026-11-21, pending operator confirmation, OQ-21). T-CS03 (ci-speed plan) not touched, outside this item's files.
 

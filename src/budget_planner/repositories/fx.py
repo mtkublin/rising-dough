@@ -53,6 +53,15 @@ def latest_rate(
     return _row_to_rate(row) if row is not None else None
 
 
+def list_rates_to(conn: sqlite3.Connection, to_ccy: str) -> list[FxRate]:
+    """Every cached rate into ``to_ccy``, oldest first per source currency."""
+    rows = conn.execute(
+        f"SELECT {_COLUMNS} FROM fx_rates WHERE to_ccy = ? ORDER BY from_ccy, date, id",
+        (to_ccy,),
+    ).fetchall()
+    return [_row_to_rate(row) for row in rows]
+
+
 def list_recent(conn: sqlite3.Connection, *, limit: int = 50) -> list[FxRate]:
     """Return the most-recently fetched FX rates, newest first.
 
@@ -104,4 +113,4 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     )
 
 
-__all__ = ["find_rate", "latest_rate", "list_recent", "upsert_rate"]
+__all__ = ["find_rate", "latest_rate", "list_rates_to", "list_recent", "upsert_rate"]

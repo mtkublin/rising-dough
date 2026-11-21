@@ -316,12 +316,12 @@ def _eur_account_with_rate(conn: sqlite3.Connection, user_id: int, *, deleted: b
     return account.id
 
 
-@covers("budget.base_amount_converter")
-def _case_base_amount_converter(conn: sqlite3.Connection, world: World) -> None:
+@covers("budget.planned_base_amounts")
+def _case_planned_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     eur = _eur_account_with_rate(conn, OWNER_ID, deleted=False)
     gone = _eur_account_with_rate(conn, OWNER_ID, deleted=True)
-    owner = budget.base_amount_converter(conn, OWNER_ID, today=T, base_currency=BASE)
-    other = budget.base_amount_converter(conn, OTHER_ID, today=T, base_currency=BASE)
+    owner = budget.planned_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)
+    other = budget.planned_base_amounts(conn, OTHER_ID, today=T, base_currency=BASE)
     assert owner(eur, 1_000) == 4_000
     # OQ-15 current behaviour: archived accounts keep converting (their currency is still resolved).
     assert owner(gone, 1_000) == 4_000
@@ -330,8 +330,8 @@ def _case_base_amount_converter(conn: sqlite3.Connection, world: World) -> None:
     assert other(eur, 1_000) == 1_000
 
 
-@covers("budget.base_txn_converter")
-def _case_base_txn_converter(conn: sqlite3.Connection, world: World) -> None:
+@covers("budget.txn_base_amounts")
+def _case_txn_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     eur = _eur_account_with_rate(conn, OWNER_ID, deleted=False)
     eur_txn = transactions_repo.create(
         conn,
@@ -340,13 +340,13 @@ def _case_base_txn_converter(conn: sqlite3.Connection, world: World) -> None:
             operation_date=T, category_id=world.owner.category_id, account_id=eur, amount=1_000
         ),
     )
-    owner = budget.base_txn_converter(conn, OWNER_ID, base_currency=BASE)
-    other = budget.base_txn_converter(conn, OTHER_ID, base_currency=BASE)
+    owner = budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)
+    other = budget.txn_base_amounts(conn, OTHER_ID, today=T, base_currency=BASE)
     assert owner(eur_txn) == 4_000
     assert other(eur_txn) == 1_000  # the other user cannot see the account's currency
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
     # OQ-15 current behaviour: a soft-deleted account keeps converting its (still listed) transactions.
-    assert budget.base_txn_converter(conn, OWNER_ID, base_currency=BASE)(eur_txn) == 4_000
+    assert budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)(eur_txn) == 4_000
     live = transactions_repo.find_by_id(conn, OWNER_ID, world.owner.transaction_id)
     assert live is not None
     assert owner(live) == 1_000

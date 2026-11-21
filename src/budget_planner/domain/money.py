@@ -7,7 +7,7 @@ integer minor units routes through this module.
 
 from __future__ import annotations
 
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Final
 
 # ISO 4217 active currency codes (ADR-0030). Alphabetical order so the combobox
@@ -330,3 +330,14 @@ def divide_minor_units(amount_minor: int, parts: int) -> int:
     rounding policy.
     """
     return amount_minor // parts
+
+
+def rescale_minor(amount_minor: int, from_ccy: str, to_ccy: str, rate: Decimal) -> int:
+    """Re-express ``amount_minor`` of ``from_ccy`` in ``to_ccy`` minor units at ``rate``.
+
+    The single FX rounding point (ADR-0139): scale by both currency exponents,
+    multiply by the rate, round half to even. Sign is preserved.
+    """
+    major = Decimal(amount_minor) / (Decimal(10) ** currency_decimals(from_ccy))
+    scaled = major * rate * (Decimal(10) ** currency_decimals(to_ccy))
+    return int(scaled.quantize(Decimal(1), rounding=ROUND_HALF_EVEN))
