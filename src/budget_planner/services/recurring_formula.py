@@ -435,6 +435,51 @@ from typing import Literal  # noqa: E402
 PreviewErrorCode = Literal["cycle", "non_positive", "invalid_source", "empty"]
 
 
+def invalid_source_ids(
+    conn: sqlite3.Connection,
+    user_id: int,
+    source_groups: Sequence[Sequence[int]],
+) -> tuple[int, int] | None:
+    """Return (group_index, bad_category_id) for the first source id that is not
+    a live category of ``user_id`` (foreign, unknown or soft-deleted); ``None``
+    on all-valid input (Q-028: the save path shares this with the preview).
+    """
+    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
+
+    live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
+    for idx, group in enumerate(source_groups):
+        for cid in group:
+            if cid not in live_ids:
+                return idx, cid
+    return None
+
+
+def compute_savable_amount(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    year: int,
+    month: int,
+    *,
+    exclude_rule_id: int | None = None,
+) -> int:
+    """Validate a formula for saving and return its snapshot amount (minor units).
+
+    Rejects (``FormulaError``) a source category that is not the caller's, a
+    cycle, and a formula resolving to a non-positive amount (Q-028).
+    """
+    bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in formula.terms])
+    if bad is not None:
+        raise FormulaError(f"unknown or archived source category: {bad[1]}")
+    validate_formula_sources(conn, user_id, formula, exclude_rule_id=exclude_rule_id)
+    amount = compute_formula_amount(
+        conn, user_id, formula, year, month, exclude_rule_id=exclude_rule_id
+    )
+    if amount <= 0:
+        raise FormulaError("formula resolved to a non-positive amount")
+    return amount
+
+
 @dataclass(frozen=True, slots=True)
 class DraftTerm:
     """Shape mirroring the Jinja form rows the Add-entry builder posts.
@@ -464,24 +509,6 @@ class PreviewError:
 PreviewResult = PreviewOk | PreviewError
 
 
-def _invalid_source_ids(
-    conn: sqlite3.Connection,
-    user_id: int,
-    terms: Sequence[DraftTerm],
-) -> tuple[int, int] | None:
-    """Return (term_index, bad_category_id) when a term points at an
-    unknown or soft-deleted category; ``None`` on all-valid input.
-    """
-    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
-
-    live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
-    for idx, term in enumerate(terms):
-        for cid in term.source_category_ids:
-            if cid not in live_ids:
-                return idx, cid
-    return None
-
-
 def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
     conn: sqlite3.Connection,
     user_id: int,
@@ -508,7 +535,7 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
             offending_term_index=None,
         )
 
-    bad = _invalid_source_ids(conn, user_id, terms)
+    bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in terms])
     if bad is not None:
         term_idx, bad_id = bad
         return PreviewError(
@@ -588,6 +615,8 @@ __all__ = [
     "build_formula",
     "build_term",
     "compute_formula_amount",
+    "compute_savable_amount",
+    "invalid_source_ids",
     "parse_percent_to_bps",
     "preview",
     "resolve_rule_amount",
