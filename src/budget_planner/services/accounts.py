@@ -21,6 +21,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
+    snapshots as snapshots_repo,
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import balance as balance_service
@@ -172,6 +173,18 @@ def archive_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> 
         if blockers:
             raise ConflictError(message="Cannot archive account: " + "; ".join(blockers))
         accounts_repo.soft_delete(conn, user_id, account_id)
+
+
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+find_by_id = accounts_repo.find_by_id
+find_by_name = accounts_repo.find_by_name
+list_all = accounts_repo.list_all
+create = accounts_repo.create
+update = accounts_repo.update
+list_snapshots_for_account = snapshots_repo.list_for_account
+list_snapshots_for_user = snapshots_repo.list_for_user
+create_snapshot = snapshots_repo.create
 
 
 __all__ = ["LastCheckedRow", "archive_account", "last_checked"]

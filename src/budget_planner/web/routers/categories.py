@@ -11,7 +11,6 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner.domain.categories import NewCategory, PatchCategory, normalise_color
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import name_error
-from budget_planner.repositories import categories as categories_repo
 from budget_planner.services import categories as categories_service
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import trigger
@@ -96,7 +95,7 @@ def create_category(  # noqa: PLR0917
             status_code=422,
         )
     assert d is not None
-    cat = categories_repo.create(
+    cat = categories_service.create(
         conn, user_id, NewCategory(name=name.strip(), direction=d, color=resolved_color)
     )
     html = render(request, "partials/categories/_row.html", category=cat)
@@ -115,7 +114,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return render(
             request,
@@ -146,7 +145,7 @@ def update_category(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return render(
             request,
@@ -179,8 +178,8 @@ def update_category(  # noqa: PLR0917
         color=resolved_color,
         clear_color=clear_requested,
     )
-    categories_repo.update(conn, user_id, category_id, patch)
-    updated = categories_repo.find_by_id(conn, user_id, category_id)
+    categories_service.update(conn, user_id, category_id, patch)
+    updated = categories_service.find_by_id(conn, user_id, category_id)
     assert updated is not None
     html = render(request, "partials/categories/_row.html", category=updated)
     trigger(html, "budget-stale")
@@ -193,12 +192,12 @@ def delete_category(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
     if cat.is_system:
         return Response(status_code=409, content="system categories cannot be deleted")
-    categories_repo.soft_delete(conn, user_id, category_id)
+    categories_service.soft_delete(conn, user_id, category_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "budget-stale")
     return resp

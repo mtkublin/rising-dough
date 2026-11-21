@@ -15,12 +15,9 @@ from budget_planner.domain.planned import (
     PatchPlannedTransaction,
     PlannedFilter,
 )
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    planned as planned_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
+    categories as categories_service,
     export as export_service,
     planned as planned_service,
     transactions as transactions_service,
@@ -156,8 +153,8 @@ def new_form(
         form_include="partials/planned/_form.html",
         planned=None,
         action="/planned",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -178,8 +175,8 @@ def create_planned(  # noqa: PLR0917
     op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -191,7 +188,7 @@ def create_planned(  # noqa: PLR0917
         except ValueError:
             errors["dest_account_id"] = "invalid dest account"
         else:
-            if accounts_repo.find_by_id(conn, user_id, dest_id) is None:
+            if accounts_service.find_by_id(conn, user_id, dest_id) is None:
                 errors["dest_account_id"] = "unknown dest account"
             elif (same := validate_distinct_accounts(account_id, dest_id)) is not None:
                 errors["dest_account_id"] = same
@@ -222,13 +219,13 @@ def create_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=None,
             action="/planned",
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
-    pl = planned_repo.create(
+    pl = planned_service.create(
         conn,
         user_id,
         NewPlannedTransaction(
@@ -270,7 +267,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -290,8 +287,8 @@ def edit_form(
         form_include="partials/planned/_form.html",
         planned=pl,
         action=f"/planned/{planned_id}",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -309,10 +306,10 @@ def update_planned(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
     op_date = parse_date(operation_date)
     if op_date is None:
@@ -327,7 +324,7 @@ def update_planned(  # noqa: PLR0917
     )
     if same is not None:
         errors["dest_account_id"] = same
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         errors["category_id"] = "unknown category"
     elif acc is not None and same is None:
@@ -354,13 +351,13 @@ def update_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=pl,
             action=f"/planned/{planned_id}",
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
-    planned_repo.update(
+    planned_service.update(
         conn,
         user_id,
         planned_id,
@@ -385,10 +382,10 @@ def delete_planned(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    planned_repo.soft_delete(conn, user_id, planned_id)
+    planned_service.soft_delete(conn, user_id, planned_id)
     resp = Response(content="", media_type="text/html")
     trigger(resp, "forecast-stale", "ledger-stale")
     return resp
@@ -402,7 +399,7 @@ def restore_planned(
 ) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
-        planned_repo.undelete(conn, user_id, planned_id)
+        planned_service.undelete(conn, user_id, planned_id)
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
@@ -417,7 +414,7 @@ def promote_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -426,7 +423,7 @@ def promote_form(
             errors={"planned": "not found"},
             status_code=404,
         )
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     return render(
         request,
         "partials/planned/_promote_modal.html",
@@ -444,11 +441,11 @@ def promote_inline(
     user_id: int = Depends(current_user_id),
 ) -> Response:
     """F-02 — Row-expand inline Promote form for Today Upcoming."""
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     return render(
         request,
         "partials/planned/_promote_inline_row.html",
@@ -468,10 +465,10 @@ def promote_submit(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     op_date = parse_date(operation_date)
     errors: dict[str, str] = {}
     if op_date is None:
