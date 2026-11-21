@@ -208,14 +208,14 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "same-name"
-count = 3
+count = 2
 finding = "P1"
 epic = "E03"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "same-name"
-count = 3
+count = 2
 finding = "P1"
 epic = "E03"
 

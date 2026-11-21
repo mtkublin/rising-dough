@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-21 (T-Q244: routes without a caller removed)
+- **Refactor(T-Q244): six dead routes deleted with their partials and tests (Q-050; ADR-0056 amendment).** Per route: `POST /recurring/formula/preview` deleted (ADR-0056 live preview not re-wired, ADR-0107 redesign owns it; `services/recurring_formula.preview` kept); `GET /accounts/last-checked` deleted; `GET /plan/analytics` deleted (tab renders inline); `POST /budget/recurring/{category_id}/{month}` deleted; `POST /recurring/batch/promote-due` deleted (Today uses `/planned/batch/promote-due`); `POST /recurring/batch/undo` deleted with it (only its toast called it). `services/recurring_undo.undo_batch` and `recurring.batch_promote_due` stay, covered by service-level tests; T-Q257 decides their fate. Allowlists lowered (stale after deletion): `htmx_events` (budget-stale 14 to 11, today-stale 4 to 2), `literals`, `thin_router`, `suppressions` (ceilings PLC0415 31 to 30, PLR0917 32 to 31, DTZ011 18 to 16), `clones`, `hygiene`, `banned_patterns`, `template_logic` (`_last_checked.html` entry deleted); none added.
+
 ## 2026-11-21 (T-Q253: session and passkey hardening)
 - **Fix(T-Q253): passkey challenges single-use, passkey revoke ends its sessions, no stale cookie from in-flight responses (ADR-0067 amendment, Q-062; OQ-26 defaults pending confirmation).** Migration `0018_passkey_challenges_and_session_credential.sql` adds `passkey_challenges_consumed` and `sessions.credential_id`. CSRF token binding (H3-08) deliberately not changed, recorded in the ADR. No allowlist entry touched.
 ## 2026-11-21 (T-Q228: audited batch undo, audit-free helpers fenced)

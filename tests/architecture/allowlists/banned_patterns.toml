@@ -117,7 +117,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "banned-name"
-count = 3
+count = 2
 finding = "Q-038"
 epic = "E03"
 
