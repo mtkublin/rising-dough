@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-21 (T-Q220: differential invariant tests close-out)
+- **Test(T-Q220): all 16 Track A differential invariants are accounted for (Q-013).** 15 are tests in `tests/integration/invariants/`; INV-6c (static `/ 100` count) is left to the G6/G27 guards and T-Q216. The `conftest.py` docstring maps each strict `xfail` to its Q-id and fix task. No allowlist entry touched.
 ## 2026-11-21 (T-Q239: tamper-resistant merge gate, code half)
 - **CI(T-Q239): `.github/CODEOWNERS` covers `.github/`, `scripts/ci/`, `terraform/`, `ci_environments.toml` and `workflow_trust.toml` (ADR-0099 amendment, Q-041).** `tests/architecture/test_codeowners.py` guards it. **Operator half pending:** `workflows` rule from `main`, `integration_id` 15368 on each required context, refresh `repro/H1/gh_api/ruleset_protect_main.json` (`runbooks/github-settings.md` 3c).
 ## 2026-11-21 (T-Q205: user_id-leading indexes, session write throttle)
