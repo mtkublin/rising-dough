@@ -6,7 +6,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1 — builder: resolves and compiles the venv with `uv`.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-trixie AS builder
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -21,7 +21,7 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir uv
+    && pip install --no-cache-dir "uv==0.11.2"
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ RUN uv sync \
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime: minimal non-root image.
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim-trixie AS runtime
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 
 # `curl` for the container healthcheck (hits /health, see T-D01).
 # `ca-certificates` so outbound HTTPS (frankfurter FX etc.) works.
