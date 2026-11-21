@@ -219,10 +219,11 @@ def _match_one(el: Tag, loc: Locator) -> bool:  # noqa: PLR0911
     if loc.kind == "testid":
         return el.get("data-testid") == loc.value
     if loc.kind == "label":
-        return any(
+        by_label = _is_labelable(el) and any(
             _matches(_norm(_visible_text_without_controls(lab)), loc.value, exact=loc.exact)
             for lab in _labels_for(el)
-        ) or _aria_label_matches(el, loc)
+        )
+        return by_label or _aria_label_matches(el, loc) or _aria_labelledby_matches(el, loc)
     # role
     if _is_hidden(el) or implicit_role(el) != loc.value:
         return False
@@ -241,6 +242,25 @@ def _visible_text_without_controls(lab: Tag) -> str:
     for inner in clone.find_all(["input", "select", "textarea"]):
         inner.decompose()
     return _visible_text(clone)
+
+
+_LABELABLE = {"select", "textarea", "button", "meter", "output", "progress"}
+
+
+def _is_labelable(el: Tag) -> bool:
+    """HTML labelable elements (what a ``<label>`` can actually label)."""
+    if el.name == "input":
+        return str(el.get("type", "")).lower() != "hidden"
+    return el.name in _LABELABLE
+
+
+def _aria_labelledby_matches(el: Tag, loc: Locator) -> bool:
+    ids = el.get("aria-labelledby")
+    if not isinstance(ids, str):
+        return False
+    parts = [_by_id(el, i) for i in ids.split()]
+    text = " ".join(_visible_text(p) for p in parts if p is not None)
+    return bool(text.strip()) and _matches(_norm(text), loc.value, exact=loc.exact)
 
 
 def _aria_label_matches(el: Tag, loc: Locator) -> bool:

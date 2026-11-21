@@ -46,16 +46,6 @@ def seed_other_user(settings: Settings) -> int:
     return OTHER_USER_ID
 
 
-_CONTROLS = frozenset({"input", "select", "textarea"})
-
-
 def field(html: str, label_loc: Locator) -> Tag:
-    """The single form control a ``label`` locator names.
-
-    ``label`` locators also resolve wrapper elements nested in the label, so
-    narrow to the control itself.
-    """
-    controls = [el for el in _html.resolve(html, label_loc) if el.name in _CONTROLS]
-    if len(controls) != 1:
-        raise LookupError(f"expected one control for {label_loc!r}, found {len(controls)}")
-    return controls[0]
+    """The single form control a ``label`` locator names."""
+    return _html.resolve_one(html, label_loc)
