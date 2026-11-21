@@ -4,6 +4,14 @@
 # gated   = required reviewers plus a branch policy are configured. `gated = false` environments that hold secrets are
 #           reported by test_workflow_secrets.py (rule ungated-environment, Q-012) until they are gated and flipped here.
 #
+# prod_grade = false declares that the environment holds NO prod-read or prod-write material (ADR-0132): drill-project
+#           keys, synthetic age identity, placeholder values, plan-only read keys. Such an environment may stay ungated
+#           (teardown and plan must never wait for approval). Omitted = true: an ungated environment is then a violation.
+#           The live values are the operator's to keep that way (docs/plans/v3/runbooks/github-settings.md, ADR-0132).
+# main_only = no reviewers, but a `main` (and `v*` tag) only deployment-branch policy is configured (prod-tailnet: the
+#           release apply that triggers it was already approved).
+# only_workflows = the environment may be referenced only from these workflow files.
+#
 # A new environment or secret needs an entry here AND an operator go. Flipping `gated` to true is declared intent only:
 # verify the live setting with `scripts/ci/check_github_settings.py` (operator-run, reads `gh api`).
 # Declared from the workflows at the audit tree; `prod` gating is per ADR-0099 (approval on terraform apply prod).
@@ -12,22 +20,39 @@
 gated = true
 secrets = ["APP_SCW_ACCESS_KEY", "APP_SCW_SECRET_KEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
 
+[environment.prod-restore-read]
+# ADR-0132: prod replica read key + PROD age identity, used only by the restore drill's apply (terraform.yml, called by
+# restore-drill.yml). Required reviewers and a `main`-only deployment-branch policy. Also holds the drill-project secrets
+# that apply needs (a job has one environment). Explicit refs below; the TF_VAR_* set comes via tf_env.py.
+gated = true
+only_workflows = ["terraform.yml"]
+secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
+
 [environment.prod-plan]
+# ADR-0132: plan-only; read-only ci-plan key, placeholder age identity and app key, no Tailscale OAuth client.
 gated = false
+prod_grade = false
 secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_ORG_ID", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
 
 [environment.prod-tailnet]
+# ADR-0132: tailnet device-delete credentials; branch policy `main` + `v*` only (runbook github-settings.md, 2026-11-18).
 gated = false
+main_only = true
 secrets = ["TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET"]
 
 [environment.drill]
+# ADR-0132: drill-project keys and a synthetic age identity only; no prod-read material.
 gated = false
+prod_grade = false
 secrets = ["DEPLOY_SSH_PRIVATE_KEY", "OPERATOR_SSH_PUBKEY", "SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET", "TS_OAUTH_CLIENT_ID", "TS_OAUTH_SECRET"]
 
 [environment.drill-plan]
 gated = false
+prod_grade = false
 secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY"]
 
 [environment.drill-teardown]
+# ADR-0132: stays ungated (ADR-0101: teardown never waits); holds no prod-read material.
 gated = false
+prod_grade = false
 secrets = ["SCW_ACCESS_KEY", "SCW_DEFAULT_PROJECT_ID", "SCW_SECRET_KEY", "TS_CLEANUP_CLIENT_ID", "TS_CLEANUP_SECRET", "TS_OAUTH_CLIENT_ID", "TS_OAUTH_SECRET"]

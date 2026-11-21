@@ -8,6 +8,10 @@ inputs:
   env:
     description: Target environment, drill or prod. Drill-only inputs are empty on prod (T-D137).
     required: true
+  restore-source:
+    description: "'true' only for the restore drill apply (gated prod-restore-read, ADR-0132): also export the prod replica read key."
+    required: false
+    default: "false"
   secrets-json:
     description: "Pass the toJSON of the secrets context (a composite action cannot read it)."
     required: true
@@ -24,4 +28,8 @@ runs:
         SECRETS_JSON: ${{ inputs.secrets-json }}
         VARS_JSON: ${{ inputs.vars-json }}
         TARGET_ENV: ${{ inputs.env }}
-      run: python3 "${GITHUB_ACTION_PATH}/../../../scripts/ci/tf_env.py" --env "${TARGET_ENV}"
+        RESTORE_SOURCE: ${{ inputs.restore-source }}
+      run: |
+        flag=()
+        if [ "${RESTORE_SOURCE}" = "true" ]; then flag=(--restore-source); fi
+        python3 "${GITHUB_ACTION_PATH}/../../../scripts/ci/tf_env.py" --env "${TARGET_ENV}" "${flag[@]}"

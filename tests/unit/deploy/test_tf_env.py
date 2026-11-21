@@ -29,8 +29,10 @@ SECRETS = {
 VARS = {"CI_SSH_PUBKEY": "ssh-ed25519 AAAA ci", "TAILNET_DNS_NAME": "tail1.ts.net"}
 
 
-def _build(env: str) -> dict[str, str]:
-    out: dict[str, str] = tf_env.build_env(env, SECRETS, VARS, owner="owner", run_id="99")
+def _build(env: str, *, restore_source: bool = False) -> dict[str, str]:
+    out: dict[str, str] = tf_env.build_env(
+        env, SECRETS, VARS, owner="owner", run_id="99", restore_source=restore_source
+    )
     return out
 
 
@@ -42,8 +44,19 @@ def test_drill_gets_drill_only_inputs() -> None:
     assert out["TF_VAR_ci_ssh_pubkey"] == "ssh-ed25519 AAAA ci"  # T-D137
     assert out["TF_VAR_tailnet_dns_name"] == "tail1.ts.net"
     assert out["TF_VAR_drill_run_id"] == "99"  # T-D139
-    assert out["TF_VAR_scw_access_key_restore"] == "ro-id"
     assert out["TF_VAR_restore_reader_application_id"] == ""
+
+
+def test_prod_replica_read_key_only_with_restore_source() -> None:
+    """ADR-0132 / H4-03: an explore drill gets no prod read key; the restore drill apply does."""
+    explore = _build("drill")
+    restore = _build("drill", restore_source=True)
+
+    assert explore["TF_VAR_scw_access_key_restore"] == ""
+    assert explore["TF_VAR_scw_secret_key_restore"] == ""
+    assert restore["TF_VAR_scw_access_key_restore"] == "ro-id"
+    assert restore["TF_VAR_scw_secret_key_restore"] == SECRETS["PROD_REPLICA_RO_SECRET_KEY"]
+    assert _build("prod", restore_source=True)["TF_VAR_scw_access_key_restore"] == ""
 
 
 def test_prod_never_gets_drill_only_inputs() -> None:

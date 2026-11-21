@@ -9,7 +9,9 @@
 # a workflow artifact BEFORE destroy, then a GitHub issue is opened. A forgotten
 # failed drill host would cost ~EUR 4.46/month, so cost stays bounded per run.
 #
-# Secrets (environment-scoped to `drill`):
+# Secrets (environment-scoped to `drill`; the PROD_REPLICA_RO_* pair and the PROD
+# LITESTREAM_AGE_IDENTITY/RECIPIENT live ONLY in the gated `prod-restore-read`
+# environment, used by the `apply` job, ADR-0132; `drill` holds synthetic age values):
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY
 #   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
@@ -117,8 +119,9 @@ jobs:
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
           python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
 
-  # T-D133: apply is the shared terraform.yml job (environment `drill`, the one
-  # optional reviewer gate, none configured today; no replace and no expires-at tag, as before).
+  # T-D133: apply is the shared terraform.yml job. ADR-0132: `restore_source` runs it
+  # in the gated, main-only `prod-restore-read` environment (prod replica read key and
+  # prod age identity); no replace and no expires-at tag, as before.
   apply:
     name: terraform apply (drill)
     needs: [drill-lock, image]
@@ -130,6 +133,7 @@ jobs:
     with:
       env: drill
       image_ref: ${{ needs.image.outputs.ref }}
+      restore_source: true
     secrets: inherit  # pragma: allowlist secret
 
   restore-drill:
