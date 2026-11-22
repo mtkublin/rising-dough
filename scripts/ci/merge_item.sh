@@ -62,8 +62,14 @@ if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
     git push origin --delete "$branch"
 fi
 # Failed worktree creation leaves worktree-agent-* branches with no commits of their own.
+# A branch still checked out in a live worktree (an agent that just started) is skipped:
+# git branch -D refuses it, and that would fail the script after a successful merge.
+checked_out="$(git worktree list --porcelain | awk '$1 == "branch" { sub("^refs/heads/", "", $2); print $2 }')"
 while read -r stale; do
     [[ -n "$stale" ]] || continue
+    if grep -qxF "$stale" <<<"$checked_out"; then
+        continue
+    fi
     if [[ "$(git rev-list --count "${work}..${stale}")" == "0" ]]; then
         git branch -D "$stale"
     fi

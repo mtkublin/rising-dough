@@ -1318,6 +1318,17 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
 - Removes allowlist entries: none.
 
+### ✅ T-Q308 [S] merge-item skips worktree-agent branches still checked out
+- Findings: the final prune loop in `scripts/ci/merge_item.sh` ran `git branch -D` on empty `worktree-agent-*` branches that a live worktree still had checked out; git refuses, `set -e` exits non-zero after a successful merge, push and prune.
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q304
+- Docs-first step: none (bug fix within T-Q304 scope; no requirement or ADR change).
+- Goal: skip any branch named in `git worktree list --porcelain` (`branch refs/heads/<name>`) in the stale-branch loop.
+- Acceptance: the stale-branch loop never calls `git branch -D` on a checked-out branch; `bash -n` passes on the script.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
 ### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
