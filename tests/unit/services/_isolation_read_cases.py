@@ -38,6 +38,7 @@ from budget_planner.services import (
     categories as categories_svc,
     fx,
     income,
+    limit_preview,
     preferences,
     today as today_svc,
     upcoming,
@@ -656,3 +657,57 @@ def _case_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         found = set(categories_svc.expense_category_ids(conn, user_id))
         assert found == _expected_expense_ids(world, user_id)
+
+
+# --- limit_preview -----------------------------------------------------------------------------------------------
+
+
+@covers("limit_preview.compute_limit_preview")
+def _case_compute_limit_preview(conn: sqlite3.Connection, world: World) -> None:
+    """The projection reads only the caller's card and category; a second user gets nothing."""
+    card = accounts_repo.create(
+        conn,
+        OWNER_ID,
+        NewAccount(
+            name="owner-card",
+            currency=BASE,
+            opening_balance=0,
+            is_liability=True,
+            credit_limit_minor=10_000,
+        ),
+    )
+    transactions_repo.create(
+        conn,
+        OWNER_ID,
+        NewTransaction(
+            operation_date=WORLD_DAY,
+            category_id=world.owner.category_id,
+            account_id=card.id,
+            amount=1_000,
+        ),
+    )
+    preview = limit_preview.compute_limit_preview(
+        conn, OWNER_ID, account_id=card.id, category_id=world.owner.category_id, amount_raw="25.00"
+    )
+    # Balance -1_000 (one expense), a further 2_500 expense projects -3_500 against a 10_000 limit.
+    assert preview == limit_preview.LimitPreview(
+        projected_balance=-3_500,
+        available_after=6_500,
+        used_after=3_500,
+        limit=10_000,
+        over_by=0,
+        currency=BASE,
+    )
+    other_cat = world.other.category_id
+    assert (
+        limit_preview.compute_limit_preview(
+            conn, OTHER_ID, account_id=card.id, category_id=other_cat, amount_raw="25.00"
+        )
+        is None
+    )
+    assert (
+        limit_preview.compute_limit_preview(
+            conn, OWNER_ID, account_id=card.id, category_id=other_cat, amount_raw="25.00"
+        )
+        is None
+    )

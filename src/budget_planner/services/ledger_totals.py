@@ -174,17 +174,6 @@ def planned_totals(
     return PlannedTotals(count=len(pending), net_minor=net, net_display=format_money(net, currency))
 
 
-def view_strips(
-    view: str, rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
-) -> tuple[RecurringTotals | None, PlannedTotals | None]:
-    """The strip for the Ledger ``view`` (recurring or planned); ``None`` for the other views."""
-    if view == "recurring":
-        return recurring_monthly_totals(rows, currency, base_of), None
-    if view == "planned":
-        return None, planned_totals(rows, currency, base_of)
-    return None, None
-
-
 __all__ = [
     "Converter",
     "PlannedTotals",
@@ -194,5 +183,4 @@ __all__ = [
     "planned_totals",
     "recurring_monthly_totals",
     "signed_effect",
-    "view_strips",
 ]
