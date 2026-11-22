@@ -39,55 +39,6 @@ finding = "B-02"
 epic = "E08"
 
 [[entry]]
-path = "src/budget_planner/web/routers/forecast.py"
-rule = "helper-in-router"
-count = 1
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/forecast.py"
-rule = "logic-in-router"
-count = 1
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/health.py"
-rule = "logic-in-router"
-count = 2
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/ledger.py"
-rule = "helper-in-router"
-count = 6
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/ledger.py"
-rule = "logic-in-router"
-count = 5
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "helper-in-router"
-count = 2
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "logic-in-router"
-count = 1
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "helper-in-router"
 count = 6
@@ -135,17 +86,3 @@ rule = "helper-in-router"
 count = 11
 finding = "B-02"
 epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/transactions.py"
-rule = "helper-in-router"
-count = 2
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/transactions.py"
-rule = "logic-in-router"
-count = 2
-finding = "B-01"
-epic = "E09"

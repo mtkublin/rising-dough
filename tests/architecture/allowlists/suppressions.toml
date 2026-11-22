@@ -5,7 +5,7 @@ guard = "suppressions"
 # Inline noqa count per bulk code: exact ratchet, must reach zero (PLC0415: E12, PLR0917: E13, DTZ011: done T-Q229).
 [ceilings]
 PLC0415 = 0
-PLR0917 = 23
+PLR0917 = 17
 DTZ011 = 0
 
 [[entry]]
@@ -100,13 +100,6 @@ finding = "Q-048"
 epic = "E14"
 
 [[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "suppress:noqa"
-count = 3
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "suppress:noqa"
 count = 5
@@ -117,12 +110,5 @@ epic = "E14"
 path = "src/budget_planner/web/routers/settings_password.py"
 rule = "suppress:noqa"
 count = 1
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
-path = "src/budget_planner/web/routers/transactions.py"
-rule = "suppress:noqa"
-count = 4
 finding = "Q-048"
 epic = "E14"

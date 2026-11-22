@@ -790,7 +790,9 @@ def test_planned_budget_defaults_and_boundaries(conn: sqlite3.Connection) -> Non
     _plan(conn, OWNER_ID, TODAY, env.expense_cat, env.a1, amount=200)  # due today: not committed
     _plan(conn, OWNER_ID, TODAY + timedelta(days=1), later, env.a1, amount=999)  # remaining == 1
     out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 1, fx=_conv(conn))
-    assert out == {date(2026, 10, 1): 1}  # start_month defaults to today's month, day 1
+    # start_month defaults to today's month, day 1. The archived "dead" category still
+    # counts, in full, like the daily overlay does (ADR-0136, T-Q227): 1 + 50.
+    assert out == {date(2026, 10, 1): 51}
 
 
 def test_month_flow_window_start_and_overdue_placement(conn: sqlite3.Connection) -> None:

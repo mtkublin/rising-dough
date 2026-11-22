@@ -29,16 +29,16 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, major_float, round_div
 from budget_planner.domain.periods import month_bounds, shift_month
-from budget_planner.domain.transactions import Transaction, TransactionFilter
+from budget_planner.domain.transactions import Transaction, TransactionFilter, signed_legs
 from budget_planner.repositories import (
     accounts as accounts_repo,
-    categories as categories_repo,
     transactions as transactions_repo,
 )
 from budget_planner.services import (
     balance as balance_svc,
     budget as budget_svc,
     budget_batch,
+    categories as categories_svc,
     fx as fx_svc,
     recurring as recurring_svc,
 )
@@ -130,42 +130,27 @@ def _signed_events_for_direction(
 ) -> tuple[_CashEvent, ...]:
     """Return the per-account cash events for one planned/virtual leg.
 
-    Mirrors ``services.balance.signed_legs`` but for forward-looking events
+    Adapter over ``domain.transactions.signed_legs`` but for forward-looking events
     (operates on dates + raw ints rather than ``Transaction`` rows). Returns
     ``()`` for adjustments — planned adjustments are unsupported (ADR-0011
     + T-023 guard); surviving rows are skipped defensively with a DEBUG log.
     """
-    if direction is Direction.INCOME:
-        return (
-            _CashEvent(
-                on_date=operation_date,
-                account_id=account_id,
-                amount_minor=amount_minor,
-            ),
+    if direction is Direction.ADJUSTMENT:
+        logger.debug(
+            "forecast skipping adjustment-direction planned leg on %s acct=%s",
+            operation_date,
+            account_id,
         )
-    if direction is Direction.EXPENSE:
-        return (
-            _CashEvent(on_date=operation_date, account_id=account_id, amount_minor=-amount_minor),
-        )
+        return ()
     if direction is Direction.TRANSIT:
-        if dest_account_id is None:  # pragma: no cover - schema CHECK blocks it
+        if dest_account_id is None:
             raise ValueError("transit event missing dest_account_id")
-        if dest_account_id == account_id:  # pragma: no cover - schema CHECK blocks it
+        if dest_account_id == account_id:
             raise ValueError("transit source and dest must differ")
-        return (
-            _CashEvent(on_date=operation_date, account_id=account_id, amount_minor=-amount_minor),
-            _CashEvent(
-                on_date=operation_date,
-                account_id=dest_account_id,
-                amount_minor=amount_minor,
-            ),
-        )
-    logger.debug(
-        "forecast skipping adjustment-direction planned leg on %s acct=%s",
-        operation_date,
-        account_id,
+    return tuple(
+        _CashEvent(on_date=operation_date, account_id=leg.account_id, amount_minor=leg.amount_minor)
+        for leg in signed_legs(direction, amount_minor, account_id, dest_account_id)
     )
-    return ()
 
 
 def _events_for_item(item: recurring_svc.PendingItem) -> tuple[_CashEvent, ...]:
@@ -379,7 +364,6 @@ def _collect_budget_overlay(
     *,
     today: dt.date,
     end_date: dt.date,
-    directions_by_cat: dict[int, Direction],
     primary_account_id: int,
     fx: fx_svc.FxConverter,
 ) -> list[_CashEvent]:
@@ -388,7 +372,7 @@ def _collect_budget_overlay(
     if event_start > end_date:
         return []
 
-    expense_cat_ids = [c for c, d in directions_by_cat.items() if d is Direction.EXPENSE]
+    expense_cat_ids = categories_svc.expense_category_ids(conn, user_id)
     if not expense_cat_ids:
         return []
 
@@ -426,7 +410,7 @@ def _anchor_balances(
     accounts: tuple[Account, ...],
 ) -> dict[int, int]:
     """Day-0 native balance per account via ``services.balance.derive_balances`` (one query)."""
-    return balance_svc.derive_balances(conn, user_id, accounts, as_of_date=today)
+    return balance_svc.as_of_today_many(conn, user_id, accounts, today)
 
 
 # ---------------------------------------------------------------------------
@@ -504,9 +488,6 @@ def forecast(
             ),
         )
 
-    directions_by_cat = {
-        c.id: c.direction for c in categories_repo.list_all(conn, user_id, include_deleted=True)
-    }
     events = _collect_events(conn, user_id, today, end_date)
 
     if include_budget_overlay:
@@ -516,7 +497,6 @@ def forecast(
             user_id,
             today=today,
             end_date=end_date,
-            directions_by_cat=directions_by_cat,
             primary_account_id=primary_account_id,
             fx=fx,
         )
@@ -604,11 +584,7 @@ def _planned_budget_per_month(
     Budget-period consumption boundaries (ADR-0041) are approximated with
     calendar months here, matching ``_collect_budget_overlay``.
     """
-    expense_cats = [
-        c
-        for c in categories_repo.list_all(conn, user_id, include_deleted=False)
-        if c.direction is Direction.EXPENSE
-    ]
+    expense_cat_ids = categories_svc.expense_category_ids(conn, user_id)
     anchor_month = start_month if start_month is not None else today.replace(day=1)
     resolve = budget_batch.budget_resolver(conn, user_id)
     months = [_month_offset(anchor_month, offset) for offset in range(horizon_months)]
@@ -626,11 +602,11 @@ def _planned_budget_per_month(
     out: dict[dt.date, int] = {}
     for month, (spent_by_cat, committed_by_cat) in zip(months, inputs, strict=True):
         total = 0
-        for cat in expense_cats:
-            amount = resolve(cat.id, month.year, month.month)
+        for cat_id in expense_cat_ids:
+            amount = resolve(cat_id, month.year, month.month)
             if amount is None:
                 continue
-            remaining = amount - spent_by_cat.get(cat.id, 0) - committed_by_cat.get(cat.id, 0)
+            remaining = amount - spent_by_cat.get(cat_id, 0) - committed_by_cat.get(cat_id, 0)
             if remaining > 0:
                 total += remaining
         out[month] = total
