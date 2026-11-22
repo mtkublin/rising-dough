@@ -2,9 +2,9 @@
 
 Opt-in suites (not part of `just ci`). ADR-0027 section 4, amended by ADR-0106.
 
-## Old-app snapshots (`test_snapshots.py`)
+## Route snapshots (`test_snapshots.py`, T-Q251)
 
-`just test-visual` / `just test-visual-update`. Five routes x three viewports, byte-equal, baselines in `baselines/`. Deleted per surface as it migrates (ADR-0107).
+Eight routes x 375/1024/1440, light theme, baselines in `__snapshots__/` (Linux only). Run with `just visual` (docker, pinned Playwright container) or via `.github/workflows/visual.yml`; regenerate with `just visual-update` or the `update_baselines` dispatch (artifact, then commit). Never generate baselines on macOS. Tolerance `MAX_DIFF_PIXEL_RATIO = 0.001`. Missing baseline: fails in CI, skips locally.
 
 ## Handoff references (`handoff.py`, `test_reference.py`, T-UT10)
 

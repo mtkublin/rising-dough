@@ -1,9 +1,10 @@
 """Shared fixtures for visual-regression tests (ADR-0027 §4).
 
-The suite is opt-in: it is excluded from the default `pytest` run via the
-`-m "not visual"` default marker expression and from CI unless
-`CI_VISUAL=1`. The `just test-visual` recipe runs it; `just test-visual-update`
-regenerates baselines after an intentional design change.
+The suite is excluded from the default `pytest` run via the `-m "not visual"`
+default marker expression, so laptop runs never compare macOS rendering. It runs
+in `.github/workflows/visual.yml` and, locally, through `just visual` (pinned
+Playwright container, ADR-0027 amendment 2026-11-22, T-Q251). `just visual-update`
+regenerates the baselines inside the same container.
 """
 
 from __future__ import annotations
@@ -28,7 +29,8 @@ from tests.auth_support import issue_session, seed_login_user
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 
 VISUAL_ROOT = Path(__file__).parent
-BASELINES = VISUAL_ROOT / "baselines"
+# Linux baselines, generated only in the pinned Playwright container (ADR-0027, T-Q251).
+BASELINES = VISUAL_ROOT / "__snapshots__"
 REPO_ROOT = VISUAL_ROOT.parents[1]
 DEMO_DB = REPO_ROOT / "data" / "demo.sqlite"
 # demo.sqlite's newest transaction is 2026-10-31; pin the server clock there so
