@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
+from typing import get_args
 
 from budget_planner import clock
 from budget_planner.config import Settings
@@ -17,6 +18,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.analytics import AnalyticsBundle
 from budget_planner.web import view_models
+from budget_planner.web.params import query_choice
 
 
 def base_context(
@@ -89,7 +91,9 @@ def analytics_bundle(
 ) -> tuple[AnalyticsBundle, dict[str, object]]:
     """Return the analytics bundle for the picked month and the keys derived from it."""
     today = clock.today_local(settings)
-    period = analytics_service.normalize_period(period_raw)
+    period = analytics_service.normalize_period(
+        query_choice("period", period_raw, get_args(analytics_service.Period))
+    )
     ref_today = analytics_service.reference_today(today, picked.year, picked.month)
     bundle = analytics_service.bundle(
         conn,

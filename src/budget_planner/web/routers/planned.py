@@ -20,11 +20,11 @@ from budget_planner.services import (
     export as export_service,
     planned as planned_service,
 )
-from budget_planner.web import entry_forms, ledger_data
+from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
-from budget_planner.web.params import parse_date, positive_amount
+from budget_planner.web.params import EXPORT_FORMATS, parse_date, positive_amount, query_choice
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
@@ -164,15 +164,8 @@ def create_planned(
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return render(
-            request,
-            "partials/planned/_form.html",
-            planned=None,
-            action="/planned",
-            categories=categories_service.list_all(conn, user_id),
-            accounts=accounts_service.list_all(conn, user_id),
-            errors=check.errors,
-            status_code=422,
+        return form_responses.planned_form_errors(
+            request, conn, user_id, planned=None, errors=check.errors
         )
     assert check.op_date is not None and check.minor is not None
     pl = planned_service.create(
@@ -257,15 +250,8 @@ def update_planned(
         dest_account_id=dest_account_id,
     )
     if check.errors:
-        return render(
-            request,
-            "partials/planned/_form.html",
-            planned=pl,
-            action=f"/planned/{planned_id}",
-            categories=categories_service.list_all(conn, user_id),
-            accounts=accounts_service.list_all(conn, user_id),
-            errors=check.errors,
-            status_code=422,
+        return form_responses.planned_form_errors(
+            request, conn, user_id, planned=pl, errors=check.errors
         )
     assert check.op_date is not None and check.minor is not None
     planned_service.update(
@@ -281,10 +267,7 @@ def update_planned(
         ),
     )
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
-    html = Response()
-    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, LEDGER_PATH)
-    return html
+    return form_responses.stale_refresh(request, Event.FORECAST_STALE, Event.LEDGER_STALE)
 
 
 @router.post("/{planned_id}/delete")
@@ -391,14 +374,7 @@ def promote_submit(
         if err:
             errors["amount"] = err
     if errors:
-        return render(
-            request,
-            "partials/planned/_promote_modal.html",
-            planned=pl,
-            account=acc,
-            errors=errors,
-            status_code=422,
-        )
+        return form_responses.promote_modal_errors(request, pl, acc, errors)
     assert op_date is not None and minor is not None
     try:
         planned_service.promote_to_actual(
@@ -417,14 +393,7 @@ def promote_submit(
         planned_service.UnsupportedDirectionError,
         planned_service.ValidationError,
     ) as exc:
-        return render(
-            request,
-            "partials/planned/_promote_modal.html",
-            planned=pl,
-            account=acc,
-            errors={"promotion": str(exc)},
-            status_code=422,
-        )
+        return form_responses.promote_modal_errors(request, pl, acc, {"promotion": str(exc)})
     html = Response()
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, LEDGER_PATH)
@@ -438,7 +407,7 @@ def export(
     user_id: int = Depends(current_user_id),
     today: date = Depends(get_today),
 ) -> Response:
-    fmt = request.query_params.get("format", "csv")
+    fmt = query_choice("format", request.query_params.get("format"), EXPORT_FORMATS) or "csv"
     flt = ledger_data.parse_planned_filter(request)
     views = list(planned_service.list_planned(conn, user_id, flt, today=today))
     rows = [

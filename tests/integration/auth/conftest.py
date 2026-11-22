@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 import pytest
 
-from budget_planner.services import _passwords
+from tests.auth_support import FAKE_HASHER
 
 PASSWORD = "s3cret-passw0rd"  # noqa: S105  # pragma: allowlist secret
 
@@ -21,7 +21,7 @@ def make_user(conn: sqlite3.Connection) -> Callable[..., int]:
         password: str | None = PASSWORD,
         deleted: bool = False,
     ) -> int:
-        password_hash = None if password is None else _passwords.hash_password(password)
+        password_hash = None if password is None else FAKE_HASHER.hash(password)
         cur = conn.execute(
             "INSERT INTO users (name, email, password_hash, deleted_at) VALUES (?, ?, ?, ?)",
             (name, email, password_hash, "2026-01-01T00:00:00.000Z" if deleted else None),

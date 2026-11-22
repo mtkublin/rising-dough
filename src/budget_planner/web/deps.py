@@ -16,10 +16,11 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from budget_planner import clock
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.config import Settings, get_settings as _get_settings
 from budget_planner.domain.client_ip import USER_AGENT_MAX_LENGTH, bound_text
-from budget_planner.domain.ports import TokenSource
+from budget_planner.domain.ports import PasswordHasher, TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.sessions import session_handle
@@ -44,6 +45,11 @@ _FALLBACK_NEXT = "/settings/security"
 def get_token_source() -> TokenSource:
     """Inject the CSPRNG adapter for the ``TokenSource`` port (ADR-0021 amendment)."""
     return SecretsTokenSource()
+
+
+def get_password_hasher(request: Request) -> PasswordHasher:
+    """Inject the bcrypt adapter for the ``PasswordHasher`` port (T-Q291)."""
+    return BcryptHasher(rounds=get_settings_dep(request).bcrypt_rounds)
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -214,8 +220,8 @@ def is_recently_authenticated(request: Request, conn: sqlite3.Connection) -> boo
 
 def require_recent_auth(
     request: Request,
-    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008
-    _user: CurrentUser = Depends(current_user),  # noqa: B008
+    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008 — FastAPI Depends default is idiomatic
+    _user: CurrentUser = Depends(current_user),  # noqa: B008 — FastAPI Depends default is idiomatic
 ) -> None:
     """Route dependency: 403 / redirect to ``/auth/reauth`` when the login is stale."""
     if not is_recently_authenticated(request, conn):

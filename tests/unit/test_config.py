@@ -4,6 +4,7 @@ import warnings
 
 import pytest
 
+from budget_planner import config as config_module
 from budget_planner.config import Settings, get_settings
 
 
@@ -186,3 +187,12 @@ def test_webauthn_valid_pair_accepted_in_production(monkeypatch: pytest.MonkeyPa
 def test_webauthn_localhost_defaults_fine_outside_production() -> None:
     s = Settings(_env_file=None)
     assert s.webauthn_rp_id == "localhost"
+
+
+def test_bcrypt_rounds_floor_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module, "PRODUCTION_MIN_BCRYPT_ROUNDS", 12)
+    monkeypatch.setenv("BUDGET_ENV", "production")
+    monkeypatch.setenv("BUDGET_COOKIE_SECRET", "x" * 32)
+    monkeypatch.setenv("BUDGET_BCRYPT_ROUNDS", "4")
+    with pytest.raises(ValueError, match="bcrypt_rounds must be >= 12"):
+        Settings(_env_file=None)

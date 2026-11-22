@@ -18,7 +18,7 @@ from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
 from budget_planner.web import charts, plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.params import query_int, require_year_month
+from budget_planner.web.params import query_choice, query_int, require_year_month
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["plan"])
@@ -37,7 +37,7 @@ def plan(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    tab_norm: PlanTab = tab if tab in _VALID else "budget"
+    tab_norm: PlanTab = query_choice("tab", tab, _VALID) or "budget"
     today_d = clock.today_local(settings)
     month_scoped = tab_norm in {"budget", "analytics"}
     query = request.query_params if month_scoped else {}

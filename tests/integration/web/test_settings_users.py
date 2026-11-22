@@ -17,13 +17,12 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.services import _passwords
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
 )
-from tests.auth_support import issue_session
+from tests.auth_support import FAST_HASHER, issue_session
 from tests.ui_map import _html, settings as ui
 
 HX = {"HX-Request": "true"}
@@ -171,7 +170,7 @@ def test_create_user_shows_password_once(admin_client: TestClient, db: sqlite3.C
     assert row["is_admin"] == 0
     assert row["must_change_password"] == 1
     assert row["password_hash"] != password
-    assert _passwords.verify_password(password, row["password_hash"])
+    assert FAST_HASHER.verify(password, row["password_hash"])
     cats = db.execute(
         "SELECT name FROM categories WHERE user_id = ? AND is_system = 1 ORDER BY name",
         (row["id"],),
@@ -374,7 +373,7 @@ def test_reset_password_revokes_sessions(admin_client: TestClient, db: sqlite3.C
     assert "signed out" in _html.text_of(resp.text, ui.new_password_toast)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["must_change_password"] == 1
-    assert _passwords.verify_password(new, row["password_hash"])
+    assert FAST_HASHER.verify(new, row["password_hash"])
     assert _live_sessions(db, uid) == 0
     audit = db.execute(
         "SELECT * FROM audit_log WHERE entity_type = 'users' AND entity_id = ? "

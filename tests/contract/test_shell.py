@@ -22,6 +22,7 @@ from budget_planner.web.app import create_app
 from budget_planner.web.deps import get_settings_dep
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
+from tests.ui_map import _html, errors
 
 pytest_plugins = ["tests.contract._support"]
 
@@ -168,7 +169,7 @@ def test_root_requires_a_session_and_keeps_the_target(anon_client: TestClient) -
 
 
 @covers("GET /add")
-@pytest.mark.parametrize("when", ["happened", "planned", "repeats", "unknown-tab"])
+@pytest.mark.parametrize("when", ["happened", "planned", "repeats", ""])
 def test_add_overlay_renders_for_each_tab_without_writing(
     client: TestClient, db: sqlite3.Connection, when: str
 ) -> None:
@@ -177,6 +178,13 @@ def test_add_overlay_renders_for_each_tab_without_writing(
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == before
+
+
+@covers("GET /add")
+def test_add_overlay_unknown_tab_is_422_naming_the_param(client: TestClient) -> None:
+    r = client.get("/add?when=unknown-tab", headers=HX)
+    assert r.status_code == 422
+    assert "when" in _html.text_of(r.text, errors.alert)
 
 
 @covers("GET /add")

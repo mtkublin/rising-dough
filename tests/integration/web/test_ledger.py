@@ -168,10 +168,11 @@ def test_ledger_recurring_lists_each_override_with_remove_button(
     assert [ov.occurrence_date for ov in remaining] == [date(2026, 2, 1)]
 
 
-def test_ledger_invalid_view_falls_back_to_actual(
+def test_ledger_invalid_view_is_422_and_empty_view_is_actual(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
-    r = client.get("/ledger?view=nonsense")
+    assert client.get("/ledger?view=nonsense").status_code == 422
+    r = client.get("/ledger?view=")
     assert r.status_code == 200
     assert _html.resolve_one(r.text, ledger.view_table("actual")).get("data-view") == "actual"
 

@@ -724,13 +724,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:29 (19 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q270 [S] Decompose oversized functions in web routers
+### ✅ T-Q270 [S] Decompose oversized functions in web routers
 - Findings: Q-046 (B-09 router rows); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
 - Depends on: T-Q242, T-Q262, T-Q265, T-Q266, T-Q267
 - Docs-first step: None; CHANGELOG line.
 - Acceptance: Failing guard first: `size_complexity.toml` entries under `web/routers/` except `recurring.py` (16 entries, 26 violations). Most disappear when T-Q265 to T-Q267 land; this task removes what remains (`plan()`, `budget.py`, `accounts.py`, `planned.py`, `transactions.py`, `settings.py`, `today.py`). Visual audit on affected routes.
+- Outcome (2026-11-22): most entries had already gone with T-Q265 to T-Q267; the last 6 violations (accounts 1, planned 3, transactions 2) are fixed by `web/form_responses.py` and deleted. `recurring.py` stays with its owner (T-Q288). `xenon --max-absolute C src` is wired (pre-commit hook, `just lint`, CI through pre-commit; ADR-0130 amendment 2026-11-22) and the whole tree passes. No template touched, no visual audit needed.
 - Operator question blocking it: none.
 - Removes allowlist entries: `size_complexity`:26 (16 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
@@ -746,7 +747,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `hygiene`:145 (61 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/hygiene.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q272 [S] Every inline suppression carries a reason or is deleted; per-code ceilings reach zero
+### ✅ T-Q272 [S] Every inline suppression carries a reason or is deleted; per-code ceilings reach zero
 - Findings: Q-048 (suppression half), inventory P11 (compliance-inventory section 12); epic E14.
 - Epic: E14
 - Band: 4 · Size: M · Tags: none
@@ -918,7 +919,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q251 [P] Visual suite becomes a trustworthy check
+### ✅ T-Q251 [P] Visual suite becomes a trustworthy check
 - Findings: Q-061 (F-22).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -1199,7 +1200,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (new module and ops files; no allowlist TOML).
 - Done when: ADR written and indexed; guards stay green; the Acceptance above holds; any terraform/host change is a PR for the operator's approved apply; the CLAUDE.md handoff checklist is complete.
 
-### T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
+### ✅ T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
 - Findings: Q-074.
 - Epic: E04
 - Band: 3 · Size: M · Tags: none
@@ -1211,18 +1212,57 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### ✅ T-Q292 [M] NBP FX refresh hardening and FX freshness health path
-- Findings: FX cache (ADR-0145, `requirements.md` F7.4); operator decision 2026-11-22 (Q39).
+### ✅ T-Q295 [S] Pre-commit hook skips e2e; e2e runs once per wave, alone
+- Findings: none (operator decision 2026-11-22 18:00 and 18:05).
+- Epic: E04
+- Band: 3 · Size: S · Tags: none
+- Depends on: none
+- Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment 2026-11-22 and a cross-reference in [ADR-0097](../../adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md): the hook scope excludes `tests/e2e`; e2e runs after each orchestrator wave and before every PR, by the orchestrator alone; an agent that genuinely needs it pushes its `wi/**` branch and reads the `e2e.yml` run.
+- Acceptance: `just test-fast` and `just test-changed` pass `--ignore=tests/e2e` in testmon and full-suite modes; `just test`, `just ci` and `ci.yml` collect what they did before; `.github/workflows/e2e.yml` runs `tests/e2e` on `wi/**` pushes and `workflow_dispatch` in the pinned Playwright container; CLAUDE.md and the orchestrator skill state the cadence.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: 14b.
+- Done when: the Acceptance above holds and guards stay green.
+
+### Third round (2026-11-22, answers to deferred Q39 to Q42)
+
+Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurring undo duplicate-live-transaction case left as is) need no task; one-line amendments in ADR-0136 and ADR-0019.
+
+### ✅ T-Q292 [M] NBP refresh hardening and `/health/fx`
+- Findings: Q39.
 - Epic: E01
 - Band: 3 · Size: M · Tags: ops
 - Depends on: T-Q290
-- Docs-first step: [ADR-0146](../../adr/0146-fx-freshness-health-path.md) (new, indexed), ADR-0145 amendment 2026-11-22 (same-day retry, stale tables), `requirements.md` F7.4.
-- Acceptance: failing tests first: a failed daily run is retried hourly until 18:00 Europe/Warsaw (exact UTC instants across CET and CEST), then waits for the next 12:30; success or a 404 "no data" ends the day; a table older than `fx_max_table_age_days` (default 7) is rejected whole (no row, no audit row, `fx_refresh_failed` reason `stale_table`); `GET /health/fx` is public, read-only and answers 200 `ok` / 200 `disabled` / 503 `stale` / 503 `never` / 503 `error` with exact bodies, counting a second user's live foreign account.
-- Operator step (not done by the agent): UptimeRobot status-code monitor on `https://budget.rising-dough.eu/health/fx`, 5 min, up = 2xx, same alert contact as `/health` (ADR-0146 section 7).
+- Docs-first step: [ADR-0145](../../adr/0145-nbp-table-a-daily-fx-refresh-in-app-task.md) amendment 2026-11-22 and new [ADR-0146](../../adr/0146-fx-freshness-health-path.md) (modelled on ADR-0119).
+- Acceptance: failing tests first with injected clock and fake source: (a) a failed run is retried the same day, hourly until 18:00 Europe/Warsaw, then not again; (b) a table whose effective date is older than N days (setting, default 7) is rejected and writes no row; (c) `GET /health/fx` returns 200 `ok` when the newest cached rate of each non-base currency in use is at most N business days old (setting), 200 `disabled` when refresh is off or no foreign currency is in use, 503 `stale` / `never` otherwise, fail closed, no DB writes, pure decision function in `services/`, exempt from auth like `/health/replication`; (d) operator step, not agent: UptimeRobot status-code monitor on `https://budget.rising-dough.eu/health/fx`, 5 min, same alert contact (ADR-0119 §6).
 - Operator question blocking it: none.
 - Removes allowlist entries: none
-- Wave: 14d.
-- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+- Wave: 14e (before T-Q293).
+- Done when: ADR indexed; guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
+
+### T-Q293 [M] `money_scope` `fx-def` check keys on behaviour
+- Findings: Q39.
+- Epic: E01
+- Band: 4 · Size: M · Tags: none
+- Depends on: T-Q292
+- Docs-first step: [ADR-0130](../../adr/0130-prevention-regime-and-full-architectural-compliance.md) amendment 2026-11-22: the `fx-def` check flags rate arithmetic or conversion outside `services/fx.py` and `domain/fx.py`, not function names.
+- Acceptance: failing guard tests first (a conversion under a neutral name is flagged; a non-FX function named like an FX one is not); revert the dodge-renames from T-Q286 (`formula_ctx*`) and T-Q290 (the two renamed fx functions) to honest names; no new allowlist entry.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14e (after T-Q292).
+- Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
+
+### ✅ T-Q294 [S] Enum-like query parameters are a 422 on unknown values
+- Findings: Q-023, Q-033 (extends T-Q282).
+- Epic: E03
+- Band: 4 · Size: S · Tags: none
+- Depends on: T-Q282
+- Docs-first step: [ADR-0141](../../adr/0141-one-amount-parser-and-bounded-request-parameters.md) amendment 2026-11-22.
+- Acceptance: failing tests first in `tests/integration/web/test_bad_query_params.py`: `/plan?tab=`, `/ledger?view=`, `/today?window=`, analytics `period`, `/add?when=` and any other choice parameter return 422 on an unknown value, `errors.heading` "Check the form", the parameter name in `errors.main`; an HTMX request gets the error flash; missing or empty still defaults; valid values stay 200. One owner in `web/params.py`.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14e (parallel with T-Q292).
+- Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
 ## Allowlist ownership and reconciliation
 
@@ -1396,6 +1436,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 | 14b | T-Q279, T-Q280, T-Q283, T-Q284, T-Q286, T-Q290, T-Q291 | `money_scope` (283) | budget, forecast overlay, categories and planned totals (279, 280); `tests/architecture` guard (284); recurring formula views (286); new FX job module, cli, terraform (290); `domain/ports`, `adapters`, `services/_passwords`, users (291) | Operator decisions 2026-11-22. T-Q280 merges after T-Q279 (same files). Disjoint source areas, so all run in parallel (about 4 heavy at once; T-Q283 and T-Q284 are cheap fillers). Only T-Q283 owns an allowlist TOML. |
 | 14c | T-Q281, T-Q282, T-Q287, T-Q288 | none | `domain/money.py` and rounding call sites across services (281); `web/params.py` and routers (282); `repositories/_shared`, `users.owns_accounts`, `webauthn` (287); recurring and planned undo in services (288) | After 14b. Parallel: disjoint areas. T-Q281 owns the one router rounding site (`web/routers/today.py`); T-Q282 merges after it. |
 | 14d | T-Q285, T-Q289 | none | services CRUD entry points and routers (285, large; needs T-Q267 and T-Q262); ASGI CSRF middleware (289; needs T-Q274) | After 14c so T-Q285 builds on T-Q287 and T-Q288. Parallel: disjoint (services/routers versus middleware). All of 14b to 14d finish before Wave 15 (size decomposition) and T-Q232. |
+| 14e | T-Q292, T-Q293, T-Q294 | none | NBP job, health router, settings (292); `tests/architecture` money_scope guard and renamed fx functions (293); `web/params.py` and routers (294) | Third round, 2026-11-22. T-Q292 then T-Q293 sequential; T-Q294 parallel. |
 | 15 | T-Q269, T-Q270 | `size_complexity` (269/270) | service/repository/db decomposition; router/web decomposition | Path-disjoint size_complexity owners (services/repos/db vs routers/web). |
 | 16 | T-Q271 | `hygiene` (271) | every `src/` module: `Any`, asserts, excepts, prints | Repo-wide sweep; nothing else runs. |
 | 17 | T-Q272 | `suppressions` (272) | every `src/` suppression | Repo-wide sweep; nothing else runs. |

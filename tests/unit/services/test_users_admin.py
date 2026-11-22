@@ -10,7 +10,6 @@ import pytest
 from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo, users as users_repo
-from budget_planner.services import _passwords
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
     INVALID_EMAIL_MESSAGE,
@@ -31,7 +30,7 @@ from budget_planner.services.users import (
     reset_password,
     soft_delete_user,
 )
-from tests.auth_support import FakeTokenSource
+from tests.auth_support import FAKE_HASHER, FakePasswordHasher, FakeTokenSource
 
 ADMIN_ID = 1
 CTX = RequestCtx(ip="127.0.0.1", user_id=ADMIN_ID, session_id="h", user_agent="pytest")
@@ -106,11 +105,16 @@ def test_build_draft_rejects_long_name() -> None:
 
 def test_create_user_seeds_categories_and_hides_plaintext(admin_conn: sqlite3.Connection) -> None:
     user, password = create_user(
-        admin_conn, ADMIN_ID, _draft("new@x.test"), request_ctx=CTX, tokens=FakeTokenSource()
+        admin_conn,
+        ADMIN_ID,
+        _draft("new@x.test"),
+        request_ctx=CTX,
+        tokens=FakeTokenSource(),
+        hasher=FAKE_HASHER,
     )
     assert user.must_change_password is True
     assert user.is_admin is False
-    assert _passwords.verify_password(password, user.password_hash)
+    assert FAKE_HASHER.verify(password, user.password_hash)
     cats = admin_conn.execute(
         "SELECT name, is_system FROM categories WHERE user_id = ? ORDER BY name", (user.id,)
     ).fetchall()
@@ -127,9 +131,13 @@ def test_create_user_seeds_categories_and_hides_plaintext(admin_conn: sqlite3.Co
 
 
 def test_create_user_duplicate_email_case_insensitive(admin_conn: sqlite3.Connection) -> None:
-    create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource())
+    create_user(
+        admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     with pytest.raises(UserInputError) as exc:
-        create_user(admin_conn, ADMIN_ID, _draft("DUP@X.test"), tokens=FakeTokenSource())
+        create_user(
+            admin_conn, ADMIN_ID, _draft("DUP@X.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        )
     assert exc.value.fields == {"email": DUPLICATE_EMAIL_MESSAGE}
     count = admin_conn.execute("SELECT count(*) FROM users").fetchone()[0]
     assert count == 2
@@ -138,11 +146,19 @@ def test_create_user_duplicate_email_case_insensitive(admin_conn: sqlite3.Connec
 def test_create_user_maps_integrity_race(
     admin_conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    create_user(admin_conn, ADMIN_ID, _draft("race@x.test"), tokens=FakeTokenSource())
+    create_user(
+        admin_conn, ADMIN_ID, _draft("race@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     # Simulate the uniqueness pre-check losing a race with a concurrent insert.
     monkeypatch.setattr(users_repo, "get_by_email_live", lambda _c, _e: None)
     with pytest.raises(UserInputError):
-        create_user(admin_conn, ADMIN_ID, _draft("race@x.test"), tokens=FakeTokenSource())
+        create_user(
+            admin_conn,
+            ADMIN_ID,
+            _draft("race@x.test"),
+            tokens=FakeTokenSource(),
+            hasher=FAKE_HASHER,
+        )
 
 
 # --- list / get -----------------------------------------------------------
@@ -151,8 +167,12 @@ def test_create_user_maps_integrity_race(
 def test_list_live_users_excludes_deleted_and_reports_last_seen(
     admin_conn: sqlite3.Connection,
 ) -> None:
-    alive, _ = create_user(admin_conn, ADMIN_ID, _draft("b@x.test"), tokens=FakeTokenSource())
-    gone, _ = create_user(admin_conn, ADMIN_ID, _draft("a@x.test"), tokens=FakeTokenSource())
+    alive, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("b@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
+    gone, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("a@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     soft_delete_user(admin_conn, ADMIN_ID, gone.id)
     sessions_repo.create_session(admin_conn, alive.id, ip=None, user_agent=None)
     listing = list_live_users(admin_conn)
@@ -173,7 +193,9 @@ def test_get_live_user_missing(admin_conn: sqlite3.Connection) -> None:
 
 
 def test_edit_user_updates_and_audits(admin_conn: sqlite3.Connection) -> None:
-    user, _ = create_user(admin_conn, ADMIN_ID, _draft("c@x.test"), tokens=FakeTokenSource())
+    user, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("c@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     updated = edit_user(
         admin_conn, ADMIN_ID, user.id, _draft("C2@x.test", admin=True, name="Cee"), request_ctx=CTX
     )
@@ -190,7 +212,9 @@ def test_edit_user_keeps_own_email(admin_conn: sqlite3.Connection) -> None:
 
 
 def test_edit_user_duplicate_email(admin_conn: sqlite3.Connection) -> None:
-    user, _ = create_user(admin_conn, ADMIN_ID, _draft("d@x.test"), tokens=FakeTokenSource())
+    user, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("d@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     with pytest.raises(UserInputError):
         edit_user(admin_conn, ADMIN_ID, user.id, _draft("Root@Example.test"))
 
@@ -204,7 +228,13 @@ def test_edit_user_refuses_demoting_last_admin(admin_conn: sqlite3.Connection) -
 
 
 def test_edit_user_allows_demote_with_second_admin(admin_conn: sqlite3.Connection) -> None:
-    create_user(admin_conn, ADMIN_ID, _draft("e@x.test", admin=True), tokens=FakeTokenSource())
+    create_user(
+        admin_conn,
+        ADMIN_ID,
+        _draft("e@x.test", admin=True),
+        tokens=FakeTokenSource(),
+        hasher=FAKE_HASHER,
+    )
     demoted = edit_user(admin_conn, ADMIN_ID, ADMIN_ID, _draft("root@example.test"))
     assert demoted.is_admin is False
 
@@ -219,14 +249,18 @@ def test_edit_user_missing(admin_conn: sqlite3.Connection) -> None:
 
 def test_reset_password_regenerates_and_revokes(admin_conn: sqlite3.Connection) -> None:
     tokens = SecretsTokenSource()
-    user, first = create_user(admin_conn, ADMIN_ID, _draft("f@x.test"), tokens=tokens)
+    user, first = create_user(
+        admin_conn, ADMIN_ID, _draft("f@x.test"), tokens=tokens, hasher=FAKE_HASHER
+    )
     admin_conn.execute("UPDATE users SET must_change_password = 0 WHERE id = ?", (user.id,))
     sessions_repo.create_session(admin_conn, user.id, ip=None, user_agent=None)
-    updated, second = reset_password(admin_conn, ADMIN_ID, user.id, request_ctx=CTX, tokens=tokens)
+    updated, second = reset_password(
+        admin_conn, ADMIN_ID, user.id, request_ctx=CTX, tokens=tokens, hasher=FAKE_HASHER
+    )
     assert second != first
     assert updated.must_change_password is True
-    assert _passwords.verify_password(second, updated.password_hash)
-    assert not _passwords.verify_password(first, updated.password_hash)
+    assert FAKE_HASHER.verify(second, updated.password_hash)
+    assert not FAKE_HASHER.verify(first, updated.password_hash)
     assert _live_sessions(admin_conn, user.id) == 0
     last = _audit(admin_conn, user.id)[-1]
     new_json = json.loads(last["new_json"])
@@ -241,29 +275,34 @@ def test_reset_password_regenerates_and_revokes(admin_conn: sqlite3.Connection) 
 
 def test_reset_password_missing(admin_conn: sqlite3.Connection) -> None:
     with pytest.raises(UserNotFound):
-        reset_password(admin_conn, ADMIN_ID, 999, tokens=FakeTokenSource())
+        reset_password(admin_conn, ADMIN_ID, 999, tokens=FakeTokenSource(), hasher=FAKE_HASHER)
 
 
 def test_reset_password_target_deleted_mid_flight(
     admin_conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user, _ = create_user(admin_conn, ADMIN_ID, _draft("g@x.test"), tokens=FakeTokenSource())
-    real_hash = _passwords.hash_password
+    user, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("g@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
 
-    def _hash_then_delete(plain: str, *, rounds: int | None = None) -> str:
-        admin_conn.execute("UPDATE users SET deleted_at = 'x' WHERE id = ?", (user.id,))
-        return real_hash(plain, rounds=rounds)
+    class _DeletingHasher(FakePasswordHasher):
+        def hash(self, password: str) -> str:
+            admin_conn.execute("UPDATE users SET deleted_at = 'x' WHERE id = ?", (user.id,))
+            return super().hash(password)
 
-    monkeypatch.setattr(_passwords, "hash_password", _hash_then_delete)
     with pytest.raises(UserNotFound):
-        reset_password(admin_conn, ADMIN_ID, user.id, tokens=FakeTokenSource())
+        reset_password(
+            admin_conn, ADMIN_ID, user.id, tokens=FakeTokenSource(), hasher=_DeletingHasher()
+        )
 
 
 # --- soft delete ----------------------------------------------------------
 
 
 def test_soft_delete_revokes_sessions_and_audits(admin_conn: sqlite3.Connection) -> None:
-    user, _ = create_user(admin_conn, ADMIN_ID, _draft("h@x.test"), tokens=FakeTokenSource())
+    user, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("h@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     sessions_repo.create_session(admin_conn, user.id, ip=None, user_agent=None)
     removed = soft_delete_user(admin_conn, ADMIN_ID, user.id, request_ctx=CTX)
     assert removed.id == user.id
@@ -279,7 +318,13 @@ def test_soft_delete_revokes_sessions_and_audits(admin_conn: sqlite3.Connection)
 
 
 def test_soft_delete_refuses_self(admin_conn: sqlite3.Connection) -> None:
-    create_user(admin_conn, ADMIN_ID, _draft("i@x.test", admin=True), tokens=FakeTokenSource())
+    create_user(
+        admin_conn,
+        ADMIN_ID,
+        _draft("i@x.test", admin=True),
+        tokens=FakeTokenSource(),
+        hasher=FAKE_HASHER,
+    )
     with pytest.raises(UserConflict) as exc:
         soft_delete_user(admin_conn, ADMIN_ID, ADMIN_ID)
     assert exc.value.message == SELF_DELETE_MESSAGE
@@ -287,7 +332,9 @@ def test_soft_delete_refuses_self(admin_conn: sqlite3.Connection) -> None:
 
 def test_soft_delete_refuses_last_admin(admin_conn: sqlite3.Connection) -> None:
     # A non-admin actor (e.g. a session demoted mid-request) targets the sole admin.
-    member, _ = create_user(admin_conn, ADMIN_ID, _draft("j@x.test"), tokens=FakeTokenSource())
+    member, _ = create_user(
+        admin_conn, ADMIN_ID, _draft("j@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     sessions_repo.create_session(admin_conn, ADMIN_ID, ip=None, user_agent=None)
     with pytest.raises(UserConflict) as exc:
         soft_delete_user(admin_conn, member.id, ADMIN_ID)
@@ -304,7 +351,11 @@ def test_soft_delete_missing(admin_conn: sqlite3.Connection) -> None:
 def test_count_live_admins(admin_conn: sqlite3.Connection) -> None:
     assert users_repo.count_live_admins(admin_conn) == 1
     other, _ = create_user(
-        admin_conn, ADMIN_ID, _draft("k@x.test", admin=True), tokens=FakeTokenSource()
+        admin_conn,
+        ADMIN_ID,
+        _draft("k@x.test", admin=True),
+        tokens=FakeTokenSource(),
+        hasher=FAKE_HASHER,
     )
     assert users_repo.count_live_admins(admin_conn) == 2
     soft_delete_user(admin_conn, ADMIN_ID, other.id)
