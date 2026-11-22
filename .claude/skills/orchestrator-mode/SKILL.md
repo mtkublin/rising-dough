@@ -273,10 +273,10 @@ early merges keep later conflicts small.
    each item's commits already ran the affected tests in the pre-commit hook, and GitHub
    `ci.yml` on the PR plus the gate drill's `just ci` job run the full suite. You may still
    run `just ci` on `<MAIN>` when a batch looks risky (several items touching the same area).
-   The hook excludes `tests/e2e` (ADR-0120 amendment 2026-11-22). After each wave, and
-   before opening or updating a PR, run `just test-e2e` yourself with NO agents active
-   (GitHub `ci.yml` runners have no Playwright browser). If it fails, dispatch fix agents,
-   then rerun e2e alone; repeat until green. Item agents run hooks only plus special cases
+   The hook excludes `tests/e2e` (ADR-0120 amendment 2026-11-22). After each wave you may
+   run `just test-e2e` yourself with NO agents active. No local run is needed before a PR:
+   `e2e.yml` runs on every PR to `main` and is a required check (ADR-0120 amendment
+   2026-11-22, T-Q297). If it fails, dispatch fix agents; repeat until green. Item agents run hooks only plus special cases
    (frontend-visual-audit, a migration rehearsal); one that truly needs the full e2e pushes
    its `wi/**` branch and reads the `e2e.yml` run.
    If CI fails, dispatch a fix agent. Do not fix it yourself.

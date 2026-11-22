@@ -2,11 +2,14 @@ name: e2e
 
 # ADR-0120 amendment 2026-11-22 (T-Q295): an agent that genuinely needs the full
 # e2e suite pushes its wi/** work branch and reads this run instead of running
-# the suite locally. Not on PRs or main pushes (ci.yml is unchanged); the
-# orchestrator may also dispatch it by hand for any ref.
+# the suite locally. T-Q297 (ADR-0120 amendment 2026-11-22): also runs on every PR
+# to main and is a required check on main; keep the job name stable (it is the
+# check context). The orchestrator may also dispatch it by hand for any ref.
 on:
   push:
     branches: ["wi/**"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       ref:

@@ -36,3 +36,7 @@ In orchestrator mode every change was tested three times: full `just ci` in the 
 ## Amendment 2026-11-22
 
 - The pre-commit hook no longer runs `tests/e2e`; e2e runs once per orchestrator wave and before PRs, and may be offloaded to the `e2e.yml` workflow on `wi/**` pushes. See ADR-0120 amendment 2026-11-22 (T-Q295).
+
+## Amendment 2026-11-22 (T-Q297)
+
+- The 2026-11-18 note "GitHub runners have no Playwright browser, so e2e runs locally before a PR" no longer holds: `e2e.yml` runs `tests/e2e` in the pinned Playwright container on every PR to `main` and is a required check. A local e2e run before a PR is optional (`just test-e2e`). See ADR-0120 amendment 2026-11-22 (T-Q297).
