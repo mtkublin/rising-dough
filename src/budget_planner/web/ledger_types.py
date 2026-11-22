@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal, get_args
 
+from budget_planner.web.params import query_choice
+
 ViewKind = Literal["actual", "planned", "recurring"]
 
 _DEFAULT_VIEW: ViewKind = "actual"
@@ -20,12 +22,12 @@ def view_kinds() -> tuple[ViewKind, ...]:
     return tuple(get_args(ViewKind))
 
 
-def coerce_view(value: str | None) -> ViewKind:
-    """Return ``value`` if it is a valid :data:`ViewKind`; else the default."""
-    for kind in view_kinds():
-        if kind == value:
-            return kind
-    return _DEFAULT_VIEW
+def query_view(value: str | None) -> ViewKind:
+    """Return ``value`` if it is a valid :data:`ViewKind`; absent or empty is the default.
+
+    An unknown value raises ``ParamError`` (a 422 naming ``view``).
+    """
+    return query_choice("view", value, view_kinds()) or _DEFAULT_VIEW
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -46,4 +48,4 @@ class LedgerFilters:
     page_size: int = 50
 
 
-__all__ = ["LedgerFilters", "ViewKind", "coerce_view", "view_kinds"]
+__all__ = ["LedgerFilters", "ViewKind", "query_view", "view_kinds"]

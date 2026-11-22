@@ -44,6 +44,19 @@ BAD_CASES: tuple[tuple[str, str, str], ...] = (
     ("/planned/export", "date_to", "2026-13-01"),
     ("/transactions/_limit_preview", "account_id", "x"),
     ("/transactions/_limit_preview", "category_id", "x"),
+    # T-Q294 (ADR-0141 amendment): enum-like parameters
+    ("/plan", "tab", "nope"),
+    ("/plan?tab=analytics", "period", "decade"),
+    ("/ledger", "view", "nope"),
+    ("/ledger/table", "view", "nope"),
+    ("/ledger", "direction", "sideways"),
+    ("/today", "window", "9"),
+    ("/today/upcoming", "window", "9"),
+    ("/add", "when", "never"),
+    ("/settings", "tab", "nope"),
+    ("/planned/export", "scope", "everything"),
+    ("/planned/export", "format", "xml"),
+    ("/transactions/export", "format", "xml"),
 )
 
 OK_PATHS: tuple[str, ...] = tuple(sorted({path for path, _, _ in BAD_CASES}))
@@ -79,7 +92,10 @@ def test_bad_value_on_htmx_request_is_422_error_flash(
 def test_absent_or_empty_parameters_render_the_default(client: TestClient, path: str) -> None:
     sep = "&" if "?" in path else "?"
     bare = client.get(path)
-    empty = client.get(f"{path}{sep}year=&month=&date_from=&account_id=&horizon_months=")
+    empty = client.get(
+        f"{path}{sep}year=&month=&date_from=&account_id=&horizon_months=&tab=&view=&window=&when="
+        "&period=&direction=&scope=&format="
+    )
 
     assert bare.status_code in (200, 404)
     assert empty.status_code == bare.status_code
@@ -89,3 +105,23 @@ def test_valid_month_is_still_honoured(client: TestClient) -> None:
     r = client.get("/budget?year=2026&month=10")
 
     assert r.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "/plan?tab=forecast",
+        "/plan?tab=analytics&period=year",
+        "/plan?tab=analytics&period=trailing-12",
+        "/ledger?view=planned",
+        "/today?window=7",
+        "/today?window=all",
+        "/add?when=planned",
+        "/add?when=repeats",
+        "/settings?tab=fx",
+        "/transactions/export?format=parquet",
+        "/planned/export?scope=unpromoted",
+    ),
+)
+def test_valid_choice_values_still_render(client: TestClient, url: str) -> None:
+    assert client.get(url).status_code == 200

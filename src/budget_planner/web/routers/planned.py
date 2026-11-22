@@ -24,7 +24,7 @@ from budget_planner.web import entry_forms, form_responses, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
-from budget_planner.web.params import parse_date, positive_amount
+from budget_planner.web.params import EXPORT_FORMATS, parse_date, positive_amount, query_choice
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
@@ -407,7 +407,7 @@ def export(
     user_id: int = Depends(current_user_id),
     today: date = Depends(get_today),
 ) -> Response:
-    fmt = request.query_params.get("format", "csv")
+    fmt = query_choice("format", request.query_params.get("format"), EXPORT_FORMATS) or "csv"
     flt = ledger_data.parse_planned_filter(request)
     views = list(planned_service.list_planned(conn, user_id, flt, today=today))
     rows = [

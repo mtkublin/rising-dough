@@ -24,6 +24,7 @@ from budget_planner.services import (
     upcoming as upcoming_service,
 )
 from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.params import query_choice
 
 PaceKind = Literal["on_track", "pacing_high", "over_budget"]
 
@@ -136,11 +137,10 @@ def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> P
 
 
 def window_from(request: Request) -> tuple[str, int | None]:
-    """Parse ``?window=`` → (label, days). Falls back to the default."""
-    raw = request.query_params.get("window", _DEFAULT_WINDOW)
-    if raw not in _WINDOWS:
-        raw = _DEFAULT_WINDOW
-    return raw, _WINDOWS[raw]
+    """Parse ``?window=`` → (label, days); absent or empty is the default, unknown raises."""
+    raw = query_choice("window", request.query_params.get("window"), tuple(_WINDOWS))
+    label = raw or _DEFAULT_WINDOW
+    return label, _WINDOWS[label]
 
 
 def list_upcoming(

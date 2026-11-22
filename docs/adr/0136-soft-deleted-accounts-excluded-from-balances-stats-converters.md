@@ -42,3 +42,7 @@ The archived-category half is implemented once in `services/categories.expense_c
 Implemented (T-Q279): `services/categories.reserves_budget` is the one predicate (archive month = month of `deleted_at` in the display timezone, ADR-0007); `budget_reserver`, `budgeted_expense_categories` and `budgeted_expense_category_ids` derive from it. `expense_category_ids` stays the actuals selector. `budget_batch.budget_resolver` returns `None` for a non-reserving month, so the forecast overlay and `_planned_budget_per_month` need no per-caller check; `month_summary` and `yearly_grid` use the same predicate. `display_timezone` is threaded from the routers (default `clock.DEFAULT_DISPLAY_TIMEZONE`).
 
 Implemented (T-Q280): `PlannedFilter.live_accounts_only` (one SQL predicate, `repositories/planned._LIVE_ACCOUNT`, mirroring the transactions one) is set by `recurring._planned_items`, so `pending_occurrences` and everything built on it (budget committed-by-window, forecast planned events, upcoming/today, Accounts-tab planned net) skips planned rows of soft-deleted accounts. `linked_occurrence_keys` stays unfiltered so a hidden linked row still suppresses its virtual occurrence. `planned_base_amounts` now uses the live-account currency map. The ledger planned strip total skips rows of deleted accounts; the planned LIST still shows them (unchanged).
+
+## Amendment 2026-11-22 (operator decision, third round)
+
+Promotion of a planned row into an archived category stays refused (T-Q287); no change.
