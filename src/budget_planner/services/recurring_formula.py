@@ -397,8 +397,16 @@ def validate_formula_sources(
     for rule in all_rules:
         by_category.setdefault(rule.category_id, []).append(rule)
 
-    visited: set[int] = set()
-    # Seed the stack with every rule reachable from the proposed formula.
+    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id)
+    _walk_for_cycle(stack, all_rules, by_category, target_id)
+
+
+def _seed_cycle_stack(
+    formula: AmountFormula,
+    by_category: Mapping[int, Sequence[RecurringRule]],
+    exclude_rule_id: int | None,
+) -> list[int]:
+    """Every rule id reachable from the proposed formula (stack seed)."""
     stack: list[int] = []
     for cat_id in _collect_referenced_category_ids(formula):
         for rule in by_category.get(cat_id, []):
@@ -406,9 +414,20 @@ def validate_formula_sources(
                 # The rule being saved cannot source itself.
                 raise FormulaCycleError("a formula cannot reference its own category")
             stack.append(rule.id)
+    return stack
 
-    while stack:
-        rid = stack.pop()
+
+def _walk_for_cycle(
+    seeds: Sequence[int],
+    all_rules: Sequence[RecurringRule],
+    by_category: Mapping[int, Sequence[RecurringRule]],
+    target_id: int,
+) -> None:
+    """Depth-first walk from ``seeds``; raise when ``target_id`` is reachable."""
+    visited: set[int] = set()
+    pending = list(seeds)
+    while pending:
+        rid = pending.pop()
         if rid == target_id:
             raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
         if rid in visited:
@@ -418,9 +437,7 @@ def validate_formula_sources(
         if found is None or found.amount_formula is None:
             continue
         for cat_id in _collect_referenced_category_ids(found.amount_formula):
-            for child in by_category.get(cat_id, []):
-                if child.id not in visited:
-                    stack.append(child.id)
+            pending.extend(c.id for c in by_category.get(cat_id, []) if c.id not in visited)
 
 
 # ---------------------------------------------------------------------------
@@ -504,7 +521,7 @@ class PreviewError:
 PreviewResult = PreviewOk | PreviewError
 
 
-def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
+def preview(
     conn: sqlite3.Connection,
     user_id: int,
     when: dt.date,
@@ -524,21 +541,47 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
     - ``non_positive`` — the computed value is <= 0 for the preview month.
     """
     if not terms:
-        return PreviewError(
-            code="empty",
-            message="formula needs at least one term",
-            offending_term_index=None,
-        )
-
+        return _preview_error("empty", "formula needs at least one term")
     bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in terms])
     if bad is not None:
         term_idx, bad_id = bad
-        return PreviewError(
-            code="invalid_source",
-            message=f"unknown or archived source category: {bad_id}",
-            offending_term_index=term_idx,
+        return _preview_error(
+            "invalid_source", f"unknown or archived source category: {bad_id}", term_idx
         )
+    formula = _build_draft_formula(terms)
+    if isinstance(formula, PreviewError):
+        return formula
+    return _evaluate_draft(conn, user_id, formula, when, draft_rule_id)
 
+
+def _preview_error(
+    code: PreviewErrorCode, message: str, offending_term_index: int | None = None
+) -> PreviewError:
+    return PreviewError(code=code, message=message, offending_term_index=offending_term_index)
+
+
+def _evaluate_draft(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    when: dt.date,
+    draft_rule_id: int | None,
+) -> PreviewResult:
+    """Cycle-check the draft, compute it for ``when`` and require a positive value."""
+    try:
+        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
+        amount_minor = compute_formula_amount(
+            conn, user_id, formula, when.year, when.month, exclude_rule_id=draft_rule_id
+        )
+    except FormulaCycleError as exc:
+        return _preview_error("cycle", str(exc))
+    if amount_minor <= 0:
+        return _preview_error("non_positive", "formula resolved to a non-positive amount")
+    return PreviewOk(amount_minor=amount_minor)
+
+
+def _build_draft_formula(terms: Sequence[DraftTerm]) -> AmountFormula | PreviewError:
+    """Build the formula from draft terms, mapping build errors to preview errors."""
     built: list[FormulaTerm] = []
     for idx, draft in enumerate(terms):
         try:
@@ -550,53 +593,11 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
                 )
             )
         except FormulaError as exc:
-            return PreviewError(
-                code="invalid_source",
-                message=str(exc),
-                offending_term_index=idx,
-            )
-
+            return _preview_error("invalid_source", str(exc), idx)
     try:
-        formula = build_formula(built)
+        return build_formula(built)
     except FormulaError as exc:
-        return PreviewError(
-            code="empty",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    try:
-        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
-    except FormulaCycleError as exc:
-        return PreviewError(
-            code="cycle",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    try:
-        amount_minor = compute_formula_amount(
-            conn,
-            user_id,
-            formula,
-            when.year,
-            when.month,
-            exclude_rule_id=draft_rule_id,
-        )
-    except FormulaCycleError as exc:
-        return PreviewError(
-            code="cycle",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    if amount_minor <= 0:
-        return PreviewError(
-            code="non_positive",
-            message="formula resolved to a non-positive amount",
-            offending_term_index=None,
-        )
-    return PreviewOk(amount_minor=amount_minor)
+        return _preview_error("empty", str(exc))
 
 
 __all__ = [
