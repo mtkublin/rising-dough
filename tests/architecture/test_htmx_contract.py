@@ -1,18 +1,18 @@
 # Guard docstrings and teaching messages are prose; long lines are intentional.
 # ruff: noqa: E501
-"""G12: HTMX emitter/listener contract (Q-038, Q-037; ADR-0130).
+"""G12: HTMX emitter/listener contract (Q-038, Q-037; ADR-0130, ADR-0143). Strict: zero allowlist entries.
 
-Builds the matrix of server-emitted custom events (``trigger(...)`` arguments, ``*-stale`` literals and ``toast``
-payloads in ``web/**/*.py``) against client listeners (``hx-trigger="<event> from:body"`` in templates and
-``addEventListener("<event>")`` in ``static/js``), and checks static ``hx-target`` ids. Rules:
+``web/htmx.py`` defines ``Event`` (the wire names). Emitters are ``Event.<NAME>`` references and ``toast=`` keyword
+arguments in ``web/**/*.py`` outside ``htmx.py``; listeners are ``hx-trigger="<event> from:body"`` in templates and
+``addEventListener("<event>")`` in ``static/js``. Rules:
 
 * ``orphan-emitter``: an event is emitted but nothing listens (count = emit sites);
-* ``orphan-listener``: something listens for an event nothing emits;
-* ``target-missing``: a static ``hx-target="#id"`` that no template defines;
-* ``toast-kind``: a toast payload uses ``kind`` while the listener (``app-init.js``) reads ``variant``.
+* ``orphan-listener``: something listens for an application event nothing emits;
+* ``unused-event``: an ``Event`` member no router emits;
+* ``raw-trigger``: a ``HX-Trigger`` header write or a ``*-stale`` string literal outside ``web/htmx.py``;
+* ``target-missing``: a static ``hx-target="#id"`` that no template defines.
 
 Not detected (inventory section 17): OOB ids resolved only at runtime, and ids created by JavaScript.
-Allowlist: ``allowlists/htmx_events.toml``. A new template starts with no allowance.
 """
 
 from __future__ import annotations
@@ -24,8 +24,9 @@ from collections import Counter
 from tests.architecture._ratchet import REPO_ROOT, SRC_ROOT, Violation, assert_ratchet, parse_file
 
 GUARD = "htmx_events"
-HEADER = "G12 htmx_events: HTMX events emitted without listeners (and vice versa), missing hx-target ids, toast shape (Q-038)."
+HEADER = "G12 htmx_events: strict, no entries (ADR-0143)."
 WEB = SRC_ROOT / "web"
+HTMX_MODULE = "src/budget_planner/web/htmx.py"
 STALE = re.compile(r"^[a-z]+(?:-[a-z]+)*-stale$")
 HX_TRIGGER = re.compile(r'hx-trigger="([^"]*)"')
 HX_TARGET = re.compile(r'hx-target="(#[A-Za-z][\w-]*)"')
@@ -45,44 +46,57 @@ DOM_EVENTS = frozenset(
         "resize",
         "beforeinput",
         "load",
+        "mousedown",
+        "paste",
     }
 )
 TEACH = (
     'G12 HTMX contract: every emitted event needs a listener (`hx-trigger="<event> from:body"` or JS) and vice versa; '
-    "every static hx-target needs an element with that id; toast payloads use `variant`. Use web/htmx.py names, do not "
-    "hand-build HX-Trigger JSON (Q-038, ADR-0130)."
+    "every static hx-target needs an element with that id. Emit only through web/htmx.py (`trigger`, `Event`, "
+    "`toast_payload`); never write the HX-Trigger header or a `*-stale` literal in a router (Q-038, ADR-0143)."
 )
 
 
-def emitted_events(tree: ast.Module) -> Counter[str]:
+def event_members(tree: ast.Module) -> dict[str, str]:
+    """``{MEMBER: wire-name}`` from the ``Event`` class in ``web/htmx.py``."""
+    members: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Event":
+            for stmt in node.body:
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and isinstance(stmt.targets[0], ast.Name)
+                    and isinstance(stmt.value, ast.Constant)
+                    and isinstance(stmt.value.value, str)
+                ):
+                    members[stmt.targets[0].id] = stmt.value.value
+    return members
+
+
+def emitted_events(tree: ast.Module, members: dict[str, str]) -> Counter[str]:
     counts: Counter[str] = Counter()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "Event"
+            and node.attr in members
+        ):
+            counts[members[node.attr]] += 1
+        elif isinstance(node, ast.keyword) and node.arg == "toast":
+            counts[members.get("TOAST", "toast")] += 1
+    return counts
+
+
+def raw_trigger_sites(tree: ast.Module) -> int:
+    sites = 0
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
-            and STALE.match(node.value)
+            and (node.value == "HX-Trigger" or STALE.match(node.value))
         ):
-            counts[node.value] += 1
-        elif isinstance(node, ast.Dict):
-            for key in node.keys:
-                if isinstance(key, ast.Constant) and key.value == "toast":
-                    counts["toast"] += 1
-    return counts
-
-
-def toast_kind_sites(tree: ast.Module) -> int:
-    sites = 0
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Dict):
-            continue
-        for key, value in zip(node.keys, node.values, strict=True):
-            is_toast = isinstance(key, ast.Constant) and key.value == "toast"
-            if (
-                is_toast
-                and isinstance(value, ast.Dict)
-                and any(isinstance(k, ast.Constant) and k.value == "kind" for k in value.keys)
-            ):
-                sites += 1
+            sites += 1
     return sites
 
 
@@ -103,14 +117,16 @@ def listened_events(templates: dict[str, str], scripts: dict[str, str]) -> Count
 def scan(
     py_trees: dict[str, ast.Module], templates: dict[str, str], scripts: dict[str, str]
 ) -> list[Violation]:
+    members = event_members(py_trees[HTMX_MODULE]) if HTMX_MODULE in py_trees else {}
     emitted: Counter[str] = Counter()
-    toast_kind: Counter[str] = Counter()
+    found: list[Violation] = []
     for rel, tree in py_trees.items():
-        emitted.update(emitted_events(tree))
-        if sites := toast_kind_sites(tree):
-            toast_kind[rel] = sites
+        if rel == HTMX_MODULE:
+            continue
+        emitted.update(emitted_events(tree, members))
+        found += [Violation(rel, 0, "raw-trigger", "") for _ in range(raw_trigger_sites(tree))]
     listened = listened_events(templates, scripts)
-    found = [
+    found += [
         Violation(f"event:{name}", 0, "orphan-emitter", "")
         for name, n in emitted.items()
         for _ in range(n)
@@ -123,7 +139,9 @@ def scan(
         if name not in emitted
     ]
     found += [
-        Violation(rel, 0, "toast-kind", "") for rel, n in toast_kind.items() for _ in range(n)
+        Violation(f"event:{value}", 0, "unused-event", "")
+        for value in members.values()
+        if value not in emitted
     ]
     ids = {i for text in templates.values() for i in ID_ATTR.findall(text)}
     for rel, text in templates.items():
@@ -150,23 +168,26 @@ def collect() -> list[Violation]:
     return scan(py_trees, templates, scripts)
 
 
-def meta(v: Violation) -> tuple[str, str, str, str]:
-    return "entry", "Q-038", "E03", ""
-
-
 def test_htmx_contract_matches_allowlist() -> None:
     assert_ratchet(GUARD, collect(), TEACH)
 
 
 def test_htmx_contract_detects_fixture_violations() -> None:
-    tree = ast.parse(
-        'def f(r):\n    trigger(r, "ghost-stale")\n    return {"toast": {"kind": "ok", "message": "m"}}\n'
+    htmx = ast.parse(
+        'class Event(StrEnum):\n    GHOST_STALE = "ghost-stale"\n    SPARE_STALE = "spare-stale"\n'
+        '    TOAST = "toast"\n'
+    )
+    router = ast.parse(
+        "def f(r):\n    trigger(r, Event.GHOST_STALE)\n"
+        '    r.headers["HX-Trigger"] = "{}"\n    return "never-stale"\n'
     )
     templates = {
         "t.html": '<div hx-get="/x" hx-target="#nowhere" hx-trigger="never-stale from:body"></div>'
     }
-    rules = Counter(v.rule for v in scan({"p.py": tree}, templates, {}))
-    assert rules["orphan-emitter"] == 2  # ghost-stale and toast (no listener in this fixture)
-    assert rules["orphan-listener"] == 1
+    trees = {HTMX_MODULE: htmx, "p.py": router}
+    rules = Counter(v.rule for v in scan(trees, templates, {}))
+    assert rules["orphan-emitter"] == 1  # ghost-stale has no listener
+    assert rules["orphan-listener"] == 1  # never-stale has no emitter
+    assert rules["unused-event"] == 2  # spare-stale and toast
+    assert rules["raw-trigger"] == 2  # HX-Trigger header literal and a stale literal
     assert rules["target-missing"] == 1
-    assert rules["toast-kind"] == 1

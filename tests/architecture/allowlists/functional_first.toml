@@ -124,14 +124,6 @@ epic = "E04"
 reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
 
 [[framework]]
-path = "src/budget_planner/web/routers/categories.py"
-rule = "param-mutation:framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "request.state / response.headers mutation is the Starlette contract"
-
-[[framework]]
 path = "src/budget_planner/web/routers/debug.py"
 rule = "module-singleton"
 count = 1

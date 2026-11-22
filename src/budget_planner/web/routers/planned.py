@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from datetime import date
-from typing import Any
+from typing import Any, Final
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
@@ -24,7 +23,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_today
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.params import parse_date, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
@@ -45,14 +44,18 @@ def parse_filter(request: Request) -> PlannedFilter:
     )
 
 
+_PROMOTE_EVENTS: Final = (
+    Event.LEDGER_STALE,
+    Event.FORECAST_STALE,
+    Event.BALANCE_STALE,
+    Event.TODAY_STALE,
+)
+
+
 # ---------------------------------------------------------------------------
 # T-R45 — Batch promote-due (ADR-0056 §6, ADR-0012). Registered BEFORE
 # the dynamic `/{planned_id}` paths.
 # ---------------------------------------------------------------------------
-def _hx_trigger_payload(payload: dict[str, object]) -> str:
-    return json.dumps(payload)
-
-
 @router.post("/batch/promote-due", response_class=HTMLResponse)
 def planned_batch_promote_due(
     conn: sqlite3.Connection = Depends(get_db),
@@ -70,22 +73,18 @@ def planned_batch_promote_due(
     ) as exc:
         return Response(status_code=422, content=str(exc))
     resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {
-                "variant": "success",
-                "message": f"Promoted {len(result.promoted_txn_ids)} planned row(s)",
-                "undo_url": "/planned/batch/undo",
-                "undo_payload": {
-                    "promoted_txn_ids": list(result.promoted_txn_ids),
-                    "promoted_planned_ids": list(result.promoted_planned_ids),
-                },
+    trigger(
+        resp,
+        *_PROMOTE_EVENTS,
+        toast=toast_payload(
+            "success",
+            f"Promoted {len(result.promoted_txn_ids)} planned row(s)",
+            undo_url="/planned/batch/undo",
+            undo_payload={
+                "promoted_txn_ids": list(result.promoted_txn_ids),
+                "promoted_planned_ids": list(result.promoted_planned_ids),
             },
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "balance-stale": True,
-            "today-stale": True,
-        }
+        ),
     )
     return resp
 
@@ -114,15 +113,7 @@ async def planned_batch_undo(
     if result.skipped_planned_ids:
         message = f"Undone ({len(result.skipped_planned_ids)} row(s) changed since, left as is)"
     resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {"variant": "info", "message": message},
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "balance-stale": True,
-            "today-stale": True,
-        }
-    )
+    trigger(resp, *_PROMOTE_EVENTS, toast=toast_payload("info", message))
     return resp
 
 
@@ -238,7 +229,7 @@ def create_planned(  # noqa: PLR0917
         ),
     )
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's overlay: no row insert; the ledger
     # refetches on `ledger-stale`, other pages reload (T-D142).
     refresh_unless_on(request, html, "/ledger")
@@ -371,7 +362,7 @@ def update_planned(  # noqa: PLR0917
     )
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -387,7 +378,7 @@ def delete_planned(
         return Response(status_code=404, content="not found")
     planned_service.soft_delete(conn, user_id, planned_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "forecast-stale", "ledger-stale")
+    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -403,7 +394,7 @@ def restore_planned(
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "forecast-stale", "ledger-stale")
+    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -514,7 +505,7 @@ def promote_submit(  # noqa: PLR0917
             status_code=422,
         )
     html = Response()
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 

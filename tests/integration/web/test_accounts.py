@@ -138,7 +138,7 @@ def test_delete(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     assert hx == {
         "balance-stale": True,
         "forecast-stale": True,
-        "toast": {"kind": "success", "message": "Account deleted"},
+        "toast": {"variant": "success", "message": "Account deleted"},
     }
 
 
