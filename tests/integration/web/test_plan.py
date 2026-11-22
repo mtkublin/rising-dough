@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from datetime import date
 
 import pytest
-from bs4 import BeautifulSoup
+from bs4 import Tag
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
@@ -26,6 +26,8 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import budget as budget_service, forecast as forecast_service
+from tests.ui_map import _html, plan
+from tests.ui_map.locator import role
 
 USER_ID = 1
 OPENING_MINOR = 100_000
@@ -48,8 +50,8 @@ def today(_migrated: Settings) -> date:
     return clock.today_local(_migrated)
 
 
-def _soup(html: str) -> BeautifulSoup:
-    return BeautifulSoup(html, "html.parser")
+def _row_cells(row: Tag) -> list[str]:
+    return _html.texts(row, role("cell"))
 
 
 def _month_start(today: date, delta: int) -> date:
@@ -140,36 +142,29 @@ def test_forecast_tab_series_labels_and_end_balance(
     r = client.get("/plan?tab=forecast")
 
     assert r.status_code == 200
-    soup = _soup(r.text)
-    rows = soup.select("tr[data-month]")
+    rows = _html.resolve(r.text, plan.forecast_projection_rows)[1:]  # [0] is the header row
     assert len(rows) == DEFAULT_HORIZON
     first, last = _month_start(today, 0), _month_start(today, DEFAULT_HORIZON - 1)
     assert rows[0]["data-month"] == first.isoformat()
     assert rows[-1]["data-month"] == last.isoformat()
-    assert rows[0].select("td")[0].get_text(strip=True) == first.strftime("%b %Y")
-    assert rows[-1].select("td")[0].get_text(strip=True) == last.strftime("%b %Y")
-    caption = soup.select_one("#forecast-caption")
-    assert caption is not None
-    assert f"{first.strftime('%b %Y')} — {last.strftime('%b %Y')}" in " ".join(
-        caption.get_text().split()
-    )
+    assert _row_cells(rows[0])[0] == first.strftime("%b %Y")
+    assert _row_cells(rows[-1])[0] == last.strftime("%b %Y")
+    caption = _html.text_of(r.text, plan.forecast_caption)
+    assert f"{first.strftime('%b %Y')} — {last.strftime('%b %Y')}" in caption
     series = forecast_service.monthly_projection(
         db, USER_ID, _migrated, today, horizon=DEFAULT_HORIZON
     )
-    end_cells = [row.select_one(".rd-forecast__eom") for row in rows]
-    assert [c.get_text(strip=True) for c in end_cells if c] == [
-        f"{p.end_balance_minor / 100:,.2f}" for p in series
-    ]
+    end_cells = [_row_cells(row)[-1] for row in rows]  # EOM is the last column
+    assert end_cells == [f"{p.end_balance_minor / 100:,.2f}" for p in series]
     last_balance = OPENING_MINOR - DEFAULT_HORIZON * GROCERIES_BUDGET_MINOR + PAYDAY_MINOR
     assert last_balance == -210_000
-    assert end_cells[-1] is not None
-    assert end_cells[-1].get_text(strip=True) == "-2,100.00"
+    assert end_cells[-1] == "-2,100.00"
 
 
 def test_forecast_tab_horizon_param(client: TestClient, world: None) -> None:
     r = client.get("/plan?tab=forecast&horizon=6")
 
-    assert len(_soup(r.text).select("tr[data-month]")) == 6
+    assert len(_html.resolve(r.text, plan.forecast_projection_rows)[1:]) == 6
 
 
 @pytest.mark.parametrize(("delta", "label"), [(-2, "past"), (3, "future")])
@@ -188,10 +183,8 @@ def test_budget_month_committed_zero_and_period_dates(
     r = client.get(f"/plan?tab=budget&year={start.year}&month={start.month}")
 
     assert r.status_code == 200, label
-    soup = _soup(r.text)
-    period = soup.select_one(".rd-period-bar__range")
-    assert period is not None
-    assert period.get_text(strip=True) == f"{start.day} {start:%b} → {nxt.day} {nxt:%b}"
+    region = _html.text_of(r.text, plan.period_region)
+    assert f"{start.day} {start:%b} → {nxt.day} {nxt:%b}" in region
     picked = budget_service.resolve_picker_month(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
@@ -201,12 +194,10 @@ def test_budget_month_committed_zero_and_period_dates(
     assert summary.totals.committed_minor == 0
     assert summary.period_start == start
     assert summary.next_income_date == nxt
-    meta = soup.select_one(".rd-period-bar__right .rd-period-bar__meta")
-    assert meta is not None
-    assert meta.get_text(" ", strip=True).startswith("0.00 committed")
-    assert f"{summary.days_until_next_income} days left" in meta.get_text()
+    assert "0.00 committed" in region
+    assert f"{summary.days_until_next_income} days left" in region
     # Groceries default budget is the planned figure on that month's row.
-    planned_cells = [td.get_text(strip=True) for td in soup.select("#plan-budget tbody td.num")]
+    planned_cells = _html.texts(r.text, plan.budget_row_cells)
     assert f"{GROCERIES_BUDGET_MINOR / 100:,.2f}" in planned_cells
     assert month_bounds(start.year, start.month)[0] == start
 
@@ -226,7 +217,9 @@ def test_budget_month_future_has_no_days_elapsed_pressure(
 
     assert summary.totals.spent_minor == 0
     assert summary.totals.budgeted_minor == GROCERIES_BUDGET_MINOR
-    assert f"{summary.days_until_next_income} days left" in r.text
+    assert f"{summary.days_until_next_income} days left" in _html.text_of(
+        r.text, plan.period_region
+    )
 
 
 def test_year_tab_grid_and_totals(
@@ -235,18 +228,16 @@ def test_year_tab_grid_and_totals(
     r = client.get(f"/plan?tab=year&year={today.year}")
 
     assert r.status_code == 200
-    soup = _soup(r.text)
-    rows = soup.select(".rd-plan-year__table tbody tr")
-    assert len(rows) == 1
-    cells = rows[0].select("td.rd-plan-year__cell")
+    rows = _html.resolve(r.text, plan.year_body_rows)
+    body = [row for row in rows if _html.resolve(row, role("cell"))]
+    assert len(body) == 2  # one category row + the totals footer row
+    cells = _html.resolve(r.text, plan.year_cell_open_any)
     assert len(cells) == 12
     grid = budget_service.yearly_grid(db, USER_ID, today.year)
     assert [cell.amount_minor for cell in grid[0].cells] == [GROCERIES_BUDGET_MINOR] * 12
-    total = rows[0].select("td.num")[-1].get_text(strip=True)
+    total = _row_cells(body[0])[-1]
     assert total == f"{12 * GROCERIES_BUDGET_MINOR / 100:,.0f}"
-    footer = [td.get_text(strip=True) for td in soup.select(".rd-plan-year__table tfoot td.num")]
+    footer = _row_cells(body[1])[1:]  # [0] is the "Total" label
     assert footer[-1] == total
     assert footer[:-1] == [f"{GROCERIES_BUDGET_MINOR / 100:,.0f}"] * 12
-    heading = soup.select_one("#plan-year-heading")
-    assert heading is not None
-    assert heading.get_text(strip=True) == f"Year · {today.year}"
+    assert _html.text_of(r.text, plan.year_heading) == f"Year · {today.year}"

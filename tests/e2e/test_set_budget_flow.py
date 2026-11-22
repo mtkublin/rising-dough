@@ -45,13 +45,12 @@ def test_set_budget_shows_remaining_after_spend(
     # Set a default budget of 500.00 for Groceries through the inline rule form.
     page.goto(f"{base_url}/budget?year=2026&month=10")
     wait_for_htmx(page)
-    page.get_by_label("Default budget for Groceries").fill("500.00")
+    default_input = page.get_by_label("Default budget for Groceries")
+    default_input.fill("500.00")
     with page.expect_response(
         lambda r: "/budget/defaults/" in r.url and r.request.method == "POST"
     ) as resp:
-        page.locator("form.budget-rule-form", has_text="Save").get_by_role(
-            "button", name="Save"
-        ).click()
+        default_input.press("Enter")  # implicit form submission, as a user would
     assert resp.value.ok, resp.value.text()
     category_id = db_probe.category_id(db_path, "Groceries")
     assert (

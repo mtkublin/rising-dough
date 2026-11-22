@@ -18,6 +18,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, errors
 
 USER_ID = 1
 NO_DEST = "transit requires a destination account"
@@ -69,7 +70,7 @@ def test_create_transit_without_destination_is_rejected(
 ) -> None:
     r = client.post(route, data=_form(world, ""))
     assert r.status_code == 422
-    assert NO_DEST in r.text
+    assert NO_DEST in _html.all_text(r.text, errors.alert)
     sql = f"SELECT COUNT(*) FROM {_TABLES[route]}"  # noqa: S608  # fixed table names from _TABLES
     assert _scalar(_migrated, sql) == 0
     for page in ("/accounts", "/today", "/forecast"):
@@ -89,7 +90,7 @@ def test_create_transit_cross_currency_is_rejected(
         conn.close()
     r = client.post(route, data=_form(world, str(eur)))
     assert r.status_code == 422
-    assert "cross-currency" in r.text
+    assert "cross-currency" in _html.all_text(r.text, errors.alert)
 
 
 @pytest.mark.parametrize("route", ["/transactions", "/planned"])
@@ -121,7 +122,7 @@ def test_update_to_transit_without_destination_is_rejected(
         conn.close()
     r = client.post(f"/transactions/{txn.id}", data=_form(world, ""))
     assert r.status_code == 422
-    assert NO_DEST in r.text
+    assert NO_DEST in _html.all_text(r.text, errors.alert)
     sql = "SELECT COUNT(*) FROM transactions WHERE id = ? AND category_id = ?"
     assert _scalar(_migrated, sql, txn.id, world["expense"]) == 1
     assert client.get("/accounts").status_code == 200
@@ -134,7 +135,7 @@ def test_update_planned_to_transit_without_destination_is_rejected(
     pid = _scalar(_migrated, "SELECT id FROM planned_transactions")
     r = client.post(f"/planned/{pid}", data=_form(world, ""))
     assert r.status_code == 422
-    assert NO_DEST in r.text
+    assert NO_DEST in _html.all_text(r.text, errors.alert)
     sql = "SELECT COUNT(*) FROM planned_transactions WHERE id = ? AND category_id = ?"
     assert _scalar(_migrated, sql, pid, world["expense"]) == 1
 
@@ -147,7 +148,7 @@ def test_reconcile_with_transit_category_is_rejected(
         data={"actual_balance": "20", "category_id": str(world["transit"])},
     )
     assert r.status_code == 422
-    assert NO_DEST in r.text
+    assert NO_DEST in _html.all_text(r.text, errors.alert)
     sql = "SELECT COUNT(*) FROM transactions WHERE category_id = ?"
     assert _scalar(_migrated, sql, world["transit"]) == 0
     assert client.get("/accounts").status_code == 200

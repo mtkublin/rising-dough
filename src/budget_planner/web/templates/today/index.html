@@ -33,7 +33,7 @@
         {{ pace_tag(pace.kind) }}
       </div>
       <div class="rd-hero__amount">
-        <span>{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
+        <span data-testid="hero-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
         <span class="rd-hero__cur num mut">{{ base_ccy }} / day</span>
       </div>
       <div class="rd-hero__meta num">
@@ -43,7 +43,7 @@
           ({{ budget.summary.anchor_category_name }}, {{ budget.summary.next_income_date|date_day_month }})
         {% endif %}
       </div>
-      <div class="rd-hero__progress" aria-hidden="true">
+      <div class="rd-hero__progress">
         {{ progress_bar(budget.spent_pct, committed_pct=budget.committed_pct, over=budget.is_over) }}
       </div>
       <div class="rd-hero__legend">

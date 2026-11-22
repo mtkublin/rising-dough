@@ -47,13 +47,12 @@ def test_reconcile_creates_adjustment_transaction(
     page.goto(f"{base_url}/accounts")
     wait_for_htmx(page)
     to_playwright(page, accounts.row(account_id)).get_by_role("button", name="Reconcile").click()
-    panel = page.locator(PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("input[name='actual_balance']").fill("70.00")
+    expect(to_playwright(page, PANEL)).to_be_visible()
+    to_playwright(page, accounts.reconcile_actual.inside(PANEL)).fill("70.00")
     with page.expect_response(
         lambda r: r.url.endswith("/reconcile") and r.request.method == "POST"
     ) as resp:
-        panel.get_by_role("button", name="Record").click()
+        to_playwright(page, accounts.reconcile_record).click()
     assert resp.value.ok, resp.value.text()
 
     # Account card now shows 70.00.

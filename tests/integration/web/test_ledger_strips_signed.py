@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
@@ -21,6 +20,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     recurring as recurring_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -68,17 +68,13 @@ def _seed(settings: Settings) -> None:
 
 def test_planned_strip_is_signed_net(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
-    soup = BeautifulSoup(client.get("/ledger?view=planned").text, "html.parser")
-    strip = soup.select_one(".rd-planned-strip")
-    assert strip is not None
-    assert strip.get_text(" ", strip=True).startswith("2 items · 3,799.50 PLN")
+    html = client.get("/ledger?view=planned").text
+    assert _html.text_of(html, ledger.planned_strip).startswith("2 items · 3,799.50 PLN")
 
 
 def test_recurring_strip_splits_in_and_out(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
-    soup = BeautifulSoup(client.get("/ledger?view=recurring").text, "html.parser")
-    strip = soup.select_one(".rd-recurring-strip")
-    assert strip is not None
-    text = strip.get_text(" ", strip=True)
+    html = client.get("/ledger?view=recurring").text
+    text = _html.text_of(html, ledger.recurring_strip)
     assert "Monthly out 1,200.50 PLN" in text
     assert "Monthly in 5,000.00 PLN" in text

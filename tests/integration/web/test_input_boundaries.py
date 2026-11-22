@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.domain.money import MAX_MINOR, parse_amount_minor
 from budget_planner.web.params import parse_int, parse_year_month
+from tests.ui_map import _html, errors
 
 BAD_GETS = [
     "/budget?year=abc",
@@ -61,7 +62,7 @@ def test_reconcile_rejects_bad_amount(client: TestClient, raw: str) -> None:
 def test_create_account_rejects_bad_opening_balance(client: TestClient, raw: str) -> None:
     resp = client.post("/accounts", data={"name": "x", "currency": "PLN", "opening_balance": raw})
     assert resp.status_code == 422
-    assert "invalid number" in resp.text
+    assert "invalid number" in _html.all_text(resp.text, errors.alert)
 
 
 @pytest.mark.parametrize("raw", ["NaN", "1e400", "99999999999999999999"])

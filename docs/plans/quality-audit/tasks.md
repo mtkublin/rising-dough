@@ -638,6 +638,17 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### ✅ T-Q278 [P] Migrate the SYNC-MAIN markup assertions to the UI harness
+- Findings: harness debt from SYNC-MAIN (2026-11-22): 167 markup assertions in 25 remediation-side test files that `main` had converted to the UI map (ADR-0106 section 2).
+- Epic: none (test infrastructure)
+- Band: 3 · Size: L · Tags: none
+- Depends on: SYNC-MAIN
+- Docs-first step: ADR-0106 section 2 already forbids the pattern; this task only pays the allowlist down. No template hook without an entry in `docs/audits/2026-11-22-t-q278-ui-map.md`.
+- Acceptance: every allowlisted test asserts behaviour through `tests/ui_map` locators (`_html`, Playwright `to_playwright`) or DB state (`db_probe`); exact values kept, no assertion weakened; `ALLOWLIST` in `tests/architecture/test_no_markup_assertions.py` is empty; any `data-testid` hook added is justified in the audit record.
+- Operator question blocking it: none.
+- Removes allowlist entries: `test_no_markup_assertions.ALLOWLIST` 167 -> 0
+- Done when: the allowlist is empty; the guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
 ---
 
 ### Band 4 — Full-compliance burn-down (remaining epics)
