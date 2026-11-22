@@ -62,6 +62,16 @@ from budget_planner.services.recurring_formula import (
     rt_expand,
 )
 from budget_planner.services.recurring_overrides import apply_overrides
+from budget_planner.services.recurring_rules import (
+    create_rule,
+    deactivate_rule,
+    delete_override,
+    find_rule,
+    list_overrides,
+    list_rules,
+    update_rule,
+    upsert_override,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -701,18 +711,6 @@ def linked_occurrence_keys(
         for row in rows
         if row.recurring_rule_id is not None and row.occurrence_date is not None
     )
-
-
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-find_rule = recurring_repo.find_rule
-list_rules = recurring_repo.list_rules
-list_overrides = recurring_repo.list_overrides
-create_rule = recurring_repo.create_rule
-update_rule = recurring_repo.update_rule
-deactivate_rule = recurring_repo.deactivate_rule
-upsert_override = recurring_repo.upsert_override
-delete_override = recurring_repo.delete_override
 
 
 __all__ = [

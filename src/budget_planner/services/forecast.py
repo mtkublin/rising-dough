@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE, HasDisplayTimezone
+from budget_planner.clock import HasDisplayTimezone
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import major_float
@@ -159,7 +159,7 @@ def forecast(
     horizon_days: int,
     *,
     include_budget_overlay: bool = True,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> ForecastSeries:
     """Project per-account balances forward ``horizon_days`` days.
 
@@ -282,7 +282,7 @@ def _current_month_budget_totals(
     base_currency: str,
     fiscal_year: int | None = None,
     fiscal_month: int | None = None,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> budget_svc.MonthTotals | None:
     """Return ``month_summary(fiscal).totals`` or ``None`` if no live categories."""
     y = fiscal_year if fiscal_year is not None else today.year
@@ -321,7 +321,7 @@ def _planned_budget_per_month(
     *,
     fx: fx_svc.FxConverter,
     start_month: dt.date | None = None,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> dict[dt.date, int]:
     """Return per-month **remaining** budget, clamped at zero.
 
@@ -469,7 +469,7 @@ def forecast_monthly(
     today: dt.date,
     horizon_months: int,
     *,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> MonthlySeries:
     """Monthly aggregate projection over ``horizon_months`` months (ADR-0043).
 

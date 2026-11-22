@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride
+from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride, valid_month
 from budget_planner.services import (
     budget as budget_service,
     budget_overrides as budget_overrides_service,
@@ -33,7 +33,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
-from budget_planner.web.budget_forms import non_negative_amount, parse_override, valid_month
+from budget_planner.web.budget_forms import non_negative_amount, parse_override
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE

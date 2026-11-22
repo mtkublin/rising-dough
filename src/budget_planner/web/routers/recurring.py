@@ -15,6 +15,7 @@ from budget_planner.domain.recurring import (
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
+    end_date_error,
 )
 from budget_planner.services import (
     accounts as accounts_service,
@@ -90,8 +91,8 @@ async def create_rule(
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     try:
         category_id = int(category_id_raw)
         account_id = int(account_id_raw)
@@ -301,8 +302,8 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
