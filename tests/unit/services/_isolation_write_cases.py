@@ -17,9 +17,9 @@ from budget_planner import clock
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
-from budget_planner.domain.enums import Direction
+from budget_planner.domain.enums import Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
-from budget_planner.domain.recurring import AmountFormula, RecurringRule
+from budget_planner.domain.recurring import AmountFormula, NewRecurringOverride, RecurringRule
 from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -361,6 +361,31 @@ def _case_recurring_undo_batch(conn: sqlite3.Connection, world: World) -> None:
     assert own.deleted_txn_ids == mine.promoted_txn_ids
     assert _rule(conn, OWNER_ID, world.owner.rule_id).next_due == EXPENSE_RULE_DUE
     assert _rule(conn, OTHER_ID, world.other.rule_id).next_due == advanced_other
+
+
+@covers("recurring.unpromote_override")
+def _case_recurring_unpromote_override(conn: sqlite3.Connection, world: World) -> None:
+    recurring_repo.upsert_override(
+        conn,
+        OWNER_ID,
+        NewRecurringOverride(
+            rule_id=world.owner.rule_id,
+            occurrence_date=EXPENSE_RULE_DUE,
+            state=OverrideState.OVERRIDDEN,
+            amount_override=900,
+        ),
+    )
+    mine = recurring.batch_promote_due(
+        conn, OWNER_ID, PROMOTE_DAY, fx=formula_fx_of(conn, OWNER_ID)
+    )
+    txn_id = mine.promoted_txn_ids[0]
+    rule_id = world.owner.rule_id
+    assert not recurring.unpromote_override(conn, OTHER_ID, rule_id, txn_id)  # not user 2's rule
+    stamped = recurring_repo.list_overrides_all(conn, OWNER_ID, rule_id)
+    assert [o.promoted_to_txn_id for o in stamped] == [txn_id]
+    assert recurring.unpromote_override(conn, OWNER_ID, rule_id, txn_id)
+    cleared = recurring_repo.list_overrides_all(conn, OWNER_ID, rule_id)
+    assert [o.promoted_to_txn_id for o in cleared] == [None]
 
 
 @covers("recurring.restore_progress")

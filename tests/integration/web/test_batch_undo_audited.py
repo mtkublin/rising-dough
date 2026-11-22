@@ -19,9 +19,13 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
-from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction
-from budget_planner.domain.recurring import NewRecurringRule, PatchRecurringRule
+from budget_planner.domain.recurring import (
+    NewRecurringOverride,
+    NewRecurringRule,
+    PatchRecurringRule,
+)
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -280,6 +284,118 @@ def test_planned_undo_leaves_a_row_stamped_by_another_promotion(
     row = planned_repo.find_by_id(conn, USER, planned_id)
     assert row is not None and row.promoted_to_txn_id == other.id
     assert len(_audit(conn, "planned_transaction")) == audit_before
+    conn.close()
+
+
+def _txn_rule(conn: sqlite3.Connection, txn_id: int) -> int | None:
+    row = conn.execute(
+        "SELECT promoted_from_recurring_rule_id AS r FROM transactions WHERE id = ?", (txn_id,)
+    ).fetchone()
+    return None if row is None else int(row["r"])
+
+
+def _txn_deleted(conn: sqlite3.Connection, txn_id: int) -> bool:
+    row = conn.execute("SELECT deleted_at FROM transactions WHERE id = ?", (txn_id,)).fetchone()
+    return bool(row["deleted_at"] is not None)
+
+
+def test_recurring_undo_refuses_an_audit_row_of_another_rule_of_the_same_user(
+    _migrated: Settings,
+) -> None:
+    conn = get_connection(_migrated)
+    rule_a = _rule(conn, USER)
+    first = recurring_repo.find_rule(conn, USER, rule_a)
+    assert first is not None
+    rule_b = recurring_repo.create_rule(
+        conn,
+        USER,
+        NewRecurringRule(
+            cadence=Cadence.MONTHLY,
+            start_date=date(2026, 10, 1),
+            category_id=first.category_id,
+            account_id=first.account_id,
+            default_amount=2_000,
+            default_description="",
+        ),
+    ).id
+    set_next_due(conn, USER, rule_b, next_due=DUE, last_promoted_date=None)
+    payload = _promote_recurring(conn, USER)
+    assert len(payload["promoted_txn_ids"]) == 2
+    adv_a = recurring_repo.find_rule(conn, USER, rule_a)
+    adv_b = recurring_repo.find_rule(conn, USER, rule_b)
+    txn_for_a = next(t for t in payload["promoted_txn_ids"] if _txn_rule(conn, t) == rule_a)
+    audit_of_b = next(
+        a
+        for a in payload["advance_audit_ids"]
+        if conn.execute("SELECT entity_id FROM audit_log WHERE id = ?", (a,)).fetchone()[0]
+        == rule_b
+    )
+    audit_before = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+
+    result = _undo_recurring(conn, USER, [txn_for_a], [audit_of_b])
+
+    assert (result.deleted_txn_ids, result.restored_rule_ids) == ((), ())
+    assert recurring_repo.find_rule(conn, USER, rule_a) == adv_a
+    assert recurring_repo.find_rule(conn, USER, rule_b) == adv_b
+    assert not _txn_deleted(conn, txn_for_a)
+    assert conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit_before
+    conn.close()
+
+
+def test_recurring_undo_refuses_another_batchs_audit_row(_migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    rule_id = _rule(conn, USER)
+    first = _promote_recurring(conn, USER)
+    second = recurring_svc.batch_promote_due(
+        conn, USER, date(2026, 11, 20), fx=formula_fx_of(conn, USER)
+    )
+    assert len(second.promoted_txn_ids) == 1
+    after_two = recurring_repo.find_rule(conn, USER, rule_id)
+    audit_before = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+
+    # first batch's transaction paired with the second batch's audit row, and vice versa
+    crossed = _undo_recurring(conn, USER, first["promoted_txn_ids"], list(second.advance_audit_ids))
+    stale = _undo_recurring(conn, USER, list(second.promoted_txn_ids), first["advance_audit_ids"])
+
+    for result in (crossed, stale):
+        assert (result.deleted_txn_ids, result.restored_rule_ids) == ((), ())
+    assert recurring_repo.find_rule(conn, USER, rule_id) == after_two
+    assert not _txn_deleted(conn, first["promoted_txn_ids"][0])
+    assert not _txn_deleted(conn, second.promoted_txn_ids[0])
+    assert conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit_before
+    conn.close()
+
+
+def test_recurring_undo_clears_the_override_stamp_and_audits_it(_migrated: Settings) -> None:
+    conn = get_connection(_migrated)
+    rule_id = _rule(conn, USER)
+    override_id = recurring_repo.upsert_override(
+        conn,
+        USER,
+        NewRecurringOverride(
+            rule_id=rule_id,
+            occurrence_date=DUE,
+            state=OverrideState.OVERRIDDEN,
+            amount_override=4_321,
+        ),
+    ).id
+    before = recurring_repo.list_overrides_all(conn, USER, rule_id)
+    payload = _promote_recurring(conn, USER)
+    txn_id = payload["promoted_txn_ids"][0]
+    stamped = recurring_repo.list_overrides_all(conn, USER, rule_id)
+    assert [o.promoted_to_txn_id for o in stamped] == [txn_id]
+
+    _undo_recurring(conn, USER, payload["promoted_txn_ids"], payload["advance_audit_ids"])
+
+    assert recurring_repo.list_overrides_all(conn, USER, rule_id) == before
+    assert before[0].id == override_id and before[0].promoted_to_txn_id is None
+    rule = recurring_repo.find_rule(conn, USER, rule_id)
+    assert rule is not None and rule.next_due == DUE
+    assert _txn_deleted(conn, txn_id)
+    last = _audit(conn, "recurring_override")[-1]
+    assert (last["operation"], last["user_id"], last["entity_id"]) == ("update", USER, override_id)
+    assert json.loads(last["prev_json"])["promoted_to_txn_id"] == txn_id
+    assert json.loads(last["new_json"])["promoted_to_txn_id"] is None
     conn.close()
 
 

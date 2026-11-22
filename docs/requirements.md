@@ -157,7 +157,7 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 - `just css-watch` — watch mode for Tailwind, run alongside `just dev`.
 - `just test` — run the test suite with coverage.
 - `just test-visual` — run Playwright visual-regression snapshot tests (opt-in; not part of `just ci` by default).
-- `just test-visual-update` — regenerate visual-regression baselines after an intentional design change.
+- `just visual` / `just visual-update` — run / regenerate the visual-regression suite inside the pinned Playwright container (docker required; ADR-0027 amendment 2026-11-22).
 - `just lint` — run all linters.
 - `just format` — autofix formatting.
 - `just typecheck` — mypy strict.
@@ -180,7 +180,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `npm ci`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
-- Visual-regression suite (`just test-visual`) is **not** run in default CI; it is opt-in via `CI_VISUAL=1` on manual workflow dispatch. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- Visual-regression suite: `.github/workflows/visual.yml` runs it in a pinned Playwright container on PRs that change templates/CSS/static JS (required `visual-gate`, auto-satisfied otherwise), weekly and on `workflow_dispatch`; it is not part of `just ci` or default `pytest`. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 
 ### 3.7 Data Semantics
 

@@ -13,9 +13,11 @@ from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.exceptions import InvalidAuthenticationResponse
 
 from budget_planner.config import Settings
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
-from budget_planner.services import _passwords, auth
+from budget_planner.services import auth
+from tests.auth_support import FAKE_HASHER, FakePasswordHasher
 from tests.integration.auth.conftest import PASSWORD
 
 pytestmark = pytest.mark.integration
@@ -26,10 +28,14 @@ AuditRows = Callable[[str], list[sqlite3.Row]]
 
 
 def _login(
-    conn: sqlite3.Connection, email: str, password: str
+    conn: sqlite3.Connection,
+    email: str,
+    password: str,
+    *,
+    hasher: PasswordHasher = FAKE_HASHER,
 ) -> sessions_repo.IssuedSession | None:
     return auth.authenticate_password(
-        conn, email, password, ip="203.0.113.9", user_agent="pytest/1"
+        conn, email, password, ip="203.0.113.9", user_agent="pytest/1", hasher=hasher
     )
 
 
@@ -83,18 +89,11 @@ def test_unknown_email_runs_dummy_verify_and_audits(
     audit_rows: AuditRows,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: list[str] = []
-    real = _passwords.verify_password
+    spy = FakePasswordHasher()
 
-    def _spy(plain: str, hashed: str | None) -> bool:
-        calls.append(plain)
-        return real(plain, hashed)
+    assert _login(conn, "ghost@example.test", "whatever", hasher=spy) is None
 
-    monkeypatch.setattr(auth, "verify_password", _spy)
-
-    assert _login(conn, "ghost@example.test", "whatever") is None
-
-    assert calls == ["whatever"], "dummy bcrypt verify must run for unknown emails"
+    assert spy.dummy_verifies == ["whatever"], "dummy verify must run for unknown emails"
     rows = audit_rows(auth.AUTH_EVENT_ENTITY)
     assert len(rows) == 1
     assert rows[0]["entity_id"] == 0
@@ -126,7 +125,13 @@ def test_explicit_request_ctx_is_used_for_audit(
     make_user()
     ctx = RequestCtx(ip="192.0.2.1", user_id=None, session_id=None, user_agent="ctx-ua")
     session = auth.authenticate_password(
-        conn, "alice@example.test", PASSWORD, ip="ignored", user_agent="ignored", request_ctx=ctx
+        conn,
+        "alice@example.test",
+        PASSWORD,
+        ip="ignored",
+        user_agent="ignored",
+        request_ctx=ctx,
+        hasher=FAKE_HASHER,
     )
     assert session is not None
     row = audit_rows(auth.SESSION_ENTITY)[0]

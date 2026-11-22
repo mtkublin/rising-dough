@@ -12,6 +12,7 @@ import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from budget_planner.domain.audit import AuditEntry
 from budget_planner.domain.enums import AuditOperation
 from budget_planner.repositories import (
     audit as audit_repo,
@@ -20,7 +21,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import audit as audit_svc
-from budget_planner.services.recurring import restore_progress
+from budget_planner.services.recurring import restore_progress, unpromote_override
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,8 +33,29 @@ class BatchUndoResult:
     skipped_rule_ids: tuple[int, ...]
 
 
-def _restore_rule(conn: sqlite3.Connection, user_id: int, audit_id: int) -> int | None:
-    """Restore the rule behind ``audit_id``; audited.
+def _belongs_to_batch(
+    conn: sqlite3.Connection, user_id: int, txn_id: int, entry: AuditEntry
+) -> bool:
+    """Whether ``txn_id`` is the promotion that the rule-advance row ``entry`` wrote.
+
+    The transaction carries the rule and the due date it was promoted for; the
+    advance row's ``prev_json.next_due`` is that same due date. A pair that does
+    not agree (another rule's row, an older or newer batch, a hand-picked id) is
+    not part of one batch (T-Q288).
+    """
+    txn = transactions_repo.find_by_id(conn, user_id, txn_id, include_deleted=True)
+    if txn is None or entry.prev_json is None:
+        return False
+    prev_due = json.loads(entry.prev_json).get("next_due")
+    return (
+        txn.promoted_from_recurring_rule_id == entry.entity_id
+        and txn.promoted_from_recurring_date is not None
+        and txn.promoted_from_recurring_date.isoformat() == prev_due
+    )
+
+
+def _restore_rule(conn: sqlite3.Connection, user_id: int, txn_id: int, audit_id: int) -> int | None:
+    """Restore the rule behind ``audit_id`` (written by ``txn_id``'s promotion); audited.
 
     Returns the rule id when restored, ``-rule_id`` when the rule changed since
     (left as is), ``None`` when the audit row is not an advance of the user's rule.
@@ -44,6 +66,7 @@ def _restore_rule(conn: sqlite3.Connection, user_id: int, audit_id: int) -> int 
         or entry.entity_type != "recurring_rule"
         or entry.operation is not AuditOperation.UPDATE
         or entry.prev_json is None
+        or not _belongs_to_batch(conn, user_id, txn_id, entry)
     ):
         return None
     rule_id = entry.entity_id
@@ -61,6 +84,7 @@ def _restore_rule(conn: sqlite3.Connection, user_id: int, audit_id: int) -> int 
         new=recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True),
         user_id=user_id,
     )
+    unpromote_override(conn, user_id, rule_id, txn_id)
     return rule_id
 
 
@@ -77,14 +101,18 @@ def undo_batch(
     (the rule is unchanged since the batch), the restore writes its own audit
     row, and the transaction is soft-deleted. A rule edited meanwhile is left as
     is, its transaction is kept, and it is reported in ``skipped_rule_ids``.
-    Audit rows of another user, or of another entity or operation, are ignored.
+    Only audit rows written by the batch being undone are accepted: the row must
+    be an advance of the rule the transaction was promoted from, for that
+    transaction's due date. Any other row (another user, entity, operation, rule
+    or batch) is ignored and nothing changes (T-Q288). The override the promotion
+    consumed has its ``promoted_to_txn_id`` stamp cleared, audited.
     """
     deleted: list[int] = []
     restored: list[int] = []
     skipped: list[int] = []
     with db_transaction(conn):
         for txn_id, audit_id in steps:
-            rule_id = _restore_rule(conn, user_id, audit_id)
+            rule_id = _restore_rule(conn, user_id, txn_id, audit_id)
             if rule_id is None:
                 continue
             if rule_id < 0:
