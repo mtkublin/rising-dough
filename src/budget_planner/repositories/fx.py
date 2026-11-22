@@ -80,7 +80,7 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     existing = find_rate(conn, data.date, data.from_ccy, data.to_ccy)
     prev = existing
 
-    def _action(c: sqlite3.Connection) -> tuple[int, FxRate]:
+    def _upsert_rate_action(c: sqlite3.Connection) -> tuple[int, FxRate]:
         if existing is None:
             cursor = c.execute(
                 "INSERT INTO fx_rates(date, from_ccy, to_ccy, rate) VALUES (?, ?, ?, ?)",
@@ -108,7 +108,7 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
         entity_type="fx_rate",
         operation="update" if prev is not None else "create",
         prev=prev,
-        action=_action,
+        action=_upsert_rate_action,
         user_id=None,
     )
 

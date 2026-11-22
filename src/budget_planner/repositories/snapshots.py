@@ -46,7 +46,7 @@ def list_for_account(
 
 
 def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> AccountSnapshot:
-    def _action(c: sqlite3.Connection) -> tuple[int, AccountSnapshot]:
+    def _create_snapshot_action(c: sqlite3.Connection) -> tuple[int, AccountSnapshot]:
         # Validate FK-ownership first; the account must belong to user_id.
         parent = c.execute(
             "SELECT 1 FROM accounts WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
@@ -73,7 +73,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
         entity_type="snapshot",
         operation="create",
         prev=None,
-        action=_action,
+        action=_create_snapshot_action,
         user_id=user_id,
     )
 

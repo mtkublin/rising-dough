@@ -12,7 +12,17 @@ from __future__ import annotations
 import sqlite3
 
 from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
+from budget_planner.repositories._shared import (
+    OwnedTable,
+    find_owned,
+    insert_owned,
+    list_owned,
+    parse_dt,
+    parse_dt_required,
+    soft_delete_owned,
+    undelete_owned,
+    update_owned,
+)
 
 _COLUMNS = (
     "id, user_id, name, type, currency, opening_balance, "
@@ -36,6 +46,15 @@ def _row_to_account(row: sqlite3.Row) -> Account:
     )
 
 
+_ACCOUNTS: OwnedTable[Account] = OwnedTable(
+    table="accounts",
+    entity_type="account",
+    columns=_COLUMNS,
+    hydrate=_row_to_account,
+    order_by="name ASC",
+)
+
+
 def find_by_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -43,11 +62,7 @@ def find_by_id(
     *,
     include_deleted: bool = False,
 ) -> Account | None:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE id = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (account_id, user_id)).fetchone()
-    return _row_to_account(row) if row is not None else None
+    return find_owned(conn, _ACCOUNTS, user_id, {"id": account_id}, include_deleted=include_deleted)
 
 
 def find_by_name(
@@ -57,11 +72,7 @@ def find_by_name(
     *,
     include_deleted: bool = False,
 ) -> Account | None:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE name = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (name, user_id)).fetchone()
-    return _row_to_account(row) if row is not None else None
+    return find_owned(conn, _ACCOUNTS, user_id, {"name": name}, include_deleted=include_deleted)
 
 
 def list_all(
@@ -70,37 +81,22 @@ def list_all(
     *,
     include_deleted: bool = False,
 ) -> list[Account]:
-    sql = f"SELECT {_COLUMNS} FROM accounts WHERE user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    sql += " ORDER BY name ASC"
-    return [_row_to_account(r) for r in conn.execute(sql, (user_id,)).fetchall()]
+    return list_owned(conn, _ACCOUNTS, user_id, include_deleted=include_deleted)
 
 
 def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
-    def _action(c: sqlite3.Connection) -> tuple[int, Account]:
-        cursor = c.execute(
-            "INSERT INTO accounts("
-            "user_id, name, type, currency, opening_balance, "
-            "is_liability, credit_limit_minor) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                data.name,
-                data.type,
-                data.currency,
-                data.opening_balance,
-                1 if data.is_liability else 0,
-                data.credit_limit_minor,
-            ),
-        )
-        new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
-        assert created is not None
-        return new_id, created
-
-    return mutate(
-        conn, entity_type="account", operation="create", prev=None, action=_action, user_id=user_id
+    return insert_owned(
+        conn,
+        _ACCOUNTS,
+        user_id,
+        {
+            "name": data.name,
+            "type": data.type,
+            "currency": data.currency,
+            "opening_balance": data.opening_balance,
+            "is_liability": 1 if data.is_liability else 0,
+            "credit_limit_minor": data.credit_limit_minor,
+        },
     )
 
 
@@ -110,75 +106,18 @@ def update(
     account_id: int,
     data: PatchAccount,
 ) -> Account:
-    prev = find_by_id(conn, user_id, account_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"account {account_id} not found")
-
     changes = data.as_dict()
     if "is_liability" in changes:
         changes["is_liability"] = 1 if changes["is_liability"] else 0
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Account]:
-        if changes:
-            sets = [f"{field} = ?" for field in changes]
-            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
-            c.execute(
-                f"UPDATE accounts SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), account_id, user_id),
-            )
-        updated = find_by_id(c, user_id, account_id, include_deleted=True)
-        assert updated is not None
-        return account_id, updated
-
-    return mutate(
-        conn, entity_type="account", operation="update", prev=prev, action=_action, user_id=user_id
-    )
+    return update_owned(conn, _ACCOUNTS, user_id, account_id, changes)
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, account_id: int) -> None:
-    prev = find_by_id(conn, user_id, account_id)
-    if prev is None:
-        return
-
-    def _action(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            "UPDATE accounts "
-            "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (account_id, user_id),
-        )
-        return account_id, None
-
-    mutate(
-        conn, entity_type="account", operation="delete", prev=prev, action=_action, user_id=user_id
-    )
+    soft_delete_owned(conn, _ACCOUNTS, user_id, account_id)
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account:
-    prev = find_by_id(conn, user_id, account_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"account {account_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Account]:
-        c.execute(
-            "UPDATE accounts SET deleted_at = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (account_id, user_id),
-        )
-        restored = find_by_id(c, user_id, account_id)
-        assert restored is not None
-        return account_id, restored
-
-    return mutate(
-        conn,
-        entity_type="account",
-        operation="undelete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return undelete_owned(conn, _ACCOUNTS, user_id, account_id)
 
 
 __all__ = [

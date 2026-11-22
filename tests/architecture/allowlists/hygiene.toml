@@ -94,30 +94,9 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/repositories/accounts.py"
-rule = "assert-in-src"
-count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/repositories/categories.py"
-rule = "assert-in-src"
-count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/repositories/planned.py"
 rule = "any-annotation"
 count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/repositories/planned.py"
-rule = "assert-in-src"
-count = 4
 finding = "Q-073"
 epic = "E15"
 
@@ -129,22 +108,8 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "assert-in-src"
-count = 2
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/repositories/transactions.py"
 rule = "any-annotation"
-count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/repositories/transactions.py"
-rule = "assert-in-src"
 count = 3
 finding = "Q-073"
 epic = "E15"
