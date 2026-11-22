@@ -26,6 +26,13 @@ from budget_planner.repositories.sessions import session_handle
 from budget_planner.services.connections import get_connection
 from budget_planner.services.recurring_formula import FormulaFx, formula_ctx_for
 from budget_planner.web.auth_cookies import safe_next
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REDIRECT,
+    HX_REQUEST,
+    JSON_MEDIA_TYPE,
+)
 from budget_planner.web.middleware.auth import CurrentUser
 
 _LOG = logging.getLogger(__name__)
@@ -166,7 +173,7 @@ def _return_path(request: Request) -> str:
 
     Never the POST route itself — a GET to it would 405.
     """
-    for header in ("hx-current-url", "referer"):
+    for header in (HX_CURRENT_URL, "referer"):
         path = _same_origin_path(request.headers.get(header, ""), request)
         if path:
             return safe_next(path)
@@ -181,14 +188,14 @@ def reauth_url(request: Request) -> str:
 def reauth_required_response(request: Request) -> Response:
     """Stale-session response in the shape the caller can handle (ADR-0076 §2)."""
     url = reauth_url(request)
-    if request.headers.get("hx-request", "").lower() == "true":
+    if request.headers.get(HX_REQUEST, "").lower() == "true":
         return JSONResponse(
             {"error": REAUTH_REQUIRED},
             status_code=HTTPStatus.FORBIDDEN,
-            headers={"HX-Redirect": url},
+            headers={HX_REDIRECT: url},
         )
     accept = request.headers.get("accept", "").lower()
-    if "application/json" in accept and "text/html" not in accept:
+    if JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept:
         return JSONResponse(
             {"error": REAUTH_REQUIRED, "redirect": url}, status_code=HTTPStatus.FORBIDDEN
         )

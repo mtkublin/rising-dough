@@ -92,7 +92,7 @@ def validate_new_password(req: PasswordChangeRequest) -> tuple[FieldError, ...]:
     new = req.new_password
     if len(new) < MIN_PASSWORD_LENGTH:
         errors.append(FieldError(field="new_password", message=MSG_TOO_SHORT))
-    elif len(new.encode("utf-8")) > MAX_PASSWORD_BYTES:
+    elif len(new.encode()) > MAX_PASSWORD_BYTES:
         errors.append(FieldError(field="new_password", message=MSG_TOO_LONG))
     elif req.current_password and new == req.current_password:
         errors.append(FieldError(field="new_password", message=MSG_SAME_AS_CURRENT))

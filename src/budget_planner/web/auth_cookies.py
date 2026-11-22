@@ -111,7 +111,7 @@ def _b64d(text: str) -> bytes:
 
 
 def _mac(secret: str, payload: bytes) -> bytes:
-    return hmac.new(secret.encode("utf-8"), _CHALLENGE_DOMAIN + payload, hashlib.sha256).digest()
+    return hmac.new(secret.encode(), _CHALLENGE_DOMAIN + payload, hashlib.sha256).digest()
 
 
 def sign_challenge(
@@ -132,7 +132,7 @@ def sign_challenge(
         },
         separators=(",", ":"),
         sort_keys=True,
-    ).encode("utf-8")
+    ).encode()
     return f"{_b64e(payload)}.{_b64e(_mac(settings.resolve().cookie_secret, payload))}"
 
 

@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import format_axis_number, major_float
@@ -33,6 +33,7 @@ from budget_planner.services.analytics import AnalyticsBundle
 # Shared primitives
 # ---------------------------------------------------------------------------
 
+_BAR_KINDS = frozenset({Direction.INCOME.value, Direction.EXPENSE.value})
 _NUM_FMT = "{:.3f}"
 _NICE_FRACTIONS: tuple[float, ...] = (1.0, 2.0, 2.5, 5.0, 10.0)
 _DEFAULT_TARGET_TICKS = 5
@@ -281,7 +282,7 @@ def _line_x_ticks(
 # Grouped bars (Plan · Analytics — income vs expense)
 # ---------------------------------------------------------------------------
 
-BarKind = Literal["income", "expense"]
+BarKind = str
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,11 +395,11 @@ def _normalize_groups(groups: Sequence[Mapping[str, object]]) -> list[_Normalize
         raw_bars = cast(Iterable[tuple[str, float]], raw.get("bars", ()))
         bar_entries: list[tuple[BarKind, float]] = []
         for kind, value in raw_bars:
-            if kind not in ("income", "expense"):
+            if kind not in _BAR_KINDS:
                 raise ValueError(f"unknown bar kind: {kind!r}")
             if value < 0:
                 raise ValueError("grouped_bars values must be >= 0")
-            bar_entries.append((cast(BarKind, kind), float(value)))
+            bar_entries.append((kind, float(value)))
         normalized.append((label, tuple(bar_entries)))
     return normalized
 
