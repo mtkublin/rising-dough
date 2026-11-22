@@ -35,6 +35,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.client_ip import UNKNOWN_IP
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import auth as auth_service, rate_limit, reauth as reauth_service
 from budget_planner.services.auth import IssuedSession, session_handle
@@ -57,6 +58,7 @@ from budget_planner.web.deps import (
     client_ip,
     current_user,
     get_db,
+    get_password_hasher,
     get_request_ctx,
     get_settings_dep,
     is_recently_authenticated,
@@ -348,6 +350,7 @@ def login_password(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     ctx: RequestCtx = Depends(get_request_ctx),
+    hasher: PasswordHasher = Depends(get_password_hasher),
     limit: RateDecision = Depends(login_rate_limit),
 ) -> Response:
     """Password login. Any failure re-renders the form with a generic error."""
@@ -362,6 +365,7 @@ def login_password(  # noqa: PLR0917
             password,
             ip=client_ip(request),
             user_agent=request_user_agent(request),
+            hasher=hasher,
             request_ctx=ctx,
         )
     if session is None:
@@ -673,6 +677,7 @@ def reauth_password(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     ctx: RequestCtx = Depends(get_request_ctx),
     user: CurrentUser = Depends(current_user),
+    hasher: PasswordHasher = Depends(get_password_hasher),
     limit: RateDecision = Depends(reauth_rate_limit),
 ) -> Response:
     """Re-authenticate with the current password."""
@@ -691,7 +696,7 @@ def reauth_password(  # noqa: PLR0917
         )
         page.headers["Retry-After"] = str(limit.retry_after_seconds)
         return page
-    if reauth_service.verify_password_reauth(conn, user.id, password, ctx=ctx):
+    if reauth_service.verify_password_reauth(conn, user.id, password, hasher=hasher, ctx=ctx):
         done = _reauth_success(
             request, conn, settings, user, ctx, _redirect(target),
             method=reauth_service.METHOD_PASSWORD,

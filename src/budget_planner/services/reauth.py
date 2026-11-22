@@ -25,6 +25,7 @@ from webauthn.helpers import parse_authentication_credential_json
 from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import PublicKeyCredentialDescriptor, UserVerificationRequirement
 
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
@@ -33,7 +34,6 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.sessions import IssuedSession
-from budget_planner.services._passwords import dummy_hash, verify_password
 from budget_planner.services.auth import (
     AUTH_EVENT_ENTITY,
     CredentialPayload,
@@ -71,15 +71,20 @@ def _fail(
 
 
 def verify_password_reauth(
-    conn: sqlite3.Connection, user_id: int, password: str, *, ctx: RequestCtx
+    conn: sqlite3.Connection,
+    user_id: int,
+    password: str,
+    *,
+    hasher: PasswordHasher,
+    ctx: RequestCtx,
 ) -> bool:
     """Check ``password`` against the user's current hash; audit failures."""
     user = users_repo.get_live_by_id(conn, user_id)
     if user is None or not user.password_hash:
-        verify_password(password, dummy_hash())  # equalize timing
+        hasher.verify_dummy(password)  # equalize timing
         _fail(conn, ctx, user_id, METHOD_PASSWORD, "no_password")
         return False
-    if not password or not verify_password(password, user.password_hash):
+    if not password or not hasher.verify(password, user.password_hash):
         _fail(conn, ctx, user_id, METHOD_PASSWORD, "bad_password")
         return False
     return True

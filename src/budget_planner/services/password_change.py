@@ -20,6 +20,7 @@ import sqlite3
 from dataclasses import dataclass, replace
 from typing import Final, Literal
 
+from budget_planner.domain.ports import MAX_PASSWORD_BYTES, PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as auth_users_repo,
@@ -28,10 +29,8 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.sessions import IssuedSession
-from budget_planner.services import _passwords
 
 MIN_PASSWORD_LENGTH: Final = 12
-MAX_PASSWORD_BYTES: Final = _passwords.MAX_PASSWORD_BYTES
 
 AUTH_EVENT_ENTITY: Final = "auth_event"
 SESSION_ENTITY: Final = "session"
@@ -164,6 +163,7 @@ def change_own_password(
     user_id: int,
     req: PasswordChangeRequest,
     *,
+    hasher: PasswordHasher,
     current_session_id: str | None,
     request_ctx: RequestCtx,
 ) -> PasswordChangeOutcome:
@@ -180,9 +180,7 @@ def change_own_password(
     user = auth_users_repo.get_live_by_id(conn, user_id)
     if user is None:
         raise users_repo.UserNotFoundError(f"no live user with id {user_id}")
-    if not user.password_hash or not _passwords.verify_password(
-        req.current_password, user.password_hash
-    ):
+    if not user.password_hash or not hasher.verify(req.current_password, user.password_hash):
         reason: FailureReason = "bad_current_password" if user.password_hash else "no_password"
         _audit_failure(conn, user_id, reason, request_ctx)
         wrong = FieldError(field="current_password", message=MSG_CURRENT_WRONG)
@@ -190,7 +188,7 @@ def change_own_password(
     if policy_errors:
         return PasswordChangeOutcome(errors=policy_errors)
 
-    new_hash = _passwords.hash_password(req.new_password)
+    new_hash = hasher.hash(req.new_password)
     committed = _commit_change(
         conn,
         user_id,

@@ -35,3 +35,9 @@ def test_purity_detects_fixture_violation(synthetic_scan: SyntheticScan) -> None
     )
     hits = [r for r in scanned["p04-side-effects"] if r[1] in {"eff-net", "eff-import"}]
     assert hits, "fixture violation not detected by the scanner rule"
+
+
+def test_purity_forbids_bcrypt_in_services(synthetic_scan: SyntheticScan) -> None:
+    scanned = synthetic_scan({"services/s.py": "import bcrypt\n\n\ndef f():\n    return bcrypt\n"})
+    hits = [r for r in scanned["p04-side-effects"] if r[1] == "eff-import" and "bcrypt" in r[2]]
+    assert hits, "bcrypt import in services/ must be an eff-import violation (T-Q291)"

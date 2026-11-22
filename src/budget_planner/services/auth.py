@@ -85,6 +85,7 @@ from webauthn.helpers.structs import (
 )
 
 from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
@@ -95,7 +96,6 @@ from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.repositories.sessions import IssuedSession, Session, session_handle
 from budget_planner.repositories.webauthn import WebAuthnCredential
-from budget_planner.services._passwords import dummy_hash, verify_password
 
 SESSION_ENTITY: Final = "session"
 AUTH_EVENT_ENTITY: Final = "auth_event"
@@ -232,13 +232,14 @@ def authenticate_password(
     *,
     ip: str | None,
     user_agent: str | None,
+    hasher: PasswordHasher,
     request_ctx: RequestCtx | None = None,
 ) -> IssuedSession | None:
     """Verify ``email`` + ``password`` and open a session; ``None`` on any failure."""
     ctx = _base_ctx(request_ctx, ip=ip, user_agent=user_agent)
     user = users_repo.find_live_by_email(conn, email)
     if user is None or not user.password_hash:
-        verify_password(password, dummy_hash())  # equalize timing
+        hasher.verify_dummy(password)  # equalize timing
         _audit_login_failure(
             conn,
             ctx,
@@ -248,7 +249,7 @@ def authenticate_password(
             email=email,
         )
         return None
-    if not verify_password(password, user.password_hash):
+    if not hasher.verify(password, user.password_hash):
         _audit_login_failure(
             conn, ctx, method="password", reason="bad_password", user_id=user.id, email=email
         )

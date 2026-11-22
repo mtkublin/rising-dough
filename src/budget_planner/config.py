@@ -46,6 +46,9 @@ class ResolvedSettings:
         return f"ResolvedSettings(database_url={self.database_url!r}, cookie_secret='***')"
 
 
+PRODUCTION_MIN_BCRYPT_ROUNDS = 12
+
+
 class Settings(BaseSettings):
     """Immutable, env-driven settings."""
 
@@ -74,6 +77,8 @@ class Settings(BaseSettings):
     # Required in production. Dev / test fall back to a known value and
     # emit a warning so the fallback is observable.
     cookie_secret: str = Field(default="")
+    # T-Q291: bcrypt cost for the injected ``PasswordHasher`` (production 12; tests lower it).
+    bcrypt_rounds: int = Field(default=12, ge=4, le=31)
     session_lifetime_days: int = Field(default=14, ge=1, le=90)
     # ADR-0076 §1: hard cap measured from ``sessions.created_at``; sliding
     # expiry never extends past it.
@@ -219,6 +224,11 @@ class Settings(BaseSettings):
         # passkeys fail in the browser on the real hostname, so production
         # refuses to start with them (ADR-0067 §1).
         if self.env == "production":
+            if self.bcrypt_rounds < PRODUCTION_MIN_BCRYPT_ROUNDS:
+                raise ValueError(
+                    f"bcrypt_rounds must be >= {PRODUCTION_MIN_BCRYPT_ROUNDS} in production "
+                    "(T-Q291, ADR-0033 §2)."
+                )
             if self.webauthn_rp_id == "localhost":
                 raise ValueError(
                     "webauthn_rp_id must not be 'localhost' in production — set "

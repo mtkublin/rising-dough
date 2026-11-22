@@ -122,13 +122,6 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/services/_passwords.py"
-rule = "silent-except"
-count = 1
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/services/audit.py"
 rule = "any-annotation"
 count = 4

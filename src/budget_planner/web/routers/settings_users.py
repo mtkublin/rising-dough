@@ -28,13 +28,14 @@ from typing import Any, Final
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from budget_planner.domain.ports import TokenSource
+from budget_planner.domain.ports import PasswordHasher, TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import users as users_service
 from budget_planner.services.users import AuthUser, UserConflict, UserInputError, UserNotFound
 from budget_planner.web.deps import (
     current_user,
     get_db,
+    get_password_hasher,
     get_request_ctx,
     get_token_source,
     require_recent_auth,
@@ -162,12 +163,13 @@ def create_user(
     admin: CurrentUser = Depends(current_admin),
     request_ctx: RequestCtx = Depends(get_request_ctx),
     tokens: TokenSource = Depends(get_token_source),
+    hasher: PasswordHasher = Depends(get_password_hasher),
 ) -> HTMLResponse:
     """Create a user; show the generated password once."""
     try:
         draft = users_service.build_draft(email=email, name=name, is_admin=_checkbox(is_admin))
         user, password = users_service.create_user(
-            conn, admin.id, draft, tokens=tokens, request_ctx=request_ctx
+            conn, admin.id, draft, tokens=tokens, hasher=hasher, request_ctx=request_ctx
         )
     except UserInputError as exc:
         if is_hx_request(request):
@@ -292,11 +294,12 @@ def reset_password(
     admin: CurrentUser = Depends(current_admin),
     request_ctx: RequestCtx = Depends(get_request_ctx),
     tokens: TokenSource = Depends(get_token_source),
+    hasher: PasswordHasher = Depends(get_password_hasher),
 ) -> HTMLResponse:
     """Generate a new one-shot password and revoke the target's sessions."""
     try:
         user, password = users_service.reset_password(
-            conn, admin.id, user_id, tokens=tokens, request_ctx=request_ctx
+            conn, admin.id, user_id, tokens=tokens, hasher=hasher, request_ctx=request_ctx
         )
     except UserNotFound:
         return _not_found(request)
