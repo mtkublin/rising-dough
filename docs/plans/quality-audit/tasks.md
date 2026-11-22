@@ -654,7 +654,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 4 — Full-compliance burn-down (remaining epics)
 
-### T-Q242 [S] Split oversized modules
+### ✅ T-Q242 [S] Split oversized modules
 - Findings: Q-046 (B-09).
 - Epic: E13
 - Band: 4 · Size: L · Tags: none

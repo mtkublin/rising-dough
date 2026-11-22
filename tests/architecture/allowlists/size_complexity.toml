@@ -3,20 +3,6 @@
 guard = "size_complexity"
 
 [[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "file>800"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "func>50"
-count = 3
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/web/routers/accounts.py"
 rule = "func>50"
 count = 1

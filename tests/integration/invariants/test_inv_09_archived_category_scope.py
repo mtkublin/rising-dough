@@ -14,7 +14,7 @@ from datetime import date
 from budget_planner.config import get_settings
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.repositories import budgets as budgets_repo
-from budget_planner.services import forecast, fx as fx_svc
+from budget_planner.services import forecast, forecast_overlay, fx as fx_svc
 
 U = 1
 TODAY = date(2026, 11, 19)
@@ -33,7 +33,7 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
     def paths() -> tuple[int, int]:
         overlay = -sum(
             e.amount_minor
-            for e in forecast._collect_budget_overlay(
+            for e in forecast_overlay.collect_budget_overlay(
                 seeded,
                 U,
                 today=TODAY,

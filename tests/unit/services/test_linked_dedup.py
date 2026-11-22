@@ -18,7 +18,7 @@ from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import (
     account_planned as ap,
     budget as bs,
-    forecast as fc,
+    forecast_events,
     recurring as recurring_svc,
 )
 
@@ -76,7 +76,7 @@ def _budget(conn: sqlite3.Connection) -> int:
 
 
 def _forecast(conn: sqlite3.Connection, ids: dict[str, int]) -> int:
-    events = fc._collect_events(conn, USER_ID, TODAY, END)
+    events = forecast_events.collect_events(conn, USER_ID, TODAY, END)
     return sum(ev.amount_minor for evs in events.values() for ev in evs)
 
 
