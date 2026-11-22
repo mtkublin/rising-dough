@@ -14,7 +14,7 @@ from budget_planner.cli import set_password as cli
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
-from budget_planner.services import _passwords
+from tests.auth_support import FAST_HASHER
 
 NEW_PASSWORD = "Op3rator-chosen!"  # noqa: S105  # pragma: allowlist secret
 
@@ -81,7 +81,7 @@ def test_sets_password_for_legacy_user_and_promotes(
         1,
         0,
     )
-    assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
+    assert FAST_HASHER.verify(NEW_PASSWORD, row["password_hash"])
     audit = read_conn.execute(
         "SELECT * FROM audit_log WHERE entity_type = 'users' ORDER BY id DESC LIMIT 1"
     ).fetchone()
@@ -109,7 +109,7 @@ def test_targets_by_email_reads_stdin_and_forces_rotation(
     row = _user(read_conn, 2)
     assert row["must_change_password"] == 1
     assert row["is_admin"] == 0
-    assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
+    assert FAST_HASHER.verify(NEW_PASSWORD, row["password_hash"])
 
 
 @pytest.mark.parametrize(

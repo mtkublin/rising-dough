@@ -9,9 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.services import _passwords
 from budget_planner.web.middleware.must_change_password import password_url
-from tests.auth_support import TEST_PASSWORD, issue_session
+from tests.auth_support import FAST_HASHER, TEST_PASSWORD, issue_session
 from tests.ui_map import _html, settings as ui
 
 pytestmark = pytest.mark.integration
@@ -125,7 +124,7 @@ def test_post_success_rotates_and_revokes_others(
     assert r.headers["location"] == "/ledger"
     row = _user(conn)
     assert row["must_change_password"] == 0
-    assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
+    assert FAST_HASHER.verify(NEW_PASSWORD, row["password_hash"])
     # The caller's session survives under a rotated token (ADR-0076 §4).
     assert sessions_repo.get_session(conn, session_cookie[1]) is None
     assert sessions_repo.list_active_sessions(conn, 1)

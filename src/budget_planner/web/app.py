@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.config import Settings, get_settings
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
@@ -178,7 +179,9 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
         # T-D19 / ADR-0061 §3 / ADR-0069: ensure a live admin exists.
         # Missing credentials with no admin → exit non-zero (fail fast).
         try:
-            users_service.bootstrap_admin_at_startup(cfg, connect=get_connection)
+            users_service.bootstrap_admin_at_startup(
+                cfg, connect=get_connection, hasher=BcryptHasher(rounds=cfg.bcrypt_rounds)
+            )
         except (
             users_service.BootstrapAdminMissingEnv,
             users_service.SchemaNotMigratedError,

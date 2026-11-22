@@ -18,6 +18,8 @@ import os
 
 # G10: unconditional (not setdefault): an inherited BUDGET_ENV=prod must never reach the suite.
 os.environ["BUDGET_ENV"] = "test"
+# T-Q291: the web-edge bcrypt provider reads its cost from Settings; production stays 12.
+os.environ["BUDGET_BCRYPT_ROUNDS"] = "4"
 
 # Imported after the env pin: ``tests.db_template`` pulls in the app config.
 import functools
@@ -29,9 +31,9 @@ from typing import Any
 import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
+from budget_planner import config as config_module
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
-from budget_planner.services import _passwords
 from tests.auth_support import FAST_ROUNDS
 from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
 from tests.e2e.mockup_target import pytest_addoption as _mockup_addoption
@@ -118,6 +120,15 @@ def migrated_db(migrated_template: Path, tmp_path: Path) -> Path:
     return copy_template(migrated_template, tmp_path / "db.sqlite")
 
 
+@pytest.fixture(autouse=True)
+def _suite_bcrypt_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T-Q291: the suite pins ``BUDGET_BCRYPT_ROUNDS=4`` for speed, so lower the production floor.
+
+    ``tests/unit/test_config.py`` restores the real floor to assert it.
+    """
+    monkeypatch.setattr(config_module, "PRODUCTION_MIN_BCRYPT_ROUNDS", FAST_ROUNDS)
+
+
 @pytest.fixture
 def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
     """T-Q259: one connection to this test's own migrated DB copy (``migrated_db``)."""
@@ -127,12 +138,3 @@ def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
         yield c
     finally:
         c.close()
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    """T-Q259: keep bcrypt cheap in every test; production cost stays 12.
-
-    A test that asserts the production default calls ``monkeypatch.undo()`` first.
-    """
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)

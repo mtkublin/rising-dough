@@ -16,7 +16,7 @@ from structlog.testing import capture_logs
 from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import users as users_repo
-from budget_planner.services import _passwords, users as users_svc
+from budget_planner.services import users as users_svc
 from budget_planner.services.users import (
     CONCURRENT_CHANGE_MESSAGE,
     DEV_ADMIN_EMAIL,
@@ -32,7 +32,7 @@ from budget_planner.services.users import (
     UserInputError,
     UserNotFound,
 )
-from tests.auth_support import FakeTokenSource
+from tests.auth_support import FAKE_HASHER, FakeTokenSource
 
 ADMIN_ID = 1
 CTX = RequestCtx(ip="10.1.2.3", user_id=ADMIN_ID, session_id="sess-9", user_agent="pytest-ua")
@@ -104,24 +104,27 @@ def test_unmigrated_schema_message_and_non_production_noop() -> None:
     bare.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
     with pytest.raises(SchemaNotMigratedError) as err:
         users_svc.set_user_password(
-            bare, 1, change=PasswordChange(password=PASSWORD, must_change_password=False)
+            bare,
+            1,
+            change=PasswordChange(password=PASSWORD, must_change_password=False),
+            hasher=FAKE_HASHER,
         )
     assert str(err.value) == (
         "users table is missing the multi-user columns — apply migrations "
         "(0012_multi_user.sql) before starting the app."
     )
     with capture_logs() as logs:
-        outcome = users_svc.bootstrap_admin(bare, _settings("dev"))
+        outcome = users_svc.bootstrap_admin(bare, _settings("dev"), hasher=FAKE_HASHER)
     assert outcome == users_svc.BootstrapOutcome(action="noop", reason="schema_not_migrated")
     assert logs[0]["log_level"] == "warning"
     with pytest.raises(SchemaNotMigratedError):
-        users_svc.bootstrap_admin(bare, _settings("production"))
+        users_svc.bootstrap_admin(bare, _settings("production"), hasher=FAKE_HASHER)
 
 
 def test_production_without_credentials_message(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE users SET is_admin = 0")
     with pytest.raises(BootstrapAdminMissingEnv) as err:
-        users_svc.bootstrap_admin(conn, _settings("production"))
+        users_svc.bootstrap_admin(conn, _settings("production"), hasher=FAKE_HASHER)
     assert str(err.value) == (
         "No admin exists and BUDGET_PLANNER_ADMIN_EMAIL / "
         "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD are not set (ADR-0061 §3)."
@@ -136,13 +139,15 @@ def test_created_admin_outcome_hash_name_and_log_event(conn: sqlite3.Connection)
     conn.execute("DELETE FROM users WHERE id != 1")
     conn.execute("UPDATE users SET deleted_at = '2020-01-01T00:00:00+00:00' WHERE id = 1")
     with capture_logs() as logs:
-        outcome = users_svc.bootstrap_admin(conn, _env_settings("boss@sub.example.test"))
+        outcome = users_svc.bootstrap_admin(
+            conn, _env_settings("boss@sub.example.test"), hasher=FAKE_HASHER
+        )
     assert outcome.action == "created"
     assert outcome.admin_email == "boss@sub.example.test"
     assert outcome.user_id is not None
     row = conn.execute("SELECT * FROM users WHERE id = ?", (outcome.user_id,)).fetchone()
     assert (row["name"], row["is_admin"], row["must_change_password"]) == ("boss", 1, 1)
-    assert _passwords.verify_password(PASSWORD, row["password_hash"]) is True
+    assert FAKE_HASHER.verify(PASSWORD, row["password_hash"]) is True
     assert logs == [
         {
             "event": "admin_bootstrap",
@@ -162,14 +167,14 @@ def test_existing_admin_logs_info_and_other_reasons_log_warning(
 ) -> None:
     conn.execute("UPDATE users SET email = 'root@example.test', is_admin = 1 WHERE id = 1")
     with capture_logs() as logs:
-        exists = users_svc.bootstrap_admin(conn, _settings("test"))
+        exists = users_svc.bootstrap_admin(conn, _settings("test"), hasher=FAKE_HASHER)
     assert exists == users_svc.BootstrapOutcome(action="noop", reason="admin_exists")
     assert [(e["log_level"], e["reason"], e["source"], e["user_id"]) for e in logs] == [
         ("info", "admin_exists", None, None)
     ]
     conn.execute("UPDATE users SET is_admin = 0")
     with capture_logs() as logs2:
-        none = users_svc.bootstrap_admin(conn, _settings("test"))
+        none = users_svc.bootstrap_admin(conn, _settings("test"), hasher=FAKE_HASHER)
     assert none == users_svc.BootstrapOutcome(action="noop", reason="no_credentials")
     assert [(e["log_level"], e["reason"]) for e in logs2] == [("warning", "no_credentials")]
 
@@ -180,7 +185,7 @@ def test_dev_default_never_overwrites_a_legacy_owner_with_accounts(
     conn.execute("INSERT INTO accounts(user_id, name, currency) VALUES (1, 'Main', 'PLN')")
     conn.execute("UPDATE users SET email = NULL, is_admin = 0 WHERE id = 1")
     with capture_logs() as logs:
-        outcome = users_svc.bootstrap_admin(conn, _settings("dev"))
+        outcome = users_svc.bootstrap_admin(conn, _settings("dev"), hasher=FAKE_HASHER)
     assert outcome == users_svc.BootstrapOutcome(
         action="noop", user_id=1, admin_email=DEV_ADMIN_EMAIL, reason="legacy_data_present"
     )
@@ -193,7 +198,9 @@ def test_promoting_an_existing_user_reports_the_credential_email(
     admin_conn: sqlite3.Connection,
 ) -> None:
     admin_conn.execute("UPDATE users SET is_admin = 0 WHERE id = 1")
-    outcome = users_svc.bootstrap_admin(admin_conn, _env_settings("root@example.test"))
+    outcome = users_svc.bootstrap_admin(
+        admin_conn, _env_settings("root@example.test"), hasher=FAKE_HASHER
+    )
     assert outcome == users_svc.BootstrapOutcome(
         action="promoted", user_id=1, admin_email="root@example.test"
     )
@@ -207,7 +214,9 @@ def test_startup_wrapper_reports_noop_without_opening_the_db_and_passes_settings
     def never(_settings: Settings) -> sqlite3.Connection:
         raise AssertionError("the DB must not be opened")
 
-    outcome = users_svc.bootstrap_admin_at_startup(_settings("test"), connect=never)
+    outcome = users_svc.bootstrap_admin_at_startup(
+        _settings("test"), connect=never, hasher=FAKE_HASHER
+    )
     assert outcome == users_svc.BootstrapOutcome(action="noop", reason="no_credentials")
 
     seen: list[Settings] = []
@@ -227,7 +236,7 @@ def test_startup_wrapper_reports_noop_without_opening_the_db_and_passes_settings
 
     conn.execute("UPDATE users SET email = 'root@example.test', is_admin = 1 WHERE id = 1")
     configured = _env_settings("root@example.test")
-    result = users_svc.bootstrap_admin_at_startup(configured, connect=connect)
+    result = users_svc.bootstrap_admin_at_startup(configured, connect=connect, hasher=FAKE_HASHER)
     assert result == users_svc.BootstrapOutcome(action="noop", reason="admin_exists")
     assert seen == [configured]
     assert _Handle.closed is True
@@ -277,10 +286,14 @@ def test_build_draft_keeps_the_admin_flag_tristate() -> None:
 def test_duplicate_email_race_maps_to_a_field_error(
     admin_conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource())
+    users_svc.create_user(
+        admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     monkeypatch.setattr(users_repo, "get_by_email_live", lambda *_a, **_k: None)  # lose the race
     with pytest.raises(UserInputError) as err:
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource())
+        users_svc.create_user(
+            admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        )
     assert err.value.fields == {"email": DUPLICATE_EMAIL_MESSAGE}
 
 
@@ -293,7 +306,9 @@ def test_writer_lock_wait_maps_to_a_conflict(
 
     monkeypatch.setattr(users_repo, "create_user", boom)
     with pytest.raises(UserConflict) as err:
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource())
+        users_svc.create_user(
+            admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        )
     assert err.value.message == CONCURRENT_CHANGE_MESSAGE
 
 
@@ -305,7 +320,9 @@ def test_other_operational_errors_propagate(
 
     monkeypatch.setattr(users_repo, "create_user", boom)
     with pytest.raises(sqlite3.OperationalError, match="no such table"):
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource())
+        users_svc.create_user(
+            admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        )
 
 
 # --- roster operations ---------------------------------------------------------------------------
@@ -313,13 +330,15 @@ def test_other_operational_errors_propagate(
 
 def test_missing_targets_carry_the_requested_id(admin_conn: sqlite3.Connection) -> None:
     user, _ = users_svc.create_user(
-        admin_conn, ADMIN_ID, _draft("gone@x.test"), tokens=FakeTokenSource()
+        admin_conn, ADMIN_ID, _draft("gone@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
     )
     users_svc.soft_delete_user(admin_conn, ADMIN_ID, user.id)
     for call in (
         lambda uid: users_svc.get_live_user(admin_conn, uid),
         lambda uid: users_svc.edit_user(admin_conn, ADMIN_ID, uid, _draft("z@x.test")),
-        lambda uid: users_svc.reset_password(admin_conn, ADMIN_ID, uid, tokens=FakeTokenSource()),
+        lambda uid: users_svc.reset_password(
+            admin_conn, ADMIN_ID, uid, tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        ),
         lambda uid: users_svc.soft_delete_user(admin_conn, ADMIN_ID, uid),
     ):
         for missing in (user.id, 9_999):
@@ -330,7 +349,12 @@ def test_missing_targets_carry_the_requested_id(admin_conn: sqlite3.Connection) 
 
 def test_request_context_reaches_every_audit_row(admin_conn: sqlite3.Connection) -> None:
     user, _ = users_svc.create_user(
-        admin_conn, ADMIN_ID, _draft("ctx@x.test"), tokens=FakeTokenSource(), request_ctx=CTX
+        admin_conn,
+        ADMIN_ID,
+        _draft("ctx@x.test"),
+        tokens=FakeTokenSource(),
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.edit_user(
@@ -338,7 +362,7 @@ def test_request_context_reaches_every_audit_row(admin_conn: sqlite3.Connection)
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.reset_password(
-        admin_conn, ADMIN_ID, user.id, request_ctx=CTX, tokens=FakeTokenSource()
+        admin_conn, ADMIN_ID, user.id, request_ctx=CTX, tokens=FakeTokenSource(), hasher=FAKE_HASHER
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.soft_delete_user(admin_conn, ADMIN_ID, user.id, request_ctx=CTX)

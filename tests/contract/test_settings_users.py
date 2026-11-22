@@ -12,13 +12,12 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from budget_planner.services import _passwords
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
 )
-from tests.auth_support import FAST_ROUNDS, issue_session
+from tests.auth_support import FAST_HASHER, issue_session
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
 from tests.contract.web_helpers_t_ut04e import HX, live_sessions
@@ -33,11 +32,6 @@ ADMIN_POST = (
     "/settings/users/1/reset-password",
     "/settings/users/1/delete",
 )
-
-
-@pytest.fixture(autouse=True)
-def _cheap_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)
 
 
 def _password_in(html: str) -> str:
@@ -176,7 +170,7 @@ def test_create_shows_password_once_oob_table_and_audits_actor(
     uid = _uid(db, "new@example.test")
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["name"], row["is_admin"], row["must_change_password"]) == ("new", 0, 1)
-    assert _passwords.verify_password(password, row["password_hash"])
+    assert FAST_HASHER.verify(password, row["password_hash"])
     audit = _audit(db, uid, "create")
     assert (audit["actor_user_id"], audit["user_id"]) == (1, 1)
     assert audit["entity_type"] == "users"
@@ -386,7 +380,7 @@ def test_reset_password_new_secret_revokes_sessions_and_audits(
     assert "signed out" in _html.text_of(r.text, ui.new_password_toast)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["must_change_password"] == 1
-    assert _passwords.verify_password(new, row["password_hash"])
+    assert FAST_HASHER.verify(new, row["password_hash"])
     assert live_sessions(db, uid) == 0
     audit = db.execute(
         "SELECT * FROM audit_log WHERE entity_type = 'users' AND entity_id = ? "

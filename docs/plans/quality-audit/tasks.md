@@ -1199,7 +1199,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (new module and ops files; no allowlist TOML).
 - Done when: ADR written and indexed; guards stay green; the Acceptance above holds; any terraform/host change is a PR for the operator's approved apply; the CLAUDE.md handoff checklist is complete.
 
-### T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
+### ✅ T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
 - Findings: Q-074.
 - Epic: E04
 - Band: 3 · Size: M · Tags: none
