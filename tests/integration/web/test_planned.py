@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
@@ -116,7 +116,7 @@ def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.
         },
     )
     assert r.status_code == 422
-    assert "<strong>amount:</strong> amount must be positive" in r.text
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
 
 
@@ -132,7 +132,7 @@ def test_create_bad_date(client: TestClient, ctx: dict[str, int], db: sqlite3.Co
         },
     )
     assert r.status_code == 422
-    assert "<strong>operation_date:</strong> invalid date" in r.text
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
 
 
@@ -150,7 +150,7 @@ def test_create_unknown_account(
         },
     )
     assert r.status_code == 422
-    assert "<strong>account_id:</strong> unknown account" in r.text
+    assert "account_id: unknown account" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
 
 
@@ -163,7 +163,7 @@ def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/planned/9999/edit")
     assert r.status_code == 404
-    assert "<strong>planned:</strong> not found" in r.text
+    assert "planned: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_update(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
@@ -212,8 +212,8 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
         },
     )
     assert r.status_code == 422
-    assert "<strong>operation_date:</strong> invalid date" in r.text
-    assert "<strong>amount:</strong> amount must be positive" in r.text
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
 
 
@@ -240,7 +240,7 @@ def test_promote_form(client: TestClient, ctx: dict[str, int]) -> None:
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/planned/9999/promote")
     assert r.status_code == 404
-    assert "<strong>planned:</strong> not found" in r.text
+    assert "planned: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
@@ -263,8 +263,8 @@ def test_promote_submit_invalid(
         data={"operation_date": "bad", "amount": "-1"},
     )
     assert r.status_code == 422
-    assert "<strong>operation_date:</strong> invalid date" in r.text
-    assert "<strong>amount:</strong> amount must be positive" in r.text
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
     assert _planned_state(db) == before
     assert _txn_count(db) == txns
 
@@ -294,8 +294,8 @@ def test_promote_already_promoted(
         data={"operation_date": "2026-10-20", "amount": "500"},
     )
     assert r.status_code == 422
-    assert "This planned transaction was already promoted." in r.text
-    assert "<strong>promotion:</strong> 1" not in r.text
+    assert "This planned transaction was already promoted." in _html.all_text(r.text, errors.alert)
+    assert "promotion: 1" not in _html.all_text(r.text, errors.alert)
     assert _txn_count(db) == txns
 
 

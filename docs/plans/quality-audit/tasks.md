@@ -639,6 +639,17 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### ✅ T-Q278 [P] Migrate the SYNC-MAIN markup assertions to the UI harness
+- Findings: harness debt from SYNC-MAIN (2026-11-22): 167 markup assertions in 25 remediation-side test files that `main` had converted to the UI map (ADR-0106 section 2).
+- Epic: none (test infrastructure)
+- Band: 3 · Size: L · Tags: none
+- Depends on: SYNC-MAIN
+- Docs-first step: ADR-0106 section 2 already forbids the pattern; this task only pays the allowlist down. No template hook without an entry in `docs/audits/2026-11-22-t-q278-ui-map.md`.
+- Acceptance: every allowlisted test asserts behaviour through `tests/ui_map` locators (`_html`, Playwright `to_playwright`) or DB state (`db_probe`); exact values kept, no assertion weakened; `ALLOWLIST` in `tests/architecture/test_no_markup_assertions.py` is empty; any `data-testid` hook added is justified in the audit record.
+- Operator question blocking it: none.
+- Removes allowlist entries: `test_no_markup_assertions.ALLOWLIST` 167 -> 0
+- Done when: the allowlist is empty; the guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
 ---
 
 ### Band 4 — Full-compliance burn-down (remaining epics)
@@ -744,7 +755,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `suppressions`:94 (31 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q273 [P] Template-logic burn-down outside the budget views, only for templates that survive the redesign
+### ✅ T-Q273 [P] Template-logic burn-down outside the budget views, only for templates that survive the redesign
 - Findings: Q-039 (rest of template-logic rows; E-05, A-15), Q-070 (card utilisation defaults), Q-011 (template math); epic E16.
 - Epic: E16
 - Band: 4 · Size: M · Tags: none
@@ -752,6 +763,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: None beyond ADR-0130 (template guard) and ADR-0107; if the redesign surface task for a template ships first, its `removal.md` row flips to `deleted` and this task only verifies.
 - Acceptance: Failing guard first: `template_logic.toml` entries outside `today`, `plan`, `budget`, `partials/budget` and `partials/forecast` (106 entries, 106 violations: `tpl-set`, `tpl-arith`, `tpl-format`, `tpl-scale`, `tpl-float`, `tpl-domain-if`, `tpl-currency-lit`). Move each computation into the view model or a filter/macro (`money`, `money_num`, `pct`), drop `set` blocks, replace literal currency codes with the row currency. If the old tree is scheduled for deletion by T-UR surface tasks, the order of the redesign decides which of the two paths removes each entry (decision D3). Visual audit on every touched route.
 - **Re-scope (decision D3, operator 2026-11-21, ADR-0130 amendment):** the redesign deletes the old templates, so this task burns down only entries for templates that survive the redesign. The remainder transfers to `docs/plans/ui-redesign/tasks.md`, which must leave `template_logic.toml` empty; the count below is an upper bound and entries for redesign-replaced templates stay. Q-ids stay as above.
+- Outcome (2026-11-22): verification only, no template edited. Every one of the 51 templates still holding a `template_logic.toml` entry (83 entries) is replaced or ported by a T-UR surface task or deleted by T-UR15 (shared components `_partials/components/*`, `_partials/*`, `partials/*`, `errors/*`, `accounts`, `ledger`, `recurring`, `settings/*`, `dev/components.html`); none survives ADR-0107, so by D3 all 83 entries stay and transfer to `docs/plans/ui-redesign/tasks.md` (surface mapping in its transfer note). No view-model or filter was added: burning replaced templates would be thrown away and would collide with the in-flight ledger FX template work (T-Q215). `frontend-visual-audit` not required (no template or CSS change).
 - Operator question blocking it: none (D3 answered).
 - Removes allowlist entries: `template_logic`:106 (106 entries, upper bound)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/template_logic.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.

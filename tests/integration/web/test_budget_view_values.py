@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import sqlite3
 from collections.abc import Iterator
 from datetime import date
@@ -28,6 +27,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as budget_service
 from budget_planner.web import view_models
+from tests.ui_map import _html, plan, today as today_ui
 
 USER_ID = 1
 BUDGET_MINOR = 100_000
@@ -96,16 +96,13 @@ def test_today_hero_shows_view_model_values(
     view = view_models.budget_view(summary, today)
     expected_per_day = _money_num(client, view_models.left_per_day(summary))
 
-    soup = _soup(client.get("/today").text)
+    html = client.get("/today").text
 
-    hero_amount = soup.select_one(".rd-hero__amount span")
-    assert hero_amount is not None
-    assert hero_amount.get_text(strip=True) == expected_per_day
+    assert _html.text_of(html, today_ui.hero_per_day) == expected_per_day
     assert view.spent_pct == 25
-    spent_bar = soup.select_one(".rd-progress__spent")
-    assert spent_bar is not None
-    assert re.search(r"width: 25(\.0)?%", str(spent_bar.get("style")))
-    assert f"day {view.period_day} of {view.period_total_days}" in soup.get_text(" ", strip=True)
+    spent_bar = _html.resolve_one(html, today_ui.spent_bar)
+    assert float(str(spent_bar["aria-valuenow"])) == 25
+    assert f"day {view.period_day} of {view.period_total_days}" in _html.page_text(html)
 
 
 def test_plan_budget_tab_shows_view_model_values(
@@ -120,27 +117,21 @@ def test_plan_budget_tab_shows_view_model_values(
     )
     view = view_models.budget_view(summary, today)
 
-    soup = _soup(client.get("/plan?tab=budget").text)
+    html = client.get("/plan?tab=budget").text
 
-    perday = soup.select_one(".rd-period-bar__perday")
-    assert perday is not None
-    assert perday.get_text(strip=True) == _money_num(client, view.left_per_day_minor)
-    row = soup.select_one("tr[id^=budget-row-]")
-    assert row is not None
-    cells = [c.get_text(strip=True) for c in row.select("td")]
+    assert _html.text_of(html, plan.period_per_day) == _money_num(client, view.left_per_day_minor)
+    cells = _html.texts(html, plan.budget_row_cells)
     assert cells[1] == _money_num(client, BUDGET_MINOR)
     assert cells[2] == _money_num(client, SPENT_MINOR)
     assert cells[4] == _money_num(client, BUDGET_MINOR - SPENT_MINOR)
-    used = row.select_one(".rd-progress__spent")
-    assert used is not None
-    assert re.search(r"width: 25(\.0)?%", str(used.get("style")))
+    used = _html.resolve_one(html, plan.budget_row_spent)
+    assert float(str(used["aria-valuenow"])) == 25
 
 
 def test_budget_page_row_bar_uses_view_percent(client: TestClient, world: None) -> None:
-    soup = _soup(client.get("/budget").text)
+    html = client.get("/budget").text
 
-    bar = soup.select_one(".remainder-bar")
-    assert bar is not None
+    bar = _html.resolve_one(html, plan.remainder_bar)
     assert bar.get("aria-valuenow") == "25"
 
 

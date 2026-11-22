@@ -540,7 +540,7 @@ def test_edit_form_sends_hidden_zero_so_unchecked_box_demotes(
     _add(admin_client, "second@example.test", admin=True)
     second = _user_row(db, "second@example.test")["id"]
     form = admin_client.get(f"/settings/users/{second}/edit", headers=HX)
-    assert '<input type="hidden" name="is_admin" value="0">' in form.text
+    assert ("is_admin", "0") in _html.submitted_fields(_html.form_of(form.text, ui.edit_form))
     resp = admin_client.post(
         f"/settings/users/{second}",
         data={"email": "second@example.test", "name": "s", "is_admin": "0"},
