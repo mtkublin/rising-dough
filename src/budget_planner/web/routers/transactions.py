@@ -25,7 +25,7 @@ from budget_planner.web import entry_forms, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
-from budget_planner.web.params import parse_int
+from budget_planner.web.params import query_int
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
@@ -54,8 +54,8 @@ def limit_preview(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc_id = parse_int(account_id)
-    cat_id = parse_int(category_id)
+    acc_id = query_int("account_id", account_id)
+    cat_id = query_int("category_id", category_id)
     preview = None
     if acc_id is not None and cat_id is not None:
         preview = compute_limit_preview(

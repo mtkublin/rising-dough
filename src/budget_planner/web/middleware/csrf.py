@@ -177,7 +177,7 @@ async def _check(
     (T-Q289); a stale or foreign token is refused even when the header echoes it.
     """
     if not existing:
-        return _reject("missing_cookie"), receive
+        return csrf_rejection("missing_cookie"), receive
     request = Request(scope, receive)
     header_token = request.headers.get(CSRF_HEADER_NAME)
     form_token: str | None = None
@@ -188,13 +188,13 @@ async def _check(
         try:
             form_token = await _form_token(scope, body, receive)
         except MalformedFormError:
-            return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST), downstream
+            return csrf_rejection("malformed_form", status=HTTPStatus.BAD_REQUEST), downstream
     submitted = header_token or form_token
     matches = submitted is not None and secrets.compare_digest(
         submitted.encode(), existing.encode()
     )
     if not (bound and matches):
-        return _reject("invalid_csrf"), downstream
+        return csrf_rejection("invalid_csrf"), downstream
     return None, downstream
 
 
@@ -298,7 +298,7 @@ def csrf_middleware(app: ASGIApp) -> ASGIApp:
     return http_only(app, _protect_csrf)
 
 
-def _reject(detail: str, *, status: HTTPStatus = HTTPStatus.FORBIDDEN) -> JSONResponse:
+def csrf_rejection(detail: str, *, status: HTTPStatus = HTTPStatus.FORBIDDEN) -> JSONResponse:
     """Canonical 403 (400 for a malformed body); ``detail`` is machine-readable."""
     return JSONResponse(
         status_code=status,

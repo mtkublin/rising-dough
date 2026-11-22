@@ -46,7 +46,6 @@ from budget_planner.web.auth_deps import (
     reauth_rate_limit,
     register_rate_limit,
     throttled_json,
-    wants_json,
 )
 from budget_planner.web.auth_flow import (
     begin_response,
@@ -74,6 +73,7 @@ from budget_planner.web.deps import (
     request_user_agent,
     require_recent_auth,
 )
+from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request
 

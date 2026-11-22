@@ -36,7 +36,7 @@ from budget_planner.services import (
     transactions as transactions_service,
 )
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
-from budget_planner.web.params import parse_date, parse_int
+from budget_planner.web.params import query_date, query_int
 from budget_planner.web.rendering import render_context
 
 _PAGE_SIZE_DEFAULT: Final = 50
@@ -63,14 +63,14 @@ class TxnRow:
 def parse_filters(request: Request) -> LedgerFilters:
     """Parse the shared ledger filter from the request's query params."""
     q = request.query_params
-    account_id = parse_int(q.get("account_id"))
-    category_id = parse_int(q.get("category_id"))
-    page = max(1, parse_int(q.get("page")) or 1)
-    size = parse_int(q.get("page_size")) or _PAGE_SIZE_DEFAULT
+    account_id = query_int("account_id", q.get("account_id"))
+    category_id = query_int("category_id", q.get("category_id"))
+    page = max(1, query_int("page", q.get("page")) or 1)
+    size = query_int("page_size", q.get("page_size")) or _PAGE_SIZE_DEFAULT
     size = max(1, min(size, PAGE_SIZE_MAX))
     return LedgerFilters(
-        date_from=parse_date(q.get("date_from")),
-        date_to=parse_date(q.get("date_to")),
+        date_from=query_date("date_from", q.get("date_from")),
+        date_to=query_date("date_to", q.get("date_to")),
         account_ids=(account_id,) if account_id is not None else (),
         category_ids=(category_id,) if category_id is not None else (),
         direction=q.get("direction") or None,
@@ -83,15 +83,15 @@ def parse_filters(request: Request) -> LedgerFilters:
 def parse_txn_filter(request: Request) -> TransactionFilter:
     """Parse the transaction export/list filter query params."""
     q = request.query_params
-    account_id = parse_int(q.get("account_id"))
-    category_id = parse_int(q.get("category_id"))
+    account_id = query_int("account_id", q.get("account_id"))
+    category_id = query_int("category_id", q.get("category_id"))
     return TransactionFilter(
-        date_from=parse_date(q.get("date_from")),
-        date_to=parse_date(q.get("date_to")),
+        date_from=query_date("date_from", q.get("date_from")),
+        date_to=query_date("date_to", q.get("date_to")),
         account_ids=(account_id,) if account_id is not None else (),
         category_ids=(category_id,) if category_id is not None else (),
-        amount_min=parse_int(q.get("min_amount")),
-        amount_max=parse_int(q.get("max_amount")),
+        amount_min=query_int("min_amount", q.get("min_amount")),
+        amount_max=query_int("max_amount", q.get("max_amount")),
         description_contains=q.get("q") or None,
     )
 
@@ -100,8 +100,8 @@ def parse_planned_filter(request: Request) -> PlannedFilter:
     """Parse the planned export filter query params (``scope=unpromoted`` narrows)."""
     q = request.query_params
     return PlannedFilter(
-        date_from=parse_date(q.get("date_from")),
-        date_to=parse_date(q.get("date_to")),
+        date_from=query_date("date_from", q.get("date_from")),
+        date_to=query_date("date_to", q.get("date_to")),
         promoted=False if q.get("scope", "all") == "unpromoted" else None,
     )
 
@@ -186,6 +186,12 @@ def _hydrate_planned_rows(
             }
         )
     return out
+
+
+def _on_live_account(row: dict[str, object]) -> bool:
+    """Planned totals skip rows of soft-deleted accounts; the list keeps them (ADR-0136)."""
+    acc = row.get("account")
+    return isinstance(acc, Account) and acc.deleted_at is None
 
 
 def _in_date_range(day: date, filters: LedgerFilters) -> bool:
@@ -434,7 +440,9 @@ def index_context(
     elif view == "planned":
         planned = _planned_rows(conn, user_id, filters, today)
         planned_summary = ledger_totals.planned_totals(
-            planned, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+            [r for r in planned if _on_live_account(r)],
+            base_ccy,
+            lambda amount, day, ccy: fx.to_base(amount, ccy, day),
         )
         rows = planned
     else:

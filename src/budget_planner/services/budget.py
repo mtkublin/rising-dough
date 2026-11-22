@@ -81,13 +81,13 @@ def planned_base_amounts(
     ``FxUnavailableError``; there is no native-amount fallback.
     """
     fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
-    # Planned rows may outlive their account: convert with its own currency (ADR-0136).
-    ccy_by_account = fx_svc.currency_by_account(conn, user_id, include_deleted=True)
+    # Planned rows on soft-deleted accounts are filtered at the source (ADR-0136).
+    ccy_by_account = fx_svc.currency_by_account(conn, user_id)
 
-    def _base_of(account_id: int, amount_minor: int) -> int:
+    def base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
 
-    return _base_of
+    return base_of
 
 
 def txn_base_amounts(
@@ -576,11 +576,11 @@ class PickerMonth:
 def _parse_picker_month(
     year_raw: str | None, month_raw: str | None, fallback: tuple[int, int]
 ) -> tuple[int, int]:
-    if year_raw is None and month_raw is None:
+    if not year_raw and not month_raw:
         return fallback
     try:
-        year = int(year_raw) if year_raw is not None else fallback[0]
-        month = int(month_raw) if month_raw is not None else fallback[1]
+        year = int(year_raw) if year_raw else fallback[0]
+        month = int(month_raw) if month_raw else fallback[1]
     except ValueError:
         return fallback
     if not 1 <= month <= MONTHS_IN_YEAR or not date.min.year <= year <= date.max.year:
