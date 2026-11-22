@@ -45,6 +45,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.repositories._unaudited import (
+    clear_override_promoted,
     mark_override_promoted,
     restore_rule_progress,
     set_inactive,
@@ -422,6 +423,33 @@ def batch_promote_due(
         skipped_rule_ids=tuple(skipped),
         advance_audit_ids=tuple(advance_audits),
     )
+
+
+def unpromote_override(conn: sqlite3.Connection, user_id: int, rule_id: int, txn_id: int) -> bool:
+    """Clear the ``promoted_to_txn_id`` stamp a promotion left on an override; audited.
+
+    Compare-and-set (T-Q288): only an override of ``rule_id`` still stamped with
+    ``txn_id`` is touched. Returns whether one was cleared.
+    """
+    for prev in recurring_repo.list_overrides_all(conn, user_id, rule_id):
+        if prev.promoted_to_txn_id != txn_id:
+            continue
+        if clear_override_promoted(conn, user_id, prev.id, txn_id=txn_id) == 0:
+            return False
+        updated = next(
+            o for o in recurring_repo.list_overrides_all(conn, user_id, rule_id) if o.id == prev.id
+        )
+        audit_svc.write_audit(
+            conn,
+            entity_type="recurring_override",
+            entity_id=prev.id,
+            operation="update",
+            prev=prev,
+            new=updated,
+            user_id=user_id,
+        )
+        return True
+    return False
 
 
 def restore_progress(
