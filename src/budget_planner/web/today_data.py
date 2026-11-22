@@ -23,6 +23,7 @@ from budget_planner.services import (
     fx as fx_service,
     upcoming as upcoming_service,
 )
+from budget_planner.services.recurring_formula import FormulaFx
 
 PaceKind = Literal["on_track", "pacing_high", "over_budget"]
 
@@ -147,6 +148,7 @@ def list_upcoming(
     user_id: int,
     today: date,
     window_days: int | None,
+    fx: FormulaFx,
 ) -> tuple[UpcomingRow, ...]:
     """Return the Panel C row set — planned one-offs + recurring next_due.
 
@@ -155,7 +157,9 @@ def list_upcoming(
     rules (ADR-0038) and applies ``next_due`` overrides. ``window_days``
     forwards unchanged.
     """
-    items = upcoming_service.list_upcoming(conn, user_id, today=today, window_days=window_days)
+    items = upcoming_service.list_upcoming(
+        conn, user_id, today=today, window_days=window_days, fx=fx
+    )
     return tuple(
         UpcomingRow(
             operation_date=item.effective_date,

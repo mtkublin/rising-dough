@@ -28,7 +28,7 @@ from budget_planner.domain.recurring import (
     RecurringOverride,
     RecurringRule,
 )
-from budget_planner.domain.transactions import NewTransaction
+from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -39,6 +39,7 @@ from budget_planner.repositories import (
 from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import recurring as rec_svc
 from budget_planner.services._promotion import ValidationError
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -333,7 +334,9 @@ def _seed_second_user(conn: sqlite3.Connection) -> None:
 def test_promote_errors_carry_the_rule_id(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     """Kills the `Error(rule_id)` -> `Error(None)` mutants in promote/skip."""
     with pytest.raises(rec_svc.RecurringNotFoundError) as nf:
-        rec_svc.promote_recurring(conn, USER_ID, 9999, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, 9999, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
     assert nf.value.args == (9999,)
     with pytest.raises(rec_svc.RecurringNotFoundError) as nf2:
         rec_svc.skip_and_advance(conn, USER_ID, 9998)
@@ -350,12 +353,16 @@ def test_promote_errors_carry_the_rule_id(conn: sqlite3.Connection, world: dict[
         ),
     )
     with pytest.raises(rec_svc.CannotPromoteSkippedError) as sk:
-        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
     assert sk.value.args == (rule_id,)
 
     recurring_repo.deactivate_rule(conn, USER_ID, rule_id)
     with pytest.raises(rec_svc.InactiveRecurringError) as ia:
-        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
     assert ia.value.args == (rule_id,)
     with pytest.raises(rec_svc.InactiveRecurringError) as ia2:
         rec_svc.skip_and_advance(conn, USER_ID, rule_id)
@@ -367,7 +374,13 @@ def test_other_users_rule_is_not_found(conn: sqlite3.Connection, world: dict[str
     _seed_second_user(conn)
     before = _audit_rows(conn, world["rule"])
     with pytest.raises(rec_svc.RecurringNotFoundError):
-        rec_svc.promote_recurring(conn, OTHER_USER_ID, world["rule"], rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn,
+            OTHER_USER_ID,
+            world["rule"],
+            rec_svc.PromotionEdits(),
+            fx=formula_fx_of(conn, OTHER_USER_ID),
+        )
     with pytest.raises(rec_svc.RecurringNotFoundError):
         rec_svc.skip_and_advance(conn, OTHER_USER_ID, world["rule"])
     assert len(_audit_rows(conn, world["rule"])) == len(before)
@@ -407,7 +420,9 @@ def test_formula_resolving_to_zero_raises_formula_message(
     """Kills formula-guard condition (`is None`, `<`) and message mutants."""
     rule = _formula_rule(conn, world, _source_terms(world, bps=10_000, minus_bps=10_000))
     with pytest.raises(ValidationError) as exc:
-        rec_svc.promote_recurring(conn, USER_ID, rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
     assert exc.value.args == (_FORMULA_MSG,)
 
 
@@ -416,7 +431,9 @@ def test_formula_resolving_to_negative_raises_formula_message(
 ) -> None:
     rule = _formula_rule(conn, world, _source_terms(world, bps=5_000, minus_bps=10_000))
     with pytest.raises(ValidationError) as exc:
-        rec_svc.promote_recurring(conn, USER_ID, rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
     assert exc.value.args == (_FORMULA_MSG,)
 
 
@@ -433,7 +450,9 @@ def test_formula_resolving_to_one_minor_unit_is_accepted(
         world,
         (FormulaTerm(sign="+", coefficient_bps=1, source_category_ids=(source.id,)),),
     )
-    txn = rec_svc.promote_recurring(conn, USER_ID, rule.id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(
+        conn, USER_ID, rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert txn.amount == 1
 
 
@@ -442,7 +461,11 @@ def test_explicit_amount_edit_bypasses_formula_guard(
 ) -> None:
     rule = _formula_rule(conn, world, _source_terms(world, bps=10_000, minus_bps=10_000))
     txn = rec_svc.promote_recurring(
-        conn, USER_ID, rule.id, rec_svc.PromotionEdits(amount_minor=4_200)
+        conn,
+        USER_ID,
+        rule.id,
+        rec_svc.PromotionEdits(amount_minor=4_200),
+        fx=formula_fx_of(conn, USER_ID),
     )
     assert txn.amount == 4_200
 
@@ -450,14 +473,18 @@ def test_explicit_amount_edit_bypasses_formula_guard(
 # ---------------------------------------------------------------------------
 # promotion field plumbing
 # ---------------------------------------------------------------------------
-def test_promote_with_soft_deleted_category_still_succeeds(
+def test_promote_with_soft_deleted_category_is_refused(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    """Kills category lookup `include_deleted` True -> None/False/omitted."""
+    """T-Q287: a soft-deleted parent refuses the promotion; no txn, rule unchanged."""
     categories_repo.soft_delete(conn, USER_ID, world["rent"])
-    txn = rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
-    assert txn.category_id == world["rent"]
-    assert txn.amount == 200_000
+    rule_before = recurring_repo.find_rule(conn, USER_ID, world["rule"])
+    with pytest.raises(ValidationError, match=f"category {world['rent']} not found"):
+        rec_svc.promote_recurring(
+            conn, USER_ID, world["rule"], rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
+    assert recurring_repo.find_rule(conn, USER_ID, world["rule"]) == rule_before
+    assert transactions_repo.list_filtered(conn, USER_ID, TransactionFilter()) == []
 
 
 def test_promote_transit_rule_persists_both_accounts(
@@ -465,7 +492,9 @@ def test_promote_transit_rule_persists_both_accounts(
 ) -> None:
     """Kills user_id/account_id/dest_account_id None mutants in validate + NewTransaction."""
     rule = _new_rule(conn, world, category_id=world["transit"], dest_account_id=world["savings"])
-    txn = rec_svc.promote_recurring(conn, USER_ID, rule.id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(
+        conn, USER_ID, rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert txn.account_id == world["checking"]
     assert txn.dest_account_id == world["savings"]
     assert txn.amount == 1_000
@@ -479,7 +508,9 @@ def test_promote_transit_rule_without_dest_is_rejected(
 ) -> None:
     rule = _new_rule(conn, world, category_id=world["transit"])
     with pytest.raises(ValidationError):
-        rec_svc.promote_recurring(conn, USER_ID, rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -515,7 +546,9 @@ def test_promote_audit_row_attributes_user_and_diff(
     before = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert before is not None
     n_before = len(_audit_rows(conn, rule_id))
-    rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     after = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert after is not None
     rows = _audit_rows(conn, rule_id)
@@ -529,7 +562,9 @@ def test_promote_audit_not_visible_to_other_user(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     _seed_second_user(conn)
-    rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(
+        conn, USER_ID, world["rule"], rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     rows = conn.execute("SELECT user_id FROM audit_log WHERE entity_type = 'recurring_rule'")
     assert OTHER_USER_ID not in {r["user_id"] for r in rows}
 
@@ -555,7 +590,9 @@ def test_skip_audit_row_attributes_user_and_entity_type(
 def test_skip_preserves_last_promoted_date(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     """Kills `last_promoted_date=rule.last_promoted_date` -> None."""
     rule_id = world["rule"]
-    rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert rec_svc.skip_and_advance(conn, USER_ID, rule_id) == date(2026, 3, 5)
     after = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert after is not None
@@ -570,7 +607,9 @@ def test_batch_promotes_rule_due_exactly_today(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     """Kills `next_due > today` -> `>=`."""
-    result = rec_svc.batch_promote_due(conn, USER_ID, date(2026, 1, 5))
+    result = rec_svc.batch_promote_due(
+        conn, USER_ID, date(2026, 1, 5), fx=formula_fx_of(conn, USER_ID)
+    )
     assert result.advanced_rule_ids == (world["rule"],)
     assert len(result.promoted_txn_ids) == 1
     assert result.skipped_rule_ids == ()
@@ -582,7 +621,9 @@ def test_batch_not_due_rule_does_not_stop_later_due_rule(
     """Kills the not-due `continue` -> `break` (rules are ordered by start_date)."""
     set_next_due(conn, USER_ID, world["rule"], next_due=date(2026, 9, 1), last_promoted_date=None)
     later = _new_rule(conn, world, start_date=date(2026, 2, 1), default_amount=777)
-    result = rec_svc.batch_promote_due(conn, USER_ID, date(2026, 2, 1))
+    result = rec_svc.batch_promote_due(
+        conn, USER_ID, date(2026, 2, 1), fx=formula_fx_of(conn, USER_ID)
+    )
     assert result.advanced_rule_ids == (later.id,)
     assert len(result.promoted_txn_ids) == 1
     txn = transactions_repo.find_by_id(conn, USER_ID, result.promoted_txn_ids[0])
@@ -604,7 +645,9 @@ def test_batch_skipped_rule_does_not_stop_later_due_rule(
         ),
     )
     later = _new_rule(conn, world, start_date=date(2026, 1, 20), default_amount=555)
-    result = rec_svc.batch_promote_due(conn, USER_ID, date(2026, 1, 31))
+    result = rec_svc.batch_promote_due(
+        conn, USER_ID, date(2026, 1, 31), fx=formula_fx_of(conn, USER_ID)
+    )
     assert result.skipped_rule_ids == (rule_id,)
     assert result.advanced_rule_ids == (later.id,)
     assert len(result.promoted_txn_ids) == 1
@@ -619,6 +662,7 @@ def _pending_rule_dates(
     items = rec_svc.pending_occurrences(
         conn,
         USER_ID,
+        fx=formula_fx_of(conn, USER_ID),
         start=date(2026, 1, 1),
         end=end,
         today=date(2026, 1, 1),
@@ -700,6 +744,7 @@ def _pending(
         include_overdue=include_overdue,
         overdue_on=overdue_on,
         next_only=next_only,
+        fx=formula_fx_of(conn, USER_ID),
     )
 
 

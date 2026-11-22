@@ -11,16 +11,18 @@ from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.deps import current_user_id, get_db
 from budget_planner.web.htmx import Event, toast_payload, trigger
-from budget_planner.web.rendering import render
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
+from budget_planner.web.paths import NEW_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(request: Request) -> HTMLResponse:
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New category",
         form_include="partials/categories/_form.html",
         category=None,
@@ -57,8 +59,8 @@ def create_category(
     trigger(html, Event.BUDGET_STALE)
     # T-D150: the form targets itself and the categories list has no region that
     # refetches on a trigger, so skip the swap and reload to show the new item.
-    html.headers["HX-Reswap"] = "none"
-    html.headers["HX-Refresh"] = "true"
+    html.headers[HX_RESWAP] = "none"
+    html.headers[HX_REFRESH] = "true"
     return html
 
 
@@ -81,7 +83,7 @@ def edit_form(
         )
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit category",
         form_include="partials/categories/_form.html",
         category=cat,
@@ -141,7 +143,7 @@ def delete_category(
     if cat.is_system:
         return Response(status_code=409, content="system categories cannot be deleted")
     categories_service.soft_delete(conn, user_id, category_id)
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BUDGET_STALE)
     return resp
 

@@ -52,12 +52,9 @@ def test_eur_source_converts_into_pln_formula_rule(
     same_ccy = formula_svc.compute_formula_amount(
         conn, USER_ID, formula, 2026, 11, fx=_ctx(conn), target_ccy="EUR"
     )
-    unconverted = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 11)
-
     assert pln != eur
     assert to_pln == 43_000
     assert same_ccy == 10_000
-    assert unconverted == 10_000
 
 
 def test_eur_source_into_eur_rule_with_pln_source_uses_inverse_rate(

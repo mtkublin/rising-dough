@@ -32,7 +32,7 @@ from datetime import date
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import (
     MONTHS_IN_YEAR,
     PeriodWindow,
@@ -61,6 +61,7 @@ from budget_planner.services.budget_lines import (
     CategorySums,
     build_budget_lines,
 )
+from budget_planner.services.recurring_formula import formula_ctx_for
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +84,10 @@ def planned_base_amounts(
     # Planned rows on soft-deleted accounts are filtered at the source (ADR-0136).
     ccy_by_account = fx_svc.currency_by_account(conn, user_id)
 
-    def _base_of(account_id: int, amount_minor: int) -> int:
+    def base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
 
-    return _base_of
+    return base_of
 
 
 def txn_base_amounts(
@@ -239,6 +240,7 @@ def committed_by_category(
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx_for(conn, user_id, fx_svc.BaseCurrency(base_currency), today),
         start=start,
         end=end,
         today=today,
@@ -448,7 +450,7 @@ def month_summary(
         lines=tuple(lines),
         totals=totals,
         left_daily_spend_minor=(
-            round_div(totals.remaining_minor, days_until_next_income, mode=HALF_EVEN)
+            round_div(totals.remaining_minor, days_until_next_income)
             if budgeted_total != 0
             else None
         ),

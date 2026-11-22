@@ -24,6 +24,7 @@ from typing import Literal
 
 from budget_planner.repositories import recurring as recurring_repo
 from budget_planner.services import recurring as recurring_svc
+from budget_planner.services.recurring_formula import FormulaFx
 
 UpcomingKind = Literal["planned", "recurring"]
 
@@ -73,6 +74,7 @@ def list_upcoming(
     *,
     today: dt.date,
     window_days: int | None,
+    fx: FormulaFx,
 ) -> tuple[UpcomingItem, ...]:
     """Union of persisted planned (not promoted) + each active rule's ``next_due``.
 
@@ -92,6 +94,7 @@ def list_upcoming(
     pending = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=fx,
         start=None,
         end=None,
         today=today,

@@ -47,6 +47,7 @@ from budget_planner.services.forecast_overlay import (
     collect_budget_overlay,
     month_inputs,
 )
+from budget_planner.services.recurring_formula import formula_ctx
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -220,7 +221,7 @@ def _events_by_date(
     display_timezone: str,
 ) -> dict[dt.date, list[CashEvent]]:
     """Explicit events plus (when ``primary_account_id`` is given) the budget overlay, by date."""
-    events = collect_events(conn, user_id, today, end_date)
+    events = collect_events(conn, user_id, today, end_date, formula_ctx(conn, user_id, fx))
     if primary_account_id is None:
         return events
     for ev in collect_budget_overlay(
@@ -393,6 +394,7 @@ def _month_flow_sums(
     for item in recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx(conn, user_id, fx),
         start=start,
         end=end_date + dt.timedelta(days=1),
         today=today,

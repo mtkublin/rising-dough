@@ -9,9 +9,18 @@ import pytest
 
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Cadence, OverrideState
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringOverride, NewRecurringRule
 from budget_planner.domain.snapshots import NewAccountSnapshot
-from budget_planner.repositories import accounts, audit, recurring, snapshots, users
+from budget_planner.repositories import (
+    accounts,
+    audit,
+    categories,
+    planned,
+    recurring,
+    snapshots,
+    users,
+)
 from budget_planner.repositories._shared import require_owned
 
 USER_ID = 1
@@ -79,18 +88,83 @@ def test_overrides_of_deleted_rule_are_hidden_and_rejected(
         recurring.upsert_override(conn, USER_ID, override)
 
 
-def test_require_owned_counts_deleted_parent_unless_told_otherwise(
+def test_require_owned_refuses_deleted_parent_unless_history_read(
     conn: sqlite3.Connection, account_id: int
 ) -> None:
     accounts.soft_delete(conn, USER_ID, account_id)
 
-    require_owned(conn, USER_ID, account_ids=(account_id,))
-    with pytest.raises(LookupError):
-        require_owned(conn, USER_ID, account_ids=(account_id,), include_deleted=False)
+    with pytest.raises(LookupError, match=f"account {account_id} not found"):
+        require_owned(conn, USER_ID, account_ids=(account_id,))
+    require_owned(conn, USER_ID, account_ids=(account_id,), include_deleted=True)
+
+
+def test_require_owned_refuses_deleted_category(conn: sqlite3.Connection, category_id: int) -> None:
+    categories.soft_delete(conn, USER_ID, category_id)
+
+    with pytest.raises(LookupError, match=f"category {category_id} not found"):
+        require_owned(conn, USER_ID, category_ids=(category_id,))
 
 
 def test_owns_accounts_include_deleted_flag(conn: sqlite3.Connection, account_id: int) -> None:
     accounts.soft_delete(conn, USER_ID, account_id)
 
-    assert users.owns_accounts(conn, USER_ID) is True
-    assert users.owns_accounts(conn, USER_ID, include_deleted=False) is False
+    assert users.owns_accounts(conn, USER_ID) is False
+    assert users.owns_accounts(conn, USER_ID, include_deleted=True) is True
+
+
+def _row_counts(conn: sqlite3.Connection) -> tuple[int, int]:
+    planned = conn.execute("SELECT COUNT(*) FROM planned_transactions").fetchone()[0]
+    audit_rows = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    return planned, audit_rows
+
+
+def test_planned_create_on_deleted_account_is_refused_without_writes(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    accounts.soft_delete(conn, USER_ID, account_id)
+    before = _row_counts(conn)
+
+    with pytest.raises(LookupError, match=f"account {account_id} not found"):
+        planned.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=date(2026, 11, 22),
+                category_id=category_id,
+                account_id=account_id,
+                amount=1000,
+            ),
+        )
+
+    assert _row_counts(conn) == before
+
+
+def test_planned_create_on_other_users_deleted_account_is_refused(
+    conn: sqlite3.Connection, other_user: int, category_id: int
+) -> None:
+    theirs = accounts.create(conn, other_user, NewAccount(name="Theirs", currency="PLN"))
+    accounts.soft_delete(conn, other_user, theirs.id)
+    before = _row_counts(conn)
+
+    with pytest.raises(LookupError, match=f"account {theirs.id} not found"):
+        planned.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=date(2026, 11, 22),
+                category_id=category_id,
+                account_id=theirs.id,
+                amount=1000,
+            ),
+        )
+
+    assert _row_counts(conn) == before
+
+
+def test_undelete_of_account_still_restores(conn: sqlite3.Connection, account_id: int) -> None:
+    accounts.soft_delete(conn, USER_ID, account_id)
+
+    restored = accounts.undelete(conn, USER_ID, account_id)
+
+    assert restored.deleted_at is None
+    require_owned(conn, USER_ID, account_ids=(account_id,))

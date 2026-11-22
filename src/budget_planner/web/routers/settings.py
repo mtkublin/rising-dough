@@ -23,9 +23,10 @@ from fastapi.responses import HTMLResponse
 
 from budget_planner.services import settings_drawer
 from budget_planner.web.deps import current_user_id, get_db
+from budget_planner.web.paths import SETTINGS_PATH
 from budget_planner.web.rendering import is_hx_request, render_context
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(prefix=SETTINGS_PATH, tags=["settings"])
 
 
 @router.get("", response_class=HTMLResponse)

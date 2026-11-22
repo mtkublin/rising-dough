@@ -24,9 +24,10 @@ from budget_planner.services import (
 from budget_planner.web import ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.ledger_types import coerce_view
+from budget_planner.web.paths import LEDGER_PATH, TABLE_PATH
 from budget_planner.web.rendering import render, render_context
 
-router = APIRouter(prefix="/ledger", tags=["ledger"])
+router = APIRouter(prefix=LEDGER_PATH, tags=["ledger"])
 
 
 @router.get("", response_class=HTMLResponse)
@@ -45,7 +46,7 @@ def index(
     return render_context(request, "ledger/index.html", ctx)
 
 
-@router.get("/table", response_class=HTMLResponse)
+@router.get(TABLE_PATH, response_class=HTMLResponse)
 def table_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),

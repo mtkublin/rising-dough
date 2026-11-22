@@ -144,8 +144,8 @@ def find_legacy_owner(conn: sqlite3.Connection) -> AuthUser | None:
     return None if row is None else get_live_by_id(conn, int(row["id"]))
 
 
-def owns_accounts(conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = True) -> bool:
-    """Return ``True`` iff ``user_id`` owns at least one account (live or not by default)."""
+def owns_accounts(conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False) -> bool:
+    """Return ``True`` iff ``user_id`` owns at least one account (live only by default)."""
     live = "" if include_deleted else " AND deleted_at IS NULL"
     row = conn.execute(
         f"SELECT 1 FROM accounts WHERE user_id = ?{live} LIMIT 1", (user_id,)

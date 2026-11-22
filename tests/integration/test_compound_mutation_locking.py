@@ -28,6 +28,7 @@ from budget_planner.services import (
     recurring as recurring_svc,
     users as users_svc,
 )
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -126,7 +127,7 @@ def test_double_submit_never_promotes_same_recurring_occurrence_twice(
     outcomes = _race(
         settings,
         lambda c: recurring_svc.promote_recurring(
-            c, USER_ID, rule_id, recurring_svc.PromotionEdits()
+            c, USER_ID, rule_id, recurring_svc.PromotionEdits(), fx=formula_fx_of(c, USER_ID)
         ),
     )
 

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from types import MappingProxyType
-from typing import Final, Literal
+from typing import Final
 
 # ISO 4217 active currency codes (ADR-0030). Alphabetical order so the combobox
 # surfaces predictable results. Not exhaustive — the subset below covers every
@@ -209,22 +209,19 @@ CURRENCY_EXPONENTS: Final[Mapping[str, int]] = MappingProxyType(
 )
 _DEFAULT_EXPONENT: Final = 2
 
-# Rounding policy (ADR-0006 amendment 2026-11-21, ADR-0140): the mode is an explicit
-# argument of the two helpers below; call sites keep the mode they always had.
-RoundingMode = Literal["ROUND_HALF_EVEN", "ROUND_HALF_UP"]
-HALF_EVEN: Final[RoundingMode] = "ROUND_HALF_EVEN"
-HALF_UP: Final[RoundingMode] = "ROUND_HALF_UP"
+# Rounding policy (ADR-0006 amendment 2026-11-22, T-Q281): one mode, half to even, at
+# every call site; the two helpers below are the only quantize points.
 _ONE: Final = Decimal(1)
 
 
-def round_scaled(value: Decimal, *, mode: RoundingMode) -> int:
-    """Round a ``Decimal`` to the nearest integer using ``mode`` (the one quantize point)."""
-    return int(value.quantize(_ONE, rounding=mode))
+def round_scaled(value: Decimal) -> int:
+    """Round a ``Decimal`` to the nearest integer, ties to even (the one quantize point)."""
+    return int(value.quantize(_ONE, rounding=ROUND_HALF_EVEN))
 
 
-def round_div(numerator: int, denominator: int, *, mode: RoundingMode) -> int:
-    """Integer ratio ``numerator / denominator`` rounded to the nearest integer using ``mode``."""
-    return round_scaled(Decimal(numerator) / Decimal(denominator), mode=mode)
+def round_div(numerator: int, denominator: int) -> int:
+    """Integer ratio ``numerator / denominator`` rounded to the nearest integer, ties to even."""
+    return round_scaled(Decimal(numerator) / Decimal(denominator))
 
 
 _BPS_PER_PERCENT: Final = Decimal(100)
@@ -238,12 +235,11 @@ def currency_decimals(currency: str) -> int:
 def to_minor_units(amount: Decimal, currency: str) -> int:
     """Convert a Decimal major-unit amount to signed integer minor units.
 
-    Uses banker's-safe ROUND_HALF_UP (consistent with user expectations in
-    finance UIs). Does not clamp the magnitude.
+    Rounds ties to even (T-Q281). Does not clamp the magnitude.
     """
     decimals = currency_decimals(currency)
     quant = Decimal(10) ** -decimals
-    quantised = amount.quantize(quant, rounding=HALF_UP)
+    quantised = amount.quantize(quant, rounding=ROUND_HALF_EVEN)
     return int(quantised * (Decimal(10) ** decimals))
 
 
@@ -331,8 +327,8 @@ def format_major(amount_minor: int, currency: str) -> str:
 
 
 def format_whole(amount_minor: int, currency: str, *, grouped: bool = True) -> str:
-    """Whole major units (half up), for dense tables; sign preserved, never ``-0``."""
-    value = Decimal(round_scaled(minor_to_major(amount_minor, currency), mode=HALF_UP))
+    """Whole major units (ties to even), for dense tables; sign preserved, never ``-0``."""
+    value = Decimal(round_scaled(minor_to_major(amount_minor, currency)))
     if value == 0:
         value = Decimal(0)
     return format(value, ",.0f" if grouped else ".0f")
@@ -353,8 +349,8 @@ def parse_percent_str(raw: str) -> Decimal | None:
 
 
 def percent_to_bps(percent: Decimal) -> int:
-    """Percent ``Decimal`` as whole basis points, rounded half up."""
-    return round_scaled(percent * _BPS_PER_PERCENT, mode=HALF_UP)
+    """Percent ``Decimal`` as whole basis points, rounded ties to even."""
+    return round_scaled(percent * _BPS_PER_PERCENT)
 
 
 def major_float(amount_minor: int, currency: str) -> float:
@@ -379,4 +375,4 @@ def rescale_minor(amount_minor: int, from_ccy: str, to_ccy: str, rate: Decimal) 
     """
     major = Decimal(amount_minor) / (Decimal(10) ** currency_decimals(from_ccy))
     scaled = major * rate * (Decimal(10) ** currency_decimals(to_ccy))
-    return round_scaled(scaled, mode=HALF_EVEN)
+    return round_scaled(scaled)
