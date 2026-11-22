@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q307: FX refresh on in prod, /health/fx 503 when disabled in prod)
+- **Feat(T-Q307): compose sets `BUDGET_FX_REFRESH_ENABLED=true`; `GET /health/fx` is 503 `disabled` when the refresh is off in production (200 elsewhere), and 200 `ok` (not `disabled`) when the refresh is on but no foreign account exists (ADR-0146 amendment). Operator: add the UptimeRobot monitor after deploy. No allowlist change.
+
 ## 2026-11-22 (T-Q254b: Caddyfile comment vs CSP render test)
 - **Fix(T-Q254): the Caddyfile template comment contained the literal `script-src`, tripping the `terraform test` assertion that the rendered Caddy CSP has no script-src; comment reworded, assertion untouched.** Caught by the drill gate (terraform PR workflow sits in action_required).
 

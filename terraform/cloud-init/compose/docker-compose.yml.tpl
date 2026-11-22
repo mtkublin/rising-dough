@@ -29,6 +29,7 @@ services:
       # T-D144 / ADR-0119: freshness file written by litestream-probe.
       BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
       TZ: "Europe/Warsaw"
+      BUDGET_FX_REFRESH_ENABLED: "true"
       # ADR-0133: trust X-Forwarded-For only from the edge bridge gateway, the
       # address the app sees for Caddy's loopback connection (never "*").
       FORWARDED_ALLOW_IPS: "172.28.0.1"

@@ -71,9 +71,11 @@ def _verdict(
     )
 
 
-def disabled(*, max_age_days: int, now: datetime) -> FxHealth:
-    """Refresh not active (dev, test) or no foreign currency in use: nothing to check."""
-    return _verdict(ok=True, status="disabled", currencies=(), max_age_days=max_age_days, now=now)
+def disabled(*, required: bool = False, max_age_days: int, now: datetime) -> FxHealth:
+    """Refresh not active. Healthy outside production; ``ok=False`` in production (T-Q307)."""
+    return _verdict(
+        ok=not required, status="disabled", currencies=(), max_age_days=max_age_days, now=now
+    )
 
 
 def unavailable(*, max_age_days: int, now: datetime) -> FxHealth:
@@ -98,7 +100,7 @@ def evaluate(
         for code, newest in sorted(used)
     )
     if not rows:
-        return disabled(max_age_days=max_age_days, now=now)
+        return _verdict(ok=True, status="ok", currencies=(), max_age_days=max_age_days, now=now)
     if any(r.age_days is None for r in rows):
         status = "never"
     elif any(r.age_days is not None and r.age_days > max_age_days for r in rows):
@@ -133,12 +135,16 @@ def check(
     *,
     base_currency: str,
     refresh_active: bool,
+    refresh_required: bool = False,
     today: date,
     max_age_days: int,
     now: datetime,
 ) -> FxHealth:
-    """Read the cache (all users' live accounts, ADR-0146 section 5) and decide."""
+    """Read the cache (all users' live accounts, ADR-0146 section 5) and decide.
+
+    ``refresh_required`` (production) turns an inactive refresh into a failure (T-Q307).
+    """
     if not refresh_active:
-        return disabled(max_age_days=max_age_days, now=now)
+        return disabled(required=refresh_required, max_age_days=max_age_days, now=now)
     used = _newest_by_used_currency(conn, base_currency)
     return evaluate(used, today=today, max_age_days=max_age_days, now=now)

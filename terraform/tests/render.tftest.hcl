@@ -958,6 +958,14 @@ run "host_config_pins_image_and_policy" {
 
   assert {
     condition = strcontains(
+      one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]),
+      "BUDGET_FX_REFRESH_ENABLED: \"true\""
+    )
+    error_message = "Compose must enable the daily FX refresh in production (T-Q307, ADR-0146)."
+  }
+
+  assert {
+    condition = strcontains(
       one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
       "handle /.well-known/bp-deploy-status.json"
     )

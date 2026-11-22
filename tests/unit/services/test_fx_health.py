@@ -52,9 +52,9 @@ def test_future_dated_rate_counts_as_age_zero() -> None:
     assert _eval([("USD", date(2026, 11, 25))]).currencies[0].age_days == 0
 
 
-def test_no_foreign_currency_is_disabled() -> None:
+def test_no_foreign_currency_is_ok_with_refresh_active() -> None:
     v = _eval([])
-    assert (v.ok, v.status, v.currencies) == (True, "disabled", ())
+    assert (v.ok, v.status, v.currencies) == (True, "ok", ())
 
 
 def _rate(conn: sqlite3.Connection, ccy: str, day: date) -> None:
@@ -65,9 +65,17 @@ def _user2(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT INTO users(id, name) VALUES (2, 'other')")
 
 
-def _check(conn: sqlite3.Connection, *, active: bool = True) -> fx_health.FxHealth:
+def _check(
+    conn: sqlite3.Connection, *, active: bool = True, required: bool = False
+) -> fx_health.FxHealth:
     return fx_health.check(
-        conn, base_currency="PLN", refresh_active=active, today=TODAY, max_age_days=4, now=NOW
+        conn,
+        base_currency="PLN",
+        refresh_active=active,
+        refresh_required=required,
+        today=TODAY,
+        max_age_days=4,
+        now=NOW,
     )
 
 
@@ -98,3 +106,5 @@ def test_check_never_and_disabled(conn: sqlite3.Connection) -> None:
     assert _check(conn).status == "never"
     off = _check(conn, active=False)
     assert (off.ok, off.status) == (True, "disabled")
+    required_off = _check(conn, active=False, required=True)
+    assert (required_off.ok, required_off.status) == (False, "disabled")
