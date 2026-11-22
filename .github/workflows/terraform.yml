@@ -206,6 +206,8 @@ jobs:
         uses: ./.github/actions/terraform-env
         with:
           env: ${{ matrix.env }}
+          # T-Q309 / ADR-0132: prod-plan holds no Tailscale OAuth client.
+          plan-only: ${{ matrix.env == 'prod' }}
           secrets-json: ${{ toJSON(secrets) }}
           vars-json: ${{ toJSON(vars) }}
 
@@ -255,7 +257,12 @@ jobs:
           # T-D83 / ADR-0098: never print raw plan output (cloud_init embeds
           # secrets and Terraform may show the prior state value unmasked).
           set -o pipefail
-          terraform plan -no-color -input=false -lock=false -out=plan.bin | python3 scripts/mask_plan.py | tee plan.out
+          # T-Q309 / ADR-0132 amendment: prod-plan holds no Tailscale OAuth client,
+          # so the prod plan cannot refresh tailscale_tailnet_key; it plans from
+          # state (-refresh=false). Apply always refreshes. Drill refreshes.
+          refresh=true
+          if [ "${{ matrix.env }}" = "prod" ]; then refresh=false; fi
+          terraform plan -no-color -input=false -lock=false -refresh="${refresh}" -out=plan.bin | python3 scripts/mask_plan.py | tee plan.out
           terraform show -no-color plan.bin | python3 scripts/mask_plan.py > plan.txt
 
       # T-D158: the masked text plan can hide the server diff, so the PR plan

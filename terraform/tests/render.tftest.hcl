@@ -429,6 +429,41 @@ run "drill_expires_at_rejects_malformed" {
   expect_failures = [var.drill_expires_at]
 }
 
+# T-Q309 / ADR-0132: the prod PR plan runs with placeholder Tailscale credentials
+# (no OAuth client in prod-plan); the render is identical to one with real ones.
+run "prod_plan_only_placeholder_tailscale_credentials" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    env                           = "prod"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "placeholder"
+    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
+    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+    tailscale_oauth_client_id     = "plan-only-no-credential"
+    tailscale_oauth_client_secret = "plan-only-no-credential" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow 80/tcp")
+    error_message = "Prod renders identically with placeholder Tailscale credentials (T-Q309)."
+  }
+}
+
 # T-D97 / ADR-0101: tailnet-only drill render. Public prod render stays ACME.
 run "prod_render_keeps_public_web" {
   command = plan
