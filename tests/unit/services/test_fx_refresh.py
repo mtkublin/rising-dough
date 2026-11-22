@@ -123,11 +123,11 @@ def test_adapter_unreachable_is_fetch_error() -> None:
 
 def test_refresh_inserts_exact_rows_and_second_run_is_idempotent(conn: sqlite3.Connection) -> None:
     source = _Fake(_table(EUR="4.2655", USD="3.6941"))
-    first = fx_service.refresh_from_source(conn, source, DAY, "PLN")
+    first = fx_service.refresh_rates(conn, source, DAY, "PLN")
     assert first is not None
     assert (first.inserted, first.updated, first.unchanged) == (("EUR", "USD"), (), ())
     assert _stored(conn) == [("2026-11-20", "EUR", "4.2655"), ("2026-11-20", "USD", "3.6941")]
-    second = fx_service.refresh_from_source(conn, source, DAY, "PLN")
+    second = fx_service.refresh_rates(conn, source, DAY, "PLN")
     assert second is not None
     assert (second.inserted, second.updated, second.unchanged) == ((), (), ("EUR", "USD"))
     assert len(_stored(conn)) == 2
@@ -139,7 +139,7 @@ def test_refresh_updates_only_changed_rate_and_filters_currencies(conn: sqlite3.
     fx_repo.upsert_rate(
         conn, NewFxRate(date=DAY, from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.0"))
     )
-    result = fx_service.refresh_from_source(
+    result = fx_service.refresh_rates(
         conn, _Fake(_table(EUR="4.2655", USD="3.6941")), DAY, "PLN", ["EUR"]
     )
     assert result is not None
@@ -148,18 +148,16 @@ def test_refresh_updates_only_changed_rate_and_filters_currencies(conn: sqlite3.
 
 
 def test_holiday_no_data_keeps_last_cached_rate(conn: sqlite3.Connection) -> None:
-    fx_service.refresh_from_source(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
-    assert fx_service.refresh_from_source(conn, _Fake(None), date(2026, 11, 21), "PLN") is None
+    fx_service.refresh_rates(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
+    assert fx_service.refresh_rates(conn, _Fake(None), date(2026, 11, 21), "PLN") is None
     assert _stored(conn) == [("2026-11-20", "EUR", "4.2655")]
     converter = fx_service.converter_for(conn, Settings(_env_file=None), date(2026, 11, 22))
     assert converter.rate_for("EUR") == Decimal("4.2655")
 
 
 def test_stale_table_on_weekend_stores_nothing_new(conn: sqlite3.Connection) -> None:
-    fx_service.refresh_from_source(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
-    again = fx_service.refresh_from_source(
-        conn, _Fake(_table(EUR="4.2655")), date(2026, 11, 22), "PLN"
-    )
+    fx_service.refresh_rates(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
+    again = fx_service.refresh_rates(conn, _Fake(_table(EUR="4.2655")), date(2026, 11, 22), "PLN")
     assert again is not None
     assert again.inserted == ()
     assert len(_stored(conn)) == 1
@@ -167,32 +165,32 @@ def test_stale_table_on_weekend_stores_nothing_new(conn: sqlite3.Connection) -> 
 
 def test_source_failure_raises_and_cache_unchanged(conn: sqlite3.Connection) -> None:
     with pytest.raises(FxFetchError, match="boom"):
-        fx_service.refresh_from_source(conn, _Fake(error="boom"), DAY, "PLN")
+        fx_service.refresh_rates(conn, _Fake(error="boom"), DAY, "PLN")
     assert _stored(conn) == []
 
 
 def test_future_dated_table_is_rejected(conn: sqlite3.Connection) -> None:
     future = _Fake(_table(date(2026, 11, 21), EUR="4.2"))
     with pytest.raises(FxFetchError, match="after today"):
-        fx_service.refresh_from_source(conn, future, DAY, "PLN")
+        fx_service.refresh_rates(conn, future, DAY, "PLN")
     assert _stored(conn) == []
 
 
 def test_non_pln_base_is_refused(conn: sqlite3.Connection) -> None:
     with pytest.raises(FxFetchError, match="PLN only"):
-        fx_service.refresh_from_source(conn, _Fake(_table(USD="3.7")), DAY, "EUR")
+        fx_service.refresh_rates(conn, _Fake(_table(USD="3.7")), DAY, "EUR")
 
 
 def test_non_positive_rate_is_rejected_and_nothing_stored(conn: sqlite3.Connection) -> None:
     bad = RateTable(effective_date=DAY, rates=(("EUR", Decimal("4.2")), ("USD", Decimal("0"))))
     with pytest.raises(ValueError, match="fx rate"):
-        fx_service.refresh_from_source(conn, _Fake(bad), DAY, "PLN")
+        fx_service.refresh_rates(conn, _Fake(bad), DAY, "PLN")
     assert _stored(conn) == []  # the whole table rolled back
 
 
 def test_has_rate_on(conn: sqlite3.Connection) -> None:
     assert not fx_service.has_rate_on(conn, "PLN", DAY)
-    fx_service.refresh_from_source(conn, _Fake(_table(EUR="4.2")), DAY, "PLN")
+    fx_service.refresh_rates(conn, _Fake(_table(EUR="4.2")), DAY, "PLN")
     assert fx_service.has_rate_on(conn, "PLN", DAY)
     assert not fx_service.has_rate_on(conn, "PLN", date(2026, 11, 21))
 
@@ -204,18 +202,18 @@ def test_fx_api_url_is_validated(url: str) -> None:
 
 
 def test_stale_table_is_rejected_whole_without_rows_or_audit(conn: sqlite3.Connection) -> None:
-    fx_service.refresh_from_source(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
+    fx_service.refresh_rates(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
     audit_sql = "SELECT COUNT(*) FROM audit_log WHERE entity_type = 'fx_rate'"
     before_audit = conn.execute(audit_sql).fetchone()[0]
     stale = _Fake(_table(DAY, EUR="4.9999", USD="3.6941"))
     with pytest.raises(StaleRateTableError, match="more than 7 days"):
-        fx_service.refresh_from_source(conn, stale, date(2026, 11, 28), "PLN")
+        fx_service.refresh_rates(conn, stale, date(2026, 11, 28), "PLN")
     assert _stored(conn) == [("2026-11-20", "EUR", "4.2655")]
     assert conn.execute(audit_sql).fetchone()[0] == before_audit
 
 
 def test_table_exactly_at_the_age_limit_is_accepted(conn: sqlite3.Connection) -> None:
-    result = fx_service.refresh_from_source(
+    result = fx_service.refresh_rates(
         conn, _Fake(_table(DAY, EUR="4.2")), date(2026, 11, 27), "PLN"
     )
     assert result is not None
@@ -224,7 +222,7 @@ def test_table_exactly_at_the_age_limit_is_accepted(conn: sqlite3.Connection) ->
 
 def test_max_table_age_is_configurable(conn: sqlite3.Connection) -> None:
     with pytest.raises(StaleRateTableError):
-        fx_service.refresh_from_source(
+        fx_service.refresh_rates(
             conn, _Fake(_table(DAY, EUR="4.2")), date(2026, 11, 23), "PLN", max_table_age_days=2
         )
     assert StaleRateTableError.reason == "stale_table"

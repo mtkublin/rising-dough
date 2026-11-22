@@ -12,9 +12,9 @@ Rules
   money-round      ``round(``, ``.quantize(``, ``ROUND_*``, ``math.floor/ceil``, ``//`` on non-literal operands
   money-format     f-string / %-format / .format with an ``f`` or ``,`` spec, ``locale.``; hand-built "<amount> <ccy>" strings
   money-parse      ``Decimal(`` / ``int(`` / ``float(`` applied to user-text-looking names (amount/raw/value/text), ``_parse_amount*`` defs
-  fx-def           function whose name matches convert|to_base|rate|fx|exchange
+  fx-def           behaviour, not names (T-Q293): ``*`` / ``/`` with a rate or ``mid`` operand (name token
+                   rate|rates|mid, or a rate-lookup call) or ``.quantize(<rate>)`` outside services/fx.py, domain/fx.py
   fx-call          call to convert / convert_cached / get_rate / latest_rate / rate lookup
-  fx-arith         arithmetic whose operand name contains ``rate``
 """
 
 from __future__ import annotations
@@ -54,7 +54,37 @@ CANON = {
     "src/budget_planner/repositories/fx.py",
     "src/budget_planner/web/templating.py",
 }
-FX_DEF = re.compile(r"convert|to_base|exchange|(^|_)rate(s)?($|_(?!limit|now))|(^|_)fx($|_)", re.I)
+RATE_TOKENS = {"rate", "rates", "mid"}
+RATE_LOOKUPS = {
+    "rate_for",
+    "get_rate",
+    "latest_rate",
+    "find_rate",
+    "get_cached_rate",
+    "lookup_rate",
+}
+
+
+def rate_operand(n: ast.AST) -> bool:
+    """True for a name, attribute, string subscript or lookup call that denotes an FX rate or a ``mid`` quote."""
+    if isinstance(n, ast.Call):
+        return (dotted(n.func).split(".")[-1]) in RATE_LOOKUPS
+    if isinstance(n, ast.Name):
+        name = n.id
+    elif isinstance(n, ast.Attribute):
+        name = n.attr
+    elif (
+        isinstance(n, ast.Subscript)
+        and isinstance(n.slice, ast.Constant)
+        and isinstance(n.slice.value, str)
+    ):
+        name = n.slice.value
+    else:
+        return False
+    tokens = name.lower().split("_")
+    return bool(RATE_TOKENS & set(tokens)) and "limit" not in tokens
+
+
 FX_CALLS = {
     "convert",
     "convert_cached",
@@ -112,8 +142,10 @@ def main() -> None:
                     rows.append((where, tag(f, "money-scale"), f"[{lay}] {fn}: {txt}"))
                 if isinstance(n.op, ast.FloorDiv) and l is None and r is None:
                     rows.append((where, tag(f, "money-round"), f"[{lay}] {fn}: {txt}"))
-                if isinstance(n.op, ast.Mult | ast.Div) and re.search(r"\brate\w*\b", txt):
-                    rows.append((where, tag(f, "fx-arith"), f"[{lay}] {fn}: {txt}"))
+                if isinstance(n.op, ast.Mult | ast.Div | ast.FloorDiv) and (
+                    rate_operand(n.left) or rate_operand(n.right)
+                ):
+                    rows.append((where, tag(f, "fx-def"), f"[{lay}] {fn}: {txt}"))
                 if isinstance(l, float) or isinstance(r, float):
                     rows.append((where, ftag(f, txt), f"[{lay}] {fn}: float literal in {txt}"))
             elif isinstance(n, ast.Call):
@@ -122,6 +154,8 @@ def main() -> None:
                 txt = unparse(n)
                 if tail == "float":
                     rows.append((where, ftag(f, txt), f"[{lay}] {fn}: {txt}"))
+                if tail == "quantize" and any(rate_operand(a) for a in n.args):
+                    rows.append((where, tag(f, "fx-def"), f"[{lay}] {fn}: {txt}"))
                 if tail in ROUND_NAMES and (
                     d == tail or d.split(".")[0] in {"math", "decimal"} or tail == "quantize"
                 ):
@@ -190,8 +224,6 @@ def main() -> None:
                     rows.append(
                         (where, ftag(f, n.name), f"[{lay}] {n.name}() -> {unparse(n.returns)}")
                     )
-                if FX_DEF.search(n.name):
-                    rows.append((where, tag(f, "fx-def"), f"[{lay}] def {n.name}"))
                 if PARSE_NAME.search(n.name):
                     rows.append((where, tag(f, "money-parse"), f"[{lay}] def {n.name}"))
             elif isinstance(n, ast.AnnAssign) and unparse(n.annotation) in {
@@ -224,7 +256,7 @@ def main() -> None:
     write(
         "p08-money",
         "P8 money. Script: repro/inventory/p08_money.py\n"
-        "Rules: money-scale, money-float, money-round, money-format, money-parse, fx-def, fx-call, fx-arith.\n"
+        "Rules: money-scale, money-float, money-round, money-format, money-parse, fx-def, fx-call.\n"
         "Suffix :canonical = inside the file that is the canonical home today (domain/money.py, domain/fx.py, services/fx.py, web/templating.py).",
         rows,
     )

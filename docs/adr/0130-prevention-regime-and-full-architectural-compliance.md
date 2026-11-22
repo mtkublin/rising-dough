@@ -159,6 +159,12 @@ The "cyclomatic-complexity gate: deferred" alternative above is superseded. `xen
 - **Kept, with reason.** `config.py` `type: ignore[pydantic-alias]` on the two `AliasChoices` fields (mypy plugin rejects a dynamic alias on a field that has a default; removing it fails `mypy --strict`); `web/deps.py` `noqa: B008` (FastAPI `Depends` default); `__main__` guards `pragma: no cover` in `db/migrate.py` and `db/seed.py`.
 - **Per-file-ignores.** Every `pyproject.toml` per-file-ignore already carries a reason comment; none removed.
 
+## Amendment 2026-11-22 (T-Q293): `fx-def` keys on behaviour
+
+- **Rule.** G27 `fx-def` (scanner `tests/architecture/_scan/p08_money.py`) flags rate arithmetic or conversion outside `services/fx.py` and `domain/fx.py` (and the other canonical FX files): `*`, `/` or `//` with a rate operand (a name, attribute or string subscript with the token `rate`, `rates` or `mid`, or a call to a rate lookup such as `rate_for`, `latest_rate`), and `.quantize(<rate>)`. Function names no longer matter, so `formula_fx` or `rates_freshness` are fine and a conversion under a neutral name is flagged. The old `fx-arith` rule is folded into `fx-def`. `rate_limit`-style names are ignored.
+- **Dodge-renames reverted.** `formula_ctx*`/`get_formula_ctx` back to `formula_fx*`/`get_formula_fx` (T-Q286); `refresh_from_source` back to `refresh_rates` and `cache_empty_today` to `rates_missing_today` (T-Q290); `/health/fx` handler `currency_freshness` to `fx_freshness` (T-Q292).
+- **Allowlist.** The three burn-down entries of `money_scope.toml` are fixed in code and deleted (forecast `value_major` float field removed, chart geometry converted in the plan router via `major_float`; `Decimal(...)` basis-point arithmetic replaced by `round_div` and integer comparison). The three `[[permanent]]` entries stay (the scanner still flags them: pixel and seconds rounding). No entry added.
+
 ## Amendment 2026-11-22 (T-Q296): residual allowlist burn-down
 
 - `functional_first.toml` `config.py` `hidden-cache` moves to `[[permanent]]`: `get_settings` is the process-wide Settings singleton at the config edge; tests clear it via `cache_clear`. Deleted by code: `size_complexity` `web/routers/recurring.py` (7 violations, split into `web/recurring_forms.py` and `web/recurring_views.py`), `private_imports` `db/startup_migrate.py` (`resolve_db_path` made public), `hygiene` `web/routers/recurring.py` `assert-in-src` (3).

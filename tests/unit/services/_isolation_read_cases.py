@@ -44,7 +44,7 @@ from budget_planner.services import (
     today as today_svc,
     upcoming,
 )
-from budget_planner.services.recurring_formula import formula_ctx, formula_ctx_for
+from budget_planner.services.recurring_formula import formula_fx, formula_fx_for
 from tests.formula_fx_support import formula_fx_of
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import (
@@ -799,19 +799,19 @@ def _case_compute_limit_preview(conn: sqlite3.Connection, world: World) -> None:
     )
 
 
-@covers("recurring_formula.formula_ctx")
-def _case_formula_ctx(conn: sqlite3.Connection, world: World) -> None:
+@covers("recurring_formula.formula_fx")
+def _case_formula_fx(conn: sqlite3.Connection, world: World) -> None:
     converter = fx.build_converter("PLN", WORLD_TODAY, ())
-    owner = formula_ctx(conn, OWNER_ID, converter)
-    other = formula_ctx(conn, OTHER_ID, converter)
+    owner = formula_fx(conn, OWNER_ID, converter)
+    other = formula_fx(conn, OTHER_ID, converter)
     assert world.owner.account_id in owner.currency_by_account
     assert world.other.account_id not in owner.currency_by_account
     assert set(other.currency_by_account) == {world.other.account_id}
 
 
-@covers("recurring_formula.formula_ctx_for")
-def _case_formula_ctx_for(conn: sqlite3.Connection, world: World) -> None:
-    owner = formula_ctx_for(conn, OWNER_ID, fx.BaseCurrency("PLN"), WORLD_TODAY)
+@covers("recurring_formula.formula_fx_for")
+def _case_formula_fx_for(conn: sqlite3.Connection, world: World) -> None:
+    owner = formula_fx_for(conn, OWNER_ID, fx.BaseCurrency("PLN"), WORLD_TODAY)
     assert world.other.account_id not in owner.currency_by_account
     assert world.owner.account_id in owner.currency_by_account
     assert owner.converter.base_currency == "PLN"

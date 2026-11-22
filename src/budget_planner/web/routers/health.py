@@ -79,7 +79,7 @@ def replication(request: Request) -> JSONResponse:
 
 
 @router.api_route("/health/fx", methods=list(GET_HEAD_METHODS), include_in_schema=False)
-def currency_freshness(request: Request) -> JSONResponse:
+def fx_freshness(request: Request) -> JSONResponse:
     """FX cache freshness for the external monitor (ADR-0146). Read-only, no user data."""
     cfg: Settings = request.app.state.settings
     now = clock.utc_now()

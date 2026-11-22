@@ -254,19 +254,19 @@ def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection) -> Non
     conn.commit()
     settings = get_settings()
     proj = forecast_svc.monthly_projection(conn, _USER, settings, TODAY, horizon=12)
-    assert [(p.label, p.value_major) for p in proj] == [
-        ("Nov 2026", -1640.04),
-        ("Dec 2026", -4291.81),
-        ("Jan 2027", -6943.58),
-        ("Feb 2027", -9595.35),
-        ("Mar 2027", -12247.12),
-        ("Apr 2027", -14898.89),
-        ("May 2027", -17550.66),
-        ("Jun 2027", -20202.43),
-        ("Jul 2027", -22854.2),
-        ("Aug 2027", -25505.97),
-        ("Sep 2027", -28157.74),
-        ("Oct 2027", -30809.51),
+    assert [(p.label, p.end_balance_minor) for p in proj] == [
+        ("Nov 2026", -164004),
+        ("Dec 2026", -429181),
+        ("Jan 2027", -694358),
+        ("Feb 2027", -959535),
+        ("Mar 2027", -1224712),
+        ("Apr 2027", -1489889),
+        ("May 2027", -1755066),
+        ("Jun 2027", -2020243),
+        ("Jul 2027", -2285420),
+        ("Aug 2027", -2550597),
+        ("Sep 2027", -2815774),
+        ("Oct 2027", -3080951),
     ]
     series = forecast_svc.forecast(
         conn,

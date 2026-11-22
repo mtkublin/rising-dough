@@ -34,4 +34,4 @@ Four converter copies (`web/today_data.py`, `web/routers/forecast.py`, the budge
 
 ## Amendment 2026-11-22 (T-Q290)
 
-The refresh path and provider are replaced by [ADR-0145](0145-nbp-table-a-daily-fx-refresh-in-app-task.md): NBP table A through the `RateSource` port, refreshed by an in-app daily task and the CLI via `services/fx.refresh_from_source`. `refresh_rates`, `RateFetcher` and the frankfurter adapter are gone. The cache-only converter and the missing-rate policy are unchanged.
+The refresh path and provider are replaced by [ADR-0145](0145-nbp-table-a-daily-fx-refresh-in-app-task.md): NBP table A through the `RateSource` port, refreshed by an in-app daily task and the CLI via `services/fx.refresh_rates` (a new signature, see ADR-0145). `RateFetcher` and the frankfurter adapter are gone. The cache-only converter and the missing-rate policy are unchanged.

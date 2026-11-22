@@ -115,7 +115,6 @@ def test_monthly_projection_series_and_balances(
         assert (
             point.net_minor == point.income_minor - point.expense_minor - point.planned_budget_minor
         )
-        assert point.value_major == point.end_balance_minor / 100
 
 
 def test_monthly_projection_horizon_sets_length(

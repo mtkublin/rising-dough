@@ -66,7 +66,7 @@ def plan(
             forecast_horizon=horizon,
             forecast_horizon_choices=_FORECAST_HORIZON_CHOICES,
             forecast_chart=charts.line_area(
-                tuple((float(i), p.value_major) for i, p in enumerate(projection)),
+                plan_data.forecast_chart_points(projection, settings.base_currency),
                 x_labels=tuple(p.label for p in projection),
             ),
             forecast_summary=forecast_service.projection_summary(projection),

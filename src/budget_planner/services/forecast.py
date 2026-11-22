@@ -28,7 +28,6 @@ from typing import Protocol
 from budget_planner.clock import HasDisplayTimezone
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import major_float
 from budget_planner.domain.periods import month_bounds, shift_month
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -47,7 +46,7 @@ from budget_planner.services.forecast_overlay import (
     collect_budget_overlay,
     month_inputs,
 )
-from budget_planner.services.recurring_formula import formula_ctx
+from budget_planner.services.recurring_formula import formula_fx
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -221,7 +220,7 @@ def _events_by_date(
     display_timezone: str,
 ) -> dict[dt.date, list[CashEvent]]:
     """Explicit events plus (when ``primary_account_id`` is given) the budget overlay, by date."""
-    events = collect_events(conn, user_id, today, end_date, formula_ctx(conn, user_id, fx))
+    events = collect_events(conn, user_id, today, end_date, formula_fx(conn, user_id, fx))
     if primary_account_id is None:
         return events
     for ev in collect_budget_overlay(
@@ -394,7 +393,7 @@ def _month_flow_sums(
     for item in recurring_svc.pending_occurrences(
         conn,
         user_id,
-        fx=formula_ctx(conn, user_id, fx),
+        fx=formula_fx(conn, user_id, fx),
         start=start,
         end=end_date + dt.timedelta(days=1),
         today=today,
@@ -609,10 +608,9 @@ def _chain_rows(
 class MonthlyProjectionPoint:
     """Template-friendly projection point for the Plan · Forecast chart.
 
-    One entry per calendar month in the horizon. ``value_major`` is the
-    projected end-of-month fortune in major units, convenient for SVG
-    plotting (``charts.line_area`` normalises on raw floats). ``label``
-    is a short month label suitable for the x-axis.
+    One entry per calendar month in the horizon. ``end_balance_minor`` is the
+    projected end-of-month fortune; the plan router converts it to chart
+    geometry. ``label`` is a short month label suitable for the x-axis.
 
     ADR-0056 Plan · Forecast reskin adds the per-month flow aggregates so
     the inline table beneath the chart does not need a second service call.
@@ -621,7 +619,6 @@ class MonthlyProjectionPoint:
 
     month: dt.date
     label: str
-    value_major: float
     income_minor: int = 0
     expense_minor: int = 0
     planned_budget_minor: int = 0
@@ -663,13 +660,11 @@ def monthly_projection(
     Thin composer over :func:`monthly_for_settings`; reshapes the result into
     points the chart templates can consume directly (no further template-side math).
     """
-    base_ccy = settings.base_currency
     series = monthly_for_settings(conn, user_id, settings, today, horizon)
     return tuple(
         MonthlyProjectionPoint(
             month=point.month,
             label=point.month.strftime("%b %Y"),
-            value_major=major_float(point.end_balance_base_minor, base_ccy),
             income_minor=point.income_base_minor,
             expense_minor=point.expense_base_minor,
             planned_budget_minor=point.planned_budget_base_minor,
@@ -714,7 +709,7 @@ def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> Projec
     return ProjectionSummary(
         now_value=projection[0].end_balance_minor,
         end_point=projection[-1],
-        peak_point=max(projection, key=lambda p: p.value_major),
+        peak_point=max(projection, key=lambda p: p.end_balance_minor),
     )
 
 

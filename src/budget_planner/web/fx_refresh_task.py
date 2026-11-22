@@ -33,7 +33,7 @@ SourceOpener = Callable[[Settings], AbstractContextManager[RateSource]]
 Sleeper = Callable[[float], Awaitable[None]]
 
 
-def cache_empty_today(cfg: Settings) -> bool:
+def rates_missing_today(cfg: Settings) -> bool:
     """True when no cached rate is dated today (display timezone)."""
     conn = get_connection(cfg)
     try:
@@ -49,7 +49,7 @@ def run_once(cfg: Settings, opener: SourceOpener = nbp.open_source) -> bool:
         with opener(cfg) as source:
             conn = get_connection(cfg)
             try:
-                result = fx_service.refresh_from_source(
+                result = fx_service.refresh_rates(
                     conn,
                     source,
                     clock.today_local(cfg),
@@ -78,7 +78,7 @@ async def run_forever(
     cfg: Settings,
     *,
     refresh: Callable[[Settings], bool] = run_once,
-    missing: Callable[[Settings], bool] = cache_empty_today,
+    missing: Callable[[Settings], bool] = rates_missing_today,
     now: Callable[[], datetime] = clock.utc_now,
     sleep: Sleeper = asyncio.sleep,
 ) -> None:

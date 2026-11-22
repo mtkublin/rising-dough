@@ -4,7 +4,7 @@ Usage::
 
     python -m budget_planner.cli.refresh_fx --db=<path> [--currency EUR --currency USD]
 
-Runs the same ``services.fx.refresh_from_source`` as the daily in-app task and
+Runs the same ``services.fx.refresh_rates`` as the daily in-app task and
 caches the latest table under its effective date. ``--currency`` restricts the
 stored currencies (default: every known code in the table). ``--db`` is
 mandatory: there is deliberately no default database.
@@ -44,7 +44,7 @@ def main(argv: Sequence[str] | None = None, *, transport: httpx.BaseTransport | 
     conn = get_connection(settings)
     try:
         with nbp.make_client(settings, transport=transport) as client:
-            result = fx_service.refresh_from_source(
+            result = fx_service.refresh_rates(
                 conn,
                 nbp.NbpRateSource(client),
                 clock.today_local(settings),
