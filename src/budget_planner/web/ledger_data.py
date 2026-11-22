@@ -216,14 +216,15 @@ def _recurring_row(
     conn: sqlite3.Connection,
     user_id: int,
     rule: RecurringRule,
-    acc: Account | None,
-    cat: Category | None,
+    refs: tuple[Account | None, Category | None],
+    formula_fx: formula_svc.FormulaFx | None = None,
 ) -> dict[str, object]:
+    acc, cat = refs
     overrides = recurring_service.list_overrides(conn, user_id, rule.id)
     # T-122: the override (if any) on the current `next_due` bolds / italicises its cells.
     override = next((ov for ov in overrides if ov.occurrence_date == rule.next_due), None)
     # Formula-aware default (ADR-0045); overrides win per ADR-0038 precedence.
-    effective = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
+    effective = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=formula_fx)
     amount_overridden = override is not None and override.amount_override is not None
     if override is not None and override.amount_override is not None:
         effective = override.amount_override
@@ -250,7 +251,10 @@ def _recurring_row(
 
 
 def _recurring_rows(
-    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: LedgerFilters,
+    fx: fx_service.FxConverter,
 ) -> list[dict[str, object]]:
     # Ledger Recurring tab lists only live rules (ADR-0038 §Ledger-UI):
     # Delete behaviourally deactivates, which must remove the row from view.
@@ -259,8 +263,18 @@ def _recurring_rows(
         key=lambda r: (r.next_due, r.id),
     )
     cats, accts = _lookups(conn, user_id)
+    # Formula sources convert across currencies (T-Q215, ADR-0139): cache-only rates.
+    formula_fx = formula_svc.FormulaFx(
+        fx, fx_service.currency_by_account(conn, user_id, include_deleted=True)
+    )
     return [
-        _recurring_row(conn, user_id, rule, accts.get(rule.account_id), cats.get(rule.category_id))
+        _recurring_row(
+            conn,
+            user_id,
+            rule,
+            (accts.get(rule.account_id), cats.get(rule.category_id)),
+            formula_fx,
+        )
         for rule in rules
         if _rule_matches(rule, cats.get(rule.category_id), filters)
     ]
@@ -374,7 +388,8 @@ def table_context(
     elif view == "planned":
         rows = _planned_rows(conn, user_id, filters, today)
     else:
-        rows = _recurring_rows(conn, user_id, filters)
+        fx = fx_service.converter_for(conn, settings, today)
+        rows = _recurring_rows(conn, user_id, filters, fx)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
@@ -414,16 +429,22 @@ def index_context(
     recurring_summary: ledger_totals.RecurringTotals | None = None
     planned_summary: ledger_totals.PlannedTotals | None = None
     base_ccy = settings.base_currency
+    fx = fx_service.converter_for(conn, settings, today)
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
     elif view == "planned":
         planned = _planned_rows(conn, user_id, filters, today)
-        rows, planned_summary = planned, ledger_totals.planned_totals(planned, base_ccy)
+        planned_summary = ledger_totals.planned_totals(
+            planned, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+        )
+        rows = planned
     else:
-        recurring = _recurring_rows(conn, user_id, filters)
+        recurring = _recurring_rows(conn, user_id, filters, fx)
+        recurring_summary = ledger_totals.recurring_monthly_totals(
+            recurring, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+        )
         rows = recurring
-        recurring_summary = ledger_totals.recurring_monthly_totals(recurring, base_ccy)
     cats_all = categories_service.list_all(conn, user_id, include_deleted=True)
     return {
         **_page_keys(view, rows, filters, today),
