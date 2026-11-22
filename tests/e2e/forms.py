@@ -1,17 +1,17 @@
-"""Shared helpers for e2e tests that drive the real slide-over forms (T-Q248)."""
+"""Shared helpers for e2e tests that drive the real slide-over forms (T-Q248, T-Q278).
+
+Everything goes through the UI map (ADR-0106 section 2); no CSS selectors.
+"""
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
-PANEL = ".slide-over-root"
+from tests.e2e.ui_actions import open_add_slide_over, pick
+from tests.ui_map import ledger, shell
+from tests.ui_map.locator import to_playwright
 
-
-def pick(page: Page, name: str, label: str) -> None:
-    """Choose ``label`` in the combobox backing the hidden input ``name``."""
-    combo = page.locator(f"{PANEL} [data-combobox]", has=page.locator(f"input[name='{name}']"))
-    combo.locator("[data-combobox-input]").click()
-    combo.locator("[role='option']", has_text=label).first.click()
+PANEL = shell.slideover
 
 
 def wait_for_htmx(page: Page) -> None:
@@ -24,16 +24,14 @@ def add_happened(
 ) -> None:
     """Open the Happened overlay on the current page and submit it."""
     wait_for_htmx(page)
-    page.locator("[data-rd-add]:visible").first.click()
-    panel = page.locator(PANEL)
-    expect(panel).to_be_visible()
-    pick(page, "category_id", category)
-    pick(page, "account_id", account)
-    panel.locator("input[name='amount']").fill(amount)
-    panel.locator("input[name='operation_date']").fill(day)
-    panel.locator("input[name='description']").fill(note)
+    open_add_slide_over(page)
+    pick(page, ledger.field_category, category)
+    pick(page, ledger.field_account, account)
+    to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill(amount)
+    to_playwright(page, ledger.overlay_field(ledger.field_date)).fill(day)
+    to_playwright(page, ledger.overlay_field(ledger.field_note)).fill(note)
     with page.expect_response(
         lambda r: r.url.endswith("/transactions") and r.request.method == "POST"
     ) as resp:
-        panel.get_by_role("button", name="Add entry").click()
+        to_playwright(page, ledger.overlay_add_entry).click()
     assert resp.value.ok, resp.value.text()

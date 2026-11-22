@@ -85,15 +85,14 @@ def test_recurring_rule_and_planned_promote_cycle(
     # Promote through the row's slide-over form with an edited amount.
     wait_for_htmx(page)
     persisted_el.get_by_role("button", name="Promote").click()
-    panel = page.locator(PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("input[name='operation_date']").fill("2026-01-22")
-    panel.locator("input[name='amount']").fill("27.50")
-    panel.locator("input[name='description']").fill("promoted one-off")
+    expect(to_playwright(page, PANEL)).to_be_visible()
+    to_playwright(page, ledger.overlay_field(ledger.field_date)).fill("2026-01-22")
+    to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill("27.50")
+    to_playwright(page, ledger.overlay_field(ledger.field_description)).fill("promoted one-off")
     with page.expect_response(
         lambda r: r.url.endswith("/promote") and r.request.method == "POST"
     ) as resp:
-        panel.get_by_role("button", name="Promote").click()
+        to_playwright(page, ledger.overlay_promote).click()
     assert resp.value.ok, resp.value.text()
 
     # DB: the planned row points at the new transaction, with the edited amount.

@@ -28,6 +28,7 @@ from budget_planner.repositories import (
     snapshots as snapshots_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, errors
 
 USER_ID = 1
 MISSING = 99_999
@@ -120,7 +121,7 @@ def test_create_transit_non_numeric_destination_is_422(
         data=_txn_form(ctx, category_id=ctx["transit"], dest_account_id="abc"),
     )
     assert r.status_code == 422
-    assert "invalid destination" in r.text
+    assert "invalid destination" in _html.all_text(r.text, errors.alert)
     assert _txn_count(_migrated) == before
 
 
@@ -133,7 +134,7 @@ def test_create_transit_unknown_destination_is_422(
         data=_txn_form(ctx, category_id=ctx["transit"], dest_account_id=str(MISSING)),
     )
     assert r.status_code == 422
-    assert "unknown destination" in r.text
+    assert "unknown destination" in _html.all_text(r.text, errors.alert)
     assert _txn_count(_migrated) == before
 
 
@@ -167,7 +168,7 @@ def test_edit_transaction_unknown_account_is_422_and_row_unchanged(
         data=_txn_form(ctx, account_id=MISSING),
     )
     assert r.status_code == 422
-    assert "unknown account" in r.text
+    assert "unknown account" in _html.all_text(r.text, errors.alert)
     conn = get_connection(_migrated)
     try:
         row = transactions_repo.find_by_id(conn, USER_ID, ctx["txn"])
@@ -218,7 +219,7 @@ def test_create_planned_validation_errors_are_422(
     before = _planned_count(_migrated)
     r = client.post("/planned", data=_planned_form(ctx, **over))
     assert r.status_code == 422
-    assert message in r.text
+    assert message in _html.all_text(r.text, errors.alert)
     assert _planned_count(_migrated) == before
 
 
@@ -228,7 +229,7 @@ def test_edit_planned_unknown_account_is_422(client: TestClient, ctx: dict[str, 
         data=_planned_form(ctx, account_id=MISSING),
     )
     assert r.status_code == 422
-    assert "unknown account" in r.text
+    assert "unknown account" in _html.all_text(r.text, errors.alert)
 
 
 # --- recurring router ----------------------------------------------------
@@ -242,7 +243,7 @@ def test_override_month_before_rule_start_is_422_with_message(
         data={"year": 2025, "month": 6, "amount": "10.00"},
     )
     assert r.status_code == 422
-    assert "rule has no occurrence in 2025-06" in r.text
+    assert "rule has no occurrence in 2025-06" in _html.all_text(r.text, errors.alert)
 
 
 # --- categories router ---------------------------------------------------
@@ -287,7 +288,7 @@ def test_update_account_blank_name_rerenders_form_with_error(
 ) -> None:
     r = client.post(f"/accounts/{ctx['acc']}", data={"name": "   ", "currency": "PLN"})
     assert r.status_code == 422
-    assert "name required" in r.text
+    assert "name required" in _html.all_text(r.text, errors.alert)
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.find_by_id(conn, USER_ID, ctx["acc"])

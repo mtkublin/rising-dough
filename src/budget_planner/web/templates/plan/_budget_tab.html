@@ -1,6 +1,6 @@
 {% from "_partials/components/_progress_bar.html" import progress_bar %}
 <div id="plan-budget">
-  <section class="rd-period-bar">
+  <section class="rd-period-bar" aria-label="Budget period">
     <div class="rd-period-bar__left">
       <div class="rd-eyebrow">Period</div>
       <div class="rd-period-bar__range">
@@ -14,7 +14,8 @@
       {{ progress_bar(budget.spent_pct, committed_pct=budget.committed_pct, over=budget.is_over) }}
     </div>
     <div class="rd-period-bar__right">
-      <span class="num rd-period-bar__perday">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
+      <span class="num rd-period-bar__perday"
+            data-testid="period-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
       <span class="cur num">{{ base_ccy }} / day</span>
       <div class="mut num rd-period-bar__meta">
         {{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed · {{ budget.summary.days_until_next_income }} days left
