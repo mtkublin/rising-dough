@@ -795,11 +795,21 @@ def test_planned_budget_defaults_and_boundaries(conn: sqlite3.Connection) -> Non
     ).id
     budgets_repo.set_default(conn, OWNER_ID, NewBudgetDefault(category_id=dead, amount=50))
     categories_repo.soft_delete(conn, OWNER_ID, dead)
+    # Archived in October, the forecast's only month: reserves nothing from then on (T-Q279).
+    conn.execute(
+        "UPDATE categories SET deleted_at = '2026-10-05T10:00:00.000Z' WHERE id = ?", (dead,)
+    )
     _plan(conn, OWNER_ID, TODAY, env.expense_cat, env.a1, amount=200)  # due today: not committed
     _plan(conn, OWNER_ID, TODAY + timedelta(days=1), later, env.a1, amount=999)  # remaining == 1
     out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 1, fx=_conv(conn))
-    # start_month defaults to today's month, day 1. The archived "dead" category still
-    # counts, in full, like the daily overlay does (ADR-0136, T-Q227): 1 + 50.
+    # start_month defaults to today's month, day 1. "dead" was archived in October, so its 50
+    # is no longer reserved (ADR-0136, T-Q279): only "later" remains, 1.
+    assert out == {date(2026, 10, 1): 1}
+    # Archived in November instead: October still reserves it, 1 + 50.
+    conn.execute(
+        "UPDATE categories SET deleted_at = '2026-11-05T10:00:00.000Z' WHERE id = ?", (dead,)
+    )
+    out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 1, fx=_conv(conn))
     assert out == {date(2026, 10, 1): 51}
 
 

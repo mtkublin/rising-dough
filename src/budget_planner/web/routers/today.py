@@ -50,13 +50,12 @@ def today(
     # future-cycle budget while spent is still on the previous paycheck
     # (ADR-0064).
     year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
-    base_ccy = settings.base_currency
-
+    base_ccy, tz = settings.base_currency, settings.display_timezone
     converter = fx_service.converter_for(conn, settings, today_d)
     account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
     fortune = fortune_service.compute_fortune(conn, user_id, converter)
     summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today_d, base_currency=base_ccy
+        conn, user_id, year, month, today=today_d, base_currency=base_ccy, display_timezone=tz
     )
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
@@ -140,7 +139,12 @@ def afford(
         return Response(status_code=422, content="invalid amount")
     today_d = clock.today_local(settings)
     result = today_service.afford(
-        conn, user_id, today_d, amount_minor, base_currency=settings.base_currency
+        conn,
+        user_id,
+        today_d,
+        amount_minor,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
     )
     return render(
         request,

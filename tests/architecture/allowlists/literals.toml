@@ -5,7 +5,7 @@ guard = "literals"
 [[entry]]
 path = "src/budget_planner/config.py"
 rule = "domain-literal"
-count = 2
+count = 1
 finding = "Q-038"
 epic = "E03"
 
