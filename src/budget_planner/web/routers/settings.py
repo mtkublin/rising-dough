@@ -17,12 +17,14 @@ so clients can clear the drawer via the same mechanism. Tab contexts come from
 from __future__ import annotations
 
 import sqlite3
+from typing import get_args
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.services import settings_drawer
 from budget_planner.web.deps import current_user_id, get_db
+from budget_planner.web.params import query_choice
 from budget_planner.web.paths import SETTINGS_PATH
 from budget_planner.web.rendering import is_hx_request, render_context
 
@@ -37,7 +39,8 @@ def drawer(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Return the Settings page (or HTMX drawer fragment) with the requested tab active."""
-    context = settings_drawer.drawer_context(conn, user_id, tab)
+    picked = query_choice("tab", tab, get_args(settings_drawer.TabKind))
+    context = settings_drawer.drawer_context(conn, user_id, picked)
     # Rising Dough v2 — Settings is a full page (ADR-0051 §7). The template
     # extends base.html and reuses the existing panel fragments.
     template = "settings/_drawer.html" if is_hx_request(request) else "settings/index.html"

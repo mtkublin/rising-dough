@@ -24,3 +24,5 @@ Seven hand-rolled amount parsers disagreed (`1e3`, `1_000`, non-ASCII digits, `1
 ## Amendment 2026-11-22 (operator decision; T-Q282)
 
 Decision 3 is replaced for typed query parameters: every malformed `year`, `month`, date or integer query parameter returns 422 with a visible message on every route (`/plan`, `/ledger`, `/forecast`, `/budget`, `/today`, ...). There is no silent fallback to the current period and no "no filter" degradation. A missing parameter still takes its default. HTMX fragment routes answer with the error partial.
+
+Enum-like query parameters follow the same rule (operator decision 2026-11-22, T-Q294, extends T-Q282): `/plan?tab=`, `/ledger?view=`, `/today?window=`, the analytics `period` and `/add?when=` (and any other choice parameter) return 422 naming the parameter on an unknown value. A missing or empty value still defaults.

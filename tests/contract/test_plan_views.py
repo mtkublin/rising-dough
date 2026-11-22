@@ -140,7 +140,7 @@ def test_forecast_view_is_a_fragment_with_one_row_per_month(
 
 
 @covers("GET /plan")
-@pytest.mark.parametrize("tab", ["budget", "year", "forecast", "analytics", "bogus"])
+@pytest.mark.parametrize("tab", ["budget", "year", "forecast", "analytics", ""])
 def test_plan_hub_renders_every_tab(client: TestClient, cat_id: int, tab: str) -> None:
     r = client.get(f"/plan?tab={tab}")
     assert r.status_code == 200

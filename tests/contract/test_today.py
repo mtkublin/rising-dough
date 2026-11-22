@@ -131,13 +131,18 @@ def test_upcoming_row_status_overdue_due_future(client: TestClient, _migrated: S
 
 
 @covers("GET /today/upcoming")
+def test_upcoming_unknown_window_is_422(client: TestClient) -> None:
+    assert client.get("/today/upcoming", params={"window": "bogus"}).status_code == 422
+
+
+@covers("GET /today/upcoming")
 @pytest.mark.parametrize(
     ("window", "expected"),
     [
         ("7", {"Soon"}),
         ("30", {"Soon", "Later"}),
         ("all", {"Soon", "Later", "Far"}),
-        ("bogus", {"Soon", "Later"}),  # unknown window falls back to the 30-day default
+        ("", {"Soon", "Later"}),  # empty window is the 30-day default
         (None, {"Soon", "Later"}),
     ],
 )
