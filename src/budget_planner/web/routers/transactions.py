@@ -34,7 +34,7 @@ from budget_planner.services import (
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
@@ -284,7 +284,7 @@ def create_txn(  # noqa: PLR0917
         "partials/transactions/_row.html",
         txn=row,
     )
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's Add overlay, not just the ledger: no
     # row insert; the ledger refetches on `ledger-stale`, other pages reload.
     refresh_unless_on(request, html, "/ledger")
@@ -420,7 +420,7 @@ def update_txn(  # noqa: PLR0917
     # The edit form is hosted by every page (T-D151): no row swap; the ledger
     # refetches on `ledger-stale`, other pages reload.
     html = Response()
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -431,7 +431,7 @@ def delete_txn(
 ) -> Response:
     transactions_repo.soft_delete(conn, user_id, txn_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -445,7 +445,7 @@ def restore_txn(
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 

@@ -9,6 +9,11 @@
   {# Section 0 — Left daily spend hero                                  #}
   {# ------------------------------------------------------------------ #}
   <section id="left-daily-spend"
+           hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+           hx-trigger="budget-stale from:body"
+           hx-select="#left-daily-spend"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap"
            class="budget-section budget-lds"
            aria-labelledby="lds-heading"
            aria-live="polite">
@@ -52,6 +57,11 @@
   {# Section 1 — Monthly summary                                        #}
   {# ------------------------------------------------------------------ #}
   <section id="budget-summary"
+           hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+           hx-trigger="budget-stale from:body"
+           hx-select="#budget-summary"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap"
            class="budget-section"
            aria-labelledby="budget-summary-heading">
     <header class="budget-section__header">

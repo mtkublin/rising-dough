@@ -8,7 +8,6 @@ router parses + renders.
 from __future__ import annotations
 
 import contextlib
-import json
 import sqlite3
 from datetime import date
 from typing import Any
@@ -37,7 +36,7 @@ from budget_planner.services import (
 )
 from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.params import credit_limit_amount
 from budget_planner.web.rendering import render
 
@@ -238,7 +237,7 @@ def create_account(  # noqa: PLR0917
             clock.today_local(settings),
         ),
     )
-    trigger(html, "balance-stale")
+    trigger(html, Event.BALANCE_STALE)
     # T-D150: the form targets itself and the accounts list has no region that
     # refetches on a trigger, so skip the swap and reload to show the new item.
     html.headers["HX-Reswap"] = "none"
@@ -346,7 +345,7 @@ def update_account(  # noqa: PLR0917
             clock.today_local(settings),
         ),
     )
-    trigger(html, "balance-stale")
+    trigger(html, Event.BALANCE_STALE)
     return html
 
 
@@ -358,12 +357,11 @@ def delete_account(
 ) -> Response:
     accounts_service.archive_account(conn, user_id, account_id)
     resp = Response(content="", media_type="text/html")
-    resp.headers["HX-Trigger"] = json.dumps(
-        {
-            "balance-stale": True,
-            "forecast-stale": True,
-            "toast": {"kind": "success", "message": "Account deleted"},
-        }
+    trigger(
+        resp,
+        Event.BALANCE_STALE,
+        Event.FORECAST_STALE,
+        toast=toast_payload("success", "Account deleted"),
     )
     return resp
 
@@ -388,9 +386,7 @@ def take_snapshot(
         snapshot=snap,
         account=acc,
     )
-    resp.headers["HX-Trigger"] = json.dumps(
-        {"toast": {"kind": "success", "message": "Snapshot saved"}}
-    )
+    trigger(resp, toast=toast_payload("success", "Snapshot saved"))
     return resp
 
 
@@ -512,5 +508,5 @@ def reconcile_submit(  # noqa: PLR0917
         ),
         today_date=clock.today_local(settings),
     )
-    trigger(html, "balance-stale", "forecast-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE)
     return html

@@ -415,7 +415,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:2 (1 entry); `invariants`:1 (1 entry); `money_scope`:17 (10 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-5 (Q-023) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q236 [P] HTMX error flashes swap; one event and toast contract
+### ✅ T-Q236 [P] HTMX error flashes swap; one event and toast contract
 - Findings: Q-037 (E-01), Q-038 (A-18, E-02, E-07).
 - Epic: E03
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
