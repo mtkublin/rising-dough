@@ -3,7 +3,7 @@
 > Flat index. The method for each task is in [implementation_plan.md](implementation_plan.md).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-Qxx` depends on upstream task.
 > Acceptance = output file complete against its checklist + the guardrails in implementation_plan §11 respected + `✅` prefix added here.
-> **Not started.** Blocked until v3 ships. Must complete before v4 starts (v4 T-E00 gate).
+> **Complete 2026-11-22 (T-Q232 closing gate).** Remaining debt: the 83 `template_logic.toml` entries, owned by the ui-redesign plan (ADR-0130 carve-out).
 
 ---
 
@@ -1028,13 +1028,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 ### Band 7 — Closing gate
 
-### T-Q232 [S] Closing gate: every allowlist empty, every guard strict
+### ✅ T-Q232 [S] Closing gate: every allowlist empty, every guard strict
 - Findings: closes the loop for Q-001..Q-080 with a guard; zero-violation policy of ADR-0130 section 1.
 - Epic: all (closing gate)
 - Band: 7 · Size: S · Tags: none
 - Depends on: T-Q201, T-Q206, T-Q207, T-Q208, T-Q212, T-Q213, T-Q214, T-Q216, T-Q218, T-Q219, T-Q221, T-Q227, T-Q228, T-Q229, T-Q233, T-Q236, T-Q237, T-Q238, T-Q241, T-Q242, T-Q243, T-Q245, T-Q258, T-Q260, T-Q261, T-Q262, T-Q263, T-Q264, T-Q265, T-Q266, T-Q267, T-Q268, T-Q269, T-Q270, T-Q271, T-Q272, T-Q273, T-Q274, T-Q275, T-Q279, T-Q280, T-Q281, T-Q282, T-Q283, T-Q284, T-Q285, T-Q286, T-Q287, T-Q288, T-Q289, T-Q290, T-Q291
 - Docs-first step: update `prevention.md` status and the CLAUDE.md "Code conventions" pointer if wording changes (operator reviews CLAUDE.md edits); ADR-0130 status line.
 - Acceptance: **Redesign carve-out (operator decision 2026-11-22, ADR-0130 amendment):** `template_logic.toml` keeps exactly the 83 D3 entries (T-Q273), each tagged with its T-UR owner task, and the redesign's last task burns them to zero; the gate fails if that file holds any entry without a T-UR owner tag or more than 83 entries. Every other file in `tests/architecture/allowlists/` has no `[[entry]]` and an empty `[ceilings]`; `[[permanent]]` and `[[framework]]` entries remain only with a reason recorded in an ADR-0130 amendment; guards run strict in `just ci` and pre-commit; `allowlist_by_qid.py` prints burn-down total 0; a deliberately introduced violation per guard class fails; the T-Q16 dry run is repeated and recorded. This is not a v4 gate: the v4 T-E00 gate is the `[pre-v4-P3]` tag only.
+- Outcome (2026-11-22): new guard G32 `tests/architecture/test_closing_gate.py` (no `[[entry]]` or non-zero ceiling outside `template_logic.toml`; kept rows need a reason and a named path in ADR-0130; carve-out capped at 83 entries each with a valid `owner = "T-URnn"`, now tagged in the TOML; `_ratchet.Entry.owner` added). ADR-0130 closing amendment lists the inventory. Final inventory: functional_first 22 (2 permanent, 20 framework), sql_sites 8 permanent, prod_db_refs 6 permanent, read_filters 4 permanent, money_scope 3 permanent, template_logic 83 carve-out entries; all other allowlists empty, suppression ceilings 0, no strict-xfail invariants, no `exists-migrating` registry rows, all `pyproject.toml` per-file-ignores carry reasons. `allowlist_by_qid.py` does not exist in the tree, so the burn-down total is read by the gate itself.
 - Operator question blocking it: none.
 - Final-backlog note: Depends on every task that owns allowlist entries or a ceiling (list computed from `allowlist_by_qid.py` output) plus T-Q274 and T-Q275.
 - Removes allowlist entries: none (tags the 83 `template_logic.toml` entries with their T-UR owner)

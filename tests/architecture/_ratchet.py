@@ -12,6 +12,7 @@ Each guard owns one TOML file ``tests/architecture/allowlists/<guard>.toml``::
     count = 2
     finding = "Q-074"    # Q-id or inventory id
     epic = "E10"         # remediation epic (E01..E16)
+    owner = "T-UR08"     # redesign carve-out only (template_logic.toml): the T-UR task that deletes it
 
     [[permanent]]        # justified, reason required, recorded in an ADR-0130 amendment
     ...
@@ -62,6 +63,7 @@ class Entry:
     finding: str
     epic: str
     reason: str
+    owner: str = ""
 
 
 def violations_from_rows(
@@ -116,6 +118,7 @@ def load_entries(guard: str, directory: Path | None = None) -> list[Entry]:
                     finding=raw.get("finding", ""),
                     epic=raw.get("epic", ""),
                     reason=raw.get("reason", ""),
+                    owner=raw.get("owner", ""),
                 )
             )
     return entries
@@ -195,5 +198,7 @@ def dump_allowlist(guard: str, header: str, entries: Iterable[Entry], extra: str
                 lines.append(f"epic = {_quote(e.epic)}")
             if e.reason:
                 lines.append(f"reason = {_quote(e.reason)}")
+            if e.owner:
+                lines.append(f"owner = {_quote(e.owner)}")
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
