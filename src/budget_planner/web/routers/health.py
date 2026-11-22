@@ -5,7 +5,8 @@
   read succeeds; 503 otherwise (T-Q235: no per-probe ``integrity_check``).
 
 - ``GET /health/fx`` → 200 iff every currency used by a live account has a
-  recent cached rate (T-Q292, ADR-0146); 503 when stale, missing or unreadable.
+  recent cached rate (T-Q292, ADR-0146); 503 when stale, missing or unreadable,
+  or when the refresh is disabled in production (T-Q307).
 
 - ``GET /health/replication`` → 200 iff the newest Litestream replica object is
   fresh (T-D144, ADR-0119); 503 when stale, missing or unreadable.
@@ -91,6 +92,7 @@ def fx_freshness(request: Request) -> JSONResponse:
                 conn,
                 base_currency=cfg.base_currency,
                 refresh_active=cfg.daily_refresh_active(),
+                refresh_required=cfg.env == "production",
                 today=clock.today_local(cfg),
                 max_age_days=max_age,
                 now=now,

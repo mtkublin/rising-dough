@@ -1400,6 +1400,17 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Wave: 14e (before T-Q293).
 - Done when: ADR indexed; guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
+### T-Q307 [S] FX refresh on in prod; `/health/fx` 503 when disabled in prod
+- Findings: Q39 (deferred question 45, resolved 2026-11-22: operator chose enable (b) and alert (c)).
+- Epic: E01
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q292
+- Docs-first step: [ADR-0146](../../adr/0146-fx-freshness-health-path.md) amendment 2026-11-22 (T-Q307); `docs/requirements.md` F7.4.
+- Acceptance: tests first: production + refresh off is 503 `disabled`; non-production + off is 200 `disabled`; production + on + fresh is 200 `ok`; production + on + stale is 503 `stale`; on with no foreign account is 200 `ok`. The compose template sets `BUDGET_FX_REFRESH_ENABLED: "true"`; `terraform fmt/validate/test` pass.
+- Operator step (after deploy, not the agent): add the UptimeRobot monitor on `https://budget.rising-dough.eu/health/fx`.
+- Removes allowlist entries: none
+- Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
+
 ### ✅ T-Q293 [M] `money_scope` `fx-def` check keys on behaviour
 - Findings: Q39.
 - Epic: E01
