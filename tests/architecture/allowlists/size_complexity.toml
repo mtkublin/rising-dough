@@ -3,34 +3,6 @@
 guard = "size_complexity"
 
 [[entry]]
-path = "src/budget_planner/repositories/planned.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "nesting>4"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/transactions.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "file>800"
 count = 1
