@@ -1211,6 +1211,18 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### ✅ T-Q295 [S] Pre-commit hook skips e2e; e2e runs once per wave, alone
+- Findings: none (operator decision 2026-11-22 18:00 and 18:05).
+- Epic: E04
+- Band: 3 · Size: S · Tags: none
+- Depends on: none
+- Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment 2026-11-22 and a cross-reference in [ADR-0097](../../adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md): the hook scope excludes `tests/e2e`; e2e runs after each orchestrator wave and before every PR, by the orchestrator alone; an agent that genuinely needs it pushes its `wi/**` branch and reads the `e2e.yml` run.
+- Acceptance: `just test-fast` and `just test-changed` pass `--ignore=tests/e2e` in testmon and full-suite modes; `just test`, `just ci` and `ci.yml` collect what they did before; `.github/workflows/e2e.yml` runs `tests/e2e` on `wi/**` pushes and `workflow_dispatch` in the pinned Playwright container; CLAUDE.md and the orchestrator skill state the cadence.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: 14b.
+- Done when: the Acceptance above holds and guards stay green.
+
 ## Allowlist ownership and reconciliation
 
 Source: `uv run python docs/plans/quality-audit/repro/allowlist_by_qid.py` at the T-Q17 commit (burn-down total 1255 violations in 613 entries; 35 permanent and 41 framework violations are not burn-down). Ceilings come from `[ceilings]` in `suppressions.toml` (87 suppressions) and are additional to the 1255.
