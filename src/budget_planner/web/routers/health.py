@@ -4,6 +4,9 @@
 - ``GET /ready``  → 200 iff the configured SQLite file opens and a trivial
   read succeeds; 503 otherwise (T-Q235: no per-probe ``integrity_check``).
 
+- ``GET /health/fx`` → 200 iff every currency used by a live account has a
+  recent cached rate (T-Q292, ADR-0146); 503 when stale, missing or unreadable.
+
 - ``GET /health/replication`` → 200 iff the newest Litestream replica object is
   fresh (T-D144, ADR-0119); 503 when stale, missing or unreadable.
 
@@ -15,13 +18,14 @@ credentials.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from budget_planner import clock
-from budget_planner.services import replication_health
+from budget_planner.services import fx_health, replication_health
 from budget_planner.services.connections import get_connection, ping
 from budget_planner.web.paths import GET_HEAD_METHODS
 
@@ -71,4 +75,29 @@ def replication(request: Request) -> JSONResponse:
         max_age_hours=cfg.replication_max_age_hours,
         now=clock.utc_now(),
     )
+    return JSONResponse(status_code=200 if verdict.ok else 503, content=verdict.body())
+
+
+@router.api_route("/health/fx", methods=list(GET_HEAD_METHODS), include_in_schema=False)
+def currency_freshness(request: Request) -> JSONResponse:
+    """FX cache freshness for the external monitor (ADR-0146). Read-only, no user data."""
+    cfg: Settings = request.app.state.settings
+    now = clock.utc_now()
+    max_age = cfg.fx_max_rate_age_days
+    try:
+        conn = get_connection(cfg)
+        try:
+            verdict = fx_health.check(
+                conn,
+                base_currency=cfg.base_currency,
+                refresh_active=cfg.daily_refresh_active(),
+                today=clock.today_local(cfg),
+                max_age_days=max_age,
+                now=now,
+            )
+        finally:
+            conn.close()
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        _logger.warning("fx_health_failed", exc_info=exc)
+        verdict = fx_health.unavailable(max_age_days=max_age, now=now)
     return JSONResponse(status_code=200 if verdict.ok else 503, content=verdict.body())

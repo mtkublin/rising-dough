@@ -18,7 +18,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Protocol
 
-from budget_planner.domain.fx import FxFetchError, FxRate, NewFxRate, validate_rate
+from budget_planner.domain.fx import (
+    DEFAULT_MAX_TABLE_AGE_DAYS,
+    FxFetchError,
+    FxRate,
+    NewFxRate,
+    StaleRateTableError,
+    validate_rate,
+)
 from budget_planner.domain.money import rescale_minor
 from budget_planner.domain.ports import RateSource
 from budget_planner.domain.transactions import Transaction
@@ -174,13 +181,16 @@ def refresh_from_source(
     today: dt.date,
     base_currency: str,
     currencies: Iterable[str] | None = None,
+    *,
+    max_table_age_days: int = DEFAULT_MAX_TABLE_AGE_DAYS,
 ) -> RefreshResult | None:
     """Cache the source's latest table (``currency -> base``); ``None`` when it has no data.
 
     Inserts only new ``(date, from, to)`` rows and updates a row only when its
     rate differs, so a second run is a no-op. Raises :class:`FxFetchError` when
-    the provider fails, its table is dated after ``today`` or ``base_currency``
-    is not PLN (NBP quotes PLN only); nothing is stored then.
+    the provider fails, its table is dated after ``today``, more than
+    ``max_table_age_days`` before it (:class:`StaleRateTableError`) or
+    ``base_currency`` is not PLN (NBP quotes PLN only); nothing is stored then.
     """
     if base_currency != NBP_BASE:
         raise FxFetchError(f"NBP table A quotes {NBP_BASE} only, base currency is {base_currency}")
@@ -189,6 +199,11 @@ def refresh_from_source(
         return None
     if table.effective_date > today:
         raise FxFetchError(f"rate table dated {table.effective_date} is after today {today}")
+    if (today - table.effective_date).days > max_table_age_days:
+        raise StaleRateTableError(
+            f"rate table dated {table.effective_date} is more than {max_table_age_days} days "
+            f"before today {today}"
+        )
     wanted = None if currencies is None else set(currencies)
     inserted: list[str] = []
     updated: list[str] = []

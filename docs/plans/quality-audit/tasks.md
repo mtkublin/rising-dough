@@ -1211,6 +1211,19 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
+### ✅ T-Q292 [M] NBP FX refresh hardening and FX freshness health path
+- Findings: FX cache (ADR-0145, `requirements.md` F7.4); operator decision 2026-11-22 (Q39).
+- Epic: E01
+- Band: 3 · Size: M · Tags: ops
+- Depends on: T-Q290
+- Docs-first step: [ADR-0146](../../adr/0146-fx-freshness-health-path.md) (new, indexed), ADR-0145 amendment 2026-11-22 (same-day retry, stale tables), `requirements.md` F7.4.
+- Acceptance: failing tests first: a failed daily run is retried hourly until 18:00 Europe/Warsaw (exact UTC instants across CET and CEST), then waits for the next 12:30; success or a 404 "no data" ends the day; a table older than `fx_max_table_age_days` (default 7) is rejected whole (no row, no audit row, `fx_refresh_failed` reason `stale_table`); `GET /health/fx` is public, read-only and answers 200 `ok` / 200 `disabled` / 503 `stale` / 503 `never` / 503 `error` with exact bodies, counting a second user's live foreign account.
+- Operator step (not done by the agent): UptimeRobot status-code monitor on `https://budget.rising-dough.eu/health/fx`, 5 min, up = 2xx, same alert contact as `/health` (ADR-0146 section 7).
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14d.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
 ## Allowlist ownership and reconciliation
 
 Source: `uv run python docs/plans/quality-audit/repro/allowlist_by_qid.py` at the T-Q17 commit (burn-down total 1255 violations in 613 entries; 35 permanent and 41 framework violations are not burn-down). Ceilings come from `[ceilings]` in `suppressions.toml` (87 suppressions) and are additional to the 1255.
