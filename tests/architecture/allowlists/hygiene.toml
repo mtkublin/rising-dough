@@ -101,13 +101,6 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/repositories/planned.py"
-rule = "assert-in-src"
-count = 4
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/repositories/recurring.py"
 rule = "any-annotation"
 count = 2
