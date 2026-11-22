@@ -23,7 +23,7 @@ from budget_planner.services import (
     ledger_totals,
     recurring as recurring_svc,
 )
-from budget_planner.services.recurring_formula import DATES_ONLY, FormulaFx, formula_ctx_for
+from budget_planner.services.recurring_formula import DATES_ONLY, FormulaFx, formula_fx_for
 from budget_planner.web import ledger_data
 from budget_planner.web.ledger_types import LedgerFilters
 from tests.unit.services.conftest import OTHER_ID, OWNER_ID, WORLD_TODAY, World
@@ -109,7 +109,7 @@ def _strip(ctx: dict[str, object]) -> tuple[int, int]:
 
 
 def _fx(conn: sqlite3.Connection) -> FormulaFx:
-    return formula_ctx_for(conn, OWNER_ID, Settings(_env_file=None), WORLD_TODAY)
+    return formula_fx_for(conn, OWNER_ID, Settings(_env_file=None), WORLD_TODAY)
 
 
 def _forecast_total(conn: sqlite3.Connection) -> int:

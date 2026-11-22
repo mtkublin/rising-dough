@@ -26,7 +26,7 @@ from budget_planner.services import (
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
-from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, today_for
+from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, today_for
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_date, parse_int, positive_amount, query_date
@@ -67,7 +67,7 @@ async def create_rule(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     form = await request.form()
     cadence = str(form.get("cadence", ""))
@@ -195,7 +195,7 @@ async def formula_preview(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     """Live-preview chip or inline error for a draft formula (no DB write)."""
     form = await request.form()
@@ -270,7 +270,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -500,7 +500,7 @@ def delete_override(
     *,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -536,7 +536,7 @@ def promote_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     return views.render_promote_modal(request, conn, user_id, rule_id, fx)
 
@@ -549,7 +549,7 @@ def promote_inline(
     *,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     """F-02 — Row-expand inline form for Today Upcoming Promote action.
 
@@ -592,7 +592,7 @@ def promote_submit(
     description: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -657,7 +657,7 @@ def skip_next(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:

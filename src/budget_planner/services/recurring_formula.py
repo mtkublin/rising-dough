@@ -19,7 +19,6 @@ import logging
 import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Literal
 
 from budget_planner.domain.money import (
@@ -27,7 +26,7 @@ from budget_planner.domain.money import (
     format_bps_percent,
     parse_percent_str,
     percent_to_bps,
-    round_scaled,
+    round_div,
 )
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
@@ -51,6 +50,7 @@ logger = logging.getLogger(__name__)
 # limit. Anything above this is almost certainly a data-entry mistake
 # (coefficient_bps=120 ≠ 1200 confusion). Floor is 1 bps (0.01%).
 _BPS_MIN = 1
+_FULL_BPS = 10_000  # 100% in basis points.
 _BPS_MAX = 1_000_000
 
 
@@ -147,8 +147,7 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 # ---------------------------------------------------------------------------
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
     """Return ``round_half_even(sum_minor * coefficient_bps / 10 000)`` as int."""
-    dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
-    return round_scaled(dec)
+    return round_div(sum_minor * coefficient_bps, _FULL_BPS)
 
 
 def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
@@ -191,16 +190,16 @@ class DatesOnly:
 DATES_ONLY = DatesOnly()
 
 
-def formula_ctx(conn: sqlite3.Connection, user_id: int, converter: FxConverter) -> FormulaFx:
+def formula_fx(conn: sqlite3.Connection, user_id: int, converter: FxConverter) -> FormulaFx:
     """Build the :class:`FormulaFx` for ``user_id`` over an already-built converter."""
     return FormulaFx(converter, fx_service.currency_by_account(conn, user_id, include_deleted=True))
 
 
-def formula_ctx_for(
+def formula_fx_for(
     conn: sqlite3.Connection, user_id: int, settings: fx_service.HasBaseCurrency, today: dt.date
 ) -> FormulaFx:
     """Build the cache-only :class:`FormulaFx` from the settings' base currency (no network)."""
-    return formula_ctx(conn, user_id, fx_service.converter_for(conn, settings, today))
+    return formula_fx(conn, user_id, fx_service.converter_for(conn, settings, today))
 
 
 def _into_target(value: int, account_id: int, fx: FormulaFx, target_ccy: str, on: dt.date) -> int:
@@ -715,8 +714,8 @@ __all__ = [
     "build_term",
     "compute_formula_amount",
     "compute_savable_amount",
-    "formula_ctx",
-    "formula_ctx_for",
+    "formula_fx",
+    "formula_fx_for",
     "invalid_source_ids",
     "parse_percent_to_bps",
     "preview",

@@ -709,7 +709,7 @@ def test_projection_summary_and_normalize_horizon() -> None:
 
     def mk(i: int, v: float) -> fc.MonthlyProjectionPoint:
         return fc.MonthlyProjectionPoint(
-            month=date(2026, i, 1), label=str(i), value_major=v, end_balance_minor=int(v * 100)
+            month=date(2026, i, 1), label=str(i), end_balance_minor=int(v * 100)
         )
 
     pts = (mk(1, 10.0), mk(2, 30.0), mk(3, 20.0))
@@ -938,7 +938,6 @@ def test_monthly_for_settings_uses_today_rate_and_projection_points(
     assert pts[0] == fc.MonthlyProjectionPoint(
         month=date(2026, 10, 1),
         label="Oct 2026",
-        value_major=(OPENING + 4_000) / 100,
         income_minor=4_000,
         expense_minor=0,
         planned_budget_minor=0,

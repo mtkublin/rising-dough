@@ -3,27 +3,6 @@
 
 guard = "money_scope"
 
-[[entry]]
-path = "src/budget_planner/services/forecast.py"
-rule = "money-float"
-count = 1
-finding = "Q-022"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/recurring_formula.py"
-rule = "money-parse"
-count = 1
-finding = "Q-023"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/today.py"
-rule = "money-parse"
-count = 2
-finding = "Q-023"
-epic = "E11"
-
 [[permanent]]
 path = "src/budget_planner/services/balance.py"
 rule = "money-round"

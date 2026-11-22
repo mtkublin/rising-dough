@@ -26,7 +26,7 @@ from budget_planner.services import (
     recurring as recurring_svc,
 )
 from budget_planner.services.fx import HasBaseCurrency
-from budget_planner.services.recurring_formula import FormulaFx, formula_ctx_for
+from budget_planner.services.recurring_formula import FormulaFx, formula_fx_for
 
 PlannedWindow = PeriodWindow  # half-open fiscal window ``[start, end)`` (ADR-0138)
 
@@ -111,7 +111,7 @@ def compute_accounts_planned(
 ) -> AccountsPlanned:
     """Compose per-account planned net, projected balance and the base-ccy hero total."""
     window = resolve_window(conn, user_id, today)
-    fx = formula_ctx_for(conn, user_id, settings, today)
+    fx = formula_fx_for(conn, user_id, settings, today)
     nets = planned_net_by_account(conn, user_id, window, fx)
     by_account: dict[int, AccountPlanned] = {}
     base_net = 0

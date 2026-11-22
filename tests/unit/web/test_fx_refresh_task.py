@@ -120,7 +120,7 @@ def db_settings(migrated_db: Path) -> Settings:
 
 def test_run_once_failure_returns_false_and_cache_unchanged(db_settings: Settings) -> None:
     assert fx_refresh_task.run_once(db_settings, _opener(_Source(None, "down"))) is False
-    assert fx_refresh_task.cache_empty_today(db_settings)
+    assert fx_refresh_task.rates_missing_today(db_settings)
 
 
 def test_run_once_no_data_is_ok(db_settings: Settings) -> None:
@@ -166,4 +166,4 @@ def test_success_after_a_failure_ends_the_days_attempts() -> None:
 def test_run_once_stale_table_returns_false_and_writes_nothing(db_settings: Settings) -> None:
     stale = RateTable(effective_date=date(2026, 1, 1), rates=(("EUR", Decimal("4.2")),))
     assert fx_refresh_task.run_once(db_settings, _opener(_Source(stale))) is False
-    assert fx_refresh_task.cache_empty_today(db_settings)
+    assert fx_refresh_task.rates_missing_today(db_settings)

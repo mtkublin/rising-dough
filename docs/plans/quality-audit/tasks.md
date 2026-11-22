@@ -1240,7 +1240,7 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Wave: 14e (before T-Q293).
 - Done when: ADR indexed; guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
-### T-Q293 [M] `money_scope` `fx-def` check keys on behaviour
+### ✅ T-Q293 [M] `money_scope` `fx-def` check keys on behaviour
 - Findings: Q39.
 - Epic: E01
 - Band: 4 · Size: M · Tags: none
@@ -1248,7 +1248,7 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Docs-first step: [ADR-0130](../../adr/0130-prevention-regime-and-full-architectural-compliance.md) amendment 2026-11-22: the `fx-def` check flags rate arithmetic or conversion outside `services/fx.py` and `domain/fx.py`, not function names.
 - Acceptance: failing guard tests first (a conversion under a neutral name is flagged; a non-FX function named like an FX one is not); revert the dodge-renames from T-Q286 (`formula_ctx*`) and T-Q290 (the two renamed fx functions) to honest names; no new allowlist entry.
 - Operator question blocking it: none.
-- Removes allowlist entries: none
+- Removes allowlist entries: `money_scope.toml` forecast `money-float` x1, recurring_formula `money-parse` x1, today `money-parse` x2
 - Wave: 14e (after T-Q292).
 - Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 

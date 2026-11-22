@@ -272,14 +272,14 @@ def _recurring_rows(
     )
     cats, accts = _lookups(conn, user_id)
     # Formula sources convert across currencies (T-Q215, ADR-0139): cache-only rates.
-    formula_ctx = formula_svc.formula_ctx(conn, user_id, fx)
+    formula_fx = formula_svc.formula_fx(conn, user_id, fx)
     return [
         _recurring_row(
             conn,
             user_id,
             rule,
             (accts.get(rule.account_id), cats.get(rule.category_id)),
-            formula_ctx,
+            formula_fx,
         )
         for rule in rules
         if _rule_matches(rule, cats.get(rule.category_id), filters)

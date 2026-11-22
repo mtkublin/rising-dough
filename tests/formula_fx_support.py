@@ -6,7 +6,7 @@ import datetime as dt
 import sqlite3
 
 from budget_planner.services.fx import BaseCurrency
-from budget_planner.services.recurring_formula import FormulaFx, formula_ctx_for
+from budget_planner.services.recurring_formula import FormulaFx, formula_fx_for
 
 TARGET_CCY = "PLN"
 _TODAY = dt.date(2026, 11, 22)
@@ -14,4 +14,4 @@ _TODAY = dt.date(2026, 11, 22)
 
 def formula_fx_of(conn: sqlite3.Connection, user_id: int, *, today: dt.date = _TODAY) -> FormulaFx:
     """FormulaFx over the cached ``fx_rates`` with PLN base and the user's account currencies."""
-    return formula_ctx_for(conn, user_id, BaseCurrency("PLN"), today)
+    return formula_fx_for(conn, user_id, BaseCurrency("PLN"), today)

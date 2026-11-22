@@ -6,19 +6,31 @@ No business logic: services compute, this module only names the template keys.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Sequence
 from datetime import date
 from typing import get_args
 
 from budget_planner import clock
 from budget_planner.config import Settings
+from budget_planner.domain.money import major_float
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
     fx as fx_service,
 )
 from budget_planner.services.analytics import AnalyticsBundle
+from budget_planner.services.forecast import MonthlyProjectionPoint
 from budget_planner.web import view_models
 from budget_planner.web.params import query_choice
+
+
+def forecast_chart_points(
+    projection: Sequence[MonthlyProjectionPoint], base_ccy: str
+) -> tuple[tuple[float, float], ...]:
+    """(index, major-unit balance) pairs for the forecast line chart (geometry only)."""
+    return tuple(
+        (float(i), major_float(p.end_balance_minor, base_ccy)) for i, p in enumerate(projection)
+    )
 
 
 def base_context(

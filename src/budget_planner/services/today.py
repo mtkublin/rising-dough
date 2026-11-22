@@ -11,7 +11,6 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
 from typing import Literal
 
 from budget_planner.domain.money import round_div
@@ -42,6 +41,7 @@ class AffordResult:
 # and tight; zero after the hypothetical spend lands on over_limit. Keeps the
 # tag deterministic for a given summary without a new preference.
 _TIGHT_FRACTION_BPS = 5_000  # 50% of baseline, in basis points.
+_FULL_BPS = 10_000  # 100% in basis points.
 
 
 def _div_round_half_even(numerator: int, denominator: int) -> int:
@@ -67,8 +67,7 @@ def _pace_tag_for(
         return "over_limit"
     if baseline_per_day_minor <= 0:
         return "on_track"
-    threshold = (Decimal(baseline_per_day_minor) * Decimal(_TIGHT_FRACTION_BPS)) / Decimal(10_000)
-    if Decimal(per_day_minor) < threshold:
+    if per_day_minor * _FULL_BPS < baseline_per_day_minor * _TIGHT_FRACTION_BPS:
         return "tight"
     return "on_track"
 

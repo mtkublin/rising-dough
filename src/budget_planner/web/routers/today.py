@@ -25,7 +25,7 @@ from budget_planner.services import (
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
-from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, get_settings_dep
 from budget_planner.web.params import afford_amount_minor, query_choice
 from budget_planner.web.paths import GET_HEAD_METHODS
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
@@ -46,7 +46,7 @@ def today(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> HTMLResponse:
     today_d = clock.today_local(settings)
     # Fiscal cycle anchors the landing month so the hero never pulls a
@@ -98,7 +98,7 @@ def today_upcoming_fragment(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
-    fx: FormulaFx = Depends(get_formula_ctx),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> HTMLResponse:
     """HTMX fragment for Today's #upcoming-root.
 

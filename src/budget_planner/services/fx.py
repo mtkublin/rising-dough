@@ -3,7 +3,7 @@
 ``converter_for`` reads the ``fx_rates`` cache once and returns an immutable
 :class:`FxConverter`; page renders never touch the network. A missing rate
 raises :class:`FxUnavailableError` (one policy: never rate 1, never the native
-amount). Live rates arrive only through :func:`refresh_from_source`, which takes the
+amount). Live rates arrive only through :func:`refresh_rates`, which takes the
 ``RateSource`` as an injected port (``adapters/fx/nbp`` provides the httpx one; ADR-0145).
 """
 
@@ -175,7 +175,7 @@ def _store_rate(
     return "inserted" if existing is None else "updated"
 
 
-def refresh_from_source(
+def refresh_rates(
     conn: sqlite3.Connection,
     source: RateSource,
     today: dt.date,
@@ -238,6 +238,6 @@ __all__ = [
     "currency_by_account",
     "has_rate_on",
     "list_recent_rates",
-    "refresh_from_source",
+    "refresh_rates",
     "txn_base_of",
 ]

@@ -42,3 +42,58 @@ def test_money_round_ignores_calendar_arithmetic(synthetic_scan: SyntheticScan) 
     hits = {(r[0].split(":")[0].rsplit("/", 1)[-1], r[1]) for r in scanned["p08-money"]}
     assert ("other.py", "money-round") in hits
     assert ("periods.py", "money-round") not in hits
+
+
+def _fx_hits(scanned: dict[str, list[tuple[str, str, str]]]) -> set[tuple[str, str]]:
+    return {(r[0].split(":")[0].rsplit("/", 1)[-1], r[1]) for r in scanned["p08-money"]}
+
+
+def test_fx_def_flags_conversion_under_a_neutral_name(synthetic_scan: SyntheticScan) -> None:
+    """T-Q293: the rule keys on rate arithmetic, not on the function name."""
+    source = (
+        "def adjust(amount_minor, quote):\n"
+        "    return amount_minor * quote.mid\n"
+        "\n"
+        "def settle(amount_minor, fx_rate):\n"
+        "    return (amount_minor / fx_rate).quantize(1)\n"
+    )
+    scanned = synthetic_scan({"services/neutral.py": source, "services/fx.py": source})
+    hits = _fx_hits(scanned)
+    assert ("neutral.py", "fx-def") in hits
+    assert ("fx.py", "fx-def") not in hits
+    assert ("fx.py", "fx-def:canonical") in hits
+
+
+def test_fx_def_flags_division_by_a_rate_lookup_and_rate_quantize(
+    synthetic_scan: SyntheticScan,
+) -> None:
+    source = (
+        "def back(conn, amount_minor):\n"
+        "    return amount_minor / conn.latest_rate('EUR')\n"
+        "\n"
+        "def snap(value, fx_rate):\n"
+        "    return value.quantize(fx_rate)\n"
+    )
+    scanned = synthetic_scan({"services/other.py": source})
+    details = [r[2] for r in scanned["p08-money"] if r[1] == "fx-def"]
+    assert len(details) == 2, details
+
+
+def test_fx_def_ignores_fx_named_functions_without_rate_arithmetic(
+    synthetic_scan: SyntheticScan,
+) -> None:
+    source = (
+        "def formula_fx(conn, user_id):\n"
+        "    return conn, user_id\n"
+        "\n"
+        "def rates_freshness(rows):\n"
+        "    return len(rows) * 2\n"
+        "\n"
+        "def retry_after(rate_limit, window):\n"
+        "    return window / rate_limit\n"
+        "\n"
+        "def get_formula_fx():\n"
+        "    return None\n"
+    )
+    scanned = synthetic_scan({"services/names.py": source})
+    assert not [r for r in scanned["p08-money"] if r[1].startswith("fx-")]
