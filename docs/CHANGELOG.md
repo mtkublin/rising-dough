@@ -2,6 +2,8 @@
 
 ## 2026-11-22 (T-Q251b: bootstrap visual baselines)
 - **Test(T-Q251): 24 visual baselines (8 routes x 375/1024/1440) committed to `tests/visual/__snapshots__/`, bootstrapped unmodified from the PR #43 CI artifact (run 45056330451, pinned Playwright container).**
+## 2026-11-22 (T-UR00b: redesign pixel parity against handoff references)
+- **Docs(T-UR00b): ADR-0106 amendment 2026-11-22 records the operator's pixel-parity decisions: visual fixture seeded with the handoff's own data (no masking), handoff references generated only in the pinned Playwright container with a tag+digest provenance guard, strict default tolerance (0.1%) with operator-signed exceptions in `derived.md`; new task T-UR00b blocks T-UR05..T-UR14; ui-redesign README steps 2 and 5 and the definition of done updated.** No code or test change.
 
 ## 2026-11-22 (T-Q298: testing coverage review and follow-ups)
 - **Docs(T-Q298): testing coverage review recorded in `docs/plans/quality-audit/tasks.md`; follow-ups T-Q299 (Firefox/WebKit e2e), T-Q300 (axe-core and Lighthouse/CWV budgets), T-Q301 (crawl at 1024) and T-Q302 (drill DB seeded from an anonymized snapshot) filed, not started. ADR-0099 amendment 2026-11-22 lists the current required status contexts, including the e2e check (T-Q297).** No code or test change.
