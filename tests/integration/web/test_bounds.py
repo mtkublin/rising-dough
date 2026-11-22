@@ -80,7 +80,7 @@ def test_page_size_maximum_is_500() -> None:
 def test_page_size_request_is_clamped(client: TestClient, seeded: dict[str, int]) -> None:
     from starlette.requests import Request  # noqa: PLC0415
 
-    from budget_planner.web.routers.ledger import parse_filters  # noqa: PLC0415
+    from budget_planner.web.ledger_data import parse_filters  # noqa: PLC0415
 
     scope = {
         "type": "http",

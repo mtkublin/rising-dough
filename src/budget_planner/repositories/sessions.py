@@ -78,10 +78,6 @@ def session_handle(token: str) -> str:
     return hash_token(token)[:_HANDLE_HEX_CHARS]
 
 
-def _iso(value: datetime) -> str:
-    return clock.iso_utc(value)
-
-
 def _now(now: datetime | None) -> datetime:
     return clock.utc_now_ms() if now is None else now
 
@@ -96,7 +92,7 @@ def _absolute(absolute_days: int | None) -> timedelta:
     return timedelta(days=days)
 
 
-def _hydrate(row: sqlite3.Row) -> Session:
+def _hydrate_session(row: sqlite3.Row) -> Session:
     created_at = parse_dt_required(row["created_at"])
     authenticated = parse_dt(row["authenticated_at"])
     return Session(
@@ -147,12 +143,12 @@ def create_session(
             (
                 session.id,
                 session.user_id,
-                _iso(session.created_at),
-                _iso(session.last_seen_at),
-                _iso(session.expires_at),
+                clock.iso_utc(session.created_at),
+                clock.iso_utc(session.last_seen_at),
+                clock.iso_utc(session.expires_at),
                 session.user_agent,
                 session.ip,
-                _iso(session.authenticated_at),
+                clock.iso_utc(session.authenticated_at),
             ),
         )
         if credential_id is not None:
@@ -174,9 +170,9 @@ def get_session(
         "FROM sessions s JOIN users u ON u.id = s.user_id "
         "WHERE s.id = ? AND s.revoked_at IS NULL AND s.expires_at > ? "
         "AND u.deleted_at IS NULL",
-        (hash_token(token), _iso(_now(now))),
+        (hash_token(token), clock.iso_utc(_now(now))),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_session(row)
 
 
 def list_active_sessions(
@@ -187,9 +183,9 @@ def list_active_sessions(
         f"SELECT {_COLUMNS} FROM sessions "
         "WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? "
         "ORDER BY last_seen_at DESC, created_at DESC",
-        (user_id, _iso(_now(now))),
+        (user_id, clock.iso_utc(_now(now))),
     ).fetchall()
-    return tuple(_hydrate(r) for r in rows)
+    return tuple(_hydrate_session(r) for r in rows)
 
 
 def revoke_session_by_id(
@@ -199,7 +195,7 @@ def revoke_session_by_id(
     with transaction(conn):
         cur = conn.execute(
             "UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
-            (_iso(_now(now)), session_id),
+            (clock.iso_utc(_now(now)), session_id),
         )
     return cur.rowcount > 0
 
@@ -224,7 +220,7 @@ def revoke_sessions_by_credential(
         conn.execute(
             "UPDATE sessions SET revoked_at = ? "
             "WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL",
-            (_iso(_now(now)), user_id, credential_id),
+            (clock.iso_utc(_now(now)), user_id, credential_id),
         )
     return tuple(str(r["id"])[:_HANDLE_HEX_CHARS] for r in rows)
 
@@ -250,7 +246,7 @@ def revoke_all_user_sessions(
         cur = conn.execute(
             "UPDATE sessions SET revoked_at = ? "
             "WHERE user_id = ? AND revoked_at IS NULL AND id IS NOT ?",
-            (_iso(_now(now)), user_id, spared),
+            (clock.iso_utc(_now(now)), user_id, spared),
         )
     return cur.rowcount
 
@@ -277,7 +273,7 @@ def touch_session(
         row = conn.execute(
             "SELECT created_at, last_seen_at, expires_at FROM sessions "
             "WHERE id = ? AND revoked_at IS NULL AND expires_at > ?",
-            (key, _iso(current)),
+            (key, clock.iso_utc(current)),
         ).fetchone()
         if row is None:
             return None
@@ -287,7 +283,7 @@ def touch_session(
         expires_at = min(current + _lifetime(lifetime_days), created_at + _absolute(absolute_days))
         conn.execute(
             "UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?",
-            (_iso(current), _iso(expires_at), key),
+            (clock.iso_utc(current), clock.iso_utc(expires_at), key),
         )
     return expires_at
 
@@ -299,7 +295,7 @@ def mark_authenticated(
     with transaction(conn):
         cur = conn.execute(
             "UPDATE sessions SET authenticated_at = ? WHERE id = ? AND revoked_at IS NULL",
-            (_iso(_now(now)), hash_token(token)),
+            (clock.iso_utc(_now(now)), hash_token(token)),
         )
     return cur.rowcount > 0
 
@@ -319,7 +315,7 @@ def rotate_session_token(conn: sqlite3.Connection, token: str) -> IssuedSession 
         if cur.rowcount == 0:
             return None
         row = conn.execute(f"SELECT {_COLUMNS} FROM sessions WHERE id = ?", (new_id,)).fetchone()
-    return IssuedSession(session=_hydrate(row), token=new_token)
+    return IssuedSession(session=_hydrate_session(row), token=new_token)
 
 
 __all__ = [

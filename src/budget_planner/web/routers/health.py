@@ -15,7 +15,6 @@ credentials.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
@@ -23,7 +22,7 @@ from fastapi.responses import JSONResponse
 
 from budget_planner import clock
 from budget_planner.services import replication_health
-from budget_planner.services.connections import get_connection
+from budget_planner.services.connections import get_connection, ping
 
 if TYPE_CHECKING:
     from budget_planner.config import Settings
@@ -50,7 +49,7 @@ def ready(request: Request) -> JSONResponse:
     try:
         conn = get_connection(cfg)
         try:
-            conn.execute("SELECT 1 FROM users LIMIT 1").fetchone()
+            ping(conn)
         finally:
             conn.close()
     except Exception as exc:
@@ -66,16 +65,9 @@ def ready(request: Request) -> JSONResponse:
 def replication(request: Request) -> JSONResponse:
     """Replication freshness for the external monitor (ADR-0119). No secrets in the body."""
     cfg: Settings = request.app.state.settings
-    if not cfg.replication_status_file:
-        return JSONResponse(content=replication_health.disabled().body())
-    try:
-        raw = replication_health.read_status_text(cfg.replication_status_file)
-    except OSError as exc:
-        _logger.warning("replication_status_unreadable", exc_info=exc)
-        raw = "unreadable"  # not JSON: evaluate() answers "unreadable"
-    verdict = replication_health.evaluate(
-        raw,
+    verdict = replication_health.check_status_file(
+        cfg.replication_status_file,
+        max_age_hours=cfg.replication_max_age_hours,
         now=clock.utc_now(),
-        max_age=timedelta(hours=cfg.replication_max_age_hours),
     )
     return JSONResponse(status_code=200 if verdict.ok else 503, content=verdict.body())

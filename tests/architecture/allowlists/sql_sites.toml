@@ -58,17 +58,3 @@ rule = "sql-literal:real"
 count = 1
 finding = "Q-074"
 reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no repository equivalent"
-
-[[permanent]]
-path = "src/budget_planner/web/routers/health.py"
-rule = "sql-exec:bootstrap"
-count = 1
-finding = "Q-074"
-reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no repository equivalent"
-
-[[permanent]]
-path = "src/budget_planner/web/routers/health.py"
-rule = "sql-literal:real"
-count = 1
-finding = "Q-074"
-reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no repository equivalent"

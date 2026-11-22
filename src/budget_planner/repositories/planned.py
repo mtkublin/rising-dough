@@ -10,17 +10,31 @@ every SELECT / UPDATE / DELETE carries ``user_id = :user_id``; the
 from __future__ import annotations
 
 import sqlite3
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
-from budget_planner import clock
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
     PlannedFilter,
     PlannedTransaction,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
+from budget_planner.repositories._shared import (
+    FilterPart,
+    OwnedTable,
+    find_owned,
+    in_parts,
+    insert_owned,
+    join_filter_parts,
+    list_recently_deleted_owned,
+    mutate,
+    parse_dt,
+    parse_dt_required,
+    require_owned,
+    soft_delete_owned,
+    undelete_owned,
+    update_owned,
+)
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -52,6 +66,15 @@ def _row_to_planned(row: sqlite3.Row) -> PlannedTransaction:
     )
 
 
+_PLANNED: OwnedTable[PlannedTransaction] = OwnedTable(
+    table="planned_transactions",
+    entity_type="planned_transaction",
+    columns=_COLUMNS,
+    hydrate=_row_to_planned,
+    order_by="operation_date ASC, id ASC",
+)
+
+
 def find_by_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -59,49 +82,49 @@ def find_by_id(
     *,
     include_deleted: bool = False,
 ) -> PlannedTransaction | None:
-    sql = f"SELECT {_COLUMNS} FROM planned_transactions WHERE id = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (planned_id, user_id)).fetchone()
-    return _row_to_planned(row) if row is not None else None
+    return find_owned(conn, _PLANNED, user_id, {"id": planned_id}, include_deleted=include_deleted)
 
 
-def _append_filter_clauses(
+def _planned_filter_clauses(
     filters: PlannedFilter,
     include_deleted: bool,
 ) -> tuple[list[str], list[Any]]:
-    clauses: list[str] = []
-    params: list[Any] = []
+    return join_filter_parts(
+        [
+            *_planned_date_parts(filters),
+            *in_parts("p.account_id", filters.account_ids),
+            *in_parts("p.category_id", filters.category_ids),
+            *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_planned_rule_parts(filters, include_deleted),
+        ]
+    )
+
+
+def _planned_date_parts(filters: PlannedFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.date_from is not None:
-        clauses.append("p.operation_date >= ?")
-        params.append(filters.date_from.isoformat())
+        parts.append(("p.operation_date >= ?", [filters.date_from.isoformat()]))
     if filters.date_to is not None:
-        clauses.append("p.operation_date <= ?")
-        params.append(filters.date_to.isoformat())
-    if filters.account_ids:
-        placeholders = ",".join("?" for _ in filters.account_ids)
-        clauses.append(f"p.account_id IN ({placeholders})")
-        params.extend(filters.account_ids)
-    if filters.category_ids:
-        placeholders = ",".join("?" for _ in filters.category_ids)
-        clauses.append(f"p.category_id IN ({placeholders})")
-        params.extend(filters.category_ids)
-    if filters.directions:
-        placeholders = ",".join("?" for _ in filters.directions)
-        clauses.append(f"c.direction IN ({placeholders})")
-        params.extend(d.value for d in filters.directions)
+        parts.append(("p.operation_date <= ?", [filters.date_to.isoformat()]))
+    return parts
+
+
+def _planned_rule_parts(filters: PlannedFilter, include_deleted: bool) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.recurring_rule_id is not None:
-        clauses.append("p.recurring_rule_id = ?")
-        params.append(filters.recurring_rule_id)
+        parts.append(("p.recurring_rule_id = ?", [filters.recurring_rule_id]))
     if filters.promoted is not None:
-        clauses.append(
-            "p.promoted_to_txn_id IS NOT NULL"
-            if filters.promoted
-            else "p.promoted_to_txn_id IS NULL"
+        parts.append(
+            (
+                "p.promoted_to_txn_id IS NOT NULL"
+                if filters.promoted
+                else "p.promoted_to_txn_id IS NULL",
+                [],
+            )
         )
     if not include_deleted:
-        clauses.append("p.deleted_at IS NULL")
-    return clauses, params
+        parts.append(("p.deleted_at IS NULL", []))
+    return parts
 
 
 def list_filtered(
@@ -116,7 +139,7 @@ def list_filtered(
         f"SELECT {cols} FROM planned_transactions p "
         "JOIN categories c ON c.id = p.category_id AND c.user_id = p.user_id"
     )
-    clauses, params = _append_filter_clauses(filters, include_deleted)
+    clauses, params = _planned_filter_clauses(filters, include_deleted)
     clauses.insert(0, "p.user_id = ?")
     params.insert(0, user_id)
     sql += " WHERE " + " AND ".join(clauses)
@@ -137,41 +160,24 @@ def create(
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
     )
-
-    def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
-        cursor = c.execute(
-            "INSERT INTO planned_transactions("
-            "user_id, operation_date, category_id, account_id, dest_account_id, "
-            "amount, description, recurring_rule_id, occurrence_date) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                data.operation_date.isoformat(),
-                data.category_id,
-                data.account_id,
-                data.dest_account_id,
-                data.amount,
-                data.description,
-                data.recurring_rule_id,
-                data.occurrence_date.isoformat() if data.occurrence_date else None,
-            ),
-        )
-        new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
-        assert created is not None
-        return new_id, created
-
-    return mutate(
+    return insert_owned(
         conn,
-        entity_type="planned_transaction",
-        operation="create",
-        prev=None,
-        action=_action,
-        user_id=user_id,
+        _PLANNED,
+        user_id,
+        {
+            "operation_date": data.operation_date.isoformat(),
+            "category_id": data.category_id,
+            "account_id": data.account_id,
+            "dest_account_id": data.dest_account_id,
+            "amount": data.amount,
+            "description": data.description,
+            "recurring_rule_id": data.recurring_rule_id,
+            "occurrence_date": data.occurrence_date.isoformat() if data.occurrence_date else None,
+        },
     )
 
 
-def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
+def _normalise_planned_patch(changes: dict[str, Any]) -> dict[str, Any]:
     norm: dict[str, Any] = {}
     for key, value in changes.items():
         if key in {"operation_date", "occurrence_date"} and value is not None:
@@ -187,132 +193,36 @@ def update(
     planned_id: int,
     data: PatchPlannedTransaction,
 ) -> PlannedTransaction:
-    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"planned_transaction {planned_id} not found")
-    require_owned(
+    return update_owned(
         conn,
+        _PLANNED,
         user_id,
+        planned_id,
+        _normalise_planned_patch(data.as_dict()),
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
-    )
-    changes = _normalise_patch(data.as_dict())
-
-    def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
-        if changes:
-            sets = [f"{field} = ?" for field in changes]
-            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
-            c.execute(
-                f"UPDATE planned_transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), planned_id, user_id),
-            )
-        updated = find_by_id(c, user_id, planned_id, include_deleted=True)
-        assert updated is not None
-        return planned_id, updated
-
-    return mutate(
-        conn,
-        entity_type="planned_transaction",
-        operation="update",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
     )
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> None:
-    prev = find_by_id(conn, user_id, planned_id)
-    if prev is None:
-        return
-
-    def _action(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            "UPDATE planned_transactions "
-            "SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (planned_id, user_id),
-        )
-        return planned_id, None
-
-    mutate(
-        conn,
-        entity_type="planned_transaction",
-        operation="delete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    soft_delete_owned(conn, _PLANNED, user_id, planned_id)
 
 
 def list_recently_deleted(
     conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[PlannedTransaction]:
     """T-R70 — soft-deleted planned items within the last `days` days."""
-    sql = (
-        f"SELECT {_COLUMNS} FROM planned_transactions "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL "
-        "AND deleted_at > ? "
-        "ORDER BY deleted_at DESC "
-        "LIMIT ?"
-    )
-    cutoff = clock.iso_utc(clock.utc_now() - timedelta(days=days))  # same text format as deleted_at
-    rows = conn.execute(sql, (user_id, cutoff, limit)).fetchall()
-    return [_row_to_planned(r) for r in rows]
+    return list_recently_deleted_owned(conn, _PLANNED, user_id, days=days, limit=limit)
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> PlannedTransaction:
-    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"planned_transaction {planned_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
-        c.execute(
-            "UPDATE planned_transactions SET deleted_at = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (planned_id, user_id),
-        )
-        restored = find_by_id(c, user_id, planned_id)
-        assert restored is not None
-        return planned_id, restored
-
-    return mutate(
-        conn,
-        entity_type="planned_transaction",
-        operation="undelete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return undelete_owned(conn, _PLANNED, user_id, planned_id)
 
 
 def stamp_promotion(
     conn: sqlite3.Connection, user_id: int, planned_id: int, txn_id: int
 ) -> PlannedTransaction:
-    prev = find_by_id(conn, user_id, planned_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"planned_transaction {planned_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
-        c.execute(
-            "UPDATE planned_transactions SET promoted_to_txn_id = ?, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (txn_id, planned_id, user_id),
-        )
-        updated = find_by_id(c, user_id, planned_id, include_deleted=True)
-        assert updated is not None
-        return planned_id, updated
-
-    return mutate(
-        conn,
-        entity_type="planned_transaction",
-        operation="update",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return update_owned(conn, _PLANNED, user_id, planned_id, {"promoted_to_txn_id": txn_id})
 
 
 def clear_promotion(

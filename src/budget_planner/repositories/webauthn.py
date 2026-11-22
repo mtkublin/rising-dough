@@ -71,7 +71,7 @@ def _split_transports(raw: str | None) -> tuple[str, ...]:
     return tuple(t for t in raw.split(",") if t)
 
 
-def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
+def _hydrate_credential(row: sqlite3.Row) -> WebAuthnCredential:
     return WebAuthnCredential(
         id=row["id"],
         user_id=row["user_id"],
@@ -94,7 +94,7 @@ def _get_by_id(
         f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?{live}",
         (row_id, user_id),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_credential(row)
 
 
 def list_credentials(
@@ -106,7 +106,7 @@ def list_credentials(
         f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE user_id = ?{live} ORDER BY id",
         (user_id,),
     ).fetchall()
-    return tuple(_hydrate(r) for r in rows)
+    return tuple(_hydrate_credential(r) for r in rows)
 
 
 def get_by_credential_id(
@@ -118,7 +118,7 @@ def get_by_credential_id(
         "WHERE credential_id = ? AND deleted_at IS NULL",
         (credential_id,),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_credential(row)
 
 
 def create_credential(

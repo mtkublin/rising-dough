@@ -13,7 +13,18 @@ import sqlite3
 
 from budget_planner.domain.categories import Category, NewCategory, PatchCategory
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required
+from budget_planner.repositories._shared import (
+    OwnedTable,
+    find_owned,
+    insert_owned,
+    list_owned,
+    list_recently_deleted_owned,
+    parse_dt,
+    parse_dt_required,
+    soft_delete_owned,
+    undelete_owned,
+    update_owned,
+)
 
 _COLUMNS = "id, user_id, name, direction, is_system, color, created_at, updated_at, deleted_at"
 
@@ -32,6 +43,15 @@ def _row_to_category(row: sqlite3.Row) -> Category:
     )
 
 
+_CATEGORIES: OwnedTable[Category] = OwnedTable(
+    table="categories",
+    entity_type="category",
+    columns=_COLUMNS,
+    hydrate=_row_to_category,
+    order_by="name ASC",
+)
+
+
 def find_by_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -39,26 +59,16 @@ def find_by_id(
     *,
     include_deleted: bool = False,
 ) -> Category | None:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE id = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (category_id, user_id)).fetchone()
-    return _row_to_category(row) if row is not None else None
+    return find_owned(
+        conn, _CATEGORIES, user_id, {"id": category_id}, include_deleted=include_deleted
+    )
 
 
 def list_recently_deleted(
     conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[Category]:
     """T-R70 — soft-deleted (archived) categories within the last `days` days."""
-    sql = (
-        f"SELECT {_COLUMNS} FROM categories "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL "
-        "AND deleted_at > datetime('now', ?) "
-        "ORDER BY deleted_at DESC "
-        "LIMIT ?"
-    )
-    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
-    return [_row_to_category(r) for r in rows]
+    return list_recently_deleted_owned(conn, _CATEGORIES, user_id, days=days, limit=limit)
 
 
 def find_by_name(
@@ -68,11 +78,7 @@ def find_by_name(
     *,
     include_deleted: bool = False,
 ) -> Category | None:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE name = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (name, user_id)).fetchone()
-    return _row_to_category(row) if row is not None else None
+    return find_owned(conn, _CATEGORIES, user_id, {"name": name}, include_deleted=include_deleted)
 
 
 def list_all(
@@ -81,27 +87,20 @@ def list_all(
     *,
     include_deleted: bool = False,
 ) -> list[Category]:
-    sql = f"SELECT {_COLUMNS} FROM categories WHERE user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    sql += " ORDER BY name ASC"
-    return [_row_to_category(r) for r in conn.execute(sql, (user_id,)).fetchall()]
+    return list_owned(conn, _CATEGORIES, user_id, include_deleted=include_deleted)
 
 
 def create(conn: sqlite3.Connection, user_id: int, data: NewCategory) -> Category:
-    def _action(c: sqlite3.Connection) -> tuple[int, Category]:
-        cursor = c.execute(
-            "INSERT INTO categories(user_id, name, direction, is_system, color) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (user_id, data.name, data.direction.value, int(data.is_system), data.color),
-        )
-        new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
-        assert created is not None
-        return new_id, created
-
-    return mutate(
-        conn, entity_type="category", operation="create", prev=None, action=_action, user_id=user_id
+    return insert_owned(
+        conn,
+        _CATEGORIES,
+        user_id,
+        {
+            "name": data.name,
+            "direction": data.direction.value,
+            "is_system": int(data.is_system),
+            "color": data.color,
+        },
     )
 
 
@@ -111,71 +110,15 @@ def update(
     category_id: int,
     data: PatchCategory,
 ) -> Category:
-    prev = find_by_id(conn, user_id, category_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"category {category_id} not found")
-    changes = data.as_dict()
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Category]:
-        if changes:
-            sets = [f"{field} = ?" for field in changes]
-            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
-            c.execute(
-                f"UPDATE categories SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), category_id, user_id),
-            )
-        updated = find_by_id(c, user_id, category_id, include_deleted=True)
-        assert updated is not None
-        return category_id, updated
-
-    return mutate(
-        conn, entity_type="category", operation="update", prev=prev, action=_action, user_id=user_id
-    )
+    return update_owned(conn, _CATEGORIES, user_id, category_id, data.as_dict())
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> None:
-    prev = find_by_id(conn, user_id, category_id)
-    if prev is None:
-        return
-
-    def _action(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            "UPDATE categories SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (category_id, user_id),
-        )
-        return category_id, None
-
-    mutate(
-        conn, entity_type="category", operation="delete", prev=prev, action=_action, user_id=user_id
-    )
+    soft_delete_owned(conn, _CATEGORIES, user_id, category_id)
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Category:
-    prev = find_by_id(conn, user_id, category_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"category {category_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Category]:
-        c.execute(
-            "UPDATE categories SET deleted_at = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (category_id, user_id),
-        )
-        restored = find_by_id(c, user_id, category_id)
-        assert restored is not None
-        return category_id, restored
-
-    return mutate(
-        conn,
-        entity_type="category",
-        operation="undelete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return undelete_owned(conn, _CATEGORIES, user_id, category_id)
 
 
 __all__ = [

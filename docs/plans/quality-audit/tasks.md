@@ -512,7 +512,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `functional_first`:2 (1 entry); `purity`:14 (12 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/functional_first.toml`, `allowlists/purity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q265 [P] Thin routers, group 1: transactions, planned, ledger, today, forecast, health
+### ✅ T-Q265 [P] Thin routers, group 1: transactions, planned, ledger, today, forecast, health
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`
@@ -521,9 +521,10 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Acceptance: Failing guard first: `thin_router.toml` entries for these six router files (10 entries, 53 violations). Move arithmetic, aggregation, branching on direction/kind, helper functions and transaction control out of the route functions into services or view-model builders; each handler becomes parse, call, render. Route handlers with more than 5 positional parameters take a pydantic form model, which also retires 6 of the `PLR0917` noqa (ceiling slice owned here). `frontend-visual-audit` on every touched route at 1440, 1024, 375.
 - Operator question blocking it: none.
 - Removes allowlist entries: `thin_router`:53 (10 entries); `suppressions` ceiling `PLR0917`:6
+- Outcome (2026-11-22): the six routers hold only parse, call, render. New `web/ledger_data.py` (filters, typed `TxnRow`, ledger context builders), `web/entry_forms.py` (transaction and planned form validation), `web/forecast_data.py`, `services/limit_preview.py` (credit-limit projection, isolation case added), `services/connections.ping`, `replication_health.check_status_file`, `rendering.render_context`; keyword-only handler parameters retire the 6 `PLR0917` noqa (ceiling 23 -> 17); 10 `thin_router` entries and the stale hygiene, size, clone and suppression entries of the moved code deleted (nothing added). `today.py` had no thin-router entry; its private import from `recurring` stays with T-Q266.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
+### ✅ T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`
@@ -665,7 +666,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:18 (6 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q260 [S] Generic CRUD helpers in `repositories/_shared` (clone groups and same-name helpers)
+### ✅ T-Q260 [S] Generic CRUD helpers in `repositories/_shared` (clone groups and same-name helpers)
 - Findings: inventory P1 (compliance-inventory 2.2, 2.6; 9 clone groups, 36 repository functions, 7 pylint blocks); epic E02.
 - Epic: E02
 - Band: 4 · Size: L · Tags: `[pre-v4-P3-rec]` (decision D2)
@@ -710,7 +711,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `thin_router`:43 (7 entries); `suppressions` ceiling `PLR0917`:8
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
+### ✅ T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
 - Findings: Q-046 (B-09 complexity and length rows outside the router modules); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
