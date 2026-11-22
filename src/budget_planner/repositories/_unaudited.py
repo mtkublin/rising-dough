@@ -70,6 +70,29 @@ def mark_override_promoted(
     )
 
 
+def clear_override_promoted(
+    conn: sqlite3.Connection,
+    user_id: int,
+    override_id: int,
+    *,
+    txn_id: int,
+) -> int:
+    """Compare-and-set ``promoted_to_txn_id`` back to NULL (T-Q288, undo of a promotion).
+
+    Clears the stamp only while it still equals ``txn_id`` and the override's rule
+    belongs to ``user_id``. Returns the number of rows changed (0 or 1).
+    """
+    cur = conn.execute(
+        "UPDATE recurring_rule_overrides AS o "
+        "SET promoted_to_txn_id = NULL "
+        "WHERE o.id = ? AND o.promoted_to_txn_id = ? "
+        "AND EXISTS (SELECT 1 FROM recurring_rules r "
+        "            WHERE r.id = o.rule_id AND r.user_id = ?)",
+        (override_id, txn_id, user_id),
+    )
+    return cur.rowcount
+
+
 def restore_rule_progress(
     conn: sqlite3.Connection,
     user_id: int,
@@ -94,4 +117,10 @@ def restore_rule_progress(
     )
 
 
-__all__ = ["mark_override_promoted", "restore_rule_progress", "set_inactive", "set_next_due"]
+__all__ = [
+    "clear_override_promoted",
+    "mark_override_promoted",
+    "restore_rule_progress",
+    "set_inactive",
+    "set_next_due",
+]
