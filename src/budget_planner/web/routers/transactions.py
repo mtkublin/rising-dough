@@ -21,6 +21,7 @@ from budget_planner.domain.transactions import (
     NewTransaction,
     PatchTransaction,
     TransactionFilter,
+    signed_legs,
 )
 from budget_planner.services import (
     accounts as accounts_service,
@@ -124,12 +125,8 @@ def _compute_limit_preview(
     amount_minor = to_minor_units(dec, acc.currency)
     current = balance_service.derive_balance(conn, user_id, account_id)
     direction = cat.direction
-    if direction is Direction.INCOME:
-        delta = amount_minor
-    elif direction is Direction.EXPENSE or direction is Direction.TRANSIT:
-        delta = -amount_minor
-    else:
-        delta = amount_minor
+    # Only the source leg matters for this account; a transit's destination is irrelevant here.
+    delta = signed_legs(direction, amount_minor, account_id, account_id)[0].amount_minor
     projected = current + delta
     limit = acc.credit_limit_minor
     used_after = max(-projected, 0)

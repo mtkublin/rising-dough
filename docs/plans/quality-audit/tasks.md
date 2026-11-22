@@ -367,7 +367,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `literal_user_id`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/literal_user_id.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q227 [S] Residual `duplicate-logic`: categories policy, direction sign, balance rule, aggregates and tier
+### ✅ T-Q227 [S] Residual `duplicate-logic`: categories policy, direction sign, balance rule, aggregates and tier
 - Findings: Q-030 (A-11, A-12), Q-032 (C-14), Q-036 (A-10), Q-075 (A-20, A-22).
 - Epic: E01
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`

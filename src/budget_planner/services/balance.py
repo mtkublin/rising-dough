@@ -12,17 +12,21 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 from budget_planner.domain.accounts import Account, AccountStats
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import mean_minor
-from budget_planner.domain.transactions import Transaction, TransactionFilter
+from budget_planner.domain.transactions import (
+    SignedLeg,
+    Transaction,
+    TransactionFilter,
+    signed_legs as domain_signed_legs,
+)
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.services.aggregates import mean_minor
 
 _DEFAULT_SERIES_DAYS = 90
 _SPARKLINE_MIN_POINTS = 2
@@ -32,36 +36,9 @@ class AccountNotFoundError(LookupError):
     """Raised when the account id does not exist (ignores soft-delete flag)."""
 
 
-@dataclass(frozen=True, slots=True)
-class SignedLeg:
-    """Per-account signed effect of a single transaction."""
-
-    account_id: int
-    amount_minor: int
-
-
 def signed_legs(txn: Transaction, direction: Direction) -> tuple[SignedLeg, ...]:
-    """Return one or two signed legs for ``txn`` given its category direction.
-
-    Signing rules per ADR-0008 + ADR-0009:
-      * ``income`` → ``(account_id, +amount)``
-      * ``expense`` → ``(account_id, -amount)``
-      * ``transit`` → ``(account_id, -amount)`` + ``(dest_account_id, +amount)``
-      * ``adjustment`` → ``(account_id, +amount)`` (``amount`` already signed)
-    """
-    if direction is Direction.INCOME:
-        return (SignedLeg(account_id=txn.account_id, amount_minor=txn.amount),)
-    if direction is Direction.EXPENSE:
-        return (SignedLeg(account_id=txn.account_id, amount_minor=-txn.amount),)
-    if direction is Direction.TRANSIT:
-        if txn.dest_account_id is None:  # pragma: no cover - schema CHECK blocks it
-            raise ValueError("transit transaction missing dest_account_id")
-        return (
-            SignedLeg(account_id=txn.account_id, amount_minor=-txn.amount),
-            SignedLeg(account_id=txn.dest_account_id, amount_minor=txn.amount),
-        )
-    # ADJUSTMENT: pre-signed amount, pass through.
-    return (SignedLeg(account_id=txn.account_id, amount_minor=txn.amount),)
+    """Signed legs of ``txn``: adapter over :func:`domain.transactions.signed_legs` (ADR-0008)."""
+    return domain_signed_legs(direction, txn.amount, txn.account_id, txn.dest_account_id)
 
 
 def _directions_by_id(conn: sqlite3.Connection, user_id: int) -> dict[int, Direction]:
@@ -84,11 +61,9 @@ def _txns_affecting(
 
 
 _NO_ACCOUNT = -1
-_EPOCH = dt.datetime.min.replace(tzinfo=dt.UTC)
 
 
 def _group_delta(
-    user_id: int,
     account_id: int,
     direction: Direction,
     *,
@@ -97,25 +72,13 @@ def _group_delta(
     total: int,
 ) -> int:
     """Signed effect on ``account_id`` of one SUM group, via :func:`signed_legs` (ADR-0008)."""
-    probe = Transaction(
-        id=0,
-        user_id=user_id,
-        operation_date=dt.date.min,
-        category_id=0,
-        account_id=account_id if is_source else _NO_ACCOUNT,
-        dest_account_id=account_id if is_dest else _NO_ACCOUNT,
-        amount=total,
-        description="",
-        promoted_from_planned_id=None,
-        promoted_from_recurring_rule_id=None,
-        promoted_from_recurring_date=None,
-        created_at=_EPOCH,
-        updated_at=_EPOCH,
-        deleted_at=None,
+    legs = domain_signed_legs(
+        direction,
+        total,
+        account_id if is_source else _NO_ACCOUNT,
+        account_id if is_dest else _NO_ACCOUNT,
     )
-    return sum(
-        leg.amount_minor for leg in signed_legs(probe, direction) if leg.account_id == account_id
-    )
+    return sum(leg.amount_minor for leg in legs if leg.account_id == account_id)
 
 
 def derive_balance(
@@ -139,7 +102,6 @@ def derive_balance(
     )
     delta = sum(
         _group_delta(
-            user_id,
             account_id,
             Direction(direction),
             is_source=is_source,
@@ -149,6 +111,18 @@ def derive_balance(
         for direction, is_source, is_dest, total in groups
     )
     return account.opening_balance + delta
+
+
+def as_of_today(conn: sqlite3.Connection, user_id: int, account_id: int, today: dt.date) -> int:
+    """Balance of one account counting transactions dated on or before ``today`` (OQ-16)."""
+    return derive_balance(conn, user_id, account_id, as_of_date=today)
+
+
+def as_of_today_many(
+    conn: sqlite3.Connection, user_id: int, accounts: Sequence[Account], today: dt.date
+) -> dict[int, int]:
+    """:func:`as_of_today` for every account in ``accounts`` with one query."""
+    return derive_balances(conn, user_id, accounts, as_of_date=today)
 
 
 _Leg = tuple[dt.date, Direction, int]
@@ -249,7 +223,6 @@ def sparkline_points(
 
 
 def _group_effects(
-    user_id: int,
     *,
     direction: str,
     account_id: int,
@@ -262,7 +235,6 @@ def _group_effects(
         (
             target,
             _group_delta(
-                user_id,
                 target,
                 Direction(direction),
                 is_source=target == account_id,
@@ -286,7 +258,6 @@ def derive_balances(
         conn, user_id, up_to_date=as_of_date
     ):
         for target, effect in _group_effects(
-            user_id,
             direction=direction,
             account_id=account_id,
             dest_account_id=dest_id,
@@ -321,7 +292,6 @@ def balance_series_many(
     ):
         day_moves = moves.setdefault(day, {})
         for target, effect in _group_effects(
-            user_id,
             direction=direction,
             account_id=account_id,
             dest_account_id=dest_id,
@@ -358,6 +328,8 @@ __all__ = [
     "SignedLeg",
     "account_stats",
     "account_stats_many",
+    "as_of_today",
+    "as_of_today_many",
     "balance_series",
     "balance_series_many",
     "derive_balance",
