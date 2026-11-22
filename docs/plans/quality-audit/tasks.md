@@ -1091,7 +1091,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q282 [M] Every bad query parameter is a 422, everywhere
+### ✅ T-Q282 [M] Every bad query parameter is a 422, everywhere
 - Findings: Q-023, Q-033.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none

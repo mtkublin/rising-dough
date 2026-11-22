@@ -576,11 +576,11 @@ class PickerMonth:
 def _parse_picker_month(
     year_raw: str | None, month_raw: str | None, fallback: tuple[int, int]
 ) -> tuple[int, int]:
-    if year_raw is None and month_raw is None:
+    if not year_raw and not month_raw:
         return fallback
     try:
-        year = int(year_raw) if year_raw is not None else fallback[0]
-        month = int(month_raw) if month_raw is not None else fallback[1]
+        year = int(year_raw) if year_raw else fallback[0]
+        month = int(month_raw) if month_raw else fallback[1]
     except ValueError:
         return fallback
     if not 1 <= month <= MONTHS_IN_YEAR or not date.min.year <= year <= date.max.year:

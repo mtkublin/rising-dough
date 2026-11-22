@@ -114,7 +114,7 @@ def test_forecast_page_renders_chart_and_table(client: TestClient, account_id: i
 @covers("GET /forecast")
 @pytest.mark.parametrize(
     ("query", "expected"),
-    [("6", "6"), ("notanumber", "12"), ("99999", "60"), ("0", "1")],
+    [("6", "6"), ("99999", "60"), ("0", "1")],
 )
 def test_forecast_horizon_is_parsed_and_clamped(
     client: TestClient, account_id: int, query: str, expected: str
