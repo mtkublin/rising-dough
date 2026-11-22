@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q308: merge-item skips checked-out worktree-agent branches)
+- **Fix(T-Q308): `scripts/ci/merge_item.sh` prune loop skips `worktree-agent-*` branches still checked out in a live worktree; `git branch -D` on them failed under `set -e` after a successful merge, push and prune.** Names come from `git worktree list --porcelain`.
+
 ## 2026-11-22 (T-Q254b: Caddyfile comment vs CSP render test)
 - **Fix(T-Q254): the Caddyfile template comment contained the literal `script-src`, tripping the `terraform test` assertion that the rendered Caddy CSP has no script-src; comment reworded, assertion untouched.** Caught by the drill gate (terraform PR workflow sits in action_required).
 
