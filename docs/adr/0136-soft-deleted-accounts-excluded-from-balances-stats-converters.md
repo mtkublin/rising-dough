@@ -32,3 +32,9 @@ Implemented: `TransactionFilter.live_accounts_only` (one SQL predicate, `reposit
 ## Amendment 2026-11-22 (T-Q227)
 
 The archived-category half is implemented once in `services/categories.expense_category_ids` / `expense_categories` (archived included) and used by the budget summary, yearly grid, forecast overlay and monthly plan. OQ-7 (three monthly averages stay, documented in `services/aggregates.py`) and OQ-16 (future-dated actuals allowed, one-day sparkline lag accepted) took defaults on 2026-11-21, pending operator confirmation.
+
+## Amendment 2026-11-22 (operator decision; T-Q279, T-Q280)
+
+- **Archived categories reserve no budget (T-Q279).** In the forecast planned-budget overlay, the Budget page, the yearly grid and the monthly plan, an archived category contributes no budget. Transactions already booked in an archived category still count in spent, net worth, analytics and forecast actuals. This supersedes the reading of OQ-15 in the T-Q227 amendment above: "archived included" holds for actuals only; `expense_category_ids` stays the actuals selector and a separate budgeted selector excludes archived categories. The INV-9 test is rewritten to this rule.
+- **Planned rows on soft-deleted accounts are hidden (T-Q280).** They are excluded from planned totals and `planned_base_amounts`, consistent with decision 1; undo of the account delete restores them.
+- **Effective from the archive month (second round, 2026-11-22).** The archive takes effect from the month the category was archived: past months keep the category's budget; it reserves nothing from that month onward.

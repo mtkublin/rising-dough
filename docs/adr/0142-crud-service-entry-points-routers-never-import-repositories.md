@@ -37,3 +37,7 @@ OQ-12 asked whether to land this before or after the Sourdough redesign (ADR-010
   binding with a function does not change any router call.
 - Removed: 13 `layering` allowlist entries (`contract:routers-not-repositories`, 36 imports) and the
   matching `ignore_imports` lines.
+
+## Amendment 2026-11-22 (operator decision; T-Q285)
+
+The pass-through bindings of the T-Q241 amendment are replaced by real service functions that own input validation and the single `db_transaction` of a mutation (a service calling two or more mutators uses one transaction, ADR-0137). Routers still make one service call. Whether the one-transaction rule (G8) becomes a guard is decided in T-Q285. Runs after T-Q267 and T-Q262.

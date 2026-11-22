@@ -107,3 +107,7 @@ The skill (added 2026-10-27, mandated in `CLAUDE.md`) is unchanged by this ADR. 
 - **Keep CDN, add visual regression only.** Rejected. Visual regression catches outcomes, not causes; without the build + lint layer, the regression tests become noisy and the root cause is still untyped.
 - **Adopt a component framework (shadcn, Radix via a Jinja port).** Rejected. No mature Jinja port exists; cost of maintaining one exceeds the duplication cost it would remove.
 - **Make visual-regression tests part of `just ci` by default.** Deferred. Treadmill risk outweighs the signal at this stage; revisit after Phase 10 lands and baselines stabilise.
+
+## Amendment 2026-11-22 (operator decision; T-Q251)
+
+The visual regression suite is a required check on pull requests that change templates or CSS, and also runs on a weekly schedule and `workflow_dispatch`. It runs in a pinned (digest) Playwright container image; baselines are regenerated inside that container (Linux), never locally. A missing baseline fails in CI.

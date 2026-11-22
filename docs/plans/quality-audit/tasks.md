@@ -921,8 +921,8 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
 - Depends on: none
-- Docs-first step: ADR-0027 amendment (scheduled visual workflow, perceptual threshold, missing baseline is a failure in CI).
-- Acceptance: scheduled workflow on a pinned Playwright image, `max_diff_pixel_ratio`, a missing baseline fails in CI, baselines regenerated after the last template change, and a pre-commit check that baselines change when `templates/` change.
+- Docs-first step: ADR-0027 amendment 2026-11-22 (operator decision): the visual suite is a **required check on pull requests that change templates or CSS**, and also runs on a **weekly schedule** and `workflow_dispatch`; it runs in a **pinned Playwright container image**; baselines are regenerated inside that container (Linux), never on a laptop; perceptual threshold; a missing baseline is a failure in CI.
+- Acceptance: the workflow triggers on `pull_request` with `paths` covering `src/budget_planner/web/templates/**` and `web/static/*.css` (and is a required status for those PRs), on a weekly `schedule` and on `workflow_dispatch`; the job image is pinned by digest and the same image generates baselines; `max_diff_pixel_ratio` is set; a missing baseline fails in CI; baselines are regenerated in the container after the last template change; a pre-commit check fails when `templates/` change without baseline changes.
 - Operator question blocking it: none.
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
@@ -1029,13 +1029,13 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Findings: closes the loop for Q-001..Q-080 with a guard; zero-violation policy of ADR-0130 section 1.
 - Epic: all (closing gate)
 - Band: 7 · Size: S · Tags: none
-- Depends on: T-Q201, T-Q206, T-Q207, T-Q208, T-Q212, T-Q213, T-Q214, T-Q216, T-Q218, T-Q219, T-Q221, T-Q227, T-Q228, T-Q229, T-Q233, T-Q236, T-Q237, T-Q238, T-Q241, T-Q242, T-Q243, T-Q245, T-Q258, T-Q260, T-Q261, T-Q262, T-Q263, T-Q264, T-Q265, T-Q266, T-Q267, T-Q268, T-Q269, T-Q270, T-Q271, T-Q272, T-Q273, T-Q274, T-Q275
+- Depends on: T-Q201, T-Q206, T-Q207, T-Q208, T-Q212, T-Q213, T-Q214, T-Q216, T-Q218, T-Q219, T-Q221, T-Q227, T-Q228, T-Q229, T-Q233, T-Q236, T-Q237, T-Q238, T-Q241, T-Q242, T-Q243, T-Q245, T-Q258, T-Q260, T-Q261, T-Q262, T-Q263, T-Q264, T-Q265, T-Q266, T-Q267, T-Q268, T-Q269, T-Q270, T-Q271, T-Q272, T-Q273, T-Q274, T-Q275, T-Q279, T-Q280, T-Q281, T-Q282, T-Q283, T-Q284, T-Q285, T-Q286, T-Q287, T-Q288, T-Q289, T-Q290, T-Q291
 - Docs-first step: update `prevention.md` status and the CLAUDE.md "Code conventions" pointer if wording changes (operator reviews CLAUDE.md edits); ADR-0130 status line.
-- Acceptance: Every file in `tests/architecture/allowlists/` has no `[[entry]]` and an empty `[ceilings]`; `[[permanent]]` and `[[framework]]` entries remain only with a reason recorded in an ADR-0130 amendment; guards run strict in `just ci` and pre-commit; `allowlist_by_qid.py` prints burn-down total 0; a deliberately introduced violation per guard class fails; the T-Q16 dry run is repeated and recorded. This is not a v4 gate: the v4 T-E00 gate is the `[pre-v4-P3]` tag only.
+- Acceptance: **Redesign carve-out (operator decision 2026-11-22, ADR-0130 amendment):** `template_logic.toml` keeps exactly the 83 D3 entries (T-Q273), each tagged with its T-UR owner task, and the redesign's last task burns them to zero; the gate fails if that file holds any entry without a T-UR owner tag or more than 83 entries. Every other file in `tests/architecture/allowlists/` has no `[[entry]]` and an empty `[ceilings]`; `[[permanent]]` and `[[framework]]` entries remain only with a reason recorded in an ADR-0130 amendment; guards run strict in `just ci` and pre-commit; `allowlist_by_qid.py` prints burn-down total 0; a deliberately introduced violation per guard class fails; the T-Q16 dry run is repeated and recorded. This is not a v4 gate: the v4 T-E00 gate is the `[pre-v4-P3]` tag only.
 - Operator question blocking it: none.
 - Final-backlog note: Depends on every task that owns allowlist entries or a ceiling (list computed from `allowlist_by_qid.py` output) plus T-Q274 and T-Q275.
-- Removes allowlist entries: none
-- Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+- Removes allowlist entries: none (tags the 83 `template_logic.toml` entries with their T-UR owner)
+- Done when: no allowlist entry to delete other than the carve-out above; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
 - Findings: Q-030, Q-015 (OQ-15, answered 2026-11-21).
@@ -1048,6 +1048,166 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Wave: 11 (after T-Q227 in wave 8, T-Q234 in wave 9 and T-Q260 in wave 10, to avoid conflicts in `services/balance.py`, `services/aggregates.py` and account read helpers).
 
+
+## Operator decisions 2026-11-22
+
+The operator answered the deferred questions on 2026-11-22. Each decision below is a task recorded docs first (CLAUDE.md "Change policy"); the ADR amendments named here are written in the DECISIONS-1122 change, the code lands with the task. All run before T-Q232 (waves 14b to 14d below). None of these tasks adds an allowlist entry; T-Q283 records three permanent `money_scope` entries (its implementation task edits the TOML, the DECISIONS-1122 change edits no allowlist).
+
+### T-Q279 [S] Archived categories reserve no budget; their actuals still count
+- Findings: Q-030, Q-015 (OQ-15 refined 2026-11-22); reverses the T-Q227 reading of OQ-15.
+- Epic: E01
+- Band: 2 · Size: M · Tags: none
+- Depends on: T-Q227, T-Q276
+- Docs-first step: [ADR-0136](../../adr/0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md) amendment 2026-11-22 (operator decision): archived categories reserve **no budget from the month they were archived onward** (past months keep it), anywhere (forecast planned-budget overlay, Budget page, yearly grid, monthly plan); transactions already booked in an archived category still count in spent, net worth, analytics and forecast actuals. `docs/requirements.md` F2.2b.
+- Acceptance: failing tests first, exact values. **Archive is effective from the archive month (operator decision 2026-11-22):** a category archived in month M reserves no budget from M onward; months before M keep its budget (Budget page, yearly grid and plan for past months show it as before). Seed an expense category with a default budget of 30000 minor units and one posted expense of 4500 in it, archived in month M: (0) month M-1 still shows the 30000 budget and counts it in `budgeted_minor`; for month M and later: (1) the forecast overlay adds 0 for it, and the monthly-table `Planned budget` for that category is 0; (2) the Budget page and yearly grid list no budgeted row for it and `budgeted_minor` totals exclude its 30000; (3) `spent_minor`, analytics totals and the forecast actual events still include the 4500; (4) the INV-9 invariant test (T-Q227) is rewritten to this rule and passes; (5) two-user isolation: a second user's archived category changes nothing. `services/categories` keeps one owner: a `budgeted_expense_category_ids` (archived excluded) beside the actuals selector `expense_category_ids` (archived included), both registered in `canonical_modules.toml` if new.
+- Operator question blocking it: none (answered 2026-11-22).
+- Removes allowlist entries: none
+- Wave: 14b.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q280 [S] Planned rows on soft-deleted accounts are hidden from planned totals
+- Findings: Q-026, Q-030 (ADR-0136 decision 1).
+- Epic: E01
+- Band: 2 · Size: S · Tags: none
+- Depends on: T-Q276, T-Q279
+- Docs-first step: ADR-0136 amendment 2026-11-22 (operator decision): planned rows whose account is soft-deleted are hidden from planned totals and `planned_base_amounts`, the same as every other derived number. `docs/requirements.md` F2.2b.
+- Acceptance: failing test first: a planned expense of 2500 on an account that is then soft-deleted is absent from the Accounts-tab planned net, the Today/Budget committed figure and `planned_base_amounts` (exact sums before and after); undo of the account delete restores the exact earlier sums; a second user's planned rows are unaffected.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14b (same owner as T-Q279, merge after it).
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q281 [M] One rounding mode: HALF_EVEN at every `round_div` call site
+- Findings: Q-076 (OQ-ROUND answered 2026-11-22).
+- Epic: E05
+- Band: 3 · Size: M · Tags: none
+- Depends on: T-Q229
+- Docs-first step: [ADR-0006](../../adr/0006-multi-currency-model.md) amendment 2026-11-22 (operator decision): every rounding call site uses HALF_EVEN; the per-site mode table of the 2026-11-21 amendment is replaced; displayed amounts may shift by 0.01 (the money minimum unit). The `mode` argument of `round_div` / `round_scaled` is removed or fixed to HALF_EVEN (no HALF_UP constant). `docs/requirements.md` money rules.
+- Acceptance: failing tests first with exact tie values per former HALF_UP site (`to_minor_units`, `percent_to_bps`, display rounding, `recurring_formula._apply_coefficient`): a value at an exact `.5` tie rounds to the even neighbour (e.g. 2.5 minor -> 2, 3.5 -> 4); the pinned T-Q222 tie tests are updated to the new expected values; no `HALF_UP` symbol remains under `src/`; a `banned_patterns` rule forbids `ROUND_HALF_UP` outside tests.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14c.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q282 [M] Every bad query parameter is a 422, everywhere
+- Findings: Q-023, Q-033.
+- Epic: E03
+- Band: 4 · Size: M · Tags: none
+- Depends on: T-Q233, T-Q267
+- Docs-first step: [ADR-0141](../../adr/0141-one-amount-parser-and-bounded-request-parameters.md) amendment 2026-11-22 (operator decision), replacing decision 3's "list filters degrade to no filter": a malformed `year`, `month`, date or integer query parameter returns 422 with a visible message on `/plan`, `/ledger`, `/forecast`, `/budget`, `/today` and every other route; there is no silent fallback to the current period. `docs/requirements.md` request-parameter note.
+- Acceptance: failing tests first, one parametrised test per route in `app.routes` that takes a typed query parameter: `year=abc`, `month=13`, `date=2026-02-30`, `account_id=x` each return exactly 422 and the body or toast names the parameter; a valid or absent parameter still renders (default period); HTMX fragment routes return the error partial, not a page swap.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14c.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q283 [S] Three permanent `money_scope` entries with written reasons
+- Findings: Q-076 (G27).
+- Epic: E05
+- Band: 3 · Size: S · Tags: none
+- Depends on: T-Q229
+- Docs-first step: [ADR-0130](../../adr/0130-prevention-regime-and-full-architectural-compliance.md) amendment 2026-11-22 (operator decision): the three false positives of the money-scope scanner become `[[permanent]]` entries, the scanner is unchanged: `web/charts.py` (chart geometry, pixels not money), the rate-limit `Retry-After` seconds, and `services/balance.sparkline_points` scaling (plot coordinates, not amounts). Each entry carries its reason in the allowlist and in this amendment.
+- Acceptance: failing test first (`test_money_scope.py`): the three paths are `[[permanent]]` with a non-empty `reason`, the scanner code and its fixtures are unchanged, and any other money-scope hit still fails. The `_ratchet.py` total does not rise: the entries replace the three burn-down entries and the burn-down total falls by three.
+- Operator question blocking it: none.
+- Removes allowlist entries: converts three `money_scope.toml` entries to `[[permanent]]` (this task's implementation edits the TOML).
+- Wave: 14b (owns `money_scope.toml`).
+- Done when: the three entries are permanent with reasons; guards stay green; the CLAUDE.md handoff checklist is complete.
+
+### T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
+- Findings: Q-025 (ADR-0130 G7).
+- Epic: E02
+- Band: 3 · Size: M · Tags: none
+- Depends on: T-Q260
+- Docs-first step: ADR-0130 amendment 2026-11-22 (operator decision): `tests/architecture/_user_scoping.py` resolves each `repositories/_shared.OwnedTable` spec and checks every statement generated per table; dynamic-table SQL is no longer skipped.
+- Acceptance: failing test first: a deliberately unscoped statement generated for one `OwnedTable` (fixture spec without `user_id = ?`) fails the guard naming the table; every real `OwnedTable` (accounts, categories, planned, transactions, recurring rules, budgets) passes; the number of skipped dynamic statements reported by the guard is 0.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14b.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q285 [L] Real service functions own validation and the single `db_transaction`
+- Findings: Q-045, Q-024 (G8).
+- Epic: E02
+- Band: 2 · Size: L · Tags: none
+- Depends on: T-Q267, T-Q262
+- Docs-first step: [ADR-0142](../../adr/0142-crud-service-entry-points-routers-never-import-repositories.md) amendment 2026-11-22 (operator decision): the pass-through service bindings of T-Q241 are replaced by real functions in `services/` that own input validation and the single `db_transaction` of a mutation (a service calling two or more mutators uses one transaction); routers keep one service call. Decide whether guard G8 (one transaction per multi-mutator service) becomes a real guard and record it in the same amendment and `prevention.md`.
+- Acceptance: failing tests first: for each CRUD entity (accounts, categories, planned, transactions, recurring rules, budgets) a service-level test asserts the exact validation error for bad input and that a failure after the first mutator rolls back both mutators and both audit rows (value assertions); no module under `services/` re-exports a repository function as a binding (architecture test lists zero pass-throughs); routers call no repository (unchanged guard). If G8 is made a guard, a deliberately introduced two-transaction service fails it.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14d.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q286 [M] Cross-currency formula amounts convert everywhere
+- Findings: Q-010 (OQ-8 answered 2026-11-22), follow-up of T-Q215.
+- Epic: E01
+- Band: 2 · Size: M · Tags: none
+- Depends on: T-Q215
+- Docs-first step: `docs/requirements.md` formula/recurring lines and [ADR-0139](../../adr/0139-canonical-fx-converter-cache-only-one-missing-rate-policy.md) amendment 2026-11-22 (operator decision): a formula that mixes currencies converts each term through `FxConverter.to_base` on the recurring page, the formula preview, promotion and every recurring view, not only the ledger.
+- Acceptance: failing tests first with a PLN rule referencing an EUR category at a cached rate of 4.30: the recurring page, preview and promoted transaction show the same exact base amount (e.g. EUR 100.00 term -> 43000 minor PLN); a missing rate raises `FxUnavailableError` (503) as for every other conversion; no view sums raw minor units across currencies.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14b.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q287 [M] `include_deleted` defaults to False; writes against soft-deleted parents are refused
+- Findings: Q-025 (T-Q268 follow-up).
+- Epic: E02
+- Band: 3 · Size: M · Tags: none
+- Depends on: T-Q268, T-Q260
+- Docs-first step: ADR-0022 amendment 2026-11-22 (operator decision), reversing the T-Q268 default for `_shared.require_owned`, `users.owns_accounts` and `webauthn._get_by_id`: the default is `include_deleted=False`; a write whose parent is soft-deleted is refused; history and audit reads pass `include_deleted=True` explicitly.
+- Acceptance: failing tests first: creating a transaction, planned row or rule on a soft-deleted account or category is refused with the exact error; revoking an already revoked passkey still reports "already revoked" (explicit `include_deleted=True`); the history views still list tombstoned parents; second-user isolation holds.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14c.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q288 [S] Recurring undo is scoped to its own batch and clears the override link
+- Findings: Q-024.
+- Epic: E02
+- Band: 3 · Size: S · Tags: none
+- Depends on: T-Q228
+- Docs-first step: [ADR-0019](../../adr/0019-soft-delete-and-audit-log.md) and ADR-0022 amendment 2026-11-22 (operator decision): the recurring undo accepts only audit rows written by the batch being undone, and also clears an override's `promoted_to_txn_id` (compare-and-set, as the planned undo does).
+- Acceptance: failing tests first: an undo request carrying an audit id from another batch (or another user) is refused and changes nothing; undoing a promotion that consumed an override leaves `promoted_to_txn_id` NULL and the rule and override exactly as before the promotion; a rule edited after the batch is skipped and reported (unchanged).
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14c.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q289 [M] CSRF token bound to the session
+- Findings: Q-066 (security hardening).
+- Epic: E06
+- Band: 3 · Size: M · Tags: none
+- Depends on: T-Q274
+- Docs-first step: amendment 2026-11-22 (operator decision) to [ADR-0065](../../adr/0065-csrf-dev-cookie-name-and-meta-token.md) (the CSRF ADR; `docs/requirements.md` "CSRF" line): the token is an HMAC of the session id (keyed by the cookie secret), rotated on login and logout; double-submit compares the header against the recomputed value.
+- Acceptance: failing tests first: a valid token from session A is rejected (403) on session B; the token changes after login and after logout; a token without a session is rejected on state-changing routes; the dev cookie-name rule of ADR-0065 is unchanged; the E2E form flow still posts successfully.
+- Operator question blocking it: none.
+- Removes allowlist entries: none
+- Wave: 14d (after T-Q274 owns the ASGI middleware).
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### T-Q290 [M] Scheduled daily FX refresh
+- Findings: FX cache (ADR-0139 cache-only converter, `requirements.md` F7.4).
+- Epic: E01
+- Band: 3 · Size: M · Tags: ops
+- Depends on: T-Q212
+- Docs-first step: **ADR to write at implementation start, at the next free number** (0144 did not exist when this was recorded; T-Q274 may take 0144, so check `ls docs/adr` and take the next one; then update `docs/adr/README.md` and `docs/requirements.md` F7.4). Content (operator decision 2026-11-22): source is **NBP table A** (official PLN mid rates, no API key; replaces the ECB/frankfurter source of F7.4 and ADR-0139's refresh path, which the ADR supersedes or amends); outbound HTTPS from the host; it runs as an **in-app daily background task** (like the retention task), once a day **after 12:30 Europe/Warsaw** (NBP publishes around noon); no host timer, so no terraform change; failures are logged and the cache keeps the last rates (page renders stay cache-only, ADR-0139); rates must be `> 0`; agents never `terraform apply` prod (CLAUDE.md "Releases").
+- Acceptance: failing tests first with an injected fake rate source and injected clock (no network in tests): the task does nothing before 12:30 Europe/Warsaw, runs once after it and not again the same day; one run inserts exactly the new `(date, from, to, rate)` rows and is idempotent on a second run; a source failure logs the error, leaves the cache unchanged and does not break page renders; a non-positive rate is rejected; the existing `cli.refresh_fx` and the job share one function.
+- Operator question blocking it: none (decided 2026-11-22; scheduling mechanism chosen in the ADR).
+- Removes allowlist entries: none
+- Wave: 14b (new module and ops files; no allowlist TOML).
+- Done when: ADR written and indexed; guards stay green; the Acceptance above holds; any terraform/host change is a PR for the operator's approved apply; the CLAUDE.md handoff checklist is complete.
+
+### T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
+- Findings: Q-074.
+- Epic: E04
+- Band: 3 · Size: M · Tags: none
+- Depends on: T-Q264
+- Docs-first step: [ADR-0021](../../adr/0021-functional-style-no-oop.md) amendment 2026-11-22 (operator decision), reversing the T-Q264 note "bcrypt stays in `services/_passwords`": `domain/ports.PasswordHasher` (Protocol: `hash`, `verify`), bcrypt adapter in `adapters/`, injected from the web edge like `TokenSource`.
+- Acceptance: failing tests first: services receive the hasher as an argument; a fake hasher makes `users.create_user`, login verification and password change run with no bcrypt import under `services/`; the bcrypt adapter keeps rounds and constant-time behaviour (hash round-trip and wrong-password test); `test_purity.py` needs no `_passwords` exception.
+- Operator question blocking it: none.
+- Removes allowlist entries: none (deletes any `_passwords` purity exception if one exists).
+- Wave: 14b.
+- Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ## Allowlist ownership and reconciliation
 
@@ -1218,6 +1378,9 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 | 12 | T-Q265, T-Q266, T-Q267 | `suppressions` (265/266/267); `thin_router` (265/266/267) | router groups: transactions/planned/ledger/today; accounts/budget/categories/recurring; auth/settings* | Three router groups with disjoint router files (thin_router.toml and the `PLR0917` ceiling are path-disjoint; resolve any adjacent-hunk conflict by union). |
 | 13 | T-Q242, T-Q261, T-Q256, T-Q257, T-Q235 | `literals` (261); `size_complexity` (242) | recurring router and forecast split; literal registry; accounts template/passkeys.js; app.py router imports; bounds | T-Q242 owns `recurring.py` router and `forecast.py`; T-Q261 owns literal replacement elsewhere. |
 | 14 | T-Q262, T-Q273, T-Q274 | `clones` (262); `template_logic` (273) | same-name helpers in services/web; remaining templates; ASGI middleware | After the router rewrites; T-Q262 owns remaining same-name helpers, T-Q273 templates, T-Q274 middleware. |
+| 14b | T-Q279, T-Q280, T-Q283, T-Q284, T-Q286, T-Q290, T-Q291 | `money_scope` (283) | budget, forecast overlay, categories and planned totals (279, 280); `tests/architecture` guard (284); recurring formula views (286); new FX job module, cli, terraform (290); `domain/ports`, `adapters`, `services/_passwords`, users (291) | Operator decisions 2026-11-22. T-Q280 merges after T-Q279 (same files). Disjoint source areas, so all run in parallel (about 4 heavy at once; T-Q283 and T-Q284 are cheap fillers). Only T-Q283 owns an allowlist TOML. |
+| 14c | T-Q281, T-Q282, T-Q287, T-Q288 | none | `domain/money.py` and rounding call sites across services (281); `web/params.py` and routers (282); `repositories/_shared`, `users.owns_accounts`, `webauthn` (287); recurring and planned undo in services (288) | After 14b. Parallel: disjoint areas. T-Q281 owns the one router rounding site (`web/routers/today.py`); T-Q282 merges after it. |
+| 14d | T-Q285, T-Q289 | none | services CRUD entry points and routers (285, large; needs T-Q267 and T-Q262); ASGI CSRF middleware (289; needs T-Q274) | After 14c so T-Q285 builds on T-Q287 and T-Q288. Parallel: disjoint (services/routers versus middleware). All of 14b to 14d finish before Wave 15 (size decomposition) and T-Q232. |
 | 15 | T-Q269, T-Q270 | `size_complexity` (269/270) | service/repository/db decomposition; router/web decomposition | Path-disjoint size_complexity owners (services/repos/db vs routers/web). |
 | 16 | T-Q271 | `hygiene` (271) | every `src/` module: `Any`, asserts, excepts, prints | Repo-wide sweep; nothing else runs. |
 | 17 | T-Q272 | `suppressions` (272) | every `src/` suppression | Repo-wide sweep; nothing else runs. |
