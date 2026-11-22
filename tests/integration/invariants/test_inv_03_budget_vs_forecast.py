@@ -21,6 +21,7 @@ from budget_planner.repositories import (
     transactions as txn_repo,
 )
 from budget_planner.services import budget, forecast, fx as fx_svc
+from budget_planner.services.aggregates import sum_by_category
 
 U = 1
 TODAY = date(2026, 11, 19)
@@ -47,9 +48,7 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
             date_from=M_START, date_to=TODAY, category_ids=(7,), directions=(Direction.EXPENSE,)
         ),
     )
-    b_spent = budget._sum_by_category(txns, budget.txn_base_amounts(seeded, U, today=TODAY)).get(
-        7, 0
-    )
+    b_spent = sum_by_category(txns, budget.txn_base_amounts(seeded, U, today=TODAY)).get(7, 0)
     converter = fx_svc.converter_for(seeded, get_settings(), TODAY)
     ((f_spent_by_cat, _),) = forecast._month_inputs(
         seeded, U, [forecast._MonthSpan(M_START, M_START, TODAY, False)], today=TODAY, fx=converter

@@ -21,7 +21,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import mean_minor
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
@@ -30,6 +29,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import fx as fx_svc
+from budget_planner.services.aggregates import mean_minor, sum_by_category
 
 Period = Literal["month", "year", "trailing-12"]
 
@@ -128,9 +128,7 @@ def _spend_by_category(
         ),
     )
     base_of = _base_of(conn, user_id, converter)
-    totals: dict[int, int] = defaultdict(int)
-    for t in txns:
-        totals[t.category_id] += base_of(t)
+    totals = sum_by_category(txns, base_of)
     rows = [
         CategoryTotal(
             category_id=cat_id,
@@ -166,9 +164,7 @@ def _twelve_month_averages(
         ),
     )
     base_of = _base_of(conn, user_id, converter)
-    sums: dict[int, int] = defaultdict(int)
-    for t in txns:
-        sums[t.category_id] += base_of(t)
+    sums = sum_by_category(txns, base_of)
     rows = [
         CategoryTotal(
             category_id=cat_id,

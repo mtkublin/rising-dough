@@ -24,3 +24,7 @@ OQ-15 asked which policy applies to archived categories and inactive or deleted 
 
 - Include deleted accounts until purged: rejected, a deleted account would keep inflating net worth.
 - Treat archived categories like deleted ones: rejected, it would silently rewrite past spending.
+
+## Amendment 2026-11-22 (T-Q227)
+
+The archived-category half is implemented once in `services/categories.expense_category_ids` / `expense_categories` (archived included) and used by the budget summary, yearly grid, forecast overlay and monthly plan. OQ-7 (three monthly averages stay, documented in `services/aggregates.py`) and OQ-16 (future-dated actuals allowed, one-day sparkline lag accepted) took defaults on 2026-11-21, pending operator confirmation.

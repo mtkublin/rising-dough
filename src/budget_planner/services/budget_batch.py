@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import recurring as recurring_svc
-from budget_planner.services.budget import planned_base_amounts
+from budget_planner.services.budget import pick_tier, planned_base_amounts
 
 
 def budget_resolver(
@@ -35,12 +35,11 @@ def budget_resolver(
     defaults = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
 
     def resolve(category_id: int, year: int, month: int) -> int | None:
-        hit = one_off.get((category_id, year, month))
-        if hit is None:
-            hit = recurring.get((category_id, month))
-        if hit is None:
-            hit = defaults.get(category_id)
-        return hit
+        return pick_tier(
+            one_off.get((category_id, year, month)),
+            recurring.get((category_id, month)),
+            defaults.get(category_id),
+        )[0]
 
     return resolve
 

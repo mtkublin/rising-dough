@@ -235,14 +235,10 @@ def _actual_rows(
     )
 
 
-def _actual_day_nets(
+def _ledger_day_nets(
     conn: sqlite3.Connection, settings: Settings, rows: list[dict[str, Any]]
 ) -> dict[str, int | None]:
-    """Per-day net (base-currency minor units, ISO-date keys) for the Actual view.
-
-    Signs follow ADR-0008 (adjustment amounts are pre-signed); T-D48. A day whose
-    FX rate is unavailable maps to ``None`` so the header omits a wrong figure.
-    """
+    """Per-day net for the Actual view via ``ledger_totals.actual_day_nets`` (ADR-0008, T-D48)."""
     items = [
         (
             r["operation_date"],
@@ -252,21 +248,12 @@ def _actual_day_nets(
         )
         for r in rows
     ]
-    result: dict[str, int | None] = {}
     # Cached rates only (ADR-0139): rendering never touches the network. Each row
     # converts at its own day's rate; the reference day is the newest one shown.
     fx = fx_service.converter_for(conn, settings, max((i[0] for i in items), default=date.min))
-
-    def base_of(amount: int, day: date, ccy: str) -> int:
-        return fx.to_base(amount, ccy, day)
-
-    for day in {i[0] for i in items}:
-        day_items = [i for i in items if i[0] == day]
-        try:
-            result[day.isoformat()] = ledger_totals.day_nets(day_items, base_of)[day]
-        except fx_service.FxUnavailableError:
-            result[day.isoformat()] = None
-    return result
+    return ledger_totals.actual_day_nets(
+        items, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+    )
 
 
 def _planned_rows(
@@ -306,7 +293,7 @@ def _render_table(
     categories_by_id = {
         c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)
     }
-    day_nets = _actual_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
+    day_nets = _ledger_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
     return render(
         request,
         "ledger/_table.html",
@@ -363,7 +350,7 @@ def index(
         views=view_kinds(),
         rows=rows,
         day_nets=(
-            _actual_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
+            _ledger_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
         ),
         filters=filters,
         categories=categories_repo.list_all(conn, user_id),

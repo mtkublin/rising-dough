@@ -45,17 +45,17 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Money format, parse, exponent, minor and major units | `domain/money.py` (`parse_amount_str`, `format_money`, `to_minor_units`, `minor_to_major`); one rounding helper (T-Q229) | exists (Q-011, T-Q216) | - |
 | Periods and month windows | `domain/periods.py` `month_bounds` | exists (Q-003) | - |
 | Recurring occurrence expansion | `services/recurring.pending_occurrences` | exists (Q-002, T-Q207) | - |
-| Direction to sign | `domain/transactions.signed_legs` (`services/balance.py` today) | **target** (Q-036) | `services/ledger_totals.signed_effect` |
+| Direction to sign | `domain/transactions.signed_legs` | exists (Q-036) | - |
 | Net worth and fortune | `services/fortune.compute_fortune` | exists (Q-009) | - |
-| Sum by category in base currency | `services/aggregates.sum_by_category` | **target** (Q-008) | none - extract via T-Q227 |
-| Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists-migrating (T-Q209) | - |
+| Sum by category in base currency | `services/aggregates.sum_by_category` (and `mean_minor`) | exists (Q-008) | - |
+| Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists (Q-010) | - |
 | Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)`, `utc_now_iso()`; routers use `web.deps.get_today` / `today_for(request)` (ADR-0140) | exists (Q-031) | - |
 | Request parameter parsing | `web/params.py` `parse_date`, `parse_int`, `parse_year_month`, `positive_amount` (amount text: `domain/money.py` `parse_amount_minor`) | exists (Q-023, T-Q233) | - |
 | HTMX events and toast payloads | `web/htmx.py` `trigger` | exists-migrating (T-Q236) | - |
 | Transit validation | `services/transactions.validate_transit_shape` | exists (Q-004) | - |
-| Balance as of a date | `services/balance.as_of_today` | **target** (Q-032) | none - extract via T-Q227 |
-| Category selection (expense category ids) | `services/categories.expense_category_ids` | **target** (Q-030) | none - extract via T-Q227 |
-| Budget tier resolution | `services/budget.pick_tier` | **target** (Q-075) | `services/budget.resolve_budget` |
+| Balance as of a date | `services/balance.as_of_today` | exists (Q-032) | - |
+| Category selection (expense category ids) | `services/categories.expense_category_ids` (archived included, ADR-0136) | exists (Q-030) | - |
+| Budget tier resolution | `services/budget.pick_tier` | exists (Q-075) | - |
 | Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | exists (Q-039) | - |
 
 **Target** rows are not yet extracted. Either call the row's **Interim** copy (public, named in the table), or, when it says "none", do the extraction as the registered migration task (`migration_task` in the registry), migrating **all** copies in the same change. Never import another module's private `_name` (G30, `test_private_imports.py`). Never create the canonical module without migrating the copies: a row may be `exists` only at zero copies, otherwise `exists-migrating` (`test_canonical_modules.py`). `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.

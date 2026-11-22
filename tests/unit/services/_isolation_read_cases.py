@@ -35,6 +35,7 @@ from budget_planner.services import (
     balance,
     budget,
     budget_batch,
+    categories as categories_svc,
     income,
     preferences,
     today as today_svc,
@@ -597,3 +598,48 @@ def _case_afford(conn: sqlite3.Connection, world: World) -> None:
     assert other == today_svc.AffordResult(
         per_day_minor=32, delta_minor=-52, pace_tag="tight", days_left=19
     )
+
+
+@covers("balance.as_of_today")
+def _case_as_of_today(conn: sqlite3.Connection, world: World) -> None:
+    assert balance.as_of_today(conn, OWNER_ID, world.owner.account_id, T) == OWNER_BALANCE - 1_000
+    assert balance.as_of_today(conn, OTHER_ID, world.other.account_id, T) == OTHER_BALANCE - 2_000
+    before = dt.date(2026, 11, 9)  # before the world's single transaction
+    assert balance.as_of_today(conn, OWNER_ID, world.owner.account_id, before) == OWNER_BALANCE
+    with pytest.raises(balance.AccountNotFoundError):
+        balance.as_of_today(conn, OWNER_ID, world.other.account_id, T)
+
+
+@covers("balance.as_of_today_many")
+def _case_as_of_today_many(conn: sqlite3.Connection, world: World) -> None:
+    owner_accs = accounts_repo.list_all(conn, OWNER_ID)
+    assert balance.as_of_today_many(conn, OWNER_ID, owner_accs, T) == {
+        world.owner.account_id: OWNER_BALANCE - 1_000
+    }
+    other_accs = accounts_repo.list_all(conn, OTHER_ID)
+    assert balance.as_of_today_many(conn, OTHER_ID, other_accs, T) == {
+        world.other.account_id: OTHER_BALANCE - 2_000
+    }
+
+
+def _expected_expense_ids(world: World, user_id: int) -> set[int]:
+    own = {_own(world, user_id).category_id}
+    if user_id == OWNER_ID and world.tombstones is not None:
+        own.add(world.tombstones.category_id)  # archived categories still count (ADR-0136)
+    return own
+
+
+@covers("categories.expense_categories")
+def _case_expense_categories(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = {c.id for c in categories_svc.expense_categories(conn, user_id)}
+        assert found == _expected_expense_ids(world, user_id)
+    live = {c.id for c in categories_svc.expense_categories(conn, OWNER_ID, include_archived=False)}
+    assert live == {world.owner.category_id}
+
+
+@covers("categories.expense_category_ids")
+def _case_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = set(categories_svc.expense_category_ids(conn, user_id))
+        assert found == _expected_expense_ids(world, user_id)

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import PeriodWindow, fiscal_window
+from budget_planner.domain.transactions import signed_legs
 from budget_planner.repositories import (
     accounts as accounts_repo,
 )
@@ -64,13 +65,14 @@ def _legs(
     direction: Direction, account_id: int, dest_account_id: int | None, amount: int
 ) -> tuple[tuple[int, int], ...]:
     """Return ``(account_id, signed_minor)`` legs; adjustments contribute nothing."""
-    if direction is Direction.INCOME:
-        return ((account_id, amount),)
-    if direction is Direction.EXPENSE:
-        return ((account_id, -amount),)
-    if direction is Direction.TRANSIT and dest_account_id is not None:
-        return ((account_id, -amount), (dest_account_id, amount))
-    return ()
+    if direction is Direction.ADJUSTMENT or (
+        direction is Direction.TRANSIT and dest_account_id is None
+    ):
+        return ()
+    return tuple(
+        (leg.account_id, leg.amount_minor)
+        for leg in signed_legs(direction, amount, account_id, dest_account_id)
+    )
 
 
 def _collect_legs(

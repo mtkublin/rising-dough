@@ -11,11 +11,9 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-import pytest
-
 from budget_planner.config import get_settings
 from budget_planner.domain.budgets import NewBudgetDefault
-from budget_planner.repositories import budgets as budgets_repo, categories as categories_repo
+from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import forecast, fx as fx_svc
 
 U = 1
@@ -23,15 +21,10 @@ TODAY = date(2026, 11, 19)
 ARCHIVED = 25  # "Bank Fees #17", archived in the demo data
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-030: the daily overlay includes archived categories, the monthly table does not",
-)
 def test_archived_category_budget_affects_both_forecast_paths_equally(
     seeded: sqlite3.Connection,
 ) -> None:
     budgets_repo.set_default(seeded, U, NewBudgetDefault(category_id=ARCHIVED, amount=100_000))
-    cats = {c.id: c.direction for c in categories_repo.list_all(seeded, U, include_deleted=True)}
     end = date(2026, 11, 30)
     month = date(2026, 11, 1)
 
@@ -45,7 +38,6 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
                 U,
                 today=TODAY,
                 end_date=end,
-                directions_by_cat=cats,
                 primary_account_id=1,
                 fx=fx,
             )
@@ -56,3 +48,5 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
     seeded.execute("DELETE FROM budget_defaults WHERE category_id = ?", (ARCHIVED,))
     overlay_without, monthly_without = paths()
     assert overlay_with - overlay_without == monthly_with - monthly_without
+    # Archived == soft-deleted here (``categories.deleted_at``); ADR-0136 says it still counts, in full, in both paths.
+    assert overlay_with - overlay_without == 100_000
