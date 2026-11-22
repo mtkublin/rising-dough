@@ -1318,6 +1318,17 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
 - Removes allowlist entries: none.
 
+### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
+- Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
+- Epic: E04
+- Band: incident · Size: S · Tags: ci, deploy
+- Depends on: T-Q218
+- Docs-first step: ADR-0132 amendment 2026-11-22 (T-Q309); CHANGELOG.
+- Goal: the prod PR plan gets placeholder Tailscale credentials (`tf_env.py --plan-only`, `terraform-env` input `plan-only`) and plans with `-refresh=false`; prod apply still requires the real credentials.
+- Acceptance: `test_tf_env.py` covers plan-only (prod placeholder, drill unchanged, apply unchanged); `terraform test` plan-only run shows no destroy or replace of `tailscale_tailnet_key.vm`; workflow wiring test green.
+- Operator question blocking it: none. Operator: none needed; optional read-scoped OAuth client if PR drift detection for prod is wanted.
+- Removes allowlist entries: none.
+
 ### ✅ T-Q308 [S] merge-item skips worktree-agent branches still checked out
 - Findings: the final prune loop in `scripts/ci/merge_item.sh` ran `git branch -D` on empty `worktree-agent-*` branches that a live worktree still had checked out; git refuses, `set -e` exits non-zero after a successful merge, push and prune.
 - Epic: E04

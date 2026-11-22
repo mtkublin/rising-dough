@@ -12,6 +12,10 @@ inputs:
     description: "'true' only for the restore drill apply (gated prod-restore-read, ADR-0132): also export the prod replica read key."
     required: false
     default: "false"
+  plan-only:
+    description: "'true' for the PR plan job: on prod, Tailscale credentials are placeholders (T-Q309, ADR-0132); the caller must plan with -refresh=false."
+    required: false
+    default: "false"
   secrets-json:
     description: "Pass the toJSON of the secrets context (a composite action cannot read it)."
     required: true
@@ -29,7 +33,9 @@ runs:
         VARS_JSON: ${{ inputs.vars-json }}
         TARGET_ENV: ${{ inputs.env }}
         RESTORE_SOURCE: ${{ inputs.restore-source }}
+        PLAN_ONLY: ${{ inputs.plan-only }}
       run: |
         flag=()
         if [ "${RESTORE_SOURCE}" = "true" ]; then flag=(--restore-source); fi
+        if [ "${PLAN_ONLY}" = "true" ]; then flag+=(--plan-only); fi
         python3 "${GITHUB_ACTION_PATH}/../../../scripts/ci/tf_env.py" --env "${TARGET_ENV}" "${flag[@]}"

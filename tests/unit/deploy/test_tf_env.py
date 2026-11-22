@@ -180,3 +180,45 @@ def test_terraform_jobs_export_inputs_through_the_action_before_use() -> None:
             # Workflow inputs, not secrets (T-D90; ADR-0127 §7 rehearsal knobs).
             if not k.endswith(("_expires_at", "_upload", "_root_volume_type", "_allow_empty_db"))
         )
+
+
+def _build_prod(*, plan_only: bool, secrets: dict[str, str] | None = None) -> dict[str, str]:
+    out: dict[str, str] = tf_env.build_env(
+        "prod", secrets or SECRETS, VARS, owner="o", run_id="1", plan_only=plan_only
+    )
+    return out
+
+
+def test_prod_plan_only_uses_placeholder_tailscale_credentials() -> None:
+    """T-Q309: `prod-plan` holds no OAuth client; the plan still gets non-empty inputs."""
+    out = _build_prod(plan_only=True)
+
+    assert out["TF_VAR_tailscale_oauth_client_id"] == tf_env.PLAN_ONLY
+    assert out["TF_VAR_tailscale_oauth_client_secret"] == tf_env.PLAN_ONLY
+
+
+def test_plan_only_never_replaces_a_real_credential_outside_a_prod_plan() -> None:
+    """Apply (no flag) and drill keep the value; an absent one stays empty so apply fails fast."""
+    given = {**SECRETS, "TS_OAUTH_CLIENT_ID": "id-1", "TS_OAUTH_SECRET": "value-2"}
+    key = "TF_VAR_tailscale_oauth_client_secret"
+
+    apply_prod = _build_prod(plan_only=False, secrets=given)
+    plan_drill = tf_env.build_env("drill", given, VARS, owner="o", run_id="1", plan_only=True)
+
+    assert apply_prod["TF_VAR_tailscale_oauth_client_id"] == "id-1"
+    assert plan_drill[key] != tf_env.PLAN_ONLY
+    assert _build_prod(plan_only=False)[key] == ""
+
+
+def test_only_the_prod_plan_passes_plan_only_and_skips_refresh() -> None:
+    wf = yaml.safe_load((ROOT / ".github/workflows/terraform.yml").read_text())
+    plan_steps = wf["jobs"]["plan"]["steps"]
+    env_step = next(s for s in plan_steps if s.get("uses") == "./.github/actions/terraform-env")
+    plan_run = next(s for s in plan_steps if s.get("id") == "plan")["run"]
+    apply_steps = wf["jobs"]["apply"]["steps"]
+    apply_env = next(s for s in apply_steps if s.get("uses") == "./.github/actions/terraform-env")
+
+    assert env_step["with"]["plan-only"] == "${{ matrix.env == 'prod' }}"
+    assert "plan-only" not in apply_env["with"]
+    assert '-refresh="${refresh}"' in plan_run
+    assert "refresh=false" in plan_run
