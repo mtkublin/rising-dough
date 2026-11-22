@@ -41,7 +41,6 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
-    transactions as transactions_repo,
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.repositories._unaudited import (
@@ -51,9 +50,28 @@ from budget_planner.repositories._unaudited import (
     set_next_due,
 )
 from budget_planner.services import audit as audit_svc
-from budget_planner.services._promotion import ValidationError, validate_promotion
-from budget_planner.services.recurring_formula import resolve_rule_amount, rt_expand
+from budget_planner.services._promotion import (
+    ValidationError,
+    create_promoted_transaction,
+    validate_promotion,
+)
+from budget_planner.services.recurring_formula import (
+    DatesOnly,
+    FormulaFx,
+    resolve_rule_amount,
+    rt_expand,
+)
 from budget_planner.services.recurring_overrides import apply_overrides
+from budget_planner.services.recurring_rules import (
+    create_rule,
+    deactivate_rule,
+    delete_override,
+    find_rule,
+    list_overrides,
+    list_rules,
+    update_rule,
+    upsert_override,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +148,8 @@ def promote_recurring(
     user_id: int,
     rule_id: int,
     edits: PromotionEdits,
+    *,
+    fx: FormulaFx,
 ) -> Transaction:
     """Promote the next-due occurrence of a recurring rule to an actual txn.
 
@@ -140,7 +160,7 @@ def promote_recurring(
     3. Lookup override for ``(rule_id, due_date)``:
        - ``skipped`` → raise ``CannotPromoteSkippedError``.
        - ``overridden`` → merge amount / description / date defaults.
-    4. Overlay explicit ``edits``.
+    4. Overlay explicit ``edits`` (a formula converts through ``fx``, T-Q286).
     5. Validate direction via shared validator (currency match for transit,
        zero-amount guard, adjustment-direction rejection).
     6. Single DB transaction: insert the txn (recurring provenance stamped), advance
@@ -154,7 +174,7 @@ def promote_recurring(
         overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
         match = _resolve_override_for_next_due(overrides, due_date)
         amount, description, operation_date = _promotion_values(
-            conn, user_id, rule, due_date, match=match, edits=edits
+            conn, user_id, rule, due_date, match=match, edits=edits, fx=fx
         )
 
         new_txn = _validated_promotion_txn(
@@ -166,7 +186,7 @@ def promote_recurring(
             description=description,
             operation_date=operation_date,
         )
-        txn = transactions_repo.create(conn, user_id, new_txn)
+        txn = create_promoted_transaction(conn, user_id, new_txn)
         _advance_rule(conn, user_id, rule, due_date, last_promoted_date=due_date)
         if match is not None:
             # ADR-0046: soft-consume (stamp the txn id) so formula history keeps seeing it.
@@ -247,6 +267,7 @@ def _promotion_values(
     *,
     match: RecurringOverride | None,
     edits: PromotionEdits,
+    fx: FormulaFx,
 ) -> tuple[int, str, dt.date]:
     """Resolve (amount, description, operation date): rule -> override -> explicit edits."""
     # Defaults start from the rule. Formula rules recompute from the
@@ -254,7 +275,7 @@ def _promotion_values(
     default_amount, default_description, effective_date = _apply_override(
         match,
         rule,
-        amount=resolve_rule_amount(conn, user_id, rule, due_date),
+        amount=resolve_rule_amount(conn, user_id, rule, due_date, fx=fx),
         description=rule.default_description,
         due_date=due_date,
     )
@@ -374,6 +395,8 @@ def batch_promote_due(
     conn: sqlite3.Connection,
     user_id: int,
     today: dt.date,
+    *,
+    fx: FormulaFx,
 ) -> BatchPromoteResult:
     """Promote every active rule whose ``next_due`` is on-or-before ``today``.
 
@@ -399,7 +422,7 @@ def batch_promote_due(
                 skip_and_advance(conn, user_id, rule.id)
                 skipped.append(rule.id)
                 continue
-            txn = promote_recurring(conn, user_id, rule.id, PromotionEdits())
+            txn = promote_recurring(conn, user_id, rule.id, PromotionEdits(), fx=fx)
             promoted.append(txn.id)
             advanced.append(rule.id)
             audit_id = audit_repo.latest_entry_id(conn, user_id, "recurring_rule", rule.id)
@@ -508,6 +531,7 @@ def _planned_items(
             date_from=None if win.include_overdue else win.start,
             date_to=win.end - dt.timedelta(days=1) if win.end is not None else None,
             promoted=False,
+            live_accounts_only=True,
         ),
     )
     return [
@@ -532,17 +556,17 @@ def _planned_items(
     ]
 
 
-def _rule_items(
+def _rule_occurrences(
     conn: sqlite3.Connection,
     user_id: int,
     rule: RecurringRule,
     win: _Window,
-    direction: Direction,
-    *,
     overrides: list[RecurringOverride],
-    dedup: frozenset[tuple[int, dt.date]],
+    *,
     next_only: bool,
-) -> list[PendingItem]:
+    fx: FormulaFx | DatesOnly,
+) -> tuple[Occurrence, ...]:
+    """Expand ``rule`` over the window (from ``next_due``); empty when the window misses it."""
     lo = rule.next_due
     if win.start is not None and not win.include_overdue:
         lo = max(lo, win.start)
@@ -553,15 +577,31 @@ def _rule_items(
     else:
         raise ValueError("an unbounded end needs next_only")
     if lo > hi:
-        return []
-    occs = rt_expand(
+        return ()
+    return rt_expand(
         conn,
         user_id,
         rule=rule,
         overrides=overrides,
         range_start=lo,
         range_end=hi,
+        fx=fx,
     )
+
+
+def _rule_items(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    win: _Window,
+    direction: Direction,
+    *,
+    overrides: list[RecurringOverride],
+    dedup: frozenset[tuple[int, dt.date]],
+    next_only: bool,
+    fx: FormulaFx | DatesOnly,
+) -> list[PendingItem]:
+    occs = _rule_occurrences(conn, user_id, rule, win, overrides, next_only=next_only, fx=fx)
     return [
         PendingItem(
             kind="recurring",
@@ -584,10 +624,41 @@ def _rule_items(
     ]
 
 
+def _all_rule_items(
+    conn: sqlite3.Connection,
+    user_id: int,
+    win: _Window,
+    kinds: Mapping[int, Direction],
+    wanted: Callable[[int], bool],
+    *,
+    dedup: frozenset[tuple[int, dt.date]],
+    next_only: bool,
+    fx: FormulaFx | DatesOnly,
+) -> list[PendingItem]:
+    """Pending items of every wanted active rule (overrides loaded once)."""
+    overrides = recurring_repo.list_pending_overrides_by_rule(conn, user_id)
+    items: list[PendingItem] = []
+    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
+        if wanted(rule.category_id):
+            items += _rule_items(
+                conn,
+                user_id,
+                rule,
+                win,
+                kinds[rule.category_id],
+                overrides=overrides.get(rule.id, []),
+                dedup=dedup,
+                next_only=next_only,
+                fx=fx,
+            )
+    return items
+
+
 def pending_occurrences(
     conn: sqlite3.Connection,
     user_id: int,
     *,
+    fx: FormulaFx | DatesOnly,
     start: dt.date | None,
     end: dt.date | None,
     today: dt.date | None,
@@ -601,10 +672,10 @@ def pending_occurrences(
 
     The one "planned x active rules x overrides x linked-dedup x window" expander
     (T-Q207). ``None`` bounds are open; membership is on the canonical date.
-    ``include_overdue`` adds items dated before ``today`` even below ``start``
-    (ADR-0105), placed on ``overdue_on`` when given. Rules expand from ``next_due``;
-    skipped occurrences and occurrences with a linked planned row are dropped;
-    ``next_only`` yields at most the ``next_due`` occurrence per rule.
+    ``include_overdue`` adds items dated before ``today`` even below ``start`` (ADR-0105),
+    placed on ``overdue_on``. Rules expand from ``next_due``; skipped and linked-row
+    occurrences drop; ``next_only`` yields at most ``next_due`` per rule. ``fx`` converts
+    formula amounts (T-Q286); ``DATES_ONLY`` for date-only callers.
     """
     if include_overdue and start is not None and today is None:
         raise ValueError("include_overdue with a bounded start needs today")
@@ -619,19 +690,9 @@ def pending_occurrences(
     win = _Window(start, end, today, include_overdue, overdue_on)
     dedup = linked_occurrence_keys(conn, user_id)
     items = _planned_items(conn, user_id, win, kinds, wanted)
-    overrides = recurring_repo.list_pending_overrides_by_rule(conn, user_id)
-    for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
-        if wanted(rule.category_id):
-            items += _rule_items(
-                conn,
-                user_id,
-                rule,
-                win,
-                kinds[rule.category_id],
-                overrides=overrides.get(rule.id, []),
-                dedup=dedup,
-                next_only=next_only,
-            )
+    items += _all_rule_items(
+        conn, user_id, win, kinds, wanted, dedup=dedup, next_only=next_only, fx=fx
+    )
     return tuple(items)
 
 
@@ -650,18 +711,6 @@ def linked_occurrence_keys(
         for row in rows
         if row.recurring_rule_id is not None and row.occurrence_date is not None
     )
-
-
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-find_rule = recurring_repo.find_rule
-list_rules = recurring_repo.list_rules
-list_overrides = recurring_repo.list_overrides
-create_rule = recurring_repo.create_rule
-update_rule = recurring_repo.update_rule
-deactivate_rule = recurring_repo.deactivate_rule
-upsert_override = recurring_repo.upsert_override
-delete_override = recurring_repo.delete_override
 
 
 __all__ = [

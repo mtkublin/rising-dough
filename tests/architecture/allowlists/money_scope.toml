@@ -4,24 +4,10 @@
 guard = "money_scope"
 
 [[entry]]
-path = "src/budget_planner/services/balance.py"
-rule = "money-round"
-count = 2
-finding = "Q-076"
-epic = "E11"
-
-[[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "money-float"
 count = 1
 finding = "Q-022"
-epic = "E11"
-
-[[entry]]
-path = "src/budget_planner/services/rate_limit.py"
-rule = "money-round"
-count = 1
-finding = "Q-076"
 epic = "E11"
 
 [[entry]]
@@ -38,9 +24,26 @@ count = 2
 finding = "Q-023"
 epic = "E11"
 
-[[entry]]
+[[permanent]]
+path = "src/budget_planner/services/balance.py"
+rule = "money-round"
+count = 2
+finding = "Q-076"
+epic = "E11"
+reason = "sparkline_points scales values to SVG plot coordinates in pixels, not money (ADR-0130 amendment 2026-11-22, T-Q283)"
+
+[[permanent]]
+path = "src/budget_planner/services/rate_limit.py"
+rule = "money-round"
+count = 1
+finding = "Q-076"
+epic = "E11"
+reason = "_retry_after rounds a Retry-After duration in whole seconds, not money (ADR-0130 amendment 2026-11-22, T-Q283)"
+
+[[permanent]]
 path = "src/budget_planner/web/charts.py"
 rule = "money-round"
 count = 4
 finding = "Q-076"
 epic = "E11"
+reason = "chart axis and geometry rounding (step, tick and plot coordinates) in pixels or axis units, not money (ADR-0130 amendment 2026-11-22, T-Q283)"

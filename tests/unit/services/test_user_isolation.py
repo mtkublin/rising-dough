@@ -16,6 +16,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.errors import ConflictError
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
@@ -28,10 +29,14 @@ from budget_planner.services import (
     recurring_formula,
 )
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_account_cases,
+    _isolation_crud_cases,
+    _isolation_ledger_cases,
     _isolation_read_cases,
     _isolation_t266_cases,
+    _isolation_t267_cases,
     _isolation_write_cases,
 )
 from tests.unit.services._isolation_registry import COVERED, covers
@@ -87,7 +92,10 @@ def _analytics_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
 
 
 def _grid_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
-    return {r.category_id for r in budget.yearly_grid(conn, user_id, 2026)}
+    return {
+        r.category_id
+        for r in budget.yearly_grid(conn, user_id, 2099, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    }  # far after the tombstone archive month (ADR-0136)
 
 
 @covers("fortune.compute_fortune")
@@ -147,11 +155,23 @@ def _case_compute_savable_amount(conn: sqlite3.Connection, world: World) -> None
 
     with pytest.raises(recurring_formula.FormulaError):
         recurring_formula.compute_savable_amount(
-            conn, OWNER_ID, formula(world.other.category_id), 2026, 11
+            conn,
+            OWNER_ID,
+            formula(world.other.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
         )
     with pytest.raises(recurring_formula.FormulaError):
         recurring_formula.compute_savable_amount(
-            conn, OTHER_ID, formula(world.owner.category_id), 2026, 11
+            conn,
+            OTHER_ID,
+            formula(world.owner.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OTHER_ID),
+            target_ccy=TARGET_CCY,
         )
 
 

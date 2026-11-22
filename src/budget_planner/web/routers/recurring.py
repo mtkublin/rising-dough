@@ -15,6 +15,7 @@ from budget_planner.domain.recurring import (
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
+    end_date_error,
 )
 from budget_planner.services import (
     accounts as accounts_service,
@@ -23,16 +24,19 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
-from budget_planner.web.deps import current_user_id, get_db, today_for
+from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, today_for
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
-from budget_planner.web.params import parse_date, parse_int, positive_amount
-from budget_planner.web.rendering import render
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE
+from budget_planner.web.params import parse_date, parse_int, positive_amount, query_date
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -41,7 +45,7 @@ def new_form(
     # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New recurring rule",
         form_include="partials/recurring/_form.html",
         rule=None,
@@ -60,6 +64,7 @@ async def create_rule(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     form = await request.form()
     cadence = str(form.get("cadence", ""))
@@ -86,8 +91,8 @@ async def create_rule(
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     try:
         category_id = int(category_id_raw)
         account_id = int(account_id_raw)
@@ -120,6 +125,7 @@ async def create_rule(
     minor, formula, amount_errors = forms.resolve_amount_inputs(
         conn,
         user_id,
+        fx=fx,
         amount_source=amount_source,
         default_amount=default_amount,
         term_inputs=term_inputs,
@@ -175,7 +181,7 @@ async def create_rule(
     )
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -186,6 +192,7 @@ async def formula_preview(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     """Live-preview chip or inline error for a draft formula (no DB write)."""
     form = await request.form()
@@ -196,7 +203,10 @@ async def formula_preview(
     drafts = forms.parse_draft_terms(form)
     if drafts is None:
         return Response(status_code=422, content="invalid source_category_ids")
-    result = formula_svc.preview(conn, user_id, today_for(request), draft_rule_id, drafts)
+    target_ccy = views.preview_currency(conn, user_id, form.get("account_id"), draft_rule_id, fx)
+    result = formula_svc.preview(
+        conn, user_id, today_for(request), draft_rule_id, drafts, fx=fx, target_ccy=target_ccy
+    )
     is_ok = isinstance(result, formula_svc.PreviewOk)
     return render(
         request,
@@ -237,7 +247,7 @@ def edit_form(
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit recurring rule",
         form_include="partials/recurring/_form.html",
         rule=rule,
@@ -257,6 +267,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -291,8 +302,8 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -308,6 +319,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     minor, formula, amount_errors = forms.resolve_amount_inputs(
         conn,
         user_id,
+        fx=fx,
         amount_source=amount_source,
         default_amount=default_amount,
         term_inputs=term_inputs,
@@ -358,7 +370,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -375,7 +387,7 @@ def deactivate_rule(
     # Empty body + ledger-stale trigger removes the row from the Ledger
     # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
     # inactive rules disappear from view. Mirrors transactions/delete.
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.LEDGER_STALE, Event.FORECAST_STALE)
     return resp
 
@@ -473,7 +485,7 @@ def add_override(
     )
     html = Response()
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -482,8 +494,10 @@ def delete_override(
     rule_id: int,
     occurrence_date: str,
     request: Request,
+    *,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -499,7 +513,7 @@ def delete_override(
         request,
         "partials/recurring/_row.html",
         rule=rule,
-        effective_amount_minor=views.effective_amount_for_render(conn, user_id, rule),
+        effective_amount_minor=views.effective_amount_for_render(conn, user_id, rule, fx),
         overrides=overrides,
         account=acc,
         category=cat,
@@ -519,8 +533,9 @@ def promote_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
-    return views.render_promote_modal(request, conn, user_id, rule_id)
+    return views.render_promote_modal(request, conn, user_id, rule_id, fx)
 
 
 @router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
@@ -528,8 +543,10 @@ def promote_inline(
     rule_id: int,
     request: Request,
     date: str = "",
+    *,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     """F-02 — Row-expand inline form for Today Upcoming Promote action.
 
@@ -540,9 +557,9 @@ def promote_inline(
     if rule is None:
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    occurrence = parse_date(date) or rule.next_due
+    occurrence = query_date("date", date) or rule.next_due
     override = views.override_on_next_due(conn, user_id, rule_id, occurrence)
-    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence)
+    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx)
     prefill_description = rule.default_description
     if override is not None:
         if override.amount_override is not None:
@@ -572,6 +589,7 @@ def promote_submit(
     description: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -596,7 +614,7 @@ def promote_submit(
 
     if errors:
         return views.render_promote_modal(
-            request, conn, user_id, rule_id, errors=errors, status_code=422
+            request, conn, user_id, rule_id, fx, errors=errors, status_code=422
         )
 
     edits = recurring_svc.PromotionEdits(
@@ -605,7 +623,7 @@ def promote_submit(
         description=description or None,
     )
     try:
-        recurring_svc.promote_recurring(conn, user_id, rule_id, edits)
+        recurring_svc.promote_recurring(conn, user_id, rule_id, edits, fx=fx)
     except recurring_svc.RecurringNotFoundError:
         return Response(status_code=404, content="not found")
     except (
@@ -619,13 +637,14 @@ def promote_submit(
             conn,
             user_id,
             rule_id,
+            fx,
             errors={"promotion": str(exc)},
             status_code=422,
         )
 
     html = Response()
     trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -635,6 +654,7 @@ def skip_next(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
@@ -654,7 +674,7 @@ def skip_next(
         overrides=recurring_svc.list_overrides(conn, user_id, rule_id),
         account=acc,
         category=cat,
-        effective_amount_minor=views.effective_amount_for_render(conn, user_id, updated),
+        effective_amount_minor=views.effective_amount_for_render(conn, user_id, updated, fx),
     )
     trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
     return html

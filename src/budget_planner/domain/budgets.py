@@ -73,3 +73,21 @@ class NewBudgetOneOffOverride:
     year: int
     month: int
     amount: int
+
+
+MONTHS_IN_YEAR = 12
+
+
+def valid_month(month: int) -> bool:
+    """True for a calendar month number 1 to 12."""
+    return 1 <= month <= MONTHS_IN_YEAR
+
+
+def override_errors(*, amount: int, month: int | None = None) -> dict[str, str]:
+    """Field errors for a budget amount (never negative) and an optional month (1 to 12)."""
+    errors: dict[str, str] = {}
+    if amount < 0:
+        errors["amount"] = "invalid amount"
+    if month is not None and not valid_month(month):
+        errors["month"] = "invalid month"
+    return errors

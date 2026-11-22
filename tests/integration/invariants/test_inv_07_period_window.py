@@ -14,18 +14,28 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import planned as planned_repo
 from budget_planner.services import account_planned, budget
+from tests.formula_fx_support import formula_fx_of
 
 U = 1
 TODAY = date(2026, 11, 19)
 
 
 def _snapshot(conn: sqlite3.Connection) -> tuple[int, int, int]:
-    s = budget.month_summary(conn, U, 2026, 11, today=TODAY, base_currency="PLN")
+    s = budget.month_summary(
+        conn,
+        U,
+        2026,
+        11,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     win = account_planned.resolve_window(conn, U, TODAY)
-    net1 = account_planned.planned_net_by_account(conn, U, win).get(1, 0)
+    net1 = account_planned.planned_net_by_account(conn, U, win, formula_fx_of(conn, U)).get(1, 0)
     committed = s.totals.committed_minor + s.totals.unbudgeted_committed_minor
     return committed, net1, s.days_until_next_income
 

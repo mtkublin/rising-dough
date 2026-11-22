@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
+from budget_planner.web.password_flow import THROTTLED_FORM_ERROR
 from tests.auth_support import FAST_HASHER, TEST_PASSWORD, issue_session, login_cookie
 from tests.contract.conftest import covers
 from tests.contract.web_helpers_t_ut04e import HX

@@ -35,6 +35,7 @@ from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import recurring as recurring_svc, recurring_undo
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
+from tests.formula_fx_support import formula_fx_of
 from tests.integration.web.conftest import _CSRFAwareTestClient
 
 pytestmark = pytest.mark.integration
@@ -93,7 +94,7 @@ def _planned(conn: sqlite3.Connection, user_id: int) -> int:
 
 def _promote_recurring(conn: sqlite3.Connection, user_id: int) -> dict[str, list[int]]:
     """Run the recurring batch promote through the service (its HTTP route was removed)."""
-    result = recurring_svc.batch_promote_due(conn, user_id, DUE)
+    result = recurring_svc.batch_promote_due(conn, user_id, DUE, fx=formula_fx_of(conn, user_id))
     return {
         "promoted_txn_ids": list(result.promoted_txn_ids),
         "advance_audit_ids": list(result.advance_audit_ids),

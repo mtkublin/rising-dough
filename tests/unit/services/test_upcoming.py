@@ -28,6 +28,7 @@ from budget_planner.domain.recurring import (
 )
 from budget_planner.repositories import accounts, categories, planned, recurring
 from budget_planner.services import upcoming as upcoming_svc
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 
@@ -97,7 +98,9 @@ def test_planned_only(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
             description="groceries",
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     item = items[0]
     assert item.kind == "planned"
@@ -121,7 +124,9 @@ def test_planned_overdue_flag(conn: sqlite3.Connection, ids: dict[str, int]) -> 
             description="late bill",
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     assert items[0].is_overdue is True
 
@@ -138,7 +143,9 @@ def test_recurring_only(conn: sqlite3.Connection, ids: dict[str, int]) -> None:
         category_id=ids["rent"],
         account_id=ids["checking"],
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     item = items[0]
     assert item.kind == "recurring"
@@ -173,7 +180,9 @@ def test_mixed_sorted_by_effective_date(conn: sqlite3.Connection, ids: dict[str,
         category_id=ids["rent"],
         account_id=ids["checking"],
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 2
     assert items[0].effective_date == dt.date(2026, 5, 15)
     assert items[0].kind == "recurring"
@@ -202,7 +211,9 @@ def test_tie_break_planned_first(conn: sqlite3.Connection, ids: dict[str, int]) 
         account_id=ids["checking"],
         description="rent same day",
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 2
     assert items[0].kind == "planned"
     assert items[1].kind == "recurring"
@@ -233,7 +244,9 @@ def test_override_merge_amount_and_description(
             description_override="rent + fee",
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     assert items[0].amount_minor == 250_000
     assert items[0].description == "rent + fee"
@@ -262,7 +275,9 @@ def test_override_date_shift_still_inside_window(
             date_override=dt.date(2026, 5, 25),
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     assert items[0].effective_date == dt.date(2026, 5, 25)
 
@@ -288,7 +303,9 @@ def test_override_moves_date_outside_window_excluded(
             date_override=dt.date(2026, 7, 15),  # beyond 30-day window.
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert items == ()
 
 
@@ -310,7 +327,9 @@ def test_skipped_override_excluded(conn: sqlite3.Connection, ids: dict[str, int]
             state=OverrideState.SKIPPED,
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert items == ()
 
 
@@ -339,7 +358,9 @@ def test_window_days_none_returns_all(conn: sqlite3.Connection, ids: dict[str, i
         amount=1_000_000,
         description="yearly fee",
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=None)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=None, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 2
     assert {i.kind for i in items} == {"planned", "recurring"}
 
@@ -355,7 +376,9 @@ def test_window_days_narrow_filters_recurring(
         category_id=ids["rent"],
         account_id=ids["checking"],
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=7)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=7, fx=formula_fx_of(conn, USER_ID)
+    )
     assert items == ()
 
 
@@ -372,7 +395,9 @@ def test_inactive_rule_excluded(conn: sqlite3.Connection, ids: dict[str, int]) -
         account_id=ids["checking"],
     )
     recurring.deactivate_rule(conn, USER_ID, rule.id)
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert items == ()
 
 
@@ -391,7 +416,9 @@ def test_active_rule_past_end_date_excluded(conn: sqlite3.Connection, ids: dict[
     )
     # Pin end_date before next_due so the rule should be filtered.
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(end_date=dt.date(2026, 4, 20)))
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=90)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=90, fx=formula_fx_of(conn, USER_ID)
+    )
     assert items == ()
 
 
@@ -406,7 +433,9 @@ def test_active_rule_at_end_date_included(conn: sqlite3.Connection, ids: dict[st
         account_id=ids["checking"],
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(end_date=dt.date(2026, 5, 20)))
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert len(items) == 1
     assert items[0].effective_date == dt.date(2026, 5, 20)
 
@@ -445,7 +474,9 @@ def test_recurring_formula_amount_resolved(conn: sqlite3.Connection, ids: dict[s
     vat_rule = recurring.update_rule(
         conn, USER_ID, vat_rule.id, PatchRecurringRule(next_due=dt.date(2026, 5, 20))
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     vat_item = next(i for i in items if i.rule_id == vat_rule.id)
     assert vat_item.amount_minor == 230_000  # 23% of 10_000.00 = 2_300.00
     assert vat_item.is_formula is True
@@ -463,7 +494,9 @@ def test_recurring_non_formula_has_is_formula_false(
         category_id=ids["rent"],
         account_id=ids["checking"],
     )
-    (item,) = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    (item,) = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert item.is_formula is False
 
 
@@ -480,7 +513,9 @@ def test_planned_is_formula_false(conn: sqlite3.Connection, ids: dict[str, int])
             description="groceries",
         ),
     )
-    (item,) = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    (item,) = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     assert item.is_formula is False
 
 
@@ -527,7 +562,9 @@ def test_formula_rule_with_amount_override_prefers_override(
             amount_override=999_00,
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, USER_ID, today=today, window_days=30)
+    items = upcoming_svc.list_upcoming(
+        conn, USER_ID, today=today, window_days=30, fx=formula_fx_of(conn, USER_ID)
+    )
     vat_item = next(i for i in items if i.rule_id == vat_rule.id)
     assert vat_item.amount_minor == 999_00
     assert vat_item.is_formula is True

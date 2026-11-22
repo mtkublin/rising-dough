@@ -20,6 +20,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import planned as planned_svc, recurring as recurring_svc
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 
@@ -39,7 +40,9 @@ class TestRecurringBatch:
     def test_batch_zero_items_is_noop(
         self, conn: sqlite3.Connection, seeded: dict[str, int]
     ) -> None:
-        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(
+            conn, USER_ID, date(2026, 10, 29), fx=formula_fx_of(conn, USER_ID)
+        )
         assert result.promoted_txn_ids == ()
         assert result.advanced_rule_ids == ()
 
@@ -60,7 +63,9 @@ class TestRecurringBatch:
         )
         # Force next_due back to a past date so batch_promote picks it up.
         set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 10, 20), last_promoted_date=None)
-        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(
+            conn, USER_ID, date(2026, 10, 29), fx=formula_fx_of(conn, USER_ID)
+        )
         assert rule.id in result.advanced_rule_ids
         assert len(result.promoted_txn_ids) == 1
 
@@ -79,7 +84,9 @@ class TestRecurringBatch:
                 default_description="",
             ),
         )
-        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(
+            conn, USER_ID, date(2026, 10, 29), fx=formula_fx_of(conn, USER_ID)
+        )
         assert result.promoted_txn_ids == ()
 
     def test_batch_handles_skipped_override(
@@ -108,7 +115,9 @@ class TestRecurringBatch:
                 state=OverrideState.SKIPPED,
             ),
         )
-        result = recurring_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+        result = recurring_svc.batch_promote_due(
+            conn, USER_ID, date(2026, 10, 29), fx=formula_fx_of(conn, USER_ID)
+        )
         assert rule.id in result.skipped_rule_ids
         assert result.promoted_txn_ids == ()
 
@@ -174,3 +183,30 @@ class TestPlannedBatch:
         # Second batch pass sees nothing to promote.
         result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
+
+
+class TestPromoteAgainstArchivedCategory:
+    """T-Q287: a soft-deleted parent is a ValidationError, not a raw LookupError."""
+
+    def test_planned_promote_refused_and_nothing_written(
+        self, conn: sqlite3.Connection, seeded: dict[str, int]
+    ) -> None:
+        row = planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=date(2026, 10, 20),
+                category_id=seeded["category_id"],
+                account_id=seeded["account_id"],
+                amount=1_500,
+            ),
+        )
+        categories_repo.soft_delete(conn, USER_ID, seeded["category_id"])
+
+        with pytest.raises(planned_svc.ValidationError, match="cannot promote"):
+            planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+
+        assert conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 0
+        stored = planned_repo.find_by_id(conn, USER_ID, row.id)
+        assert stored is not None
+        assert stored.promoted_to_txn_id is None

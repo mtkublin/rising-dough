@@ -16,7 +16,13 @@ import ast
 import re
 from pathlib import Path
 
-from tests.architecture._user_scoping import check_paths
+from tests.architecture._user_scoping import (
+    check_builders_covered,
+    check_owned_tables,
+    check_paths,
+    collect_owned_specs,
+    default_renderers,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PKG_ROOT = REPO_ROOT / "src" / "budget_planner"
@@ -118,3 +124,33 @@ def test_hardcoded_user_id_allowlist_has_no_stale_entries() -> None:
         assert HARDCODED_USER_ID.search(path.read_text(encoding="utf-8")), (
             f"{rel} no longer hard-codes user_id = 1; drop it from the allowlist"
         )
+
+
+def test_every_owned_table_spec_statement_is_user_scoped() -> None:
+    repo_files = sorted((PKG_ROOT / "repositories").glob("*.py"))
+    specs = [
+        spec
+        for path in repo_files
+        for spec in collect_owned_specs(
+            path.read_text(encoding="utf-8"), str(path.relative_to(REPO_ROOT))
+        )[0]
+    ]
+    assert {s.table for s in specs} == {
+        "accounts",
+        "categories",
+        "planned_transactions",
+        "transactions",
+        "recurring_rules",
+        "budget_defaults",
+        "budget_recurring_overrides",
+        "budget_one_off_overrides",
+    }
+    violations = check_owned_tables(repo_files, REPO_ROOT)
+    assert not violations, "Unscoped OwnedTable statement:\n" + "\n".join(
+        v.render() for v in violations
+    )
+
+
+def test_every_shared_sql_builder_has_a_guard_renderer() -> None:
+    source = (PKG_ROOT / "repositories" / "_shared.py").read_text(encoding="utf-8")
+    assert check_builders_covered(source, default_renderers()) == []

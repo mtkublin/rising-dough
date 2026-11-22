@@ -37,12 +37,38 @@ def base_context(
     }
 
 
+def budget_view_for(
+    conn: sqlite3.Connection,
+    user_id: int,
+    picked: budget_service.PickerMonth,
+    today: date,
+    settings: Settings,
+) -> view_models.BudgetView:
+    """Return the Plan · Budget view model for the picked month."""
+    summary = budget_service.month_summary_for_picker(
+        conn,
+        user_id,
+        picked,
+        today,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
+    )
+    return view_models.budget_view(summary, today)
+
+
 def year_context(
-    conn: sqlite3.Connection, user_id: int, today: date, year_raw: str | None
+    conn: sqlite3.Connection,
+    user_id: int,
+    today: date,
+    year_raw: str | None,
+    *,
+    settings: Settings,
 ) -> dict[str, object]:
     """Return the Year tab keys for the requested (or fiscal) year."""
     selected = budget_service.resolve_picker_month(conn, user_id, today, year_raw=year_raw).year
-    rows = budget_service.yearly_grid(conn, user_id, selected)
+    rows = budget_service.yearly_grid(
+        conn, user_id, selected, display_timezone=settings.display_timezone
+    )
     column_totals, grand_total = budget_service.yearly_grid_totals(rows)
     return {
         "header": view_models.plan_header("year", selected, today.month, year_selected=selected),

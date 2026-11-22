@@ -151,3 +151,4 @@ Status line convention: `Accepted (amended by ADR-N ...)`; a dated addendum at t
 | 0142 | [CRUD Service Entry Points; Routers Never Import Repositories](0142-crud-service-entry-points-routers-never-import-repositories.md) (amends ADR-0021; relates to ADR-0019, ADR-0022, ADR-0130, ADR-0107) |
 | 0143 | [One HTMX Event and Toast Contract; Error Flashes Always Swap](0143-htmx-event-and-error-flash-contract.md) (relates to ADR-0002, ADR-0113, ADR-0130, ADR-0141) |
 | 0144 | [Pure-ASGI Middleware; the `[[framework]]` Category Is What Starlette Forces](0144-pure-asgi-middleware-and-framework-class-allowlist.md) (amends ADR-0130; relates to ADR-0021, ADR-0033, ADR-0070) |
+| 0145 | [NBP Table A as the FX Source, Refreshed by an In-App Daily Task](0145-nbp-table-a-daily-fx-refresh-in-app-task.md) (amends ADR-0139; supersedes the frankfurter source of F7.4; relates to ADR-0021, ADR-0078, ADR-0099, ADR-0140) |

@@ -26,7 +26,7 @@ from budget_planner.config import Settings, get_settings
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
 from budget_planner.services.connections import get_connection
-from budget_planner.web import retention_task
+from budget_planner.web import fx_refresh_task, retention_task
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.admin import admin_required_middleware
 from budget_planner.web.middleware.auth import auth_required_middleware
@@ -191,10 +191,12 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
         _install_sigterm_observer()
         log.info("lifespan_startup", env=cfg.env)
         purge_task = retention_task.start(cfg)
+        fx_task = fx_refresh_task.start(cfg)
         try:
             yield
         finally:
             await retention_task.stop(purge_task)
+            await fx_refresh_task.stop(fx_task)
             _close_app_connections(app)
             # Litestream relies on this drain window: the app has
             # finished writing, Litestream has `stop_grace_period: 30s`

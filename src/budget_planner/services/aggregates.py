@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import round_div
 from budget_planner.domain.transactions import Transaction
 
 
@@ -27,7 +27,7 @@ def mean_minor(total_minor: int, count: int) -> int:
     """Mean of ``total_minor`` over ``count`` items, half-even; 0 when ``count <= 0``."""
     if count <= 0:
         return 0
-    return round_div(total_minor, count, mode=HALF_EVEN)
+    return round_div(total_minor, count)
 
 
 def sum_by_category(

@@ -24,7 +24,7 @@ def run(settings: Settings) -> retention.PurgeResult:
 
 def main(settings: Settings | None = None) -> int:
     bp_logging.configure()
-    log = bp_logging.get_logger("budget_planner.retention")
+    log = bp_logging.get_logger(bp_logging.RETENTION_LOGGER)
     try:
         run(settings or get_settings())
     except Exception as exc:  # non-fatal for startup; report via exit code

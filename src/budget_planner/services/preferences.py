@@ -41,6 +41,10 @@ def get_income_anchor_category_id(conn: sqlite3.Connection, user_id: int) -> int
         return None
 
 
+def _clear_income_anchor(conn: sqlite3.Connection, user_id: int) -> None:
+    preferences_repo.delete(conn, user_id, PREF_INCOME_ANCHOR_CATEGORY_ID)
+
+
 def set_income_anchor_category_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -53,7 +57,7 @@ def set_income_anchor_category_id(
     is not INCOME.
     """
     if category_id is None:
-        preferences_repo.delete(conn, user_id, PREF_INCOME_ANCHOR_CATEGORY_ID)
+        _clear_income_anchor(conn, user_id)
         return
     category = categories_repo.find_by_id(conn, user_id, category_id)
     if category is None:

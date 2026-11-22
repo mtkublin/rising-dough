@@ -15,6 +15,7 @@ from itertools import pairwise
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
@@ -177,7 +178,15 @@ def _native(series: fc.ForecastSeries, account_id: int) -> list[int]:
 
 
 def _run(conn: sqlite3.Connection, horizon: int, *, overlay: bool = False) -> fc.ForecastSeries:
-    return fc.forecast(conn, OWNER_ID, _conv(conn), TODAY, horizon, include_budget_overlay=overlay)
+    return fc.forecast(
+        conn,
+        OWNER_ID,
+        _conv(conn),
+        TODAY,
+        horizon,
+        include_budget_overlay=overlay,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +257,7 @@ def test_tombstones_and_inactive_rows_never_leak(
             WORLD_TODAY,
             horizon,
             include_budget_overlay=False,
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
         )
         native = _native(s, row.account_id)
         assert native[0] - native[-1] == planned_amount(uid) + expense_rule_amount(uid) - (
@@ -327,7 +337,15 @@ def test_foreign_currency_account_uses_rate_on_or_before_today(conn: sqlite3.Con
         conn,
         rates={TODAY - timedelta(days=9): "3.50", TODAY: "4.20", TODAY + timedelta(days=1): "9.00"},
     )
-    s = fc.forecast(conn, OWNER_ID, fx, TODAY, 1, include_budget_overlay=False)
+    s = fc.forecast(
+        conn,
+        OWNER_ID,
+        fx,
+        TODAY,
+        1,
+        include_budget_overlay=False,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.base_currency == "PLN"
     pts = [p for d in s.days for p in d.by_account if p.account_id == eur]
     assert [p.native_minor for p in pts] == [10_000, 9_000]
@@ -349,7 +367,9 @@ def test_negative_horizon_rejected(conn: sqlite3.Connection) -> None:
     with pytest.raises(ValueError, match="horizon_days must be >= 0, got -1"):
         _run(conn, -1)
     with pytest.raises(ValueError, match="horizon_months must be >= 1, got 0"):
-        fc.forecast_monthly(conn, OWNER_ID, _conv(conn), TODAY, 0)
+        fc.forecast_monthly(
+            conn, OWNER_ID, _conv(conn), TODAY, 0, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+        )
 
 
 def test_no_accounts_series_is_zero_per_day(conn: sqlite3.Connection) -> None:
@@ -376,7 +396,9 @@ def test_overlay_spreads_residual_with_last_day_absorbing_rounding(
     _noise(conn)
     _budget(conn, env, 1_100)
     today = date(2026, 12, 20)
-    s = fc.forecast(conn, OWNER_ID, _conv(conn, today), today, 20)
+    s = fc.forecast(
+        conn, OWNER_ID, _conv(conn, today), today, 20, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     native = _native(s, env.a1)
     deltas = [b - a for a, b in pairwise(native)]
     dec = [-100] * 11  # 12-21..12-31: 1100 / 11
@@ -401,7 +423,7 @@ def test_overlay_subtracts_spent_including_today_and_foreign_rate_on_txn_date(
             ),
         )
     fx = _conv(conn, today, rates={today: "2.00", today + timedelta(days=1): "7.00"})
-    s = fc.forecast(conn, OWNER_ID, fx, today, 29)
+    s = fc.forecast(conn, OWNER_ID, fx, today, 29, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     # unaccounted = 3000 - 200 - 100 * 2.00 = 2600 over 11-02..11-30 (29 days):
     # 90 each, last 2600 - 28 * 90
     deltas = [b - a for a, b in pairwise(_native(s, env.a1))]
@@ -416,7 +438,9 @@ def test_overlay_counts_overdue_only_in_first_window_and_ignores_other_users(
     _budget(conn, env, 3_100)
     _plan(conn, OWNER_ID, date(2026, 10, 20), env.expense_cat, env.a1, amount=100)  # overdue
     today = date(2026, 10, 30)
-    s = fc.forecast(conn, OWNER_ID, _conv(conn, today), today, 2)
+    s = fc.forecast(
+        conn, OWNER_ID, _conv(conn, today), today, 2, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     deltas = [b - a for a, b in pairwise(_native(s, env.a1))]
     # Oct: 3100 - 100 committed (overdue lands on 10-31) = 3000 over 10-31 only (the horizon end
     # is 11-01): window 10-31..10-31 -> -3000 plus the overdue -100; Nov: 3100 on 11-01 only.
@@ -626,7 +650,9 @@ def test_planned_budget_per_month_exact_and_isolated(conn: sqlite3.Connection) -
     )
     _plan(conn, OWNER_ID, date(2026, 10, 24), env.expense_cat, env.a1, amount=50)
     _plan(conn, OWNER_ID, date(2026, 11, 3), env.expense_cat, env.a1, amount=5_000)
-    out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 3, fx=_conv(conn))
+    out = fc._planned_budget_per_month(
+        conn, OWNER_ID, TODAY, 3, fx=_conv(conn), display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert out == {date(2026, 10, 1): 800, date(2026, 11, 1): 0, date(2026, 12, 1): 1_000}
 
 
@@ -634,7 +660,9 @@ def test_planned_budget_overdue_counts_in_current_month_only(conn: sqlite3.Conne
     env = _env(conn)
     _budget(conn, env, 1_000)
     _plan(conn, OWNER_ID, date(2026, 10, 10), env.expense_cat, env.a1, amount=100)  # overdue
-    out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 2, fx=_conv(conn))
+    out = fc._planned_budget_per_month(
+        conn, OWNER_ID, TODAY, 2, fx=_conv(conn), display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert out == {date(2026, 10, 1): 900, date(2026, 11, 1): 1_000}
 
 
@@ -643,7 +671,9 @@ def test_forecast_monthly_rows_and_running_balance(conn: sqlite3.Connection) -> 
     _noise(conn)
     _budget(conn, env, 1_000)
     _plan(conn, OWNER_ID, date(2026, 11, 5), env.income_cat, env.a1, amount=5_000)
-    s = fc.forecast_monthly(conn, OWNER_ID, _conv(conn), TODAY, 3)
+    s = fc.forecast_monthly(
+        conn, OWNER_ID, _conv(conn), TODAY, 3, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert s.start_month == date(2026, 10, 1)
     assert s.end_month == date(2026, 12, 1)
     assert [m.month for m in s.months] == [date(2026, 10, 1), date(2026, 11, 1), date(2026, 12, 1)]
@@ -662,7 +692,9 @@ def test_forecast_monthly_without_accounts_uses_budget_only(conn: sqlite3.Connec
         conn, OWNER_ID, NewCategory(name="e", direction=Direction.EXPENSE)
     ).id
     budgets_repo.set_default(conn, OWNER_ID, NewBudgetDefault(category_id=cat, amount=700))
-    s = fc.forecast_monthly(conn, OWNER_ID, _conv(conn), TODAY, 2)
+    s = fc.forecast_monthly(
+        conn, OWNER_ID, _conv(conn), TODAY, 2, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert [(m.month, m.income_base_minor, m.expense_base_minor) for m in s.months] == [
         (date(2026, 10, 1), 0, 0),
         (date(2026, 11, 1), 0, 0),
@@ -769,7 +801,7 @@ def test_foreign_spend_on_deleted_account_is_not_counted(conn: sqlite3.Connectio
     )
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
     fx = _conv(conn, rates={TODAY: "3.00"})
-    s = fc.forecast(conn, OWNER_ID, fx, TODAY, 1)
+    s = fc.forecast(conn, OWNER_ID, fx, TODAY, 1, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     assert _native(s, env.a1) == [
         OPENING,
         OPENING - 1_000,
@@ -780,7 +812,9 @@ def test_committed_window_excludes_first_day_of_next_month(conn: sqlite3.Connect
     env = _env(conn)
     _budget(conn, env, 1_000)
     _plan(conn, OWNER_ID, date(2026, 11, 1), env.expense_cat, env.a1, amount=300)
-    out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 2, fx=_conv(conn))
+    out = fc._planned_budget_per_month(
+        conn, OWNER_ID, TODAY, 2, fx=_conv(conn), display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert out == {date(2026, 10, 1): 1_000, date(2026, 11, 1): 700}
 
 
@@ -795,11 +829,25 @@ def test_planned_budget_defaults_and_boundaries(conn: sqlite3.Connection) -> Non
     ).id
     budgets_repo.set_default(conn, OWNER_ID, NewBudgetDefault(category_id=dead, amount=50))
     categories_repo.soft_delete(conn, OWNER_ID, dead)
+    # Archived in October, the forecast's only month: reserves nothing from then on (T-Q279).
+    conn.execute(
+        "UPDATE categories SET deleted_at = '2026-10-05T10:00:00.000Z' WHERE id = ?", (dead,)
+    )
     _plan(conn, OWNER_ID, TODAY, env.expense_cat, env.a1, amount=200)  # due today: not committed
     _plan(conn, OWNER_ID, TODAY + timedelta(days=1), later, env.a1, amount=999)  # remaining == 1
-    out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 1, fx=_conv(conn))
-    # start_month defaults to today's month, day 1. The archived "dead" category still
-    # counts, in full, like the daily overlay does (ADR-0136, T-Q227): 1 + 50.
+    out = fc._planned_budget_per_month(
+        conn, OWNER_ID, TODAY, 1, fx=_conv(conn), display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
+    # start_month defaults to today's month, day 1. "dead" was archived in October, so its 50
+    # is no longer reserved (ADR-0136, T-Q279): only "later" remains, 1.
+    assert out == {date(2026, 10, 1): 1}
+    # Archived in November instead: October still reserves it, 1 + 50.
+    conn.execute(
+        "UPDATE categories SET deleted_at = '2026-11-05T10:00:00.000Z' WHERE id = ?", (dead,)
+    )
+    out = fc._planned_budget_per_month(
+        conn, OWNER_ID, TODAY, 1, fx=_conv(conn), display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert out == {date(2026, 10, 1): 51}
 
 
@@ -838,7 +886,14 @@ def test_forecast_monthly_fiscal_start_differs_from_calendar_month(
         ),
     )
     today = date(2026, 12, 1)
-    s = fc.forecast_monthly(conn, OWNER_ID, fx_svc.build_converter("PLN", today, []), today, 2)
+    s = fc.forecast_monthly(
+        conn,
+        OWNER_ID,
+        fx_svc.build_converter("PLN", today, []),
+        today,
+        2,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert (s.base_currency, s.start_month, s.end_month) == (
         "PLN",
         date(2026, 11, 1),
@@ -855,7 +910,9 @@ def test_forecast_monthly_fiscal_start_differs_from_calendar_month(
 def test_forecast_monthly_without_accounts_reports_window_and_currency(
     conn: sqlite3.Connection,
 ) -> None:
-    s = fc.forecast_monthly(conn, OWNER_ID, _conv(conn), TODAY, 2)
+    s = fc.forecast_monthly(
+        conn, OWNER_ID, _conv(conn), TODAY, 2, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert (s.base_currency, s.start_month, s.end_month) == (
         "PLN",
         date(2026, 10, 1),

@@ -8,6 +8,7 @@ from datetime import date
 import pytest
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import (
     NewBudgetDefault,
@@ -38,6 +39,7 @@ from budget_planner.services import (
     planned as planned_svc,
     recurring as recurring_svc,
 )
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 
@@ -139,7 +141,15 @@ def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None
     # today=Jan 31 so the paycheck window captures every January expense;
     # fixture does not bind an income anchor, so period_start = month start
     # per ADR-0041 fallback.
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.year == 2026
     assert s.month == 1
     by_cat = {line.category_id: line for line in s.lines}
@@ -160,7 +170,15 @@ def test_january_summary(conn: sqlite3.Connection, seed: dict[str, int]) -> None
 
 
 def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Utilities one-off 60_000; spent 55_000; remaining 5_000.
     assert by_cat[seed["utilities"]].budgeted_minor == 60_000
@@ -171,7 +189,15 @@ def test_february_delta_vs_prev_month(conn: sqlite3.Connection, seed: dict[str, 
 
 
 def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # Budgeted: Rent 310k + Groceries 120k + Utilities 40k = 470k.
     assert s.totals.budgeted_minor == 470_000
     assert s.totals.spent_minor == 310_000 + 70_000 + 0
@@ -181,7 +207,15 @@ def test_totals_exclude_unbudgeted(conn: sqlite3.Connection, seed: dict[str, int
 def test_previous_month_rollover_january_to_december(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # No Dec 2025 Groceries in fixture → delta = 70_000.
     assert by_cat[seed["groceries"]].delta_vs_prev_month_minor == 70_000
@@ -190,7 +224,15 @@ def test_previous_month_rollover_january_to_december(
 def test_avg_monthly_overall_uses_active_months(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries active months: Nov 2025, Jan 2026, Feb 2026 → 3 months.
     # Sum = 35_000 + 70_000 + 45_000 = 150_000; avg = 50_000.
@@ -198,7 +240,15 @@ def test_avg_monthly_overall_uses_active_months(
 
 
 def test_avg_this_year(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Groceries YTD through Feb: Jan 70_000 + Feb 45_000 = 115_000; / 2 = 57_500.
     assert by_cat[seed["groceries"]].avg_this_year_minor == 57_500
@@ -216,13 +266,29 @@ def test_soft_deleted_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -
     )
     assert jan_txns
     transactions.soft_delete(conn, USER_ID, jan_txns[0].id)
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[cat_id].spent_minor == 70_000 - jan_txns[0].amount
 
 
 def test_income_excluded_from_spent(conn: sqlite3.Connection, seed: dict[str, int]) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Salary category is income — should not appear in month_summary lines.
     assert seed["salary"] not in by_cat
@@ -241,7 +307,15 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
             amount=-5000,
         ),
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # Adjustment direction excluded; Groceries spent unchanged at 70_000.
     by_cat = {line.category_id: line for line in s.lines}
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -250,7 +324,15 @@ def test_adjustment_excluded(conn: sqlite3.Connection, seed: dict[str, int]) -> 
 def test_sort_order_budgeted_first_then_alpha(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # Budgeted lines first, then None-budget lines, each alpha by name.
     kinds = [line.budgeted_minor is None for line in s.lines]
     assert kinds == sorted(kinds)
@@ -266,7 +348,15 @@ def test_committed_defaults_to_zero_without_recurring_or_planned(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
     """Phase 9 budget fixtures have no planned/recurring rows → committed=0."""
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 31), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 31),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 0
     # Regression: remaining is still budgeted - spent when committed is zero.
     assert s.totals.remaining_minor == 470_000 - (310_000 + 70_000)
@@ -576,7 +666,15 @@ def test_month_summary_recurring_reduces_remaining_and_daily_spend(
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
 
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # Window = [Feb 15, Feb 25). Recurring Feb 20 is in; rent 300_000.
     assert s.totals.committed_minor == 300_000
     # Baseline budgeted = 100k + 300k = 400k; spent_this_month = 0.
@@ -624,9 +722,27 @@ def test_month_summary_promote_moves_committed_into_spent_zero_net(
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
 
-    before = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20), base_currency="PLN")
-    recurring_svc.promote_recurring(conn, USER_ID, rule.id, recurring_svc.PromotionEdits())
-    after = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20), base_currency="PLN")
+    before = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 20),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
+    recurring_svc.promote_recurring(
+        conn, USER_ID, rule.id, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
+    after = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=date(2026, 2, 20),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
 
     # Committed drops by the promoted amount; spent rises by the same.
     assert after.totals.committed_minor == before.totals.committed_minor - 300_000
@@ -652,7 +768,15 @@ def test_anchor_window_shifts_spent_to_post_anchor_only(
     # Groceries fixture: Jan 5 (30_000), Jan 20 (40_000), both BEFORE Jan 25.
     # Rent fixture: Jan 25 (310_000) — same day as anchor; inclusive window
     # keeps it in.
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 30),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Pre-anchor Groceries expenses (Jan 5 + Jan 20) are excluded.
     assert by_cat[seed["groceries"]].spent_minor == 0
@@ -680,7 +804,15 @@ def test_no_prior_anchor_falls_back_to_month_start(
     # today=Jan 30 so the paycheck window would have shifted if a salary
     # existed. With no prior anchor row, fallback to month-start → the full
     # Groceries + Rent expenses up to today are summed.
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 30),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Month-start window [Jan 1, Jan 30] catches all January expenses.
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -720,7 +852,15 @@ def test_zero_budget_month_unchanged(conn: sqlite3.Connection) -> None:
             amount=20_000,
         ),
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 20), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 20),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # budgeted_total == 0 → zero-budget branch; spent uses month-start window
     # (same as the pre-ADR-0041 behavior) so the per-line Groceries spent
     # keeps the Jan 5 txn.
@@ -736,7 +876,15 @@ def test_no_anchor_configured_falls_back_to_month_start(
     """No `income_anchor_category_id` preference → month-start window."""
     # Deliberately do NOT bind an anchor preference. The seed has budgets +
     # a Jan 25 salary that would otherwise shift the window.
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 30),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     by_cat = {line.category_id: line for line in s.lines}
     # Month-start window: Groceries 70_000, Rent 310_000.
     assert by_cat[seed["groceries"]].spent_minor == 70_000
@@ -748,7 +896,15 @@ def test_budgeted_remaining_formula_consistency(
 ) -> None:
     """remaining_minor == budgeted_minor - spent_minor on anchor-shifted window."""
     _bind_anchor(conn, seed["salary"])
-    s = bs.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 30), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 30),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     for line in s.lines:
         if line.budgeted_minor is None:
             assert line.remaining_minor is None
@@ -865,7 +1021,15 @@ def test_unbudgeted_planned_does_not_reduce_remaining(
     w = fix1_world
     _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
     _plan(conn, w, "rent", date(2026, 11, 10), 350_000)
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 0
     assert s.totals.unbudgeted_committed_minor == 350_000
     assert s.totals.remaining_minor == 300_000
@@ -890,7 +1054,15 @@ def test_unbudgeted_recurring_does_not_reduce_remaining(
         ),
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 11, 15)))
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 0
     assert s.totals.unbudgeted_committed_minor == 60_000
     assert s.totals.remaining_minor == 300_000
@@ -903,7 +1075,15 @@ def test_budgeted_planned_still_reduces_remaining(
     _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
     _plan(conn, w, "groceries", date(2026, 11, 12), 40_000)
     _plan(conn, w, "rent", date(2026, 11, 10), 350_000)
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 40_000
     assert s.totals.unbudgeted_committed_minor == 350_000
     assert s.totals.remaining_minor == 300_000 - 40_000
@@ -916,11 +1096,27 @@ def test_promotion_is_net_zero_on_remaining(
     w = fix1_world
     _plan(conn, w, "salary", date(2026, 11, 25), 500_000)
     pid = _plan(conn, w, key, date(2026, 11, 6), amount)
-    before = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    before = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     planned_svc.promote_to_actual(
         conn, USER_ID, pid, planned_svc.PromotionEdits(operation_date=date(2026, 11, 6))
     )
-    after = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    after = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert after.totals.remaining_minor == before.totals.remaining_minor
     assert after.totals.committed_minor + after.totals.unbudgeted_committed_minor == 0
 
@@ -942,7 +1138,15 @@ def test_early_anchor_promotion_regression(
     planned_svc.promote_to_actual(
         conn, USER_ID, cut, planned_svc.PromotionEdits(operation_date=date(2026, 11, 6))
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 6), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 6),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.spent_minor == 0
     assert s.totals.committed_minor == 0
     assert s.totals.unbudgeted_committed_minor == 450_000
@@ -1066,7 +1270,15 @@ def test_month_summary_committed_includes_overdue_planned_any_age(
     _planned_expense(conn, committed_world, "groceries", date(2026, 2, 10), 2_000)
     _planned_expense(conn, committed_world, "groceries", _OVERDUE_TODAY, 4_000)
     _planned_expense(conn, committed_world, "groceries", date(2026, 2, 26), 8_000)
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=_OVERDUE_TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 15_000
     assert s.totals.remaining_minor == 400_000 - 15_000
 
@@ -1075,7 +1287,15 @@ def test_month_summary_committed_includes_overdue_recurring(
     conn: sqlite3.Connection, committed_world: dict[str, int]
 ) -> None:
     _overdue_rule(conn, committed_world, "rent", date(2026, 1, 5), 300_000)
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=_OVERDUE_TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     # Jan 5 + Feb 5 (both overdue); Mar 5 is outside [.., end of month).
     assert s.totals.committed_minor == 600_000
 
@@ -1089,7 +1309,15 @@ def test_month_summary_overdue_unbudgeted_goes_to_unbudgeted_committed(
     world = {**committed_world, "misc": misc}
     _planned_expense(conn, world, "misc", date(2026, 2, 1), 5_000)
     _overdue_rule(conn, world, "misc", date(2026, 2, 15), 700)
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=_OVERDUE_TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 0
     assert s.totals.unbudgeted_committed_minor == 5_700
     assert s.totals.remaining_minor == 400_000
@@ -1111,7 +1339,15 @@ def test_month_summary_promoted_overdue_planned_not_committed(
         ),
     )
     planned.stamp_promotion(conn, USER_ID, row.id, txn.id)
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=_OVERDUE_TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=_OVERDUE_TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 0
     assert s.totals.spent_minor == 2_000
 
@@ -1161,7 +1397,15 @@ def test_on_payday_budget_uses_the_new_period_not_old_leftovers(
 ) -> None:
     _salary_period_fixture(conn, seed)
     payday = date(2026, 11, 25)
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=payday, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=payday,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.period_start == payday
     assert s.next_income_date == date(2026, 12, 25)
     assert s.days_until_next_income == 30
@@ -1174,7 +1418,15 @@ def test_day_before_payday_is_still_the_old_period(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
     _salary_period_fixture(conn, seed)
-    s = bs.month_summary(conn, USER_ID, 2026, 11, today=date(2026, 11, 24), base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        11,
+        today=date(2026, 11, 24),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.period_start == date(2026, 10, 25)
     assert s.next_income_date == date(2026, 11, 25)
     assert s.days_until_next_income == 1
@@ -1210,7 +1462,9 @@ def test_picker_non_current_month_clamps_anchor_day_and_zeroes_committed(
     )
     today = date(2026, 1, 31)
     picked = bs.resolve_picker_month(conn, USER_ID, today, year_raw="2026", month_raw="2")
-    s = bs.month_summary_for_picker(conn, USER_ID, picked, today, base_currency="PLN")
+    s = bs.month_summary_for_picker(
+        conn, USER_ID, picked, today, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert s.period_start == date(2026, 2, 28)  # day 30 clamped, not capped at 28 for Jan/Mar
     assert s.next_income_date == date(2026, 3, 30)
     assert s.totals.committed_minor == 0

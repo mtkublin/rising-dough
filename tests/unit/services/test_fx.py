@@ -6,12 +6,10 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
-import httpx
 import pytest
 
-from budget_planner.adapters.fx import frankfurter
 from budget_planner.config import Settings
-from budget_planner.domain.fx import FxFetchError, NewFxRate
+from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import fx as fx_repo
 from budget_planner.services import fx as fx_service
 from budget_planner.services.fx import FxUnavailableError
@@ -67,69 +65,3 @@ def test_zero_decimal_currency(conn: sqlite3.Connection) -> None:
 def test_new_rate_rejects_non_positive_or_non_finite(bad: str) -> None:
     with pytest.raises(ValueError, match="fx rate"):
         NewFxRate(date=DAY, from_ccy="EUR", to_ccy="PLN", rate=Decimal(bad))
-
-
-def _client(handler: httpx.MockTransport) -> httpx.Client:
-    return frankfurter.make_client(Settings(_env_file=None), transport=handler)
-
-
-def test_client_factory_sets_base_url_and_fetch_succeeds() -> None:
-    seen: list[httpx.Request] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        return httpx.Response(200, json={"rates": {"PLN": 4.2655}})
-
-    with _client(httpx.MockTransport(handler)) as client:
-        rate = frankfurter.fetch_quote(client, DAY, "EUR", "PLN")
-    assert rate == Decimal("4.2655")
-    assert str(seen[0].url) == "https://api.frankfurter.app/2026-02-01?from=EUR&to=PLN"
-
-
-@pytest.mark.parametrize(
-    "response",
-    [
-        httpx.Response(500),
-        httpx.Response(200, json=[1]),
-        httpx.Response(200, json={"rates": []}),
-        httpx.Response(200, json={"rates": {"USD": 1}}),
-        httpx.Response(200, json={"rates": {"PLN": 0}}),
-        httpx.Response(200, json={"rates": {"PLN": "abc"}}),
-        httpx.Response(200, content=b"not json"),
-    ],
-)
-def test_fetch_failures_surface_as_fetch_error(response: httpx.Response) -> None:
-    with _client(httpx.MockTransport(lambda _r: response)) as client, pytest.raises(FxFetchError):
-        frankfurter.fetch_quote(client, DAY, "EUR", "PLN")
-
-
-def test_unreachable_provider_is_fetch_error() -> None:
-    def boom(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("down", request=request)
-
-    with _client(httpx.MockTransport(boom)) as client, pytest.raises(FxFetchError):
-        frankfurter.fetch_quote(client, DAY, "EUR", "PLN")
-
-
-def test_refresh_caches_rate_and_converter_sees_it(conn: sqlite3.Connection) -> None:
-    transport = httpx.MockTransport(lambda _r: httpx.Response(200, json={"rates": {"PLN": "4.5"}}))
-    with _client(transport) as client:
-        outcomes = fx_service.refresh_rates(
-            conn, frankfurter.make_fetcher(client), DAY, "PLN", ["EUR", "PLN", "EUR"]
-        )
-    assert [(o.from_ccy, o.rate, o.error) for o in outcomes] == [("EUR", Decimal("4.5"), None)]
-    assert _converter(conn).to_base(1_000, "EUR") == 4_500
-
-
-def test_refresh_reports_failures_and_stores_nothing(conn: sqlite3.Connection) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.params["from"] == "USD":
-            return httpx.Response(200, json={"rates": {"PLN": "-3"}})
-        return httpx.Response(503)
-
-    with _client(httpx.MockTransport(handler)) as client:
-        outcomes = fx_service.refresh_rates(
-            conn, frankfurter.make_fetcher(client), DAY, "PLN", ["EUR", "USD"]
-        )
-    assert all(o.rate is None and o.error for o in outcomes)
-    assert fx_repo.list_rates_to(conn, "PLN") == []

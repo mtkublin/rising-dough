@@ -8,6 +8,7 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
@@ -28,7 +29,14 @@ GROCERIES = 7
 
 def figures(conn: sqlite3.Connection) -> dict[str, int]:
     summ = budget.month_summary(
-        conn, U, Y, M, today=END, period_window=(START, END), base_currency="PLN"
+        conn,
+        U,
+        Y,
+        M,
+        today=END,
+        period_window=(START, END),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     line = next(x for x in summ.lines if x.category_id == GROCERIES)
     converter = fx_svc.converter_for(conn, get_settings(), END)

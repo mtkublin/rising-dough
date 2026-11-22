@@ -678,7 +678,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `clones`:75 (18 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
+### ✅ T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
 - Findings: Q-038 (literal half; A-18, E-02), inventory P13 `domain-literal` / `repeated-literal` rows; epic E03.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
@@ -689,18 +689,19 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `literals`:124 (29 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/literals.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q262 [P] Clone ratchet: same-name helpers and clone groups in services and web
+### ✅ T-Q262 [P] Clone ratchet: same-name helpers and clone groups in services and web
 - Findings: inventory P1 (same-name rows and clone groups outside `repositories/`; compliance-inventory 2.2, 2.6, 2.7); epic E03.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
 - Depends on: T-Q233, T-Q236, T-Q242, T-Q265, T-Q266, T-Q267
 - Docs-first step: None (ADR-0130 already fixes the rule); CHANGELOG line.
 - Acceptance: Failing guard first: `clones.toml` entries with `epic = "E03"` (15 entries). For each same-name private helper (`_wants_json`, `_safe_next`, `_hydrate_rows`, `_parse_*`, `_month_bounds` leftovers) keep one implementation in the canonical module and import it; delete the copies. Items already removed by T-Q233, T-Q236, T-Q242, T-Q265 to T-Q267 are re-read from `allowlist_by_qid.py` before starting.
+- Outcome (2026-11-22): the 6 remaining E03 `clones.toml` entries deleted (the list is now empty). `wants_json` has one owner, `web/htmx.py` (both middleware copies and `auth_deps` use it; moved there to avoid an `auth_deps` -> `deps` -> middleware import cycle). The three `txn -> base` copies named `_base_of` are renamed or inlined onto `fx.txn_base_of`; `accounts.reconcile` `_reject` and `csrf._reject` renamed. The `today.py` private cross-router import was already gone (`web/recurring_forms.py`). `web/retention_task.run_once` vs `db/retention.run` (4 lines) left: a shared seam needs `services/connections` to import `config.Settings`, which G22 `eff-import` forbids, and the pair is not a clone-guard entry.
 - Operator question blocking it: none.
 - Removes allowlist entries: `clones`:24 (15 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q267 [P] Thin routers, group 3: auth and settings routers
+### ✅ T-Q267 [P] Thin routers, group 3: auth and settings routers
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 4 · Size: L · Tags: none
@@ -709,6 +710,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Acceptance: Failing guard first: `thin_router.toml` entries for `auth.py`, `settings.py`, the password-settings router, `settings_security.py`, `settings_users.py` (7 entries, 43 violations; `auth.py` has 23 helpers in the router module, `settings_users.py` 11). Helpers move to `services/auth.py`, `services/users.py` or `web/auth_cookies.py`; form models retire 8 `PLR0917` noqa (ceiling slice owned here). Security-sensitive: run the auth integration and e2e suites, then `security-reviewer`.
 - Operator question blocking it: none.
 - Removes allowlist entries: `thin_router`:43 (7 entries); `suppressions` ceiling `PLR0917`:8
+- Outcome (2026-11-22): the five routers hold route handlers only. Helpers and rate-limit dependencies moved to `web/auth_deps.py` (also `current_admin`), `web/auth_flow.py`, `web/security_context.py`, `web/users_admin.py` and the password-change response helpers; view models to `services/settings_drawer.py`, `services/security_settings.py`; `services/auth.py` gained `clean_passkey_label` and `is_session_handle`; `web/rendering.render_context` takes a ready context mapping. Keyword-only route params retire the 8 `PLR0917` noqa (ceiling 14 -> 6). The 6 `thin_router` entries (auth, settings x2, settings_password, settings_security, settings_users) plus the now-stale clones, hygiene, functional_first, literals, size_complexity, suppressions and private_imports entries for these routers deleted. No template change.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
@@ -1053,7 +1055,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 The operator answered the deferred questions on 2026-11-22. Each decision below is a task recorded docs first (CLAUDE.md "Change policy"); the ADR amendments named here are written in the DECISIONS-1122 change, the code lands with the task. All run before T-Q232 (waves 14b to 14d below). None of these tasks adds an allowlist entry; T-Q283 records three permanent `money_scope` entries (its implementation task edits the TOML, the DECISIONS-1122 change edits no allowlist).
 
-### T-Q279 [S] Archived categories reserve no budget; their actuals still count
+### ✅ T-Q279 [S] Archived categories reserve no budget; their actuals still count
 - Findings: Q-030, Q-015 (OQ-15 refined 2026-11-22); reverses the T-Q227 reading of OQ-15.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none
@@ -1065,7 +1067,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q280 [S] Planned rows on soft-deleted accounts are hidden from planned totals
+### ✅ T-Q280 [S] Planned rows on soft-deleted accounts are hidden from planned totals
 - Findings: Q-026, Q-030 (ADR-0136 decision 1).
 - Epic: E01
 - Band: 2 · Size: S · Tags: none
@@ -1077,7 +1079,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (same owner as T-Q279, merge after it).
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q281 [M] One rounding mode: HALF_EVEN at every `round_div` call site
+### ✅ T-Q281 [M] One rounding mode: HALF_EVEN at every `round_div` call site
 - Findings: Q-076 (OQ-ROUND answered 2026-11-22).
 - Epic: E05
 - Band: 3 · Size: M · Tags: none
@@ -1089,7 +1091,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q282 [M] Every bad query parameter is a 422, everywhere
+### ✅ T-Q282 [M] Every bad query parameter is a 422, everywhere
 - Findings: Q-023, Q-033.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
@@ -1101,7 +1103,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q283 [S] Three permanent `money_scope` entries with written reasons
+### ✅ T-Q283 [S] Three permanent `money_scope` entries with written reasons
 - Findings: Q-076 (G27).
 - Epic: E05
 - Band: 3 · Size: S · Tags: none
@@ -1113,7 +1115,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (owns `money_scope.toml`).
 - Done when: the three entries are permanent with reasons; guards stay green; the CLAUDE.md handoff checklist is complete.
 
-### T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
+### ✅ T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
 - Findings: Q-025 (ADR-0130 G7).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none
@@ -1125,7 +1127,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q285 [L] Real service functions own validation and the single `db_transaction`
+### ✅ T-Q285 [L] Real service functions own validation and the single `db_transaction`
 - Findings: Q-045, Q-024 (G8).
 - Epic: E02
 - Band: 2 · Size: L · Tags: none
@@ -1137,7 +1139,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14d.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q286 [M] Cross-currency formula amounts convert everywhere
+### ✅ T-Q286 [M] Cross-currency formula amounts convert everywhere
 - Findings: Q-010 (OQ-8 answered 2026-11-22), follow-up of T-Q215.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none
@@ -1149,7 +1151,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q287 [M] `include_deleted` defaults to False; writes against soft-deleted parents are refused
+### ✅ T-Q287 [M] `include_deleted` defaults to False; writes against soft-deleted parents are refused
 - Findings: Q-025 (T-Q268 follow-up).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none
@@ -1185,7 +1187,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14d (after T-Q274 owns the ASGI middleware).
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q290 [M] Scheduled daily FX refresh
+### ✅ T-Q290 [M] Scheduled daily FX refresh
 - Findings: FX cache (ADR-0139 cache-only converter, `requirements.md` F7.4).
 - Epic: E01
 - Band: 3 · Size: M · Tags: ops

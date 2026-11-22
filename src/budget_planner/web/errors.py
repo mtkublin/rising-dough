@@ -24,13 +24,14 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
+from budget_planner.web.http_headers import HX_REQUEST
 from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
 
 
 def _is_htmx(request: Request) -> bool:
-    return request.headers.get("HX-Request") == "true"
+    return request.headers.get(HX_REQUEST) == "true"
 
 
 def _request_id(request: Request) -> str:

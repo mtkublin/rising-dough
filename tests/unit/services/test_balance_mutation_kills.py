@@ -12,6 +12,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.accounts import AccountStats, NewAccount
 from budget_planner.domain.budgets import NewBudgetOneOffOverride, NewBudgetRecurringOverride
 from budget_planner.domain.categories import NewCategory
@@ -297,7 +298,7 @@ def _row(rows: tuple[budget.YearlyRow, ...], name: str) -> budget.YearlyRow:
 def test_yearly_grid_default_tier_fills_twelve_cells_for_owner_only(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:
-    rows = budget.yearly_grid(conn, OWNER_ID, 2026)
+    rows = budget.yearly_grid(conn, OWNER_ID, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     names = [r.category_name for r in rows]
     assert "cat-1" in names
     assert "cat-2" not in names
@@ -307,7 +308,9 @@ def test_yearly_grid_default_tier_fills_twelve_cells_for_owner_only(
     assert row.category_direction is Direction.EXPENSE
     assert row.cells == (budget.YearlyCell(amount_minor=default, origin="default"),) * 12
     assert row.total_minor == 12 * default
-    other_row = _row(budget.yearly_grid(conn, OTHER_ID, 2026), "cat-2")
+    other_row = _row(
+        budget.yearly_grid(conn, OTHER_ID, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE), "cat-2"
+    )
     assert other_row.total_minor == 12 * budget_amount(OTHER_ID)
     assert all(r.category_direction is Direction.EXPENSE for r in rows)
     assert names == sorted(names, key=str.casefold)
@@ -328,7 +331,9 @@ def test_yearly_grid_override_precedence_and_totals(
             OWNER_ID,
             NewBudgetOneOffOverride(category_id=cat, year=year, month=month, amount=amount),
         )
-    row = _row(budget.yearly_grid(conn, OWNER_ID, 2026), "cat-1")
+    row = _row(
+        budget.yearly_grid(conn, OWNER_ID, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE), "cat-1"
+    )
     cells = row.cells
     assert cells[2] == budget.YearlyCell(amount_minor=111, origin="recurring")
     assert cells[4] == budget.YearlyCell(amount_minor=333, origin="one_off")
@@ -348,7 +353,10 @@ def test_yearly_grid_unset_cells_do_not_add_to_total(
         OWNER_ID,
         NewBudgetOneOffOverride(category_id=fresh.id, year=2026, month=12, amount=40),
     )
-    row = _row(budget.yearly_grid(conn, OWNER_ID, 2026), "aaa-unbudgeted")
+    row = _row(
+        budget.yearly_grid(conn, OWNER_ID, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE),
+        "aaa-unbudgeted",
+    )
     assert row.cells[:11] == (budget.YearlyCell(amount_minor=None, origin="unset"),) * 11
     assert row.cells[11] == budget.YearlyCell(amount_minor=40, origin="one_off")
     assert row.total_minor == 40
@@ -357,7 +365,10 @@ def test_yearly_grid_unset_cells_do_not_add_to_total(
 def test_yearly_grid_omits_soft_deleted_category(
     conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
-    names = [r.category_name for r in budget.yearly_grid(conn, OWNER_ID, 2026)]
+    names = [
+        r.category_name
+        for r in budget.yearly_grid(conn, OWNER_ID, 2099, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    ]
     assert "dead-category" not in names
     assert "cat-1" in names
 

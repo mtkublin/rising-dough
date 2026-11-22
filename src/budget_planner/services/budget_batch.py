@@ -14,18 +14,25 @@ from dataclasses import dataclass
 
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import budgets as budgets_repo
-from budget_planner.services import recurring as recurring_svc
+from budget_planner.services import categories as categories_svc, recurring as recurring_svc
 from budget_planner.services.budget import pick_tier, planned_base_amounts
+from budget_planner.services.fx import BaseCurrency
+from budget_planner.services.recurring_formula import formula_ctx_for
 
 
 def budget_resolver(
-    conn: sqlite3.Connection, user_id: int
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    display_timezone: str,
 ) -> Callable[[int, int, int], int | None]:
-    """Return ``resolve(category_id, year, month)`` backed by three queries in total.
+    """Return ``resolve(category_id, year, month)`` backed by four queries in total.
 
     Same one-off, recurring, default null-coalesce as ``budget.resolve_budget`` (zero is a
-    valid value), with the three tiers loaded once.
+    valid value), with the three tiers loaded once. A category archived in or before the
+    month reserves no budget and resolves to ``None`` (ADR-0136, T-Q279).
     """
+    reserves = categories_svc.budget_reserver(conn, user_id, display_timezone=display_timezone)
     one_off = {
         (o.category_id, o.year, o.month): o.amount for o in budgets_repo.list_one_off(conn, user_id)
     }
@@ -35,6 +42,8 @@ def budget_resolver(
     defaults = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
 
     def resolve(category_id: int, year: int, month: int) -> int | None:
+        if not reserves(category_id, year, month):
+            return None
         return pick_tier(
             one_off.get((category_id, year, month)),
             recurring.get((category_id, month)),
@@ -82,6 +91,7 @@ def committed_by_category_windows(
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx_for(conn, user_id, BaseCurrency(base_currency), today),
         start=min(w.start for w in live),
         end=max(w.end for w in live),
         today=today,

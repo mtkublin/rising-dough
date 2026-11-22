@@ -12,12 +12,16 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Final, Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+
 # Default dev DB lives under `data/` (gitignored). CI/tests override via env.
+DEFAULT_BASE_CURRENCY: Final = "PLN"
 _DEFAULT_SQLITE_PATH: Final = Path("data") / "budget.sqlite"
 _DEFAULT_DATABASE_URL: Final = f"sqlite:///{_DEFAULT_SQLITE_PATH.as_posix()}"
 # ADR-0034 §2: production DB lives on the host-mounted volume shared with
@@ -62,8 +66,8 @@ class Settings(BaseSettings):
 
     env: Env = Field(default="dev")
     database_url: str = Field(default=_DEFAULT_DATABASE_URL)
-    base_currency: str = Field(default="PLN", min_length=3, max_length=3)
-    display_timezone: str = Field(default="Europe/Warsaw")
+    base_currency: str = Field(default=DEFAULT_BASE_CURRENCY, min_length=3, max_length=3)
+    display_timezone: str = Field(default=DEFAULT_DISPLAY_TIMEZONE)
     # Renamed from ``host`` / ``port`` in T-D03 — v3 config surface. The
     # loopback guard carries over from ADR-0005; v3 binds the container
     # loopback and Caddy terminates TLS in front of it (ADR-0036).
@@ -88,7 +92,10 @@ class Settings(BaseSettings):
     # ADR-0078 §7: age after which audit ip / user_agent are nulled and ended
     # sessions deleted (T-D60).
     retention_personal_days: int = Field(default=90, ge=7, le=3650)
-    fx_api_url: str = Field(default="https://api.frankfurter.app")
+    # ADR-0145: NBP table A host; the adapter appends ``/api/exchangerates/tables/A/``.
+    fx_api_url: str = Field(default="https://api.nbp.pl")
+    # ADR-0145: in-app daily FX refresh. ``None`` = on in production, off in dev/test.
+    fx_refresh_enabled: bool | None = Field(default=None)
     # ADR-0078 §4 / T-D57: ceiling (days) on the age of any copy of user data
     # outside the live DB. Pre-migration backups are pruned once older than
     # ``backup_max_age_days - 7``. The Terraform twin
@@ -168,6 +175,14 @@ class Settings(BaseSettings):
             return None
         return v
 
+    @field_validator("fx_api_url")
+    @classmethod
+    def _validate_provider_url(cls, v: str) -> str:
+        parts = urlsplit(v)
+        if parts.scheme not in {"http", "https"} or not parts.hostname or parts.username:
+            raise ValueError("fx_api_url must be an http(s) URL without credentials (ADR-0145)")
+        return v
+
     @field_validator("display_timezone")
     @classmethod
     def _validate_tz(cls, v: str) -> str:
@@ -197,6 +212,13 @@ class Settings(BaseSettings):
             return tuple(host.strip() for host in v.split(",") if host.strip())
         return v
 
+    def _require_production_bcrypt_floor(self) -> None:
+        if self.bcrypt_rounds < PRODUCTION_MIN_BCRYPT_ROUNDS:
+            raise ValueError(
+                f"bcrypt_rounds must be >= {PRODUCTION_MIN_BCRYPT_ROUNDS} in production "
+                "(T-Q291, ADR-0033 §2)."
+            )
+
     @model_validator(mode="after")
     def _finalise(self) -> Settings:
         if self.session_absolute_lifetime_days < self.session_lifetime_days:
@@ -220,15 +242,14 @@ class Settings(BaseSettings):
                     stacklevel=2,
                 )
 
+        if self.env == "production" and not self.fx_api_url.startswith("https://"):
+            raise ValueError("fx_api_url must be https in production (ADR-0145).")
+
         # T-D135: WebAuthn relying-party policy. The localhost defaults make
         # passkeys fail in the browser on the real hostname, so production
         # refuses to start with them (ADR-0067 §1).
         if self.env == "production":
-            if self.bcrypt_rounds < PRODUCTION_MIN_BCRYPT_ROUNDS:
-                raise ValueError(
-                    f"bcrypt_rounds must be >= {PRODUCTION_MIN_BCRYPT_ROUNDS} in production "
-                    "(T-Q291, ADR-0033 §2)."
-                )
+            self._require_production_bcrypt_floor()
             if self.webauthn_rp_id == "localhost":
                 raise ValueError(
                     "webauthn_rp_id must not be 'localhost' in production — set "
@@ -241,6 +262,12 @@ class Settings(BaseSettings):
                     "BUDGET_WEBAUTHN_ORIGIN to https://<BUDGET_WEBAUTHN_RP_ID> (ADR-0067 §1)."
                 )
         return self
+
+    def daily_refresh_active(self) -> bool:
+        """Whether the daily FX refresh task runs (explicit setting, else production only)."""
+        if self.fx_refresh_enabled is None:
+            return self.env == "production"
+        return self.fx_refresh_enabled
 
     def resolve(self) -> ResolvedSettings:
         """Return the derived values: prod DB default and dev cookie-secret fallback.

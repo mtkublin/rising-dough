@@ -7,15 +7,12 @@ builders mirroring the T-040 fixtures. Mocks the FX HTTP boundary via a
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
-import httpx
 import pytest
 
 from budget_planner.config import Settings
@@ -188,45 +185,3 @@ def make_fx_rate(conn: sqlite3.Connection) -> Callable[..., None]:
         )
 
     return _make
-
-
-# ---------------------------------------------------------------------------
-# FX HTTP mocking helpers
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def frankfurter_mock_factory() -> Callable[[dict[str, Any]], httpx.Client]:
-    """Return a factory that builds an httpx.Client with a pre-canned response map.
-
-    Keys of ``routes`` are URL paths (e.g. ``/2026-02-01``) → response payload dict.
-    Any un-mocked URL raises AssertionError so tests fail loud on surprise calls.
-    """
-
-    def _factory(routes: dict[str, Any]) -> httpx.Client:
-        def _handler(request: httpx.Request) -> httpx.Response:
-            path = request.url.path
-            payload = routes.get(path)
-            if payload is None:
-                raise AssertionError(
-                    f"Unexpected fx HTTP call to {path} (expected one of {list(routes)!r})"
-                )
-            return httpx.Response(200, content=json.dumps(payload).encode("utf-8"))
-
-        transport = httpx.MockTransport(_handler)
-        return httpx.Client(transport=transport, base_url="https://api.frankfurter.app")
-
-    return _factory
-
-
-@pytest.fixture
-def frankfurter_error_client() -> httpx.Client:
-    """An httpx.Client that always errors on connect (fallback path)."""
-
-    def _handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("boom", request=request)
-
-    return httpx.Client(
-        transport=httpx.MockTransport(_handler),
-        base_url="https://api.frankfurter.app",
-    )

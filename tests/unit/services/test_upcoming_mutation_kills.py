@@ -17,6 +17,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import upcoming as upcoming_svc
+from tests.formula_fx_support import formula_fx_of
 from tests.unit.services.conftest import (
     EXPENSE_RULE_DUE,
     INCOME_RULE_DUE,
@@ -37,7 +38,9 @@ def test_world_items_exact_scoped_and_without_tombstones(
     conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
     owner = world_with_tombstones.owner
-    items = upcoming_svc.list_upcoming(conn, OWNER_ID, today=WORLD_TODAY, window_days=None)
+    items = upcoming_svc.list_upcoming(
+        conn, OWNER_ID, today=WORLD_TODAY, window_days=None, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert items == (
         upcoming_svc.UpcomingItem(
             kind="planned",
@@ -82,7 +85,9 @@ def test_world_items_exact_scoped_and_without_tombstones(
             is_formula=False,
         ),
     )
-    other = upcoming_svc.list_upcoming(conn, OTHER_ID, today=WORLD_TODAY, window_days=None)
+    other = upcoming_svc.list_upcoming(
+        conn, OTHER_ID, today=WORLD_TODAY, window_days=None, fx=formula_fx_of(conn, OTHER_ID)
+    )
     assert {i.account_id for i in other} == {world_with_tombstones.other.account_id}
     assert len(other) == 3
 
@@ -108,7 +113,9 @@ def test_transit_planned_row_keeps_destination_and_category(
             description="move",
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, OWNER_ID, today=WORLD_TODAY, window_days=0)
+    items = upcoming_svc.list_upcoming(
+        conn, OWNER_ID, today=WORLD_TODAY, window_days=0, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert [(i.planned_id, i.dest_account_id, i.category_id, i.amount_minor) for i in items] == [
         (row.id, dest, transit.id, 321)
     ]
@@ -121,7 +128,11 @@ def test_window_is_inclusive_of_today_plus_days(
         return [
             i.effective_date
             for i in upcoming_svc.list_upcoming(
-                conn, OWNER_ID, today=WORLD_TODAY, window_days=window
+                conn,
+                OWNER_ID,
+                today=WORLD_TODAY,
+                window_days=window,
+                fx=formula_fx_of(conn, OWNER_ID),
             )
         ]
 
@@ -149,7 +160,9 @@ def test_same_day_planned_row_sorts_before_recurring(
             description="same-day",
         ),
     )
-    items = upcoming_svc.list_upcoming(conn, OWNER_ID, today=WORLD_TODAY, window_days=3)
+    items = upcoming_svc.list_upcoming(
+        conn, OWNER_ID, today=WORLD_TODAY, window_days=3, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert [(i.kind, i.planned_id, i.rule_id) for i in items] == [
         ("planned", owner.planned_id, None),
         ("planned", late.id, None),
@@ -186,7 +199,9 @@ def test_overdue_planned_is_flagged_and_overdue_recurring_is_not(
         "UPDATE recurring_rules SET next_due = ?, start_date = ? WHERE id = ? AND user_id = ?",
         (yesterday.isoformat(), yesterday.isoformat(), owner.rule_id, OWNER_ID),
     )
-    items = upcoming_svc.list_upcoming(conn, OWNER_ID, today=WORLD_TODAY, window_days=0)
+    items = upcoming_svc.list_upcoming(
+        conn, OWNER_ID, today=WORLD_TODAY, window_days=0, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert [(i.kind, i.planned_id, i.rule_id, i.is_overdue) for i in items] == [
         ("planned", stale.id, None, True),
         ("recurring", None, owner.rule_id, False),
@@ -198,11 +213,15 @@ def test_formula_flag_only_on_the_formula_rule_and_is_scoped_to_the_user(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:
     formula = seed_formula_rule(conn, OWNER_ID, world_with_two_users.owner, due=date(2026, 11, 20))
-    items = upcoming_svc.list_upcoming(conn, OWNER_ID, today=WORLD_TODAY, window_days=None)
+    items = upcoming_svc.list_upcoming(
+        conn, OWNER_ID, today=WORLD_TODAY, window_days=None, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert {i.rule_id: i.is_formula for i in items if i.kind == "recurring"} == {
         world_with_two_users.owner.rule_id: False,
         world_with_two_users.owner.income_rule_id: False,
         formula.id: True,
     }
-    other = upcoming_svc.list_upcoming(conn, OTHER_ID, today=WORLD_TODAY, window_days=None)
+    other = upcoming_svc.list_upcoming(
+        conn, OTHER_ID, today=WORLD_TODAY, window_days=None, fx=formula_fx_of(conn, OTHER_ID)
+    )
     assert not any(i.is_formula for i in other)

@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.services import budget as budget_service, today as today_svc
 
 USER_ID = 7
@@ -35,8 +36,16 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
         return 2026, 10
 
     def month_summary(
-        _conn: object, user_id: int, year: int, month: int, *, today: date, base_currency: str
+        _conn: object,
+        user_id: int,
+        year: int,
+        month: int,
+        *,
+        today: date,
+        base_currency: str,
+        display_timezone: str,
     ) -> SimpleNamespace:
+        assert display_timezone == "Europe/Warsaw"
         calls.summary.append((user_id, year, month, today, base_currency))
         return SimpleNamespace(
             days_until_next_income=days_left, totals=SimpleNamespace(remaining_minor=remaining)
@@ -48,7 +57,9 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
 
 
 def _afford(conn: sqlite3.Connection, amount: int) -> today_svc.AffordResult:
-    return today_svc.afford(conn, USER_ID, TODAY, amount, base_currency="PLN")
+    return today_svc.afford(
+        conn, USER_ID, TODAY, amount, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
 
 
 @pytest.mark.parametrize(

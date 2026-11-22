@@ -8,7 +8,7 @@ Pure layers (definition used by the inventory):
   domain/            fully pure: no I/O, DB, network, clock, logging, env, random, settings.
   services/          no network / clock / env / random / logging / filesystem / settings singleton;
                      DB access allowed through the passed connection; clock only via an injected port.
-  web view-models    web/*.py except app/deps/errors/retention_task/auth_cookies (charts, today_data,
+  web view-models    web/*.py except app/deps/errors/retention_task/fx_refresh_task/auth_cookies (charts, today_data,
                      htmx, ledger_types, rendering, templating): no network, clock, env.
   repositories/      I/O by definition (DB); clock/env/settings still listed (clock rule P7).
 Rules: eff-import (forbidden import), eff-clock, eff-random, eff-env, eff-log, eff-fs, eff-net, eff-print,
@@ -102,7 +102,15 @@ FORBIDDEN_IMPORTS = {
         "time",
     },
 }
-WEB_VM_EXCLUDE = {"app", "deps", "errors", "retention_task", "auth_cookies", "__init__"}
+WEB_VM_EXCLUDE = {
+    "app",
+    "deps",
+    "errors",
+    "retention_task",
+    "fx_refresh_task",
+    "auth_cookies",
+    "__init__",
+}
 FS_ATTRS = {
     "read_text",
     "write_text",

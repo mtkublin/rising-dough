@@ -40,6 +40,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import audit_tail
 from budget_planner.services.recurring import PromotionEdits, promote_recurring, skip_and_advance
+from tests.formula_fx_support import formula_fx_of
 
 OWNER = 2
 OTHER = 1
@@ -108,7 +109,7 @@ def _write_everything(db: sqlite3.Connection) -> None:
         ),
     )
     recurring_repo.delete_override(db, OWNER, rule.id, rule.next_due)
-    promote_recurring(db, OWNER, rule.id, PromotionEdits())
+    promote_recurring(db, OWNER, rule.id, PromotionEdits(), fx=formula_fx_of(db, OWNER))
     skip_and_advance(db, OWNER, rule.id)
     recurring_repo.soft_delete_rule(db, OWNER, rule.id)
     budgets_repo.set_default(db, OWNER, NewBudgetDefault(category_id=cat.id, amount=1))

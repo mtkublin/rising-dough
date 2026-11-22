@@ -193,3 +193,20 @@ class Occurrence:
     description: str
     is_overridden: bool
     is_skipped: bool
+
+
+DAY_OF_MONTH_MAX: Final[int] = 31
+
+
+def end_date_error(start: date | None, end: date | None) -> str | None:
+    """Form error when a stop date precedes the start date (or ``None``)."""
+    if start is not None and end is not None and end < start:
+        return "must be on or after start"
+    return None
+
+
+def day_of_month_error(day: int | None) -> str | None:
+    """Form error for an anchor day outside 1 to 31 (``None`` means "use the start day")."""
+    if day is not None and not 1 <= day <= DAY_OF_MONTH_MAX:
+        return f"day of month must be 1 to {DAY_OF_MONTH_MAX}"
+    return None

@@ -141,17 +141,29 @@ def verify_passkey_reauth(
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "verification_failed")
         return False
     if sign_count_regressed(stored.sign_count, verified.new_sign_count):
-        webauthn_repo.revoke_credential(
-            conn,
-            user_id,
-            stored.id,
-            reason="sign_count_regression",
-            request_ctx=replace(ctx, user_id=user_id),
-        )
+        _revoke_regressed(conn, user_id, stored.id, ctx)
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "sign_count_regression")
         return False
-    webauthn_repo.update_sign_count(conn, user_id, stored.id, verified.new_sign_count)
+    _store_sign_count(conn, user_id, stored.id, verified.new_sign_count)
     return True
+
+
+def _revoke_regressed(
+    conn: sqlite3.Connection, user_id: int, credential_row_id: int, ctx: RequestCtx
+) -> None:
+    webauthn_repo.revoke_credential(
+        conn,
+        user_id,
+        credential_row_id,
+        reason="sign_count_regression",
+        request_ctx=replace(ctx, user_id=user_id),
+    )
+
+
+def _store_sign_count(
+    conn: sqlite3.Connection, user_id: int, credential_row_id: int, count: int
+) -> None:
+    webauthn_repo.update_sign_count(conn, user_id, credential_row_id, count)
 
 
 def complete_reauth(

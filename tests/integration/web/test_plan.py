@@ -11,6 +11,7 @@ from bs4 import Tag
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -189,7 +190,12 @@ def test_budget_month_committed_zero_and_period_dates(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
     summary = budget_service.month_summary_for_picker(
-        db, USER_ID, picked=picked, today=today, base_currency="PLN"
+        db,
+        USER_ID,
+        picked=picked,
+        today=today,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     assert summary.totals.committed_minor == 0
     assert summary.period_start == start
@@ -210,7 +216,12 @@ def test_budget_month_future_has_no_days_elapsed_pressure(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
     summary = budget_service.month_summary_for_picker(
-        db, USER_ID, picked=picked, today=today, base_currency="PLN"
+        db,
+        USER_ID,
+        picked=picked,
+        today=today,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
 
     r = client.get(f"/plan?tab=budget&year={start.year}&month={start.month}")
@@ -233,7 +244,9 @@ def test_year_tab_grid_and_totals(
     assert len(body) == 2  # one category row + the totals footer row
     cells = _html.resolve(r.text, plan.year_cell_open_any)
     assert len(cells) == 12
-    grid = budget_service.yearly_grid(db, USER_ID, today.year)
+    grid = budget_service.yearly_grid(
+        db, USER_ID, today.year, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert [cell.amount_minor for cell in grid[0].cells] == [GROCERIES_BUDGET_MINOR] * 12
     total = _row_cells(body[0])[-1]
     assert total == f"{12 * GROCERIES_BUDGET_MINOR / 100:,.0f}"

@@ -18,7 +18,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 from budget_planner.domain.periods import month_bounds
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
+from budget_planner.domain.planned import (
+    NewPlannedTransaction,
+    PatchPlannedTransaction,
+    PlannedFilter,
+    PlannedTransaction,
+)
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
     categories as categories_repo,
@@ -29,8 +34,10 @@ from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services._promotion import (
     UnsupportedDirectionError,
     ValidationError,
+    create_promoted_transaction,
     validate_promotion as _shared_validate_promotion,
 )
+from budget_planner.services.transactions import validate_entry, validate_patched_entry
 
 # After T-119 (ADR-0038) planned rows are always persisted. The literal is
 # kept as a single-value alias so templates and callers can keep reading
@@ -196,7 +203,7 @@ def promote_to_actual(
             promoted_from_planned_id=planned_id,
         )
 
-        txn = transactions_repo.create(conn, user_id, new_txn)
+        txn = create_promoted_transaction(conn, user_id, new_txn)
         planned_repo.stamp_promotion(conn, user_id, planned_id, txn.id)
     return txn
 
@@ -286,15 +293,64 @@ def undo_batch(
     )
 
 
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-find_by_id = planned_repo.find_by_id
-list_filtered = planned_repo.list_filtered
-list_recently_deleted = planned_repo.list_recently_deleted
-create = planned_repo.create
-update = planned_repo.update
-soft_delete = planned_repo.soft_delete
-undelete = planned_repo.undelete
+def find_by_id(
+    conn: sqlite3.Connection, user_id: int, planned_id: int, *, include_deleted: bool = False
+) -> PlannedTransaction | None:
+    """The caller's planned row, or ``None`` (soft-deleted rows only with ``include_deleted``)."""
+    return planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=include_deleted)
+
+
+def list_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: PlannedFilter,
+    *,
+    include_deleted: bool = False,
+) -> list[PlannedTransaction]:
+    """Planned rows matching ``filters`` for the caller."""
+    return planned_repo.list_filtered(conn, user_id, filters, include_deleted=include_deleted)
+
+
+def list_recently_deleted(
+    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
+) -> list[PlannedTransaction]:
+    """Planned rows soft-deleted within ``days``, newest first."""
+    return planned_repo.list_recently_deleted(conn, user_id, days=days, limit=limit)
+
+
+def create(
+    conn: sqlite3.Connection, user_id: int, data: NewPlannedTransaction
+) -> PlannedTransaction:
+    """Create a planned row after the shared entry rules (:func:`validate_entry`)."""
+    validate_entry(
+        conn,
+        user_id,
+        category_id=data.category_id,
+        account_id=data.account_id,
+        dest_account_id=data.dest_account_id,
+        amount=data.amount,
+        description=data.description,
+    )
+    return planned_repo.create(conn, user_id, data)
+
+
+def update(
+    conn: sqlite3.Connection, user_id: int, planned_id: int, data: PatchPlannedTransaction
+) -> PlannedTransaction:
+    """Patch a planned row; the merged result must satisfy :func:`validate_entry`."""
+    row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
+    validate_patched_entry(conn, user_id, row, data)
+    return planned_repo.update(conn, user_id, planned_id, data)
+
+
+def soft_delete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> None:
+    """Soft-delete one planned row."""
+    planned_repo.soft_delete(conn, user_id, planned_id)
+
+
+def undelete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> PlannedTransaction:
+    """Restore a soft-deleted planned row."""
+    return planned_repo.undelete(conn, user_id, planned_id)
 
 
 __all__ = [
