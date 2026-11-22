@@ -22,6 +22,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget, forecast_events, forecast_overlay, fx as fx_svc
 from budget_planner.services.aggregates import sum_by_category
+from tests.formula_fx_support import formula_fx_of
 
 U = 1
 TODAY = date(2026, 11, 19)
@@ -115,7 +116,7 @@ def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
     budget_counts = budget.committed_by_category(
         seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY, base_currency="PLN"
     ).get(7, 0)
-    events = forecast_events.collect_events(seeded, U, TODAY, M_END)
+    events = forecast_events.collect_events(seeded, U, TODAY, M_END, fx=formula_fx_of(seeded, U))
     placed = [e for evs in events.values() for e in evs if e.amount_minor == -5000]
     assert budget_counts == 5000
     # OQ-6 default (ADR-0105 amendment 2026-11-21): overdue is placed on today + 1.

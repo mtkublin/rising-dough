@@ -24,6 +24,7 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.sessions import session_handle
 from budget_planner.services.connections import get_connection
+from budget_planner.services.recurring_formula import FormulaFx, formula_ctx_for
 from budget_planner.web.auth_cookies import safe_next
 from budget_planner.web.middleware.auth import CurrentUser
 
@@ -135,6 +136,16 @@ class ReauthRequired(Exception):  # noqa: N818  # control-flow signal, handled i
     def __init__(self, response: Response) -> None:
         super().__init__(REAUTH_REQUIRED)
         self.response = response
+
+
+def get_formula_ctx(
+    request: Request,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    user_id: Annotated[int, Depends(current_user_id)],
+) -> FormulaFx:
+    """Cache-only FX context so a formula amount converts the same on every surface (T-Q286)."""
+    settings = get_settings_dep(request)
+    return formula_ctx_for(conn, user_id, settings, clock.today_local(settings))
 
 
 def reauth_now(request: Request) -> datetime:

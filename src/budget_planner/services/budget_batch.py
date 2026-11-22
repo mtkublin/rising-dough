@@ -16,6 +16,8 @@ from budget_planner.domain.enums import Direction
 from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import recurring as recurring_svc
 from budget_planner.services.budget import pick_tier, planned_base_amounts
+from budget_planner.services.fx import BaseCurrency
+from budget_planner.services.recurring_formula import formula_ctx_for
 
 
 def budget_resolver(
@@ -82,6 +84,7 @@ def committed_by_category_windows(
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx_for(conn, user_id, BaseCurrency(base_currency), today),
         start=min(w.start for w in live),
         end=max(w.end for w in live),
         today=today,

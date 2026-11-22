@@ -29,6 +29,7 @@ from budget_planner.repositories import (
 from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import account_planned as svc, preferences
 from budget_planner.services.recurring import PromotionEdits, promote_recurring
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 TODAY = date(2026, 11, 6)
@@ -133,9 +134,9 @@ def test_overdue_unpromoted_planned_counted(conn: sqlite3.Connection, w: dict[st
     _plan(conn, w, "rent", "a", 700, date(2026, 11, 3))  # overdue, >= period_start
     _plan(conn, w, "rent", "a", 900, date(2026, 11, 1))  # before period_start
     # explicit: -700 (rent) + 1 (planned salary 11-25 is the window end, excluded)
-    assert svc.planned_net_by_account(conn, USER_ID, svc.resolve_window(conn, USER_ID, TODAY)) == {
-        w["a"]: -700
-    }
+    assert svc.planned_net_by_account(
+        conn, USER_ID, svc.resolve_window(conn, USER_ID, TODAY), formula_fx_of(conn, USER_ID)
+    ) == {w["a"]: -700}
 
 
 def test_promoted_planned_excluded(conn: sqlite3.Connection, w: dict[str, int]) -> None:
@@ -159,7 +160,9 @@ def test_promoted_planned_excluded(conn: sqlite3.Connection, w: dict[str, int]) 
 def test_recurring_early_promoted_not_counted(conn: sqlite3.Connection, w: dict[str, int]) -> None:
     _anchor(conn, w, landed=date(2026, 11, 2), next_on=date(2026, 11, 25))
     rid = _rule(conn, w, "rent", 500, date(2026, 11, 20))
-    promote_recurring(conn, USER_ID, rid, PromotionEdits(operation_date=TODAY))
+    promote_recurring(
+        conn, USER_ID, rid, PromotionEdits(operation_date=TODAY), fx=formula_fx_of(conn, USER_ID)
+    )
     assert _nets(conn) == {}
 
 

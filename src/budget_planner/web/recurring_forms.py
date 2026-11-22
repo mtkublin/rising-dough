@@ -22,6 +22,7 @@ from budget_planner.services import (
     categories as categories_service,
     recurring_formula as formula_svc,
 )
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web.params import parse_int, positive_amount
 
 TermInput = dict[str, object]
@@ -159,6 +160,8 @@ def _resolve_formula(
     term_inputs: list[TermInput],
     exclude_rule_id: int | None,
     today: date,
+    fx: FormulaFx,
+    target_ccy: str,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     try:
         terms = [
@@ -171,7 +174,14 @@ def _resolve_formula(
         ]
         formula = formula_svc.build_formula(terms)
         snapshot = formula_svc.compute_savable_amount(
-            conn, user_id, formula, today.year, today.month, exclude_rule_id=exclude_rule_id
+            conn,
+            user_id,
+            formula,
+            today.year,
+            today.month,
+            fx=fx,
+            target_ccy=target_ccy,
+            exclude_rule_id=exclude_rule_id,
         )
     except formula_svc.FormulaError as exc:
         return None, None, {"formula": str(exc)}
@@ -188,6 +198,7 @@ def resolve_amount_inputs(
     account_currency: str | None,
     exclude_rule_id: int | None,
     today: date,
+    fx: FormulaFx,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -196,7 +207,13 @@ def resolve_amount_inputs(
         return None, None, {field: "unknown account currency"}
     if is_formula:
         return _resolve_formula(
-            conn, user_id, term_inputs=term_inputs, exclude_rule_id=exclude_rule_id, today=today
+            conn,
+            user_id,
+            term_inputs=term_inputs,
+            exclude_rule_id=exclude_rule_id,
+            today=today,
+            fx=fx,
+            target_ccy=account_currency,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})

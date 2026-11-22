@@ -28,6 +28,7 @@ from budget_planner.services import (
     recurring_formula,
 )
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_account_cases,
     _isolation_read_cases,
@@ -147,11 +148,23 @@ def _case_compute_savable_amount(conn: sqlite3.Connection, world: World) -> None
 
     with pytest.raises(recurring_formula.FormulaError):
         recurring_formula.compute_savable_amount(
-            conn, OWNER_ID, formula(world.other.category_id), 2026, 11
+            conn,
+            OWNER_ID,
+            formula(world.other.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
         )
     with pytest.raises(recurring_formula.FormulaError):
         recurring_formula.compute_savable_amount(
-            conn, OTHER_ID, formula(world.owner.category_id), 2026, 11
+            conn,
+            OTHER_ID,
+            formula(world.owner.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OTHER_ID),
+            target_ccy=TARGET_CCY,
         )
 
 
