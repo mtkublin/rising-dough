@@ -1237,6 +1237,86 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14f.
 - Done when: the Acceptance above holds and guards stay green.
 
+### Testing coverage review (2026-11-22)
+
+- Findings: operator review of the test and gate stack (T-Q298, docs only). What exists today:
+  - **Pre-commit hooks** (local gate, ADR-0120): ruff, mypy, import-linter, guards, and the affected tests through testmon. `tests/e2e` is excluded from the hook (ADR-0120 amendment 2026-11-22, T-Q295).
+  - **PR CI** `ci.yml`: full suite with the 90% coverage gate on every PR to `main`; required check `just ci (Python 3.12, ubuntu-latest)`.
+  - **`e2e.yml`**: `tests/e2e` in the pinned Playwright container (Chromium, 2 workers). Runs on push to `wi/**`, on `pull_request` to `main` (required check `tests/e2e (Chromium, Playwright container)`, T-Q297) and on `workflow_dispatch`.
+  - **`visual.yml`**: visual regression in the same pinned container. Runs on PRs to `main` (the visual job only when templates, CSS or `tests/visual` change), Mondays 04:43 UTC and on dispatch. `visual-gate` is the always-run status check (ADR-0027 amendment, T-Q251); it is not yet a required check.
+  - **Drill gate**: `drill.yml` in `mode=gate` posts `drill-gate` on the PR head SHA. Non-deploy PRs skip the real gate (ADR-0121).
+  - **Weekly mutation**: `mutation.yml`, Mondays 03:17 UTC, advisory, over `domain` and `services` (ADR-0131). Never a merge gate.
+  - **`tests/e2e/test_crawl.py`**: crawls the route inventory and asserts no 4xx/5xx, no console errors, no failed requests, no duplicate ids and no horizontal scroll at 375 and 1440.
+  - **`tests/e2e/test_accessibility.py`**: a smoke test only. It asserts the skip link is the first focusable element and jumps to `#main`, Tab reaches every top-level nav link in document order, and each primary route has a single `<h1>` and a `<main id="main">`. No axe-core, no contrast check, no Lighthouse.
+- Gaps (each has a follow-up below, none started): e2e runs on Chromium only (T-Q299); no axe-core sweep and no Lighthouse/CWV budgets in CI (T-Q300); the crawl covers 375 and 1440 but not 1024 (T-Q301); the drill DB is not seeded (T-Q302).
+
+### ✅ T-Q298 [S] Testing coverage review recorded; follow-ups filed (docs only)
+- Findings: operator agreed the follow-ups on 2026-11-22 (see "Testing coverage review (2026-11-22)" above).
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs
+- Depends on: T-Q297
+- Docs-first step: this note and entries T-Q299 to T-Q302; [ADR-0099](../../adr/0099-release-and-environment-policy.md) amendment 2026-11-22 (current required status contexts).
+- Acceptance: the review note and T-Q299 to T-Q302 are in this file, each follow-up marked not started; ADR-0099 lists the current required contexts, including the e2e check, with a dated amendment; `docs/CHANGELOG.md` has a line. No code or test change.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: 14f (docs only).
+- Done when: the Acceptance above holds.
+
+### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
+- Findings: testing coverage review (2026-11-22, T-Q298).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: ci
+- Depends on: T-Q297
+- Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment naming the browser matrix, written at implementation start.
+- Goal: run `tests/e2e` on Firefox and WebKit as well as Chromium. The pinned Playwright container already ships both, so the cost is runner minutes only.
+- Acceptance: `e2e.yml` runs a browser matrix (chromium, firefox, webkit) in the same pinned image; the existing job name `tests/e2e (Chromium, Playwright container)` is unchanged; the new contexts are not added to `protect-main` until an operator decision records it.
+- Operator question blocking it: should the Firefox and WebKit contexts become required checks, or stay advisory until they are green?
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds and the new jobs are green on a `wi/**` push.
+
+### T-Q300 [M] axe-core sweep and Lighthouse/CWV budgets in CI (follow-up, not blocking)
+- Findings: testing coverage review (2026-11-22, T-Q298).
+- Epic: E04
+- Band: follow-up · Size: M · Tags: ci, a11y, perf
+- Depends on: T-Q297
+- Docs-first step: ADR-0027 amendment (budget values and the accessibility gate) and ADR-0120 amendment for the CI job, written at implementation start.
+- Goal: a full axe-core accessibility sweep over every route in the crawl inventory (colour contrast included), and Lighthouse budgets on the same inventory: LCP < 2.5 s, CLS < 0.1, TBT < 200 ms, plus a JS and CSS budget per page type (app page: JS < 300 kB gzipped, CSS < 50 kB, from the web performance rules). Both run in CI inside the Playwright container.
+- Acceptance: the axe job fails on serious and critical violations and prints the route and rule for each; the Lighthouse job fails when a budget is exceeded; budgets live in one versioned config file; neither job is required until an operator decision records it.
+- Operator question blocking it: none (the budget values are the web performance rules as written).
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds on a `wi/**` push.
+
+### T-Q301 [S] Crawl diagnostics at 1024 (follow-up, not blocking)
+- Findings: testing coverage review (2026-11-22, T-Q298).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: e2e
+- Depends on: T-Q297
+- Docs-first step: none beyond this entry (the viewer set is frontend-visual-audit's: 1440, 1024, 375).
+- Goal: `tests/e2e/test_crawl.py` also runs at 1024, so the crawl matches the frontend-visual-audit viewport set.
+- Acceptance: the same diagnostics (no 4xx/5xx, console errors, failed requests, duplicate ids, horizontal scroll) are asserted at 1024. A new failure is fixed or triaged in its own task; the check is not loosened.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds in `e2e.yml`.
+
+### T-Q302 [M] Drill DB seeded from an anonymized snapshot (follow-up, not blocking)
+- Findings: testing coverage review (2026-11-22, T-Q298). The drill DB is not seeded today.
+- Epic: E04
+- Band: follow-up · Size: M · Tags: ops, ci
+- Depends on: none
+- Docs-first step: ADR-0099 / ADR-0101 amendment naming the seed source, written at implementation start.
+- Goal: seed the drill from the anonymized prod-shaped `data/demo.sqlite` (built by `just demo-build`), or an equivalent anonymized snapshot, so migrations and smoke run against realistic data shapes.
+- Acceptance: the drill seeds from the snapshot; smoke asserts the seeded tables are non-empty; CI never reads prod data and never touches `data/budget.sqlite`.
+- Open questions (to answer before implementation):
+  1. Where does the snapshot live? `data/demo.sqlite` is tracked in git today; an object-store copy is the alternative.
+  2. How fresh is it? Rebuild cadence, or rebuild on demand only.
+  3. It is never real prod data. The drill receives only the output of the anonymizer (`build_demo_db.py`), and its source-basename tripwire stays.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds on a drill run.
+
 ### Third round (2026-11-22, answers to deferred Q39 to Q42)
 
 Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurring undo duplicate-live-transaction case left as is) need no task; one-line amendments in ADR-0136 and ADR-0019.
