@@ -1287,6 +1287,37 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
+### T-Q305 [M] Compose change must apply to an existing host; failure detail in the status file
+- Findings: release v3.1.0 (2026-11-22, run 45066657240) failed at `compose` on the live host; the rollback to the v3.0.8 image failed the same way (a rollback keeps the new compose template); prod was down (502) until the v3.0.8 release was re-run. The drill gate passed because a drill is a fresh host.
+- Cause (confirmed from the host journal, 20:39:06): ADR-0133 / T-Q203 added `ipam` (subnet `172.28.0.0/24`) to the existing `edge` network. Compose tried to recreate the network before it recreated the old bridged Caddy, which was still attached:
+  ```
+  bp-agent: compose: up: Container budget-planner-litestream-restore  Stopping
+   Container budget-planner-litestream-restore  Stopped
+   Network budget-planner_edge  Removed
+  Error response from daemon: error while removing network: network budget-planner_edge has active endpoints (name:"budget-planner-caddy" id:"<id>")
+  ```
+  Every later attempt, including the v3.0.8 image rollback that kept the new template, failed with `Error response from daemon: container <id> is not connected to the network budget-planner_edge` (half-migrated: old Caddy `Up` with published 80/443 on `172.18.0.0/16`, app, litestream and probe `Exited`).
+- Repair and state (operator): break-glass `docker compose down --remove-orphans` (no `-v`) plus a converge with main's template at 20:56 UTC (outage 20:39 to 20:56), then v3.1.0 released successfully at 21:05 UTC. Prod now has `budget-planner_edge` re-created on `172.28.0.0/24`. A rename reusing that subnet would fail with `Pool overlaps with other one on this address space`, so `edge_v2` uses `172.30.0.0/24` (gateway `172.30.0.1`) and the guard checks subnet overlap against the latest tag.
+- Epic: E04
+- Band: incident · Size: M · Tags: ops, deploy
+- Depends on: T-Q203
+- Docs-first step: ADR-0133, ADR-0111 and ADR-0099 amendments 2026-11-22; CHANGELOG.
+- Goal: rename the network `edge` -> `edge_v2`; the agent removes a still-bridged Caddy before `up` (80/443 handover) and, if `up` fails, removes the project's containers once (`compose rm --force --stop`, never `-v`) and retries, so a half-migrated host converges; the agent removes the legacy `budget-planner_edge` after a successful `up` (best effort); `status.json` carries `error_detail` (scrubbed, one line, 200 chars, compose failures only); a unit guard fails when a network keeps its name but changes its definition against the latest `v*` tag.
+- Acceptance: agent unit tests for the cleanup and the scrubbing (no `NAME=value` leaks, 200-char cap, non-compose codes empty); guard test green; `terraform fmt/validate/test` green. An existing v3.0.8 host converges and a rollback works (to be proven by the T-Q306 drill, not by this task).
+- Operator question blocking it: none. Operator: read the host journal (`journalctl -u bp-agent`) of the failed run to confirm the cause.
+- Removes allowlist entries: none.
+
+### T-Q306 [M] Upgrade-in-place drill (follow-up, not started)
+- Findings: T-Q305; ADR-0099 amendment 2026-11-22.
+- Epic: E04
+- Band: follow-up · Size: M · Tags: ci, deploy
+- Depends on: T-Q305
+- Docs-first step: ADR-0099 amendment naming the mode, written at implementation start.
+- Goal: a drill `mode=upgrade`: check out the latest `v*` tag, apply its terraform templates and image on a fresh host, smoke-test, then apply the PR head (terraform plus its image) on the same host and smoke-test again; then roll back to the tag image and smoke a third time. Always torn down; shares the `drill` concurrency group.
+- Acceptance: the gate posts `drill-gate` only when all three smokes pass; the v3.1.0 `edge` change would have failed it.
+- Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
+- Removes allowlist entries: none.
+
 ### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
