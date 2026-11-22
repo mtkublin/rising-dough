@@ -40,3 +40,11 @@
 | Where | Deviation | Reason | Task |
 |---|---|---|---|
 | _…_ | | | |
+
+## Tolerance exceptions
+
+> Default is the strict visual tolerance, 0.1% differing pixels (ADR-0106 amendment 2026-11-22). A surface may use a looser value only with a row here: reason plus operator sign-off.
+
+| Surface | Tolerance | Reason | Operator sign-off | Task |
+|---|---|---|---|---|
+| _…_ | | | | |

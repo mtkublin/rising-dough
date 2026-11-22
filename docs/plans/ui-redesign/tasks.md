@@ -15,7 +15,7 @@
 
 > Plan: [README.md](README.md). Decision: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Handoff: `docs/design/rising-dough-frontend/` (its `README.md` is required reading for every task).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-URxx` depends on upstream task.
-> Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first).
+> Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first), including the visual diff at the strict default tolerance (0.1%, `MAX_DIFF_PIXEL_RATIO`) unless `derived.md` records an operator-signed exception (T-UR00b).
 
 ---
 
@@ -28,6 +28,20 @@
 - **Removal ledger** `removal.md` generated from `git ls-files` at the branch point: every file under `web/templates/`, `web/static/` (outside `rd/`), `tests/visual/baselines/`, plus the Tailwind/Node config, `justfile` recipes, pre-commit hooks and CI steps that exist only for the old frontend. Each row: path, owning surface task (or T-UR15 for shared files), status (`delete` / `keep: <reason>`). Only the kept-behaviour files from ADR-0107 §2 may be `keep`.
 - **`template_logic.toml` (ADR-0130 amendment 2026-11-21):** after the redesign the allowlist must be empty; new templates add no entries; surface tasks delete the entries of the templates they remove.
 - `tests/architecture/test_old_frontend_removed.py`: reads `removal.md` and fails if a row marked `deleted` still exists, or if a new file appears under an old-frontend path (the old trees may only shrink). Starts green with nothing deleted.
+
+### ◻ T-UR00b [S] Pixel parity against the handoff → T-UR00 (blocks T-UR05..T-UR14)
+- **Decision**: [ADR-0106 amendment 2026-11-22](../../adr/0106-ui-behaviour-test-harness.md#amendment-2026-11-22-pixel-parity-against-the-handoff). The handoff screenshots are the visual baselines; the goal of every surface task is pixel parity, test-first.
+- **Deliverables**:
+  - **Fixture from handoff data**: extract the data the handoff pages hardcode (`docs/design/rising-dough-frontend/pages/**`, `components.html`, `charts/`: names, amounts, dates, counts, frozen date 2026-10-31) into a seed used by the frozen server in the visual suite, replacing the `data/demo.sqlite` stand-in. No masking of dynamic regions.
+  - **References regenerated in the container**: `just visual-reference` runs in the pinned Playwright image (`visual_image` in the `justfile`), never on the host. Existing `tests/visual/reference/` images are regenerated. A manifest (image tag + digest) is written next to the references, and a guard test (next to `tests/architecture/test_visual_image_pin.py`) fails if the manifest is missing or differs from the pinned image.
+  - **Strict tolerance**: `handoff.SURFACE_TOLERANCE` removed; every app-vs-handoff comparison uses `MAX_DIFF_PIXEL_RATIO = 0.001` unless `derived.md` "Tolerance exceptions" has a row for that surface (reason + operator sign-off). Stale `CI_VISUAL=1` wording removed from `tests/visual/README.md` and the `justfile` comments.
+  - `tests/visual/test_reference.py` compares every surface (the `MIGRATED_SURFACES` opt-in no longer gates the red run).
+- **Acceptance**:
+  - the fixture renders the handoff content (spot-checked per surface: same names, amounts, dates, counts);
+  - references regenerated in the container and the provenance guard green (and red when the manifest is tampered with);
+  - a red run showing every surface (today, accounts, ledger, plan, settings, auth, errors, overlays) failing against its reference with the old app, recorded in the handoff note;
+  - tolerance default (0.1%) recorded in `tests/visual/README.md`.
+- **Depends**: T-UR00. References: ADR-0106 amendment 2026-11-22, ADR-0027 amendment 2026-11-22 (T-Q251), `.github/workflows/visual.yml`.
 
 ---
 
