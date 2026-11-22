@@ -86,36 +86,9 @@ def scan(root: Path = REPO_ROOT, dirs: tuple[str, ...] = SCANNED_DIRS) -> dict[s
     return found
 
 
-# file -> number of offending lines today. May only shrink (ADR-0106 section 2).
-# SYNC-MAIN 2026-11-22: main's tree was clean; these are remediation-side tests (kept in
-# full, never dropped) that main had converted to the UI map. Migrate them to tests/ui_map
-# and delete the entries.
-ALLOWLIST: dict[str, int] = {
-    "tests/e2e/forms.py": 8,
-    "tests/e2e/test_reconcile_flow.py": 2,
-    "tests/e2e/test_recurring_promote_flow.py": 4,
-    "tests/e2e/test_set_budget_flow.py": 1,
-    "tests/integration/web/test_accounts.py": 25,
-    "tests/integration/web/test_accounts_reconcile_available.py": 3,
-    "tests/integration/web/test_bounds.py": 3,
-    "tests/integration/web/test_budget.py": 32,
-    "tests/integration/web/test_budget_view_values.py": 7,
-    "tests/integration/web/test_categories.py": 10,
-    "tests/integration/web/test_clock_midnight.py": 2,
-    "tests/integration/web/test_ellipsis_coverage_gaps.py": 7,
-    "tests/integration/web/test_fx_unavailable.py": 1,
-    "tests/integration/web/test_input_boundaries.py": 1,
-    "tests/integration/web/test_plan.py": 15,
-    "tests/integration/web/test_planned.py": 11,
-    "tests/integration/web/test_reconcile_category_direction.py": 1,
-    "tests/integration/web/test_recurring.py": 19,
-    "tests/integration/web/test_recurring_formula_save_validation.py": 1,
-    "tests/integration/web/test_security_headers.py": 1,
-    "tests/integration/web/test_settings.py": 3,
-    "tests/integration/web/test_settings_users.py": 1,
-    "tests/integration/web/test_today.py": 2,
-    "tests/integration/web/test_transit_validation.py": 5,
-}
+# file -> number of offending lines. Empty since T-Q278 (docs/plans/quality-audit/tasks.md):
+# the 167 SYNC-MAIN entries were migrated to tests/ui_map. Never add an entry (ADR-0106 section 2).
+ALLOWLIST: dict[str, int] = {}
 
 
 def compare(actual: dict[str, int], allowlist: dict[str, int]) -> list[str]:

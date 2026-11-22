@@ -24,6 +24,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
 )
 from tests.auth_support import seed_login_user
+from tests.ui_map import _html
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -129,7 +130,7 @@ def test_create_rejects_bad_formula(
     before = _snapshot(_migrated)
     r = client.post("/recurring", data=_form(ctx, _bad_ids(kind, ctx), "new-formula"))
     assert r.status_code == 422
-    assert "987654" not in r.text
+    assert "987654" not in _html.page_text(r.text)
     assert _snapshot(_migrated) == before
 
 

@@ -12,6 +12,7 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
+from tests.ui_map import _html
 
 USER_ID = 1
 
@@ -41,7 +42,7 @@ def test_page_with_foreign_account_and_no_rate_is_503_without_network(
     _eur_account(_migrated)
     response = client.get(route)
     assert response.status_code == 503
-    assert "EUR-&gt;PLN" in response.text
+    assert "EUR->PLN" in _html.page_text(response.text)
 
 
 def test_refresh_cli_caches_rate_and_page_then_renders(

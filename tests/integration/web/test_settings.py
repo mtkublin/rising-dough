@@ -41,7 +41,9 @@ def test_settings_fx_tab(client: TestClient) -> None:
     assert tab is not None and isinstance(tab, Tag)
     assert tab.get("aria-selected") == "true"
     # Either the empty-state hint or the FX table should render.
-    assert ("FX cache" in response.text) or ("No FX rates cached yet." in response.text)
+    assert _html.exists(response.text, ui.fx_heading) or (
+        "No FX rates cached yet." in _html.page_text(response.text)
+    )
 
 
 def test_settings_prefs_tab(client: TestClient) -> None:
@@ -50,12 +52,11 @@ def test_settings_prefs_tab(client: TestClient) -> None:
     soup = _soup(response.text)
     panel = soup.find(id="panel-prefs")
     assert panel is not None and isinstance(panel, Tag)
-    base = soup.select_one('[data-pref="base-currency"]')
-    tz = soup.select_one('[data-pref="display-timezone"]')
-    assert base is not None and isinstance(base, Tag)
-    assert tz is not None and isinstance(tz, Tag)
-    assert "PLN" in base.get_text()
-    assert "Europe/Warsaw" in tz.get_text()
+    terms = _html.texts(response.text, ui.pref_terms)
+    values = _html.texts(response.text, ui.pref_values)
+    assert terms == ["Base currency", "Display timezone"]
+    assert "PLN" in values[0]
+    assert "Europe/Warsaw" in values[1]
 
 
 HX = {"HX-Request": "true"}

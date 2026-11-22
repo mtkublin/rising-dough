@@ -70,7 +70,7 @@ def test_csp_nonce_from_header_reaches_jinja_context(
     with client:
         r = client.get("/_test/nonce", headers={"X-CSP-Nonce": "abc123"})
     assert r.status_code == 200
-    assert r.text.startswith("nonce:")
+    assert r.content.startswith(b"nonce:")  # plain-text echo route, not markup
     assert r.text != "nonce:abc123"
 
 

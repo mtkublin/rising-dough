@@ -71,13 +71,14 @@ def _seed(settings: Settings) -> None:
 
 def test_planned_strip_is_signed_net(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
-    text = _html.text_of(client.get("/ledger?view=planned").text, ledger.planned_strip)
-    assert text.startswith("2 items · 3,799.50 PLN")
+    html = client.get("/ledger?view=planned").text
+    assert _html.text_of(html, ledger.planned_strip).startswith("2 items · 3,799.50 PLN")
 
 
 def test_recurring_strip_splits_in_and_out(client: TestClient, _migrated: Settings) -> None:
     _seed(_migrated)
-    text = _html.text_of(client.get("/ledger?view=recurring").text, ledger.recurring_strip)
+    html = client.get("/ledger?view=recurring").text
+    text = _html.text_of(html, ledger.recurring_strip)
     assert "Monthly out 1,200.50 PLN" in text
     assert "Monthly in 5,000.00 PLN" in text
 
