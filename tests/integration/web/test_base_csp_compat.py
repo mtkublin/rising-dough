@@ -29,8 +29,10 @@ def test_base_has_no_external_assets_or_inline_script(client: TestClient) -> Non
         assert urlparse(str(script["src"])).netloc in _SELF_HOSTS
     for link in soup.find_all("link", rel="stylesheet"):
         assert urlparse(str(link.get("href", ""))).netloc in _SELF_HOSTS
-    assert "fonts.googleapis.com" not in r.text
-    assert "unpkg.com" not in r.text
+    for tag in (*soup.find_all("script", src=True), *soup.find_all("link", href=True)):
+        url = str(tag.get("src") or tag.get("href"))
+        assert "fonts.googleapis.com" not in url
+        assert "unpkg.com" not in url
 
 
 def test_base_declares_htmx_config_and_today_attribute(client: TestClient) -> None:

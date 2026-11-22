@@ -2523,6 +2523,7 @@ kbd.rd-kbd {
 
 .rd-formula__foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
@@ -2530,7 +2531,12 @@ kbd.rd-kbd {
   padding-top: 0.6rem;
   border-top: 1px solid var(--line);
 }
-.rd-formula__note { font-size: 0.75rem; margin: 0; }
+.rd-formula__note { font-size: 0.75rem; margin: 0; flex: 1 1 14rem; }
+.rd-formula__preview { display: inline-flex; max-width: 100%; }
+.rd-formula__preview:empty { display: none; }
+.rd-formula__preview .rd-chip { cursor: default; text-align: left; white-space: normal; }
+.rd-chip--ok { background: var(--income-soft); border-color: var(--income); color: var(--income); }
+.rd-chip--err { background: var(--expense-soft); border-color: var(--expense); color: var(--expense); }
 
 .rd-chip {
   display: inline-flex;

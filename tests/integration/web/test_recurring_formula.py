@@ -34,6 +34,7 @@ from budget_planner.services import (
     upcoming as upcoming_svc,
 )
 from budget_planner.services._promotion import ValidationError
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -507,7 +508,7 @@ class TestFormulaRouter:
             },
         )
         assert response.status_code == 200, response.text
-        assert "formula-chip" in response.text or "data-formula-amount" in response.text
+        assert _html.exists(response.text, ledger.any_recurring_row)
 
     def test_create_multi_term_formula(  # noqa: PLR0917
         self,

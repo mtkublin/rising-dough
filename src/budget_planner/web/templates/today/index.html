@@ -67,7 +67,8 @@
           </span>
           <span id="afford-preview" class="rd-afford__preview">
             <span class="mut">→ per day becomes</span>
-            <span class="num rd-afford__new">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
+            <span class="num rd-afford__new"
+                  data-testid="afford-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
           </span>
         </form>
       </div>

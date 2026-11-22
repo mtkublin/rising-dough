@@ -354,6 +354,43 @@ async def create_rule(
     return html
 
 
+# ADR-0056 §4 live formula preview. Registered BEFORE `/{rule_id}` so FastAPI's
+# int-path validator does not swallow the literal `formula` segment.
+@router.post("/formula/preview", response_class=HTMLResponse)
+async def formula_preview(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    """Live-preview chip or inline error for a draft formula (no DB write)."""
+    form = await request.form()
+    draft_rule_id_raw = str(form.get("draft_rule_id", ""))
+    draft_rule_id = parse_int(draft_rule_id_raw)
+    if draft_rule_id_raw and draft_rule_id is None:
+        return Response(status_code=422, content="invalid draft_rule_id")
+    drafts: list[formula_svc.DraftTerm] = []
+    for row in _parse_terms_from_form(form):
+        cat_ids = [parse_int(str(v)) for v in row.get("source_category_ids", ())]
+        if None in cat_ids:
+            return Response(status_code=422, content="invalid source_category_ids")
+        drafts.append(
+            formula_svc.DraftTerm(
+                sign=str(row.get("sign", "+")),
+                coefficient_percent=str(row.get("coefficient_percent", "")),
+                source_category_ids=tuple(c for c in cat_ids if c is not None),
+            )
+        )
+    result = formula_svc.preview(conn, user_id, today_for(request), draft_rule_id, drafts)
+    is_ok = isinstance(result, formula_svc.PreviewOk)
+    return render(
+        request,
+        "partials/recurring/_formula_preview.html",
+        result=result,
+        is_ok=is_ok,
+        status_code=200 if is_ok else 422,
+    )
+
+
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
 def edit_form(
     rule_id: int,

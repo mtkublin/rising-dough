@@ -8,7 +8,6 @@ from datetime import date
 
 import pyarrow.parquet as pq
 import pytest
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
@@ -22,6 +21,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -68,6 +68,14 @@ def _create_txn(
         conn.close()
 
 
+def _new_txn_id(settings: Settings) -> int:
+    conn = get_connection(settings)
+    try:
+        return int(conn.execute("SELECT MAX(id) FROM transactions").fetchone()[0])
+    finally:
+        conn.close()
+
+
 def test_list_page_redirects_to_ledger(client: TestClient, seeded: dict[str, int]) -> None:
     """T-070: ``/transactions`` returns 302 to the unified ledger (actual view)."""
     r = client.get("/transactions", follow_redirects=False)
@@ -78,16 +86,22 @@ def test_list_page_redirects_to_ledger(client: TestClient, seeded: dict[str, int
 def test_table_fragment_is_not_full_page(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/transactions/table")
     assert r.status_code == 200
-    assert "<html" not in r.text
-    assert "txn-table" in r.text
+    assert _html.exists(r.text, ledger.table)
+    assert not _html.exists(r.text, ledger.heading)  # fragment: no page chrome
 
 
 def test_new_form_fragment(client: TestClient, seeded: dict[str, int]) -> None:
     r = client.get("/transactions/new")
     assert r.status_code == 200
-    assert 'hx-post="/transactions"' in r.text
-    for field in ("operation_date", "category_id", "account_id", "amount"):
-        assert f'name="{field}"' in r.text
+    form = _html.resolve_one(r.text, ledger.form)
+    assert form.get("hx-post") == "/transactions"
+    for field in (
+        ledger.field_date,
+        ledger.field_category,
+        ledger.field_account,
+        ledger.field_amount,
+    ):
+        assert ledger.controls(r.text, field.inside(ledger.form))
 
 
 def test_create_valid_persists_and_triggers(
@@ -104,7 +118,7 @@ def test_create_valid_persists_and_triggers(
         },
     )
     assert r.status_code == 200
-    assert 'id="txn-' in r.text
+    assert _html.exists(r.text, ledger.row(_new_txn_id(_migrated)))
     hx = json.loads(r.headers["HX-Trigger"])
     assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
     conn = get_connection(_migrated)
@@ -154,8 +168,7 @@ def test_new_form_targets_itself_not_ledger_table(
     client: TestClient, seeded: dict[str, int]
 ) -> None:
     r = client.get("/transactions/new")
-    assert 'hx-target="#txn-form"' in r.text
-    assert "#txn-table" not in r.text
+    assert _html.resolve_one(r.text, ledger.form).get("hx-target") == "#txn-form"
 
 
 def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str, int]) -> None:
@@ -169,7 +182,7 @@ def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str
         },
     )
     assert r.status_code == 422
-    assert "amount" in r.text
+    assert "amount" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Settings) -> None:
@@ -193,15 +206,15 @@ def test_create_rejects_cross_currency_transit(client: TestClient, _migrated: Se
         },
     )
     assert r.status_code == 422
-    assert "cross-currency" in r.text
+    assert "cross-currency" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: Settings) -> None:
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"], amount=5000)
-    r = client.get(f"/transactions/{txn_id}/edit")
+    r = client.get(f"/transactions/{txn_id}/edit", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    assert f'hx-post="/transactions/{txn_id}"' in r.text
-    assert 'name="amount"' in r.text and 'value="50.00"' in r.text
+    assert _html.resolve_one(r.text, ledger.form).get("hx-post") == f"/transactions/{txn_id}"
+    assert ledger.control(r.text, ledger.field_amount).get("value") == "50.00"
     r2 = client.post(
         f"/transactions/{txn_id}",
         data={
@@ -268,7 +281,7 @@ def test_create_rejects_unknown_account_and_category(
         },
     )
     assert r.status_code == 422
-    assert "unknown account" in r.text
+    assert "unknown account" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> None:
@@ -282,7 +295,7 @@ def test_create_rejects_bad_date(client: TestClient, seeded: dict[str, int]) -> 
         },
     )
     assert r.status_code == 422
-    assert "operation_date" in r.text
+    assert "operation_date" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_create_rejects_bad_amount_string(client: TestClient, seeded: dict[str, int]) -> None:
@@ -344,11 +357,10 @@ def test_filter_by_category(
     _create_txn(_migrated, seeded["acc"], seeded["salary"], desc="s")
     r = client.get(f"/transactions/table?category_id={seeded['groc']}")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    # Manual-audit #25 — description cell wraps the text in <strong>.
-    descs = {strong.text.strip() for strong in soup.select("table.ledger tbody tr td strong")}
-    assert "g" in descs
-    assert "s" not in descs
+    rows = _html.resolve(r.text, ledger.table_rows("actual"))
+    texts = {" ".join(row.get_text(" ").split()) for row in rows}
+    assert any(" g " in f" {t} " for t in texts)
+    assert not any(" s " in f" {t} " for t in texts)
 
 
 # ---------------------------------------------------------------------------
@@ -398,9 +410,8 @@ def test_preview_hidden_for_asset_account(client: TestClient, visa_setup: dict[s
         },
     )
     assert r.status_code == 200
-    assert "limit-preview" in r.text
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find("aside", class_="limit-preview") is None
+    assert _html.exists(r.text, ledger.limit_preview)
+    assert _html.text_of(r.text, ledger.limit_preview) == ""
 
 
 def test_preview_shows_available_for_within_limit_expense(
@@ -415,8 +426,9 @@ def test_preview_shows_available_for_within_limit_expense(
         },
     )
     assert r.status_code == 200
-    assert "After this transaction" in r.text
-    assert "9,500.00" in r.text
+    text = _html.text_of(r.text, ledger.limit_preview)
+    assert "After this transaction" in text
+    assert "9,500.00" in text
 
 
 def test_preview_shows_over_limit_for_overshoot_expense(
@@ -431,8 +443,9 @@ def test_preview_shows_over_limit_for_overshoot_expense(
         },
     )
     assert r.status_code == 200
-    assert "Over limit" in r.text
-    assert "5,000.00" in r.text
+    text = _html.text_of(r.text, ledger.limit_preview)
+    assert "Over limit" in text
+    assert "5,000.00" in text
 
 
 def test_preview_handles_adjustment_signed_amount(
@@ -472,8 +485,8 @@ def test_preview_updates_on_amount_change(client: TestClient, visa_setup: dict[s
             "amount": "500.00",
         },
     )
-    assert "9,900.00" in r1.text
-    assert "9,500.00" in r2.text
+    assert "9,900.00" in _html.text_of(r1.text, ledger.limit_preview)
+    assert "9,500.00" in _html.text_of(r2.text, ledger.limit_preview)
 
 
 def test_preview_bad_amount_returns_blank_fragment(
@@ -488,8 +501,7 @@ def test_preview_bad_amount_returns_blank_fragment(
         },
     )
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    assert soup.find("aside", class_="limit-preview") is None
+    assert _html.text_of(r.text, ledger.limit_preview) == ""
 
 
 def test_form_submits_even_when_over_limit(client: TestClient, visa_setup: dict[str, int]) -> None:
@@ -524,9 +536,9 @@ def test_edit_form_targets_itself_and_closes_on_success(
 ) -> None:
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
     r = client.get(f"/transactions/{txn_id}/edit")
-    assert 'hx-target="#txn-form"' in r.text
-    assert f"#txn-{txn_id}" not in r.text
-    assert "data-close-overlay-on-success" in r.text
+    form = _html.resolve_one(r.text, ledger.form)
+    assert form.get("hx-target") == "#txn-form"
+    assert form.has_attr("data-close-overlay-on-success")
 
 
 def test_update_off_ledger_refreshes_page_without_swap(
@@ -558,5 +570,5 @@ def test_update_invalid_amount_rerenders_form_in_place(
         f"/transactions/{txn_id}", data=_update_data(seeded, amount="0"), headers=_ON_TODAY
     )
     assert r.status_code == 422
-    assert 'id="txn-form"' in r.text
-    assert "amount" in r.text
+    assert _html.exists(r.text, ledger.form)
+    assert "amount" in _html.text_of(r.text, ledger.form_errors)

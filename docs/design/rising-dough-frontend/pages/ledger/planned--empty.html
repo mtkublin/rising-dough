@@ -60,7 +60,9 @@
 </div>
 </section>
 <section class="rd-panel" aria-label="Planned entries">
-<nav class="rd-tabs" aria-label="Ledger view"><a class="rd-tabs__tab" href="../../pages/ledger/actual.html">actual 616</a><a class="rd-tabs__tab" href="../../pages/ledger/planned.html" aria-current="page">planned 3</a><a class="rd-tabs__tab" href="../../pages/ledger/recurring.html">recurring 27</a></nav>
+<div class="rd-ledger-head"><nav class="rd-tabs" aria-label="Ledger view"><a class="rd-tabs__tab" href="../../pages/ledger/actual.html">actual 616</a><a class="rd-tabs__tab" href="../../pages/ledger/planned.html" aria-current="page">planned 3</a><a class="rd-tabs__tab" href="../../pages/ledger/recurring.html">recurring 27</a></nav><!-- fragment: ledger/export-menu -->
+<div class="rd-ledger-head__export"><button type="button" class="rd-btn" aria-haspopup="menu" popovertarget="menu-97" data-js="row-menu">export <span aria-hidden="true">▾</span></button><div class="rd-menu" id="menu-97" popover role="menu" aria-label="Export"><span class="rd-menu__grabber" aria-hidden="true"></span><div class="rd-menu__head" role="none"><p class="rd-menu__title">Export</p><p class="rd-menu__sub">planned · current filters</p></div><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="toast" data-demo-label="Downloading ledger-planned-2026-10.csv">export as csv</button><button type="button" class="rd-menu__item" role="menuitem" data-js="demo-action" data-demo="toast" data-demo-label="Downloading ledger-planned-2026-10.parquet">export as parquet</button><button type="button" class="rd-menu__item rd-menu__cancel" role="menuitem" popovertarget="menu-97" popovertargetaction="hide">cancel</button></div></div>
+<!-- /fragment --></div>
 <!-- fragment: ledger/filter-bar -->
 <form class="rd-filters" id="p-filters" method="post" action="#" role="search" aria-label="Filter transactions" data-js="filters" data-state="collapsed">
 <div class="rd-filters__extra" id="p-extra">

@@ -1,0 +1,1547 @@
+{
+  "/accounts": [
+    {
+      "kind": "button",
+      "name": "Row actions",
+      "target": ""
+    },
+    {
+      "kind": "hx-get",
+      "name": "+ New account",
+      "target": "/accounts/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Reconcile",
+      "target": "/accounts/{id}/reconcile"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Cancel",
+      "target": "",
+      "via": "Reconcile"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Reconcile"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "\u2460 Open your bank \u2461 Enter its balance \u2462 Review Compare this a...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/accounts/{id}/reconcile",
+      "via": "Reconcile"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Record \u21a9",
+      "target": "/accounts/{id}/reconcile",
+      "via": "Reconcile"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Edit",
+      "target": "/accounts/{id}/edit",
+      "via": "Row actions"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Delete",
+      "target": "/accounts/{id}/delete",
+      "via": "Row actions"
+    }
+  ],
+  "/auth/sessions": [
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Current password New password At least 12 characters, up to ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Categories",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=categories"
+    },
+    {
+      "kind": "link",
+      "name": "Currency & FX",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=fx"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Preferences",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=prefs"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Security",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings/security"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Users",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out this device",
+      "target": "/auth/sessions/{handle}/revoke"
+    },
+    {
+      "kind": "submit-get",
+      "name": "Add passkey",
+      "skipped": "needs a WebAuthn authenticator",
+      "target": ""
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password",
+      "via": "Change password"
+    }
+  ],
+  "/budget": [
+    {
+      "kind": "hx-get",
+      "name": "Add override for Groceries",
+      "target": "/budget/rules/{id}/overrides/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Yearly budget year selector",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/yearly"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Default budget for Groceries Save",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/defaults/{id}"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Groceries {month}",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/one-off/{id}/{id}/{id}"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Groceries {month}",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/budget/one-off/{id}/{id}/{id}"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Plan \u00b7 Analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save",
+      "target": "/budget/defaults/{id}"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "submit-get",
+      "name": "Go",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": ""
+    },
+    {
+      "kind": "submit-get",
+      "name": "Go",
+      "target": "/budget"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Add override for Groceries"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Groceries This month only Every Nov New default PLN Save \u21b5",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/rules/{id}/overrides",
+      "via": "Add override for Groceries"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save \u21b5",
+      "target": "/budget/rules/{id}/overrides",
+      "via": "Add override for Groceries"
+    }
+  ],
+  "/forecast": [
+    {
+      "kind": "hx-get",
+      "name": "Horizon (months)",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/forecast/view"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Projected balance, {month} \u2014 {month} \u00b7 PLN 8,200 8,400 8,6...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/forecast/view"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    }
+  ],
+  "/ledger": [
+    {
+      "kind": "button",
+      "name": "Row actions",
+      "target": ""
+    },
+    {
+      "kind": "hx-get",
+      "name": "",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/ledger/table?view=actual"
+    },
+    {
+      "kind": "hx-get",
+      "name": "+ Add n",
+      "target": "/add?when=happened"
+    },
+    {
+      "kind": "hx-get",
+      "name": "From To Category All categories Groceries Paycheck Reconcili...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/ledger/table?view=actual"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Ledger \u2014 actual Description \u00b7 Account Category Direction Amo...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/ledger/table?view=actual"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Actual3",
+      "target": "/ledger?view=actual"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Planned1",
+      "target": "/ledger?view=planned"
+    },
+    {
+      "kind": "link",
+      "name": "Recently deleted \u2192",
+      "target": "/ledger/recently-deleted"
+    },
+    {
+      "kind": "link",
+      "name": "Recurring1",
+      "target": "/ledger?view=recurring"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Edit",
+      "target": "/transactions/{id}/edit",
+      "via": "Row actions"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Delete",
+      "target": "/transactions/{id}/delete",
+      "via": "Row actions"
+    }
+  ],
+  "/ledger/recently-deleted": [
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "\u2190 Ledger",
+      "target": "/ledger"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    }
+  ],
+  "/plan": [
+    {
+      "kind": "disclosure",
+      "name": "{month}",
+      "target": ""
+    },
+    {
+      "kind": "hx-get",
+      "name": "Override Groceries",
+      "target": "/budget/rules/{id}/overrides/new?inline={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "Budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "Forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Next month",
+      "target": "/plan?tab=budget&year={n}&month={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Previous month",
+      "target": "/plan?tab=budget&year={n}&month={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Year",
+      "target": "/plan?tab=year"
+    },
+    {
+      "kind": "link",
+      "name": "change",
+      "target": "/settings?tab=prefs#income-anchor"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Cancel",
+      "target": "",
+      "via": "Override Groceries"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Groceries This month only Every Nov New default PLN Cancel S...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/rules/{id}/overrides",
+      "via": "Override Groceries"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save \u21b5",
+      "target": "/budget/rules/{id}/overrides",
+      "via": "Override Groceries"
+    }
+  ],
+  "/plan?tab=year": [
+    {
+      "kind": "disclosure",
+      "name": "Show 1 category without a budget",
+      "target": ""
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "Budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "Forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Next year",
+      "target": "/plan?tab=year&year={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Previous year",
+      "target": "/plan?tab=year&year={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Year",
+      "target": "/plan?tab=year"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Set budget",
+      "target": "/budget/rules/{id}/overrides/new?year={n}",
+      "via": "Show 1 category without a budget"
+    }
+  ],
+  "/settings": [
+    {
+      "kind": "hx-get",
+      "name": "+ New category",
+      "target": "/categories/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Edit category 5",
+      "target": "/categories/{id}/edit"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Edit category 6",
+      "target": "/categories/{id}/edit"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Archive category 5",
+      "target": "/categories/{id}/delete"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Archive category 6",
+      "target": "/categories/{id}/delete"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Income anchor \u2014 none \u2014 Paycheck",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget/preferences/income-anchor"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Categories",
+      "target": "/settings?tab=categories"
+    },
+    {
+      "kind": "link",
+      "name": "Currency & FX",
+      "target": "/settings?tab=fx"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Preferences",
+      "target": "/settings?tab=prefs"
+    },
+    {
+      "kind": "link",
+      "name": "Recently deleted",
+      "target": "/ledger/recently-deleted"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Security",
+      "target": "/settings/security"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Cancel",
+      "target": "",
+      "via": "Edit category 5"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Edit category 5"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Name Colour Use direction colour Pick #c9403a Pick #d97706 P...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/categories/{id}",
+      "via": "Edit category 5"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save \u21a9",
+      "target": "/categories/{id}",
+      "via": "Edit category 5"
+    },
+    {
+      "kind": "button",
+      "name": "Cancel",
+      "target": "",
+      "via": "Edit category 6"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Edit category 6"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Name Colour Use direction colour Pick #c9403a Pick #d97706 P...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/categories/{id}",
+      "via": "Edit category 6"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save \u21a9",
+      "target": "/categories/{id}",
+      "via": "Edit category 6"
+    }
+  ],
+  "/settings/password": [
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Current password New password At least 12 characters, up to ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Categories",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=categories"
+    },
+    {
+      "kind": "link",
+      "name": "Currency & FX",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=fx"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Preferences",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings?tab=prefs"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Security",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings/security"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Users",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out this device",
+      "target": "/auth/sessions/{handle}/revoke"
+    },
+    {
+      "kind": "submit-get",
+      "name": "Add passkey",
+      "skipped": "needs a WebAuthn authenticator",
+      "target": ""
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password",
+      "via": "Change password"
+    }
+  ],
+  "/settings/security": [
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Current password New password At least 12 characters, up to ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Categories",
+      "target": "/settings?tab=categories"
+    },
+    {
+      "kind": "link",
+      "name": "Currency & FX",
+      "target": "/settings?tab=fx"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Preferences",
+      "target": "/settings?tab=prefs"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Security",
+      "target": "/settings/security"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Change password",
+      "target": "/settings/password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out this device",
+      "target": "/auth/sessions/{handle}/revoke"
+    },
+    {
+      "kind": "submit-get",
+      "name": "Add passkey",
+      "skipped": "needs a WebAuthn authenticator",
+      "target": ""
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Fix the highlighted fields. Current password Enter your curr...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/password",
+      "via": "Change password"
+    }
+  ],
+  "/settings/users": [
+    {
+      "kind": "hx-get",
+      "name": "Edit admin@local.test",
+      "target": "/settings/users/{id}/edit"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Edit owner@example.test",
+      "target": "/settings/users/{id}/edit"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Email Name Admin Can manage users. Still can't see their dat...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Remove",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users/{id}/delete"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Reset password",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users/{id}/reset-password"
+    },
+    {
+      "kind": "link",
+      "name": "+ Add user",
+      "target": "#user-add"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Categories",
+      "target": "/settings?tab=categories"
+    },
+    {
+      "kind": "link",
+      "name": "Currency & FX",
+      "target": "/settings?tab=fx"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Preferences",
+      "target": "/settings?tab=prefs"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Security",
+      "target": "/settings/security"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Users",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Create user",
+      "target": "/settings/users"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Remove admin@local.test",
+      "target": "/settings/users/{id}/delete"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Reset password for admin@local.test",
+      "target": "/settings/users/{id}/reset-password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Reset password for owner@example.test",
+      "target": "/settings/users/{id}/reset-password"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Edit admin@local.test"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Email Name Admin Can manage users. Still can't see their dat...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users/{id}",
+      "via": "Edit admin@local.test"
+    },
+    {
+      "kind": "link",
+      "name": "Cancel",
+      "target": "/settings/users",
+      "via": "Edit admin@local.test"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save changes",
+      "target": "/settings/users/{id}",
+      "via": "Edit admin@local.test"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Edit owner@example.test"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Email Name Admin Removing your own admin rights takes effect...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users/{id}",
+      "via": "Edit owner@example.test"
+    },
+    {
+      "kind": "link",
+      "name": "Cancel",
+      "target": "/settings/users",
+      "via": "Edit owner@example.test"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save changes",
+      "target": "/settings/users/{id}",
+      "via": "Edit owner@example.test"
+    },
+    {
+      "kind": "button",
+      "name": "Dismiss message",
+      "target": "",
+      "via": "Remove admin@local.test"
+    },
+    {
+      "kind": "button",
+      "name": "Copy",
+      "target": "",
+      "via": "Reset password for admin@local.test"
+    },
+    {
+      "kind": "button",
+      "name": "Dismiss password",
+      "target": "",
+      "via": "Reset password for admin@local.test"
+    },
+    {
+      "kind": "button",
+      "name": "Copy",
+      "target": "",
+      "via": "Reset password for owner@example.test"
+    },
+    {
+      "kind": "button",
+      "name": "Dismiss password",
+      "target": "",
+      "via": "Reset password for owner@example.test"
+    }
+  ],
+  "/today": [
+    {
+      "kind": "hx-get",
+      "name": "+ Add n",
+      "target": "/add?when=happened"
+    },
+    {
+      "kind": "hx-get",
+      "name": "+ Planned",
+      "target": "/planned/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "+ Recurring",
+      "target": "/recurring/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Can I afford it? PLN \u2192 per day becomes 0.00",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today/afford"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Override",
+      "target": "/planned/{id}/edit"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Override",
+      "target": "/recurring/{id}/overrides/new?occurrence_date={date}"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Promote",
+      "target": "/planned/{id}/promote/inline"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Promote",
+      "target": "/recurring/{id}/promote/inline?date={date}"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Promote all due \u21e7\u21b5",
+      "target": "/planned/batch/promote-due"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Skip",
+      "target": "/recurring/{id}/skip-next"
+    },
+    {
+      "kind": "link",
+      "name": "30 days",
+      "target": "/today?window={n}"
+    },
+    {
+      "kind": "link",
+      "name": "7 days",
+      "target": "/today?window={n}"
+    },
+    {
+      "kind": "link",
+      "name": "Accounts g a",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "All",
+      "target": "/today?window=all"
+    },
+    {
+      "kind": "link",
+      "name": "All 2 accounts \u2192",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "Forecast \u2192",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "Ledger g l",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "Plan g p",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "Rising Dough",
+      "target": "/today"
+    },
+    {
+      "kind": "link",
+      "name": "Settings g s",
+      "target": "/settings"
+    },
+    {
+      "kind": "link",
+      "name": "Skip to content",
+      "skipped": "off-screen or visually hidden (skip link, sr-only)",
+      "target": "#main"
+    },
+    {
+      "kind": "link",
+      "name": "Today g o",
+      "target": "/today"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Sign out",
+      "skipped": "ends the crawler's own session",
+      "target": "/auth/logout"
+    },
+    {
+      "kind": "button",
+      "name": "Cancel",
+      "target": "",
+      "via": "Override"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
+      "via": "Override"
+    },
+    {
+      "kind": "button",
+      "name": "Next month",
+      "target": "",
+      "via": "Override"
+    },
+    {
+      "kind": "button",
+      "name": "Previous month",
+      "target": "",
+      "via": "Override"
+    },
+    {
+      "kind": "disclosure",
+      "name": "{month}",
+      "target": "",
+      "via": "Override"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "Category Groceries Paycheck Reconciliation Transit Amount Ac...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/planned/{id}",
+      "via": "Override"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "subscription \u2190 {month} \u2190 2026 \u2192 Jan Feb Mar Apr May Ju...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/recurring/{id}/overrides",
+      "via": "Override"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save",
+      "target": "/planned/{id}",
+      "via": "Override"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Save \u21b5",
+      "target": "/recurring/{id}/overrides",
+      "via": "Override"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Esc",
+      "target": "/today/upcoming",
+      "via": "Promote"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "{day} planned shop \u00b7 GROCERIES Checking Date Amount PLN Con...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/planned/{id}/promote",
+      "via": "Promote"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "{day} subscription \u00b7 GROCERIES Checking Date Amount PLN Con...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/recurring/{id}/promote",
+      "via": "Promote"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Confirm \u21b5",
+      "target": "/planned/{id}/promote",
+      "via": "Promote"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "Confirm \u21b5",
+      "target": "/recurring/{id}/promote",
+      "via": "Promote"
+    }
+  ]
+}
