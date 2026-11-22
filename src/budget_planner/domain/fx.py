@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,9 +18,16 @@ def validate_rate(rate: Decimal) -> Decimal:
     return rate
 
 
-# Injected port for the live fetch: (on_date, from_ccy, to_ccy) -> rate.
-# Implementations raise ``FxFetchError`` on any failure (adapters/fx).
-RateFetcher = Callable[[date, str, str], Decimal]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RateTable:
+    """One published rate table: ``rates`` are ``(code, PLN per one unit)`` pairs (ADR-0145).
+
+    Every rate is finite and ``> 0`` and every code appears once; the adapter
+    guarantees this, the service re-checks it before storing.
+    """
+
+    effective_date: date
+    rates: tuple[tuple[str, Decimal], ...]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

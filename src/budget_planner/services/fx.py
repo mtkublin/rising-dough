@@ -3,8 +3,8 @@
 ``converter_for`` reads the ``fx_rates`` cache once and returns an immutable
 :class:`FxConverter`; page renders never touch the network. A missing rate
 raises :class:`FxUnavailableError` (one policy: never rate 1, never the native
-amount). Live rates arrive only through :func:`refresh_rates`, which takes the
-fetcher as an injected port (``adapters/fx`` provides the httpx one).
+amount). Live rates arrive only through :func:`refresh_from_source`, which takes the
+``RateSource`` as an injected port (``adapters/fx/nbp`` provides the httpx one; ADR-0145).
 """
 
 from __future__ import annotations
@@ -16,14 +16,18 @@ from bisect import bisect_right
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Protocol
+from typing import Final, Protocol
 
-from budget_planner.domain.fx import FxFetchError, NewFxRate, RateFetcher
+from budget_planner.domain.fx import FxFetchError, NewFxRate, validate_rate
 from budget_planner.domain.money import rescale_minor
+from budget_planner.domain.ports import RateSource
 from budget_planner.domain.transactions import Transaction
 from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
+from budget_planner.repositories._shared import transaction as db_transaction
 
 logger = logging.getLogger(__name__)
+
+NBP_BASE: Final = "PLN"
 
 
 class HasBaseCurrency(Protocol):
@@ -143,40 +147,64 @@ def txn_base_of(
 
 
 @dataclass(frozen=True, slots=True)
-class RefreshOutcome:
-    """Result of refreshing one ``from_ccy -> to_ccy`` pair."""
+class RefreshResult:
+    """What one refresh stored, all under the table's ``effective_date`` (ADR-0145)."""
 
-    from_ccy: str
-    to_ccy: str
-    rate: Decimal | None
-    error: str | None
+    effective_date: dt.date
+    inserted: tuple[str, ...]
+    updated: tuple[str, ...]
+    unchanged: tuple[str, ...]
 
 
-def refresh_rates(
+def _store_rate(
+    conn: sqlite3.Connection, day: dt.date, code: str, base_currency: str, rate: Decimal
+) -> str:
+    """Insert, update or leave one cached rate; returns which of the three it was."""
+    validate_rate(rate)
+    existing = fx_repo.find_rate(conn, day, code, base_currency)
+    if existing is not None and existing.rate == rate:
+        return "unchanged"
+    fx_repo.upsert_rate(conn, NewFxRate(date=day, from_ccy=code, to_ccy=base_currency, rate=rate))
+    return "inserted" if existing is None else "updated"
+
+
+def refresh_from_source(
     conn: sqlite3.Connection,
-    fetch: RateFetcher,
-    on_date: dt.date,
+    source: RateSource,
+    today: dt.date,
     base_currency: str,
-    currencies: Iterable[str],
-) -> tuple[RefreshOutcome, ...]:
-    """Fetch and cache ``currency -> base`` for ``on_date``; one outcome per distinct currency.
+    currencies: Iterable[str] | None = None,
+) -> RefreshResult | None:
+    """Cache the source's latest table (``currency -> base``); ``None`` when it has no data.
 
-    A failed or invalid answer (``rate <= 0``) is reported, never stored, and does
-    not stop the other pairs.
+    Inserts only new ``(date, from, to)`` rows and updates a row only when its
+    rate differs, so a second run is a no-op. Raises :class:`FxFetchError` when
+    the provider fails, its table is dated after ``today`` or ``base_currency``
+    is not PLN (NBP quotes PLN only); nothing is stored then.
     """
-    outcomes: list[RefreshOutcome] = []
-    for ccy in sorted({c for c in currencies if c != base_currency}):
-        try:
-            rate = fetch(on_date, ccy, base_currency)
-            fx_repo.upsert_rate(
-                conn, NewFxRate(date=on_date, from_ccy=ccy, to_ccy=base_currency, rate=rate)
-            )
-        except (FxFetchError, ValueError) as exc:
-            logger.warning("fx refresh %s->%s failed: %s", ccy, base_currency, exc)
-            outcomes.append(RefreshOutcome(ccy, base_currency, None, str(exc)))
-        else:
-            outcomes.append(RefreshOutcome(ccy, base_currency, rate, None))
-    return tuple(outcomes)
+    if base_currency != NBP_BASE:
+        raise FxFetchError(f"NBP table A quotes {NBP_BASE} only, base currency is {base_currency}")
+    table = source.latest_table()
+    if table is None:
+        return None
+    if table.effective_date > today:
+        raise FxFetchError(f"rate table dated {table.effective_date} is after today {today}")
+    wanted = None if currencies is None else set(currencies)
+    inserted: list[str] = []
+    updated: list[str] = []
+    unchanged: list[str] = []
+    with db_transaction(conn):
+        for code, rate in table.rates:
+            if code == base_currency or (wanted is not None and code not in wanted):
+                continue
+            bucket = _store_rate(conn, table.effective_date, code, base_currency, rate)
+            {"inserted": inserted, "updated": updated, "unchanged": unchanged}[bucket].append(code)
+    return RefreshResult(table.effective_date, tuple(inserted), tuple(updated), tuple(unchanged))
+
+
+def has_rate_on(conn: sqlite3.Connection, base_currency: str, on_date: dt.date) -> bool:
+    """True when any cached rate into ``base_currency`` is dated exactly ``on_date``."""
+    return fx_repo.any_rate_on(conn, on_date, base_currency)
 
 
 # T-Q241: routers reach persistence only through these service entry points
@@ -189,11 +217,12 @@ __all__ = [
     "FxUnavailableError",
     "HasBaseCurrency",
     "RateSeries",
-    "RefreshOutcome",
+    "RefreshResult",
     "build_converter",
     "converter_for",
     "currency_by_account",
+    "has_rate_on",
     "list_recent_rates",
-    "refresh_rates",
+    "refresh_from_source",
     "txn_base_of",
 ]
