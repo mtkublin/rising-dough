@@ -18,6 +18,8 @@ from __future__ import annotations
 import sqlite3
 
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.transactions import NewTransaction, Transaction
+from budget_planner.repositories import transactions as transactions_repo
 from budget_planner.services.transactions import (
     UnsupportedDirectionError,
     ValidationError,
@@ -50,4 +52,19 @@ def validate_promotion(
     )
 
 
-__all__ = ["UnsupportedDirectionError", "ValidationError", "validate_promotion"]
+def create_promoted_transaction(
+    conn: sqlite3.Connection, user_id: int, new_txn: NewTransaction
+) -> Transaction:
+    """Insert the promoted transaction; a soft-deleted parent is a ``ValidationError`` (T-Q287)."""
+    try:
+        return transactions_repo.create(conn, user_id, new_txn)
+    except LookupError as exc:
+        raise ValidationError(f"cannot promote: {exc} (archived or deleted)") from exc
+
+
+__all__ = [
+    "UnsupportedDirectionError",
+    "ValidationError",
+    "create_promoted_transaction",
+    "validate_promotion",
+]

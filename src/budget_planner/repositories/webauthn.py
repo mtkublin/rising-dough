@@ -87,7 +87,7 @@ def _hydrate_credential(row: sqlite3.Row) -> WebAuthnCredential:
 
 
 def _get_by_id(
-    conn: sqlite3.Connection, user_id: int, row_id: int, *, include_deleted: bool = True
+    conn: sqlite3.Connection, user_id: int, row_id: int, *, include_deleted: bool = False
 ) -> WebAuthnCredential | None:
     live = "" if include_deleted else " AND deleted_at IS NULL"
     row = conn.execute(
@@ -191,7 +191,7 @@ def revoke_credential(
     credential was revoked.
     """
     with transaction(conn):
-        current = _get_by_id(conn, user_id, credential_row_id)
+        current = _get_by_id(conn, user_id, credential_row_id, include_deleted=True)
         if current is None or current.deleted_at is not None:
             return False
         conn.execute(

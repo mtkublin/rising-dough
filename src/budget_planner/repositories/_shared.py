@@ -182,15 +182,15 @@ def require_owned(
     *,
     account_ids: Iterable[int | None] = (),
     category_ids: Iterable[int | None] = (),
-    include_deleted: bool = True,
+    include_deleted: bool = False,
 ) -> None:
     """Raise :class:`LookupError` unless every referenced FK row belongs to ``user_id``.
 
     Guards writes against cross-user FK linking (T-D16 / ADR-0061 §5): a
     leaked ``account_id`` / ``category_id`` from another user must not be
-    attachable to the caller's rows. ``None`` ids are skipped. Soft-deleted
-    parents still count as owned by default (``include_deleted=True``);
-    liveness is the service layer's concern (ADR-0019 note, T-Q268).
+    attachable to the caller's rows. ``None`` ids are skipped. A soft-deleted
+    parent is refused by default (``include_deleted=False``, ADR-0022
+    amendment 2026-11-22, T-Q287); history reads pass ``include_deleted=True``.
     """
     live = "" if include_deleted else " AND deleted_at IS NULL"
     for account_id in {a for a in account_ids if a is not None}:

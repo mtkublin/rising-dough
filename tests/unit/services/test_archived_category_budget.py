@@ -142,6 +142,8 @@ def test_timezone_decides_the_archive_month(conn: sqlite3.Connection) -> None:
 
 def test_actuals_still_count(conn: sqlite3.Connection) -> None:
     acct, cat = _seed(conn, OWNER)
+    # T-Q287: a write into a soft-deleted category is refused, so book it before the archive.
+    categories_repo.undelete(conn, OWNER, cat)
     transactions_repo.create(
         conn,
         OWNER,
@@ -149,6 +151,7 @@ def test_actuals_still_count(conn: sqlite3.Connection) -> None:
             operation_date=date(2026, 11, 12), category_id=cat, account_id=acct, amount=700
         ),
     )
+    conn.execute("UPDATE categories SET deleted_at = ? WHERE id = ?", (ARCHIVED_AT, cat))
     fx = _fx()
     assert balance.as_of_today(conn, OWNER, acct, TODAY) == 100_000 - SPENT - 700
     october = analytics.bundle(conn, OWNER, fx, today=date(2026, 10, 31), period="month")

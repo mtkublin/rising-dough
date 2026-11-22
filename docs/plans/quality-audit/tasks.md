@@ -1150,7 +1150,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q287 [M] `include_deleted` defaults to False; writes against soft-deleted parents are refused
+### ✅ T-Q287 [M] `include_deleted` defaults to False; writes against soft-deleted parents are refused
 - Findings: Q-025 (T-Q268 follow-up).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none

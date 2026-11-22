@@ -212,8 +212,8 @@ def test_other_users_accounts_never_change_owner_figures(
 ) -> None:
     _delete(conn, scene)
     baseline = (_net_worth(conn), _spend_total(conn), _budget_spent(conn, scene))
-    accounts_repo.soft_delete(conn, OTHER_ID, scene.world.other.account_id)
     _txn(conn, OTHER_ID, scene.world.other.category_id, scene.world.other.account_id, 777)
+    accounts_repo.soft_delete(conn, OTHER_ID, scene.world.other.account_id)
     assert (_net_worth(conn), _spend_total(conn), _budget_spent(conn, scene)) == baseline
     assert baseline == (LIVE_BALANCE, LIVE_EXPENSE + ARCHIVED_CAT_EXPENSE, LIVE_EXPENSE)
     assert fx_svc.currency_by_account(conn, OTHER_ID) == {}
