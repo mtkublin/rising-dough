@@ -196,10 +196,10 @@ test-changed BASE="origin/main":
     if [ -n "$unseen" ]; then
       echo "[test-changed] change testmon cannot see vs {{BASE}}; running the full suite:"
       printf '%s\n' "$unseen" | sed 's/^/  /'
-      exec uv run pytest -n "$workers" --no-cov --testmon-noselect
+      exec uv run pytest -n "$workers" --no-cov --ignore=tests/e2e --testmon-noselect
     fi
     set +e
-    uv run pytest -n "$workers" --no-cov --testmon-forceselect
+    uv run pytest -n "$workers" --no-cov --ignore=tests/e2e --testmon-forceselect
     status=$?
     set -e
     # 5 = nothing selected: no affected tests is a pass.
@@ -208,6 +208,9 @@ test-changed BASE="origin/main":
 
 # Fallback: staged files on _unseen-paths run the full default selection.
 # Pre-commit pytest hook, the local gate (ADR-0120): testmon-selected tests.
+# tests/e2e is excluded here and in test-changed (ADR-0120 amendment 2026-11-22,
+# T-Q295): the orchestrator runs it once per wave (`just test-e2e`); `just ci`
+# and PR CI still collect everything they did before.
 test-fast:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -219,7 +222,7 @@ test-fast:
       mode="--testmon-noselect"
     fi
     set +e
-    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov "$mode"
+    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov --ignore=tests/e2e "$mode"
     status=$?
     set -e
     # 5 = nothing selected: no affected tests is a pass.
