@@ -22,10 +22,3 @@ rule = "private-import"
 count = 1
 finding = "T-Q16"
 epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings_password.py"
-rule = "private-import"
-count = 3
-finding = "T-Q16"
-epic = "E03"

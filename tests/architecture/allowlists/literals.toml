@@ -80,13 +80,6 @@ finding = "Q-038"
 epic = "E03"
 
 [[entry]]
-path = "src/budget_planner/web/routers/auth.py"
-rule = "repeated-literal"
-count = 1
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
 path = "src/budget_planner/web/routers/health.py"
 rule = "repeated-literal"
 count = 1
