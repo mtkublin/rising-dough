@@ -16,13 +16,12 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import month_bounds
-from budget_planner.domain.transactions import Transaction, TransactionFilter
+from budget_planner.domain.transactions import TransactionFilter
 from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
@@ -101,13 +100,6 @@ def _period_bounds(today: dt.date, period: Period) -> tuple[dt.date, dt.date]:
     return _trailing_12_months(today)
 
 
-def _base_of(
-    conn: sqlite3.Connection, user_id: int, converter: fx_svc.FxConverter
-) -> Callable[[Transaction], int]:
-    """``txn -> base minor`` at the txn's own date (ADR-0006, ADR-0139; Q-008)."""
-    return fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
-
-
 def _spend_by_category(
     conn: sqlite3.Connection,
     user_id: int,
@@ -126,7 +118,7 @@ def _spend_by_category(
             directions=(Direction.EXPENSE,),
         ),
     )
-    base_of = _base_of(conn, user_id, converter)
+    base_of = fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
     totals = sum_by_category(txns, base_of)
     rows = [
         CategoryTotal(
@@ -163,7 +155,7 @@ def _twelve_month_averages(
             directions=(Direction.EXPENSE,),
         ),
     )
-    base_of = _base_of(conn, user_id, converter)
+    base_of = fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
     sums = sum_by_category(txns, base_of)
     rows = [
         CategoryTotal(
@@ -194,7 +186,7 @@ def _income_vs_expense_monthly(
     monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(
         lambda: {"income": 0, "expense": 0}
     )
-    base_of = _base_of(conn, user_id, converter)
+    base_of = fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
     for t in txns:
         cat = cats.get(t.category_id)
         if cat is None:
@@ -237,7 +229,7 @@ def _largest_items(
             directions=(Direction.EXPENSE,),
         ),
     )
-    base_of = _base_of(conn, user_id, converter)
+    base_of = fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
     base_amounts = {t.id: base_of(t) for t in txns}
     ranked = sorted(txns, key=lambda t: (-base_amounts[t.id], t.operation_date))
     return tuple(

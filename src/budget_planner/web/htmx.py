@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Literal
+from typing import Final, Literal
 from urllib.parse import urlparse
 
 from fastapi import Request
@@ -67,3 +67,13 @@ def refresh_unless_on(request: Request, response: Response, path_prefix: str) ->
     current = urlparse(request.headers.get("HX-Current-URL", "")).path
     if not current.startswith(path_prefix):
         response.headers["HX-Refresh"] = "true"
+
+
+JSON_MEDIA_TYPE: Final = "application/json"
+_HTML_TYPE: Final = "text/html"
+
+
+def wants_json(request: Request) -> bool:
+    """True when the client asked for JSON and not HTML (single owner, T-Q262)."""
+    accept = request.headers.get("accept", "").lower()
+    return JSON_MEDIA_TYPE in accept and _HTML_TYPE not in accept

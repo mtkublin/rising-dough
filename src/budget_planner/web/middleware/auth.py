@@ -48,6 +48,7 @@ from budget_planner.web.auth_cookies import (
     session_cookie_name,
     set_session_cookie,
 )
+from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.asgi import (
     RESPONSE_START,
     add_cookie,
@@ -141,11 +142,6 @@ def _hx_current_path(request: Request) -> str:
     return f"{parts.path}?{parts.query}" if parts.query else parts.path
 
 
-def _wants_json(request: Request) -> bool:
-    accept = request.headers.get("accept", "").lower()
-    return "application/json" in accept and "text/html" not in accept
-
-
 def unauthenticated_response(request: Request) -> Response:
     """Build the ADR-0070 §4 response for an anonymous request."""
     if request.headers.get("hx-request", "").lower() == "true":
@@ -154,7 +150,7 @@ def unauthenticated_response(request: Request) -> Response:
             status_code=HTTPStatus.UNAUTHORIZED,
             headers={"HX-Redirect": _login_url(_hx_current_path(request))},
         )
-    if _wants_json(request):
+    if wants_json(request):
         return JSONResponse(dict(_UNAUTHORIZED_BODY), status_code=HTTPStatus.UNAUTHORIZED)
     path = request.url.path
     target = f"{path}?{request.url.query}" if request.url.query else path

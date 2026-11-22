@@ -22,8 +22,9 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import password_change as password_service
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
-from budget_planner.web.auth_deps import password_change_rate_limit, throttled_json, wants_json
+from budget_planner.web.auth_deps import password_change_rate_limit, throttled_json
 from budget_planner.web.deps import current_user, get_db, get_request_ctx, get_settings_dep
+from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.password_flow import (
     default_target,

@@ -267,7 +267,7 @@ def reconcile_submit(
         return Response(status_code=404, content="not found")
     derived = balance_service.derive_balance(conn, user_id, account_id)
 
-    def _reject(message: str) -> Response:
+    def reject_modal(message: str) -> Response:
         return render(
             request,
             "partials/accounts/_reconcile_modal.html",
@@ -278,7 +278,7 @@ def reconcile_submit(
 
     entered = parse_amount_minor(actual_balance, acc.currency)
     if entered is None:
-        return _reject("invalid number")
+        return reject_modal("invalid number")
     try:
         reconcile_service.reconcile_account(
             conn,
@@ -293,7 +293,7 @@ def reconcile_submit(
         reconciliation_service.InvalidAvailableError,
         reconciliation_service.ValidationError,
     ) as exc:
-        return _reject(str(exc))
+        return reject_modal(str(exc))
     html = render(
         request,
         "partials/accounts/_row.html",

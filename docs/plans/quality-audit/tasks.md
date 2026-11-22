@@ -689,13 +689,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `literals`:124 (29 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/literals.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q262 [P] Clone ratchet: same-name helpers and clone groups in services and web
+### ✅ T-Q262 [P] Clone ratchet: same-name helpers and clone groups in services and web
 - Findings: inventory P1 (same-name rows and clone groups outside `repositories/`; compliance-inventory 2.2, 2.6, 2.7); epic E03.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
 - Depends on: T-Q233, T-Q236, T-Q242, T-Q265, T-Q266, T-Q267
 - Docs-first step: None (ADR-0130 already fixes the rule); CHANGELOG line.
 - Acceptance: Failing guard first: `clones.toml` entries with `epic = "E03"` (15 entries). For each same-name private helper (`_wants_json`, `_safe_next`, `_hydrate_rows`, `_parse_*`, `_month_bounds` leftovers) keep one implementation in the canonical module and import it; delete the copies. Items already removed by T-Q233, T-Q236, T-Q242, T-Q265 to T-Q267 are re-read from `allowlist_by_qid.py` before starting.
+- Outcome (2026-11-22): the 6 remaining E03 `clones.toml` entries deleted (the list is now empty). `wants_json` has one owner, `web/htmx.py` (both middleware copies and `auth_deps` use it; moved there to avoid an `auth_deps` -> `deps` -> middleware import cycle). The three `txn -> base` copies named `_base_of` are renamed or inlined onto `fx.txn_base_of`; `accounts.reconcile` `_reject` and `csrf._reject` renamed. The `today.py` private cross-router import was already gone (`web/recurring_forms.py`). `web/retention_task.run_once` vs `db/retention.run` (4 lines) left: a shared seam needs `services/connections` to import `config.Settings`, which G22 `eff-import` forbids, and the pair is not a clone-guard entry.
 - Operator question blocking it: none.
 - Removes allowlist entries: `clones`:24 (15 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.

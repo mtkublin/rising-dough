@@ -81,10 +81,10 @@ def planned_base_amounts(
     # Planned rows may outlive their account: convert with its own currency (ADR-0136).
     ccy_by_account = fx_svc.currency_by_account(conn, user_id, include_deleted=True)
 
-    def _base_of(account_id: int, amount_minor: int) -> int:
+    def base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
 
-    return _base_of
+    return base_of
 
 
 def txn_base_amounts(
