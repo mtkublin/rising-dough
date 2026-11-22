@@ -73,7 +73,21 @@ NOT_USER_OWNED_TABLES: frozenset[str] = frozenset(
 _EXECUTE_METHODS = frozenset({"execute", "executemany"})
 _DYN = "dyn"
 _KEYWORDS_BEFORE_EXPR = frozenset(
-    {"SELECT", "WHERE", "AND", "OR", "BY", "ON", "SET", "FROM", "JOIN", "IN", "VALUES"}
+    {
+        "SELECT",
+        "WHERE",
+        "AND",
+        "OR",
+        "BY",
+        "ON",
+        "SET",
+        "FROM",
+        "JOIN",
+        "IN",
+        "VALUES",
+        "UPDATE",
+        "INTO",
+    }
 )
 
 
