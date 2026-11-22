@@ -143,3 +143,7 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 ## Amendment 2026-11-22 (operator decision; T-Q232 redesign carve-out)
 
 The closing gate (T-Q232) passes with one carve-out: `tests/architecture/allowlists/template_logic.toml` keeps the 83 D3 entries (T-Q273, templates the redesign replaces), each tagged with its T-UR owner task. Every other allowlist is empty and every other guard strict. The redesign's last task burns the 83 entries to zero. The gate fails on an untagged or additional `template_logic.toml` entry.
+
+## Amendment 2026-11-22 (T-Q270): cyclomatic-complexity ceiling wired
+
+The "cyclomatic-complexity gate: deferred" alternative above is superseded. `xenon --max-absolute C src` (dev dependency `xenon`, which brings `radon`) runs as the pre-commit hook `xenon` and in `just lint`; CI runs it through `pre-commit run --all-files` (Decision 8). Any function ranked D or worse (cyclomatic complexity > 20) fails. The tree passed at wiring time with no allowlist and no suppression. The G25 `cc>=11` ratchet (own approximation, stricter) stays for the remaining `recurring.py` entries.

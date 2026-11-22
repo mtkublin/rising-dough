@@ -148,7 +148,7 @@ The principles below are **enforceable rules**, not guidance. Each has an automa
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), `architecture-guards` (only if the always-on experiment shows a selection gap, ADR-0130; `lint-imports` and `architecture-guards` must be fast: T-Q15 measures local `pre-commit run` wall time before and after on a docs-only and a src-only change, and a guard with a meaningful regression runs in CI only), `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
+Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), `architecture-guards` (only if the always-on experiment shows a selection gap, ADR-0130; `lint-imports` and `architecture-guards` must be fast: T-Q15 measures local `pre-commit run` wall time before and after on a docs-only and a src-only change, and a guard with a meaningful regression runs in CI only), `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `xenon` (`--max-absolute C`, ADR-0130 amendment 2026-11-22), `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 

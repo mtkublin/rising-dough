@@ -129,6 +129,7 @@ test-e2e-browsers *ARGS:
 lint:
     uv run ruff check src tests
     uv run lint-imports
+    uv run xenon --max-absolute C src
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
     npm run stylelint --silent
