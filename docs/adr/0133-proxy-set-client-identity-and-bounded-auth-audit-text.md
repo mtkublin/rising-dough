@@ -46,3 +46,24 @@ Text from the request that reaches `audit_log` is truncated by `domain.client_ip
 - A forged `X-Forwarded-For` from any peer except the pinned proxy is ignored; junk addresses collapse to `unknown`.
 - Caddy host networking changes the production compose and needs a drill before release; the app port binds to host loopback.
 - Per-IP limits for peers without a usable address share the `ip=unknown` bucket.
+
+## Amendment 2026-11-22 (T-Q305): the network is migrated by renaming, not by changing it in place
+
+Release v3.1.0 failed on the live host: the `edge` network gained `ipam` (§2) and Compose cannot change the subnet of a network that already exists and has containers attached. `compose up` failed, and the automatic rollback to v3.0.8 failed identically because a rollback swaps only the image ref and keeps the new compose template. The drill gate passed because a drill is always a fresh host (see the ADR-0099 amendment of the same date).
+
+Decision: the network is renamed `edge` -> `edge_v2` (Compose project `budget-planner`, so `budget-planner_edge_v2`). Compose creates the new network with the fixed subnet `172.28.0.0/24` and recreates every service (their `networks:` config changed). The old `budget-planner_edge` is left unused, and the agent removes it after a successful `up`, best effort (ignores "not found" and "in use"; ADR-0111 amendment).
+
+Why rename over `compose down` before `up` (the alternative):
+
+- `down` stops every service, including the app and litestream, on any detected spec change: a guaranteed outage and a replication gap, on the path that is meant to be a rolling convergence. Rename needs no spec-change detection (which is itself fragile).
+- Rename works for the rollback path: the template that was just applied already names `edge_v2`, so the swapped image ref converges without touching the network.
+- The cost is one orphan network until cleanup, and one fresh subnet; `172.28.0.0/24` does not overlap Docker's default pools in use (the old network sits in the default pool from `172.17.0.0/16`).
+- Data volumes (`/data`, `caddy-data`, `caddy-config`) are untouched; `down -v` is never used.
+
+Other in-place changes since v3.0.8 were reviewed and need no migration: Caddy's `network_mode: host` and the app's `127.0.0.1:8000` publish are applied by Compose recreating those containers (the old bridged Caddy releases 80/443 when it is stopped for recreation); the pinned image digests only change the image.
+
+Rule going forward: a network's name must change whenever its definition changes (`tests/unit/deploy/test_compose_upgrade_in_place.py` compares against the latest `v*` tag).
+
+Evidence (host journal of the first apply, 2026-11-22 20:39:06): `Network budget-planner_edge  Removed` followed by `Error response from daemon: error while removing network: network budget-planner_edge has active endpoints (name:"budget-planner-caddy" id:"<id>")`. Compose replaces the network before the containers that use it, and the old bridged Caddy was still attached. Every later attempt, including the v3.0.8 image rollback on the new template, failed with `container <id> is not connected to the network budget-planner_edge` (app, litestream and probe exited; old Caddy up, publishing 80/443; `budget-planner_edge` on `172.18.0.0/16`, one endpoint).
+
+Recovery and port handover (agent, ADR-0111 amendment): before `up` the agent removes a Caddy whose `HostConfig.NetworkMode` is not `host` (releases the docker-proxy on 80/443; certificates live in named volumes, untouched). If `up` fails it runs `compose rm --force --stop` once (containers only: never `-v`, never `down`; containers hold no state) and retries, so a host already half-migrated by the v3.1.0 attempt converges too.

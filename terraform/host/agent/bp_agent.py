@@ -72,6 +72,13 @@ DRAIN_SETTLE_S = 30
 DRAIN_REQUEST_MAX = 64
 DRAIN_REQUEST_CHARS = frozenset("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-")
 LITESTREAM_CONTAINER = "budget-planner-litestream"
+# T-Q305: networks of earlier templates; removed (best effort) after a successful up.
+LEGACY_NETWORKS = ("budget-planner_edge",)
+CADDY_CONTAINER = "budget-planner-caddy"
+DETAIL_MAX_CHARS = 200
+DETAIL_CODES = frozenset({"compose"})
+ERROR_LINE = re.compile(r"error|fail|denied|conflict|invalid|already|cannot|not found", re.I)
+ENV_PAIR = re.compile(r"([A-Za-z_][A-Za-z0-9_.-]*)=\S*")
 
 # T-Q238: compare main...<sha>: the sha is an ancestor of main (or main itself).
 SHA_TAG = re.compile(r"sha-[0-9a-f]{7,40}")
@@ -95,6 +102,7 @@ class AgentError(Exception):
     def __init__(self, code: str, detail: str = "") -> None:
         super().__init__(f"{code}: {detail}" if detail else code)
         self.code = code
+        self.detail = detail
 
 
 @dataclass(frozen=True)
@@ -283,6 +291,20 @@ def utc(now: float) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
 
 
+def scrub_detail(text: str) -> str:
+    """One public-safe line of compose stderr (T-Q305).
+
+    Prefers the first line that looks like an error (compose prints progress
+    lines first), else the last line; every ``NAME=value`` is redacted because
+    compose can echo environment values; capped at ``DETAIL_MAX_CHARS``.
+    """
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    line = next((ln for ln in lines if ERROR_LINE.search(ln)), lines[-1])
+    return ENV_PAIR.sub(r"\1=<redacted>", line)[:DETAIL_MAX_CHARS]
+
+
 def build_status(
     cfg: Config | None,
     state: str,
@@ -290,6 +312,7 @@ def build_status(
     error: str,
     now: float,
     *,
+    error_detail: str = "",
     restore: Mapping[str, str] | None = None,
     drain: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
@@ -302,6 +325,7 @@ def build_status(
         "previous_ref": cfg.previous_ref if cfg else "",
         "running_ref": running_ref,
         "error": error,
+        "error_detail": error_detail,
         "restore": dict(restore) if restore is not None else None,
         "drain": dict(drain) if drain is not None else None,
         "updated_at": utc(now),
@@ -502,7 +526,47 @@ def write_files(files: Sequence[ManagedFile]) -> tuple[ManagedFile, ...]:
 def compose(runner: Runner, cfg: Config, env: Mapping[str, str], *args: str) -> None:
     res = runner(["docker", "compose", "-f", cfg.compose_file, *args], env)
     if res.returncode != 0:
-        raise AgentError("compose", f"{args[0]}: {res.stderr.strip()[-300:]}")
+        raise AgentError("compose", f"{args[0]}: {res.stderr.strip()[-2000:]}")
+
+
+def release_bridged_caddy(runner: Runner) -> None:
+    """Free 80/443 for the host-networked Caddy (T-Q305, ADR-0133 amendment).
+
+    A Caddy still on a bridge (pre-v3.1 template) publishes 80/443 through
+    docker-proxy; remove just that container so the new one can bind. Its config
+    and certificates live in named volumes, which are untouched.
+    """
+    res = runner(
+        ["docker", "inspect", "--format", "{{.HostConfig.NetworkMode}}", CADDY_CONTAINER], None
+    )
+    mode = res.stdout.strip()
+    if res.returncode == 0 and mode and mode != "host":
+        runner(["docker", "rm", "--force", CADDY_CONTAINER], None)
+
+
+def compose_up(runner: Runner, cfg: Config, env: Mapping[str, str]) -> None:
+    """``up -d``; on failure remove the project's containers once and retry.
+
+    A half-migrated host (containers pointing at a removed network) fails every
+    plain ``up``. Containers hold no state (read-only root, tmpfs, bind-mounted
+    /data and named volumes), so removing them is safe; never ``-v``, never ``down``.
+    """
+    release_bridged_caddy(runner)
+    try:
+        compose(runner, cfg, env, "up", "-d", "--remove-orphans")
+    except AgentError as first:
+        print(f"bp-agent: up failed, recreating containers once: {first}", file=sys.stderr)
+        compose(runner, cfg, env, "rm", "--force", "--stop")
+        compose(runner, cfg, env, "up", "-d", "--remove-orphans")
+
+
+def remove_legacy_networks(runner: Runner) -> None:
+    """Best effort: drop networks of earlier templates (T-Q305, ADR-0111 amendment).
+
+    "not found" and "in use" are expected and ignored; never ``down``, never ``-v``.
+    """
+    for name in LEGACY_NETWORKS:
+        runner(["docker", "network", "rm", name], None)
 
 
 def probe_ready(runner: Runner, cfg: Config, sleep: Callable[[float], None]) -> None:
@@ -532,7 +596,8 @@ def apply(cfg: Config, runner: Runner, sleep: Callable[[float], None]) -> None:
     verify_main_ancestry(cfg)
     changed = write_files(cfg.files)
     compose(runner, cfg, env, "pull", "--quiet")
-    compose(runner, cfg, env, "up", "-d", "--remove-orphans")
+    compose_up(runner, cfg, env)
+    remove_legacy_networks(runner)
     restart = services_to_restart(changed)
     if restart:
         compose(runner, cfg, env, "restart", *restart)
@@ -638,6 +703,7 @@ def converge(
                 running_ref(runner, cfg.app_container) if cfg else "",
                 err.code,
                 now(),
+                error_detail=scrub_detail(err.detail) if err.code in DETAIL_CODES else "",
                 restore=read_restore_report(),
                 # CI matches a drain failure to its own request (wait-drained).
                 drain={"request": request, "at": ""}

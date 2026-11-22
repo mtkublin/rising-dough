@@ -122,3 +122,7 @@ Decision 2 above does not list contexts; the list is in the 2026-11-21 amendment
 7. `tests/e2e (Chromium, Playwright container)` (added by T-Q297, ADR-0120 amendment 2026-11-22; the job name is the context)
 
 This list supersedes the ADR-0121 list for required contexts. Not yet required: `visual-gate` (T-Q251, ADR-0027). It becomes required when the visual baselines are committed; that is an operator repository setting, not part of this amendment. Adding a context needs an entry here and in `scripts/check_github_settings.py` `REQUIRED_CHECKS`.
+
+## Amendment 2026-11-22 (T-Q305): the drill gate does not prove an in-place upgrade
+
+Drills always build a fresh host, so the drill gate cannot catch a compose or host-state change that is valid on an empty host but cannot be applied to a running one (v3.1.0: the `edge` network gained `ipam`). Until an upgrade drill exists (T-Q306: apply the latest `v*` tag, then the PR head, on one host), a cheap guard runs in the unit suite: `tests/unit/deploy/test_compose_upgrade_in_place.py` fails when a compose network that exists in the latest `v*` tag changes its definition under the same name. The release checklist for a change to `docker-compose.yml.tpl` is: rename the changed network, or document the migration in an ADR and extend the guard's allowance.
