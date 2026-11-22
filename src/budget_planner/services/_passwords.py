@@ -34,7 +34,7 @@ MAX_PASSWORD_BYTES: Final = 72
 
 
 def _encode(plain: str) -> bytes:
-    raw = plain.encode("utf-8")
+    raw = plain.encode()
     if len(raw) > MAX_PASSWORD_BYTES:
         raise ValueError(f"password exceeds {MAX_PASSWORD_BYTES} bytes (bcrypt limit)")
     return raw

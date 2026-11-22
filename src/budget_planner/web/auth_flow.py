@@ -35,7 +35,8 @@ from budget_planner.web.auth_cookies import (
 )
 from budget_planner.web.auth_deps import RETRY_AFTER, throttled_json
 from budget_planner.web.deps import REAUTH_PATH, reauth_now
-from budget_planner.web.htmx import JSON_MEDIA_TYPE, wants_json
+from budget_planner.web.htmx import wants_json
+from budget_planner.web.http_headers import JSON_MEDIA_TYPE
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render
 

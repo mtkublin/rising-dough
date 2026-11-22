@@ -15,6 +15,7 @@ import datetime as dt
 import sqlite3
 
 from budget_planner.services import recurring as recurring_svc
+from budget_planner.services.recurring_formula import DATES_ONLY
 
 
 def next_anchor_date(
@@ -40,6 +41,7 @@ def next_anchor_date(
     pending = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=DATES_ONLY,
         start=None,
         end=None,
         today=after,

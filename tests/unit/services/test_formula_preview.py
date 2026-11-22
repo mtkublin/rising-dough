@@ -21,6 +21,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import recurring_formula as formula_svc
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 
 USER_ID = 1
 
@@ -72,7 +73,15 @@ class TestPreview:
     def test_empty_returns_empty_error(
         self, conn: sqlite3.Connection, seeded: dict[str, int]
     ) -> None:
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, [])
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            [],
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "empty"
 
@@ -86,7 +95,15 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewOk)
         assert result.amount_minor == 25_000  # 25% of 100_000
 
@@ -105,7 +122,15 @@ class TestPreview:
                 source_category_ids=(99_999,),  # bogus
             ),
         ]
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "invalid_source"
         assert result.offending_term_index == 1
@@ -124,7 +149,15 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             ),
         ]
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "non_positive"
 
@@ -138,7 +171,15 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewError)
         assert result.offending_term_index == 0
 
@@ -154,7 +195,15 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        result = formula_svc.preview(conn, USER_ID, date(2026, 2, 1), salary_rule.id, drafts)
+        result = formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            salary_rule.id,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, formula_svc.PreviewError)
         assert result.code == "cycle"
 
@@ -168,6 +217,14 @@ class TestPreview:
                 source_category_ids=(seeded["salary_id"],),
             )
         ]
-        formula_svc.preview(conn, USER_ID, date(2026, 2, 1), None, drafts)
+        formula_svc.preview(
+            conn,
+            USER_ID,
+            date(2026, 2, 1),
+            None,
+            drafts,
+            fx=formula_fx_of(conn, USER_ID),
+            target_ccy=TARGET_CCY,
+        )
         after = conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
         assert before == after

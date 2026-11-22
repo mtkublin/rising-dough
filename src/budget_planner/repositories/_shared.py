@@ -296,6 +296,67 @@ def _live_clause(include_deleted: bool) -> str:
     return "" if include_deleted else " AND deleted_at IS NULL"
 
 
+def find_sql(table: str, columns: str, keys: Iterable[str], *, include_deleted: bool) -> str:
+    """``SELECT`` one owned row by equality on ``keys``, scoped by ``user_id`` (last parameter)."""
+    predicate = " AND ".join(f"{key} = ?" for key in _identifiers(keys))
+    return (
+        f"SELECT {columns} FROM {table} "
+        f"WHERE {predicate} AND user_id = ?{_live_clause(include_deleted)}"
+    )
+
+
+def list_sql(
+    table: str, columns: str, keys: Iterable[str], order_by: str, *, include_deleted: bool
+) -> str:
+    """``SELECT`` the owner's rows (``user_id`` first, then ``keys`` equality) ordered."""
+    predicates = ["user_id = ?", *(f"{key} = ?" for key in _identifiers(keys))]
+    return (
+        f"SELECT {columns} FROM {table} WHERE {' AND '.join(predicates)}"
+        f"{_live_clause(include_deleted)} ORDER BY {order_by}"
+    )
+
+
+def recently_deleted_sql(table: str, columns: str) -> str:
+    """``SELECT`` the owner's soft-deleted rows newer than a cutoff (``user_id, cutoff, limit``)."""
+    return (
+        f"SELECT {columns} FROM {table} "
+        "WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at > ? "
+        "ORDER BY deleted_at DESC LIMIT ?"
+    )
+
+
+def insert_sql(table: str, keys: Iterable[str]) -> str:
+    """``INSERT`` one row; ``user_id`` is always the first column."""
+    columns = ["user_id", *_identifiers(keys)]
+    marks = ", ".join("?" for _ in columns)
+    return f"INSERT INTO {table}({', '.join(columns)}) VALUES ({marks})"
+
+
+def update_sql(table: str, keys: Iterable[str]) -> str:
+    """``UPDATE`` the owner's row by id (parameters: values, ``id``, ``user_id``)."""
+    sets = [f"{key} = ?" for key in _identifiers(keys)]
+    return (
+        f"UPDATE {table} SET {', '.join([*sets, f'updated_at = {_NOW_SQL}'])} "
+        "WHERE id = ? AND user_id = ?"
+    )
+
+
+def soft_delete_sql(table: str) -> str:
+    """``UPDATE`` stamping ``deleted_at`` on the owner's live row (``id``, ``user_id``)."""
+    return (
+        f"UPDATE {table} SET deleted_at = {_NOW_SQL}, updated_at = {_NOW_SQL} "
+        "WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+    )
+
+
+def undelete_sql(table: str) -> str:
+    """``UPDATE`` clearing ``deleted_at`` on the owner's row (``id``, ``user_id``)."""
+    return (
+        f"UPDATE {table} SET deleted_at = NULL, updated_at = {_NOW_SQL} "
+        "WHERE id = ? AND user_id = ?"
+    )
+
+
 def find_owned[R](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
@@ -305,11 +366,7 @@ def find_owned[R](
     include_deleted: bool = False,
 ) -> R | None:
     """Return the caller's row matching every ``where`` column, or ``None``."""
-    predicate = " AND ".join(f"{key} = ?" for key in _identifiers(where))
-    sql = (
-        f"SELECT {spec.columns} FROM {spec.table} "
-        f"WHERE {predicate} AND user_id = ?{_live_clause(include_deleted)}"
-    )
+    sql = find_sql(spec.table, spec.columns, where, include_deleted=include_deleted)
     row = conn.execute(sql, (*where.values(), user_id)).fetchone()
     return spec.hydrate(row) if row is not None else None
 
@@ -324,13 +381,7 @@ def list_owned[R](
 ) -> list[R]:
     """List the caller's rows (optionally filtered by equality) in ``spec.order_by``."""
     extra = {} if where is None else dict(where)
-    predicates = ["user_id = ?"]
-    for key in _identifiers(extra):
-        predicates.append(f"{key} = ?")
-    sql = (
-        f"SELECT {spec.columns} FROM {spec.table} WHERE {' AND '.join(predicates)}"
-        f"{_live_clause(include_deleted)} ORDER BY {spec.order_by}"
-    )
+    sql = list_sql(spec.table, spec.columns, extra, spec.order_by, include_deleted=include_deleted)
     rows = conn.execute(sql, (user_id, *extra.values())).fetchall()
     return [spec.hydrate(r) for r in rows]
 
@@ -344,11 +395,7 @@ def list_recently_deleted_owned[R](
     limit: int = 500,
 ) -> list[R]:
     """Soft-deleted rows of the caller within the last ``days`` days, newest first (T-R70)."""
-    sql = (
-        f"SELECT {spec.columns} FROM {spec.table} "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at > ? "
-        "ORDER BY deleted_at DESC LIMIT ?"
-    )
+    sql = recently_deleted_sql(spec.table, spec.columns)
     cutoff = clock.iso_utc(clock.utc_now() - timedelta(days=days))  # same text format as deleted_at
     rows = conn.execute(sql, (user_id, cutoff, limit)).fetchall()
     return [spec.hydrate(r) for r in rows]
@@ -361,14 +408,10 @@ def insert_owned[R](
     values: Mapping[str, object],
 ) -> R:
     """Insert one row owned by ``user_id`` and write the ``create`` audit row."""
-    columns = ["user_id", *_identifiers(values)]
-    marks = ", ".join("?" for _ in columns)
+    sql = insert_sql(spec.table, values)
 
     def _insert_row(c: sqlite3.Connection) -> tuple[int, R]:
-        cursor = c.execute(
-            f"INSERT INTO {spec.table}({', '.join(columns)}) VALUES ({marks})",
-            (user_id, *values.values()),
-        )
+        cursor = c.execute(sql, (user_id, *values.values()))
         new_id = int(cursor.lastrowid or 0)
         created = find_owned(c, spec, user_id, {"id": new_id})
         if created is None:
@@ -406,15 +449,11 @@ def update_owned[R](
     if prev is None:
         raise LookupError(f"{spec.entity_type} {row_id} not found")
     require_owned(conn, user_id, account_ids=account_ids, category_ids=category_ids)
-    sets = [f"{field} = ?" for field in _identifiers(changes)]
+    sql = update_sql(spec.table, changes) if changes else None
 
     def _update_row(c: sqlite3.Connection) -> tuple[int, R]:
-        if sets:
-            c.execute(
-                f"UPDATE {spec.table} SET {', '.join([*sets, f'updated_at = {_NOW_SQL}'])} "
-                "WHERE id = ? AND user_id = ?",
-                (*changes.values(), row_id, user_id),
-            )
+        if sql is not None:
+            c.execute(sql, (*changes.values(), row_id, user_id))
         updated = find_owned(c, spec, user_id, {"id": row_id}, include_deleted=True)
         if updated is None:
             raise LookupError(f"{spec.entity_type} {row_id} vanished mid-mutation")
@@ -440,11 +479,7 @@ def soft_delete_found[R](
     """Soft-delete the live row ``row_id`` whose current state is ``prev`` and audit it."""
 
     def _soft_delete_row(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            f"UPDATE {spec.table} SET deleted_at = {_NOW_SQL}, updated_at = {_NOW_SQL} "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (row_id, user_id),
-        )
+        c.execute(soft_delete_sql(spec.table), (row_id, user_id))
         return row_id, None
 
     mutate(
@@ -476,11 +511,7 @@ def undelete_owned[R](
         raise LookupError(f"{spec.entity_type} {row_id} not found")
 
     def _undelete_row(c: sqlite3.Connection) -> tuple[int, R]:
-        c.execute(
-            f"UPDATE {spec.table} SET deleted_at = NULL, updated_at = {_NOW_SQL} "
-            "WHERE id = ? AND user_id = ?",
-            (row_id, user_id),
-        )
+        c.execute(undelete_sql(spec.table), (row_id, user_id))
         restored = find_owned(c, spec, user_id, {"id": row_id})
         if restored is None:
             raise LookupError(f"{spec.entity_type} {row_id} vanished mid-mutation")

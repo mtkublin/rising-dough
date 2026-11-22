@@ -24,8 +24,10 @@ from budget_planner.services.limit_preview import compute_limit_preview
 from budget_planner.web import entry_forms, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_int
-from budget_planner.web.rendering import render
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -62,7 +64,7 @@ def limit_preview(
     return render(request, "partials/transactions/_limit_preview.html", preview=preview)
 
 
-@router.get("/table", response_class=HTMLResponse)
+@router.get(TABLE_PATH, response_class=HTMLResponse)
 def table_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -81,7 +83,7 @@ def table_fragment(
     )
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -92,7 +94,7 @@ def new_form(
     # (same form fields + hx-post target) so existing tests + flows stand.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New transaction",
         form_include="partials/transactions/_form.html",
         action="/transactions",
@@ -157,7 +159,7 @@ def create_txn(
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's Add overlay, not just the ledger: no
     # row insert; the ledger refetches on `ledger-stale`, other pages reload.
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -186,7 +188,7 @@ def edit_form(
     # structure and visually removed the row).
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit transaction",
         form_include="partials/transactions/_form.html",
         action=f"/transactions/{txn_id}",
@@ -266,7 +268,7 @@ def update_txn(
     # refetches on `ledger-stale`, other pages reload.
     html = Response()
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -275,7 +277,7 @@ def delete_txn(
     txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
 ) -> Response:
     transactions_service.soft_delete(conn, user_id, txn_id)
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
@@ -289,7 +291,7 @@ def restore_txn(
         transactions_service.undelete(conn, user_id, txn_id)
     except LookupError:
         return Response(status_code=404, content="not found")
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
@@ -334,11 +336,11 @@ def export(
         return Response(
             content=body,
             media_type="application/vnd.apache.parquet",
-            headers={"Content-Disposition": f'attachment; filename="transactions_{stamp}.parquet"'},
+            headers={CONTENT_DISPOSITION: f'attachment; filename="transactions_{stamp}.parquet"'},
         )
     body = export_service.export_csv(export_rows, columns)
     return Response(
         content=body,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="transactions_{stamp}.csv"'},
+        headers={CONTENT_DISPOSITION: f'attachment; filename="transactions_{stamp}.csv"'},
     )

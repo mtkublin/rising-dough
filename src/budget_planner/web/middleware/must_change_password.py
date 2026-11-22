@@ -25,6 +25,11 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
 from budget_planner.web.htmx import wants_json
+from budget_planner.web.http_headers import (
+    HX_CURRENT_URL,
+    HX_REDIRECT,
+    HX_REQUEST,
+)
 from budget_planner.web.middleware.asgi import http_only
 
 PASSWORD_PATH: Final = "/settings/password"  # noqa: S105 — a URL path, not a secret
@@ -59,7 +64,7 @@ def _request_target(request: Request) -> str:
 
 
 def _hx_target(request: Request) -> str:
-    parts = urlsplit(request.headers.get("hx-current-url", ""))
+    parts = urlsplit(request.headers.get(HX_CURRENT_URL, ""))
     if not parts.path or (parts.netloc and parts.netloc != request.url.netloc):
         return DEFAULT_LANDING
     return f"{parts.path}?{parts.query}" if parts.query else parts.path
@@ -67,11 +72,11 @@ def _hx_target(request: Request) -> str:
 
 def rotation_required_response(request: Request) -> Response:
     """Build the ADR-0074 §3 response for a gated request."""
-    if request.headers.get("hx-request", "").lower() == "true":
+    if request.headers.get(HX_REQUEST, "").lower() == "true":
         return JSONResponse(
             dict(_BODY),
             status_code=HTTPStatus.FORBIDDEN,
-            headers={"HX-Redirect": password_url(_hx_target(request))},
+            headers={HX_REDIRECT: password_url(_hx_target(request))},
         )
     if wants_json(request):
         return JSONResponse(dict(_BODY), status_code=HTTPStatus.FORBIDDEN)

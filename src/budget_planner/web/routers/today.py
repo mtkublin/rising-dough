@@ -22,17 +22,19 @@ from budget_planner.services import (
     fx as fx_service,
     today as today_service,
 )
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, get_settings_dep
 from budget_planner.web.params import afford_amount_minor
+from budget_planner.web.paths import GET_HEAD_METHODS
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["today"])
 
 
-@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def root_redirect() -> RedirectResponse:
     """ADR-0077: no home page — ``/`` lands on Today."""
     return RedirectResponse(DEFAULT_LANDING, status_code=303)
@@ -44,19 +46,19 @@ def today(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> HTMLResponse:
     today_d = clock.today_local(settings)
     # Fiscal cycle anchors the landing month so the hero never pulls a
     # future-cycle budget while spent is still on the previous paycheck
     # (ADR-0064).
     year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
-    base_ccy = settings.base_currency
-
+    base_ccy, tz = settings.base_currency, settings.display_timezone
     converter = fx_service.converter_for(conn, settings, today_d)
     account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
     fortune = fortune_service.compute_fortune(conn, user_id, converter)
     summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today_d, base_currency=base_ccy
+        conn, user_id, year, month, today=today_d, base_currency=base_ccy, display_timezone=tz
     )
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
@@ -64,7 +66,7 @@ def today(
     budget = view_models.budget_view(summary, today_d)
 
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
     categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
@@ -96,6 +98,7 @@ def today_upcoming_fragment(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> HTMLResponse:
     """HTMX fragment for Today's #upcoming-root.
 
@@ -105,7 +108,7 @@ def today_upcoming_fragment(
     """
     today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
     categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(
@@ -140,7 +143,12 @@ def afford(
         return Response(status_code=422, content="invalid amount")
     today_d = clock.today_local(settings)
     result = today_service.afford(
-        conn, user_id, today_d, amount_minor, base_currency=settings.base_currency
+        conn,
+        user_id,
+        today_d,
+        amount_minor,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
     )
     return render(
         request,

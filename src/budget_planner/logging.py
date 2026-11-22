@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 # T-D59 / ADR-0078 §5: keys whose values never reach a log line.
 REDACTED = "[redacted]"
+RETENTION_LOGGER = "budget_planner.retention"
 _DENY_EXACT = frozenset({"description", "name", "memo", "formula", "q", "search", "email"})
 _DENY_PREFIXES = ("amount", "note", "password", "token", "secret")
 _DENY_SUFFIXES = ("_json",)

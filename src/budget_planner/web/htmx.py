@@ -5,11 +5,19 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import Request
 from fastapi.responses import Response
+
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REFRESH,
+    HX_RESWAP,
+    JSON_MEDIA_TYPE,
+)
 
 
 class Event(StrEnum):
@@ -63,17 +71,13 @@ def refresh_unless_on(request: Request, response: Response, path_prefix: str) ->
     prefix the caller's ``HX-Trigger`` events refresh the page's own regions; on
     any other page nothing is listening, so the whole page reloads.
     """
-    response.headers["HX-Reswap"] = "none"
-    current = urlparse(request.headers.get("HX-Current-URL", "")).path
+    response.headers[HX_RESWAP] = "none"
+    current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
     if not current.startswith(path_prefix):
-        response.headers["HX-Refresh"] = "true"
-
-
-JSON_MEDIA_TYPE: Final = "application/json"
-_HTML_TYPE: Final = "text/html"
+        response.headers[HX_REFRESH] = "true"
 
 
 def wants_json(request: Request) -> bool:
     """True when the client asked for JSON and not HTML (single owner, T-Q262)."""
     accept = request.headers.get("accept", "").lower()
-    return JSON_MEDIA_TYPE in accept and _HTML_TYPE not in accept
+    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept

@@ -678,7 +678,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `clones`:75 (18 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
+### ✅ T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
 - Findings: Q-038 (literal half; A-18, E-02), inventory P13 `domain-literal` / `repeated-literal` rows; epic E03.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
@@ -1055,7 +1055,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 The operator answered the deferred questions on 2026-11-22. Each decision below is a task recorded docs first (CLAUDE.md "Change policy"); the ADR amendments named here are written in the DECISIONS-1122 change, the code lands with the task. All run before T-Q232 (waves 14b to 14d below). None of these tasks adds an allowlist entry; T-Q283 records three permanent `money_scope` entries (its implementation task edits the TOML, the DECISIONS-1122 change edits no allowlist).
 
-### T-Q279 [S] Archived categories reserve no budget; their actuals still count
+### ✅ T-Q279 [S] Archived categories reserve no budget; their actuals still count
 - Findings: Q-030, Q-015 (OQ-15 refined 2026-11-22); reverses the T-Q227 reading of OQ-15.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none
@@ -1103,7 +1103,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q283 [S] Three permanent `money_scope` entries with written reasons
+### ✅ T-Q283 [S] Three permanent `money_scope` entries with written reasons
 - Findings: Q-076 (G27).
 - Epic: E05
 - Band: 3 · Size: S · Tags: none
@@ -1115,7 +1115,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (owns `money_scope.toml`).
 - Done when: the three entries are permanent with reasons; guards stay green; the CLAUDE.md handoff checklist is complete.
 
-### T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
+### ✅ T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
 - Findings: Q-025 (ADR-0130 G7).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none
@@ -1139,7 +1139,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14d.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q286 [M] Cross-currency formula amounts convert everywhere
+### ✅ T-Q286 [M] Cross-currency formula amounts convert everywhere
 - Findings: Q-010 (OQ-8 answered 2026-11-22), follow-up of T-Q215.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none

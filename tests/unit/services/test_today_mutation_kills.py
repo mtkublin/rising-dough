@@ -35,8 +35,16 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
         return 2026, 10
 
     def month_summary(
-        _conn: object, user_id: int, year: int, month: int, *, today: date, base_currency: str
+        _conn: object,
+        user_id: int,
+        year: int,
+        month: int,
+        *,
+        today: date,
+        base_currency: str,
+        display_timezone: str,
     ) -> SimpleNamespace:
+        assert display_timezone == "Europe/Warsaw"
         calls.summary.append((user_id, year, month, today, base_currency))
         return SimpleNamespace(
             days_until_next_income=days_left, totals=SimpleNamespace(remaining_minor=remaining)

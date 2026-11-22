@@ -32,7 +32,9 @@ from budget_planner.web.account_forms import (
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import Event, toast_payload, trigger
-from budget_planner.web.rendering import render
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
+from budget_planner.web.paths import NEW_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -48,13 +50,13 @@ def index(
     return render(request, "accounts/index.html", **data)
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(request: Request) -> HTMLResponse:
     # ADR-0030 §4 — wrap in shared slide-over so the New-account form inherits
     # the visible close affordance + Esc/backdrop dismissal.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New account",
         form_include="partials/accounts/_form.html",
         account=None,
@@ -103,8 +105,8 @@ def create_account(
     trigger(html, Event.BALANCE_STALE)
     # T-D150: the form targets itself and the accounts list has no region that
     # refetches on a trigger, so skip the swap and reload to show the new item.
-    html.headers["HX-Reswap"] = "none"
-    html.headers["HX-Refresh"] = "true"
+    html.headers[HX_RESWAP] = "none"
+    html.headers[HX_REFRESH] = "true"
     return html
 
 
@@ -127,7 +129,7 @@ def edit_form(
         )
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit account",
         form_include="partials/accounts/_form.html",
         account=acc,
@@ -188,7 +190,7 @@ def delete_account(
     user_id: int = Depends(current_user_id),
 ) -> Response:
     accounts_service.archive_account(conn, user_id, account_id)
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(
         resp,
         Event.BALANCE_STALE,

@@ -46,6 +46,8 @@ from budget_planner.domain.recurring import RecurringRule
 from budget_planner.services.recurring import generate_occurrences
 
 MIGRATIONS_DIR: Path = Path(__file__).resolve().parents[3] / "migrations"
+_COMMIT = "COMMIT"
+_ROLLBACK = "ROLLBACK"
 _FILENAME_RE = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
 
 
@@ -76,7 +78,7 @@ def discover(migrations_dir: Path = MIGRATIONS_DIR) -> list[Migration]:
             Migration(
                 version=int(match.group(1)),
                 filename=p.name,
-                sql=body.decode("utf-8"),
+                sql=body.decode(),
                 checksum=hashlib.sha256(body).hexdigest(),
             )
         )
@@ -173,9 +175,9 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
     try:
         for row in rows:
             _backfill_one_rule(conn, row, today)
-        conn.execute("COMMIT")
+        conn.execute(_COMMIT)
     except Exception:
-        conn.execute("ROLLBACK")
+        conn.execute(_ROLLBACK)
         raise
 
 
@@ -268,9 +270,9 @@ def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
                 "UPDATE recurring_rules SET amount_formula = ? WHERE id = ?",
                 (json.dumps(v2, separators=(",", ":"), sort_keys=True), row["id"]),
             )
-        conn.execute("COMMIT")
+        conn.execute(_COMMIT)
     except Exception:
-        conn.execute("ROLLBACK")
+        conn.execute(_ROLLBACK)
         raise
 
 
@@ -377,9 +379,9 @@ def _run_migration_sql(conn: sqlite3.Connection, mig: Migration) -> None:
             "INSERT INTO schema_migrations(version, filename, checksum) VALUES (?, ?, ?)",
             (mig.version, mig.filename, mig.checksum),
         )
-        conn.execute("COMMIT")
+        conn.execute(_COMMIT)
     except Exception:
-        conn.execute("ROLLBACK")
+        conn.execute(_ROLLBACK)
         raise
 
 
