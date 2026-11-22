@@ -69,5 +69,5 @@ def main() -> None:  # pragma: no cover - CLI shim exercised via `just seed`
         conn.close()
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover - module entry point, runs via `just seed`
     main()

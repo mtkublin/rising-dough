@@ -97,8 +97,9 @@ def test_prefs_tab_shows_base_currency_and_timezone(client: TestClient, settings
 
 
 @covers("GET /settings")
-def test_unknown_tab_falls_back_to_categories(client: TestClient) -> None:
-    r = client.get("/settings?tab=bogus")
+def test_unknown_tab_is_422_and_empty_tab_is_categories(client: TestClient) -> None:
+    assert client.get("/settings?tab=bogus").status_code == 422
+    r = client.get("/settings?tab=")
     assert r.status_code == 200
     assert _selected_tabs(r.text) == ["Categories"]
 

@@ -32,3 +32,7 @@ ADR-0139 made page renders cache-only, so rates only change when something refre
 - Host systemd timer calling the CLI: needs a Terraform and host-agent change and an operator apply (rejected, no-host-change decision).
 - Keep ECB/frankfurter: not the official PLN rate and per-pair requests.
 - Fetch on page render: violates ADR-0139.
+
+## Amendment 2026-11-22 (operator decision; T-Q292)
+
+A failed daily run is retried the same day (hourly until 18:00 Europe/Warsaw). A table whose effective date is older than N days (setting, default 7) is rejected so a backdated payload cannot rewrite history. Freshness is exposed to the external monitor by [ADR-0146](0146-fx-freshness-health-path.md).

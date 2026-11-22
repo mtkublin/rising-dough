@@ -36,6 +36,9 @@ from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
 
+_OVERRIDE_YEARS = range(1900, 10000)
+_OVERRIDE_MONTHS = range(1, 13)
+
 
 @router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(
@@ -463,14 +466,14 @@ def add_override(
             "partials/recurring/_override_form.html",
             rule=rule,
             account=acc,
-            default_year=year if 1900 <= year <= 9999 else rule.next_due.year,  # noqa: PLR2004
-            default_month=month if 1 <= month <= 12 else rule.next_due.month,  # noqa: PLR2004
+            default_year=year if year in _OVERRIDE_YEARS else rule.next_due.year,
+            default_month=month if month in _OVERRIDE_MONTHS else rule.next_due.month,
             default_amount_str=amount,
             errors={field: message},
             status_code=422,
         )
 
-    if not (1900 <= year <= 9999 and 1 <= month <= 12):  # noqa: PLR2004
+    if not (year in _OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
         return _invalid("month", "invalid year or month")
     occ = recurring_svc.occurrence_in_month(rule, year, month)
     if occ is None:

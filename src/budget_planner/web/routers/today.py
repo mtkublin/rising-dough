@@ -26,7 +26,7 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, get_settings_dep
-from budget_planner.web.params import afford_amount_minor
+from budget_planner.web.params import afford_amount_minor, query_choice
 from budget_planner.web.paths import GET_HEAD_METHODS
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
@@ -179,7 +179,8 @@ def add_entry_overlay(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Return the unified Add entry overlay (F-04)."""
-    tab = next((row for row in _ADD_TAB_FORMS if row[0] == when), _ADD_TAB_FORMS[0])
+    picked = query_choice("when", when, tuple(row[0] for row in _ADD_TAB_FORMS)) or "happened"
+    tab = next(row for row in _ADD_TAB_FORMS if row[0] == picked)
     active_tab, form_include, action, entity_name = tab
     ctx: dict[str, Any] = {
         "active_tab": active_tab,

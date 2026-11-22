@@ -18,7 +18,9 @@ import datetime as dt
 import logging
 import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal
 
 from budget_planner.domain.errors import require_present
 from budget_planner.domain.money import (
@@ -102,7 +104,7 @@ def _parse_sign(raw: str) -> TermSign:
     cleaned = (raw or "+").strip()
     if cleaned not in {"+", "-"}:
         raise FormulaError("term sign must be '+' or '-'")
-    return cleaned  # type: ignore[return-value]
+    return "+" if cleaned == "+" else "-"
 
 
 def build_term(
@@ -521,9 +523,6 @@ def _walk_for_cycle(
 # ---------------------------------------------------------------------------
 # Preview — unsaved formula evaluation for the Add-entry builder (ADR-0056 §4).
 # ---------------------------------------------------------------------------
-from dataclasses import dataclass  # noqa: E402
-from typing import Literal  # noqa: E402
-
 PreviewErrorCode = Literal["cycle", "non_positive", "invalid_source", "empty"]
 
 

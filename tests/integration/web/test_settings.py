@@ -78,12 +78,12 @@ def test_settings_close_fragment(client: TestClient) -> None:
     assert response.text == ""
 
 
-def test_settings_invalid_tab_falls_back_to_default(client: TestClient) -> None:
-    """Invalid tab identifiers degrade to the Categories panel rather than 500."""
-    response = client.get("/settings?tab=bogus")
+def test_settings_invalid_tab_is_422(client: TestClient) -> None:
+    """An unknown tab is a 422 (T-Q294); an empty one still defaults to Categories."""
+    assert client.get("/settings?tab=bogus").status_code == 422
+    response = client.get("/settings?tab=")
     assert response.status_code == 200
-    soup = _soup(response.text)
-    assert soup.find(id="panel-categories") is not None
+    assert _soup(response.text).find(id="panel-categories") is not None
 
 
 def test_categories_crud_from_drawer(client: TestClient) -> None:

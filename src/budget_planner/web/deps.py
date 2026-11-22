@@ -220,8 +220,8 @@ def is_recently_authenticated(request: Request, conn: sqlite3.Connection) -> boo
 
 def require_recent_auth(
     request: Request,
-    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008
-    _user: CurrentUser = Depends(current_user),  # noqa: B008
+    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008 — FastAPI Depends default is idiomatic
+    _user: CurrentUser = Depends(current_user),  # noqa: B008 — FastAPI Depends default is idiomatic
 ) -> None:
     """Route dependency: 403 / redirect to ``/auth/reauth`` when the login is stale."""
     if not is_recently_authenticated(request, conn):
