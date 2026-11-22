@@ -293,5 +293,5 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return the process-wide settings instance (cached)."""
+    """Return the process-wide settings instance (cached; tests clear it via ``cache_clear``)."""
     return Settings()

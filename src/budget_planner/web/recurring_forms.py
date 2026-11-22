@@ -8,22 +8,31 @@ from __future__ import annotations
 import re
 import sqlite3
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date
 from types import MappingProxyType
+from typing import Any
 
 from starlette.datastructures import FormData
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Cadence, Direction
-from budget_planner.domain.recurring import AmountFormula
+from budget_planner.domain.recurring import (
+    AmountFormula,
+    NewRecurringRule,
+    PatchRecurringRule,
+    RecurringRule,
+    end_date_error,
+)
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
+    recurring as recurring_svc,
     recurring_formula as formula_svc,
 )
 from budget_planner.services.recurring_formula import FormulaFx
-from budget_planner.web.params import parse_int, positive_amount
+from budget_planner.web.params import parse_date, parse_int, positive_amount
 
 TermInput = dict[str, object]
 
@@ -217,3 +226,270 @@ def resolve_amount_inputs(
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
+
+
+@dataclass(frozen=True, slots=True)
+class RuleFields:
+    """Raw posted recurring-rule form text (create and edit share the shape)."""
+
+    cadence: str
+    start_date: str
+    end_date: str
+    category_id: str
+    account_id: str
+    dest_account_id: str
+    default_amount: str
+    default_description: str
+    day_of_month: str
+    amount_source: str
+    terms: list[TermInput]
+
+    @property
+    def form_terms(self) -> list[TermInput]:
+        """Terms to re-render on error: at least one (empty) row."""
+        return self.terms or [dict(EMPTY_TERM_INPUT)]
+
+
+def read_rule_fields(form: FormData) -> RuleFields:
+    def text(key: str, default: str = "") -> str:
+        return str(form.get(key, default))
+
+    return RuleFields(
+        cadence=text("cadence"),
+        start_date=text("start_date"),
+        end_date=text("end_date"),
+        category_id=text("category_id"),
+        account_id=text("account_id"),
+        dest_account_id=text("dest_account_id"),
+        default_amount=text("default_amount"),
+        default_description=text("default_description"),
+        day_of_month=text("day_of_month"),
+        amount_source=text("amount_source", "fixed"),
+        terms=parse_terms_from_form(form),
+    )
+
+
+def parse_rule_ids(fields: RuleFields) -> tuple[int, int] | None:
+    """Return ``(category_id, account_id)``, or ``None`` when either is not an integer."""
+    category_id = parse_int(fields.category_id)
+    account_id = parse_int(fields.account_id)
+    if category_id is None or account_id is None:
+        return None
+    return category_id, account_id
+
+
+@dataclass(frozen=True, slots=True)
+class ValidRule:
+    """A rule form that passed validation: every value present."""
+
+    cadence: Cadence
+    start: date
+    end: date | None
+    category_id: int
+    account_id: int
+    account: Account
+    category: Category
+    dest_id: int | None
+    amount_minor: int
+    formula: AmountFormula | None
+
+
+@dataclass(frozen=True, slots=True)
+class RuleDraft:
+    """Outcome of validating a rule form: the valid rule, or the per-field errors."""
+
+    valid: ValidRule | None
+    errors: dict[str, str]
+
+
+def _parse_end_date(raw: str, start: date | None) -> tuple[date | None, dict[str, str]]:
+    if not raw:
+        return None, {}
+    end = parse_date(raw)
+    if end is None:
+        return None, {"end_date": "invalid date"}
+    end_err = end_date_error(start, end)
+    return end, ({} if end_err is None else {"end_date": end_err})
+
+
+def _date_errors(
+    fields: RuleFields, cadence: Cadence | None, start: date | None, cadence_error: str
+) -> tuple[date | None, dict[str, str]]:
+    errors: dict[str, str] = {}
+    if cadence is None:
+        errors["cadence"] = cadence_error
+    if start is None:
+        errors["start_date"] = "invalid date"
+    end, end_errors = _parse_end_date(fields.end_date, start)
+    return end, {**errors, **end_errors}
+
+
+def _lookup_refs(
+    conn: sqlite3.Connection, user_id: int, fields: RuleFields, ids: tuple[int, int]
+) -> tuple[Account | None, Category | None, int | None, dict[str, str]]:
+    category_id, account_id = ids
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
+    errors: dict[str, str] = {}
+    if acc is None:
+        errors["account_id"] = "unknown account"
+    if cat is None:
+        errors["category_id"] = "unknown category"
+    dest_id, dest_errors = resolve_dest_account(
+        conn,
+        user_id,
+        dest_account_id_raw=fields.dest_account_id,
+        category=cat,
+        source_account=acc,
+    )
+    return acc, cat, dest_id, {**errors, **dest_errors}
+
+
+def validate_rule_draft(
+    conn: sqlite3.Connection,
+    user_id: int,
+    fields: RuleFields,
+    ids: tuple[int, int] | None,
+    *,
+    fx: FormulaFx,
+    today: date,
+    exclude_rule_id: int | None,
+    cadence_error: str,
+) -> RuleDraft:
+    cadence = validate_cadence(fields.cadence)
+    start = parse_date(fields.start_date)
+    end, errors = _date_errors(fields, cadence, start, cadence_error)
+    if ids is None:
+        return RuleDraft(None, {**errors, "account_id": "invalid account/category"})
+    category_id, account_id = ids
+    acc, cat, dest_id, ref_errors = _lookup_refs(conn, user_id, fields, ids)
+    errors = {**errors, **ref_errors}
+    minor, formula, amount_errors = resolve_amount_inputs(
+        conn,
+        user_id,
+        fx=fx,
+        amount_source=fields.amount_source,
+        default_amount=fields.default_amount,
+        term_inputs=fields.terms,
+        account_currency=acc.currency if acc else None,
+        exclude_rule_id=exclude_rule_id,
+        today=today,
+    )
+    errors = {**errors, **amount_errors}
+    if errors:
+        return RuleDraft(None, errors)
+    if cadence is None or start is None or acc is None or cat is None or minor is None:
+        return RuleDraft(None, {"form": "invalid"})
+    valid = ValidRule(
+        cadence, start, end, category_id, account_id, acc, cat, dest_id, minor, formula
+    )
+    return RuleDraft(valid, {})
+
+
+def new_rule_from(fields: RuleFields, valid: ValidRule, today: date) -> NewRecurringRule:
+    """Build the create command from a valid form."""
+    # ADR-0063: a stop date already in the past means the schedule is dead on arrival, so
+    # insert it inactive; it never shows up in Upcoming or Forecast before the first promotion.
+    initial_active = not (valid.end is not None and valid.end < today)
+    return recurring_svc.with_anchor_day(
+        NewRecurringRule(
+            cadence=valid.cadence,
+            start_date=valid.start,
+            end_date=valid.end,
+            category_id=valid.category_id,
+            account_id=valid.account_id,
+            dest_account_id=valid.dest_id,
+            default_amount=valid.amount_minor,
+            default_description=fields.default_description,
+            day_of_month=parse_int(fields.day_of_month),
+            amount_formula=valid.formula,
+            active=initial_active,
+        )
+    )
+
+
+def rule_patch_from(
+    fields: RuleFields, valid: ValidRule, rule: RecurringRule
+) -> PatchRecurringRule:
+    """Build the edit patch from a valid form."""
+    patch: dict[str, Any] = {
+        "cadence": valid.cadence,
+        "start_date": valid.start,
+        "category_id": valid.category_id,
+        "account_id": valid.account_id,
+        "dest_account_id": valid.dest_id,
+        "default_amount": valid.amount_minor,
+        "default_description": fields.default_description,
+        "amount_formula": valid.formula,
+        # An empty end date clears it (forms always carry the field).
+        "end_date": valid.end,
+    }
+    # ADR-0063: shortening the stop date past the next pending occurrence deactivates the rule
+    # in the same patch, so Upcoming and Forecast stop surfacing it before the next promotion.
+    if valid.end is not None and rule.next_due > valid.end:
+        patch["active"] = False
+    return PatchRecurringRule(**patch)
+
+
+_OVERRIDE_YEARS = range(1900, 10000)
+_OVERRIDE_MONTHS = range(1, 13)
+
+
+def year_or(year: int, fallback: int) -> int:
+    return year if year in _OVERRIDE_YEARS else fallback
+
+
+def month_or(month: int, fallback: int) -> int:
+    return month if month in _OVERRIDE_MONTHS else fallback
+
+
+@dataclass(frozen=True, slots=True)
+class ValidOverride:
+    occurrence: date
+    amount_minor: int
+
+
+@dataclass(frozen=True, slots=True)
+class OverrideError:
+    field: str
+    message: str
+
+
+def check_override(
+    rule: RecurringRule, account: Account | None, year: int, month: int, amount: str
+) -> ValidOverride | OverrideError:
+    if not (year in _OVERRIDE_YEARS and month in _OVERRIDE_MONTHS):
+        return OverrideError("month", "invalid year or month")
+    occ = recurring_svc.occurrence_in_month(rule, year, month)
+    if occ is None:
+        return OverrideError("month", f"rule has no occurrence in {year:04d}-{month:02d}")
+    if account is None:
+        return OverrideError("account", "rule has no live account")
+    amount_minor, amount_err = positive_amount(amount, account.currency)
+    if amount_minor is None:
+        return OverrideError("amount", amount_err or "invalid amount")
+    return ValidOverride(occ, amount_minor)
+
+
+@dataclass(frozen=True, slots=True)
+class PromoteInput:
+    """Parsed promote form: optional edits plus per-field errors."""
+
+    operation_date: date | None
+    amount_minor: int | None
+    errors: dict[str, str]
+
+
+def parse_promote_input(operation_date: str, amount: str, account: Account | None) -> PromoteInput:
+    errors: dict[str, str] = {}
+    op_date = parse_date(operation_date) if operation_date else None
+    if operation_date and op_date is None:
+        errors["operation_date"] = "invalid date"
+    amount_minor: int | None = None
+    if amount and account is None:
+        errors["amount"] = "unknown account currency"
+    elif amount and account is not None:
+        amount_minor, amount_err = positive_amount(amount, account.currency)
+        if amount_err is not None:
+            errors["amount"] = amount_err
+    return PromoteInput(op_date, amount_minor, errors)
