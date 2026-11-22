@@ -17,10 +17,11 @@ from fastapi.responses import HTMLResponse
 
 from budget_planner.web.deps import current_user, get_db
 from budget_planner.web.middleware.auth import CurrentUser
+from budget_planner.web.paths import SETTINGS_PATH
 from budget_planner.web.rendering import render_context
 from budget_planner.web.security_context import PAGE_TEMPLATE, security_context
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(prefix=SETTINGS_PATH, tags=["settings"])
 
 
 @router.get("/security", response_class=HTMLResponse)

@@ -26,13 +26,14 @@ from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.params import afford_amount_minor
+from budget_planner.web.paths import GET_HEAD_METHODS
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["today"])
 
 
-@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def root_redirect() -> RedirectResponse:
     """ADR-0077: no home page — ``/`` lands on Today."""
     return RedirectResponse(DEFAULT_LANDING, status_code=303)

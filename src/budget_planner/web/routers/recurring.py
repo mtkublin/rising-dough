@@ -26,13 +26,15 @@ from budget_planner.services._promotion import UnsupportedDirectionError, Valida
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, today_for
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_date, parse_int, positive_amount
-from budget_planner.web.rendering import render
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -41,7 +43,7 @@ def new_form(
     # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New recurring rule",
         form_include="partials/recurring/_form.html",
         rule=None,
@@ -175,7 +177,7 @@ async def create_rule(
     )
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -237,7 +239,7 @@ def edit_form(
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /recurring/new.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit recurring rule",
         form_include="partials/recurring/_form.html",
         rule=rule,
@@ -358,7 +360,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -375,7 +377,7 @@ def deactivate_rule(
     # Empty body + ledger-stale trigger removes the row from the Ledger
     # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
     # inactive rules disappear from view. Mirrors transactions/delete.
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.LEDGER_STALE, Event.FORECAST_STALE)
     return resp
 
@@ -473,7 +475,7 @@ def add_override(
     )
     html = Response()
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -625,7 +627,7 @@ def promote_submit(
 
     html = Response()
     trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
