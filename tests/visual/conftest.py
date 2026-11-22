@@ -25,6 +25,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.auth_support import issue_session, seed_login_user
+from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 
 VISUAL_ROOT = Path(__file__).parent
 BASELINES = VISUAL_ROOT / "baselines"
@@ -32,7 +33,7 @@ REPO_ROOT = VISUAL_ROOT.parents[1]
 DEMO_DB = REPO_ROOT / "data" / "demo.sqlite"
 # demo.sqlite's newest transaction is 2026-10-31; pin the server clock there so
 # "today"-relative UI (fiscal period, days left, overdue tint) is stable (T-VIS5).
-FROZEN_DATE = "2026-10-31"
+FROZEN_DATE = HANDOFF_FIXTURE_DATE
 
 
 # Deterministic text raster: no GPU tiling, no LCD/subpixel glyph positioning,
@@ -45,6 +46,29 @@ CHROMIUM_STABLE_ARGS = [
     "--force-color-profile=srgb",
     "--disable-skia-runtime-opts",
 ]
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--reference",
+        default=None,
+        choices=["handoff"],
+        help="compare against the designer-handoff references (T-UT10, ADR-0106)",
+    )
+    parser.addoption(
+        "--surface",
+        default=None,
+        help="limit --reference=handoff to one surface (today, ledger, plan, ...)",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """With ``--reference=handoff`` run only the reference comparisons."""
+    if config.getoption("--reference") != "handoff":
+        return
+    keep = [i for i in items if "test_reference" in i.nodeid]
+    config.hook.pytest_deselected(items=[i for i in items if i not in keep])
+    items[:] = keep
 
 
 def _free_port() -> int:

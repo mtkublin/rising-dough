@@ -7,7 +7,6 @@ from datetime import UTC, date, datetime, time
 from decimal import Decimal
 
 import pytest
-from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
@@ -25,6 +24,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.web.templating import build_jinja_env
+from tests.ui_map import _html, accounts
 
 TODAY = date(2026, 11, 6)
 
@@ -65,13 +65,10 @@ def jpy_id(_migrated: Settings) -> int:
 
 
 def test_jpy_balance_and_planned_net_have_no_decimals(client: TestClient, jpy_id: int) -> None:
-    soup = BeautifulSoup(client.get("/accounts").text, "html.parser")
-    row = soup.select_one(f"#account-{jpy_id}")
-    assert row is not None
-    text = " ".join(row.get_text().split())
-    assert "100,000JPY" in text.replace(" ", "")
-    assert "\u221230,000 planned → 70,000" in text
-    assert "1,000.00" not in text
+    row = _html.text_of(client.get("/accounts").text, accounts.row(jpy_id))
+    assert "100,000JPY" in row.replace(" ", "")
+    assert "\u221230,000 planned \u2192 70,000" in row
+    assert "1,000.00" not in row
 
 
 def test_money_num_filter_per_currency() -> None:

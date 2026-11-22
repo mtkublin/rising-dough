@@ -76,8 +76,36 @@ css-watch:
     npm run css:watch
 
 # Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
-test-visual:
-    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
+# `just test-visual --reference=handoff [surface]` compares against the handoff references (T-UT10).
+test-visual *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    opts=()
+    for a in {{args}}; do
+      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
+    done
+    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
+
+# Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
+visual-reference *surface:
+    uv run python -m tests.visual.handoff {{surface}}
+
+# Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
+# (paths, -k, later --target=...). Local only: GitHub runners have no
+# Playwright browser (ADR-0097).
+test-e2e *ARGS:
+    uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" {{ARGS}}
+
+# Same journeys on Firefox then WebKit, one engine at a time. Opt-in; not part
+# of `just ci`. Needs `uv run playwright install firefox webkit` (T-UT11).
+test-e2e-browsers *ARGS:
+    #!/usr/bin/env bash
+    set -u
+    rc=0
+    for b in firefox webkit; do
+        uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" --e2e-browser="$b" {{ARGS}} || rc=1
+    done
+    exit "$rc"
 
 # Refresh visual-regression baselines after an intentional design change.
 test-visual-update:
@@ -211,6 +239,12 @@ worktree-init:
     else
       echo "[worktree-init] no .testmondata in $main; the first test-changed runs everything"
     fi
+
+# --- route inventory (T-UT03, ADR-0106 section 1) --------------------------
+
+# Regenerate tests/contract/routes.md from the live route table.
+routes:
+    uv run python -m tests.contract.routes_md
 
 # --- database --------------------------------------------------------------
 

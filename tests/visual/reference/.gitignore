@@ -1,0 +1,4 @@
+# Size budget (T-UT10): only non-overlay pages at 1440 and 375 are committed.
+# `just visual-reference` regenerates everything locally.
+overlays/
+*.1024.*.png

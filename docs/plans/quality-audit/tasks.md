@@ -524,7 +524,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Outcome (2026-11-22): the six routers hold only parse, call, render. New `web/ledger_data.py` (filters, typed `TxnRow`, ledger context builders), `web/entry_forms.py` (transaction and planned form validation), `web/forecast_data.py`, `services/limit_preview.py` (credit-limit projection, isolation case added), `services/connections.ping`, `replication_health.check_status_file`, `rendering.render_context`; keyword-only handler parameters retire the 6 `PLR0917` noqa (ceiling 23 -> 17); 10 `thin_router` entries and the stale hygiene, size, clone and suppression entries of the moved code deleted (nothing added). `today.py` had no thin-router entry; its private import from `recurring` stays with T-Q266.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
+### ✅ T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`
@@ -700,7 +700,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `thin_router`:43 (7 entries); `suppressions` ceiling `PLR0917`:8
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
+### ✅ T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
 - Findings: Q-046 (B-09 complexity and length rows outside the router modules); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
@@ -860,7 +860,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q247 [P] Kill survivors in the non-priority modules
+### ✅ T-Q247 [P] Kill survivors in the non-priority modules
 - Findings: Q-055 (F-11).
 - Epic: none (test-gap)
 - Band: 5 · Size: L · Tags: none
@@ -1025,7 +1025,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
+### ✅ T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
 - Findings: Q-030, Q-015 (OQ-15, answered 2026-11-21).
 - Epic: E01
 - Band: 2 · Size: M · Tags: none

@@ -16,7 +16,7 @@
 - **Acceptance**: the folder opens from disk (`index.html`) with no console errors; `just lint` is green; byte-identical to the delivery (checksum list in `docs/design/README.md`).
 - References: ADR-0106 §5, ADR-0107 §1.
 
-### ◻ T-UT02 [S] UI map scaffold and the no-markup-assertion check
+### ✅ T-UT02 [S] UI map scaffold and the no-markup-assertion check
 - **Deliverables**:
   - `tests/ui_map/` package: one module per surface (`shell`, `today`, `ledger`, `plan`, `accounts`, `settings`, `auth`, `errors`), each exposing semantic names as functions or constants.
   - `tests/ui_map/_html.py`: resolves role + accessible name, label, and id queries over BeautifulSoup, with the same query shape as Playwright `get_by_role` / `get_by_label`. Unit-tested against fixtures.
@@ -25,7 +25,7 @@
 - **Validation**: `just test tests/ui_map tests/architecture/test_no_markup_assertions.py`
 - References: ADR-0106 §2.
 
-### ◻ T-UT03 [P] Route inventory and coverage meta-test → T-UT02
+### ✅ T-UT03 [P] Route inventory and coverage meta-test → T-UT02
 - **Deliverables**:
   - `tests/contract/conftest.py` with a `@covers("<METHOD> <path>")` marker.
   - `tests/contract/test_route_coverage.py`: enumerates `app.routes` (method + path template) and fails for any route with no `@covers` test and no allowlist entry. Initial allowlist = every route (reason `pending T-UT04x`).
@@ -34,7 +34,7 @@
 - **Validation**: `just test tests/contract/test_route_coverage.py`
 - References: ADR-0106 §1.
 
-### ◻ T-UT05 [P] Feature-parity inventory → T-UT01
+### ✅ T-UT05 [P] Feature-parity inventory → T-UT01
 - **Deliverables**: `docs/plans/ui-test-harness/parity.md` with one row per user-visible feature or state of the current app: surface, feature, route(s), current template, handoff page/overlay/fragment, status (`mapped` / `no board` / `handoff-only`), notes. Built from `routes.md` (T-UT03 when available), the templates, and the handoff `index.html`.
 - Known candidates to resolve: the handoff's offline page, first-run registration and invite pages, "recently deleted", "Can I afford it?", year grid, bulk selection, command palette, shortcuts, undo toast. Also v3 features the handoff may not draw (passkey management, session list, password change, FX settings detail, admin user list).
 - **Acceptance**: every route in `routes.md` appears in at least one row; every handoff page appears in at least one row.
@@ -53,46 +53,55 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 - **Acceptance (each item)**: its allowlist entries are gone; its tests pass; no test body asserts on a class name or copy; existing behaviour unchanged (any real bug becomes a strict `xfail` with a new task id).
 - **Validation (each item)**: `just test tests/contract tests/integration/web/<its files>`
 
-### ◻ T-UT04a [P] Shell, auth and errors
+### ✅ T-UT04a [P] Shell, auth and errors
 - Login, logout, re-auth, rate limits, passkey endpoints, session list, CSRF, security headers, cache-control, redirects, root redirect, error pages, health, palette, FAB / new-entry entry points.
+- **Done 2026-11-20**: `tests/contract/test_{shell,auth,errors}.py` cover all 22 `PENDING_T_UT04A` routes (section deleted); 14 integration files migrated to the UI map (`tests/ui_map/{shell,auth,errors}.py`) and their `ALLOWLIST` entries deleted (0 markup assertions). No template changes (role/label/id locators were enough). Notes: `label()` locators also match descendants of the `<label>` (e.g. its `<span>`), so tests filter by tag; `<script>` src/inline CSP checks still use BeautifulSoup `find_all("script")` directly (no UI-map role for scripts).
 
-### ◻ T-UT04b [P] Today and Accounts
+### ✅ T-UT04b [P] Today and Accounts
 - Today hero, upcoming list and range, promote from Today, "Can I afford it?", Accounts list, planned net, reconcile, credit limit, account CRUD.
+- Done 2026-11-20: `tests/contract/test_{today,accounts}.py` cover all 14 `PENDING_T_UT04B` routes (section deleted); integration `test_accounts*.py` and `test_today.py` rewritten on the UI map (allowlist entries deleted, 0 markup assertions; overlapping behaviour tests moved into the contract files). Hooks added: `data-testid` `afford-per-day` / `afford-delta` and `data-status` (overdue / due / upcoming) on upcoming rows. Today names live in `tests/ui_map/today.py` (the mockup twin must stay a superset). Promote POSTs themselves are T-UT04c (`/planned`, `/recurring`).
 
-### ◻ T-UT04c [P] Ledger
+### ✅ T-UT04c [P] Ledger
 - Actual (filters, pagination, day net, bulk actions), planned (CRUD, promote, batch promote), recurring (CRUD, formula preview, overrides, skip / skip next), recently deleted and restore, undo.
+- Done 2026-11-20: 43 routes covered in `tests/contract/ledger/` (shared fixtures in its `conftest.py`, helpers in `support.py`; `test_ledger_access.py` is the auth + CSRF matrix over every route, the other files cover status, HX-* headers, redirect targets, DB and `audit_log` effects, and batch undo round trips). `PENDING_T_UT04C` deleted. Seven integration files (`test_ledger`, `test_transactions`, `test_planned`, `test_recurring`, `test_recurring_formula`, `test_same_account_validation`, `test_forms`) moved onto `tests/ui_map/ledger.py` and left the no-markup allowlist; `test_formula_preview` stays at 3 (the preview chip has only data-attributes; a `data-testid` hook was skipped to avoid a template change and its visual audit). The `label` locator also yields a wrapped label's non-control descendants; `ledger.control(s)` filters to the real controls (resolver left untouched).
 
-### ◻ T-UT04d [P] Plan
+### ✅ T-UT04d [P] Plan
 - Budget (lines, overrides, unbudgeted disclosure, left per day), year grid and cell editor, forecast (horizon, table, chart fragment), analytics (range, categories).
+- Done 2026-11-20: all 15 `PENDING_T_UT04D` routes covered by `tests/contract/test_plan_budget.py` and `test_plan_views.py` (fixtures in `test_plan_support.py`); section deleted from the allowlist. `test_budget.py`, `test_budget_left_daily_spend.py`, `test_forecast.py`, `test_plan_analytics.py` rewritten on `tests/ui_map/plan.py` (markup allowlist entries 32/10/17/4 deleted). Only template change: `id="analytics-bundle"` on the analytics bundle root. CSS-class assertions (delta up/down, responsive hide) were dropped; the sign is asserted through the cell text.
 
-### ◻ T-UT04e [P] Settings
+### ✅ T-UT04e [P] Settings
 - Categories (CRUD, archive, colour), currency and FX, preferences, security (password change and its rate limit, passkeys, sessions), users (admin).
+- Done 2026-11-21: `tests/contract/test_{categories,settings,settings_password,settings_users}.py` cover all 19 `PENDING_T_UT04E` routes (section deleted); the five integration files (`test_categories`, `test_settings*`) now assert through `tests/ui_map/settings.py` (allowlist entries deleted, 0 markup assertions; the four skipped v1-drawer tests were dropped, their behaviour is in the contract files). Own plugin `tests/contract/web_support_t_ut04e.py` (no autouse re-export; password and users modules pin bcrypt cost locally). No template or `src/` change, so no visual audit.
 
 ---
 
 ## Phase 2 — End-to-end layer → T-UT02
 
-### ◻ T-UT07 [P] Crawler smoke test
+### ✅ T-UT07 [P] Crawler smoke test
 - **Deliverables**: `tests/e2e/test_crawl.py` and `tests/e2e/crawl_inventory.json` per ADR-0106 §3. Seeded scratch DB copied per destructive control; viewports 375 and 1440; both themes where the app supports them.
 - **Acceptance**: green on today's UI; the inventory lists every page route with its controls; a seeded broken `hx-get` target fails the test; the run stays under 5 minutes (else split by surface with a marker).
 - **Validation**: `just test-e2e tests/e2e/test_crawl.py`
+- **Notes (2026-11-20)**: `tests/e2e/test_crawl.py` (one test per page route, 21 pages) + helpers in `tests/e2e/crawl/` + `tests/e2e/test_crawl_checker.py` (fixture page proving a broken `hx-get` target, a healthy swap and an inert control). Regenerate the inventory with `CRAWL_UPDATE=1`. Single theme today (no dark mode), so one pass. Controls are activated at 1440; 375 gets load-time overflow / duplicate-id / console / request checks, plus the same checks after every activation at 1440. Skipped with a recorded reason: logout, WebAuthn (passkey add/revoke/register), external links, sr-only / off-screen controls, form- or input-triggered hx elements. Known app bugs (strict xfail in `test_known_bug`):
+  - ✅ `T-D-UT07-1`: resolved 2026-11-21, crawler artefact. `/budget/yearly` is an htmx fragment (bare table, no layout wrapper), not a page. The real page `/plan?tab=year` has no page-level horizontal scroll at 375, 1024, 1440 (document scrollWidth equals clientWidth). The crawler now crawls `/plan?tab=year` (`VIEWS`), `/budget/yearly` is in `NOT_PAGES`, the xfail is gone. Audit: `docs/audits/2026-11-21-plan-year-crawl.md`.
 
-### ◻ T-UT08 [P] Journeys on the UI map → T-UT04a..e
+### ✅ T-UT08 [P] Journeys on the UI map → T-UT04a..e
 - **Deliverables**: the 8 existing journeys rewritten on UI-map names; new journeys: new entry (happened / planned / repeats fixed / repeats formula), edit and delete with undo, promote (planned and recurring), reconcile (asset and liability), budget override (month / default / every), period navigation, category CRUD and archive, FX setting, preferences, password change, passkey add and remove, user admin, login / logout / re-auth, error pages.
 - **Acceptance**: all green on Chromium; no CSS locators; each journey asserts the DB effect as well as the screen.
+- **Status 08b: new journeys** (2026-11-21): `tests/e2e/journeys/` holds the new journeys on UI-map names (entry x4, edit/delete + undo, promote x2, reconcile x2, override tiers x3, period navigation, category CRUD + archive, FX tab, preferences, secret change, passkey add/remove, user admin x3, login/logout/re-auth, 404 and CSRF 403). Each asserts screen and read-only scratch-DB effect.
 - **Validation**: `just test-e2e`
+- **Progress**: 08a: existing journeys migrated (2026-11-21): the 15 e2e files use UI-map names through `to_playwright`, ids come from the scratch DB (`tests/e2e/db_probe.py`), journeys assert the DB effect; e2e entries removed from the markup allowlist. 08b merged (35 new journeys). T-UT08 done 2026-11-21: 0 `.locator(` calls under tests/e2e.
 
-### ◻ T-UT09 [P] Mockup target → T-UT01, T-UT02
+### ✅ T-UT09 [P] Mockup target → T-UT01, T-UT02
 - **Deliverables**: `--target=mockup` option that serves `docs/design/rising-dough-frontend/` over HTTP (with `stand-in.js` active) and runs UI-map lookups and click-through journeys against it. Mapping from app routes to handoff pages in `tests/ui_map/mockup_routes.py`.
 - **Acceptance**: a Today UI-map module variant for the new markup resolves every name against `pages/today.html` and its overlays; documented as the first step of each redesign surface.
 - **Validation**: `just test-e2e --target=mockup tests/e2e/test_today_journey.py`
 
-### ◻ T-UT10 [P] Visual references from the handoff → T-UT01
+### ✅ T-UT10 [P] Visual references from the handoff → T-UT01
 - **Deliverables**: `just visual-reference` screenshots each handoff page at 1440 / 1024 / 375 in light and dark into `tests/visual/reference/`; `tests/visual/frozen_server.py` gains fixture data matching the handoff's sample data closely enough for a per-surface tolerance; `just test-visual --reference=handoff <surface>`.
 - **Acceptance**: references generated for every handoff page; the comparison runs against one already-matching static page (handoff vs itself) at 0 diff; tolerance per surface recorded in `tests/visual/README.md`.
 - References: ADR-0106 (amends ADR-0027 §4).
 
-### ◻ T-UT11 [P] Cross-browser recipe
+### ✅ T-UT11 [P] Cross-browser recipe
 - **Deliverables**: `just test-e2e-browsers` runs the journeys on Firefox and WebKit (opt-in, not in `just ci`).
 - **Acceptance**: recipe runs locally; known failures on the old UI recorded as strict `xfail` with reasons.
 
@@ -100,9 +109,26 @@ Split for parallel worktrees (orchestrator mode, ADR-0066). Each item, for its r
 
 ## Phase 3 — Gate
 
-### ◻ T-UT06 [S] Operator decisions on parity gaps → T-UT05
+### ✅ T-UT06 [S] Operator decisions on parity gaps → T-UT05
 - Every `no board` and `handoff-only` row in `parity.md` gets a decision: derive from the design system, ask the designer for a board, drop (needs an ADR), or new requirement first (for handoff-only features). Decisions copied into `docs/plans/ui-redesign/derived.md`.
+- Status 2026-11-20: change request sent: docs/plans/ui-redesign/designer-change-request.md; awaiting designer; T-UT12 does not block on the answers, only on every gap row having a decision/owner. Operator decision: all 16 gaps go to the designer; every `parity.md` row reads `ask designer (designer-change-request.md)`.
+- **Result 2026-11-21**: all 16 answered by the designer, decisions in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md), resolutions in `parity.md` and `../ui-redesign/derived.md`; the Edit user follow-up (ST17) was answered later the same day (kept, ADR-0134 §11, T-UT06-EDITUSER); app work is T-UR18..T-UR28.
 
-### ◻ T-UT12 [S] Exit gate → all above
+### ✅ T-UT12 [S] Exit gate → all above
 - Both allowlists empty, or each remaining entry has a reason accepted by the operator.
 - README exit criteria 1–7 checked; ADR-0106 flipped to Accepted; `docs/CHANGELOG.md` entry; `just ci` green on the work branch.
+- **Result 2026-11-21**: README exit criteria 1-7 met (see ADR-0106 acceptance note). `uv run pytest tests/contract tests/architecture tests/ui_map --no-cov` = 575 passed; route allowlist holds only FRAMEWORK entries; markup-assertion ALLOWLIST is `{}`; the first `just ci` failed at djlint formatting of two preview templates (attribute wrapping only, fixed in this task); the re-run of `just ci` was green: 3180 passed, 4 skipped, 1 xfailed, coverage 96.39%. Full e2e on Chromium: 110 passed, 2 skipped, 1 xfailed.
+- **Known exceptions**:
+  - WebKit is unverified on this host (T-UT11).
+  - ✅ `T-D-UT07-1` resolved (crawler artefact, `/plan?tab=year` does not scroll); no known app bugs remain in the crawl.
+  - The FRAMEWORK route allowlist entries (`/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `MOUNT /static`) are accepted by the operator 2026-11-21 (framework-owned docs/static routes, not app pages).
+  - T-UT06 closed 2026-11-21 (see its result line).
+
+### Follow-ups (found during the work, not fixed here)
+- ✅ `T-D-UT12-1`: `static/js/overlay-actions.js`: a limit-preview GET inside a `[data-close-overlay-on-success]` form closes the transaction edit slide-over before Save. Fixed 2026-11-21: only the form's own non-GET request closes the overlay; the T-UT08b workaround is removed.
+- ✅ `T-D-UT12-2`: user create/delete writes no `audit_log` row. Result: not reproducible; `repositories/users.py` `create_user` and `soft_delete` already write `entity_type = 'users'` audit rows with the acting admin as actor (F1.5, ADR-0019/ADR-0022/ADR-0073 §5). The contract test now pins exactly one row per create and delete.
+- ✅ `T-UT-FIX5`: `test_pagination_keeps_filters` flaked under load. Cause: `_open_filtered` waited only for a row count of 50, but the unfiltered first page also has 50 rows, so under load the test clicked Older on the stale unfiltered table before the category-filter swap landed. Fixed 2026-11-21: wait for the filtered `/ledger/table` response and assert the other category's rows are absent. Test-only.
+- ✅ `T-UT-FIX6`: `test_limit_preview_does_not_close_edit_slideover_before_save` timed out once waiting for the `_limit_preview` response under load. Cause: the slide-over is visible as soon as htmx swaps it in, but htmx attaches the fragment's `hx-trigger` listeners (`keyup changed delay:400ms`) only in its settle step, so keystrokes typed on a loaded host before that were never observed and no request fired. Fixed 2026-11-21: wait for the amount input's htmx init (`htmx-internal-data`) and no `.htmx-settling` before typing; assert the typed value. Test-only, no app change.
+- ✅ `T-D-UT12-3`: the formula preview chip/endpoint `/recurring/formula/preview` is not wired into any page. Wired into the recurring add/edit form (ADR-0056 §4, ADR-0047): term edits fire a debounced POST from a trigger outside the form (so no overlay close), 422 error chips swap in (`recurring-form.js`); e2e `test_formula_preview.py`; audit `docs/audits/2026-11-21-formula-preview.md`.
+- ✅ `T-D-UT12-4`: fold `tests/ui_map/today_app.py` into `today.py` with mockup twins. Done 2026-11-21: names moved into `today.py`, `today_app.py` deleted; mockup twins added where the handoff has the element (afford result, upcoming rows, promote-all), the three with no `today.html` element (`add_planned`, `add_recurring`, `confirm_promote`) are listed in `mockup.today.NO_HANDOFF_TWIN` and skipped by the resolve test.
+- ✅ `T-D-UT12-5`: `tests/contract/web_helpers_t_ut04e.py` `field()` can become `resolve_one` now that `label()` is fixed. Done 2026-11-21: `field()` deleted, call sites use `_html.resolve_one`.

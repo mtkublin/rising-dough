@@ -36,6 +36,7 @@ from budget_planner.services import (
     budget,
     budget_batch,
     categories as categories_svc,
+    fx,
     income,
     limit_preview,
     preferences,
@@ -444,6 +445,16 @@ def _case_planned_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     assert other(eur, 1_000) == 1_000
 
 
+@covers("fx.currency_by_account")
+def _case_currency_by_account(conn: sqlite3.Connection, world: World) -> None:
+    assert fx.currency_by_account(conn, OWNER_ID) == {world.owner.account_id: "PLN"}
+    assert fx.currency_by_account(conn, OTHER_ID) == {world.other.account_id: "PLN"}
+    dead = world.tombstones.account_id if world.tombstones else None
+    if dead is not None:
+        assert dead not in fx.currency_by_account(conn, OWNER_ID)
+        assert dead in fx.currency_by_account(conn, OWNER_ID, include_deleted=True)
+
+
 @covers("budget.txn_base_amounts")
 def _case_txn_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     eur = _eur_account_with_rate(conn, OWNER_ID, deleted=False)
@@ -459,8 +470,8 @@ def _case_txn_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     assert owner(eur_txn) == 4_000
     assert other(eur_txn) == 1_000  # the other user cannot see the account's currency
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
-    # OQ-15 current behaviour: a soft-deleted account keeps converting its (still listed) transactions.
-    assert budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)(eur_txn) == 4_000
+    # ADR-0136: a soft-deleted account is not a converter input (its transactions are filtered upstream).
+    assert budget.txn_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)(eur_txn) == 1_000
     live = transactions_repo.find_by_id(conn, OWNER_ID, world.owner.transaction_id)
     assert live is not None
     assert owner(live) == 1_000

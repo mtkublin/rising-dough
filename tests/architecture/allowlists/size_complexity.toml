@@ -3,69 +3,6 @@
 guard = "size_complexity"
 
 [[entry]]
-path = "src/budget_planner/db/migrate.py"
-rule = "cc>=11"
-count = 2
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/db/migrate.py"
-rule = "func>50"
-count = 2
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/planned.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/recurring.py"
-rule = "nesting>4"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/repositories/transactions.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/auth.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/services/forecast.py"
 rule = "file>800"
 count = 1
@@ -80,84 +17,7 @@ finding = "Q-046"
 epic = "E13"
 
 [[entry]]
-path = "src/budget_planner/services/reconciliation.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/recurring.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/recurring.py"
-rule = "func>50"
-count = 2
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/recurring_formula.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/services/recurring_formula.py"
-rule = "func>50"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/auth_cookies.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/charts.py"
-rule = "cc>=11"
-count = 2
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/charts.py"
-rule = "func>50"
-count = 4
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
 path = "src/budget_planner/web/routers/accounts.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/accounts.py"
-rule = "func>50"
-count = 3
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
-rule = "cc>=11"
-count = 1
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
 rule = "func>50"
 count = 1
 finding = "Q-046"
@@ -173,21 +33,14 @@ epic = "E13"
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "cc>=11"
-count = 4
-finding = "Q-046"
-epic = "E13"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "file>800"
-count = 1
+count = 3
 finding = "Q-046"
 epic = "E13"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
 rule = "func>50"
-count = 5
+count = 4
 finding = "Q-046"
 epic = "E13"
 

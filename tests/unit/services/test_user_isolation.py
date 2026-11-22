@@ -31,6 +31,7 @@ from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, re
 from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_account_cases,
     _isolation_read_cases,
+    _isolation_t266_cases,
     _isolation_write_cases,
 )
 from tests.unit.services._isolation_registry import COVERED, covers

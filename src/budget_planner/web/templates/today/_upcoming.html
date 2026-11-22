@@ -5,6 +5,7 @@
 {% if upcoming_view.total_count %}
   {% macro upcoming_row(item) %}
     <div id="{{ item.row_id }}"
+         data-status="{{ 'overdue' if item.is_overdue else ('due' if item.is_due_today else 'upcoming') }}"
          class="rd-row rd-upcoming__row{% if item.is_overdue %} rd-upcoming__row--overdue{% elif item.is_due_today %} rd-upcoming__row--due{% endif %}">
       <span class="num mut rd-upcoming__date">{{ item.row.operation_date|date_month_day }}</span>
       <span class="rd-upcoming__desc">
