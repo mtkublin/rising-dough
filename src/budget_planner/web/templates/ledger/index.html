@@ -105,7 +105,7 @@
     </aside>
   {% endif %}
   {% if view == "planned" and planned_summary and rows %}
-    <aside class="rd-planned-strip">
+    <aside class="rd-planned-strip" aria-label="Planned total">
       <strong>{{ planned_summary.count }}</strong> items ·
       <strong class="numeric">{{ planned_summary.net_display }}</strong>
       pending over the window.

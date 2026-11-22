@@ -122,6 +122,7 @@ def _hydrate_recurring_rows(
     conn: sqlite3.Connection,
     user_id: int,
     filters: LedgerFilters | None = None,
+    fx: fx_service.FxConverter | None = None,
 ) -> list[dict[str, Any]]:
     # Ledger Recurring tab lists only live rules (ADR-0038 §Ledger-UI):
     # Delete behaviourally deactivates, which must remove the row from view.
@@ -138,6 +139,13 @@ def _hydrate_recurring_rows(
     if filters is not None and filters.direction:
         direction_set.add(filters.direction)
     search_lc = filters.search.lower() if filters and filters.search else None
+    formula_fx = (
+        formula_svc.FormulaFx(
+            fx, fx_service.currency_by_account(conn, user_id, include_deleted=True)
+        )
+        if fx is not None
+        else None
+    )
     out: list[dict[str, Any]] = []
     for rule in rules:
         acc = accts.get(rule.account_id)
@@ -166,7 +174,9 @@ def _hydrate_recurring_rows(
         # formula rules recompute from the current source-rule state for
         # the `next_due` calendar month (ADR-0045). Overrides win per the
         # unchanged ADR-0038 override precedence.
-        formula_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
+        formula_amount = formula_svc.resolve_rule_amount(
+            conn, user_id, rule, rule.next_due, fx=formula_fx
+        )
         effective_amount_minor = (
             override_on_next_due.amount_override
             if override_on_next_due is not None and override_on_next_due.amount_override is not None
@@ -286,7 +296,8 @@ def _render_table(
     elif view == "planned":
         rows = _planned_rows(conn, user_id, filters, today_for(request))
     else:
-        rows = _hydrate_recurring_rows(conn, user_id, filters)
+        fx = fx_service.converter_for(conn, get_settings_dep(request), today_for(request))
+        rows = _hydrate_recurring_rows(conn, user_id, filters, fx)
     categories_by_id = {
         c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)
     }
@@ -335,12 +346,15 @@ def index(
     elif view == "planned":
         rows = _planned_rows(conn, user_id, filters, today_for(request))
     else:
-        rows = _hydrate_recurring_rows(conn, user_id, filters)
-    base_ccy = get_settings_dep(request).base_currency
-    recurring_summary = (
-        ledger_totals.recurring_monthly_totals(rows, base_ccy) if view == "recurring" else None
+        rows = []
+    settings = get_settings_dep(request)
+    base_ccy = settings.base_currency
+    fx = fx_service.converter_for(conn, settings, today_for(request))
+    if view == "recurring":
+        rows = _hydrate_recurring_rows(conn, user_id, filters, fx)
+    recurring_summary, planned_summary = ledger_totals.view_strips(
+        view, rows, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
     )
-    planned_summary = ledger_totals.planned_totals(rows, base_ccy) if view == "planned" else None
     cats_list = categories_service.list_all(conn, user_id, include_deleted=True)
     return render(
         request,

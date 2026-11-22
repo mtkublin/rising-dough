@@ -16,6 +16,8 @@ search = label("Search")
 add_entry = role("button", "Add entry")
 save = role("button", "Save")
 promote = role("button", "Promote")
+recurring_strip = role("complementary", "Monthly cash flow summary")
+planned_strip = role("complementary", "Planned total")
 recently_deleted_heading = role("heading", "Recently deleted", level=1)
 
 

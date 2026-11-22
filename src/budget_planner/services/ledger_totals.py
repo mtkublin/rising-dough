@@ -98,15 +98,30 @@ def _direction_of(row: Mapping[str, object]) -> Direction | None:
     return direction if isinstance(direction, Direction) else None
 
 
+def _date_field(row: Mapping[str, object], key: str) -> dt.date:
+    value = row.get(key)
+    if not isinstance(value, dt.date):
+        raise ValueError(f"ledger strip row has no {key} date")
+    return value
+
+
+def _ccy_field(row: Mapping[str, object], base: str) -> str:
+    value = row.get("currency")
+    return value if isinstance(value, str) and value else base
+
+
 def recurring_monthly_totals(
-    rows: Iterable[Mapping[str, object]], currency: str
+    rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
 ) -> RecurringTotals:
     """Roll active recurring rows up to monthly-equivalent in/out (ADR-0056 section 4).
 
     Each row carries ``effective_amount_minor``, ``cadence`` and a ``category``
     with a direction. The monthly amount is signed via ``signed_effect``
     (ADR-0008): positives are income (in), negatives expense (out, reported as a
-    magnitude). Rows without a direction are ignored.
+    magnitude). Rows without a direction are ignored. Each monthly amount is
+    converted from its account currency to ``currency`` (the base) at the rate
+    on the rule's ``next_due`` via ``base_of`` (ADR-0006, ADR-0139); a missing
+    rate raises ``FxUnavailableError``.
     """
     monthly_in = 0
     monthly_out = 0
@@ -118,7 +133,11 @@ def recurring_monthly_totals(
         amount = divide_minor_units(
             _int_field(row, "effective_amount_minor"), months_per_cadence(cadence)
         )
-        effect = signed_effect(amount, direction)
+        effect = base_of(
+            signed_effect(amount, direction),
+            _date_field(row, "next_due"),
+            _ccy_field(row, currency),
+        )
         if effect >= 0:
             monthly_in += effect
         else:
@@ -131,20 +150,39 @@ def recurring_monthly_totals(
     )
 
 
-def planned_totals(rows: Iterable[Mapping[str, object]], currency: str) -> PlannedTotals:
+def planned_totals(
+    rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
+) -> PlannedTotals:
     """Count pending planned rows and sum their direction-signed net (ADR-0008).
 
     Rows carry ``amount_minor``, ``is_promoted`` and a ``category`` with a
     direction. Promoted rows are already in the ledger and are excluded from
-    both the count and the net; rows without a direction add nothing.
+    both the count and the net; rows without a direction add nothing. Each
+    amount is converted to ``currency`` (the base) at its ``operation_date`` via
+    ``base_of`` (ADR-0006, ADR-0139); a missing rate raises ``FxUnavailableError``.
     """
     pending = [row for row in rows if not row.get("is_promoted")]
     net = 0
     for row in pending:
         direction = _direction_of(row)
         if direction is not None:
-            net += signed_effect(_int_field(row, "amount_minor"), direction)
+            net += base_of(
+                signed_effect(_int_field(row, "amount_minor"), direction),
+                _date_field(row, "operation_date"),
+                _ccy_field(row, currency),
+            )
     return PlannedTotals(count=len(pending), net_minor=net, net_display=format_money(net, currency))
+
+
+def view_strips(
+    view: str, rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
+) -> tuple[RecurringTotals | None, PlannedTotals | None]:
+    """The strip for the Ledger ``view`` (recurring or planned); ``None`` for the other views."""
+    if view == "recurring":
+        return recurring_monthly_totals(rows, currency, base_of), None
+    if view == "planned":
+        return None, planned_totals(rows, currency, base_of)
+    return None, None
 
 
 __all__ = [
@@ -156,4 +194,5 @@ __all__ = [
     "planned_totals",
     "recurring_monthly_totals",
     "signed_effect",
+    "view_strips",
 ]

@@ -105,7 +105,6 @@ ALLOWLIST: dict[str, int] = {
     "tests/integration/web/test_ellipsis_coverage_gaps.py": 7,
     "tests/integration/web/test_fx_unavailable.py": 1,
     "tests/integration/web/test_input_boundaries.py": 1,
-    "tests/integration/web/test_ledger_strips_signed.py": 2,
     "tests/integration/web/test_plan.py": 15,
     "tests/integration/web/test_planned.py": 11,
     "tests/integration/web/test_reconcile_category_direction.py": 1,

@@ -82,6 +82,18 @@ class FxConverter:
             amount_minor, currency, self.base_currency, self.rate_for(currency, on_date)
         )
 
+    def to_currency(
+        self, amount_minor: int, from_ccy: str, to_ccy: str, on_date: dt.date | None = None
+    ) -> int:
+        """``amount_minor`` of ``from_ccy`` in ``to_ccy`` minor units, pivoting through base."""
+        if from_ccy == to_ccy:
+            return amount_minor
+        in_base = self.to_base(amount_minor, from_ccy, on_date)
+        if to_ccy == self.base_currency:
+            return in_base
+        inverse = Decimal(1) / self.rate_for(to_ccy, on_date)
+        return rescale_minor(in_base, self.base_currency, to_ccy, inverse)
+
 
 def build_converter(
     base_currency: str, today: dt.date, rates: Iterable[tuple[str, dt.date, Decimal]]
