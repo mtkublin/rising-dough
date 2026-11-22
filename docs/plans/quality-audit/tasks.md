@@ -747,7 +747,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `hygiene`:145 (61 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/hygiene.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q272 [S] Every inline suppression carries a reason or is deleted; per-code ceilings reach zero
+### ✅ T-Q272 [S] Every inline suppression carries a reason or is deleted; per-code ceilings reach zero
 - Findings: Q-048 (suppression half), inventory P11 (compliance-inventory section 12); epic E14.
 - Epic: E14
 - Band: 4 · Size: M · Tags: none

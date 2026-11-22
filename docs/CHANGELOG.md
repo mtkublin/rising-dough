@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q272: every inline suppression carries a reason)
+- **Refactor(T-Q272): `suppressions.toml` entries deleted (8 entries), ceilings stay zero (Q-048; ADR-0130 amendment 2026-11-22).** Typed fix in `recurring_formula._parse_sign`, imports hoisted, named year/month ranges in the recurring router, `ConflictError.__str__` removed and the other error `__str__` methods tested (`tests/unit/domain/test_errors.py`); remaining suppressions got same-line reasons.
+
 ## 2026-11-22 (SYNC-MAIN: main merged into remediation/quality)
 - **Chore(SYNC-MAIN): merged `origin/main` (PR #42, ui-test-harness) into `remediation/quality`.** Both sides kept: main's harness (contract suite, ui_map, journeys, crawler, `--target`, per-browser xfails) and all remediation changes. Redesign-scope ADR renumbered 0132 to 0134 (collided with the CI-environments ADR-0132; fills the gap, `TEMPORARY_GAPS` deleted). `POST /recurring/formula/preview` and its partial restored (the recurring form calls it again; ADR-0056 amendment). Tests for routes removed by T-Q244/T-Q257 deleted from main's contract/crawl suites; `/afford` contract cases point at `/today/afford`. New markup-assertion guard allowlist seeded with the remediation-side test counts (migrate to ui_map to shrink). Audit: `docs/audits/2026-11-22-sync-main.md`.
 

@@ -147,3 +147,10 @@ The closing gate (T-Q232) passes with one carve-out: `tests/architecture/allowli
 ## Amendment 2026-11-22 (T-Q270): cyclomatic-complexity ceiling wired
 
 The "cyclomatic-complexity gate: deferred" alternative above is superseded. `xenon --max-absolute C src` (dev dependency `xenon`, which brings `radon`) runs as the pre-commit hook `xenon` and in `just lint`; CI runs it through `pre-commit run --all-files` (Decision 8). Any function ranked D or worse (cyclomatic complexity > 20) fails. The tree passed at wiring time with no allowlist and no suppression. The G25 `cc>=11` ratchet (own approximation, stricter) stays for the remaining `recurring.py` entries.
+
+## Amendment 2026-11-22 (T-Q272): suppressions all carry a reason; allowlist empty
+
+- **Result.** `tests/architecture/allowlists/suppressions.toml` has no `[[entry]]` rows (8 deleted, 12 violations); `[ceilings]` stays at zero for `PLC0415`, `PLR0917`, `DTZ011`. No `[[permanent]]` row is needed: every surviving suppression carries its reason on the same line, which is what G4 checks.
+- **Fixed by code.** `recurring_formula._parse_sign` narrows to a literal (no `type: ignore`); the two mid-module imports moved to the top (no `noqa: E402`); year and month range checks in `web/routers/recurring.py` use named `range` constants (no `noqa: PLR2004`); `domain/errors.py` drops `ConflictError.__str__` (the base class already prints the message) and covers the other three `__str__` methods with `tests/unit/domain/test_errors.py` (no `pragma: no cover`).
+- **Kept, with reason.** `config.py` `type: ignore[pydantic-alias]` on the two `AliasChoices` fields (mypy plugin rejects a dynamic alias on a field that has a default; removing it fails `mypy --strict`); `web/deps.py` `noqa: B008` (FastAPI `Depends` default); `__main__` guards `pragma: no cover` in `db/migrate.py` and `db/seed.py`.
+- **Per-file-ignores.** Every `pyproject.toml` per-file-ignore already carries a reason comment; none removed.
