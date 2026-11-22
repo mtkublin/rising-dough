@@ -54,3 +54,9 @@ Terraform declares the complete host state; a small agent on the host converges 
 - **Fix the SSH deploy (T-D127 + state dir + compose `${APP_TAG}` + cosign on host).** Works, but keeps a second, push-based path next to Terraform, and every non-image change still needs a VM replace or hand edit.
 - **Replace the VM on every release.** Quota 1 means downtime and no fallback VM; Let's Encrypt duplicate-certificate limit (5/week).
 - **Terraform `remote-exec` provisioner.** Provisioners are a last resort (tainted resources on failure), and the prod Terraform identity would also need root SSH on the host, breaking the ADR-0100 split.
+
+## Amendment 2026-11-22 (T-Q305): failure detail in the status file; stale network cleanup
+
+- `status.json` (public at `/.well-known/bp-deploy-status.json`) gains `error_detail`: for a `compose` failure only, one line of the compose stderr (the first line that looks like an error, else the last line), every `NAME=value` pair redacted to `NAME=<redacted>`, at most 200 characters. All other error codes carry an empty detail. Reason: v3.1.0 failed with the bare `"error": "compose"` and nobody could diagnose it without the host journal. The full stderr stays in the journal.
+- After a successful `compose up` the agent removes the legacy network `budget-planner_edge` (`docker network rm`), best effort: any failure is ignored, because the network may be gone already or still in use. It never runs `down`, never uses `-v`, and never touches volumes. See the ADR-0133 amendment of the same date.
+- Before `compose up` the agent removes a `budget-planner-caddy` container that is not on the host network (frees 80/443 for the host-networked Caddy). If `up` fails it runs `compose rm --force --stop` once and retries `up`; a second failure is reported as `compose`. Volumes are never removed.

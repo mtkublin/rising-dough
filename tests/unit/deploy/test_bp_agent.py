@@ -92,6 +92,11 @@ class FakeRunner:
         ready_ok: bool = True,
         litestream: list[bool] | None = None,
         stop_ok: bool = True,
+        *,
+        network_rm_ok: bool = True,
+        compose_error: str = "",
+        caddy_mode: str = "host",
+        up_failures: int = 0,
     ) -> None:
         self.running = running
         self.verify_ok = verify_ok
@@ -99,6 +104,10 @@ class FakeRunner:
         # T-D157: answers to `docker inspect {{.State.Running}} litestream`, in order.
         self.litestream = list(litestream) if litestream is not None else []
         self.stop_ok = stop_ok
+        self.network_rm_ok = network_rm_ok
+        self.compose_error = compose_error
+        self.caddy_mode = caddy_mode
+        self.up_failures = up_failures
         self.calls: list[list[str]] = []
 
     def __call__(
@@ -107,11 +116,20 @@ class FakeRunner:
         args = list(cmd)
         self.calls.append(args)
         rc, out = 0, ""
-        if args[:2] == ["docker", "inspect"] and "{{.State.Running}}" in args:
+        if args[:2] == ["docker", "inspect"] and "{{.HostConfig.NetworkMode}}" in args:
+            out = self.caddy_mode + "\n"
+        elif args[:2] == ["docker", "inspect"] and "{{.State.Running}}" in args:
             up = self.litestream.pop(0) if self.litestream else True
             out = "true\n" if up else "false\n"
         elif args[:2] == ["docker", "inspect"]:
             rc, out = (0, self.running + "\n") if self.running else (1, "")
+        elif args[:3] == ["docker", "network", "rm"]:
+            rc = 0 if self.network_rm_ok else 1
+        elif args[:3] == ["docker", "compose", "-f"] and "up" in args and self.up_failures > 0:
+            self.up_failures -= 1
+            return subprocess.CompletedProcess(args, 1, "", "not connected to the network")
+        elif args[:3] == ["docker", "compose", "-f"] and self.compose_error and "up" in args:
+            return subprocess.CompletedProcess(args, 1, "", self.compose_error)
         elif args[:3] == ["docker", "compose", "-f"] and "stop" in args:
             rc = 0 if self.stop_ok else 1
         elif "verify" in args:
@@ -127,6 +145,8 @@ class FakeRunner:
         for c in self.calls:
             if c[:2] == ["docker", "compose"]:
                 out.append("compose " + c[4])
+            elif c[:3] == ["docker", "network", "rm"]:
+                out.append("network rm")
             elif "verify" in c:
                 out.append("verify")
             else:
@@ -257,7 +277,9 @@ def test_fresh_host_verifies_writes_composes_and_reports_ok(
         "inspect",
         "verify",
         "compose pull",
+        "inspect",
         "compose up",
+        "network rm",
         "compose restart",
         "curl",
         "inspect",
@@ -273,6 +295,7 @@ def test_fresh_host_verifies_writes_composes_and_reports_ok(
         "previous_ref": OLD_REF,
         "running_ref": REF,
         "error": "",
+        "error_detail": "",
         "restore": None,
         "drain": None,
         "updated_at": "",
@@ -709,3 +732,106 @@ def test_apply_rejects_off_main_sha_before_touching_files(
     assert host(doc, FakeRunner()) == 1
     assert _status(tmp_path)["error"] == "ancestry_not_main"
     assert not (tmp_path / "etc" / "docker-compose.yml").exists()
+
+
+# --- T-Q305: legacy network cleanup and scrubbed failure detail ------------
+
+
+def test_up_removes_the_legacy_network_without_down_or_volumes(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    runner = FakeRunner()
+
+    host(_doc(tmp_path), runner)
+
+    assert ["docker", "network", "rm", "budget-planner_edge"] in runner.calls
+    assert not any("down" in c or "-v" in c for c in runner.calls)
+
+
+def test_legacy_network_removal_failure_is_ignored(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    runner = FakeRunner(network_rm_ok=False)
+
+    rc = host(_doc(tmp_path), runner)
+
+    assert rc == 0
+    assert _status(tmp_path)["state"] == "ok"
+
+
+def test_compose_failure_publishes_a_scrubbed_one_line_detail(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    stderr = (
+        " Container budget-planner-app  Recreate\n"
+        "Error response from daemon: network budget-planner_edge has active "
+        "endpoints BUDGET_COOKIE_SECRET=hunter2 SCW_SECRET_KEY=abc\n"
+        "second error line\n"
+    )
+    runner = FakeRunner(compose_error=stderr)
+
+    rc = host(_doc(tmp_path), runner)
+
+    status = _status(tmp_path)
+    assert rc == 1
+    assert status["error"] == "compose"
+    detail = status["error_detail"]
+    assert detail.startswith("Error response from daemon: network budget-planner_edge")
+    assert "hunter2" not in detail
+    assert "abc" not in detail
+    assert "BUDGET_COOKIE_SECRET=<redacted>" in detail
+    assert "\n" not in detail
+
+
+def test_scrub_detail_caps_length_and_handles_empty() -> None:
+    assert agent.scrub_detail("") == ""
+    assert len(agent.scrub_detail("error " + "x" * 500)) == agent.DETAIL_MAX_CHARS
+    assert agent.scrub_detail("pulling\ndone") == "done"
+
+
+def test_non_compose_failures_carry_no_detail(tmp_path: Path, host: Callable[..., int]) -> None:
+    host(_doc(tmp_path), FakeRunner(ready_ok=False))
+
+    assert _status(tmp_path)["error_detail"] == ""
+
+
+def test_bridged_caddy_is_removed_before_up_to_free_80_and_443(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    runner = FakeRunner(caddy_mode="edge")
+
+    host(_doc(tmp_path), runner)
+
+    rm = runner.calls.index(["docker", "rm", "--force", "budget-planner-caddy"])
+    up = next(i for i, c in enumerate(runner.calls) if "up" in c)
+    assert rm < up
+
+
+def test_host_networked_caddy_is_left_alone(tmp_path: Path, host: Callable[..., int]) -> None:
+    runner = FakeRunner(caddy_mode="host")
+
+    host(_doc(tmp_path), runner)
+
+    assert not any(c[:3] == ["docker", "rm", "--force"] for c in runner.calls)
+
+
+def test_failed_up_recreates_containers_once_and_retries(
+    tmp_path: Path, host: Callable[..., int]
+) -> None:
+    runner = FakeRunner(up_failures=1)
+
+    rc = host(_doc(tmp_path), runner)
+
+    assert rc == 0
+    rm = [c for c in runner.calls if "rm" in c and "compose" in c]
+    assert len(rm) == 1
+    assert "-v" not in rm[0]
+    assert "--volumes" not in rm[0]
+    assert sum(1 for c in runner.calls if "up" in c) == 2
+
+
+def test_second_up_failure_is_reported(tmp_path: Path, host: Callable[..., int]) -> None:
+    rc = host(_doc(tmp_path), FakeRunner(up_failures=2))
+
+    assert rc == 1
+    assert _status(tmp_path)["error"] == "compose"
