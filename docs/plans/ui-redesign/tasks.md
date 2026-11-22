@@ -2,6 +2,17 @@
 
 > **After the redesign, `tests/architecture/allowlists/template_logic.toml` must be empty (burned to zero, ADR-0130 amendment 2026-11-21); new templates add no entries.** Remediation T-Q237 and T-Q273 only burn down templates that survive the redesign; every other entry is deleted by this plan (surface tasks flip `removal.md` rows to `deleted` and delete the matching `template_logic.toml` entries; T-UR15 is not done while the file has an entry).
 
+> **Transfer note (T-Q273, 2026-11-22): `template_logic.toml` holds 83 entries over 55 old templates; none survives, so remediation burned none.** Each surface task deletes the entries of the templates it removes (rule counts are one per expression; the new templates must not reproduce them: compute in the view model, use the `money` / `money_num` / `pct` / named date filters, no `{% set %}`, no literal currency codes, no `|float`).
+> | Owner | Entries (templates) |
+> |---|---|
+> | T-UR04 (shared) | `_partials/combobox`, `_partials/segmented`, `_partials/components/{_amount,_button,_direction_badge,_heatmap_cell,_pace_tag,_period_header,_pill,_planned_net,_progress_bar,_segmented,_sparkline,_top_bar_add}`, `partials/{_flash,_nav,_pagination,_tabbar}`, `partials/transactions/{_form,_table}` |
+> | T-UR06 | `errors/{404,409,422,500}` |
+> | T-UR08 | `accounts/index`, `partials/accounts/{_card,_reconcile_modal,_row,_snapshot_item}` |
+> | T-UR09, T-UR10 | `ledger/{index,_table,_recently_deleted}`, `partials/planned/{_form,_promote_inline_row,_row}`, `partials/recurring/{_form,_override_form,_promote_inline_row,_row}`, `recurring/index` |
+> | T-UR13 | `partials/categories/_form`, `settings/{_drawer,_fx,_tabs,index}` |
+> | T-UR14 | `settings/{_password_form,security}`, `settings/users/{_password-toast,_row,list}` |
+> | T-UR15 | `dev/components` (3 currency literals; port from the handoff) |
+
 > Plan: [README.md](README.md). Decision: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Handoff: `docs/design/rising-dough-frontend/` (its `README.md` is required reading for every task).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-URxx` depends on upstream task.
 > Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first).
