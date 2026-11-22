@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
-from budget_planner.web.routers.auth import RATE_LIMITED_LOGIN_ERROR
+from budget_planner.web.auth_flow import RATE_LIMITED_LOGIN_ERROR
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
 from tests.db_template import sqlite_url
 from tests.ui_map import _html, auth

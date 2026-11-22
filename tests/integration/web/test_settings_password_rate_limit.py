@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.web.app import create_app
-from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
+from budget_planner.web.password_flow import THROTTLED_FORM_ERROR
 from tests.auth_support import TEST_PASSWORD, login_cookie
 from tests.db_template import sqlite_url
 from tests.integration.web.conftest import _CSRFAwareTestClient
