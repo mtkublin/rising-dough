@@ -7,90 +7,27 @@ Parses form input, calls the service / repo, renders Jinja fragments.
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
-from typing import Any
+from datetime import date
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.domain.enums import Direction
-from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
-from budget_planner.domain.money import parse_amount_str, to_minor_units
-from budget_planner.domain.transactions import (
-    NewTransaction,
-    PatchTransaction,
-    TransactionFilter,
-    signed_legs,
-)
+from budget_planner.domain.transactions import NewTransaction, PatchTransaction
 from budget_planner.services import (
     accounts as accounts_service,
-    balance as balance_service,
     categories as categories_service,
     export as export_service,
     transactions as transactions_service,
 )
-from budget_planner.services.account_pair import validate_distinct_accounts
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
+from budget_planner.services.limit_preview import compute_limit_preview
+from budget_planner.web import entry_forms, ledger_data
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
-from budget_planner.web.params import parse_date, parse_int, positive_amount
+from budget_planner.web.params import parse_int
 from budget_planner.web.rendering import render
-from budget_planner.web.routers.ledger import render_table_for
-
-
-@dataclass(frozen=True, slots=True)
-class LimitPreview:
-    """Projected utilisation snapshot for the transaction form (ADR-0024)."""
-
-    projected_balance: int
-    available_after: int
-    used_after: int
-    limit: int
-    over_by: int
-    currency: str
-
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
-
-def parse_filter(request: Request) -> TransactionFilter:
-    """Parse the shared filter query params. Public — reused by T-038."""
-    q = request.query_params
-    account_id = parse_int(q.get("account_id"))
-    category_id = parse_int(q.get("category_id"))
-    description = q.get("q") or None
-    return TransactionFilter(
-        date_from=parse_date(q.get("date_from")),
-        date_to=parse_date(q.get("date_to")),
-        account_ids=(account_id,) if account_id is not None else (),
-        category_ids=(category_id,) if category_id is not None else (),
-        amount_min=parse_int(q.get("min_amount")),
-        amount_max=parse_int(q.get("max_amount")),
-        description_contains=description,
-    )
-
-
-def _hydrate_rows(conn: sqlite3.Connection, user_id: int, rows: list[Any]) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
-    accts = {a.id: a for a in accounts_service.list_all(conn, user_id, include_deleted=True)}
-    out: list[dict[str, Any]] = []
-    for r in rows:
-        cat = cats.get(r.category_id)
-        acc = accts.get(r.account_id)
-        dest = accts.get(r.dest_account_id) if r.dest_account_id is not None else None
-        out.append(
-            {
-                "id": r.id,
-                "operation_date": r.operation_date,
-                "amount": r.amount,
-                "description": r.description,
-                "category": cat,
-                "account": acc,
-                "dest_account": dest,
-                "currency": acc.currency if acc else "",
-            }
-        )
-    return out
 
 
 @router.get("")
@@ -105,46 +42,10 @@ def list_page() -> RedirectResponse:
     return RedirectResponse(url="/ledger?view=actual", status_code=302)
 
 
-def _compute_limit_preview(
-    conn: sqlite3.Connection, user_id: int, account_id: int, category_id: int, amount_raw: str
-) -> LimitPreview | None:
-    """Project post-transaction utilization for a liability account.
-
-    Soft-failing by design: any missing/unparseable input returns ``None`` so
-    the fragment stays blank and the user can keep editing (ADR-0024).
-    """
-    acc = accounts_service.find_by_id(conn, user_id, account_id)
-    if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
-        return None
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if cat is None:
-        return None
-    dec = parse_amount_str(amount_raw, acc.currency)
-    if dec is None or dec <= 0:
-        return None
-    amount_minor = to_minor_units(dec, acc.currency)
-    current = balance_service.derive_balance(conn, user_id, account_id)
-    direction = cat.direction
-    # Only the source leg matters for this account; a transit's destination is irrelevant here.
-    delta = signed_legs(direction, amount_minor, account_id, account_id)[0].amount_minor
-    projected = current + delta
-    limit = acc.credit_limit_minor
-    used_after = max(-projected, 0)
-    available_after = max(limit - used_after, 0)
-    over_by = max(used_after - limit, 0)
-    return LimitPreview(
-        projected_balance=projected,
-        available_after=available_after,
-        used_after=used_after,
-        limit=limit,
-        over_by=over_by,
-        currency=acc.currency,
-    )
-
-
 @router.get("/_limit_preview", response_class=HTMLResponse)
-def limit_preview(  # noqa: PLR0917
+def limit_preview(
     request: Request,
+    *,
     account_id: str = "",
     category_id: str = "",
     amount: str = "",
@@ -153,9 +54,11 @@ def limit_preview(  # noqa: PLR0917
 ) -> HTMLResponse:
     acc_id = parse_int(account_id)
     cat_id = parse_int(category_id)
-    preview: LimitPreview | None = None
+    preview = None
     if acc_id is not None and cat_id is not None:
-        preview = _compute_limit_preview(conn, user_id, acc_id, cat_id, amount)
+        preview = compute_limit_preview(
+            conn, user_id, account_id=acc_id, category_id=cat_id, amount_raw=amount
+        )
     return render(request, "partials/transactions/_limit_preview.html", preview=preview)
 
 
@@ -163,7 +66,9 @@ def limit_preview(  # noqa: PLR0917
 def table_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> HTMLResponse:
     """Legacy fragment alias (T-064).
 
@@ -171,7 +76,9 @@ def table_fragment(
     HTMX scripts keep working. The response shape (``#txn-table`` container,
     row ids ``#txn-{id}``) is preserved by the ledger template.
     """
-    return render_table_for(request, conn, user_id, "actual")
+    return ledger_data.render_table_for(
+        request, conn, user_id, settings=settings, view="actual", today=today
+    )
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -198,8 +105,9 @@ def new_form(
 
 
 @router.post("")
-def create_txn(  # noqa: PLR0917
+def create_txn(
     request: Request,
+    *,
     operation_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
@@ -207,46 +115,19 @@ def create_txn(  # noqa: PLR0917
     description: str = Form(""),
     dest_account_id: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),  # noqa: ARG001
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    errors: dict[str, str] = {}
-    if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
-        errors["description"] = too_long
-    op_date = parse_date(operation_date)
-    if op_date is None:
-        errors["operation_date"] = "invalid date"
-    acc = accounts_service.find_by_id(conn, user_id, account_id)
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if acc is None:
-        errors["account_id"] = "unknown account"
-    if cat is None:
-        errors["category_id"] = "unknown category"
-    minor: int | None = None
-    if acc is not None:
-        minor, err = positive_amount(amount, acc.currency)
-        if err is not None:
-            errors["amount"] = err
-    dest_id: int | None = None
-    if cat is not None and cat.direction == Direction.TRANSIT:
-        parsed = parse_int(dest_account_id) if dest_account_id else None
-        if dest_account_id and parsed is None:
-            errors["dest_account_id"] = "invalid destination"
-        elif acc is not None:
-            try:
-                transactions_service.check_transit_shape(
-                    conn,
-                    user_id,
-                    direction=cat.direction,
-                    account_id=account_id,
-                    dest_account_id=parsed,
-                )
-            except transactions_service.ValidationError as exc:
-                errors["dest_account_id"] = str(exc)
-            else:
-                dest_id = parsed
-
-    if errors:
+    check = entry_forms.check_txn_create(
+        conn,
+        user_id,
+        operation_date=operation_date,
+        category_id=category_id,
+        account_id=account_id,
+        amount=amount,
+        description=description,
+        dest_account_id=dest_account_id,
+    )
+    if check.errors:
         return render(
             request,
             "partials/transactions/_form.html",
@@ -255,29 +136,24 @@ def create_txn(  # noqa: PLR0917
             txn=None,
             categories=categories_service.list_all(conn, user_id),
             accounts=accounts_service.list_all(conn, user_id),
-            errors=errors,
+            errors=check.errors,
             status_code=422,
         )
-
-    assert op_date is not None and minor is not None
+    assert check.op_date is not None and check.minor is not None
     new_txn = transactions_service.create(
         conn,
         user_id,
         NewTransaction(
-            operation_date=op_date,
+            operation_date=check.op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=minor,
+            amount=check.minor,
             description=description,
-            dest_account_id=dest_id,
+            dest_account_id=check.dest_id,
         ),
     )
-    row = _hydrate_rows(conn, user_id, [new_txn])[0]
-    html = render(
-        request,
-        "partials/transactions/_row.html",
-        txn=row,
-    )
+    row = ledger_data.hydrate_txn_rows(conn, user_id, [new_txn])[0]
+    html = render(request, "partials/transactions/_row.html", txn=row)
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's Add overlay, not just the ledger: no
     # row insert; the ledger refetches on `ledger-stale`, other pages reload.
@@ -323,9 +199,10 @@ def edit_form(
 
 
 @router.post("/{txn_id}")
-def update_txn(  # noqa: PLR0917
+def update_txn(
     txn_id: int,
     request: Request,
+    *,
     operation_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
@@ -348,43 +225,18 @@ def update_txn(  # noqa: PLR0917
             errors={"txn": "not found"},
             status_code=404,
         )
-    acc = accounts_service.find_by_id(conn, user_id, account_id)
-    errors: dict[str, str] = {}
-    if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
-        errors["description"] = too_long
-    op_date = parse_date(operation_date)
-    if op_date is None:
-        errors["operation_date"] = "invalid date"
-    if acc is None:
-        errors["account_id"] = "unknown account"
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if cat is None:
-        errors["category_id"] = "unknown category"
-    # Submitted destination wins; else the stored one still applies.
-    submitted_dest = parse_int(dest_account_id) if dest_account_id else None
-    effective_dest = submitted_dest if submitted_dest is not None else existing.dest_account_id
-    if dest_account_id and submitted_dest is None:
-        errors["dest_account_id"] = "invalid destination"
-    elif acc is not None and cat is not None:
-        try:
-            transactions_service.check_transit_shape(
-                conn,
-                user_id,
-                direction=cat.direction,
-                account_id=account_id,
-                dest_account_id=effective_dest,
-            )
-        except transactions_service.ValidationError as exc:
-            errors["dest_account_id"] = str(exc)
-    same = validate_distinct_accounts(account_id, effective_dest)
-    if same is not None:
-        errors["dest_account_id"] = same
-    minor: int | None = None
-    if acc is not None:
-        minor, err = positive_amount(amount, acc.currency)
-        if err is not None:
-            errors["amount"] = err
-    if errors:
+    check = entry_forms.check_txn_update(
+        conn,
+        user_id,
+        existing_dest_id=existing.dest_account_id,
+        operation_date=operation_date,
+        category_id=category_id,
+        account_id=account_id,
+        amount=amount,
+        description=description,
+        dest_account_id=dest_account_id,
+    )
+    if check.errors:
         return render(
             request,
             "partials/transactions/_form.html",
@@ -393,22 +245,21 @@ def update_txn(  # noqa: PLR0917
             txn=existing,
             categories=categories_service.list_all(conn, user_id),
             accounts=accounts_service.list_all(conn, user_id),
-            errors=errors,
+            errors=check.errors,
             status_code=422,
         )
-    assert op_date is not None and minor is not None
-    dest_id_val = parse_int(dest_account_id) if dest_account_id else None
+    assert check.op_date is not None and check.minor is not None
     transactions_service.update(
         conn,
         user_id,
         txn_id,
         PatchTransaction(
-            operation_date=op_date,
+            operation_date=check.op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=minor,
+            amount=check.minor,
             description=description,
-            dest_account_id=dest_id_val,
+            dest_account_id=check.dest_id,
         ),
     )
     # The edit form is hosted by every page (T-D151): no row swap; the ledger
@@ -448,21 +299,22 @@ def export(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> Response:
     fmt = request.query_params.get("format", "csv")
-    flt = parse_filter(request)
+    flt = ledger_data.parse_txn_filter(request)
     rows = transactions_service.list_filtered(conn, user_id, flt)
-    hydrated = _hydrate_rows(conn, user_id, rows)
-    export_rows: list[dict[str, Any]] = [
+    hydrated = ledger_data.hydrate_txn_rows(conn, user_id, rows)
+    export_rows = [
         {
-            "id": r["id"],
-            "operation_date": r["operation_date"],
-            "amount_minor": r["amount"],
-            "currency": r["currency"],
-            "description": r["description"] or "",
-            "category": r["category"].name if r["category"] else "",
-            "account": r["account"].name if r["account"] else "",
-            "dest_account": r["dest_account"].name if r["dest_account"] else "",
+            "id": r.id,
+            "operation_date": r.operation_date,
+            "amount_minor": r.amount,
+            "currency": r.currency,
+            "description": r.description or "",
+            "category": r.category.name if r.category else "",
+            "account": r.account.name if r.account else "",
+            "dest_account": r.dest_account.name if r.dest_account else "",
         }
         for r in hydrated
     ]
@@ -476,7 +328,7 @@ def export(
         export_service.ExportColumn(key="account", header="account", kind="str"),
         export_service.ExportColumn(key="dest_account", header="dest_account", kind="str"),
     ]
-    stamp = today_for(request).strftime("%Y%m%d")
+    stamp = today.strftime("%Y%m%d")
     if fmt == "parquet":
         body = export_service.export_parquet(export_rows, columns)
         return Response(
