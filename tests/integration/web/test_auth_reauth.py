@@ -27,6 +27,7 @@ from budget_planner.services import auth as auth_service, reauth as reauth_servi
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
 from tests.auth_support import TEST_PASSWORD, seed_login_user
 from tests.db_template import sqlite_url
+from tests.ui_map import _html, auth
 
 pytestmark = pytest.mark.integration
 
@@ -210,9 +211,9 @@ def test_guard_ignores_foreign_referer(client: TestClient) -> None:
 def test_reauth_page_renders_without_passkey_button_when_none(client: TestClient) -> None:
     r = client.get("/auth/reauth?next=/settings/users")
     assert r.status_code == 200
-    assert 'name="password"' in r.text
-    assert "data-passkey-reauth" not in r.text
-    assert 'value="/settings/users"' in r.text
+    assert _html.exists(r.text, auth.reauth_password)
+    assert not _html.exists(r.text, auth.reauth_passkey)
+    assert _html.resolve_one(r.text, auth.reauth_cancel)["href"] == "/settings/users"
 
 
 def test_reauth_page_requires_session(anon_client: TestClient) -> None:
@@ -272,7 +273,7 @@ def test_wrong_password_is_generic_401_and_audited(
 ) -> None:
     r = client.post("/auth/reauth", data={"password": WRONG_PASSWORD, "next": "/today"})
     assert r.status_code == 401
-    assert "That password didn&#39;t work." in r.text or "That password didn't work." in r.text
+    assert _html.text_of(r.text, auth.reauth_error) == "That password didn't work."
     assert _token(client, session_cookie[0]) == session_cookie[1]  # not rotated
     failed = _rows(db, "reauth_failed")
     assert failed[-1]["method"] == "password"
@@ -298,7 +299,7 @@ def test_reauth_rate_limit_returns_429(client: TestClient, db: sqlite3.Connectio
     r = client.post("/auth/reauth", data={"password": TEST_PASSWORD}, follow_redirects=False)
     assert r.status_code == 429
     assert int(r.headers["retry-after"]) >= 1
-    assert "data-throttled" in r.text
+    assert _html.resolve_one(r.text, auth.reauth_error).has_attr("data-throttled")
     assert _rows(db, "rate_limited")[-1]["scope"] == "reauth"
 
 

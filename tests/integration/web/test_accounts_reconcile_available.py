@@ -10,6 +10,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import balance as balance_service
+from tests.ui_map import _html, accounts
 
 USER_ID = 1
 
@@ -44,10 +45,10 @@ def test_form_liability_with_limit_asks_available(client: TestClient, _migrated:
     card = _make_card(_migrated, limit=500_000)
     r = client.get(f"/accounts/{card}/reconcile")
     assert r.status_code == 200
-    assert ">Available<" in r.text
-    assert 'value="3765.44"' in r.text
-    assert "Limit 5,000.00" in r.text
-    assert "1,234.56" in r.text
+    assert _html.resolve_one(r.text, accounts.reconcile_available)["value"] == "3765.44"
+    help_text = _html.text_of(r.text, accounts.reconcile_available_help)
+    assert "Limit 5,000.00" in help_text
+    assert "1,234.56" in help_text
 
 
 def test_submit_sets_available(client: TestClient, _migrated: Settings) -> None:
@@ -55,7 +56,8 @@ def test_submit_sets_available(client: TestClient, _migrated: Settings) -> None:
     r = client.post(f"/accounts/{card}/reconcile", data={"actual_balance": "4000.00"})
     assert r.status_code == 200
     assert _balance(_migrated, card) == -100_000
-    assert "Available 4,000.00 ·" in client.get("/accounts").text
+    row = _html.text_of(client.get("/accounts").text, accounts.row(card))
+    assert "Available 4,000.00 ·" in row
 
 
 def test_available_equals_limit_zeroes_used(client: TestClient, _migrated: Settings) -> None:
@@ -75,14 +77,18 @@ def test_rejects_bad_available(client: TestClient, _migrated: Settings, value: s
 
 def test_liability_without_limit_enters_balance(client: TestClient, _migrated: Settings) -> None:
     card = _make_card(_migrated, limit=None)
-    assert ">Available<" not in client.get(f"/accounts/{card}/reconcile").text
+    html = client.get(f"/accounts/{card}/reconcile").text
+    assert not _html.exists(html, accounts.reconcile_available)
+    assert _html.exists(html, accounts.reconcile_actual)
     client.post(f"/accounts/{card}/reconcile", data={"actual_balance": "-200.00"})
     assert _balance(_migrated, card) == -20_000
 
 
 def test_asset_enters_balance(client: TestClient, _migrated: Settings) -> None:
     acc = _make_card(_migrated, limit=500_000, liability=False)
-    assert ">Available<" not in client.get(f"/accounts/{acc}/reconcile").text
+    assert not _html.exists(
+        client.get(f"/accounts/{acc}/reconcile").text, accounts.reconcile_available
+    )
     client.post(f"/accounts/{acc}/reconcile", data={"actual_balance": "50.00"})
     assert _balance(_migrated, acc) == 5_000
 

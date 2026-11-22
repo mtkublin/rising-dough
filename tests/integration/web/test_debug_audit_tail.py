@@ -97,7 +97,7 @@ def test_other_users_payload_is_scoped(admin_client: TestClient, db: sqlite3.Con
     assert entry["user_id"] == 2
     assert entry["prev"] == OTHER_USER
     assert entry["new"] == OTHER_USER
-    assert "private-marker" not in resp.text
+    assert "private-marker" not in json.dumps(resp.json())
 
 
 def test_non_admin_is_404(client: TestClient) -> None:
@@ -107,4 +107,4 @@ def test_non_admin_is_404(client: TestClient) -> None:
 def test_anonymous_is_not_served(anon_client: TestClient) -> None:
     resp = anon_client.get("/debug/audit-tail", follow_redirects=False)
     assert resp.status_code in {302, 303, 307, 401}
-    assert "entries" not in resp.text
+    assert b"entries" not in resp.content

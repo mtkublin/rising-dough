@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.ui_map import shell
+from tests.ui_map.locator import to_playwright
+
 pytestmark = pytest.mark.e2e
 
 
@@ -17,7 +20,7 @@ def test_back_button_after_logout_does_not_show_ledger(
     base_url, _ = live_server
     page.goto(f"{base_url}/ledger")
     expect(page).to_have_url(f"{base_url}/ledger")
-    page.locator('form[action="/auth/logout"] button').first.click()
+    to_playwright(page, shell.sign_out).first.click()
     expect(page).to_have_url(re.compile(r"/auth/login"))
 
     page.go_back()

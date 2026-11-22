@@ -105,6 +105,10 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - **Why.** ADR-0134 was written on `feat/ui-test-harness` (commit abbdc34) by another session and is not on `remediation/quality`. ADR-0135 (T-Q277) was numbered after it to avoid a collision, which leaves a transient gap on this branch. The ADR file must not be copied across branches. Every other gap still fails the guard.
 - **Removal trigger.** When ADR-0134 reaches `main` and `main` is merged into `remediation/quality`, delete the constant. The guard reports `stale-gap-exemption` as soon as an `0134-*.md` file exists, so the exemption cannot outlive its reason and that failure is the reminder.
 
+## Amendment 2026-11-22 (SYNC-MAIN): `TEMPORARY_GAPS` removed
+
+`origin/main` was merged into `remediation/quality`. The redesign-scope ADR (main numbered it 0132, which collided with this branch's CI-environments ADR-0132) is renumbered back to ADR-0134, filling the gap; `TEMPORARY_GAPS`, its `stale-gap-exemption` rule and test are deleted as the removal trigger above required.
+
 ## Amendment 2026-11-21 (operator): template-logic burn-down is finished by the redesign
 
 - **Decision D3.** The Sourdough redesign ([ADR-0107](0107-sourdough-redesign-from-designer-handoff.md)) deletes the old templates, so remediation does **not** burn down `tests/architecture/allowlists/template_logic.toml` entries for templates the redesign replaces. Remediation stops at templates that survive the redesign (T-Q237 and T-Q273 are re-scoped accordingly; their Q-ids stay traceable).

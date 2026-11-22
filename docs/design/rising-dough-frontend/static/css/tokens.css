@@ -76,6 +76,7 @@
   --font-size-dialog-hero: 56px;
   --font-size-display: 48px;
   --font-size-display-sm: 32px;
+  --font-size-auth-headline-sm: 34px; /* sign-in headline on phone */
   --font-size-auth-title: 28px;
   --font-size-error-title: 40px;
   --font-size-title: 24px;
@@ -97,6 +98,7 @@
   --font-size-icon: 18px;
   --font-size-close: 16px;
   --font-size-kv: 15px;
+  --font-size-secret: 18px;
   --font-size-heading: 14px;
   --font-size-body: 13px;
   --font-size-data: 12px;
@@ -113,6 +115,7 @@
   --line-height-tight: 1;
   --letter-spacing-caption: 0.04em;
   --letter-spacing-bar: 0.02em;
+  --letter-spacing-secret: 0.06em;
 
   /* ── space ── */
   --space-0: 0;
@@ -159,6 +162,7 @@
   --size-pct-h: 46px;
   --size-picker-list: 300px;
   --size-dialog-sm: 440px;
+  --size-dialog-md: 460px;
   --size-palette: 640px;
   --size-palette-w: 600px;
   --size-comp-dialog: 340px;
@@ -225,6 +229,8 @@
   --track-cat-actions: 180px;
   --track-session-actions: 140px;
   --track-user-status: 190px;
+  --track-user-role: 110px;
+  --track-user-seen: 150px;
   --size-anchor-select: 180px;
   --size-auth-form: 400px;
   --size-error-min: 300px;
