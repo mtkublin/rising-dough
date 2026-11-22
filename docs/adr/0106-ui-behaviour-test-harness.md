@@ -1,6 +1,6 @@
 # ADR-0106: UI Behaviour Test Harness Ahead of the Sourdough Redesign
 
-- **Status**: Accepted (implementation pending) (2026-11-21; operator question OQ-23 open, default applied)
+- **Status**: Accepted (2026-11-21; exit-gate result in [T-UT12](../plans/ui-test-harness/tasks.md))
 - **Date**: 2026-11-16
 - **Amends**: [ADR-0027](0027-frontend-toolchain-hardening.md) §4 (visual regression baselines)
 - **Relates to**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) (the redesign this harness protects), [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md)

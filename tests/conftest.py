@@ -34,6 +34,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.services import _passwords
 from tests.auth_support import FAST_ROUNDS
 from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
+from tests.e2e.mockup_target import pytest_addoption as _mockup_addoption
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
 # endpoint signature on that app's first request (~35% of ~87 ms CPU per app).
@@ -42,6 +43,11 @@ from tests.db_template import build_template, copy_template, db_path_of, sqlite_
 fastapi_dependency_utils.get_typed_signature = functools.cache(
     fastapi_dependency_utils.get_typed_signature
 )
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register ``--target`` (T-UT09) for every test; the e2e fixtures read it."""
+    _mockup_addoption(parser)
 
 
 _PROD_DB = (Path(__file__).resolve().parents[1] / "data" / "budget.sqlite").resolve()

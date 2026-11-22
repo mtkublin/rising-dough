@@ -20,6 +20,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, ledger
 
 USER_ID = 1
 
@@ -93,8 +94,8 @@ def test_planned_create_same_accounts_is_422_and_writes_nothing(
     before = _count(_migrated, "planned_transactions")
     r = client.post("/planned", data=_form(ctx, dest_account_id=ctx["acc"]))
     assert r.status_code == 422
-    assert "dest_account_id" in r.text
-    assert "must differ" in r.text
+    assert "dest_account_id" in _html.text_of(r.text, ledger.form_errors)
+    assert "must differ" in _html.text_of(r.text, ledger.form_errors)
     assert _count(_migrated, "planned_transactions") == before
 
 
@@ -105,7 +106,7 @@ def test_planned_update_same_accounts_is_422_and_keeps_row(
         f"/planned/{ctx['pl']}", data=_form(ctx, dest_account_id=ctx["acc"], amount="77")
     )
     assert r.status_code == 422
-    assert "must differ" in r.text
+    assert "must differ" in _html.text_of(r.text, ledger.form_errors)
     conn = get_connection(_migrated)
     try:
         row = planned_repo.find_by_id(conn, USER_ID, ctx["pl"])
@@ -118,7 +119,7 @@ def test_planned_update_same_accounts_is_422_and_keeps_row(
 def test_planned_update_onto_stored_dest_is_422(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(f"/planned/{ctx['pl']}", data=_form(ctx, account_id=ctx["other"]))
     assert r.status_code == 422
-    assert "must differ" in r.text
+    assert "must differ" in _html.text_of(r.text, ledger.form_errors)
 
 
 def test_transaction_create_transit_same_accounts_is_422(
@@ -130,11 +131,11 @@ def test_transaction_create_transit_same_accounts_is_422(
         data=_form(ctx, category_id=ctx["transit"], dest_account_id=ctx["acc"]),
     )
     assert r.status_code == 422
-    assert "must differ" in r.text
+    assert "must differ" in _html.text_of(r.text, ledger.form_errors)
     assert _count(_migrated, "transactions") == before
 
 
 def test_transaction_update_same_accounts_is_422(client: TestClient, ctx: dict[str, int]) -> None:
     r = client.post(f"/transactions/{ctx['txn']}", data=_form(ctx, dest_account_id=ctx["acc"]))
     assert r.status_code == 422
-    assert "must differ" in r.text
+    assert "must differ" in _html.text_of(r.text, ledger.form_errors)

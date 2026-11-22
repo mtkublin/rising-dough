@@ -17,7 +17,11 @@ from urllib.parse import urlsplit
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from budget_planner.web.middleware.csrf import CSRF_DEV_COOKIE_NAME
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD
+from tests.e2e import db_probe
+from tests.ui_map import auth, settings, shell
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -65,33 +69,50 @@ def _age_sessions(db_path: Path) -> None:
 
 def _password_login(page: Page) -> None:
     page.goto("/auth/login")
-    page.fill('input[name="email"]', TEST_EMAIL)
-    page.fill('input[name="password"]', TEST_PASSWORD)
-    page.locator('form button[type="submit"]').first.click()
+    to_playwright(page, auth.email).fill(TEST_EMAIL)
+    to_playwright(page, auth.password).fill(TEST_PASSWORD)
+    to_playwright(page, auth.sign_in).click()
     page.wait_for_url(lambda url: "/auth/login" not in url)
 
 
-def test_register_then_sign_in_with_passkey(localhost_page: Page) -> None:
+def test_register_then_sign_in_with_passkey(
+    localhost_page: Page, live_server: tuple[str, Path]
+) -> None:
     page = localhost_page
     _password_login(page)
 
     page.goto("/settings/security")
-    page.fill('form[data-passkey-register] input[name="label"]', "Virtual key")
-    page.click('form[data-passkey-register] button[type="submit"]')
+    _add_passkey(page, "Virtual key")
     page.wait_for_url("**/settings/security#passkeys")
-    expect(page.locator("#passkeys")).to_contain_text("Virtual key")
+    expect(to_playwright(page, settings.passkeys)).to_contain_text("Virtual key")
+    assert (
+        db_probe.scalar(
+            live_server[1],
+            "SELECT COUNT(*) FROM webauthn_credentials WHERE label = 'Virtual key'"
+            " AND deleted_at IS NULL",
+        )
+        == 1
+    )
 
-    page.locator('form[action="/auth/logout"] button').first.click()
+    to_playwright(page, shell.sign_out).first.click()
     page.wait_for_url("**/auth/login**")
 
-    page.click("[data-passkey-login]")
+    to_playwright(page, auth.passkey_sign_in).click()
     page.wait_for_url(lambda url: "/auth/login" not in url)
-    expect(page.locator("body")).not_to_contain_text("didn't work")
+    expect(to_playwright(page, auth.login_error)).to_have_count(0)
+    # DB: signing in with the passkey stamped its last use.
+    assert (
+        db_probe.scalar(
+            live_server[1],
+            "SELECT last_used_at IS NOT NULL FROM webauthn_credentials WHERE label = 'Virtual key'",
+        )
+        == 1
+    )
 
 
 def _add_passkey(page: Page, label: str) -> None:
-    page.fill('form[data-passkey-register] input[name="label"]', label)
-    page.click('form[data-passkey-register] button[type="submit"]')
+    to_playwright(page, settings.passkey_label).fill(label)
+    to_playwright(page, settings.add_passkey).click()
 
 
 def test_stale_session_adds_passkey_after_password_reauth(
@@ -106,14 +127,22 @@ def test_stale_session_adds_passkey_after_password_reauth(
 
     _add_passkey(page, "Behind the gate")
     page.wait_for_url("**/auth/reauth**")
-    expect(page.locator("[data-passkey-reauth]")).to_have_count(0)  # no passkey yet
-    page.fill('input[name="password"]', TEST_PASSWORD)
-    page.click('form[action="/auth/reauth"] button[type="submit"]')
+    expect(to_playwright(page, auth.reauth_passkey)).to_have_count(0)  # no passkey yet
+    to_playwright(page, auth.reauth_password).fill(TEST_PASSWORD)
+    to_playwright(page, auth.reauth_confirm).click()
     page.wait_for_url("**/settings/security")
 
     _add_passkey(page, "Behind the gate")
     page.wait_for_url("**/settings/security#passkeys")
-    expect(page.locator("#passkeys")).to_contain_text("Behind the gate")
+    expect(to_playwright(page, settings.passkeys)).to_contain_text("Behind the gate")
+    assert (
+        db_probe.scalar(
+            live_server[1],
+            "SELECT COUNT(*) FROM webauthn_credentials WHERE label = 'Behind the gate'"
+            " AND deleted_at IS NULL",
+        )
+        == 1
+    )
 
 
 def test_stale_session_reauths_with_passkey(
@@ -131,10 +160,12 @@ def test_stale_session_reauths_with_passkey(
     page.goto("/settings/security")
     _add_passkey(page, "Second key")  # same authenticator: bounced before the ceremony
     page.wait_for_url("**/auth/reauth**")
-    page.click("[data-passkey-reauth]")
+    to_playwright(page, auth.reauth_passkey).click()
     page.wait_for_url("**/settings/security")
-    expect(page.locator("[data-passkey-register]")).to_be_visible()
-    token = page.locator('meta[name="csrf-token"]').get_attribute("content") or ""
+    expect(to_playwright(page, settings.add_passkey)).to_be_visible()
+    token = next(
+        (c["value"] for c in page.context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME), ""
+    )
     resp = page.context.request.post("/auth/register/begin", headers={"X-CSRF-Token": token})
     assert resp.status == 200, "guard should pass right after passkey re-auth"
 
@@ -144,5 +175,5 @@ def test_ip_literal_host_explains_passkeys_need_localhost(
 ) -> None:
     base_url, _ = live_server
     page.goto(f"{base_url}/settings/security")
-    page.click('form[data-passkey-register] button[type="submit"]')
-    expect(page.locator("[data-passkey-status]")).to_contain_text("http://localhost")
+    to_playwright(page, settings.add_passkey).click()
+    expect(to_playwright(page, settings.passkeys)).to_contain_text("http://localhost")

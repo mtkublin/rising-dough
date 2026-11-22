@@ -1,0 +1,99 @@
+"""Formula preview chip on the recurring form (T-D-UT12-3, ADR-0056 §4, ADR-0047).
+
+Editing formula terms posts the draft to ``/recurring/formula/preview`` and swaps
+the chip next to the terms: the computed amount, or the inline error. The preview
+is a pure read: it never closes the slide-over and writes no row.
+"""
+
+from __future__ import annotations
+
+import pytest
+from playwright.sync_api import expect
+
+from tests.e2e.journeys._world import World, days_from_today
+from tests.ui_map import ledger
+from tests.ui_map.locator import Locator
+
+pytestmark = pytest.mark.e2e
+
+LEDGER_ALL_TIME = "/ledger?view=actual&date_from=2000-01-01&date_to=2099-12-31"
+LEDGER_RECURRING = "/ledger?view=recurring&date_from=2000-01-01&date_to=2099-12-31"
+
+
+def _pick(world: World, field: Locator, option: str) -> None:
+    box = world.find(ledger.overlay_field(field))
+    box.click()
+    box.fill(option)
+    world.find(ledger.combo_option(option)).click()
+
+
+def _open_formula_source(world: World, category: str) -> None:
+    """Pick a source in the newest term: its picker is the only one still reading "pick sources"."""
+    world.find(ledger.formula_pick_sources).click()
+    world.find(ledger.formula_source(category)).last.check()  # closed pickers are not visible
+
+
+def test_two_term_formula_shows_computed_preview(world: World) -> None:
+    account = world.account("Checking")
+    salary = world.category("Salary", "income")
+    bonus = world.category("Bonus", "income")
+    world.category("Savings", "expense")
+    world.rule(account, salary, "1000.00", "salary-rule")
+    world.rule(account, bonus, "200.00", "bonus-rule")
+    rules_before = world.scalar("SELECT COUNT(*) FROM recurring_rules")
+    world.goto(LEDGER_ALL_TIME)
+    world.find(ledger.add_new).click()
+    expect(world.find(ledger.slideover)).to_be_visible()
+    world.find(ledger.entry_tab("Repeats")).click()
+    expect(world.find(ledger.entry_tab("Repeats"))).to_have_attribute("aria-selected", "true")
+    _pick(world, ledger.field_category, "Savings")
+    _pick(world, ledger.field_account, "Checking")
+    world.find(ledger.amount_source_formula).dispatch_event("click")
+
+    _open_formula_source(world, "Salary")
+    world.find(ledger.formula_coefficient).nth(0).fill("50")
+    expect(world.find(ledger.formula_preview)).to_have_text("= 500.00")
+
+    world.find(ledger.add_term).click()
+    world.find(ledger.formula_sign_minus).nth(1).dispatch_event("click")  # sr-only radio
+    _open_formula_source(world, "Bonus")
+    world.find(ledger.formula_coefficient).nth(1).fill("10")
+    expect(world.find(ledger.formula_preview)).to_have_text("= 480.00")
+
+    expect(world.find(ledger.slideover)).to_be_visible()
+    assert world.scalar("SELECT COUNT(*) FROM recurring_rules") == rules_before
+
+
+def test_formula_cycle_shows_error_chip_and_keeps_edit_open(world: World) -> None:
+    account = world.account("Checking")
+    salary = world.category("Salary", "income")
+    savings = world.category("Savings", "expense")
+    rule_a = world.rule(account, salary, "1000.00", "salary-rule")
+    world.post(
+        "/recurring",
+        {
+            "cadence": "monthly",
+            "start_date": days_from_today(3),
+            "category_id": str(savings),
+            "account_id": str(account),
+            "amount_source": "formula",
+            "terms[0][sign]": "+",
+            "terms[0][coefficient_percent]": "10",
+            "terms[0][source_category_ids]": str(salary),
+            "default_description": "savings-rule",
+        },
+    )
+    audit_before = world.scalar("SELECT COUNT(*) FROM audit_log")
+    world.goto(LEDGER_RECURRING)
+    world.find(ledger.recurring_menu(rule_a)).click()
+    world.find(ledger.row_action("Edit")).click()
+    expect(world.find(ledger.slideover)).to_be_visible()
+    world.find(ledger.amount_source_formula).dispatch_event("click")
+    _open_formula_source(world, "Savings")
+    world.find(ledger.formula_coefficient).nth(0).fill("10")
+
+    chip = world.find(ledger.formula_preview)
+    expect(chip).to_contain_text(f"formula would create a cycle via rule {rule_a}")
+    expect(chip).to_have_attribute("data-code", "cycle")
+    expect(world.find(ledger.slideover)).to_be_visible()  # the preview did not close it
+    assert world.scalar("SELECT COUNT(*) FROM audit_log") == audit_before

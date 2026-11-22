@@ -10,21 +10,20 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e import db_probe
+from tests.ui_map import ledger, plan, shell, today
+from tests.ui_map.locator import Locator as UiLocator, to_playwright
 
 pytestmark = pytest.mark.e2e
-
-_PANEL = ".slide-over-root"
-_RULE_ROW = "tr[id^='recurring-']:not([id$='-expand'])"
 
 
 def _today() -> datetime:
     return datetime.now(tz=UTC)
 
 
-def _seed(base_url: str, page: Page) -> tuple[str, str]:
+def _seed(base_url: str, db_path: Path, page: Page) -> tuple[str, str]:
     assert page.request.post(
         f"{base_url}/accounts",
         form={"name": "Checking", "currency": "PLN", "opening_balance": "500.00"},
@@ -32,13 +31,9 @@ def _seed(base_url: str, page: Page) -> tuple[str, str]:
     assert page.request.post(
         f"{base_url}/categories", form={"name": "Groceries", "direction": "expense"}
     ).ok
-    page.goto(f"{base_url}/accounts")
-    account_id = strip_id_prefix(
-        page.locator("tr[id^='account-']").first.get_attribute("id"), "account-"
+    return str(db_probe.account_id(db_path, "Checking")), str(
+        db_probe.category_id(db_path, "Groceries")
     )
-    page.goto(f"{base_url}/settings?tab=categories")
-    row = page.locator("[id^='category-']", has_text="Groceries").first
-    return account_id, strip_id_prefix(row.get_attribute("id"), "category-")
 
 
 def _rule(base_url: str, page: Page, ids: tuple[str, str], cadence: str = "monthly") -> None:
@@ -74,47 +69,61 @@ def _ledger(base_url: str, view: str) -> str:
     return f"{base_url}/ledger?view={view}&date_from={lo}&date_to={hi}"
 
 
-def _kebab_item(page: Page, row_selector: str, name: str) -> None:
-    row = page.locator(row_selector).first
-    row.locator(".kebab__trigger").click()
-    row.get_by_role("menuitem", name=name).click()
+def _panel(page: Page) -> Locator:
+    result: Locator = to_playwright(page, shell.slideover)
+    return result
+
+
+def _kebab_item(page: Page, row: UiLocator, name: str) -> None:
+    to_playwright(page, ledger.row_kebab(row)).click()
+    to_playwright(page, ledger.row_menu_item(row, name)).click()
+
+
+def _fill_amount_and_save(
+    page: Page, panel_scope: UiLocator, amount: str, field: UiLocator = plan.override_amount
+) -> None:
+    to_playwright(page, field.inside(panel_scope)).fill(amount)
+    to_playwright(page, ledger.save.inside(panel_scope)).click()
 
 
 def test_today_override_recurring_saves_and_closes(
     live_server: tuple[str, Path], page: Page
 ) -> None:
-    base_url, _ = live_server
-    _rule(base_url, page, _seed(base_url, page))
+    base_url, db_path = live_server
+    _rule(base_url, page, _seed(base_url, db_path, page))
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
-    page.locator("#upcoming-root").get_by_role("button", name="Override").first.click()
-    panel = page.locator(_PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("input[name='amount']").fill("77.00")
-    panel.get_by_role("button", name="Save").click()
-    expect(page.locator(_PANEL)).to_have_count(0)
+    to_playwright(page, plan.override.inside(today.upcoming)).first.click()
+    expect(_panel(page)).to_be_visible()
+    _fill_amount_and_save(page, shell.slideover, "77.00")
+    expect(_panel(page)).to_have_count(0)
+    assert db_probe.scalar(db_path, "SELECT amount_override FROM recurring_rule_overrides") == 7700
     page.goto(_ledger(base_url, "recurring"))
-    assert "77.00" in page.content()
+    expect(to_playwright(page, ledger.table_container)).to_contain_text("77.00")
 
 
 def test_today_override_planned_saves_and_closes(live_server: tuple[str, Path], page: Page) -> None:
-    base_url, _ = live_server
-    _planned(base_url, page, _seed(base_url, page))
+    base_url, db_path = live_server
+    _planned(base_url, page, _seed(base_url, db_path, page))
     page.goto(f"{base_url}/today")
     assert page.evaluate("typeof window.htmx") == "object"
-    page.locator("#upcoming-root").get_by_role("button", name="Override").first.click()
-    panel = page.locator(_PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("input[name='amount']").fill("33.00")
-    panel.get_by_role("button", name="Save").click()
-    expect(page.locator(_PANEL)).to_have_count(0)
+    to_playwright(page, plan.override.inside(today.upcoming)).first.click()
+    expect(_panel(page)).to_be_visible()
+    _fill_amount_and_save(page, shell.slideover, "33.00", ledger.field_amount)
+    expect(_panel(page)).to_have_count(0)
+    assert (
+        db_probe.scalar(
+            db_path, "SELECT amount FROM planned_transactions WHERE description = 'edit-planned'"
+        )
+        == 3300
+    )
     page.goto(_ledger(base_url, "planned"))
-    assert "33.00" in page.content()
+    expect(to_playwright(page, ledger.table_container)).to_contain_text("33.00")
 
 
 def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], page: Page) -> None:
-    base_url, _ = live_server
-    account_id, category_id = _seed(base_url, page)
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
     assert page.request.post(
         f"{base_url}/transactions",
         form={
@@ -125,44 +134,46 @@ def test_ledger_txn_edit_closes_and_row_updates(live_server: tuple[str, Path], p
             "description": "edit-txn",
         },
     ).ok
+    tx = ledger.row(db_probe.txn_id(db_path, "edit-txn"))
     page.goto(_ledger(base_url, "actual"))
     assert page.evaluate("typeof window.htmx") == "object"
-    row_sel = "tr[id^='txn-']"
-    _kebab_item(page, row_sel, "Edit")
-    panel = page.locator(_PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("input[name='amount']").fill("99.00")
-    panel.get_by_role("button", name="Save").click()
-    expect(page.locator(_PANEL)).to_have_count(0)
-    expect(page.locator(row_sel).first).to_contain_text("99.00")
+    _kebab_item(page, tx, "Edit")
+    expect(_panel(page)).to_be_visible()
+    to_playwright(page, ledger.field_amount.inside(shell.slideover)).fill("99.00")
+    to_playwright(page, ledger.save.inside(shell.slideover)).click()
+    expect(_panel(page)).to_have_count(0)
+    expect(to_playwright(page, tx)).to_contain_text("99.00")
+    assert db_probe.txn_amounts(db_path, "edit-txn") == [9900]
 
 
 def test_ledger_planned_promote_closes(live_server: tuple[str, Path], page: Page) -> None:
-    base_url, _ = live_server
-    _planned(base_url, page, _seed(base_url, page))
+    base_url, db_path = live_server
+    _planned(base_url, page, _seed(base_url, db_path, page))
+    planned_row = ledger.planned_row(db_probe.planned_id(db_path, "edit-planned"))
     page.goto(_ledger(base_url, "planned"))
     assert page.evaluate("typeof window.htmx") == "object"
-    page.locator("tr[id^='planned-p-']").get_by_role("button", name="Promote").first.click()
-    panel = page.locator(_PANEL)
-    expect(panel).to_be_visible()
-    panel.get_by_role("button", name="Promote").click()
-    expect(page.locator(_PANEL)).to_have_count(0)
+    to_playwright(page, ledger.promote.inside(planned_row)).first.click()
+    expect(_panel(page)).to_be_visible()
+    to_playwright(page, ledger.promote.inside(shell.slideover)).click()
+    expect(_panel(page)).to_have_count(0)
+    assert db_probe.txn_amounts(db_path, "edit-planned") == [2500]
     page.goto(_ledger(base_url, "actual"))
-    expect(page.get_by_text("edit-planned").first).to_be_visible()
+    expect(to_playwright(page, ledger.table_container)).to_contain_text("edit-planned")
 
 
 def test_override_invalid_month_shows_error_in_panel(
     live_server: tuple[str, Path], page: Page
 ) -> None:
-    base_url, _ = live_server
-    _rule(base_url, page, _seed(base_url, page), cadence="quarterly")
+    base_url, db_path = live_server
+    _rule(base_url, page, _seed(base_url, db_path, page), cadence="quarterly")
+    rule_row = ledger.recurring_row(db_probe.rule_id(db_path, "edit-rule"))
     page.goto(_ledger(base_url, "recurring"))
     assert page.evaluate("typeof window.htmx") == "object"
-    _kebab_item(page, _RULE_ROW, "Override")
-    panel = page.locator(_PANEL)
-    expect(panel).to_be_visible()
-    panel.locator("[data-period-next]").click()  # a month with no quarterly occurrence
-    panel.locator("input[name='amount']").fill("77.00")
-    panel.get_by_role("button", name="Save").click()
-    expect(page.locator(_PANEL)).to_contain_text("no occurrence")
-    expect(page.locator(_RULE_ROW).first).to_be_visible()
+    _kebab_item(page, rule_row, "Override")
+    expect(_panel(page)).to_be_visible()
+    # A month with no quarterly occurrence.
+    to_playwright(page, ledger.next_month_button.inside(shell.slideover)).click()
+    _fill_amount_and_save(page, shell.slideover, "77.00")
+    expect(_panel(page)).to_contain_text("no occurrence")
+    expect(to_playwright(page, rule_row)).to_be_visible()
+    assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM recurring_rule_overrides") == 0
