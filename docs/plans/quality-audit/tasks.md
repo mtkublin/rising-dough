@@ -678,7 +678,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `clones`:75 (18 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
+### ✅ T-Q261 [P] Literal registry: HTMX events, header names, currency codes, timezone, direction and cadence strings
 - Findings: Q-038 (literal half; A-18, E-02), inventory P13 `domain-literal` / `repeated-literal` rows; epic E03.
 - Epic: E03
 - Band: 4 · Size: M · Tags: none
@@ -1138,7 +1138,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14d.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q286 [M] Cross-currency formula amounts convert everywhere
+### ✅ T-Q286 [M] Cross-currency formula amounts convert everywhere
 - Findings: Q-010 (OQ-8 answered 2026-11-22), follow-up of T-Q215.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none

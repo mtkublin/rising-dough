@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 from fastapi import Request
 from fastapi.responses import Response
 
+from budget_planner.web.http_headers import HX_CURRENT_URL, HX_REFRESH, HX_RESWAP
+
 
 class Event(StrEnum):
     """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0143)."""
@@ -63,7 +65,7 @@ def refresh_unless_on(request: Request, response: Response, path_prefix: str) ->
     prefix the caller's ``HX-Trigger`` events refresh the page's own regions; on
     any other page nothing is listening, so the whole page reloads.
     """
-    response.headers["HX-Reswap"] = "none"
-    current = urlparse(request.headers.get("HX-Current-URL", "")).path
+    response.headers[HX_RESWAP] = "none"
+    current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
     if not current.startswith(path_prefix):
-        response.headers["HX-Refresh"] = "true"
+        response.headers[HX_REFRESH] = "true"

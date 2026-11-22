@@ -173,9 +173,7 @@ async def _check(
         except MalformedFormError:
             return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST), downstream
     submitted = header_token or form_token
-    if submitted is None or not secrets.compare_digest(
-        submitted.encode("utf-8"), existing.encode("utf-8")
-    ):
+    if submitted is None or not secrets.compare_digest(submitted.encode(), existing.encode()):
         return _reject("invalid_csrf"), downstream
     return None, downstream
 

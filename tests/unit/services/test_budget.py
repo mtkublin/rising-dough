@@ -38,6 +38,7 @@ from budget_planner.services import (
     planned as planned_svc,
     recurring as recurring_svc,
 )
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 
@@ -625,7 +626,9 @@ def test_month_summary_promote_moves_committed_into_spent_zero_net(
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
 
     before = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20), base_currency="PLN")
-    recurring_svc.promote_recurring(conn, USER_ID, rule.id, recurring_svc.PromotionEdits())
+    recurring_svc.promote_recurring(
+        conn, USER_ID, rule.id, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     after = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 20), base_currency="PLN")
 
     # Committed drops by the promoted amount; spent rises by the same.

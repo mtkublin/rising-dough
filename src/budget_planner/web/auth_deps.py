@@ -28,12 +28,11 @@ from budget_planner.web.deps import (
     get_request_ctx,
     get_settings_dep,
 )
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, JSON_MEDIA_TYPE
 from budget_planner.web.middleware.auth import CurrentUser
 
 RATE_LIMITED: Final = "rate_limited"
 RETRY_AFTER: Final = "Retry-After"
-JSON_MEDIA_TYPE: Final = "application/json"
-_HTML_TYPE: Final = "text/html"
 
 
 def rate_limit_now(request: Request) -> datetime:
@@ -50,7 +49,7 @@ def ip_identity(request: Request) -> str:
 def wants_json(request: Request) -> bool:
     """True when the client asked for JSON and not HTML."""
     accept = request.headers.get("accept", "").lower()
-    return JSON_MEDIA_TYPE in accept and _HTML_TYPE not in accept
+    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept
 
 
 def throttled_json(decision: RateDecision) -> JSONResponse:

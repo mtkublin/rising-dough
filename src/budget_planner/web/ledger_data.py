@@ -217,7 +217,7 @@ def _recurring_row(
     user_id: int,
     rule: RecurringRule,
     refs: tuple[Account | None, Category | None],
-    formula_fx: formula_svc.FormulaFx | None = None,
+    formula_fx: formula_svc.FormulaFx,
 ) -> dict[str, object]:
     acc, cat = refs
     overrides = recurring_service.list_overrides(conn, user_id, rule.id)
@@ -264,16 +264,14 @@ def _recurring_rows(
     )
     cats, accts = _lookups(conn, user_id)
     # Formula sources convert across currencies (T-Q215, ADR-0139): cache-only rates.
-    formula_fx = formula_svc.FormulaFx(
-        fx, fx_service.currency_by_account(conn, user_id, include_deleted=True)
-    )
+    formula_ctx = formula_svc.formula_ctx(conn, user_id, fx)
     return [
         _recurring_row(
             conn,
             user_id,
             rule,
             (accts.get(rule.account_id), cats.get(rule.category_id)),
-            formula_fx,
+            formula_ctx,
         )
         for rule in rules
         if _rule_matches(rule, cats.get(rule.category_id), filters)

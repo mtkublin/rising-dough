@@ -30,6 +30,7 @@ from budget_planner.web.recurring_forms import (
     resolve_amount_inputs,
     validate_cadence,
 )
+from tests.formula_fx_support import formula_fx_of
 
 # --- categories -------------------------------------------------------------------------------
 
@@ -210,6 +211,7 @@ def _amounts(
         account_currency=currency,
         exclude_rule_id=None,
         today=date(2026, 1, 1),
+        fx=formula_fx_of(conn, 1),
     )
 
 
