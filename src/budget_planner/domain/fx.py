@@ -11,6 +11,16 @@ class FxFetchError(RuntimeError):
     """A live rate could not be fetched or the provider's answer was unusable."""
 
 
+class StaleRateTableError(FxFetchError):
+    """A published table is dated too long before today and is rejected whole (ADR-0145)."""
+
+    reason = "stale_table"
+
+
+#: Default for ``Settings.fx_max_table_age_days`` (same value, ADR-0145 amendment 2026-11-22).
+DEFAULT_MAX_TABLE_AGE_DAYS = 7
+
+
 def validate_rate(rate: Decimal) -> Decimal:
     """Return ``rate`` when it is a finite number greater than zero, else raise ``ValueError``."""
     if not rate.is_finite() or rate <= 0:

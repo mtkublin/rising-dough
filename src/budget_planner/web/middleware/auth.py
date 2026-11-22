@@ -69,6 +69,7 @@ EXEMPT_PATHS: Final = frozenset(
         "/ready",
         "/healthz",
         "/health/replication",
+        "/health/fx",
         LOGIN_PATH,
         f"{LOGIN_PATH}/begin",
         f"{LOGIN_PATH}/finish",

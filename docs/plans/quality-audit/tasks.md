@@ -1228,7 +1228,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 
 Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurring undo duplicate-live-transaction case left as is) need no task; one-line amendments in ADR-0136 and ADR-0019.
 
-### T-Q292 [M] NBP refresh hardening and `/health/fx`
+### ✅ T-Q292 [M] NBP refresh hardening and `/health/fx`
 - Findings: Q39.
 - Epic: E01
 - Band: 3 · Size: M · Tags: ops
@@ -1250,6 +1250,18 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Operator question blocking it: none.
 - Removes allowlist entries: none
 - Wave: 14e (after T-Q292).
+- Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
+
+### ✅ T-Q296 [S] Burn down the residual allowlist entries no task owns
+- Findings: Q-046, B-13, Q-016 (residuals).
+- Epic: E13
+- Band: 4 · Size: S · Tags: none
+- Depends on: T-Q270
+- Docs-first step: [ADR-0130](../../adr/0130-prevention-regime-and-full-architectural-compliance.md) amendment 2026-11-22 (T-Q296).
+- Acceptance: no behaviour change; `web/routers/recurring.py` leaves `size_complexity` (cc>=11 x3, func>50 x4) and its `assert-in-src` hygiene entry; `startup_migrate` imports a public `resolve_db_path`; `config.py` `hidden-cache` becomes a `[[permanent]]` row with a reason; no new allowlist entry or suppression.
+- Operator question blocking it: none.
+- Removes allowlist entries: `size_complexity` 2 rows (7), `private_imports` 1, `hygiene` 1 (3); `functional_first` 1 moved to permanent.
+- Wave: before T-Q232.
 - Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q294 [S] Enum-like query parameters are a 422 on unknown values

@@ -6,6 +6,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.adapters.fx import nbp
 from budget_planner.cli import refresh_fx
 from budget_planner.config import Settings
@@ -49,10 +50,11 @@ def test_refresh_cli_caches_rate_and_page_then_renders(
     client: TestClient, _migrated: Settings, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _eur_account(_migrated)
+    day = clock.today_local(_migrated).isoformat()  # a table must not be stale (ADR-0145)
     payload = [
         {
             "table": "A",
-            "effectiveDate": "2026-01-02",
+            "effectiveDate": day,
             "rates": [{"currency": "euro", "code": "EUR", "mid": 4.2}],
         }
     ]
@@ -60,12 +62,12 @@ def test_refresh_cli_caches_rate_and_page_then_renders(
     db_path = _migrated.database_url.removeprefix("sqlite:///")
     rc = refresh_fx.main(["--db", db_path, "--currency", "EUR"], transport=transport)
     assert rc == 0
-    assert "2026-01-02: inserted 1, updated 0, unchanged 0" in capsys.readouterr().out
+    assert f"{day}: inserted 1, updated 0, unchanged 0" in capsys.readouterr().out
     conn = get_connection(_migrated)
     try:
         assert [
             (str(r.date), r.from_ccy, str(r.rate)) for r in fx_repo.list_rates_to(conn, "PLN")
-        ] == [("2026-01-02", "EUR", "4.2")]
+        ] == [(day, "EUR", "4.2")]
     finally:
         conn.close()
     assert client.get("/today").status_code == 200

@@ -50,6 +50,7 @@ def main(argv: Sequence[str] | None = None, *, transport: httpx.BaseTransport | 
                 clock.today_local(settings),
                 settings.base_currency,
                 args.currency,
+                max_table_age_days=settings.fx_max_table_age_days,
             )
     except FxFetchError as exc:
         sys.stdout.write(f"FAILED: {exc}\n")

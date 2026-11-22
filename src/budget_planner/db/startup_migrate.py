@@ -28,7 +28,7 @@ from pathlib import Path
 
 from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import JOB_ERRORS, _resolve_db_path, get_connection
+from budget_planner.db.connection import JOB_ERRORS, get_connection, resolve_db_path
 from budget_planner.db.migrate import (
     MIGRATIONS_DIR,
     Migration,
@@ -143,7 +143,7 @@ def run_startup_migrations(
     now: Callable[[], dt.datetime] = clock.utc_now,
 ) -> StartupMigrationResult:
     """Back up if needed, apply pending migrations, prune old backups."""
-    db_path = _resolve_db_path(settings.resolve().database_url)
+    db_path = resolve_db_path(settings.resolve().database_url)
     conn = get_connection(settings)
     try:
         plan = plan_migrations(conn, migrations_dir)

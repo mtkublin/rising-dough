@@ -1,10 +1,3 @@
 # G30 private_imports: use of another module's private _name symbols (cross-module private import or attribute).
 
 guard = "private_imports"
-
-[[entry]]
-path = "src/budget_planner/db/startup_migrate.py"
-rule = "private-import"
-count = 1
-finding = "T-Q16"
-epic = "E12"

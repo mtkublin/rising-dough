@@ -38,7 +38,15 @@ STATIC_PREFIX: Final = "/static/"
 
 #: Paths reachable while ``must_change_password`` is set (exact match).
 EXEMPT_PATHS: Final = frozenset(
-    {PASSWORD_PATH, LOGOUT_PATH, "/health", "/health/replication", "/ready", "/healthz"}
+    {
+        PASSWORD_PATH,
+        LOGOUT_PATH,
+        "/health",
+        "/health/replication",
+        "/health/fx",
+        "/ready",
+        "/healthz",
+    }
 )
 
 ERROR_CODE: Final = "password_change_required"
