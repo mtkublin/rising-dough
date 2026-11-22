@@ -1297,6 +1297,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
   Error response from daemon: error while removing network: network budget-planner_edge has active endpoints (name:"budget-planner-caddy" id:"<id>")
   ```
   Every later attempt, including the v3.0.8 image rollback that kept the new template, failed with `Error response from daemon: container <id> is not connected to the network budget-planner_edge` (half-migrated: old Caddy `Up` with published 80/443 on `172.18.0.0/16`, app, litestream and probe `Exited`).
+- Repair and state (operator): break-glass `docker compose down --remove-orphans` (no `-v`) plus a converge with main's template at 20:56 UTC (outage 20:39 to 20:56), then v3.1.0 released successfully at 21:05 UTC. Prod now has `budget-planner_edge` re-created on `172.28.0.0/24`. A rename reusing that subnet would fail with `Pool overlaps with other one on this address space`, so `edge_v2` uses `172.30.0.0/24` (gateway `172.30.0.1`) and the guard checks subnet overlap against the latest tag.
 - Epic: E04
 - Band: incident · Size: M · Tags: ops, deploy
 - Depends on: T-Q203

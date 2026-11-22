@@ -31,7 +31,7 @@ services:
       TZ: "Europe/Warsaw"
       # ADR-0133: trust X-Forwarded-For only from the edge bridge gateway, the
       # address the app sees for Caddy's loopback connection (never "*").
-      FORWARDED_ALLOW_IPS: "172.28.0.1"
+      FORWARDED_ALLOW_IPS: "172.30.0.1"
     volumes:
       - /data:/data:rw
       - /var/lib/budget-planner/replication:/replication:ro
@@ -156,8 +156,8 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
 
 volumes:
   caddy-data:

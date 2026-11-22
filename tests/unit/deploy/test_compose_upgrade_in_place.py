@@ -7,6 +7,7 @@ not see it). Any changed network definition needs a new network name.
 
 from __future__ import annotations
 
+import ipaddress
 import re
 import shutil
 import subprocess
@@ -49,6 +50,28 @@ def changed_same_name(old: str, new: str) -> list[str]:
     return sorted(n for n in old_specs.keys() & new_specs.keys() if old_specs[n] != new_specs[n])
 
 
+def subnets(spec: str) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    return [ipaddress.ip_network(m) for m in re.findall(r"subnet:\s*([0-9a-fA-F.:/]+)", spec)]
+
+
+def overlapping_renames(old: str, new: str) -> list[str]:
+    """New network names whose subnet overlaps any subnet of the old template.
+
+    Docker refuses a second pool that overlaps while the old network still exists
+    (the agent removes it only after a successful up), so a rename must also move
+    to a free subnet.
+    """
+    old_specs, new_specs = network_specs(old), network_specs(new)
+    taken = [net for spec in old_specs.values() for net in subnets(spec)]
+    return sorted(
+        f"{name} ({net})"
+        for name, spec in new_specs.items()
+        if name not in old_specs
+        for net in subnets(spec)
+        if any(net.overlaps(other) for other in taken)
+    )
+
+
 def _git(*args: str) -> str | None:
     git = shutil.which("git")
     if git is None:
@@ -83,6 +106,30 @@ def test_same_name_with_a_changed_definition_is_flagged() -> None:
     assert changed_same_name(old, ipam) == ["edge"]
     assert changed_same_name(old, renamed) == []
     assert changed_same_name(old, old) == []
+
+
+def test_rename_that_reuses_the_subnet_is_flagged() -> None:
+    # v3.1.0: `edge` on 172.28.0.0/24; a rename to edge_v2 on the same subnet fails live.
+    v310 = "networks:\n  edge:\n    ipam:\n      config:\n        - subnet: 172.28.0.0/24\n"
+    same = "networks:\n  edge_v2:\n    ipam:\n      config:\n        - subnet: 172.28.0.0/24\n"
+    wider = "networks:\n  edge_v2:\n    ipam:\n      config:\n        - subnet: 172.28.0.0/16\n"
+    free = "networks:\n  edge_v2:\n    ipam:\n      config:\n        - subnet: 172.30.0.0/24\n"
+    assert overlapping_renames(v310, same) == ["edge_v2 (172.28.0.0/24)"]
+    assert overlapping_renames(v310, wider) == ["edge_v2 (172.28.0.0/16)"]
+    assert overlapping_renames(v310, free) == []
+    assert overlapping_renames(v310, v310) == []
+
+
+def test_prod_renamed_network_uses_a_subnet_free_in_the_latest_release() -> None:
+    release = _latest_release_template()
+    if release is None:
+        pytest.skip("no v* tag in this checkout (shallow clone)")
+    tag, old = release
+    clashes = overlapping_renames(old, (ROOT / TPL).read_text())
+    assert not clashes, (
+        f"renamed compose network(s) {clashes} overlap a subnet of {tag}; Docker refuses the "
+        "overlap while the old network exists (T-Q305, ADR-0133 amendment): pick a free subnet"
+    )
 
 
 def test_prod_network_definitions_are_upgradeable_from_the_latest_release() -> None:
