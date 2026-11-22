@@ -24,20 +24,6 @@ finding = "P1"
 epic = "E02"
 
 [[entry]]
-path = "src/budget_planner/repositories/categories.py"
-rule = "clone-group"
-count = 8
-finding = "P1"
-epic = "E02"
-
-[[entry]]
-path = "src/budget_planner/repositories/categories.py"
-rule = "same-name"
-count = 4
-finding = "P1"
-epic = "E02"
-
-[[entry]]
 path = "src/budget_planner/repositories/fx.py"
 rule = "same-name"
 count = 1
@@ -96,7 +82,7 @@ epic = "E02"
 [[entry]]
 path = "src/budget_planner/repositories/transactions.py"
 rule = "clone-group"
-count = 7
+count = 6
 finding = "P1"
 epic = "E02"
 
