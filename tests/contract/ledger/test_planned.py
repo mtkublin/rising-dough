@@ -51,13 +51,6 @@ def _add_due_planned(settings: Settings, seeded: Ids) -> int:
         conn.close()
 
 
-@covers("GET /planned")
-def test_index_redirects_to_planned_ledger(client: TestClient) -> None:
-    r = client.get("/planned", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=planned"
-
-
 @covers("GET /planned/table")
 def test_table_alias_renders_planned_rows(client: TestClient, seeded: Ids) -> None:
     r = client.get("/planned/table")

@@ -17,13 +17,12 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.services import _passwords
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
 )
-from tests.auth_support import issue_session
+from tests.auth_support import FAST_HASHER, issue_session
 from tests.ui_map import _html, settings as ui
 
 HX = {"HX-Request": "true"}
@@ -171,7 +170,7 @@ def test_create_user_shows_password_once(admin_client: TestClient, db: sqlite3.C
     assert row["is_admin"] == 0
     assert row["must_change_password"] == 1
     assert row["password_hash"] != password
-    assert _passwords.verify_password(password, row["password_hash"])
+    assert FAST_HASHER.verify(password, row["password_hash"])
     cats = db.execute(
         "SELECT name FROM categories WHERE user_id = ? AND is_system = 1 ORDER BY name",
         (row["id"],),
@@ -325,14 +324,18 @@ def test_edit_invalid_email_non_htmx(admin_client: TestClient) -> None:
 
 def test_demote_last_admin_refused(admin_client: TestClient, db: sqlite3.Connection) -> None:
     resp = admin_client.post(
-        "/settings/users/1", data={"email": "owner@example.test", "name": "o"}, headers=HX
+        "/settings/users/1",
+        data={"email": "owner@example.test", "name": "o", "is_admin": "0"},
+        headers=HX,
     )
     assert resp.status_code == 409
     assert resp.headers["hx-reswap"] == "none"
     assert LAST_ADMIN_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
     assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
 
-    page = admin_client.post("/settings/users/1", data={"email": "owner@example.test"})
+    page = admin_client.post(
+        "/settings/users/1", data={"email": "owner@example.test", "is_admin": "0"}
+    )
     assert page.status_code == 409
 
 
@@ -341,7 +344,9 @@ def test_self_demote_allowed_with_second_admin(
 ) -> None:
     _add(admin_client, "second@example.test", admin=True)
     resp = admin_client.post(
-        "/settings/users/1", data={"email": "owner@example.test", "name": "o"}, headers=HX
+        "/settings/users/1",
+        data={"email": "owner@example.test", "name": "o", "is_admin": "0"},
+        headers=HX,
     )
     assert resp.status_code == 200
     assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 0
@@ -368,7 +373,7 @@ def test_reset_password_revokes_sessions(admin_client: TestClient, db: sqlite3.C
     assert "signed out" in _html.text_of(resp.text, ui.new_password_toast)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert row["must_change_password"] == 1
-    assert _passwords.verify_password(new, row["password_hash"])
+    assert FAST_HASHER.verify(new, row["password_hash"])
     assert _live_sessions(db, uid) == 0
     audit = db.execute(
         "SELECT * FROM audit_log WHERE entity_type = 'users' AND entity_id = ? "
@@ -507,3 +512,52 @@ def test_flagged_admin_is_sent_to_rotation_first(
     resp = admin_client.get("/settings/users", follow_redirects=False)
     assert resp.status_code == 302
     assert resp.headers["location"] == "/settings/password?next=%2Fsettings%2Fusers"
+
+
+# --- T-Q204 / Q-063: absent is_admin field ----------------------------------
+
+
+def test_edit_without_is_admin_field_leaves_admin_flag_unchanged(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "second@example.test", admin=True)
+    second = _user_row(db, "second@example.test")["id"]
+    resp = admin_client.post(
+        f"/settings/users/{second}",
+        data={"email": "second@example.test", "name": "Renamed"},
+        headers=HX,
+    )
+    assert resp.status_code == 200
+    row = db.execute("SELECT name, is_admin FROM users WHERE id = ?", (second,)).fetchone()
+    assert (row["name"], row["is_admin"]) == ("Renamed", 1)
+    assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
+
+
+def test_edit_form_sends_hidden_zero_so_unchecked_box_demotes(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "second@example.test", admin=True)
+    second = _user_row(db, "second@example.test")["id"]
+    form = admin_client.get(f"/settings/users/{second}/edit", headers=HX)
+    assert ("is_admin", "0") in _html.submitted_fields(_html.form_of(form.text, ui.edit_form))
+    resp = admin_client.post(
+        f"/settings/users/{second}",
+        data={"email": "second@example.test", "name": "s", "is_admin": "0"},
+        headers=HX,
+    )
+    assert resp.status_code == 200
+    assert db.execute("SELECT is_admin FROM users WHERE id = ?", (second,)).fetchone()[0] == 0
+
+
+def test_hidden_zero_then_checked_box_keeps_admin(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
+    _add(admin_client, "second@example.test", admin=True)
+    second = _user_row(db, "second@example.test")["id"]
+    resp = admin_client.post(
+        f"/settings/users/{second}",
+        content="email=second%40example.test&is_admin=0&is_admin=on",
+        headers={**HX, "Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert resp.status_code == 200
+    assert db.execute("SELECT is_admin FROM users WHERE id = ?", (second,)).fetchone()[0] == 1

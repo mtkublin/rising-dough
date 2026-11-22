@@ -7,116 +7,36 @@ router parses + renders.
 
 from __future__ import annotations
 
-import contextlib
-import json
 import sqlite3
-from datetime import date
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
-from budget_planner.domain.money import to_minor_units
+from budget_planner.domain.money import parse_amount_minor
 from budget_planner.domain.snapshots import NewAccountSnapshot
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    snapshots as snapshots_repo,
-)
 from budget_planner.services import (
-    account_planned as planned_service,
+    account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
-    fortune as fortune_service,
     reconciliation as reconciliation_service,
 )
+from budget_planner.web import accounts_data, form_responses
+from budget_planner.web.account_forms import (
+    parse_account_patch,
+    parse_category_id,
+    parse_new_account,
+    parse_save_snapshot,
+)
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
-from budget_planner.web.htmx import trigger
-from budget_planner.web.rendering import render
+from budget_planner.web.htmx import Event, toast_payload, trigger
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
+from budget_planner.web.paths import NEW_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
-
-_ISO_CCY_LEN = 3
-
-
-def _today() -> date:
-    return date.today()  # noqa: DTZ011 — intentional naive local date
-
-
-def _planned_now(
-    conn: sqlite3.Connection, user_id: int, settings: Settings
-) -> planned_service.AccountsPlanned:
-    return planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
-
-
-_SPARKLINE_WIDTH = 120
-_SPARKLINE_HEIGHT = 32
-
-
-def _card_context(
-    conn: sqlite3.Connection,
-    user_id: int,
-    account_id: int,
-    planned: planned_service.AccountsPlanned,
-) -> dict[str, Any]:
-    """Build the full context dict a single `_card.html` / `_row.html` needs."""
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    assert acc is not None
-    bal = balance_service.derive_balance(conn, user_id, account_id)
-    stats = balance_service.account_stats(conn, user_id, account_id)
-    series = balance_service.balance_series(conn, user_id, account_id)
-    series_values = [v for _, v in series]
-    sparkline = balance_service.sparkline_points(
-        series_values, width=_SPARKLINE_WIDTH, height=_SPARKLINE_HEIGHT
-    )
-    sparkline_area = (
-        f"0,{_SPARKLINE_HEIGHT} {sparkline} {_SPARKLINE_WIDTH},{_SPARKLINE_HEIGHT}"
-        if sparkline
-        else ""
-    )
-    snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
-    return {
-        "account": acc,
-        "balance": bal,
-        "stats": stats,
-        "series": series,
-        "sparkline_points": sparkline,
-        "sparkline_values": series_values,
-        "sparkline_area_points": sparkline_area,
-        "sparkline_width": _SPARKLINE_WIDTH,
-        "sparkline_height": _SPARKLINE_HEIGHT,
-        "snapshots": snapshots,
-        "planned": planned.by_account.get(account_id),
-    }
-
-
-def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, Any]:
-    accs = accounts_repo.list_all(conn, user_id)
-    planned = planned_service.compute_accounts_planned(conn, user_id, _today(), settings)
-    cards: list[dict[str, Any]] = [_card_context(conn, user_id, a.id, planned) for a in accs]
-    # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
-    # to the bottom. Assets land first, biggest first; liabilities land last,
-    # smallest-liability-first so the credit card with the largest balance
-    # sits closer to the assets block visually.
-    cards.sort(
-        key=lambda card: (
-            0 if card["balance"] >= 0 else 1,
-            -(card["balance"] if card["balance"] >= 0 else -card["balance"]),
-        )
-    )
-    fortune = fortune_service.compute_fortune(conn, user_id, settings)
-    return {
-        "cards": cards,
-        "fortune": fortune,
-        "base_ccy": settings.base_currency,
-        "totals_by_ccy": fortune.net_by_ccy,
-        "fortune_base": fortune.net_base,
-        "today_date": _today(),
-        "planned_base": planned.base_net_minor,
-    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -126,36 +46,17 @@ def index(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    data = _hydrate(conn, user_id, settings)
+    data: dict[str, Any] = accounts_data.hydrate(conn, user_id, settings)
     return render(request, "accounts/index.html", **data)
 
 
-@router.get("/last-checked", response_class=HTMLResponse)
-def last_checked(
-    request: Request,
-    conn: sqlite3.Connection = Depends(get_db),
-    user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    """ADR-0056 §6 — latest snapshot or reconcile date per account.
-
-    Powers the Accounts table "last checked" column + any inline
-    freshness indicator. Pure read; no DB write.
-    """
-    rows = accounts_service.last_checked(conn, user_id)
-    return render(
-        request,
-        "partials/accounts/_last_checked.html",
-        rows=rows,
-    )
-
-
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(request: Request) -> HTMLResponse:
     # ADR-0030 §4 — wrap in shared slide-over so the New-account form inherits
     # the visible close affordance + Esc/backdrop dismissal.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New account",
         form_include="partials/accounts/_form.html",
         account=None,
@@ -164,27 +65,10 @@ def new_form(request: Request) -> HTMLResponse:
     )
 
 
-def _parse_liability(raw: str) -> bool:
-    return raw.strip().lower() in {"on", "true", "1"}
-
-
-def _parse_credit_limit(raw: str, currency: str) -> tuple[int | None, str | None]:
-    """Return (minor_units, error_message)."""
-    trimmed = raw.strip()
-    if not trimmed:
-        return None, "positive credit limit required"
-    try:
-        dec = Decimal(trimmed)
-    except InvalidOperation:
-        return None, "positive credit limit required"
-    if dec <= 0:
-        return None, "positive credit limit required"
-    return to_minor_units(dec, currency), None
-
-
 @router.post("")
-def create_account(  # noqa: PLR0917
+def create_account(
     request: Request,
+    *,
     name: str = Form(...),
     currency: str = Form(...),
     opening_balance: str = Form("0"),
@@ -195,55 +79,34 @@ def create_account(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    errors: dict[str, str] = {}
-    cur = currency.upper().strip()
-    if len(cur) != _ISO_CCY_LEN or not cur.isalpha():
-        errors["currency"] = "ISO 4217 code required"
-    try:
-        opening_dec = Decimal(opening_balance or "0")
-    except InvalidOperation:
-        errors["opening_balance"] = "invalid number"
-        opening_dec = Decimal(0)
-    if not name.strip():
-        errors["name"] = "name required"
-    liability = _parse_liability(is_liability)
-    credit_limit_minor: int | None = None
-    if liability and not errors.get("currency"):
-        credit_limit_minor, limit_err = _parse_credit_limit(credit_limit, cur)
-        if limit_err is not None:
-            errors["credit_limit"] = limit_err
-    if errors:
+    parsed = parse_new_account(
+        name=name,
+        currency=currency,
+        opening_balance=opening_balance,
+        account_type=type,
+        is_liability=is_liability,
+        credit_limit=credit_limit,
+    )
+    if parsed.command is None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=None,
             action="/accounts",
-            errors=errors,
+            errors=parsed.errors,
             status_code=422,
         )
-    opening = to_minor_units(opening_dec, cur)
-    acc = accounts_repo.create(
-        conn,
-        user_id,
-        NewAccount(
-            name=name.strip(),
-            currency=cur,
-            opening_balance=opening,
-            type=type or None,
-            is_liability=liability,
-            credit_limit_minor=credit_limit_minor,
-        ),
-    )
+    acc = accounts_service.create(conn, user_id, parsed.command)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, acc.id, _planned_now(conn, user_id, settings)),
+        card=accounts_data.single_card(conn, user_id, acc.id, settings),
     )
-    trigger(html, "balance-stale")
+    trigger(html, Event.BALANCE_STALE)
     # T-D150: the form targets itself and the accounts list has no region that
     # refetches on a trigger, so skip the swap and reload to show the new item.
-    html.headers["HX-Reswap"] = "none"
-    html.headers["HX-Refresh"] = "true"
+    html.headers[HX_RESWAP] = "none"
+    html.headers[HX_REFRESH] = "true"
     return html
 
 
@@ -254,7 +117,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -266,7 +129,7 @@ def edit_form(
         )
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit account",
         form_include="partials/accounts/_form.html",
         account=acc,
@@ -276,9 +139,10 @@ def edit_form(
 
 
 @router.post("/{account_id}")
-def update_account(  # noqa: PLR0917
+def update_account(
     account_id: int,
     request: Request,
+    *,
     name: str = Form(...),
     type: str = Form(""),
     is_liability: str = Form(""),
@@ -287,7 +151,7 @@ def update_account(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -297,51 +161,25 @@ def update_account(  # noqa: PLR0917
             errors={"account": "not found"},
             status_code=404,
         )
-    if not name.strip():
+    parsed = parse_account_patch(
+        acc, name=name, account_type=type, is_liability=is_liability, credit_limit=credit_limit
+    )
+    if parsed.patch is None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=acc,
             action=f"/accounts/{account_id}",
-            errors={"name": "name required"},
+            errors=parsed.errors,
             status_code=422,
         )
-    liability = _parse_liability(is_liability)
-    patch_limit: int | None = None
-    clear_limit = False
-    if liability:
-        patch_limit, limit_err = _parse_credit_limit(credit_limit, acc.currency)
-        if limit_err is not None:
-            return render(
-                request,
-                "partials/accounts/_form.html",
-                account=acc,
-                action=f"/accounts/{account_id}",
-                errors={"credit_limit": limit_err},
-                status_code=422,
-            )
-    else:
-        clear_limit = True
-    accounts_repo.update(
-        conn,
-        user_id,
-        account_id,
-        PatchAccount(
-            name=name.strip(),
-            type=type or None,
-            is_liability=liability,
-            credit_limit_minor=patch_limit,
-            clear_credit_limit=clear_limit,
-        ),
-    )
-    updated = accounts_repo.find_by_id(conn, user_id, account_id)
-    assert updated is not None
+    accounts_service.update(conn, user_id, account_id, parsed.patch)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
+        card=accounts_data.single_card(conn, user_id, account_id, settings),
     )
-    trigger(html, "balance-stale")
+    trigger(html, Event.BALANCE_STALE)
     return html
 
 
@@ -351,14 +189,13 @@ def delete_account(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    accounts_repo.soft_delete(conn, user_id, account_id)
-    resp = Response(content="", media_type="text/html")
-    resp.headers["HX-Trigger"] = json.dumps(
-        {
-            "balance-stale": True,
-            "forecast-stale": True,
-            "toast": {"kind": "success", "message": "Account deleted"},
-        }
+    accounts_service.archive_account(conn, user_id, account_id)
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
+    trigger(
+        resp,
+        Event.BALANCE_STALE,
+        Event.FORECAST_STALE,
+        toast=toast_payload("success", "Account deleted"),
     )
     return resp
 
@@ -370,11 +207,11 @@ def take_snapshot(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
     bal = balance_service.derive_balance(conn, user_id, account_id)
-    snap = snapshots_repo.create(
+    snap = accounts_service.create_snapshot(
         conn, user_id, NewAccountSnapshot(account_id=account_id, balance=bal, note="user snapshot")
     )
     resp = render(
@@ -383,28 +220,8 @@ def take_snapshot(
         snapshot=snap,
         account=acc,
     )
-    resp.headers["HX-Trigger"] = json.dumps(
-        {"toast": {"kind": "success", "message": "Snapshot saved"}}
-    )
+    trigger(resp, toast=toast_payload("success", "Snapshot saved"))
     return resp
-
-
-def _uses_available(acc: Account) -> bool:
-    """T-D52 — liability with a credit limit reconciles by available credit."""
-    return bool(acc.is_liability and acc.credit_limit_minor)
-
-
-def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
-    if not _uses_available(acc):
-        return {"by_available": False}
-    limit = acc.credit_limit_minor or 0
-    used = max(-derived, 0)
-    return {
-        "by_available": True,
-        "credit_limit_minor": limit,
-        "used_minor": used,
-        "available_minor": max(limit - used, 0),
-    }
 
 
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)
@@ -414,7 +231,7 @@ def reconcile_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return render(
             request,
@@ -425,26 +242,21 @@ def reconcile_form(
             status_code=404,
         )
     derived = balance_service.derive_balance(conn, user_id, account_id)
-    snapshots = snapshots_repo.list_for_account(conn, user_id, account_id)
-    categories = [c for c in categories_repo.list_all(conn, user_id) if not c.is_system]
-    reconciliation_cat = categories_repo.find_by_name(conn, user_id, "Reconciliation")
+    modal: dict[str, Any] = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
-        account=acc,
-        derived=derived,
-        snapshots=snapshots[:5],
-        categories=categories,
-        reconciliation_cat=reconciliation_cat,
+        snapshots=accounts_data.recent_snapshots(conn, user_id, account_id),
         errors={},
-        **_available_mode_context(acc, derived),
+        **modal,
     )
 
 
 @router.post("/{account_id}/reconcile")
-def reconcile_submit(  # noqa: PLR0917
+def reconcile_submit(
     account_id: int,
     request: Request,
+    *,
     actual_balance: str = Form(...),
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
@@ -452,58 +264,38 @@ def reconcile_submit(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None:
         return Response(status_code=404, content="not found")
     derived = balance_service.derive_balance(conn, user_id, account_id)
 
-    def _reject(message: str) -> Response:
-        return render(
-            request,
-            "partials/accounts/_reconcile_modal.html",
-            account=acc,
-            derived=derived,
-            categories=[c for c in categories_repo.list_all(conn, user_id) if not c.is_system],
-            reconciliation_cat=categories_repo.find_by_name(conn, user_id, "Reconciliation"),
-            errors={"actual_balance": message},
-            status_code=422,
-            **_available_mode_context(acc, derived),
+    entered = parse_amount_minor(actual_balance, acc.currency)
+    if entered is None:
+        return form_responses.reconcile_modal_error(
+            request, conn, user_id, acc=acc, derived=derived, message="invalid number"
         )
-
     try:
-        actual = Decimal(actual_balance.replace(",", ".").strip())
-    except InvalidOperation:
-        return _reject("invalid number")
-    actual_minor = to_minor_units(actual, acc.currency)
-    if _uses_available(acc):
-        try:
-            actual_minor = reconciliation_service.available_to_target_balance(
-                acc.credit_limit_minor or 0, actual_minor
-            )
-        except reconciliation_service.InvalidAvailableError as exc:
-            return _reject(str(exc))
-    chosen_cat_id: int | None = None
-    if category_id.strip():
-        try:
-            chosen_cat_id = int(category_id)
-        except ValueError:
-            chosen_cat_id = None
-    with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
-        reconciliation_service.reconcile(
-            conn, user_id, account_id, actual_minor, _today(), category_id=chosen_cat_id
-        )
-    if save_snapshot.strip().lower() in ("1", "on", "true", "yes"):
-        bal = balance_service.derive_balance(conn, user_id, account_id)
-        snapshots_repo.create(
+        reconcile_service.reconcile_account(
             conn,
             user_id,
-            NewAccountSnapshot(account_id=account_id, balance=bal, note="reconcile snapshot"),
+            account_id=account_id,
+            actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
+            today=clock.today_local(settings),
+            category_id=parse_category_id(category_id),
+            save_snapshot=parse_save_snapshot(save_snapshot),
+        )
+    except (
+        reconciliation_service.InvalidAvailableError,
+        reconciliation_service.ValidationError,
+    ) as exc:
+        return form_responses.reconcile_modal_error(
+            request, conn, user_id, acc=acc, derived=derived, message=str(exc)
         )
     html = render(
         request,
         "partials/accounts/_row.html",
-        card=_card_context(conn, user_id, account_id, _planned_now(conn, user_id, settings)),
-        today_date=_today(),
+        card=accounts_data.single_card(conn, user_id, account_id, settings),
+        today_date=clock.today_local(settings),
     )
-    trigger(html, "balance-stale", "forecast-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE)
     return html

@@ -7,7 +7,7 @@
 {% block main %}
   <header class="rd-screen-header">
     <div class="rd-screen-header__title">
-      <div class="rd-eyebrow">{{ today|date_fmt("%A · %d %B %Y") }}</div>
+      <div class="rd-eyebrow">{{ today|date_weekday_long }}</div>
       <h1>Today</h1>
     </div>
     <div class="rd-screen-header__actions">
@@ -20,43 +20,41 @@
   </header>
   <div class="rd-hero-grid">
     {# Hero: left-per-day + segmented spent | committed | left progress bar. #}
-    <section class="rd-hero" aria-labelledby="hero-left">
+    <section id="today-hero"
+             class="rd-hero"
+             aria-labelledby="hero-left"
+             hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+             hx-trigger="today-stale from:body"
+             hx-select="#today-hero"
+             hx-swap="outerHTML"
+             hx-disinherit="hx-select hx-swap">
       <div class="rd-hero__head">
         <span class="rd-eyebrow" id="hero-left">Left to spend per day</span>
         {{ pace_tag(pace.kind) }}
       </div>
-      {% set budgeted = summary.totals.budgeted_minor %}
-      {% set spent = summary.totals.spent_minor %}
-      {% set committed = summary.totals.committed_minor %}
-      {% set remaining = summary.totals.remaining_minor %}
-      {% set left_per_day = (remaining / (days_left or 1)) / 100.0 %}
-      {% set spent_pct = (100.0 * spent / budgeted) if budgeted > 0 else 0 %}
-      {% set committed_pct = (100.0 * committed / budgeted) if budgeted > 0 else 0 %}
-      {% set period_total_days = ((summary.next_income_date - summary.period_start).days) or 1 %}
-      {% set period_day_x = ((today - summary.period_start).days) + 1 %}
       <div class="rd-hero__amount">
-        <span>{{ "{:,.2f}".format(left_per_day) }}</span>
+        <span data-testid="hero-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
         <span class="rd-hero__cur num mut">{{ base_ccy }} / day</span>
       </div>
       <div class="rd-hero__meta num">
-        {{ "{:,.2f}".format(remaining / 100.0) }} {{ base_ccy }} left ·
-        {{ days_left }} days until next income
-        {% if summary.anchor_category_name %}
-          ({{ summary.anchor_category_name }}, {{ summary.next_income_date|date_fmt("%-d %b") }})
+        {{ budget.summary.totals.remaining_minor|money_num(base_ccy) }} {{ base_ccy }} left ·
+        {{ budget.summary.days_until_next_income }} days until next income
+        {% if budget.summary.anchor_category_name %}
+          ({{ budget.summary.anchor_category_name }}, {{ budget.summary.next_income_date|date_day_month }})
         {% endif %}
       </div>
-      <div class="rd-hero__progress" aria-hidden="true">
-        {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent > budgeted and budgeted > 0)) }}
+      <div class="rd-hero__progress">
+        {{ progress_bar(budget.spent_pct, committed_pct=budget.committed_pct, over=budget.is_over) }}
       </div>
       <div class="rd-hero__legend">
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--spent"></i>Spent <span class="num">{{ "{:,.2f}".format(spent / 100.0) }}</span></span>
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--committed"></i>Committed <span class="num">{{ "{:,.2f}".format(committed / 100.0) }}</span></span>
-        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--left"></i>Left <span class="num">{{ "{:,.2f}".format(remaining / 100.0) }}</span></span>
-        <span class="rd-hero__legend-item rd-hero__legend-item--total mut">of <span class="num">{{ "{:,.2f}".format(budgeted / 100.0) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--spent"></i>Spent <span class="num">{{ budget.summary.totals.spent_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--committed"></i>Committed <span class="num">{{ budget.summary.totals.committed_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item"><i class="rd-hero__swatch rd-hero__swatch--left"></i>Left <span class="num">{{ budget.summary.totals.remaining_minor|money_num(base_ccy) }}</span></span>
+        <span class="rd-hero__legend-item rd-hero__legend-item--total mut">of <span class="num">{{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }}</span></span>
       </div>
       <div class="rd-hero__period">
         <kbd class="rd-kbd">Period</kbd>
-        {{ summary.period_start|date_fmt("%-d %b") }} → {{ summary.next_income_date|date_fmt("%-d %b") }} · day {{ period_day_x }} of {{ period_total_days }}
+        {{ budget.summary.period_start|date_day_month }} → {{ budget.summary.next_income_date|date_day_month }} · day {{ budget.period_day }} of {{ budget.period_total_days }}
       </div>
       <div class="rd-afford">
         <form class="rd-afford__row"
@@ -76,7 +74,8 @@
           </span>
           <span id="afford-preview" class="rd-afford__preview">
             <span class="mut">→ per day becomes</span>
-            <span class="num rd-afford__new" data-testid="afford-per-day">{{ "{:,.2f}".format(left_per_day) }}</span>
+            <span class="num rd-afford__new"
+                  data-testid="afford-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
           </span>
         </form>
       </div>
@@ -86,18 +85,18 @@
       <div class="rd-netcard__header">
         <div class="rd-eyebrow">Net worth · all accounts</div>
         <div class="rd-netcard__total num">
-          {{ "{:,.2f}".format(fortune.net_base / 100.0) }}<span class="cur">{{ base_ccy }}</span>
+          {{ fortune.net_base|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span>
         </div>
         <div class="rd-netcard__split mut num">
-          Assets {{ "{:,.2f}".format(fortune.assets_base / 100.0) }}
-          · Liabilities {{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}
+          Assets {{ fortune.assets_base|money_num(base_ccy) }}
+          · Liabilities {{ fortune.liabilities_base|money_num(base_ccy) }}
         </div>
       </div>
       <div class="rd-netcard__rows">
         {% for row in account_rows[:7] %}
           <div class="rd-netcard__row {% if row.balance_minor < 0 %}rd-netcard__row--liab{% endif %}">
             <span>{{ row.name }} <small class="text-muted">· {{ row.type or row.currency }}</small></span>
-            <span class="num {% if row.balance_minor < 0 %}neg{% endif %}">{{ "{:,.2f}".format(row.balance_minor / 100.0) }}</span>
+            <span class="num {% if row.balance_minor < 0 %}neg{% endif %}">{{ row.balance_minor|money_num(row.currency) }}</span>
           </div>
         {% endfor %}
       </div>
@@ -132,6 +131,11 @@
                 hx-swap="innerHTML">+ Recurring</button>
       </div>
     </header>
-    <div id="upcoming-root">{% include "today/_upcoming.html" %}</div>
+    <div id="upcoming-root"
+         hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+         hx-trigger="today-stale from:body"
+         hx-select="#upcoming-root"
+         hx-swap="outerHTML"
+         hx-disinherit="hx-select hx-swap">{% include "today/_upcoming.html" %}</div>
   </section>
 {% endblock %}

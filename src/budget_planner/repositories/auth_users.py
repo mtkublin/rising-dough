@@ -26,7 +26,7 @@ class AuthUser:
     must_change_password: bool
 
 
-def _hydrate(row: sqlite3.Row) -> AuthUser:
+def _hydrate_auth_user(row: sqlite3.Row) -> AuthUser:
     return AuthUser(
         id=row["id"],
         name=row["name"],
@@ -46,7 +46,7 @@ def find_live_by_email(conn: sqlite3.Connection, email: str) -> AuthUser | None:
         f"SELECT {_COLUMNS} FROM users WHERE lower(email) = ? AND deleted_at IS NULL",
         (normalized,),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_auth_user(row)
 
 
 def get_live_by_id(conn: sqlite3.Connection, user_id: int) -> AuthUser | None:
@@ -55,7 +55,7 @@ def get_live_by_id(conn: sqlite3.Connection, user_id: int) -> AuthUser | None:
         f"SELECT {_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL",
         (user_id,),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_auth_user(row)
 
 
 __all__ = ["AuthUser", "find_live_by_email", "get_live_by_id"]

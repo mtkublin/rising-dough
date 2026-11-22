@@ -9,9 +9,10 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-import httpx
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
@@ -23,8 +24,10 @@ from budget_planner.domain.recurring import (
     NewRecurringRule,
 )
 from budget_planner.repositories import accounts, categories, planned, recurring
-from budget_planner.services import forecast as forecast_svc
+from budget_planner.repositories._unaudited import set_next_due
+from budget_planner.services import forecast as forecast_svc, fx as fx_svc
 from budget_planner.services.recurring import PromotionEdits, promote_recurring
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 TODAY = date(2026, 11, 6)
@@ -34,11 +37,8 @@ SALARY = 2_950_000
 REMAINING = 70_000
 
 
-def _dead_client() -> httpx.Client:
-    def _h(req: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("offline in tests")
-
-    return httpx.Client(transport=httpx.MockTransport(_h), base_url="https://x")
+def _fx(conn: sqlite3.Connection) -> fx_svc.FxConverter:
+    return fx_svc.converter_for(conn, Settings(_env_file=None), TODAY)
 
 
 @pytest.fixture
@@ -78,14 +78,18 @@ def _rule(
         ),
     )
     # create_rule anchors next_due on the wall clock; pin it for determinism.
-    recurring.set_next_due(
-        conn, USER_ID, rule.id, next_due=date(2026, 11, day), last_promoted_date=None
-    )
+    set_next_due(conn, USER_ID, rule.id, next_due=date(2026, 11, day), last_promoted_date=None)
     return rule.id
 
 
 def _promote_early(conn: sqlite3.Connection, rule_id: int) -> None:
-    promote_recurring(conn, USER_ID, rule_id, PromotionEdits(operation_date=TODAY))
+    promote_recurring(
+        conn,
+        USER_ID,
+        rule_id,
+        PromotionEdits(operation_date=TODAY),
+        fx=formula_fx_of(conn, USER_ID),
+    )
 
 
 def _plan_remaining(conn: sqlite3.Connection, world: dict[str, int], cat: str) -> None:
@@ -103,8 +107,9 @@ def _plan_remaining(conn: sqlite3.Connection, world: dict[str, int], cat: str) -
 
 
 def _monthly(conn: sqlite3.Connection, months: int = 3) -> forecast_svc.MonthlySeries:
-    with _dead_client() as http:
-        return forecast_svc.forecast_monthly(conn, USER_ID, http, TODAY, months, "PLN")
+    return forecast_svc.forecast_monthly(
+        conn, USER_ID, _fx(conn), TODAY, months, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
 
 
 def _row(series: forecast_svc.MonthlySeries, month: date) -> forecast_svc.MonthlyPoint:
@@ -155,7 +160,13 @@ def test_unpromoted_rule_still_projected(conn: sqlite3.Connection, world: dict[s
 
 def test_on_time_promotion_matches_early(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rid = _rule(conn, world, cat="salary", day=5, amount=SALARY)
-    promote_recurring(conn, USER_ID, rid, PromotionEdits(operation_date=date(2026, 11, 5)))
+    promote_recurring(
+        conn,
+        USER_ID,
+        rid,
+        PromotionEdits(operation_date=date(2026, 11, 5)),
+        fx=formula_fx_of(conn, USER_ID),
+    )
     series = _monthly(conn)
     assert _row(series, NOV).income_base_minor == 0
     assert _row(series, DEC).income_base_minor == SALARY
@@ -219,8 +230,9 @@ def test_daily_eom_balance_counts_early_promoted_once(
 ) -> None:
     rid = _rule(conn, world, cat="salary", day=7, amount=SALARY)
     _promote_early(conn, rid)
-    with _dead_client() as http:
-        daily = forecast_svc.forecast(conn, USER_ID, http, TODAY, 30, "PLN")
+    daily = forecast_svc.forecast(
+        conn, USER_ID, _fx(conn), TODAY, 30, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     by_date = {d.on_date: d.totals_base_minor for d in daily.days}
     # Promoted salary is already in the balance; 11-07 adds nothing.
     assert by_date[date(2026, 11, 8)] == by_date[TODAY] == SALARY

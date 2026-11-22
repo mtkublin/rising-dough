@@ -26,6 +26,7 @@
         hx-get="/ledger/table?view={{ view }}"
         hx-target="#ledger-table"
         hx-swap="outerHTML"
+        hx-sync="#ledger-table:replace"
         hx-trigger="change, submit">
     <label>
       <span class="sr-only">From</span>
@@ -85,6 +86,7 @@
              hx-target="#ledger-table"
              hx-swap="outerHTML"
              hx-include="#ledger-filters"
+             hx-sync="#ledger-table:replace"
              hx-trigger="input changed delay:400ms"
              hx-push-url="false">
       <kbd class="rd-kbd">/</kbd>
@@ -94,24 +96,18 @@
     <aside class="rd-recurring-strip" aria-label="Monthly cash flow summary">
       <div>
         <span class="rd-eyebrow">Monthly out</span>
-        <strong class="numeric rd-amount rd-amount--expense">
-          {{ "{:,.0f}".format(recurring_summary.monthly_out_minor / 100.0) }}
-          <span class="rd-amount__currency">PLN</span>
-        </strong>
+        <strong class="numeric rd-amount rd-amount--expense">{{ recurring_summary.monthly_out_display }}</strong>
       </div>
       <div>
         <span class="rd-eyebrow">Monthly in</span>
-        <strong class="numeric rd-amount rd-amount--income">
-          {{ "{:,.0f}".format(recurring_summary.monthly_in_minor / 100.0) }}
-          <span class="rd-amount__currency">PLN</span>
-        </strong>
+        <strong class="numeric rd-amount rd-amount--income">{{ recurring_summary.monthly_in_display }}</strong>
       </div>
     </aside>
   {% endif %}
-  {% if view == "planned" and rows %}
-    <aside class="rd-planned-strip">
-      <strong>{{ rows|length }}</strong> items ·
-      <strong class="numeric">{{ "{:,.2f}".format(planned_total_minor / 100.0) }} PLN</strong>
+  {% if view == "planned" and planned_summary and rows %}
+    <aside class="rd-planned-strip" aria-label="Planned items summary">
+      <strong>{{ planned_summary.count }}</strong> items ·
+      <strong class="numeric">{{ planned_summary.net_display }}</strong>
       pending over the window.
     </aside>
   {% endif %}

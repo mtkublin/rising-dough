@@ -7,32 +7,34 @@ at the canonical URL ``/today``. ``/`` redirects here (ADR-0077).
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
     budget as budget_service,
+    categories as categories_service,
     fortune as fortune_service,
+    fx as fx_service,
     today as today_service,
 )
-from budget_planner.web import today_data
+from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, get_settings_dep
+from budget_planner.web.params import afford_amount_minor, query_choice
+from budget_planner.web.paths import GET_HEAD_METHODS
+from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["today"])
 
 
-@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def root_redirect() -> RedirectResponse:
     """ADR-0077: no home page — ``/`` lands on Today."""
     return RedirectResponse(DEFAULT_LANDING, status_code=303)
@@ -44,32 +46,29 @@ def today(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> HTMLResponse:
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     # Fiscal cycle anchors the landing month so the hero never pulls a
     # future-cycle budget while spent is still on the previous paycheck
     # (ADR-0064).
     year, month = budget_service.fiscal_month_for(conn, user_id, today_d)
-    base_ccy = settings.base_currency
-
-    account_rows, totals_by_ccy, fortune_base = today_data.collect_account_rows(
-        conn, user_id, base_ccy
+    base_ccy, tz = settings.base_currency, settings.display_timezone
+    converter = fx_service.converter_for(conn, settings, today_d)
+    account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
+    fortune = fortune_service.compute_fortune(conn, user_id, converter)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today_d, base_currency=base_ccy, display_timezone=tz
     )
-    fortune = fortune_service.compute_fortune(conn, user_id, settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
-    days_left = summary.days_until_next_income
-    bar_pct = 0
-    if summary.totals.budgeted_minor > 0:
-        ratio = 100 * summary.totals.spent_minor / summary.totals.budgeted_minor
-        bar_pct = max(0, min(100, int(ratio)))
+    budget = view_models.budget_view(summary, today_d)
 
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
     return render(
         request,
@@ -78,15 +77,15 @@ def today(
         year=year,
         month=month,
         base_ccy=base_ccy,
-        fortune_base=fortune_base,
+        fortune_base=fortune.net_base,
         fortune=fortune,
         account_rows=account_rows,
         totals_by_ccy=totals_by_ccy,
-        summary=summary,
+        budget=budget,
         pace=pace,
-        days_left=days_left,
-        bar_pct=bar_pct,
-        upcoming=upcoming,
+        upcoming_view=view_models.upcoming_view(
+            upcoming, today_d, categories_by_id, accounts_by_id
+        ),
         window_label=window_label,
         categories_by_id=categories_by_id,
         accounts_by_id=accounts_by_id,
@@ -99,6 +98,7 @@ def today_upcoming_fragment(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> HTMLResponse:
     """HTMX fragment for Today's #upcoming-root.
 
@@ -106,39 +106,23 @@ def today_upcoming_fragment(
     swap preserves the Today surface's row shape (category pill +
     direction-aware amount) instead of a generic list layout.
     """
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
+    today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(
         request,
         "today/_upcoming.html",
-        upcoming=upcoming,
+        upcoming_view=view_models.upcoming_view(
+            upcoming, today_d, categories_by_id, accounts_by_id
+        ),
         today=today_d,
         window_label=window_label,
         base_ccy=settings.base_currency,
         categories_by_id=categories_by_id,
         accounts_by_id=accounts_by_id,
     )
-
-
-def _parse_amount_arg(raw: str) -> int | None:
-    """Parse the ``amount=`` query arg into minor units.
-
-    The afford input in `today/index.html` is `<input type="number"
-    step="0.01">` — users type a MAJOR-unit decimal. Treat every value
-    as major units and multiply by 100 to minor. Returns ``None`` on
-    invalid input so the router can surface a 422.
-    """
-    stripped = (raw or "").strip()
-    if stripped == "":
-        return 0
-    try:
-        major = float(stripped)
-    except (TypeError, ValueError):
-        return None
-    return round(major * 100)
 
 
 @router.get("/today/afford", response_class=HTMLResponse)
@@ -154,11 +138,18 @@ def afford(
     Returns the ``today/_afford_preview.html`` fragment with the recomputed
     per-day figure + signed delta + pace tag. Pure read; no DB write.
     """
-    amount_minor = _parse_amount_arg(amount)
+    amount_minor = afford_amount_minor(amount, settings.base_currency)
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
-    today_d = datetime.now(ZoneInfo(settings.display_timezone)).date()
-    result = today_service.afford(conn, user_id, today_d, amount_minor)
+    today_d = clock.today_local(settings)
+    result = today_service.afford(
+        conn,
+        user_id,
+        today_d,
+        amount_minor,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
+    )
     return render(
         request,
         "today/_afford_preview.html",
@@ -168,19 +159,6 @@ def afford(
         delta=result.delta_minor,
         base_ccy=settings.base_currency,
     )
-
-
-# Alias so the legacy template `/afford` hx-get keeps working during the
-# v2 handoff (same handler, same semantics). Phase 7 cleanup drops this.
-@router.get("/afford", response_class=HTMLResponse)
-def afford_alias(
-    request: Request,
-    amount: str = "",
-    conn: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings_dep),
-    user_id: int = Depends(current_user_id),
-) -> Response:
-    return afford(request, amount, conn, settings, user_id)
 
 
 # F-04 — Unified Add entry overlay. Hosts the Happened / Planned / Repeats
@@ -201,24 +179,20 @@ def add_entry_overlay(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     """Return the unified Add entry overlay (F-04)."""
-    tab = next((row for row in _ADD_TAB_FORMS if row[0] == when), _ADD_TAB_FORMS[0])
+    picked = query_choice("when", when, tuple(row[0] for row in _ADD_TAB_FORMS)) or "happened"
+    tab = next(row for row in _ADD_TAB_FORMS if row[0] == picked)
     active_tab, form_include, action, entity_name = tab
     ctx: dict[str, Any] = {
         "active_tab": active_tab,
         "form_include": form_include,
         "action": action,
-        "categories": categories_repo.list_all(conn, user_id),
-        "accounts": accounts_repo.list_all(conn, user_id),
+        "categories": categories_service.list_all(conn, user_id),
+        "accounts": accounts_service.list_all(conn, user_id),
         "errors": {},
         entity_name: None,
     }
     if active_tab == "repeats":
-        from budget_planner.web.routers.recurring import (  # noqa: PLC0415
-            _EMPTY_TERM_INPUT,
-            _formula_source_candidates,
-        )
-
-        ctx["source_categories"] = _formula_source_candidates(conn, user_id)
+        ctx["source_categories"] = formula_source_candidates(conn, user_id)
         ctx["amount_source"] = "fixed"
-        ctx["terms"] = [dict(_EMPTY_TERM_INPUT)]
+        ctx["terms"] = [dict(EMPTY_TERM_INPUT)]
     return render(request, "partials/_add_entry_overlay.html", **ctx)

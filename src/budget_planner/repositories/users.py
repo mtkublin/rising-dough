@@ -23,6 +23,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 
+from budget_planner import clock
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.domain.system_categories import (
@@ -34,7 +35,6 @@ from budget_planner.repositories._shared import (
     parse_dt,
     parse_dt_required,
     transaction,
-    utc_now_iso,
     write_audit,
 )
 from budget_planner.repositories.auth_users import (
@@ -44,6 +44,8 @@ from budget_planner.repositories.auth_users import (
 )
 
 _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
+# Audit-JSON key marking a credential rotation (name avoids bandit B105 heuristics).
+_AUDIT_CREDENTIAL_ROTATED_KEY = "password_changed"
 
 # Mirrors ``migrations/0003_seed_system_rows.sql`` (ADR-0061 §6).
 SYSTEM_CATEGORY_SEEDS: tuple[tuple[str, Direction], ...] = (
@@ -82,7 +84,7 @@ class ProfileUpdate:
 
     email: str
     name: str
-    is_admin: bool
+    is_admin: bool | None = None  # None leaves the flag unchanged (ADR-0137)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -142,9 +144,12 @@ def find_legacy_owner(conn: sqlite3.Connection) -> AuthUser | None:
     return None if row is None else get_live_by_id(conn, int(row["id"]))
 
 
-def owns_accounts(conn: sqlite3.Connection, user_id: int) -> bool:
-    """Return ``True`` iff ``user_id`` owns at least one account (live or not)."""
-    row = conn.execute("SELECT 1 FROM accounts WHERE user_id = ? LIMIT 1", (user_id,)).fetchone()
+def owns_accounts(conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False) -> bool:
+    """Return ``True`` iff ``user_id`` owns at least one account (live only by default)."""
+    live = "" if include_deleted else " AND deleted_at IS NULL"
+    row = conn.execute(
+        f"SELECT 1 FROM accounts WHERE user_id = ?{live} LIMIT 1", (user_id,)
+    ).fetchone()
     return row is not None
 
 
@@ -236,7 +241,7 @@ def update_credentials(
                 int(update.must_change_password),
                 update.email,
                 None if update.is_admin is None else int(update.is_admin),
-                utc_now_iso(),
+                clock.utc_now_iso(),
                 user_id,
             ),
         )
@@ -247,7 +252,7 @@ def update_credentials(
             entity_id=user_id,
             operation="update",
             prev=_redacted(prev),
-            new={**_redacted(updated), "password_changed": True},
+            new={**_redacted(updated), _AUDIT_CREDENTIAL_ROTATED_KEY: True},
             request_ctx=request_ctx,
         )
     return updated
@@ -310,9 +315,16 @@ def update_profile(
     with transaction(conn):
         prev = _require_live(conn, user_id)
         conn.execute(
-            "UPDATE users SET email = ?, name = ?, is_admin = ?, updated_at = ? "
+            "UPDATE users SET email = ?, name = ?, "
+            "is_admin = COALESCE(?, is_admin), updated_at = ? "
             "WHERE id = ? AND deleted_at IS NULL",
-            (update.email, update.name, int(update.is_admin), utc_now_iso(), user_id),
+            (
+                update.email,
+                update.name,
+                None if update.is_admin is None else int(update.is_admin),
+                clock.utc_now_iso(),
+                user_id,
+            ),
         )
         updated = _require_live(conn, user_id)
         write_audit(
@@ -347,7 +359,7 @@ def reset_password(
         conn.execute(
             "UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? "
             "WHERE id = ? AND deleted_at IS NULL",
-            (password_hash, utc_now_iso(), user_id),
+            (password_hash, clock.utc_now_iso(), user_id),
         )
         revoked = sessions_repo.revoke_all_user_sessions(conn, user_id)
         updated = _require_live(conn, user_id)
@@ -378,7 +390,7 @@ def soft_delete(
     """
     with transaction(conn):
         prev = _require_live(conn, user_id)
-        now = utc_now_iso()
+        now = clock.utc_now_iso()
         conn.execute(
             "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
             (now, now, user_id),

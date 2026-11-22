@@ -1,6 +1,6 @@
 # ADR-0056: v2 Rising Dough — Inline Interactions, Live Previews, and Backend Additions
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-10-28
 - **Related**: ADR-0026 (FAB visibility), ADR-0030 (shared form primitives), ADR-0038 (recurring standalone lifecycle), ADR-0041 (budget period anchor window), ADR-0048 (category colour), ADR-0051 (new IA), ADR-0053 (component system)
 
@@ -96,3 +96,11 @@ Multiple overlays can co-exist (promote-in-place row + popover + modal). The Esc
 
 - A later ADR may replace Alpine with native CSS Anchor Positioning + Popover API when Safari support crosses the 95% threshold.
 - A later ADR may add the command palette (`⌘K`); kept as a design reference only for v2 (handoff screen 1m).
+
+## Amendment 2026-11-21 (T-Q244, Q-050)
+
+The section 4 live formula preview endpoint `POST /recurring/formula/preview` (and its partial) had no caller since the unified entry form (ADR-0060) and was deleted, with `GET /accounts/last-checked`, `GET /plan/analytics`, `POST /budget/recurring/{category_id}/{month}`, `POST /recurring/batch/promote-due` and `POST /recurring/batch/undo`. `services/recurring_formula.preview` remains for a future re-wire in the ADR-0107 redesign.
+
+### Amendment 2026-11-22 (SYNC-MAIN): formula preview route restored
+
+The ui-test-harness work (T-UT12-3) wired the recurring form to `POST /recurring/formula/preview` again (`rd-formula-change` trigger in `partials/recurring/_form.html`), so the route deleted by T-Q244 has a caller. It is restored with its partial `partials/recurring/_formula_preview.html` and integration test; the other five T-Q244 deletions stand.

@@ -18,11 +18,6 @@
   var CSRF_HEADER = "X-CSRF-Token";
   var GENERIC_LOGIN_ERROR = "Passkey sign-in didn't work. Try again or use your password.";
 
-  function csrfToken() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    return meta ? meta.getAttribute("content") || "" : "";
-  }
-
   function toBytes(b64url) {
     var b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
     while (b64.length % 4) b64 += "=";
@@ -40,6 +35,12 @@
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
+  /* Error class only (e.g. NotAllowedError for a cancelled prompt): never the
+   * message, which can carry device or account detail. */
+  function logFailure(err) {
+    console.debug("passkey ceremony failed:", (err && err.name) || "Error");
+  }
+
   function setStatus(el, message, isError) {
     if (!el) return;
     el.textContent = message;
@@ -48,7 +49,7 @@
 
   function postJson(url, body) {
     var headers = { Accept: "application/json" };
-    headers[CSRF_HEADER] = csrfToken();
+    headers[CSRF_HEADER] = window.budgetCsrf.token();
     if (body !== undefined) headers["Content-Type"] = "application/json";
     return fetch(url, {
       method: "POST",
@@ -62,12 +63,12 @@
       );
     }).then(function (res) {
       /* ADR-0076 §2: a stale login needs a fresh credential first. */
-      if (resp403(res) && res.data.redirect) window.location.assign(res.data.redirect);
+      if (isReauthRequired(res) && res.data.redirect) window.location.assign(res.data.redirect);
       return res;
     });
   }
 
-  function resp403(res) {
+  function isReauthRequired(res) {
     return !res.ok && res.data && res.data.error === "reauth_required";
   }
 
@@ -107,88 +108,64 @@
     setStatus(status, "This browser doesn't support passkeys.", true);
   }
 
-  /* ── Login ─────────────────────────────────────────────────────── */
-  function bindLogin(button) {
+  /* Shared assertion ceremony for login and step-up re-auth (ADR-0076 §2):
+   * POST beginUrl, navigator.credentials.get, POST finishUrl, redirect. */
+  function runAssertion(button, beginUrl, finishUrl, errorMessage) {
+    var status = document.querySelector("[data-passkey-status]");
+    var next = button.getAttribute("data-next") || "/";
+    button.setAttribute("aria-busy", "true");
+    setStatus(status, "Waiting for your passkey…", false);
+    postJson(beginUrl)
+      .then(function (res) {
+        if (!res.ok) throw new Error("begin");
+        var opts = res.data;
+        opts.challenge = toBytes(opts.challenge);
+        opts.allowCredentials = descriptors(opts.allowCredentials);
+        return navigator.credentials.get({ publicKey: opts });
+      })
+      .then(function (cred) {
+        var r = cred.response;
+        return postJson(
+          finishUrl + "?next=" + encodeURIComponent(next),
+          serialise(cred, {
+            clientDataJSON: toB64url(r.clientDataJSON),
+            authenticatorData: toB64url(r.authenticatorData),
+            signature: toB64url(r.signature),
+            userHandle: toB64url(r.userHandle),
+          })
+        );
+      })
+      .then(function (res) {
+        if (!res.ok || !res.data.redirect) throw new Error("finish");
+        window.location.assign(res.data.redirect);
+      })
+      .catch(function (err) {
+        logFailure(err);
+        setStatus(status, errorMessage, true);
+      })
+      .finally(function () {
+        button.removeAttribute("aria-busy");
+      });
+  }
+
+  function bindAssertion(button, beginUrl, finishUrl, errorMessage) {
     var status = document.querySelector("[data-passkey-status]");
     if (!supported()) return markUnsupported(button, status);
     button.addEventListener("click", function () {
-      var next = button.getAttribute("data-next") || "/";
-      button.setAttribute("aria-busy", "true");
-      setStatus(status, "Waiting for your passkey…", false);
-      postJson("/auth/login/begin")
-        .then(function (res) {
-          if (!res.ok) throw new Error("begin");
-          var opts = res.data;
-          opts.challenge = toBytes(opts.challenge);
-          opts.allowCredentials = descriptors(opts.allowCredentials);
-          return navigator.credentials.get({ publicKey: opts });
-        })
-        .then(function (cred) {
-          var r = cred.response;
-          return postJson(
-            "/auth/login/finish?next=" + encodeURIComponent(next),
-            serialise(cred, {
-              clientDataJSON: toB64url(r.clientDataJSON),
-              authenticatorData: toB64url(r.authenticatorData),
-              signature: toB64url(r.signature),
-              userHandle: toB64url(r.userHandle),
-            })
-          );
-        })
-        .then(function (res) {
-          if (!res.ok || !res.data.redirect) throw new Error("finish");
-          window.location.assign(res.data.redirect);
-        })
-        .catch(function () {
-          setStatus(status, GENERIC_LOGIN_ERROR, true);
-        })
-        .finally(function () {
-          button.removeAttribute("aria-busy");
-        });
+      runAssertion(button, beginUrl, finishUrl, errorMessage);
     });
+  }
+
+  /* ── Login ─────────────────────────────────────────────────────── */
+  function bindLogin(button) {
+    bindAssertion(button, "/auth/login/begin", "/auth/login/finish", GENERIC_LOGIN_ERROR);
   }
 
   /* ── Step-up re-authentication (ADR-0076 §2) ─────────────────── */
   var REAUTH_ERROR = "Passkey confirmation didn't work. Try again or use your password.";
 
   function bindReauth(button) {
-    var status = document.querySelector("[data-passkey-status]");
-    if (!supported()) return markUnsupported(button, status);
-    button.addEventListener("click", function () {
-      var next = button.getAttribute("data-next") || "/";
-      button.setAttribute("aria-busy", "true");
-      setStatus(status, "Waiting for your passkey…", false);
-      postJson("/auth/reauth/begin")
-        .then(function (res) {
-          if (!res.ok) throw new Error("begin");
-          var opts = res.data;
-          opts.challenge = toBytes(opts.challenge);
-          opts.allowCredentials = descriptors(opts.allowCredentials);
-          return navigator.credentials.get({ publicKey: opts });
-        })
-        .then(function (cred) {
-          var r = cred.response;
-          return postJson(
-            "/auth/reauth/finish?next=" + encodeURIComponent(next),
-            serialise(cred, {
-              clientDataJSON: toB64url(r.clientDataJSON),
-              authenticatorData: toB64url(r.authenticatorData),
-              signature: toB64url(r.signature),
-              userHandle: toB64url(r.userHandle),
-            })
-          );
-        })
-        .then(function (res) {
-          if (!res.ok || !res.data.redirect) throw new Error("finish");
-          window.location.assign(res.data.redirect);
-        })
-        .catch(function () {
-          setStatus(status, REAUTH_ERROR, true);
-        })
-        .finally(function () {
-          button.removeAttribute("aria-busy");
-        });
-    });
+    bindAssertion(button, "/auth/reauth/begin", "/auth/reauth/finish", REAUTH_ERROR);
   }
 
   /* ── Registration ──────────────────────────────────────────────── */
@@ -238,6 +215,7 @@
           goTo(res.data.redirect);
         })
         .catch(function (err) {
+          logFailure(err);
           var msg = REGISTER_ERRORS[err && err.message] ||
             "The passkey wasn't added. You can try again.";
           setStatus(status, msg, true);

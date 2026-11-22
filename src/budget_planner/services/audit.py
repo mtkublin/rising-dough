@@ -22,8 +22,10 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping
-from typing import Any, Literal, cast
+from types import MappingProxyType
+from typing import Literal, cast
 
+from budget_planner.domain.audit import AuditPayload
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories._shared import (
     attributed_ctx,
@@ -43,18 +45,20 @@ class AuditShapeError(ValueError):
 
 
 # ``prev_required`` / ``new_required`` per operation, matching ADR-0019.
-_SHAPE_RULES: dict[str, tuple[bool, bool]] = {
-    "create": (False, True),
-    "update": (True, True),
-    "delete": (True, False),
-    "undelete": (False, True),
-}
+_SHAPE_RULES: Mapping[str, tuple[bool, bool]] = MappingProxyType(
+    {
+        "create": (False, True),
+        "update": (True, True),
+        "delete": (True, False),
+        "undelete": (False, True),
+    }
+)
 
 
 def _check_shape(
     operation: AuditOperation,
-    prev: Mapping[str, Any] | Any | None,
-    new: Mapping[str, Any] | Any | None,
+    prev: AuditPayload | None,
+    new: AuditPayload | None,
 ) -> None:
     if operation not in _SHAPE_RULES:
         raise AuditShapeError(f"unknown audit operation: {operation!r}")
@@ -75,8 +79,8 @@ def write_audit(
     entity_type: str,
     entity_id: int,
     operation: AuditOperation,
-    prev: Mapping[str, Any] | Any | None,
-    new: Mapping[str, Any] | Any | None,
+    prev: AuditPayload | None,
+    new: AuditPayload | None,
     user_id: int | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> None:

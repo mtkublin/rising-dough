@@ -24,7 +24,8 @@
     <link rel="stylesheet"
           href="{{ url_for('static', path='auth.css') }}?v=auth1">
     <script src="{{ url_for('static', path='vendor/htmx-2.0.11.min.js') }}?v=t140c"></script>
-    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf2" defer></script>
+    <script src="{{ url_for('static', path='csrf.js') }}?v=2" defer></script>
+    <script src="{{ url_for('static', path='htmx-csrf.js') }}?v=csrf3" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
   <body class="rd min-h-screen"
@@ -71,7 +72,6 @@
             defer></script>
     <script src="{{ url_for('static', path='js/combobox.js') }}?v=t110" defer></script>
     <script src="{{ url_for('static', path='js/kebab.js') }}?v=kebab" defer></script>
-    <script src="{{ url_for('static', path='js/bulk-select.js') }}?v=rd1" defer></script>
     <script src="{{ url_for('static', path='js/rising-dough.js') }}?v=rd1" defer></script>
     <script src="{{ url_for('static', path='js/rd-wire.js') }}?v=t140c" defer></script>
     <script src="{{ url_for('static', path='js/overlay-actions.js') }}?v=t140c"

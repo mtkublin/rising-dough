@@ -29,3 +29,7 @@ The initial requirements call for a web application run locally, Python-preferre
 - **Flask + Jinja**: viable; FastAPI preferred for Pydantic + async + OpenAPI.
 - **Next.js / React SPA**: overbuilt for a single-user local app; doubles languages and build systems.
 - **Reflex / NiceGUI / Dash**: niche; smaller communities; opaque under the hood.
+
+## Addendum 2026-11-21: stack drift
+
+The Decision above is partly obsolete; the prior text is kept as the record. Today: Tailwind is built locally (`just css`, no CDN; ADR-0027), charts are server-rendered SVG (ADR-0054, ADR-0123) and Plotly is gone, and the frontend stays server-rendered Jinja + HTMX with no SPA framework (ADR-0123). The repo does use a `package.json` toolchain for the Tailwind build and stylelint, so "no node toolchain" no longer holds. Quality-audit finding Q-052.

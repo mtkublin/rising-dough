@@ -24,6 +24,20 @@ resource "random_password" "console" {
   special = false
 }
 
+# T-Q277 / ADR-0135: the drill's OWN Litestream replica key pair. One pair per
+# drill, kept in that drill's Terraform state: it survives a VM replacement (the
+# replacement rehearsal restores the drill's own replica with it), is regenerated
+# with a fresh drill (new state, new bucket), and dies with the teardown. The
+# drill GitHub environments hold no age key. Prod keeps its operator-held pair.
+resource "age_secret_key" "drill" {
+  count = var.env == "drill" ? 1 : 0
+}
+
+locals {
+  litestream_age_identity  = var.env == "drill" ? age_secret_key.drill[0].secret_key : var.litestream_age_identity
+  litestream_age_recipient = var.env == "drill" ? age_secret_key.drill[0].public_key : var.litestream_age_recipient
+}
+
 # ----------------------------------------------------------------------------
 # Module composition.
 # ----------------------------------------------------------------------------
@@ -158,10 +172,12 @@ module "compute" {
   ghcr_pull_pat          = var.ghcr_pull_pat
   github_owner           = var.github_owner
   github_repo            = var.github_repo
-  admin_email            = var.admin_email
-  admin_password         = random_password.admin_initial_password.result
-  cookie_secret          = random_password.cookie_secret.result
-  trusted_hosts_csv      = local.fqdn
+  # T-Q238 (Q-040): only drills may verify branch-signed images.
+  allow_branch_builds = var.env == "drill"
+  admin_email         = var.admin_email
+  admin_password      = random_password.admin_initial_password.result
+  cookie_secret       = random_password.cookie_secret.result
+  trusted_hosts_csv   = local.fqdn
 
   # T-D97 / ADR-0101: drill = tailnet only (no public 80/443, Caddy cert from tailscaled).
   tailnet_only = local.tailnet_only
@@ -184,14 +200,19 @@ module "compute" {
   expires_at = var.drill_expires_at
 
   # T-D41a: restore-from-prod helper, drill env only.
-  enable_restore_helper  = var.env == "drill"
+  # ADR-0132 / H4-03: only the restore drill supplies the prod read key; explore drills get no restore-source.env.
+  enable_restore_helper  = var.env == "drill" && var.scw_access_key_restore != ""
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
   scw_access_key_restore = var.env == "drill" ? var.scw_access_key_restore : ""
   scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
 
   # T-D56: Litestream replica age encryption (ADR-0078 §3).
-  litestream_age_identity  = var.litestream_age_identity
-  litestream_age_recipient = var.litestream_age_recipient
+  litestream_age_identity  = local.litestream_age_identity
+  litestream_age_recipient = local.litestream_age_recipient
+
+  # ADR-0135: the PROD replica identity, separate from the host's own pair; only
+  # reaches the host with the restore helper (restore drill apply).
+  restore_source_age_identity = var.env == "drill" ? var.restore_source_age_identity : ""
 
   # T-D156 / ADR-0127: the drill bucket starts empty; prod must restore or fail.
   # The rehearsal (§7) turns it off on the drill once to prove the refusal.

@@ -1,6 +1,6 @@
 # ADR-0118: The VM Root Volume Is Local SSD, Declared Explicitly
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-11-18
 - **Amends**: ADR-0032 (shared volume, cost model)
 - **Relates to**: ADR-0035, ADR-0084, ADR-0099, ADR-0111, ADR-0114

@@ -12,6 +12,7 @@ the rule.
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 
 from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
@@ -37,7 +38,7 @@ def list_for_account(
     rows = conn.execute(
         f"SELECT {cols} FROM account_snapshots s "
         "JOIN accounts a ON a.id = s.account_id "
-        "WHERE s.account_id = ? AND a.user_id = ? "
+        "WHERE s.account_id = ? AND a.user_id = ? AND a.deleted_at IS NULL "
         "ORDER BY s.taken_at ASC, s.id ASC",
         (account_id, user_id),
     ).fetchall()
@@ -45,10 +46,10 @@ def list_for_account(
 
 
 def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> AccountSnapshot:
-    def _action(c: sqlite3.Connection) -> tuple[int, AccountSnapshot]:
+    def _create_snapshot_action(c: sqlite3.Connection) -> tuple[int, AccountSnapshot]:
         # Validate FK-ownership first; the account must belong to user_id.
         parent = c.execute(
-            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?",
+            "SELECT 1 FROM accounts WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (data.account_id, user_id),
         ).fetchone()
         if parent is None:
@@ -62,7 +63,7 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
         row = c.execute(
             f"SELECT {cols} FROM account_snapshots s "
             "JOIN accounts a ON a.id = s.account_id "
-            "WHERE s.id = ? AND a.user_id = ?",
+            "WHERE s.id = ? AND a.user_id = ? AND a.deleted_at IS NULL",
             (new_id, user_id),
         ).fetchone()
         return new_id, _row_to_snapshot(row)
@@ -72,9 +73,49 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot) -> 
         entity_type="snapshot",
         operation="create",
         prev=None,
-        action=_action,
+        action=_create_snapshot_action,
         user_id=user_id,
     )
 
 
-__all__ = ["create", "list_for_account"]
+def list_for_user(conn: sqlite3.Connection, user_id: int) -> dict[int, list[AccountSnapshot]]:
+    """All live accounts' snapshots in one query, grouped by ``account_id`` (T-Q234)."""
+    cols = ", ".join(f"s.{c}" for c in _COLUMNS.split(", "))
+    rows = conn.execute(
+        f"SELECT {cols} FROM account_snapshots s "
+        "JOIN accounts a ON a.id = s.account_id "
+        "WHERE a.user_id = ? AND a.deleted_at IS NULL "
+        "ORDER BY s.taken_at ASC, s.id ASC",
+        (user_id,),
+    ).fetchall()
+    out: dict[int, list[AccountSnapshot]] = {}
+    for row in rows:
+        snap = _row_to_snapshot(row)
+        out.setdefault(snap.account_id, []).append(snap)
+    return out
+
+
+__all__ = ["create", "list_for_account", "list_for_user"]
+
+
+def latest_taken_at_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, dt.datetime]:
+    """Return ``{account_id: max(taken_at)}`` for the user's live (non-deleted) accounts.
+
+    Snapshots have no ``deleted_at`` of their own; liveness comes from the
+    owning account (soft-delete rule, ADR-0022).
+    """
+    rows = conn.execute(
+        """
+        SELECT s.account_id AS account_id, MAX(s.taken_at) AS taken_at
+        FROM account_snapshots s
+        JOIN accounts a ON a.id = s.account_id
+        WHERE a.user_id = ? AND a.deleted_at IS NULL
+        GROUP BY s.account_id
+        """,
+        (user_id,),
+    ).fetchall()
+    return {
+        row["account_id"]: dt.datetime.fromisoformat(row["taken_at"].replace("Z", "+00:00"))
+        for row in rows
+        if row["taken_at"] is not None
+    }

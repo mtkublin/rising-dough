@@ -11,13 +11,19 @@ single DB transaction.
 
 from __future__ import annotations
 
-import calendar
 import datetime as dt
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
+from budget_planner.domain.periods import month_bounds
+from budget_planner.domain.planned import (
+    NewPlannedTransaction,
+    PatchPlannedTransaction,
+    PlannedFilter,
+    PlannedTransaction,
+)
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
     categories as categories_repo,
@@ -28,8 +34,10 @@ from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services._promotion import (
     UnsupportedDirectionError,
     ValidationError,
+    create_promoted_transaction,
     validate_promotion as _shared_validate_promotion,
 )
+from budget_planner.services.transactions import validate_entry, validate_patched_entry
 
 # After T-119 (ADR-0038) planned rows are always persisted. The literal is
 # kept as a single-value alias so templates and callers can keep reading
@@ -67,9 +75,17 @@ class PlannedNotFoundError(LookupError):
 class AlreadyPromotedError(RuntimeError):
     """Raised when the planned row has already been promoted."""
 
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was already promoted.")
+        self.planned_id = planned_id
+
 
 class CannotPromoteDeletedError(RuntimeError):
     """Raised when attempting to promote a soft-deleted planned row."""
+
+    def __init__(self, planned_id: int) -> None:
+        super().__init__("This planned transaction was deleted and cannot be promoted.")
+        self.planned_id = planned_id
 
 
 # ``UnsupportedDirectionError`` + ``ValidationError`` are re-exported from the
@@ -81,12 +97,9 @@ class CannotPromoteDeletedError(RuntimeError):
 # ---------------------------------------------------------------------------
 # list_planned
 # ---------------------------------------------------------------------------
-def _default_window(filters: PlannedFilter) -> tuple[dt.date, dt.date]:
+def _default_window(filters: PlannedFilter, today: dt.date) -> tuple[dt.date, dt.date]:
     """Fill in a window if filters don't specify one — defaults to the current month."""
-    today = dt.date.today()  # noqa: DTZ011 - naive date, routers inject when needed
-    first = today.replace(day=1)
-    last_day = calendar.monthrange(today.year, today.month)[1]
-    last = today.replace(day=last_day)
+    first, last = month_bounds(today.year, today.month)
     date_from = filters.date_from or first
     date_to = filters.date_to or last
     return date_from, date_to
@@ -113,8 +126,10 @@ def list_planned(
     conn: sqlite3.Connection,
     user_id: int,
     filters: PlannedFilter,
+    *,
+    today: dt.date,
 ) -> tuple[PlannedView, ...]:
-    """Return persisted planned rows filtered + sorted.
+    """Return persisted planned rows filtered + sorted (``today`` anchors the default window).
 
     After T-119 (ADR-0038) this surface no longer unions virtual recurring
     occurrences. The forecast service continues to call
@@ -125,7 +140,7 @@ def list_planned(
     # ``_default_window`` honours the historical "no window → current month"
     # fallback so callers that omit date_from / date_to keep their previous
     # output shape even though the virtual branch is gone.
-    date_from, date_to = _default_window(filters)
+    date_from, date_to = _default_window(filters, today)
     effective_filters = PlannedFilter(
         date_from=filters.date_from or date_from,
         date_to=filters.date_to or date_to,
@@ -153,41 +168,42 @@ def promote_to_actual(
     edits: PromotionEdits,
 ) -> Transaction:
     """Insert a transactions row linked to ``planned_id`` and stamp the planned row."""
-    row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
-    if row is None:
-        raise PlannedNotFoundError(planned_id)
-    if row.deleted_at is not None:
-        raise CannotPromoteDeletedError(planned_id)
-    if row.promoted_to_txn_id is not None:
-        raise AlreadyPromotedError(planned_id)
-
-    category = categories_repo.find_by_id(conn, user_id, row.category_id, include_deleted=True)
-    if category is None:  # pragma: no cover - FK guarantees existence
-        raise ValidationError(f"category {row.category_id} not found")
-    operation_date = edits.operation_date or row.operation_date
-    amount = edits.amount_minor if edits.amount_minor is not None else row.amount
-    description = edits.description if edits.description is not None else row.description
-    _shared_validate_promotion(
-        conn,
-        user_id,
-        direction=category.direction,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        amount=amount,
-    )
-
-    new_txn = NewTransaction(
-        operation_date=operation_date,
-        category_id=row.category_id,
-        account_id=row.account_id,
-        dest_account_id=row.dest_account_id,
-        amount=amount,
-        description=description,
-        promoted_from_planned_id=planned_id,
-    )
-
+    # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
-        txn = transactions_repo.create(conn, user_id, new_txn)
+        row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
+        if row is None:
+            raise PlannedNotFoundError(planned_id)
+        if row.deleted_at is not None:
+            raise CannotPromoteDeletedError(planned_id)
+        if row.promoted_to_txn_id is not None:
+            raise AlreadyPromotedError(planned_id)
+
+        category = categories_repo.find_by_id(conn, user_id, row.category_id, include_deleted=True)
+        if category is None:  # pragma: no cover - FK guarantees existence
+            raise ValidationError(f"category {row.category_id} not found")
+        operation_date = edits.operation_date or row.operation_date
+        amount = edits.amount_minor if edits.amount_minor is not None else row.amount
+        description = edits.description if edits.description is not None else row.description
+        _shared_validate_promotion(
+            conn,
+            user_id,
+            direction=category.direction,
+            account_id=row.account_id,
+            dest_account_id=row.dest_account_id,
+            amount=amount,
+        )
+
+        new_txn = NewTransaction(
+            operation_date=operation_date,
+            category_id=row.category_id,
+            account_id=row.account_id,
+            dest_account_id=row.dest_account_id,
+            amount=amount,
+            description=description,
+            promoted_from_planned_id=planned_id,
+        )
+
+        txn = create_promoted_transaction(conn, user_id, new_txn)
         planned_repo.stamp_promotion(conn, user_id, planned_id, txn.id)
     return txn
 
@@ -232,9 +248,115 @@ def batch_promote_due(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class BatchUndoResult:
+    """Outcome of :func:`undo_batch`: what was reverted and what was left alone."""
+
+    deleted_txn_ids: tuple[int, ...]
+    restored_planned_ids: tuple[int, ...]
+    skipped_planned_ids: tuple[int, ...]
+
+
+def undo_batch(
+    conn: sqlite3.Connection,
+    user_id: int,
+    txn_ids: Sequence[int],
+    planned_ids: Sequence[int],
+) -> BatchUndoResult:
+    """Reverse a batch promote-due, as an audited action (ADR-0019 amendment, T-Q228).
+
+    One transaction: soft-delete the batch's own transactions (owner-scoped,
+    each writes its ``delete`` audit row) and un-stamp each planned row by
+    compare-and-set against the batch's transaction ids (writes an ``update``
+    audit row). A planned row re-stamped by another promotion since the batch
+    is left untouched and reported in ``skipped_planned_ids``.
+    """
+    batch = frozenset(txn_ids)
+    deleted: list[int] = []
+    restored: list[int] = []
+    skipped: list[int] = []
+    with db_transaction(conn):
+        for txn_id in txn_ids:
+            if transactions_repo.find_by_id(conn, user_id, txn_id) is None:
+                continue
+            transactions_repo.soft_delete(conn, user_id, txn_id)
+            deleted.append(txn_id)
+        for planned_id in planned_ids:
+            if planned_repo.clear_promotion(conn, user_id, planned_id, txn_ids=batch):
+                restored.append(planned_id)
+            else:
+                skipped.append(planned_id)
+    return BatchUndoResult(
+        deleted_txn_ids=tuple(deleted),
+        restored_planned_ids=tuple(restored),
+        skipped_planned_ids=tuple(skipped),
+    )
+
+
+def find_by_id(
+    conn: sqlite3.Connection, user_id: int, planned_id: int, *, include_deleted: bool = False
+) -> PlannedTransaction | None:
+    """The caller's planned row, or ``None`` (soft-deleted rows only with ``include_deleted``)."""
+    return planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=include_deleted)
+
+
+def list_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: PlannedFilter,
+    *,
+    include_deleted: bool = False,
+) -> list[PlannedTransaction]:
+    """Planned rows matching ``filters`` for the caller."""
+    return planned_repo.list_filtered(conn, user_id, filters, include_deleted=include_deleted)
+
+
+def list_recently_deleted(
+    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
+) -> list[PlannedTransaction]:
+    """Planned rows soft-deleted within ``days``, newest first."""
+    return planned_repo.list_recently_deleted(conn, user_id, days=days, limit=limit)
+
+
+def create(
+    conn: sqlite3.Connection, user_id: int, data: NewPlannedTransaction
+) -> PlannedTransaction:
+    """Create a planned row after the shared entry rules (:func:`validate_entry`)."""
+    validate_entry(
+        conn,
+        user_id,
+        category_id=data.category_id,
+        account_id=data.account_id,
+        dest_account_id=data.dest_account_id,
+        amount=data.amount,
+        description=data.description,
+    )
+    return planned_repo.create(conn, user_id, data)
+
+
+def update(
+    conn: sqlite3.Connection, user_id: int, planned_id: int, data: PatchPlannedTransaction
+) -> PlannedTransaction:
+    """Patch a planned row; the merged result must satisfy :func:`validate_entry`."""
+    row = planned_repo.find_by_id(conn, user_id, planned_id, include_deleted=True)
+    validate_patched_entry(conn, user_id, row, data)
+    return planned_repo.update(conn, user_id, planned_id, data)
+
+
+def soft_delete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> None:
+    """Soft-delete one planned row."""
+    planned_repo.soft_delete(conn, user_id, planned_id)
+
+
+def undelete(conn: sqlite3.Connection, user_id: int, planned_id: int) -> PlannedTransaction:
+    """Restore a soft-deleted planned row."""
+    return planned_repo.undelete(conn, user_id, planned_id)
+
+
 __all__ = [
     "AlreadyPromotedError",
     "BatchPromoteResult",
+    "BatchUndoResult",
     "CannotPromoteDeletedError",
     "PlannedKind",
     "PlannedNotFoundError",
@@ -243,6 +365,14 @@ __all__ = [
     "UnsupportedDirectionError",
     "ValidationError",
     "batch_promote_due",
+    "create",
+    "find_by_id",
+    "list_filtered",
     "list_planned",
+    "list_recently_deleted",
     "promote_to_actual",
+    "soft_delete",
+    "undelete",
+    "undo_batch",
+    "update",
 ]

@@ -18,9 +18,8 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.services import _passwords
-from budget_planner.web.routers.settings_password import THROTTLED_FORM_ERROR
-from tests.auth_support import FAST_ROUNDS, TEST_PASSWORD, issue_session, login_cookie
+from budget_planner.web.password_flow import THROTTLED_FORM_ERROR
+from tests.auth_support import FAST_HASHER, TEST_PASSWORD, issue_session, login_cookie
 from tests.contract.conftest import covers
 from tests.contract.web_helpers_t_ut04e import HX
 from tests.ui_map import _html, settings as ui
@@ -32,11 +31,6 @@ WRONG = "not-the-password"  # pragma: allowlist secret
 PER_MINUTE = 2
 T0 = datetime(2026, 11, 3, 12, 0, 10, tzinfo=UTC)
 JSON = {"Accept": "application/json"}
-
-
-@pytest.fixture(autouse=True)
-def _cheap_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)
 
 
 @pytest.fixture
@@ -169,7 +163,7 @@ def test_post_success_rotates_session_revokes_others_and_audits(
     assert any(h.startswith(session_cookie[0] + "=") for h in r.headers.get_list("set-cookie"))
     row = _user(db)
     assert row["must_change_password"] == 0
-    assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
+    assert FAST_HASHER.verify(NEW_PASSWORD, row["password_hash"])
     assert sessions_repo.get_session(db, session_cookie[1]) is None  # token rotated
     assert sessions_repo.list_active_sessions(db, 1)
     assert sessions_repo.get_session(db, other) is None

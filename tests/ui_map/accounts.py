@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from tests.ui_map.locator import Locator, by_id, label, role
+from tests.ui_map.locator import Locator, by_id, by_testid, label, role
 
 heading = role("heading", "Net worth", level=1)
 create_account = role("button", "Create account")
 new_account_button = role("button", "New account")
 planned_total = by_id("accounts-planned-total")
+
+
+credit_utilisation = by_testid("credit-utilisation")
+any_row = by_id("account-", prefix=True)
 
 
 def row(account_id: int) -> Locator:

@@ -22,6 +22,8 @@ APPROVED = frozenset(
         "if TYPE_CHECKING:",
         "if __name__ == .__main__.:",
         "@overload",
+        # Anchored: a line holding only an ellipsis (Protocol / overload stub bodies), T-Q219.
+        "^\\s*\\.\\.\\.$",
     }
 )
 TEACH = (

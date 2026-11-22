@@ -86,7 +86,8 @@ def scan(root: Path = REPO_ROOT, dirs: tuple[str, ...] = SCANNED_DIRS) -> dict[s
     return found
 
 
-# file -> number of offending lines today. May only shrink (ADR-0106 section 2).
+# file -> number of offending lines. Empty since T-Q278 (docs/plans/quality-audit/tasks.md):
+# the 167 SYNC-MAIN entries were migrated to tests/ui_map. Never add an entry (ADR-0106 section 2).
 ALLOWLIST: dict[str, int] = {}
 
 

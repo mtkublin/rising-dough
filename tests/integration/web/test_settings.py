@@ -7,9 +7,57 @@ close fragment, and that the Categories CRUD the page reuses keeps working.
 
 from __future__ import annotations
 
+from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from tests.ui_map import _html, settings as ui
+
+
+def _soup(response_text: str) -> BeautifulSoup:
+    return BeautifulSoup(response_text, "html.parser")
+
+
+def test_settings_default_tab_is_categories(client: TestClient) -> None:
+    response = client.get("/settings")
+    assert response.status_code == 200
+    soup = _soup(response.text)
+    panel = soup.find(id="panel-categories")
+    assert panel is not None and isinstance(panel, Tag)
+    assert panel.get("role") == "tabpanel"
+    active_tab = soup.find(id="tab-categories")
+    assert active_tab is not None and isinstance(active_tab, Tag)
+    assert active_tab.get("aria-selected") == "true"
+    # The Categories panel exposes the familiar CRUD scaffolding.
+    assert soup.find(id="cat-form-slot") is not None
+
+
+def test_settings_fx_tab(client: TestClient) -> None:
+    response = client.get("/settings?tab=fx")
+    assert response.status_code == 200
+    soup = _soup(response.text)
+    panel = soup.find(id="panel-fx")
+    assert panel is not None and isinstance(panel, Tag)
+    tab = soup.find(id="tab-fx")
+    assert tab is not None and isinstance(tab, Tag)
+    assert tab.get("aria-selected") == "true"
+    # Either the empty-state hint or the FX table should render.
+    assert _html.exists(response.text, ui.fx_heading) or (
+        "No FX rates cached yet." in _html.page_text(response.text)
+    )
+
+
+def test_settings_prefs_tab(client: TestClient) -> None:
+    response = client.get("/settings?tab=prefs")
+    assert response.status_code == 200
+    soup = _soup(response.text)
+    panel = soup.find(id="panel-prefs")
+    assert panel is not None and isinstance(panel, Tag)
+    terms = _html.texts(response.text, ui.pref_terms)
+    values = _html.texts(response.text, ui.pref_values)
+    assert terms == ["Base currency", "Display timezone"]
+    assert "PLN" in values[0]
+    assert "Europe/Warsaw" in values[1]
+
 
 HX = {"HX-Request": "true"}
 
@@ -28,6 +76,14 @@ def test_settings_close_fragment(client: TestClient) -> None:
     response = client.get("/settings/close")
     assert response.status_code == 200
     assert response.text == ""
+
+
+def test_settings_invalid_tab_is_422(client: TestClient) -> None:
+    """An unknown tab is a 422 (T-Q294); an empty one still defaults to Categories."""
+    assert client.get("/settings?tab=bogus").status_code == 422
+    response = client.get("/settings?tab=")
+    assert response.status_code == 200
+    assert _soup(response.text).find(id="panel-categories") is not None
 
 
 def test_categories_crud_from_drawer(client: TestClient) -> None:

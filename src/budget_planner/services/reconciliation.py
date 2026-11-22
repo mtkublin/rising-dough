@@ -12,7 +12,10 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
+from budget_planner.domain.accounts import Account
+from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.errors import InvariantError
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
@@ -20,7 +23,9 @@ from budget_planner.repositories import (
     categories as categories_repo,
     transactions as transactions_repo,
 )
+from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services import balance as balance_svc
+from budget_planner.services.transactions import ValidationError, validate_transit_shape
 
 
 class AccountNotFoundError(LookupError):
@@ -37,6 +42,10 @@ class NoAdjustmentNeededError(RuntimeError):
 
 class MissingSystemCategoryError(RuntimeError):
     """Raised when the seeded ``Reconciliation`` category cannot be found."""
+
+
+class CategoryDirectionMismatchError(ValidationError):
+    """The chosen reconcile category contradicts the sign of the balance delta."""
 
 
 class InvalidAvailableError(ValueError):
@@ -59,9 +68,57 @@ def available_to_target_balance(credit_limit_minor: int, available_minor: int) -
     return available_minor - credit_limit_minor
 
 
-def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
+def _require_direction_matches_delta(direction: Direction, delta: int) -> None:
+    """Reject a category whose direction contradicts the sign of ``delta`` (ADR-0008)."""
+    if (direction is Direction.INCOME and delta < 0) or (
+        direction is Direction.EXPENSE and delta > 0
+    ):
+        raise CategoryDirectionMismatchError(
+            f"a {direction.value} category cannot book a "
+            f"{'positive' if delta > 0 else 'negative'} difference; "
+            "pick a matching category or the default Reconciliation"
+        )
+
+
+def _adjustment_category(
+    conn: sqlite3.Connection, user_id: int, category_id: int | None
+) -> Category:
+    """The caller-chosen category, else the seeded ``Reconciliation`` one."""
+    if category_id is not None:
+        chosen = categories_repo.find_by_id(conn, user_id, category_id)
+        if chosen is None:
+            raise MissingSystemCategoryError(f"id={category_id}")
+        return chosen
+    default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
+    if default is None:
+        raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
+    if default.direction is not Direction.ADJUSTMENT:  # schema invariant
+        raise InvariantError(f"{RECONCILIATION_CATEGORY_NAME} category is not an adjustment")
+    return default
+
+
+def _reconciliation_description(today: dt.date, note: str | None) -> str:
+    """Audit-friendly description of an auto-reconciliation row."""
+    description = f"auto-reconciliation {today.isoformat()}"
+    if note:
+        description += f" — {note}"
+    return description
+
+
+def _reconcilable_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> Account:
+    """The account, or raise when it is missing or soft-deleted."""
+    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
+    if account is None:
+        raise AccountNotFoundError(account_id)
+    if account.deleted_at is not None:
+        raise CannotReconcileDeletedAccountError(account_id)
+    return account
+
+
+def reconcile(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     account_id: int,
     actual_balance_minor: int,
     today: dt.date,
@@ -70,64 +127,44 @@ def reconcile(  # noqa: PLR0917 — adds category_id override for F-03
 ) -> Transaction:
     """Insert a signed adjustment so ``derive_balance == actual_balance_minor``.
 
-    Preconditions:
-      - account exists and is not soft-deleted.
-      - delta != 0 (zero raises ``NoAdjustmentNeededError``).
-      - the seeded ``Reconciliation`` category is present (default) or the
-        caller-supplied ``category_id`` exists.
+    The account must be live and ``delta != 0`` (else ``NoAdjustmentNeededError``).
+    Post-condition: ``derive_balance(conn, account_id) == actual_balance_minor``.
 
-    Post-condition:
-      ``services.balance.derive_balance(conn, account_id, today) == actual_balance_minor``
-
-    ``category_id`` lets F-03 pin the adjustment to any expense / income
-    category instead of the default ``Reconciliation`` system category.
-    When supplied, the adjustment amount sign is coerced to match the
-    chosen category direction so ``derive_balance`` still matches the
-    actual balance.
+    ``category_id`` lets F-03 pin the adjustment to a chosen category. The
+    category must be ``ADJUSTMENT``, ``INCOME`` with ``delta > 0`` or
+    ``EXPENSE`` with ``delta < 0`` (ADR-0008 amendment 2026-11-21); any other
+    combination raises ``CategoryDirectionMismatchError`` and writes nothing.
+    ADR-0137: the balance read and the insert share one locked transaction.
     """
-    account = accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=True)
-    if account is None:
-        raise AccountNotFoundError(account_id)
-    if account.deleted_at is not None:
-        raise CannotReconcileDeletedAccountError(account_id)
+    with db_transaction(conn):
+        account = _reconcilable_account(conn, user_id, account_id)
+        derived = balance_svc.derive_balance(conn, user_id, account_id)
+        delta = actual_balance_minor - derived
+        if delta == 0:
+            raise NoAdjustmentNeededError(account_id)
 
-    derived = balance_svc.derive_balance(conn, user_id, account_id)
-    delta = actual_balance_minor - derived
-    if delta == 0:
-        raise NoAdjustmentNeededError(account_id)
+        category = _adjustment_category(conn, user_id, category_id)
 
-    if category_id is not None:
-        chosen = categories_repo.find_by_id(conn, user_id, category_id)
-        if chosen is None:
-            raise MissingSystemCategoryError(f"id={category_id}")
-        category = chosen
-    else:
-        default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
-        if default is None:
-            raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
-        category = default
-        assert category.direction is Direction.ADJUSTMENT  # schema invariant
+        # A reconciliation row has no destination: reject a transit category (ADR-0008).
+        validate_transit_shape(category.direction, account, None)
 
-    # Preserve direction semantics (ADR-0008).
-    stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
-
-    description = f"auto-reconciliation {today.isoformat()}"
-    if note:
-        description += f" — {note}"
-
-    return transactions_repo.create(
-        conn,
-        user_id,
-        NewTransaction(
-            operation_date=today,
-            category_id=category.id,
-            account_id=account_id,
-            dest_account_id=None,
-            amount=stored_amount,
-            description=description,
-            promoted_from_planned_id=None,
-        ),
-    )
+        _require_direction_matches_delta(category.direction, delta)
+        # Preserve direction semantics (ADR-0008).
+        stored_amount = delta if category.direction is Direction.ADJUSTMENT else abs(delta)
+        description = _reconciliation_description(today, note)
+        return transactions_repo.create(
+            conn,
+            user_id,
+            NewTransaction(
+                operation_date=today,
+                category_id=category.id,
+                account_id=account_id,
+                dest_account_id=None,
+                amount=stored_amount,
+                description=description,
+                promoted_from_planned_id=None,
+            ),
+        )
 
 
 __all__ = [
@@ -136,6 +173,7 @@ __all__ = [
     "InvalidAvailableError",
     "MissingSystemCategoryError",
     "NoAdjustmentNeededError",
+    "ValidationError",
     "available_to_target_balance",
     "reconcile",
 ]

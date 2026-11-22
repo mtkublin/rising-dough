@@ -3,48 +3,6 @@
 
 guard = "sql_sites"
 
-[[entry]]
-path = "src/budget_planner/services/accounts.py"
-rule = "sql-exec:real"
-count = 2
-finding = "Q-074"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/services/accounts.py"
-rule = "sql-literal:real"
-count = 2
-finding = "Q-074"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "sql-exec:real"
-count = 2
-finding = "Q-024"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "sql-literal:real"
-count = 2
-finding = "Q-024"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "sql-exec:real"
-count = 1
-finding = "Q-024"
-epic = "E10"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "sql-literal:real"
-count = 1
-finding = "Q-024"
-epic = "E10"
-
 [[permanent]]
 path = "src/budget_planner/db/connection.py"
 rule = "sql-exec:bootstrap"
@@ -96,20 +54,6 @@ reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no rep
 
 [[permanent]]
 path = "src/budget_planner/web/app.py"
-rule = "sql-literal:real"
-count = 1
-finding = "Q-074"
-reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no repository equivalent"
-
-[[permanent]]
-path = "src/budget_planner/web/routers/health.py"
-rule = "sql-exec:bootstrap"
-count = 1
-finding = "Q-074"
-reason = "PRAGMA / VACUUM for connection setup, backup or health probing; no repository equivalent"
-
-[[permanent]]
-path = "src/budget_planner/web/routers/health.py"
 rule = "sql-literal:real"
 count = 1
 finding = "Q-074"

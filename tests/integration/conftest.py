@@ -7,19 +7,15 @@ builders mirroring the T-040 fixtures. Mocks the FX HTTP boundary via a
 
 from __future__ import annotations
 
-import json
 import sqlite3
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
-import httpx
 import pytest
 
 from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
@@ -35,30 +31,19 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as txn_repo,
 )
-from tests.db_template import copy_template, db_path_of
+from tests.db_template import sqlite_url
 
 USER_ID = 1
 
 
 @pytest.fixture
-def db_path(tmp_path: Path) -> Path:
-    return tmp_path / "integration.sqlite"
+def db_path(migrated_db: Path) -> Path:
+    return migrated_db
 
 
 @pytest.fixture
 def settings(db_path: Path) -> Settings:
-    return Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}")
-
-
-@pytest.fixture
-def conn(settings: Settings, migrated_template: Path) -> Iterator[sqlite3.Connection]:
-    # T-CS02: copy the migrated template instead of running every migration.
-    copy_template(migrated_template, db_path_of(settings))
-    c = get_connection(settings)
-    try:
-        yield c
-    finally:
-        c.close()
+    return Settings(_env_file=None, database_url=sqlite_url(db_path))
 
 
 # ---------------------------------------------------------------------------
@@ -200,45 +185,3 @@ def make_fx_rate(conn: sqlite3.Connection) -> Callable[..., None]:
         )
 
     return _make
-
-
-# ---------------------------------------------------------------------------
-# FX HTTP mocking helpers
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def frankfurter_mock_factory() -> Callable[[dict[str, Any]], httpx.Client]:
-    """Return a factory that builds an httpx.Client with a pre-canned response map.
-
-    Keys of ``routes`` are URL paths (e.g. ``/2026-02-01``) → response payload dict.
-    Any un-mocked URL raises AssertionError so tests fail loud on surprise calls.
-    """
-
-    def _factory(routes: dict[str, Any]) -> httpx.Client:
-        def _handler(request: httpx.Request) -> httpx.Response:
-            path = request.url.path
-            payload = routes.get(path)
-            if payload is None:
-                raise AssertionError(
-                    f"Unexpected fx HTTP call to {path} (expected one of {list(routes)!r})"
-                )
-            return httpx.Response(200, content=json.dumps(payload).encode("utf-8"))
-
-        transport = httpx.MockTransport(_handler)
-        return httpx.Client(transport=transport, base_url="https://api.frankfurter.app")
-
-    return _factory
-
-
-@pytest.fixture
-def frankfurter_error_client() -> httpx.Client:
-    """An httpx.Client that always errors on connect (fallback path)."""
-
-    def _handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("boom", request=request)
-
-    return httpx.Client(
-        transport=httpx.MockTransport(_handler),
-        base_url="https://api.frankfurter.app",
-    )

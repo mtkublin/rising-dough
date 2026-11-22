@@ -1,8 +1,21 @@
 # Sourdough Redesign — Tasks
 
+> **After the redesign, `tests/architecture/allowlists/template_logic.toml` must be empty (burned to zero, ADR-0130 amendment 2026-11-21); new templates add no entries.** Remediation T-Q237 and T-Q273 only burn down templates that survive the redesign; every other entry is deleted by this plan (surface tasks flip `removal.md` rows to `deleted` and delete the matching `template_logic.toml` entries; T-UR15 is not done while the file has an entry).
+
+> **Transfer note (T-Q273, 2026-11-22): `template_logic.toml` holds 83 entries over 51 old templates; none survives, so remediation burned none.** Each surface task deletes the entries of the templates it removes (rule counts are one per expression; the new templates must not reproduce them: compute in the view model, use the `money` / `money_num` / `pct` / named date filters, no `{% set %}`, no literal currency codes, no `|float`).
+> | Owner | Entries (templates) |
+> |---|---|
+> | T-UR04 (shared) | `_partials/combobox`, `_partials/segmented`, `_partials/components/{_amount,_button,_direction_badge,_heatmap_cell,_pace_tag,_period_header,_pill,_planned_net,_progress_bar,_segmented,_sparkline,_top_bar_add}`, `partials/{_flash,_nav,_pagination,_tabbar}`, `partials/transactions/{_form,_table}` |
+> | T-UR06 | `errors/{404,409,422,500}` |
+> | T-UR08 | `accounts/index`, `partials/accounts/{_card,_reconcile_modal,_row,_snapshot_item}` |
+> | T-UR09, T-UR10 | `ledger/{index,_table,_recently_deleted}`, `partials/planned/{_form,_promote_inline_row,_row}`, `partials/recurring/{_form,_override_form,_promote_inline_row,_row}`, `recurring/index` |
+> | T-UR13 | `partials/categories/_form`, `settings/{_drawer,_fx,_tabs,index}` |
+> | T-UR14 | `settings/{_password_form,security}`, `settings/users/{_password-toast,_row,list}` |
+> | T-UR15 | `dev/components` (3 currency literals; port from the handoff) |
+
 > Plan: [README.md](README.md). Decision: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Handoff: `docs/design/rising-dough-frontend/` (its `README.md` is required reading for every task).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-URxx` depends on upstream task.
-> Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first).
+> Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first), including the visual diff at the strict default tolerance (0.1%, `MAX_DIFF_PIXEL_RATIO`) unless `derived.md` records an operator-signed exception (T-UR00b).
 
 ---
 
@@ -13,7 +26,22 @@
 - Operator decisions recorded in `derived.md` for the handoff README §6 open items: visible bulk-select entry point (#7), inline promote variant, `g o` vs `g t` for Today, and every `no board` / `handoff-only` row from `../ui-test-harness/parity.md` (T-UT06).
 - Work branch `ui/sourdough` created from the current `v3` (or `main` once v3 is merged).
 - **Removal ledger** `removal.md` generated from `git ls-files` at the branch point: every file under `web/templates/`, `web/static/` (outside `rd/`), `tests/visual/baselines/`, plus the Tailwind/Node config, `justfile` recipes, pre-commit hooks and CI steps that exist only for the old frontend. Each row: path, owning surface task (or T-UR15 for shared files), status (`delete` / `keep: <reason>`). Only the kept-behaviour files from ADR-0107 §2 may be `keep`.
+- **`template_logic.toml` (ADR-0130 amendment 2026-11-21):** after the redesign the allowlist must be empty; new templates add no entries; surface tasks delete the entries of the templates they remove.
 - `tests/architecture/test_old_frontend_removed.py`: reads `removal.md` and fails if a row marked `deleted` still exists, or if a new file appears under an old-frontend path (the old trees may only shrink). Starts green with nothing deleted.
+
+### ◻ T-UR00b [S] Pixel parity against the handoff → T-UR00 (blocks T-UR05..T-UR14)
+- **Decision**: [ADR-0106 amendment 2026-11-22](../../adr/0106-ui-behaviour-test-harness.md#amendment-2026-11-22-pixel-parity-against-the-handoff). The handoff screenshots are the visual baselines; the goal of every surface task is pixel parity, test-first.
+- **Deliverables**:
+  - **Fixture from handoff data**: extract the data the handoff pages hardcode (`docs/design/rising-dough-frontend/pages/**`, `components.html`, `charts/`: names, amounts, dates, counts, frozen date 2026-10-31) into a seed used by the frozen server in the visual suite, replacing the `data/demo.sqlite` stand-in. No masking of dynamic regions.
+  - **References regenerated in the container**: `just visual-reference` runs in the pinned Playwright image (`visual_image` in the `justfile`), never on the host. Existing `tests/visual/reference/` images are regenerated. A manifest (image tag + digest) is written next to the references, and a guard test (next to `tests/architecture/test_visual_image_pin.py`) fails if the manifest is missing or differs from the pinned image.
+  - **Strict tolerance**: `handoff.SURFACE_TOLERANCE` removed; every app-vs-handoff comparison uses `MAX_DIFF_PIXEL_RATIO = 0.001` unless `derived.md` "Tolerance exceptions" has a row for that surface (reason + operator sign-off). Stale `CI_VISUAL=1` wording removed from `tests/visual/README.md` and the `justfile` comments.
+  - `tests/visual/test_reference.py` compares every surface (the `MIGRATED_SURFACES` opt-in no longer gates the red run).
+- **Acceptance**:
+  - the fixture renders the handoff content (spot-checked per surface: same names, amounts, dates, counts);
+  - references regenerated in the container and the provenance guard green (and red when the manifest is tampered with);
+  - a red run showing every surface (today, accounts, ledger, plan, settings, auth, errors, overlays) failing against its reference with the old app, recorded in the handoff note;
+  - tolerance default (0.1%) recorded in `tests/visual/README.md`.
+- **Depends**: T-UR00. References: ADR-0106 amendment 2026-11-22, ADR-0027 amendment 2026-11-22 (T-Q251), `.github/workflows/visual.yml`.
 
 ---
 
@@ -95,42 +123,42 @@ Each item owns its page templates, its surface-only fragments and overlays, its 
 
 ---
 
-## Phase 2b — Scope added by the designer answers (2026-11-21, [ADR-0132](../../adr/0132-redesign-scope-decisions-from-the-designer-change-request.md))
+## Phase 2b — Scope added by the designer answers (2026-11-21, [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer-change-request.md))
 
-These land in the redesign release (ADR-0107 §8). Each needs its own requirement text first (done in `docs/requirements.md`, ADR-0132 Consequences) and the per-surface loop in [README.md](README.md#per-surface-loop-test-first). Not started.
+These land in the redesign release (ADR-0107 §8). Each needs its own requirement text first (done in `docs/requirements.md`, ADR-0134 Consequences) and the per-surface loop in [README.md](README.md#per-surface-loop-test-first). Not started.
 
 ### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
-- Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0132 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0132 §1.
+- Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0134 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0134 §1.
 
 ### ◻ T-UR19 [S] Invite email behind a config switch → T-UR18, T-UR20
-- Send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0132 §1, ADR-0099.
+- Send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0134 §1, ADR-0099.
 
 ### ◻ T-UR20 [P] Invites, add user, user row menu, forced change → T-UR14
-- Invite model (migration), create invite with email and role, pending row with expiry, row menu copy link / resend / revoke; invite pages (AU08 and expired, used, invalid AU09); add user dialog with one-time credential dialog (not toast), duplicate email refused; reset and delete user with confirms (ledger entries stay); forced change page (ST10). Edit user dialog (name and member/admin, email read-only) as the first row-menu item before reset and delete; an admin's own row has no menu. Server-side guards, not only the hidden menu: edit refuses self-demotion and demoting the last admin and does not change the email (today `services/users.edit_user` allows self-demotion with a second admin and edits email; fix with tests asserting DB rows); delete keeps refusing self and last admin. ADR-0132 §10, §11, ADR-0061, ADR-0073.
+- Invite model (migration), create invite with email and role, pending row with expiry, row menu copy link / resend / revoke; invite pages (AU08 and expired, used, invalid AU09); add user dialog with one-time credential dialog (not toast), duplicate email refused; reset and delete user with confirms (ledger entries stay); forced change page (ST10). Edit user dialog (name and member/admin, email read-only) as the first row-menu item before reset and delete; an admin's own row has no menu. Server-side guards, not only the hidden menu: edit refuses self-demotion and demoting the last admin and does not change the email (today `services/users.edit_user` allows self-demotion with a second admin and edits email; fix with tests asserting DB rows); delete keeps refusing self and last admin. ADR-0134 §10, §11, ADR-0061, ADR-0073.
 
 ### ◻ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05
-- Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0132 §9.
+- Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0134 §9.
 
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
-- Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0132 §9, ADR-0099.
+- Keep `BUDGET_PLANNER_ADMIN_EMAIL` and Terraform `admin_email` (ADR-0061 §3) but off by default for drill deploys. Drill pipeline generates the per-deploy setup token and surfaces it in the job summary or the explore-drill URL (`/setup?token=...`). Prod behaviour unchanged. ADR-0134 §9, ADR-0099.
 
 ### ◻ T-UR23 [P] Account delete rule (blocked dialog) → T-UR08
-- Service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0132 §3.
+- Service refuses delete while any transaction, planned or recurring item references the account; dialog links to them; state blocked by recurring only; final confirm otherwise. Tests assert DB state and audit. Requirement F2.8. ADR-0134 §3.
 
 ### ◻ T-UR24 [P] Remove inline promote routes → T-UR07, T-UR10
-- Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0132 §5.
+- Delete `GET /planned/{planned_id}/promote/inline`, `GET /recurring/{rule_id}/promote/inline`, their templates, UI-map names and route allowlist entries. ADR-0134 §5.
 
 ### ◻ T-UR25 [P] Offline save-failure handling → T-UR04
-- HTMX request failure (no response) keeps an open dialog's typed input and shows the offline state (`errors/offline` markup); no service worker. ADR-0132 §4, ADR-0113.
+- HTMX request failure (no response) keeps an open dialog's typed input and shows the offline state (`errors/offline` markup); no service worker. ADR-0134 §4, ADR-0113.
 
 ### ◻ T-UR26 [deferred] Service worker for failed full page loads
-- Deferred beyond the redesign release; needs its own ADR (ADR-0123, ADR-0113 CSP). Tracked here so the offline page is not wired to full-page failures until then. ADR-0132 §4.
+- Deferred beyond the redesign release; needs its own ADR (ADR-0123, ADR-0113 CSP). Tracked here so the offline page is not wired to full-page failures until then. ADR-0134 §4.
 
 ### ◻ T-UR27 [P] Theme switch → T-UR13
-- Preferences Appearance control (system, light, dark), default system, per browser, full light set. ADR-0132 §8.
+- Preferences Appearance control (system, light, dark), default system, per browser, full light set. ADR-0134 §8.
 
 ### ◻ T-UR28 [P] Ledger export menu and credit-limit line → T-UR09
-- `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0132 §2, §6.
+- `export` menu beside the Ledger Actual and Planned tabs (csv, parquet, current tab and filters, kept on phone, none on Recurring); credit-limit line under the account in new entry, edit and phone sheet (pink with `role=alert` over limit, saving allowed). ADR-0134 §2, §6.
 
 ---
 
@@ -143,7 +171,7 @@ These land in the redesign release (ADR-0107 §8). Each needs its own requiremen
 - **Harness leftovers**: allowlist entries and UI-map names that pointed at old markup; the old-UI `xfail`s that no longer apply.
 - **Docs**: `CLAUDE.md` (stack: Tailwind gone), `docs/requirements.md` §3 stack and tooling lines, the `frontend-visual-audit` skill and any agent briefs that name old paths; ADR-0052, ADR-0053, ADR-0055 marked `Superseded by ADR-0107` and ADR-0050 marked superseded for visual direction, in the files and in `docs/adr/README.md`.
 - **Operator**: delete the untracked `data/rising-dough-frontend/` copy from the main checkout (if not done after T-UT01).
-- **Acceptance**: every `removal.md` row is `deleted` or `keep` with an ADR-0107 §2 reason; `test_old_frontend_removed.py` green; `grep -r` finds no reference to a removed path, `tailwind`, `app.css` or `rising-dough.css` outside `docs/adr/` and `docs/CHANGELOG.md`; `just ci` green; crawler inventory diff reviewed.
+- **Acceptance**: `tests/architecture/allowlists/template_logic.toml` is empty (ADR-0130 amendment 2026-11-21); every `removal.md` row is `deleted` or `keep` with an ADR-0107 §2 reason; `test_old_frontend_removed.py` green; `grep -r` finds no reference to a removed path, `tailwind`, `app.css` or `rising-dough.css` outside `docs/adr/` and `docs/CHANGELOG.md`; `just ci` green; crawler inventory diff reviewed.
 
 ### ◻ T-UR16 [S] Full validation → T-UR15
 - Crawler, all journeys, `just test-e2e-browsers` (Firefox, WebKit), axe on every page at 375 and 1440 in both themes, visual diff on every handoff page, `frontend-visual-audit` sweep at 320 / 375 / 768 / 1024 / 1440 / 1920 on every route, budgets from README (gzip sizes, LCP / CLS / INP on `/today`, `/ledger`, `/plan`), keyboard map (`g o/l/p/a/s`, `n`, `/`, `[` `]`, `?`, `⌘K`), reduced motion.

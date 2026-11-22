@@ -1,0 +1,53 @@
+# ADR-0132: CI Environments Are Split by Data Sensitivity; Prod Replica Read Material Lives in One Gated Environment
+
+- **Status**: Accepted (code half landed with T-Q218; the GitHub settings half is the operator's, see "Operator checklist")
+- **Date**: 2026-11-21
+- **Amends**: [ADR-0099](0099-release-and-environment-policy.md), [ADR-0100](0100-least-privilege-ci-credentials.md)
+- **Relates to**: [ADR-0101](0101-drill-environment-is-tailnet-only.md), [ADR-0093](0093-ci-terraform-inputs-via-tf-var-environment-secrets.md), [ADR-0104](0104-iam-in-local-bootstrap-no-iammanager-for-ci.md), [ADR-0111](0111-terraform-declared-host-state.md), [ADR-0121](0121-path-filtered-workflows-are-not-required-checks.md), [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) section 9
+- **Finding**: Q-012 (H1-01, H1-06, H4-03); task T-Q218
+
+## Context
+
+- `prod-plan`, `drill`, `drill-plan` and `drill-teardown` have no required reviewers and no deployment-branch policy, so a job from any branch that names one receives its secrets (workflow YAML and local actions come from the branch).
+- Those environments hold more than their role needs: the prod `restore-reader` key and the **prod age identity** (together they decrypt the whole prod replica), the prod app key, and a Tailscale OAuth client that can join the tailnet as `tag:ci` (the ACL lets `tag:ci` reach prod port 22, a leftover of the SSH deploy path ADR-0111 removed).
+- Every drill, including explore drills, rendered `restore-source.env` (prod read key) onto the drill host, and the age identity is mounted into the litestream containers there (H4-03, confirmed live: the `operator` user is root-equivalent).
+- Not every environment can be gated: teardown and plan environments must never wait for approval (ADR-0101: the sweeper and destroy paths; ADR-0093: every PR plan).
+
+## Decision
+
+1. **Split by data sensitivity, not by job type.** An environment is either *prod-grade* (holds prod-read or prod-write material, so it is gated: required reviewers plus a `main`-only deployment-branch policy) or it holds **no prod-read material** and may stay ungated. The second kind is declared `prod_grade = false` in `tests/architecture/ci_environments.toml`.
+2. **New environment `prod-restore-read`** (gated, `main` only). It holds the prod replica read key (`PROD_REPLICA_RO_ACCESS_KEY` / `_SECRET_KEY`) and the **prod** `LITESTREAM_AGE_IDENTITY` / `LITESTREAM_AGE_RECIPIENT`, plus the drill-project secrets the same job needs (a job has exactly one environment). It is used only by the `apply` job of `terraform.yml` when called by `restore-drill.yml` with `restore_source: true` (and never for destroy). `restore-drill.yml` is scheduled (`main`) or `workflow_dispatch`; the branch policy makes a dispatch from any other ref fail to get the environment.
+3. **No prod-read material anywhere else.**
+   - `drill`, `drill-plan`, `drill-teardown`: drill-project keys only; `LITESTREAM_AGE_IDENTITY` / `_RECIPIENT` are a **synthetic** pair generated for drills; no `PROD_REPLICA_RO_*`.
+   - `prod-plan`: plan-only values: the read-only `ci-plan` key, placeholder age identity and app key, **no Tailscale OAuth client** (plan does not need to join the tailnet). Residual: the plan key can read the prod Terraform state (ADR-0105); accepted, it is read-only and plan-scoped.
+   - `prod`: unchanged (gated, `main` and `v*`).
+   - `prod-tailnet`: unchanged (`main` and `v*` only; declared `main_only`).
+4. **Explore drills carry no restore capability (H4-03).** `scripts/ci/tf_env.py` emits `TF_VAR_scw_access_key_restore` / `_secret_key_restore` only with `--restore-source`, which only the restore drill apply passes. `terraform/main.tf` sets `enable_restore_helper = (env == "drill") && restore key present`, so an explore drill renders neither `restore-source.env` nor `/usr/local/bin/restore-from-prod`. The age identity on an explore drill is the synthetic one (point 3).
+5. **Guard (G17a, `test_workflow_secrets.py`).** The `ungated-environment` rule now fires only for an ungated environment that is not declared `prod_grade = false` and not `main_only`. `prod-env-from-branch-trigger` applies to every gated or `main_only` environment (and undeclared `prod*` names) reachable from a PR or non-`main` push, unless the job is skipped for pull requests. New rule `environment-workflow-not-allowed`: `prod-restore-read` may be named only in `terraform.yml`; a test asserts `restore_source: true` appears only in `restore-drill.yml`. The environment-name extractor reads result positions (`a && 'x' || 'y'`) so comparison operands (`== 'prod'`) are no longer mistaken for environment names. The 9 `workflow_trust` allowlist entries (23 violations) for Q-012 are deleted.
+6. **What the guard cannot prove.** The `prod_grade = false` declarations become true only after operator checklist steps 3 and 4 are done, so the PR carrying this ADR must not merge to `main` until those steps are done. A job in a PR-reachable workflow is exempt from `prod-env-from-branch-trigger` only if its whole `if` is `github.event_name != 'pull_request'` (optionally `&&`-joined, never `||`), every other trigger is dispatch, call, schedule or a `main`/tag push, and its environment is gated or `main_only`. `prod_grade = false` is declared intent about live secret values; the repository cannot read them. The operator checklist below and the read-only `repro/H1/collect_gh_config.sh` are the verification (G17b).
+
+## Consequences
+
+- A stolen write token or a prompt-injected agent that pushes a branch workflow naming `drill`, `drill-plan`, `drill-teardown` or `prod-plan` gets no prod replica read key, no prod age identity, no prod app key and no tailnet identity that reaches prod. Reaching `prod-restore-read` needs a `main` ref and a reviewer approval.
+- The monthly restore drill now waits for approval of `prod-restore-read` before its apply (the cron run holds the `drill` concurrency group while waiting: approve or cancel promptly, as for any gated drill run). Acceptable for a monthly job.
+- `prod-restore-read` duplicates the drill-project secrets (keep in sync on rotation, `key-rotation.md`).
+- The `tag:ci` to `tag:prod:22` ACL rule is not removed by this ADR (live ACL parity is tracked by the Tailscale ACL task, OQ-24/OQ-32); removing the OAuth client from `prod-plan` removes the main route to it.
+- Alternative rejected: required reviewers plus `main`-only on `drill`/`drill-teardown`. Teardown must stay ungated and the operator would approve their own gates.
+
+## Operator checklist (GitHub settings; agents have no admin credentials)
+
+1. **Create environment `prod-restore-read`**: Required reviewers = operator; Deployment branches and tags = selected, `main` only (no `v*`).
+2. **Move prod material into it**: set `PROD_REPLICA_RO_ACCESS_KEY`, `PROD_REPLICA_RO_SECRET_KEY`, `LITESTREAM_AGE_IDENTITY` (prod value), `LITESTREAM_AGE_RECIPIENT` (prod value) there. Also copy the secrets and variables the restore drill apply reads from `drill` (the drill column of `github-settings.md` section 2, except `DEPLOY_SSH_PRIVATE_KEY`: `SCW_*`, `APP_*`, `OPERATOR_SSH_PUBKEY`, `TS_OAUTH_*`, `GHCR_PULL_PAT`, `ADMIN_EMAIL`, `APP_DOMAIN`, `BUCKET_*`, variables `TAILNET_DNS_NAME`, `CI_SSH_PUBKEY`, `MANAGED_DNS_ZONE`).
+3. **Remove prod material from `drill`, `drill-plan`, `drill-teardown`**: delete `PROD_REPLICA_RO_ACCESS_KEY`, `PROD_REPLICA_RO_SECRET_KEY`; replace `LITESTREAM_AGE_IDENTITY` / `_RECIPIENT` with a freshly generated synthetic pair (`age-keygen`), same value in the three environments.
+4. **`prod-plan`**: replace `LITESTREAM_AGE_IDENTITY` / `_RECIPIENT`, `APP_SCW_ACCESS_KEY` / `APP_SCW_SECRET_KEY`, `GHCR_PULL_PAT` with placeholders or non-prod values (plan only needs well-formed inputs); delete `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET`. Keep the read-only `ci-plan` key and `RESTORE_READER_APPLICATION_ID` (a UUID, not a credential).
+5. **`prod`, `prod-tailnet`**: unchanged. Do not add any of the above to `drill-teardown`.
+6. **Verify (read-only)**: `bash docs/plans/quality-audit/repro/H1/collect_gh_config.sh`, then commit the refreshed `gh_api/environments.json` and add `gh_api/secrets_prod_restore_read.json` (add a `get secrets_prod_restore_read /environments/prod-restore-read/secrets` line and a deployment-branch-policies line for it). Expected: `prod-restore-read` has a required-reviewers rule and one `branch main` policy; secret names for `drill`, `drill-plan`, `drill-teardown` contain no `PROD_REPLICA_RO_*`; `prod-plan` has no `TS_OAUTH_*`.
+7. **Rotation (OQ-24)**. Rotate if the values that sat in the ungated environments were real prod values (assume yes unless the operator knows otherwise): the prod `restore-reader` key (`terraform/bootstrap/ci` output `restore_reader_*`, `key-rotation.md`), the prod age identity (rotating it needs a new recipient on the prod host and a re-encrypted replica generation: `key-rotation.md`), the prod app key (`APP_SCW_*` in `prod-plan`), the Tailscale OAuth client `budget-planner-automation` (`TS_OAUTH_*`) and `GHCR_PULL_PAT` if it was shared. Then run one restore drill and one explore drill to confirm.
+8. Record the date in `docs/plans/v3/runbooks/github-settings.md` "Record" and mark the T-Q218 operator half done in `docs/plans/quality-audit/tasks.md`.
+
+## Amendment 2026-11-21 (operator): credential rotation accepted as risk; migration in two scripts
+
+- **OQ-24 answered.** There is no evidence that the prod material that sat in the ungated environments was ever exposed. The operator **accepts the risk and does not rotate** the prod restore-reader key, age identity, app key, Tailscale OAuth client or `GHCR_PULL_PAT` (this replaces step 7 of the operator checklist above).
+- **The GitHub-settings migration runs as two operator scripts.** Part 1 is additive and runs **before** the PR merges: create `prod-restore-read` and copy the secrets into it through a sealed-box workflow, so no plaintext leaves GitHub. Part 2 runs **right after** the merge: delete prod material from `drill`, `drill-plan` and `drill-teardown`, and set placeholders in `prod-plan`.
+- **Drill age keys become per-drill and Terraform-generated** (T-Q277, ADR-0135), so the drill environments no longer need a stored synthetic age pair.
+- The ADR-0099 text is not edited here (T-Q239 owns it).

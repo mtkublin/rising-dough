@@ -23,19 +23,17 @@ The plaintext password and the bcrypt hash are never logged or written to
 
 from __future__ import annotations
 
-import secrets
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final, Literal, Protocol
 
-from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
+from budget_planner.domain.ports import PasswordHasher, TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.logging import get_logger
 from budget_planner.repositories import auth_users as auth_users_repo, users as users_repo
 from budget_planner.repositories._shared import transaction
-from budget_planner.services import _passwords
+from budget_planner.repositories.auth_users import AuthUser
 
 DEV_ADMIN_EMAIL: Final = "admin@local.test"
 DEV_ADMIN_PASSWORD: Final = "admin"  # noqa: S105 — documented dev default  # pragma: allowlist secret
@@ -77,7 +75,24 @@ class BootstrapOutcome:
     legacy_adopted: bool = False
 
 
-def resolve_bootstrap_credentials(settings: Settings) -> BootstrapCredentials | None:
+class _SecretValue(Protocol):
+    def get_secret_value(self) -> str: ...
+
+
+class BootstrapSettings(Protocol):
+    """The slice of ``Settings`` the admin bootstrap reads (keeps services off ``config``)."""
+
+    @property
+    def env(self) -> str: ...
+
+    @property
+    def admin_email(self) -> str | None: ...
+
+    @property
+    def admin_initial_password(self) -> _SecretValue | None: ...
+
+
+def resolve_bootstrap_credentials(settings: BootstrapSettings) -> BootstrapCredentials | None:
     """Return the credentials the bootstrap should use, or ``None``.
 
     Raises :class:`BootstrapAdminMissingEnv` when exactly one of the two
@@ -138,13 +153,14 @@ def _promote(
     user_id: int,
     creds: BootstrapCredentials,
     *,
+    hasher: PasswordHasher,
     set_email: bool,
 ) -> auth_users_repo.AuthUser:
     return users_repo.update_credentials(
         conn,
         user_id,
         update=users_repo.CredentialUpdate(
-            password_hash=_passwords.hash_password(creds.password),
+            password_hash=hasher.hash(creds.password),
             must_change_password=creds.must_change_password,
             email=creds.email if set_email else None,
             is_admin=True,
@@ -152,7 +168,9 @@ def _promote(
     )
 
 
-def bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> BootstrapOutcome:
+def bootstrap_admin(
+    conn: sqlite3.Connection, settings: BootstrapSettings, *, hasher: PasswordHasher
+) -> BootstrapOutcome:
     """Ensure a live admin exists (ADR-0061 §3, ADR-0069). Idempotent.
 
     Never touches any row when a live admin already exists. An unmigrated
@@ -176,19 +194,23 @@ def bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> BootstrapOu
                 "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD are not set (ADR-0061 §3)."
             )
         return _emit(BootstrapOutcome(action="noop", reason="no_credentials"), source=None)
-    return _emit(_apply_credentials(conn, creds), source=creds.source)
+    return _emit(_apply_credentials(conn, creds, hasher=hasher), source=creds.source)
 
 
-def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) -> BootstrapOutcome:
+def _apply_credentials(
+    conn: sqlite3.Connection, creds: BootstrapCredentials, *, hasher: PasswordHasher
+) -> BootstrapOutcome:
     """Promote / adopt / create per ADR-0069 §2 and §3. Caller logs the outcome."""
     existing = auth_users_repo.find_live_by_email(conn, creds.email)
     if existing is not None:
-        promoted = _promote(conn, existing.id, creds, set_email=False)
+        promoted = _promote(conn, existing.id, creds, hasher=hasher, set_email=False)
         return BootstrapOutcome(action="promoted", user_id=promoted.id, admin_email=creds.email)
 
     legacy = users_repo.find_legacy_owner(conn)
     if legacy is not None:
-        if creds.source == "dev_default" and users_repo.owns_accounts(conn, legacy.id):
+        if creds.source == "dev_default" and users_repo.owns_accounts(
+            conn, legacy.id, include_deleted=True
+        ):
             # ADR-0069 §3: never write a dev credential onto real data.
             return BootstrapOutcome(
                 action="noop",
@@ -196,7 +218,7 @@ def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) ->
                 admin_email=creds.email,
                 reason="legacy_data_present",
             )
-        promoted = _promote(conn, legacy.id, creds, set_email=True)
+        promoted = _promote(conn, legacy.id, creds, hasher=hasher, set_email=True)
         return BootstrapOutcome(
             action="promoted",
             user_id=promoted.id,
@@ -209,7 +231,7 @@ def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) ->
         data=users_repo.NewUser(
             name=creds.email.split("@", 1)[0],
             email=creds.email,
-            password_hash=_passwords.hash_password(creds.password),
+            password_hash=hasher.hash(creds.password),
             is_admin=True,
             must_change_password=creds.must_change_password,
         ),
@@ -217,10 +239,11 @@ def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) ->
     return BootstrapOutcome(action="created", user_id=created.id, admin_email=creds.email)
 
 
-def bootstrap_admin_at_startup(
-    settings: Settings,
+def bootstrap_admin_at_startup[S: BootstrapSettings](
+    settings: S,
     *,
-    connect: Callable[[Settings], sqlite3.Connection] = get_connection,
+    connect: Callable[[S], sqlite3.Connection],
+    hasher: PasswordHasher,
 ) -> BootstrapOutcome:
     """Lifespan entry point: open a connection, bootstrap, close.
 
@@ -232,7 +255,7 @@ def bootstrap_admin_at_startup(
         return _emit(BootstrapOutcome(action="noop", reason="no_credentials"), source=None)
     conn = connect(settings)
     try:
-        return bootstrap_admin(conn, settings)
+        return bootstrap_admin(conn, settings, hasher=hasher)
     finally:
         conn.close()
 
@@ -248,7 +271,7 @@ class PasswordChange:
 
 
 def set_user_password(
-    conn: sqlite3.Connection, user_id: int, *, change: PasswordChange
+    conn: sqlite3.Connection, user_id: int, *, change: PasswordChange, hasher: PasswordHasher
 ) -> auth_users_repo.AuthUser:
     """Hash and store a new password for a live user; audit-logged.
 
@@ -257,7 +280,7 @@ def set_user_password(
     and :class:`SchemaNotMigratedError` on a pre-0012 DB.
     """
     _assert_schema(conn)
-    password_hash = _passwords.hash_password(change.password)
+    password_hash = hasher.hash(change.password)
     return users_repo.update_credentials(
         conn,
         user_id,
@@ -281,6 +304,9 @@ NAME_MAX_LENGTH: Final = 100
 
 LAST_ADMIN_DELETE_MESSAGE: Final = (
     "Can't remove the last admin. Promote another user to admin first."
+)
+CONCURRENT_CHANGE_MESSAGE: Final = (
+    "Another change to the user roster is in progress. Reload and try again."
 )
 LAST_ADMIN_DEMOTE_MESSAGE: Final = (
     "Can't remove admin rights from the last admin. Promote another user first."
@@ -332,12 +358,12 @@ class UserDraft:
 
     email: str
     name: str
-    is_admin: bool
+    is_admin: bool | None  # None = field absent from the form: leave unchanged (Q-063)
 
 
-def generate_password() -> str:
+def generate_password(tokens: TokenSource) -> str:
     """Return a fresh one-shot password (ADR-0061 §8)."""
-    return secrets.token_urlsafe(GENERATED_PASSWORD_BYTES)
+    return tokens.new_token(GENERATED_PASSWORD_BYTES)
 
 
 def _valid_email(email: str) -> bool:
@@ -347,7 +373,7 @@ def _valid_email(email: str) -> bool:
     return bool(sep and local and domain and "@" not in domain and "." in domain.strip("."))
 
 
-def build_draft(*, email: str, name: str, is_admin: bool) -> UserDraft:
+def build_draft(*, email: str, name: str, is_admin: bool | None) -> UserDraft:
     """Normalise + validate raw form input. Pure.
 
     Raises :class:`UserInputError` keyed by field name. An empty name falls
@@ -389,6 +415,10 @@ def _atomically[T](conn: sqlite3.Connection, body: Callable[[], T]) -> T:
             return body()
     except sqlite3.IntegrityError as exc:  # ux_users_email_live race
         raise UserInputError({"email": DUPLICATE_EMAIL_MESSAGE}) from exc
+    except sqlite3.OperationalError as exc:  # writer lock wait exceeded busy_timeout (ADR-0137)
+        if "locked" not in str(exc) and "busy" not in str(exc):
+            raise
+        raise UserConflict(CONCURRENT_CHANGE_MESSAGE) from exc
 
 
 def _require_target(conn: sqlite3.Connection, user_id: int) -> auth_users_repo.AuthUser:
@@ -413,6 +443,8 @@ def create_user(
     actor_user_id: int,
     draft: UserDraft,
     *,
+    tokens: TokenSource,
+    hasher: PasswordHasher,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> tuple[auth_users_repo.AuthUser, str]:
     """Create a user with a generated password + its system categories.
@@ -420,8 +452,8 @@ def create_user(
     Returns ``(user, plaintext)``; the plaintext is for the one-shot toast
     only. Raises :class:`UserInputError` on a duplicate live email.
     """
-    password = generate_password()
-    password_hash = _passwords.hash_password(password)
+    password = generate_password(tokens)
+    password_hash = hasher.hash(password)
 
     def _body() -> auth_users_repo.AuthUser:
         _ensure_email_free(conn, draft.email, own_id=None)
@@ -431,7 +463,7 @@ def create_user(
                 name=draft.name,
                 email=draft.email,
                 password_hash=password_hash,
-                is_admin=draft.is_admin,
+                is_admin=bool(draft.is_admin),
                 must_change_password=True,
             ),
             request_ctx=request_ctx,
@@ -458,7 +490,7 @@ def edit_user(
     def _body() -> auth_users_repo.AuthUser:
         target = _require_target(conn, user_id)
         _ensure_email_free(conn, draft.email, own_id=target.id)
-        if not draft.is_admin and _is_last_admin(conn, target):
+        if draft.is_admin is False and _is_last_admin(conn, target):
             raise UserConflict(LAST_ADMIN_DEMOTE_MESSAGE)
         return users_repo.update_profile(
             conn,
@@ -478,6 +510,8 @@ def reset_password(
     actor_user_id: int,
     user_id: int,
     *,
+    tokens: TokenSource,
+    hasher: PasswordHasher,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> tuple[auth_users_repo.AuthUser, str]:
     """Generate a new password, force rotation, revoke the target's sessions.
@@ -486,8 +520,8 @@ def reset_password(
     :class:`UserNotFound` for a missing / soft-deleted user.
     """
     get_live_user(conn, user_id)  # fail fast before paying for bcrypt
-    password = generate_password()
-    password_hash = _passwords.hash_password(password)
+    password = generate_password(tokens)
+    password_hash = hasher.hash(password)
 
     def _body() -> auth_users_repo.AuthUser:
         _require_target(conn, user_id)
@@ -529,6 +563,7 @@ def soft_delete_user(
 
 
 __all__ = [
+    "CONCURRENT_CHANGE_MESSAGE",
     "DEV_ADMIN_EMAIL",
     "DEV_ADMIN_PASSWORD",
     "DUPLICATE_EMAIL_MESSAGE",
@@ -536,6 +571,7 @@ __all__ = [
     "LAST_ADMIN_DELETE_MESSAGE",
     "LAST_ADMIN_DEMOTE_MESSAGE",
     "SELF_DELETE_MESSAGE",
+    "AuthUser",
     "BootstrapAdminMissingEnv",
     "BootstrapCredentials",
     "BootstrapOutcome",

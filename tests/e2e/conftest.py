@@ -30,7 +30,6 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
-from tests.e2e.csp import TEST_NONCE, prod_csp
 from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F401
 
 # Loaded machines can take well over 15s to boot uvicorn. Override with
@@ -38,7 +37,7 @@ from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F4
 SERVER_READY_TIMEOUT_S = float(os.environ.get("E2E_SERVER_READY_TIMEOUT_S", "60"))
 
 try:
-    from playwright.sync_api import Browser, Page, Playwright, Route, sync_playwright
+    from playwright.sync_api import Browser, Page, Playwright, Response, sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore[assignment]
 
@@ -123,18 +122,17 @@ def _free_port() -> int:
 
 
 def _wait_until_ready(
-    url: str,
-    deadline_s: float = SERVER_READY_TIMEOUT_S,
-    proc: subprocess.Popen[bytes] | None = None,
+    url: str, proc: subprocess.Popen[bytes], deadline_s: float = SERVER_READY_TIMEOUT_S
 ) -> None:
+    """Poll ``url`` until it answers 200; fail fast if the server process died."""
     start = time.monotonic()
     while time.monotonic() - start < deadline_s:
-        if proc is not None and proc.poll() is not None:
+        if proc.poll() is not None:
             raise RuntimeError(
                 f"uvicorn exited with code {proc.returncode} before becoming ready at {url}"
             )
         try:
-            with urlopen(Request(url), timeout=1.0) as resp:  # noqa: S310
+            with urlopen(Request(url), timeout=2.0) as resp:  # noqa: S310
                 if resp.status == 200:
                     return
         except Exception:
@@ -191,7 +189,7 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_until_ready(f"{base_url}/health", proc=proc)
+        _wait_until_ready(f"{base_url}/health", proc)
         yield base_url, db_path
     finally:
         proc.terminate()
@@ -271,20 +269,25 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     assert any(c["name"] == SESSION_DEV_COOKIE_NAME for c in context.cookies()), (
         "browser did not store the session cookie (ADR-0070)"
     )
-    # ADR-0113 / T-D140c: run under the real prod CSP. Dev has no Caddy, so
-    # send the nonce header and add the CSP to HTML responses ourselves.
-    context.set_extra_http_headers({CSRF_HEADER_NAME: token, "X-CSP-Nonce": TEST_NONCE})
-    csp = prod_csp()
+    # T-Q289: login rotated the session-bound CSRF cookie; use the new token.
+    token = next(
+        (c["value"] for c in context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME),
+        "",
+    )
+    assert token, "login did not set a session-bound CSRF cookie (T-Q289)"
+    # ADR-0113 / T-D140c / T-Q254: the app itself sends the prod CSP (app-minted
+    # nonce) in every environment, so the browser enforces it with no injection.
+    context.set_extra_http_headers({CSRF_HEADER_NAME: token})
+
+    def _follow_rotation(response: Response) -> None:
+        # The server echoes a re-bound token on login/logout/session rotation (T-Q289);
+        # keep the blanket header current.
+        fresh = response.headers.get(CSRF_HEADER_NAME.lower())
+        if fresh:
+            context.set_extra_http_headers({CSRF_HEADER_NAME: fresh})
+
+    context.on("response", _follow_rotation)
     violations: list[str] = []
-
-    def _add_csp(route: Route) -> None:
-        response = route.fetch(max_redirects=0)
-        headers = dict(response.headers)
-        if "text/html" in headers.get("content-type", ""):
-            headers["content-security-policy"] = csp
-        route.fulfill(response=response, headers=headers)
-
-    context.route(f"{base_url}/**", _add_csp)
 
     def _record(message: str) -> None:
         violations.append(message)

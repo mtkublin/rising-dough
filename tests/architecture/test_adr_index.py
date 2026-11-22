@@ -11,7 +11,8 @@ Rules (one violation per finding, keyed by the offending file):
 * ``index-unsorted``: index rows are not in ascending number order;
 * ``no-status``: the ADR has no ``Status`` line.
 
-Allowlist: ``allowlists/adr_index.toml``.
+The grandfathered sets below (``GRANDFATHERED_DUPLICATES``, ``GRANDFATHERED_GAPS``) are the only exceptions; there
+is no allowlist file (T-Q245 deleted ``adr_index.toml``): any other violation fails the test.
 """
 
 from __future__ import annotations
@@ -19,10 +20,11 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet
+from tests.architecture._ratchet import REPO_ROOT, Violation
 
-GUARD = "adr_index"
-HEADER = "G14 adr_index: grandfathered ADR index irregularities (duplicate 0105/0121, gap 0044) and open docs debt (Q-051)."
+# Not renumbered, because renumbering would break references (ADR-0130 section 10; OQ-23 default).
+GRANDFATHERED_DUPLICATES = frozenset({"0105", "0121"})
+GRANDFATHERED_GAPS = frozenset({44})
 ADR_DIR = REPO_ROOT / "docs" / "adr"
 FILE = re.compile(r"^(\d{4})-.+\.md$")
 ROW = re.compile(r"^\|\s*(\d{4})\s*\|.*?\(([^)]+\.md)\)")
@@ -39,10 +41,12 @@ def scan(files: dict[str, str], readme: str) -> list[Violation]:
     found: list[Violation] = []
     numbers = Counter(m.group(1) for name in files if (m := FILE.match(name)))
     for number, n in sorted(numbers.items()):
-        if n > 1:
+        if n > 1 and number not in GRANDFATHERED_DUPLICATES:
             found.append(Violation(f"{rel}{number}", 0, "duplicate-number", f"{n} files"))
     present = sorted(int(n) for n in numbers)
-    for missing in sorted(set(range(1, present[-1] + 1)) - set(present)) if present else []:
+    exempt = GRANDFATHERED_GAPS
+    gaps = set(range(1, present[-1] + 1)) - set(present) - exempt if present else set()
+    for missing in sorted(gaps):
         found.append(Violation(f"{rel}{missing:04d}", 0, "number-gap", "missing number"))
     rows = [(m.group(1), m.group(2)) for line in readme.splitlines() if (m := ROW.match(line))]
     indexed = {link for _n, link in rows}
@@ -69,19 +73,9 @@ def collect() -> list[Violation]:
     return scan(files, (ADR_DIR / "README.md").read_text(encoding="utf-8"))
 
 
-def meta(v: Violation) -> tuple[str, str, str, str]:
-    if v.rule in {"duplicate-number", "number-gap"}:
-        return (
-            "permanent",
-            "Q-051",
-            "",
-            "grandfathered (ADR-0130 section 10): not renumbered to keep references stable",
-        )
-    return "entry", "Q-051", "E14", ""
-
-
-def test_adr_index_matches_allowlist() -> None:
-    assert_ratchet(GUARD, collect(), TEACH)
+def test_adr_index_has_no_violations() -> None:
+    found = collect()
+    assert not found, TEACH + "\n" + "\n".join(f"{v.path}: {v.rule} ({v.detail})" for v in found)
 
 
 def test_adr_index_detects_fixture_violations() -> None:
@@ -100,3 +94,16 @@ def test_adr_index_detects_fixture_violations() -> None:
         "dead-link",
         "index-unsorted",
     }
+
+
+def test_adr_index_accepts_grandfathered_duplicate_and_gap() -> None:
+    files = {
+        "0043-a.md": "Status: x\n",
+        "0045-b.md": "Status: x\n",
+        "0105-a.md": "Status: x\n",
+        "0105-b.md": "Status: x\n",
+    }
+    readme = "".join(f"| {n} | [T]({f}) |\n" for n, f in sorted((f[:4], f) for f in files))
+    found = scan(files, readme)
+    assert "duplicate-number" not in {v.rule for v in found}
+    assert "docs/adr/0044" not in {v.path for v in found}

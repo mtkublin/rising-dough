@@ -59,9 +59,10 @@ id (ADR-0067 §4).
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 from dataclasses import dataclass, replace
-from typing import Any, Final
+from typing import Any, Final, Protocol
 
 from webauthn import (
     generate_authentication_options,
@@ -70,19 +71,23 @@ from webauthn import (
     verify_authentication_response,
     verify_registration_response,
 )
+from webauthn.authentication.verify_authentication_response import VerifiedAuthentication
 from webauthn.helpers import (
     parse_authentication_credential_json,
     parse_registration_credential_json,
 )
 from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import (
+    AuthenticationCredential,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
 )
+from webauthn.registration.verify_registration_response import VerifiedRegistration
 
-from budget_planner.config import Settings, get_settings
+from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
@@ -93,7 +98,6 @@ from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.repositories.sessions import IssuedSession, Session, session_handle
 from budget_planner.repositories.webauthn import WebAuthnCredential
-from budget_planner.services._passwords import dummy_hash, verify_password
 
 SESSION_ENTITY: Final = "session"
 AUTH_EVENT_ENTITY: Final = "auth_event"
@@ -127,11 +131,25 @@ class PasskeyRegistrationError(Exception):
         self.reason = reason
 
 
-def relying_party_from_settings(settings: Settings | None = None) -> RelyingParty:
+class WebAuthnSettings(Protocol):
+    """The ``Settings`` slice naming the WebAuthn relying party (keeps services off ``config``)."""
+
+    @property
+    def webauthn_rp_id(self) -> str: ...
+
+    @property
+    def webauthn_rp_name(self) -> str: ...
+
+    @property
+    def webauthn_origin(self) -> str: ...
+
+
+def relying_party_from_settings(settings: WebAuthnSettings) -> RelyingParty:
     """Build the :class:`RelyingParty` from ``webauthn_*`` settings."""
-    s = get_settings() if settings is None else settings
     return RelyingParty(
-        rp_id=s.webauthn_rp_id, rp_name=s.webauthn_rp_name, origin=s.webauthn_origin
+        rp_id=settings.webauthn_rp_id,
+        rp_name=settings.webauthn_rp_name,
+        origin=settings.webauthn_origin,
     )
 
 
@@ -159,7 +177,7 @@ def _audit_login_failure(
 ) -> None:
     payload: dict[str, Any] = {"event": "login_failed", "method": method, "reason": reason}
     if email is not None:
-        payload["email"] = email.strip().lower()
+        payload["email"] = email.strip().lower()[:EMAIL_MAX_LENGTH]
     with transaction(conn):
         write_audit(
             conn,
@@ -180,9 +198,12 @@ def _issue_session(
     method: str,
     ip: str | None,
     user_agent: str | None,
+    credential_id: int | None = None,
 ) -> IssuedSession:
     with transaction(conn):
-        issued = sessions_repo.create_session(conn, user.id, ip=ip, user_agent=user_agent)
+        issued = sessions_repo.create_session(
+            conn, user.id, ip=ip, user_agent=user_agent, credential_id=credential_id
+        )
         session = issued.session
         write_audit(
             conn,
@@ -213,13 +234,14 @@ def authenticate_password(
     *,
     ip: str | None,
     user_agent: str | None,
+    hasher: PasswordHasher,
     request_ctx: RequestCtx | None = None,
 ) -> IssuedSession | None:
     """Verify ``email`` + ``password`` and open a session; ``None`` on any failure."""
     ctx = _base_ctx(request_ctx, ip=ip, user_agent=user_agent)
     user = users_repo.find_live_by_email(conn, email)
     if user is None or not user.password_hash:
-        verify_password(password, dummy_hash())  # equalize timing
+        hasher.verify_dummy(password)  # equalize timing
         _audit_login_failure(
             conn,
             ctx,
@@ -229,7 +251,7 @@ def authenticate_password(
             email=email,
         )
         return None
-    if not verify_password(password, user.password_hash):
+    if not hasher.verify(password, user.password_hash):
         _audit_login_failure(
             conn, ctx, method="password", reason="bad_password", user_id=user.id, email=email
         )
@@ -352,6 +374,8 @@ def register_passkey_finish(
     """
     if users_repo.get_live_by_id(conn, user_id) is None:
         raise PasskeyRegistrationError("unknown_user")
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        raise PasskeyRegistrationError("challenge_expired")
     try:
         parsed = parse_registration_credential_json(credential)
         verified = verify_registration_response(
@@ -363,8 +387,28 @@ def register_passkey_finish(
         )
     except WebAuthnException as exc:
         raise PasskeyRegistrationError("invalid_response") from exc
-    transports = tuple(t.value for t in (parsed.response.transports or ()))
-    ctx = request_ctx or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None)
+    return _store_credential(
+        conn,
+        user_id,
+        verified=verified,
+        transports=tuple(t.value for t in (parsed.response.transports or ())),
+        label=label.strip(),
+        request_ctx=request_ctx
+        or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None),
+    )
+
+
+def _store_credential(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    verified: VerifiedRegistration,
+    transports: tuple[str, ...],
+    label: str,
+    request_ctx: RequestCtx,
+) -> WebAuthnCredential:
+    """Persist the verified passkey. Separate from the challenge consume on purpose: a spent
+    challenge stays spent when the insert fails (no replay), so these are not one transaction."""
     try:
         return webauthn_repo.create_credential(
             conn,
@@ -373,8 +417,8 @@ def register_passkey_finish(
             public_key=verified.credential_public_key,
             sign_count=verified.sign_count,
             transports=transports,
-            label=label.strip(),
-            request_ctx=ctx,
+            label=label,
+            request_ctx=request_ctx,
         )
     except sqlite3.IntegrityError as exc:
         raise PasskeyRegistrationError("duplicate_credential") from exc
@@ -389,9 +433,28 @@ def revoke_passkey(
 ) -> bool:
     """Soft-delete one of ``user_id``'s own passkeys."""
     ctx = request_ctx or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None)
-    return webauthn_repo.revoke_credential(
-        conn, user_id, credential_row_id, reason="user_request", request_ctx=ctx
-    )
+    with transaction(conn):
+        if not webauthn_repo.revoke_credential(
+            conn, user_id, credential_row_id, reason="user_request", request_ctx=ctx
+        ):
+            return False
+        ended = sessions_repo.revoke_sessions_by_credential(conn, user_id, credential_row_id)
+        if ended:
+            write_audit(
+                conn,
+                entity_type=SESSION_ENTITY,
+                entity_id=user_id,
+                operation="delete",
+                prev={
+                    "event": "session_revoked",
+                    "reason": "passkey_revoked",
+                    "credential": credential_row_id,
+                    "sessions": list(ended),
+                },
+                new=None,
+                request_ctx=ctx,
+            )
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -430,13 +493,67 @@ def authenticate_passkey_finish(
     except WebAuthnException:
         _audit_login_failure(conn, ctx, method="passkey", reason="malformed", user_id=None)
         return None
+    subject = _load_passkey_subject(conn, ctx, parsed, challenge)
+    if subject is None:
+        return None
+    stored, user = subject
+    verified = _verify_assertion(
+        conn, ctx, parsed, challenge=challenge, rp=rp, stored=stored, user=user
+    )
+    if verified is None:
+        return None
+    if sign_count_regressed(stored.sign_count, verified.new_sign_count):
+        _reject_sign_count_regression(conn, ctx, stored, user)
+        return None
+    with transaction(conn):
+        webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
+        return _issue_session(
+            conn,
+            user,
+            ctx,
+            method="passkey",
+            ip=ip,
+            user_agent=user_agent,
+            credential_id=stored.id,
+        )
+
+
+def _load_passkey_subject(
+    conn: sqlite3.Connection,
+    ctx: RequestCtx,
+    parsed: AuthenticationCredential,
+    challenge: bytes,
+) -> tuple[WebAuthnCredential, AuthUser] | None:
+    """Resolve the stored credential and its live user, consuming the challenge.
+
+    Audits and returns ``None`` for an unknown credential or a replayed challenge.
+    """
     stored = webauthn_repo.get_by_credential_id(conn, parsed.raw_id)
     user = None if stored is None else users_repo.get_live_by_id(conn, stored.user_id)
     if stored is None or user is None:
         _audit_login_failure(conn, ctx, method="passkey", reason="unknown_credential", user_id=None)
         return None
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        _audit_login_failure(
+            conn, ctx, method="passkey", reason="challenge_replayed", user_id=user.id
+        )
+        return None
+    return stored, user
+
+
+def _verify_assertion(
+    conn: sqlite3.Connection,
+    ctx: RequestCtx,
+    parsed: AuthenticationCredential,
+    *,
+    challenge: bytes,
+    rp: RelyingParty,
+    stored: WebAuthnCredential,
+    user: AuthUser,
+) -> VerifiedAuthentication | None:
+    """Verify the signed assertion; audit and return ``None`` on failure."""
     try:
-        verified = verify_authentication_response(
+        return verify_authentication_response(
             credential=parsed,
             expected_challenge=challenge,
             expected_rp_id=rp.rp_id,
@@ -452,32 +569,71 @@ def authenticate_passkey_finish(
             conn, ctx, method="passkey", reason="verification_failed", user_id=user.id
         )
         return None
-    if sign_count_regressed(stored.sign_count, verified.new_sign_count):
-        webauthn_repo.revoke_credential(
-            conn,
-            stored.user_id,
-            stored.id,
-            reason="sign_count_regression",
-            request_ctx=replace(ctx, user_id=user.id),
-        )
-        _audit_login_failure(
-            conn, ctx, method="passkey", reason="sign_count_regression", user_id=user.id
-        )
-        return None
-    with transaction(conn):
-        webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
-        return _issue_session(conn, user, ctx, method="passkey", ip=ip, user_agent=user_agent)
+
+
+def _reject_sign_count_regression(
+    conn: sqlite3.Connection, ctx: RequestCtx, stored: WebAuthnCredential, user: AuthUser
+) -> None:
+    """Revoke a cloned-looking credential and audit the failed login."""
+    webauthn_repo.revoke_credential(
+        conn,
+        stored.user_id,
+        stored.id,
+        reason="sign_count_regression",
+        request_ctx=replace(ctx, user_id=user.id),
+    )
+    _audit_login_failure(
+        conn, ctx, method="passkey", reason="sign_count_regression", user_id=user.id
+    )
+
+
+LABEL_MAX_LENGTH: Final = 64
+DEFAULT_PASSKEY_LABEL: Final = "Passkey"
+_HANDLE_LENGTH: Final = 16
+_HEX_DIGITS: Final = frozenset("0123456789abcdef")
+
+
+def clean_passkey_label(raw: object) -> str:
+    """Trimmed passkey label from a request body value; blank or non-text becomes the default."""
+    label = raw.strip() if isinstance(raw, str) else ""
+    return (label or DEFAULT_PASSKEY_LABEL)[:LABEL_MAX_LENGTH]
+
+
+def is_session_handle(handle: str) -> bool:
+    """True for the non-secret 16-hex session handle shape."""
+    return len(handle) == _HANDLE_LENGTH and all(c in _HEX_DIGITS for c in handle)
+
+
+def list_active_sessions(
+    conn: sqlite3.Connection, user_id: int, *, now: dt.datetime | None = None
+) -> tuple[Session, ...]:
+    """The user's live sessions."""
+    return sessions_repo.list_active_sessions(conn, user_id, now=now)
+
+
+def list_passkeys(
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
+) -> tuple[WebAuthnCredential, ...]:
+    """The user's passkeys (revoked ones only with ``include_deleted``)."""
+    return webauthn_repo.list_credentials(conn, user_id, include_deleted=include_deleted)
 
 
 __all__ = [
     "AUTH_EVENT_ENTITY",
+    "DEFAULT_PASSKEY_LABEL",
+    "LABEL_MAX_LENGTH",
     "SESSION_ENTITY",
+    "IssuedSession",
     "PasskeyChallenge",
     "PasskeyRegistrationError",
     "RelyingParty",
     "authenticate_passkey_begin",
     "authenticate_passkey_finish",
     "authenticate_password",
+    "clean_passkey_label",
+    "is_session_handle",
+    "list_active_sessions",
+    "list_passkeys",
     "load_session_user",
     "logout",
     "register_passkey_begin",

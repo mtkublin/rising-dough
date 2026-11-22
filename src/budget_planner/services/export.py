@@ -15,11 +15,13 @@ import io
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Literal
+from types import MappingProxyType
+from typing import Literal
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from pandas.api.extensions import ExtensionDtype
 
 ColumnKind = Literal["int", "money_minor", "date", "str", "bool"]
 
@@ -42,14 +44,14 @@ class UnknownColumnError(KeyError):
     """Raised when a row is missing the key referenced by an ``ExportColumn``."""
 
 
-def _lookup(row: Mapping[str, Any], column: ExportColumn) -> Any:
+def _lookup(row: Mapping[str, object], column: ExportColumn) -> object:
     try:
         return row[column.key]
     except KeyError as exc:
         raise UnknownColumnError(column.key) from exc
 
 
-def _format_csv_cell(value: Any, column: ExportColumn) -> str:
+def _format_csv_cell(value: object, column: ExportColumn) -> str:
     if value is None:
         return ""
     if column.kind == "bool":
@@ -63,7 +65,7 @@ def _format_csv_cell(value: Any, column: ExportColumn) -> str:
 
 
 def export_csv(
-    rows: Sequence[Mapping[str, Any]],
+    rows: Sequence[Mapping[str, object]],
     columns: Sequence[ExportColumn],
 ) -> bytes:
     """UTF-8 CSV with LF line endings, Excel dialect, header row from ``columns``.
@@ -76,22 +78,26 @@ def export_csv(
     writer.writerow(col.header for col in columns)
     for row in rows:
         writer.writerow(_format_csv_cell(_lookup(row, col), col) for col in columns)
-    return buf.getvalue().encode("utf-8")
+    return buf.getvalue().encode()
 
 
-_DTYPES: dict[ColumnKind, Any] = {
-    "int": pd.Int64Dtype(),
-    "money_minor": pd.Int64Dtype(),
-    "str": pd.StringDtype(),
-    "bool": pd.BooleanDtype(),
-    "date": "object",  # we'll convert manually
-}
+_DTYPES: Mapping[ColumnKind, ExtensionDtype | str] = MappingProxyType(
+    {
+        "int": pd.Int64Dtype(),
+        "money_minor": pd.Int64Dtype(),
+        "str": pd.StringDtype(),
+        "bool": pd.BooleanDtype(),
+        "date": "object",  # we'll convert manually
+    }
+)
 
 
-def _column_series(rows: Sequence[Mapping[str, Any]], column: ExportColumn) -> pd.Series[Any]:
+def _column_series(
+    rows: Sequence[Mapping[str, object]], column: ExportColumn
+) -> pd.Series[str | int | bool | date]:
     values = [_lookup(row, column) for row in rows]
     dtype = "object" if column.kind == "date" else _DTYPES[column.kind]
-    series: pd.Series[Any] = pd.Series(values, dtype=dtype)
+    series: pd.Series[str | int | bool | date] = pd.Series(values, dtype=dtype)
     return series
 
 
@@ -106,7 +112,7 @@ def _arrow_type(kind: ColumnKind) -> pa.DataType:
 
 
 def export_parquet(
-    rows: Sequence[Mapping[str, Any]],
+    rows: Sequence[Mapping[str, object]],
     columns: Sequence[ExportColumn],
 ) -> bytes:
     """Apache Parquet (zstd), no index column. Dtypes come from ``ExportColumn.kind``."""

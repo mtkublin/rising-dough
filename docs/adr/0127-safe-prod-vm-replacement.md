@@ -1,6 +1,6 @@
 # ADR-0127: A Prod VM Replacement Is Safe Unattended
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-11-18
 - **Amends**: ADR-0071 (restore-before-start), ADR-0094 (Tailscale auth key), ADR-0111 (release wait), ADR-0118 (rollout)
 - **Relates to**: ADR-0034, ADR-0099, ADR-0110, ADR-0114

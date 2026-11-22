@@ -1,0 +1,9 @@
+# CODEOWNERS: the CI/CD trust boundary (ADR-0099 amendment 2026-11-21, T-Q239, Q-041).
+# Documents the boundary and auto-requests the owner's review. Enforcement ("Require review from
+# Code Owners") waits for a second reviewer or bot (OQ-24). Keep this list in step with
+# tests/architecture/test_codeowners.py.
+/.github/ @mtkublin
+/scripts/ci/ @mtkublin
+/terraform/ @mtkublin
+/tests/architecture/ci_environments.toml @mtkublin
+/tests/architecture/allowlists/workflow_trust.toml @mtkublin

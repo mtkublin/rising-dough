@@ -30,7 +30,6 @@ KEYS: Final[tuple[str, ...]] = (
     "POST /transactions/{txn_id}/delete",
     "POST /transactions/{txn_id}/restore",
     "GET /transactions/export",
-    "GET /planned",
     "POST /planned/batch/promote-due",
     "POST /planned/batch/undo",
     "GET /planned/table",
@@ -44,11 +43,8 @@ KEYS: Final[tuple[str, ...]] = (
     "GET /planned/{planned_id}/promote/inline",
     "POST /planned/{planned_id}/promote",
     "GET /planned/export",
-    "GET /recurring",
     "GET /recurring/new",
     "POST /recurring",
-    "POST /recurring/batch/promote-due",
-    "POST /recurring/batch/undo",
     "POST /recurring/formula/preview",
     "GET /recurring/{rule_id}/edit",
     "POST /recurring/{rule_id}",
@@ -81,8 +77,8 @@ MUTATING: Final = [r for r in ROUTES if r[1] == "POST"]
 
 
 def test_matrix_lists_every_ledger_route() -> None:
-    assert len(ROUTES) == 43
-    assert len(set(KEYS)) == 43
+    assert len(ROUTES) == 39
+    assert len(set(KEYS)) == 39
 
 
 @covers(*KEYS)

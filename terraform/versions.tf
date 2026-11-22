@@ -10,6 +10,11 @@ terraform {
       source  = "tailscale/tailscale"
       version = "~> 0.29"
     }
+    # T-Q277 / ADR-0135: per-drill Litestream age key pair. Exact pin (supply chain).
+    age = {
+      source  = "koendelaat/age"
+      version = "= 0.1.3"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"

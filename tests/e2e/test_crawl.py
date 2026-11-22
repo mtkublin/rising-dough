@@ -47,19 +47,12 @@ pytestmark = pytest.mark.e2e
 # Full-page GET routes. ``{account_id}`` is filled from the seed.
 PAGES: tuple[str, ...] = (
     "/accounts",
-    "/afford",
-    "/analytics",
     "/auth/sessions",
     "/budget",
-    "/budget/manage",
-    "/categories",
     "/forecast",
     "/ledger",
     "/ledger/recently-deleted",
     "/plan",
-    "/plan/analytics",
-    "/planned",
-    "/recurring",
     "/settings",
     "/settings/password",
     "/settings/security",
@@ -77,7 +70,6 @@ VIEWS: tuple[str, ...] = ("/plan?tab=year",)
 NOT_PAGES: dict[str, str] = {
     "/accounts/{account_id}/reconcile": "dialog fragment (no base template, no htmx)",
     "/add": "overlay fragment (no base template, no htmx)",
-    "/accounts/last-checked": "fragment",
     "/accounts/new": "dialog fragment",
     "/accounts/{account_id}/edit": "dialog fragment",
     "/auth/login": "login form (crawl starts logged in)",

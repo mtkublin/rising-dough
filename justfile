@@ -86,13 +86,25 @@ test-visual *args:
     done
     uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
 
+# Visual regression in the pinned Playwright container (ADR-0027 amendment 2026-11-22, T-Q251).
+# Needs docker (macOS devs: Docker Desktop). Baselines are Linux-only; never generate them on the host.
+# Keep the image in step with .github/workflows/visual.yml (tests/architecture/test_visual_image_pin.py).
+visual_image := "mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031"
+
+visual:
+    docker run --rm --ipc=host -e CI=1 -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh
+
+# Regenerate tests/visual/__snapshots__/ inside the container after an intentional UI change.
+visual-update:
+    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh update
+
 # Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
 visual-reference *surface:
     uv run python -m tests.visual.handoff {{surface}}
 
 # Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
-# (paths, -k, later --target=...). Local only: GitHub runners have no
-# Playwright browser (ADR-0097).
+# (paths, -k, later --target=...). Optional locally: e2e runs on GitHub
+# (e2e.yml, pinned Playwright container) on every PR, T-Q297.
 test-e2e *ARGS:
     uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" {{ARGS}}
 
@@ -107,9 +119,6 @@ test-e2e-browsers *ARGS:
     done
     exit "$rc"
 
-# Refresh visual-regression baselines after an intentional design change.
-test-visual-update:
-    VISUAL_UPDATE=1 uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
 
 # --- quality gates ---------------------------------------------------------
 
@@ -120,6 +129,7 @@ test-visual-update:
 lint:
     uv run ruff check src tests
     uv run lint-imports
+    uv run xenon --max-absolute C src
     uv run sqlfluff lint migrations
     out=$(uv run djlint src/budget_planner/web/templates --check 2>&1); status=$?; if [ $status -ne 0 ] && ! echo "$out" | grep -q "No files to check"; then echo "$out" >&2; exit $status; fi; echo "$out"
     npm run stylelint --silent
@@ -156,6 +166,11 @@ mutate-report *args:
 # Drop the mutmut workspace and results.
 mutate-clean:
     rm -rf mutants .mutmut-cache
+
+# Gated merge of a finished item into the current work branch (T-Q304, ADR-0066):
+# merge --no-ff, guards + lint-imports + ruff + mypy, push, then prune.
+merge-item ID MSG:
+    bash scripts/ci/merge_item.sh "{{ID}}" "{{MSG}}"
 
 # Architecture guards (tests/architecture). Run in the pytest suite and CI.
 guards:
@@ -196,10 +211,10 @@ test-changed BASE="origin/main":
     if [ -n "$unseen" ]; then
       echo "[test-changed] change testmon cannot see vs {{BASE}}; running the full suite:"
       printf '%s\n' "$unseen" | sed 's/^/  /'
-      exec uv run pytest -n "$workers" --no-cov --testmon-noselect
+      exec uv run pytest -n "$workers" --no-cov --ignore=tests/e2e --testmon-noselect
     fi
     set +e
-    uv run pytest -n "$workers" --no-cov --testmon-forceselect
+    uv run pytest -n "$workers" --no-cov --ignore=tests/e2e --testmon-forceselect
     status=$?
     set -e
     # 5 = nothing selected: no affected tests is a pass.
@@ -208,6 +223,9 @@ test-changed BASE="origin/main":
 
 # Fallback: staged files on _unseen-paths run the full default selection.
 # Pre-commit pytest hook, the local gate (ADR-0120): testmon-selected tests.
+# tests/e2e is excluded here and in test-changed (ADR-0120 amendment 2026-11-22,
+# T-Q295): the orchestrator runs it once per wave (`just test-e2e`); `just ci`
+# and PR CI still collect everything they did before.
 test-fast:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -219,7 +237,7 @@ test-fast:
       mode="--testmon-noselect"
     fi
     set +e
-    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov "$mode"
+    uv run pytest -q -n "${PYTEST_WORKERS:-auto}" --no-cov --ignore=tests/e2e "$mode"
     status=$?
     set -e
     # 5 = nothing selected: no affected tests is a pass.

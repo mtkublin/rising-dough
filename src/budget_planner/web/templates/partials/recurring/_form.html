@@ -76,7 +76,7 @@
               data-suffix="{{ rule_account.currency if rule_account else '' }}">
           <input type="text"
                  name="default_amount"
-                 value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else 'PLN') if rule and not is_formula else '' }}"
+                 value="{{ rule.default_amount|money_major(rule_account.currency if rule_account else base_ccy) if rule and not is_formula else '' }}"
                  placeholder="0.00"
                  inputmode="decimal"
                  data-numeric>

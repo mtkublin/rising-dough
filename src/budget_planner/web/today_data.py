@@ -8,31 +8,35 @@ from __future__ import annotations
 
 import calendar
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Decimal
+from types import MappingProxyType
 from typing import Final, Literal
 
-import httpx
 from fastapi import Request
 
-from budget_planner.domain.money import currency_decimals
+from budget_planner.domain.money import divide_minor_units
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
     fx as fx_service,
     upcoming as upcoming_service,
 )
+from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.params import query_choice
 
 PaceKind = Literal["on_track", "pacing_high", "over_budget"]
 
-_PACE_LABELS: Final[dict[str, str]] = {
-    "on_track": "on track",
-    "pacing_high": "pacing high",
-    "over_budget": "over budget",
-}
+_PACE_LABELS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "on_track": "on track",
+        "pacing_high": "pacing high",
+        "over_budget": "over budget",
+    }
+)
 
-_WINDOWS: Final[dict[str, int | None]] = {"7": 7, "30": 30, "all": None}
+_WINDOWS: Final[Mapping[str, int | None]] = MappingProxyType({"7": 7, "30": 30, "all": None})
 _DEFAULT_WINDOW: Final[str] = "30"
 
 
@@ -87,28 +91,12 @@ class UpcomingRow:
     dest_account_id: int | None
 
 
-def _convert_minor(
-    amount_minor: int,
-    from_ccy: str,
-    to_ccy: str,
-    rate: Decimal,
-) -> int:
-    """Convert ``amount_minor`` using a pre-fetched rate (ROUND_HALF_EVEN)."""
-    if from_ccy == to_ccy:
-        return amount_minor
-    src_scale = Decimal(10) ** currency_decimals(from_ccy)
-    dst_scale = Decimal(10) ** currency_decimals(to_ccy)
-    major = Decimal(amount_minor) / src_scale
-    converted = (major * rate) * dst_scale
-    return int(converted.quantize(Decimal("1"), rounding=ROUND_HALF_EVEN))
-
-
 def collect_account_rows(
     conn: sqlite3.Connection,
     user_id: int,
-    base_ccy: str,
-) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...], int]:
-    """Return (per-account rows, per-currency totals, fortune in base)."""
+    fx: fx_service.FxConverter,
+) -> tuple[tuple[AccountRow, ...], tuple[CurrencyTotal, ...]]:
+    """Return (per-account rows, per-currency totals); net worth is ``compute_fortune``."""
     accs = accounts_repo.list_all(conn, user_id)
     per_ccy: dict[str, int] = {}
     native: list[tuple[int, str, str | None, str, int]] = []
@@ -117,17 +105,6 @@ def collect_account_rows(
         per_ccy[a.currency] = per_ccy.get(a.currency, 0) + bal
         native.append((a.id, a.name, a.type, a.currency, bal))
 
-    non_base = {ccy for ccy in per_ccy if ccy != base_ccy}
-    rates: dict[str, Decimal] = {base_ccy: Decimal("1")}
-    if non_base:
-        today = date.today()  # noqa: DTZ011 — ADR-0007: naive dates
-        with httpx.Client(timeout=5.0) as http:
-            for ccy in non_base:
-                try:
-                    rates[ccy] = fx_service.get_rate(conn, http, today, ccy, base_ccy)
-                except fx_service.FxUnavailableError:
-                    rates[ccy] = Decimal("1")  # degrade gracefully; UI shows native only
-
     rows = tuple(
         AccountRow(
             id=aid,
@@ -135,15 +112,14 @@ def collect_account_rows(
             type=atype,
             currency=ccy,
             balance_minor=bal,
-            balance_base_minor=_convert_minor(bal, ccy, base_ccy, rates[ccy]),
+            balance_base_minor=fx.to_base(bal, ccy),
         )
         for (aid, name, atype, ccy, bal) in native
     )
     totals = tuple(
         CurrencyTotal(currency=ccy, total_minor=total) for ccy, total in sorted(per_ccy.items())
     )
-    fortune_base = sum(r.balance_base_minor for r in rows)
-    return rows, totals, fortune_base
+    return rows, totals
 
 
 def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> PaceTag:
@@ -154,18 +130,17 @@ def pace_tag(spent: int, budgeted: int, today: date, year: int, month: int) -> P
         return PaceTag(kind="over_budget", label=_PACE_LABELS["over_budget"])
     days_in_month = calendar.monthrange(year, month)[1]
     elapsed = today.day if (today.year == year and today.month == month) else days_in_month
-    expected = budgeted * elapsed // days_in_month
+    expected = divide_minor_units(budgeted * elapsed, days_in_month)
     if spent > expected:
         return PaceTag(kind="pacing_high", label=_PACE_LABELS["pacing_high"])
     return PaceTag(kind="on_track", label=_PACE_LABELS["on_track"])
 
 
 def window_from(request: Request) -> tuple[str, int | None]:
-    """Parse ``?window=`` → (label, days). Falls back to the default."""
-    raw = request.query_params.get("window", _DEFAULT_WINDOW)
-    if raw not in _WINDOWS:
-        raw = _DEFAULT_WINDOW
-    return raw, _WINDOWS[raw]
+    """Parse ``?window=`` → (label, days); absent or empty is the default, unknown raises."""
+    raw = query_choice("window", request.query_params.get("window"), tuple(_WINDOWS))
+    label = raw or _DEFAULT_WINDOW
+    return label, _WINDOWS[label]
 
 
 def list_upcoming(
@@ -173,6 +148,7 @@ def list_upcoming(
     user_id: int,
     today: date,
     window_days: int | None,
+    fx: FormulaFx,
 ) -> tuple[UpcomingRow, ...]:
     """Return the Panel C row set — planned one-offs + recurring next_due.
 
@@ -181,7 +157,9 @@ def list_upcoming(
     rules (ADR-0038) and applies ``next_due`` overrides. ``window_days``
     forwards unchanged.
     """
-    items = upcoming_service.list_upcoming(conn, user_id, today=today, window_days=window_days)
+    items = upcoming_service.list_upcoming(
+        conn, user_id, today=today, window_days=window_days, fx=fx
+    )
     return tuple(
         UpcomingRow(
             operation_date=item.effective_date,

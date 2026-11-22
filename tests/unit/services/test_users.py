@@ -12,7 +12,7 @@ from structlog.testing import capture_logs
 from budget_planner.config import Settings
 from budget_planner.repositories import users as users_repo
 from budget_planner.repositories.users import UserNotFoundError
-from budget_planner.services import _passwords, users as users_service
+from budget_planner.services import users as users_service
 from budget_planner.services.users import (
     DEV_ADMIN_EMAIL,
     DEV_ADMIN_PASSWORD,
@@ -24,16 +24,12 @@ from budget_planner.services.users import (
     resolve_bootstrap_credentials,
     set_user_password,
 )
+from tests.auth_support import FAKE_HASHER
 
 ADMIN_EMAIL = "Owner@Example.Test"
 ADMIN_PASSWORD = "initial-Pa55word!"  # noqa: S105  # pragma: allowlist secret
 OTHER_PASSWORD = "x-other-pw"  # noqa: S105  # pragma: allowlist secret
 KEPT_HASH = "keep"
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
 
 
 def _settings(env: str = "test", **kwargs: Any) -> Settings:
@@ -131,7 +127,7 @@ def test_settings_reject_malformed_admin_email() -> None:
 
 
 def test_bootstrap_admin_adopts_legacy_row(conn: sqlite3.Connection) -> None:
-    outcome = bootstrap_admin(conn, _env_settings())
+    outcome = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     assert outcome.action == "promoted"
     assert outcome.legacy_adopted is True
@@ -140,14 +136,14 @@ def test_bootstrap_admin_adopts_legacy_row(conn: sqlite3.Connection) -> None:
     assert row["email"] == ADMIN_EMAIL.lower()
     assert row["is_admin"] == 1
     assert row["must_change_password"] == 1
-    assert _passwords.verify_password(ADMIN_PASSWORD, row["password_hash"])
+    assert FAKE_HASHER.verify(ADMIN_PASSWORD, row["password_hash"])
     assert conn.execute("SELECT count(*) FROM users").fetchone()[0] == 1
 
 
 def test_bootstrap_admin_creates_user_with_system_categories(conn: sqlite3.Connection) -> None:
     _retire_legacy_row(conn)
 
-    outcome = bootstrap_admin(conn, _env_settings())
+    outcome = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     assert outcome.action == "created"
     assert outcome.user_id is not None
@@ -181,7 +177,7 @@ def test_bootstrap_admin_promotes_existing_user_by_email(conn: sqlite3.Connectio
     )
     user_id = int(cur.lastrowid or 0)
 
-    outcome = bootstrap_admin(conn, _env_settings())
+    outcome = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     assert outcome.action == "promoted"
     assert outcome.legacy_adopted is False
@@ -190,7 +186,7 @@ def test_bootstrap_admin_promotes_existing_user_by_email(conn: sqlite3.Connectio
     assert row["email"] == ADMIN_EMAIL.upper()  # unchanged on email match
     assert row["is_admin"] == 1
     assert row["must_change_password"] == 1
-    assert _passwords.verify_password(ADMIN_PASSWORD, row["password_hash"])
+    assert FAKE_HASHER.verify(ADMIN_PASSWORD, row["password_hash"])
     audit = _user_audit(conn)
     assert [r["operation"] for r in audit] == ["update"]
 
@@ -198,7 +194,7 @@ def test_bootstrap_admin_promotes_existing_user_by_email(conn: sqlite3.Connectio
 def test_bootstrap_admin_noop_when_admin_exists(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE users SET is_admin = 1, password_hash = ? WHERE id = 1", (KEPT_HASH,))
 
-    outcome = bootstrap_admin(conn, _env_settings())
+    outcome = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     assert outcome.action == "noop"
     assert outcome.reason == "admin_exists"
@@ -208,7 +204,7 @@ def test_bootstrap_admin_noop_when_admin_exists(conn: sqlite3.Connection) -> Non
 
 def test_bootstrap_admin_noop_with_admin_and_missing_env(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
-    outcome = bootstrap_admin(conn, _settings("production"))
+    outcome = bootstrap_admin(conn, _settings("production"), hasher=FAKE_HASHER)
     assert outcome.action == "noop"
 
 
@@ -217,26 +213,26 @@ def test_bootstrap_admin_ignores_soft_deleted_admin(conn: sqlite3.Connection) ->
         "INSERT INTO users(name, email, is_admin, deleted_at) "
         "VALUES ('Gone', 'gone@example.test', 1, '2026-01-01T00:00:00.000Z')"
     )
-    outcome = bootstrap_admin(conn, _env_settings())
+    outcome = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
     assert outcome.action == "promoted"
 
 
 def test_bootstrap_admin_missing_env_raises_in_production(conn: sqlite3.Connection) -> None:
     with pytest.raises(BootstrapAdminMissingEnv):
-        bootstrap_admin(conn, _settings("production"))
+        bootstrap_admin(conn, _settings("production"), hasher=FAKE_HASHER)
     assert _user(conn, 1)["is_admin"] == 0
 
 
 def test_bootstrap_admin_missing_env_in_test_env_is_noop(conn: sqlite3.Connection) -> None:
-    outcome = bootstrap_admin(conn, _settings("test"))
+    outcome = bootstrap_admin(conn, _settings("test"), hasher=FAKE_HASHER)
     assert (outcome.action, outcome.reason) == ("noop", "no_credentials")
 
 
 def test_bootstrap_admin_is_idempotent(conn: sqlite3.Connection) -> None:
-    first = bootstrap_admin(conn, _env_settings())
+    first = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
     hash_after_first = _user(conn, 1)["password_hash"]
 
-    second = bootstrap_admin(conn, _env_settings())
+    second = bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     assert first.action == "promoted"
     assert second.action == "noop"
@@ -247,13 +243,13 @@ def test_bootstrap_admin_is_idempotent(conn: sqlite3.Connection) -> None:
 def test_bootstrap_admin_dev_default_adopts_pristine_legacy_row(
     conn: sqlite3.Connection,
 ) -> None:
-    outcome = bootstrap_admin(conn, _settings("dev"))
+    outcome = bootstrap_admin(conn, _settings("dev"), hasher=FAKE_HASHER)
 
     assert outcome.action == "promoted"
     row = _user(conn, 1)
     assert row["email"] == DEV_ADMIN_EMAIL
     assert row["must_change_password"] == 0
-    assert _passwords.verify_password(DEV_ADMIN_PASSWORD, row["password_hash"])
+    assert FAKE_HASHER.verify(DEV_ADMIN_PASSWORD, row["password_hash"])
 
 
 def test_bootstrap_admin_dev_default_never_touches_legacy_data(
@@ -263,7 +259,7 @@ def test_bootstrap_admin_dev_default_never_touches_legacy_data(
     before = [tuple(r) for r in conn.execute("SELECT * FROM users ORDER BY id")]
 
     with capture_logs() as logs:
-        outcome = bootstrap_admin(conn, _settings("dev"))
+        outcome = bootstrap_admin(conn, _settings("dev"), hasher=FAKE_HASHER)
 
     assert (outcome.action, outcome.reason) == ("noop", "legacy_data_present")
     assert [tuple(r) for r in conn.execute("SELECT * FROM users ORDER BY id")] == before
@@ -275,7 +271,7 @@ def test_bootstrap_admin_env_adopts_legacy_row_even_with_data(
     conn: sqlite3.Connection,
 ) -> None:
     _add_account(conn, 1)
-    outcome = bootstrap_admin(conn, _env_settings("dev"))
+    outcome = bootstrap_admin(conn, _env_settings("dev"), hasher=FAKE_HASHER)
     assert (outcome.action, outcome.user_id, outcome.legacy_adopted) == ("promoted", 1, True)
 
 
@@ -283,7 +279,7 @@ def test_bootstrap_admin_logs_structured_line_without_secrets(
     conn: sqlite3.Connection, capsys: pytest.CaptureFixture[str]
 ) -> None:
     with capture_logs() as logs:
-        bootstrap_admin(conn, _env_settings())
+        bootstrap_admin(conn, _env_settings(), hasher=FAKE_HASHER)
 
     entry = logs[-1]
     assert entry["event"] == "admin_bootstrap"
@@ -303,8 +299,8 @@ def test_bootstrap_admin_rejects_unmigrated_schema(conn: sqlite3.Connection) -> 
     raw.row_factory = sqlite3.Row
     raw.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)")
     with pytest.raises(SchemaNotMigratedError):
-        bootstrap_admin(raw, _env_settings("production"))
-    outcome = bootstrap_admin(raw, _env_settings("dev"))
+        bootstrap_admin(raw, _env_settings("production"), hasher=FAKE_HASHER)
+    outcome = bootstrap_admin(raw, _env_settings("dev"), hasher=FAKE_HASHER)
     assert (outcome.action, outcome.reason) == ("noop", "schema_not_migrated")
     raw.close()
 
@@ -316,7 +312,7 @@ def test_startup_skips_db_in_test_env_without_credentials() -> None:
     def _boom(_: Settings) -> sqlite3.Connection:
         raise AssertionError("must not connect")
 
-    outcome = bootstrap_admin_at_startup(_settings("test"), connect=_boom)
+    outcome = bootstrap_admin_at_startup(_settings("test"), connect=_boom, hasher=FAKE_HASHER)
     assert outcome.reason == "no_credentials"
 
 
@@ -333,6 +329,7 @@ def test_startup_opens_and_closes_connection(conn: sqlite3.Connection) -> None:
     outcome = bootstrap_admin_at_startup(
         _env_settings(),
         connect=lambda _: _Conn(),  # type: ignore[arg-type,return-value]
+        hasher=FAKE_HASHER,
     )
     assert outcome.action == "promoted"
     assert closed == [True]
@@ -351,6 +348,7 @@ def test_set_user_password_updates_hash_email_and_admin(conn: sqlite3.Connection
             set_email=" Me@Example.Test ",
             make_admin=True,
         ),
+        hasher=FAKE_HASHER,
     )
     assert (user.email, user.is_admin, user.must_change_password) == (
         "me@example.test",
@@ -358,7 +356,7 @@ def test_set_user_password_updates_hash_email_and_admin(conn: sqlite3.Connection
         False,
     )
     row = _user(conn, 1)
-    assert _passwords.verify_password("n3w-secret", row["password_hash"])
+    assert FAKE_HASHER.verify("n3w-secret", row["password_hash"])
     audit = _user_audit(conn)
     new_json = json.loads(audit[-1]["new_json"])
     assert new_json["password_changed"] is True
@@ -374,7 +372,8 @@ def test_set_user_password_keeps_email_and_admin_when_not_requested(
     user = set_user_password(
         conn,
         1,
-        change=PasswordChange(password="abc12345", must_change_password=True),  # noqa: S106
+        change=PasswordChange(password="abc12345", must_change_password=True),  # noqa: S106,
+        hasher=FAKE_HASHER,
     )
     assert (user.email, user.is_admin, user.must_change_password) == (
         "keep@example.test",
@@ -386,7 +385,10 @@ def test_set_user_password_keeps_email_and_admin_when_not_requested(
 def test_set_user_password_unknown_user(conn: sqlite3.Connection) -> None:
     with pytest.raises(UserNotFoundError):
         set_user_password(
-            conn, 999, change=PasswordChange(password=OTHER_PASSWORD, must_change_password=False)
+            conn,
+            999,
+            change=PasswordChange(password=OTHER_PASSWORD, must_change_password=False),
+            hasher=FAKE_HASHER,
         )
 
 
@@ -401,6 +403,7 @@ def test_set_user_password_rolls_back_on_email_collision(conn: sqlite3.Connectio
                 must_change_password=False,
                 set_email="TAKEN@example.test",
             ),
+            hasher=FAKE_HASHER,
         )
     assert _user(conn, 1)["password_hash"] is None
     assert _user_audit(conn) == []
@@ -408,7 +411,12 @@ def test_set_user_password_rolls_back_on_email_collision(conn: sqlite3.Connectio
 
 def test_set_user_password_rejects_empty_password(conn: sqlite3.Connection) -> None:
     with pytest.raises(ValueError, match="empty"):
-        set_user_password(conn, 1, change=PasswordChange(password="", must_change_password=False))
+        set_user_password(
+            conn,
+            1,
+            change=PasswordChange(password="", must_change_password=False),
+            hasher=FAKE_HASHER,
+        )
 
 
 # --- repository helpers ------------------------------------------------------

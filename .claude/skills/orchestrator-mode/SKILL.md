@@ -24,7 +24,7 @@ and reports. See [ADR-0066](../../../docs/adr/0066-orchestrator-mode-skill.md).
   to reconcile both sides. Semantic conflicts go back to a subagent (§5).
 - Run verification that does not change source: `just test`, `just lint`,
   `just typecheck`. No local full `just ci` per batch (ADR-0097 amendment, 2026-11-18).
-- Remove merged worktrees and delete merged item branches.
+- Remove merged worktrees and delete merged item branches (§5, `just merge-item`).
 - Update `TaskCreate`/`TaskUpdate` progress tracking.
 
 **Forbidden:**
@@ -36,7 +36,8 @@ and reports. See [ADR-0066](../../../docs/adr/0066-orchestrator-mode-skill.md).
   `git cherry-pick`, `git reset --hard`, or force-push on shared branches.
 - "Quick fixes" after a merge. If CI fails on the main work branch, dispatch
   a fix agent.
-- Pushing, opening PRs, or touching `main` unless the user asks.
+- Pushing, opening PRs, or touching `main` without the user's approval (§6). Once approved,
+  push and open the (draft) PR early.
 - Anything that touches `data/budget.sqlite` (see CLAUDE.md "Databases").
 
 If you notice you are about to write code, stop and dispatch an agent.
@@ -90,8 +91,19 @@ Write down `MAIN=<branch>`. Every item branch starts from it and merges back int
 
 ## 4. Step 2: dispatch
 
-Launch **every item in the current wave in one message** (several `Agent` calls),
-so they run at the same time.
+Launch the wave's items in one message (several `Agent` calls) so they can run at
+the same time. Size the number of concurrent agents to **live machine load**, not to
+the plan's item count. Other sessions share this machine.
+
+- Before each dispatch, check `uptime` (load average vs `sysctl -n hw.ncpu`) and
+  `memory_pressure`.
+- Cap heavy jobs (full suite, Mutmut, e2e, Playwright) at ~1 at a time, using the
+  shared mkdir lock (see "Heavy locks"). Keep ~4-5 agents running in total.
+- **Size items so one agent finishes in under ~1 h** (operator 2026-11-22: "a subagent running
+  for 1h is too much"; some ran 3-6 h). Split large items into waves or carve-outs at planning
+  time (§3), and put the budget in the brief.
+- If load is above ~2x cores, hold back or stop the least critical agent.
+- Queue the remaining items and dispatch them as slots free up.
 
 Per agent:
 
@@ -107,24 +119,23 @@ Per agent:
   - Use `opus` only when the user asks for it, or after a `sonnet` agent has failed the
     same item twice. Mention every escalation in the final report.
   - Cheaper models need tighter briefs: name exact files, functions, and acceptance checks.
+  - Haiku suits docs-only and mechanical items.
 - Background execution. Wait for completion notifications. Do not poll and do
   not sleep.
 - **Auto mode:** if the session runs in auto mode, subagents inherit it. Do not
   override their permission mode. Tell them explicitly that they run autonomously
   and must not stop to ask for confirmation, except for the prod-DB rule.
 
-### Brief template (fill in every field; the brief is the agent's only context)
+### Brief template (the brief is the agent's only context)
+
+The task brief is two parts: the shared [brief-common.md](brief-common.md) (branch setup,
+repo rules, testing, CPU, locks, runtime budget, report format; paste it verbatim and fill
+`<MAIN>`, `<ID>`, `<plan>`) plus the item-specific part below. Add the lock name
+(`/tmp/<plan>-heavy.lock`), the open slots, and the base sha the agent's `git log -1` must show.
 
 ```text
 You are implementing work item <ID>: <one-line goal>.
 Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git worktree.
-
-## Branch setup (do first)
-1. `git branch -m wi/<MAIN>/<ID>` (rename your worktree branch).
-2. Make sure your branch contains the tip of `<MAIN>`:
-   `git merge-base --is-ancestor <MAIN> HEAD || git merge --no-edit <MAIN>`
-   Merge only. Never rebase.
-3. Work and commit ONLY inside this worktree. Never cd into or edit the main checkout.
 
 ## Goal / done-definition
 <what must be true when finished; acceptance criteria; requirement / task ids>
@@ -138,59 +149,68 @@ Repo: budget_planner (FastAPI + Jinja2 + HTMX + SQLite). You are in your OWN git
   say so in your report instead of making it.
 - Pre-assigned numbers: ADR-<NNNN> / migration <NNNN>. Use exactly these.
 
-## Repo rules (MANDATORY; full text in CLAUDE.md, read it first)
-- Docs first: update docs/requirements.md / docs/tasks.md / write the ADR before code,
-  in the same branch.
-- `data/budget.sqlite` is PRODUCTION. Never open, migrate, seed, reset, or query it. For any
-  DB work use `--db=/tmp/<id>.sqlite` or `data/demo.sqlite`. `just migrate`, `just seed`,
-  `just db-reset`, and the CSV import default to prod. Always pass a scratch `--db`.
-- Functional-first; frozen dataclasses; thin routers, fat services; repositories own SQL;
-  soft delete + audit log through the repository helpers; amounts are positive minor units.
-  Clock only via `budget_planner.clock`; money only via `domain.money`; never a literal user id;
-  no arithmetic or `float` in templates; every `noqa` / `type: ignore` carries a reason.
-  Pure layers do no I/O (CLAUDE.md "Code conventions").
-- **Search before you write.** (1) Read CLAUDE.md "Canonical modules" for your concept.
-  (2) Run that row's search terms over `src/` (`rg -n "def .*(convert|month|period|today|sign|parse)"`
-  style). (3) Call or extend the canonical function; a `target` row is never copied: call its public `Interim` copy, or do its registered extraction task
-  migrating ALL copies in one change; never import another module's `_private` name. A new shared helper is registered in `tests/architecture/canonical_modules.toml`
-  (you own that file only if listed above; otherwise name the row in your report).
-- **No new allowlist entry or suppression** without a reason and an ADR-0130 amendment. Delete
-  allowlist entries for violations you fix. Architecture guards (`just guards`) must be green.
-- Server binds 127.0.0.1 only. No secrets committed.
-- Template/CSS/HTMX changes: run the `frontend-visual-audit` skill on the affected routes at
-  1440 / 1024 / 375 before you finish.
-- Run `just worktree-init` once at the start (seeds testmon data from the main checkout).
-- Your checks are the pre-commit hooks (ADR-0120): on every commit they lint, run
-  `mypy --strict` and run the tests affected by your change across the whole suite
-  (testmon; the full suite when you touch a migration, SQL, dependency, `conftest.py` or
-  other non-Python file). `just lint-changed <MAIN>` / `just test-changed <MAIN>` run the
-  same selection before a commit (arguments are positional). Run terraform checks by hand
-  if you touched Terraform. Do NOT run full `just ci`; PR CI runs the full suite. Never use `--no-verify`. If the pre-commit
-  pytest hook stalls because other agents are running pytest, wait until no other pytest is
-  running (`pgrep -fl pytest`), then retry.
-- `export PYTEST_WORKERS=2` before running tests or committing: `just test` and the pre-commit
-  pytest hook run xdist with that many workers, so parallel agents don't each take every core
-  (ADR-0108 §1).
-- Handoff checklist: commit hooks green, ADRs you touched re-read and still true, mark the task `✅`
-  in `docs/plans/<plan>/tasks.md`, add a dated line to docs/CHANGELOG.md, reference the ADR(s) in the commit.
-- **CPU budget (shared machine, parallel agents).** `export PYTEST_WORKERS=2`. Run at most one heavy
-  job (full suite, Mutmut, e2e, `just ci`) at a time; take the shared lock and always release it:
-  `until mkdir /tmp/qa-audit-heavy.lock 2>/dev/null; do sleep 20; done` ... `rmdir /tmp/qa-audit-heavy.lock`
-  (also on failure). Commits that run the full suite in the hook count as heavy. If a known
-  load-sensitive e2e test (e.g. `tests/e2e/test_ledger_filters.py`) fails, release the lock,
-  wait, and retry; do not skip hooks.
-- Commit format: `<type>(<ID>): <description>` (conventional commits).
-- You run autonomously (auto mode). Do not stop to ask for confirmation. Prod-DB access is the
-  only thing that needs the user.
-
-## Report back (final message)
-- branch name + final commit sha
-- files changed (short list)
-- commit hook results (affected tests run, pass/fail) and any manual checks (terraform); frontend audit summary if applicable
-- `Searched: <queries>; Reused: <symbols>; New helper: <name> (why none fits; registered in canonical_modules.toml: yes/no)`
-- allowlist entries deleted (file, path, count) and confirmation that none were added
-- anything left undone, assumptions you made, or changes you needed in files you do not own
+<contents of brief-common.md>
 ```
+
+**Testing in the brief** (full text in the common file): item agents test only via the commit
+hooks (ADR-0120). No manual unit/integration/contract/e2e suites and no post-merge reruns.
+While developing, run only the file being written: `uv run pytest <file> -q --no-cov -p no:xdist`.
+Every commit is prefixed `PYTEST_WORKERS=2` (plain `-n auto` caused load 70-110 on 8 cores).
+The `frontend-visual-audit` skill is still required for template/CSS changes.
+
+### Heavy locks
+
+Heavy jobs (full suite in a hook, `just ci`, Mutmut, e2e, the visual audit) take a mkdir lock.
+The orchestrator picks one lock name per plan, `/tmp/<plan>-heavy.lock`, and states it in
+EVERY brief. A name is never shared with another session or plan. The default is one slot. The
+orchestrator may open a second slot, `/tmp/<plan>-heavy-2.lock`, only while the 5-minute load
+average stays below 2x `sysctl -n hw.ncpu`, and stops granting it when load rises. Agents take
+the lock in separate Bash calls (the worktree sandbox refuses a combined lock + git command):
+acquire, commit, `rmdir` the lock. They release it also when the job or commit fails. The
+orchestrator frees a stale slot only when `pgrep -fl pytest` shows no test run.
+
+### Delegate heavy work to GitHub where feasible
+
+The laptop is shared by parallel agents, so anything heavy runs on GitHub runners when a
+workflow exists. Rule of thumb: if a run takes more than ~2 min of CPU locally and a workflow
+can run it, use the workflow. Watch it with a background `gh run watch`, not by polling.
+
+- **Full e2e:** push a `wi/**` branch, read the `e2e.yml` run (`gh run watch`), delete the
+  branch on origin after.
+- **Full suite and coverage:** once the user has approved opening a PR, open it (draft) early,
+  so `ci.yml` runs on every merge push. A clean `git merge` runs no pre-commit hooks, so this is
+  what tests merged combinations.
+- **Visual baselines:** generated only by `visual.yml` in the pinned container. Download the
+  `visual-baselines` artifact; an agent commits it. Never generate them locally.
+- **Mutation:** the weekly `mutation.yml`.
+
+Pushing and opening a PR still need the user's approval (§6); once approved, do it early.
+
+## 4b. Supervise running agents
+
+- Check in periodically, not by sleeping or polling in a loop: on each completion
+  notification and at natural pauses. For each in-flight item, look at
+  `git -C <worktree> log --oneline <MAIN>..HEAD`, `git -C <worktree> status --short`,
+  the newest mtime of the changed files, and `pgrep -fl pytest` / `ps` for its processes.
+- Long-running is not stuck. Treat an agent as stuck only with evidence: no new commits,
+  no file changes and no live processes for a long stretch, or a hook/test process hung
+  (e.g. waiting on a lock held by a dead process). A stale `/tmp/<plan>-heavy.lock` may be removed by the orchestrator only when
+  `pgrep -fl pytest` shows no test run.
+- Stuck agent: stop it (`TaskStop`), but never drop its work. Keep the worktree and
+  branch, including uncommitted changes. Do not `git worktree remove`, `git checkout .`,
+  `git stash` or `git reset`.
+- **Runtime budget.** Check in on every agent at ~30 min: `SendMessage` asking for status and
+  blockers, or look at its worktree's git log and the processes in its cwd. At ~60 min with no
+  commit progress, act: split the remainder into a new item, or stop the agent and hand its
+  worktree, including uncommitted work, to a fresh agent with a tighter brief. Typical causes:
+  waiting on a heavy lock, CPU contention, repeated merge-conflict loops, hand-running suites,
+  gold-plating beyond the brief. Record every overrun in the final report.
+- Hand over: dispatch a fresh agent into that same worktree. Tell it the path and branch,
+  and that it must `cd` there and must not create a new worktree. The brief is the original
+  brief plus a summary of what is done (`git log`, `git diff --stat`, `git status`) and
+  what remains.
+- A second stall on the same item: escalate per the model rules in §4 and mention it in
+  the final report.
 
 ## 5. Step 3: merge back
 
@@ -209,11 +229,24 @@ early merges keep later conflicts small.
    words against `src/`. Anything resembling a Canonical modules row (convert, month/period,
    sign, parse, today, totals) goes back to the agent via `SendMessage` to reuse the owner
    before the merge.
-2. In the main checkout, on `<MAIN>`:
+   **Reject guard-gaming.** A fix that satisfies a guard syntactically without removing the
+   cause goes back to the agent (example: the `lru_cache(fn)` call form to dodge the
+   hidden-cache scan). The fix is a real code change, or a `[[permanent]]` row with a reason
+   and an ADR-0130 amendment.
+2. In the main checkout, on `<MAIN>` (start every orchestrator command with a `cd` to the
+   main checkout; the shell cwd drifts into worktrees):
 
    ```sh
-   git merge --no-ff wi/<MAIN>/<ID> -m "merge(<ID>): <summary>"
+   just merge-item <ID> "<summary>"
    ```
+
+   The recipe (`scripts/ci/merge_item.sh`, T-Q304) refuses on `main`, a dirty tree or an
+   unfinished merge, merges `wi/<MAIN>/<ID>` with `--no-ff` and the message
+   `merge(<ID>): <summary>`, then, because a merge skips the hooks, runs `just guards`,
+   `uv run lint-imports`, `uv run ruff check src tests` and `uv run mypy src tests`. Only when
+   all return 0 does it push `<MAIN>` and prune (step 5). On a check failure it stops with the
+   merge commit in place, unpushed and unpruned: dispatch a fix agent. On a conflict it aborts
+   the merge and exits non-zero (step 3). Prune only on git's return code, never on piped output.
 
 3. **If it conflicts:** run `git merge --abort`, then resolve on the item branch by
    merging `<MAIN>` **into** it. Do not rebase. A merge resolves each conflict once;
@@ -235,15 +268,24 @@ early merges keep later conflicts small.
    each item's commits already ran the affected tests in the pre-commit hook, and GitHub
    `ci.yml` on the PR plus the gate drill's `just ci` job run the full suite. You may still
    run `just ci` on `<MAIN>` when a batch looks risky (several items touching the same area).
-   Before opening or updating a PR, if the batch touched e2e-relevant code, run
-   `uv run pytest tests/e2e -q --no-cov` locally (GitHub runners have no Playwright browser).
+   The hook excludes `tests/e2e` (ADR-0120 amendment 2026-11-22). After each wave you may
+   run `just test-e2e` yourself with NO agents active. No local run is needed before a PR:
+   `e2e.yml` runs on every PR to `main` and is a required check (ADR-0120 amendment
+   2026-11-22, T-Q297). If it fails, dispatch fix agents; repeat until green. Item agents run hooks only plus special cases
+   (frontend-visual-audit, a migration rehearsal); one that truly needs the full e2e pushes
+   its `wi/**` branch and reads the `e2e.yml` run.
    If CI fails, dispatch a fix agent. Do not fix it yourself.
-5. **Prune at once:**
+5. **Prune at once** (`just merge-item` does the git part after a green gate):
 
    ```sh
    git worktree remove -f -f <item-worktree>
    git branch -D wi/<MAIN>/<ID>
    ```
+
+   Extras: delete local `worktree-agent-*` branches with zero commits not in `<MAIN>`
+   (`git rev-list --count <MAIN>..<b>`; failed worktree creation leaves them); delete pushed
+   `wi/**` branches on origin; kill the finished agent's leftover shells, matched by cwd
+   containing its worktree name (the script does not kill processes).
 
    `git worktree list` and `git branch` must show only in-flight items.
 6. Once a wave's blockers are merged, dispatch the next wave from the updated `<MAIN>`.
@@ -253,4 +295,14 @@ early merges keep later conflicts small.
 - All items merged, GitHub CI green on `<MAIN>`, no stray worktrees or branches.
 - Report to the user: items done (id, merge sha, model used), CI result, frontend audit summaries
   from agents, deferred or blocked items, follow-ups.
-- Do not push or open a PR unless asked.
+- Report any agents stopped as stuck, and how their work was handed over (§4b).
+- Push and open a PR only with the user's approval; once approved, push and open the draft PR
+  early so `ci.yml` runs on every merge push (see "Delegate heavy work to GitHub").
+- **GitHub settings are operator steps.** Rulesets, environments and secrets: prepare a
+  reviewed input/command file and list it for the operator. If the auto-mode safety check blocks
+  it, do not retry or work around it.
+- **Questions and counts.** Collect operator questions in a deferred-questions file and ask at
+  the end unless one blocks. Before telling the user any count (agents running, tasks left, open
+  questions), derive it from a command.
+- **Agent quirks.** Agents commit with plain commands (the worktree guard refuses a chained
+  `git commit`).

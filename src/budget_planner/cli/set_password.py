@@ -25,6 +25,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TextIO
 
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.repositories import auth_users as auth_users_repo
@@ -115,7 +116,9 @@ def _run(
             make_admin=args.make_admin,
         )
         try:
-            user = users_service.set_user_password(conn, user_id, change=change)
+            user = users_service.set_user_password(
+                conn, user_id, change=change, hasher=BcryptHasher(rounds=settings.bcrypt_rounds)
+            )
         except UserNotFoundError as exc:
             raise CliError(str(exc)) from exc
         except users_service.SchemaNotMigratedError as exc:

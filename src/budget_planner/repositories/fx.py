@@ -36,6 +36,15 @@ def find_rate(
     return _row_to_rate(row) if row is not None else None
 
 
+def any_rate_on(conn: sqlite3.Connection, rate_date: date, to_ccy: str) -> bool:
+    """True when at least one rate into ``to_ccy`` is dated exactly ``rate_date``."""
+    row = conn.execute(
+        "SELECT 1 FROM fx_rates WHERE date = ? AND to_ccy = ? LIMIT 1",
+        (rate_date.isoformat(), to_ccy),
+    ).fetchone()
+    return row is not None
+
+
 def latest_rate(
     conn: sqlite3.Connection,
     from_ccy: str,
@@ -51,6 +60,15 @@ def latest_rate(
     sql += " ORDER BY date DESC, id DESC LIMIT 1"
     row = conn.execute(sql, params).fetchone()
     return _row_to_rate(row) if row is not None else None
+
+
+def list_rates_to(conn: sqlite3.Connection, to_ccy: str) -> list[FxRate]:
+    """Every cached rate into ``to_ccy``, oldest first per source currency."""
+    rows = conn.execute(
+        f"SELECT {_COLUMNS} FROM fx_rates WHERE to_ccy = ? ORDER BY from_ccy, date, id",
+        (to_ccy,),
+    ).fetchall()
+    return [_row_to_rate(row) for row in rows]
 
 
 def list_recent(conn: sqlite3.Connection, *, limit: int = 50) -> list[FxRate]:
@@ -71,7 +89,7 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     existing = find_rate(conn, data.date, data.from_ccy, data.to_ccy)
     prev = existing
 
-    def _action(c: sqlite3.Connection) -> tuple[int, FxRate]:
+    def _upsert_rate_action(c: sqlite3.Connection) -> tuple[int, FxRate]:
         if existing is None:
             cursor = c.execute(
                 "INSERT INTO fx_rates(date, from_ccy, to_ccy, rate) VALUES (?, ?, ?, ?)",
@@ -99,9 +117,16 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
         entity_type="fx_rate",
         operation="update" if prev is not None else "create",
         prev=prev,
-        action=_action,
+        action=_upsert_rate_action,
         user_id=None,
     )
 
 
-__all__ = ["find_rate", "latest_rate", "list_recent", "upsert_rate"]
+__all__ = [
+    "any_rate_on",
+    "find_rate",
+    "latest_rate",
+    "list_rates_to",
+    "list_recent",
+    "upsert_rate",
+]

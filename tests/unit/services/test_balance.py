@@ -274,13 +274,3 @@ def test_account_stats_transit_dest_counts(conn: sqlite3.Connection, ids: dict[s
 def test_account_stats_unknown_account(conn: sqlite3.Connection) -> None:
     with pytest.raises(AccountNotFoundError):
         balance.account_stats(conn, USER_ID, 404)
-
-
-def test_account_stats_last_activity_date_property(
-    conn: sqlite3.Connection, ids: dict[str, int]
-) -> None:
-    stats_empty = balance.account_stats(conn, USER_ID, ids["savings"])
-    assert stats_empty.last_activity_date is None
-    _mk_txn(conn, on=date(2026, 3, 7), cat=ids["income_cat"], account=ids["savings"], amount=1)
-    stats = balance.account_stats(conn, USER_ID, ids["savings"])
-    assert stats.last_activity_date == date(2026, 3, 7)

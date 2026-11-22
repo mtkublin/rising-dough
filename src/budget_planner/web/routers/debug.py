@@ -13,9 +13,9 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from budget_planner.services import audit_tail as audit_tail_service
+from budget_planner.web.auth_deps import current_admin
 from budget_planner.web.deps import get_db
 from budget_planner.web.middleware.auth import CurrentUser
-from budget_planner.web.routers.settings_users import current_admin
 
 router = APIRouter(prefix="/debug", tags=["debug"], include_in_schema=False)
 

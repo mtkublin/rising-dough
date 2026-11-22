@@ -135,3 +135,9 @@ For a Litestream key follow `deploy.md`.
 ## Rollback
 
 If new CI keys do not work, restore access with the break-glass key ([`break-glass.md`](break-glass.md)); do not re-create a shared admin key in GitHub.
+
+## Litestream age keys (ADR-0135)
+
+- **Drill**: no rotation and no secret. Each drill generates its own age key pair in its Terraform state (`age_secret_key.drill`); a new drill (new state) gets a new pair, a VM replacement keeps it, a teardown destroys it. The GitHub environments `drill`, `drill-plan`, `drill-teardown` hold no `LITESTREAM_AGE_*`. To read a drill replica by hand: `terraform output` is not exposed; use the drill state (`terraform state pull`, drill CI key) only for debugging.
+- **Prod**: the operator-held pair in `prod` (and `prod-plan` placeholder). Rotation is a new-generation event (ADR-0114): set both secrets, apply, and keep the old identity until the 37-day ceiling passes.
+- **Restore drill**: `prod-restore-read` holds the prod identity as `LITESTREAM_AGE_IDENTITY`; rotate it together with the prod pair.

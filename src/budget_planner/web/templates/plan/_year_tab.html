@@ -1,10 +1,4 @@
 {% from "_partials/components/_heatmap_cell.html" import heatmap_cell %}
-{% set months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] %}
-{% set tier_map = {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"} %}
-{# Split rows into "with budget" vs "unset" so the unset block can collapse
-   by default (manual-audit #39). "unset" ≡ grand total of zero. #}
-{% set with_rows = year_rows|selectattr('total_minor') |list %}
-{% set unset_rows = year_rows|rejectattr('total_minor')|list %}
 <section class="rd-plan-year" aria-labelledby="plan-year-heading">
   <h2 id="plan-year-heading" class="sr-only">Year · {{ year_selected }}</h2>
   <div class="rd-year-legend" aria-label="Cell styles">
@@ -16,51 +10,51 @@
   {# Desktop + tablet — 12-month heatmap table (hidden at ≤640 px via T-R54). #}
   <div class="rd-table-scroll rd-plan-year__scroll">
     <table class="rd-table rd-plan-year__table">
-      <caption class="sr-only">Yearly budget heatmap · 12 months × {{ with_rows|length }} categories</caption>
+      <caption class="sr-only">Yearly budget heatmap · 12 months × {{ year_view.with_rows|length }} categories</caption>
       <thead>
         <tr>
           <th scope="col">Category</th>
-          {% for name in months %}
+          {% for name in year_view.month_labels %}
             <th scope="col" class="num">{{ name }}</th>
           {% endfor %}
           <th scope="col" class="num">Total</th>
         </tr>
       </thead>
       <tbody>
-        {% for row in with_rows %}
+        {% for row in year_view.with_rows %}
           <tr>
             <td class="rd-desc">{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
             {% for cell in row.cells %}
               <td class="num rd-plan-year__cell"
-                  id="yc-{{ row.category_id }}-{{ loop.index }}">
+                  id="yc-{{ row.category_id }}-{{ cell.month }}">
                 <button type="button"
                         class="rd-plan-year__cell-btn"
-                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}&inline=1"
-                        hx-target="#yc-{{ row.category_id }}-{{ loop.index }} .rd-year-popover-slot"
+                        hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ cell.month }}&year={{ year_selected }}&inline=1"
+                        hx-target="#yc-{{ row.category_id }}-{{ cell.month }} .rd-year-popover-slot"
                         hx-swap="innerHTML"
-                        aria-label="Edit {{ row.category_name }} · {{ months[loop.index0] }} {{ year_selected }}">
-                  {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                        aria-label="Edit {{ row.category_name }} · {{ cell.month_label }} {{ year_selected }}">
+                  {{ heatmap_cell(cell.amount_minor, tier=cell.tier, currency=base_ccy) }}
                 </button>
                 <div class="rd-year-popover-slot"></div>
               </td>
             {% endfor %}
-            <td class="num"><strong>{{ "{:,.0f}".format(row.total_minor / 100.0) }}</strong></td>
+            <td class="num"><strong>{{ row.total_minor|money_whole(base_ccy) }}</strong></td>
           </tr>
         {% endfor %}
-        {% if not with_rows %}
+        {% if not year_view.with_rows %}
           <tr>
             <td colspan="14" class="text-muted" style="padding: 1rem">No budgeted expense categories yet.</td>
           </tr>
         {% endif %}
       </tbody>
-      {% if with_rows %}
+      {% if year_view.with_rows %}
         <tfoot>
           <tr>
             <td><strong>Total</strong></td>
             {% for ct in year_column_totals %}
-              <td class="num"><strong>{{ "{:,.0f}".format(ct / 100.0) }}</strong></td>
+              <td class="num"><strong>{{ ct|money_whole(base_ccy) }}</strong></td>
             {% endfor %}
-            <td class="num"><strong>{{ "{:,.0f}".format(year_grand_total / 100.0) }}</strong></td>
+            <td class="num"><strong>{{ year_grand_total|money_whole(base_ccy) }}</strong></td>
           </tr>
         </tfoot>
       {% endif %}
@@ -68,38 +62,38 @@
   </div>
   {# Mobile — per-category horizontal strip cards (T-R54). #}
   <div class="rd-plan-year__cards" aria-hidden="false">
-    {% for row in with_rows %}
+    {% for row in year_view.with_rows %}
       <article class="rd-year-card" id="year-card-{{ row.category_id }}">
         <header class="rd-year-card__head">
           <span class="rd-year-card__name">{{ row.category_name }}</span>
-          <span class="rd-year-card__total numeric">{{ "{:,.0f}".format(row.total_minor / 100.0) }}</span>
+          <span class="rd-year-card__total numeric">{{ row.total_minor|money_whole(base_ccy) }}</span>
         </header>
         <ol class="rd-year-card__strip"
             aria-label="12-month breakdown for {{ row.category_name }}">
           {% for cell in row.cells %}
-            <li class="rd-year-card__cell" aria-label="{{ months[loop.index0] }}">
+            <li class="rd-year-card__cell" aria-label="{{ cell.month_label }}">
               <button type="button"
                       class="rd-year-card__cell-btn"
-                      hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ loop.index }}&year={{ year_selected }}"
+                      hx-get="/budget/rules/{{ row.category_id }}/overrides/new?month={{ cell.month }}&year={{ year_selected }}"
                       hx-target="#modal-root"
                       hx-swap="innerHTML">
-                <span class="rd-year-card__m">{{ months[loop.index0][0] }}</span>
-                {{ heatmap_cell(cell.amount_minor or 0, tier=tier_map.get(cell.origin, "default")) }}
+                <span class="rd-year-card__m">{{ cell.month_initial }}</span>
+                {{ heatmap_cell(cell.amount_minor, tier=cell.tier, currency=base_ccy) }}
               </button>
             </li>
           {% endfor %}
         </ol>
       </article>
     {% endfor %}
-    {% if not with_rows %}
+    {% if not year_view.with_rows %}
       <p class="text-muted">No budgeted expense categories yet.</p>
     {% endif %}
   </div>
-  {% if unset_rows %}
+  {% if year_view.unset_rows %}
     <details class="rd-year-unset">
-      <summary>Show {{ unset_rows|length }} categor{{ 'y' if unset_rows|length == 1 else 'ies' }} without a budget</summary>
+      <summary>{{ year_view.unset_heading }}</summary>
       <ul class="rd-year-unset__list">
-        {% for row in unset_rows %}
+        {% for row in year_view.unset_rows %}
           <li>
             <span>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</span>
             <button type="button"

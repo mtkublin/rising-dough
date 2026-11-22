@@ -132,35 +132,6 @@ def test_index_requires_login(anon_client: TestClient) -> None:
 # --- GET /accounts/last-checked --------------------------------------------
 
 
-@covers("GET /accounts/last-checked")
-def test_last_checked_empty_and_with_account(client: TestClient, _migrated: Settings) -> None:
-    empty = client.get("/accounts/last-checked")
-    assert empty.status_code == 200
-    assert _html.count(empty.text, accounts.last_checked_row) == 0
-    _make_account(_migrated)
-    r = client.get("/accounts/last-checked")
-    assert r.status_code == 200
-    assert _html.count(r.text, accounts.last_checked_row) == 1
-    assert "never" in _html.text_of(r.text, accounts.last_checked_row)
-
-
-@covers("GET /accounts/last-checked")
-def test_last_checked_is_read_only_and_owner_scoped(
-    client: TestClient, acc_id: int, foreign_id: int, _migrated: Settings
-) -> None:
-    before = len(fetch_all(_migrated, "SELECT id FROM audit_log"))
-    r = client.get("/accounts/last-checked")
-    assert _html.count(r.text, accounts.last_checked_row) == 1
-    assert len(fetch_all(_migrated, "SELECT id FROM audit_log")) == before
-
-
-@covers("GET /accounts/last-checked")
-def test_last_checked_requires_login(anon_client: TestClient) -> None:
-    r = anon_client.get("/accounts/last-checked", headers={"Accept": "application/json"})
-    assert r.status_code == 401
-    assert r.json() == {"error": "unauthorized"}
-
-
 # --- GET /accounts/new -----------------------------------------------------
 
 
@@ -401,7 +372,7 @@ def test_delete_soft_deletes_with_toast_and_audit(
     assert json.loads(r.headers["HX-Trigger"]) == {
         "balance-stale": True,
         "forecast-stale": True,
-        "toast": {"kind": "success", "message": "Account deleted"},
+        "toast": {"variant": "success", "message": "Account deleted"},
     }
     row = _account_rows(_migrated)[0]
     assert row["deleted_at"] is not None
@@ -458,7 +429,7 @@ def test_snapshot_records_current_balance(
     assert r.status_code == 200
     assert _html.exists(r.text, accounts.snapshot_item)
     assert json.loads(r.headers["HX-Trigger"]) == {
-        "toast": {"kind": "success", "message": "Snapshot saved"}
+        "toast": {"variant": "success", "message": "Snapshot saved"}
     }
     snaps = fetch_all(_migrated, "SELECT account_id, balance, note FROM account_snapshots")
     assert snaps == [{"account_id": acc_id, "balance": -1000, "note": "user snapshot"}]

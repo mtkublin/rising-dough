@@ -3,33 +3,65 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from collections.abc import Mapping
+from enum import StrEnum
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import Request
 from fastapi.responses import Response
 
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REFRESH,
+    HX_RESWAP,
+    JSON_MEDIA_TYPE,
+)
 
-def is_htmx(request: Request) -> bool:
-    """Return True if the request is an HTMX swap (per the `HX-Request` header)."""
-    return request.headers.get("HX-Request") == "true"
+
+class Event(StrEnum):
+    """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0143)."""
+
+    BALANCE_STALE = "balance-stale"
+    BUDGET_STALE = "budget-stale"
+    FORECAST_STALE = "forecast-stale"
+    LEDGER_STALE = "ledger-stale"
+    TODAY_STALE = "today-stale"
+    SETTINGS_CATEGORIES_STALE = "settings-categories-stale"
+    TOAST = "toast"
 
 
-def trigger(response: Response, *events: str) -> None:
-    """Set an HX-Trigger header carrying one or more event names.
+ToastVariant = Literal["info", "success", "warning", "error"]
 
-    HTMX accepts either a bare event name or a JSON object mapping event
-    names to payloads. We always emit the JSON form so stacked events
-    survive the HTMX parser.
+
+def toast_payload(
+    variant: ToastVariant,
+    message: str,
+    *,
+    undo_url: str | None = None,
+    undo_payload: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Build the one toast payload shape the client (``app-init.js``) reads."""
+    payload: dict[str, object] = {"variant": variant, "message": message}
+    if undo_url is not None:
+        payload["undo_url"] = undo_url
+    if undo_payload is not None:
+        payload["undo_payload"] = dict(undo_payload)
+    return payload
+
+
+def trigger(response: Response, *events: Event, toast: Mapping[str, object] | None = None) -> None:
+    """Set the HX-Trigger header: stale events plus an optional toast.
+
+    Always the JSON object form so stacked events survive the HTMX parser.
     """
-    if not events:
+    payload: dict[str, object] = dict.fromkeys((str(e) for e in events), True)
+    if toast is not None:
+        payload[str(Event.TOAST)] = dict(toast)
+    if not payload:
         return
-    payload = dict.fromkeys(events, True)
     response.headers["HX-Trigger"] = json.dumps(payload)
-
-
-def trigger_from_iterable(response: Response, events: Iterable[str]) -> None:
-    trigger(response, *tuple(events))
 
 
 def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:
@@ -39,7 +71,13 @@ def refresh_unless_on(request: Request, response: Response, path_prefix: str) ->
     prefix the caller's ``HX-Trigger`` events refresh the page's own regions; on
     any other page nothing is listening, so the whole page reloads.
     """
-    response.headers["HX-Reswap"] = "none"
-    current = urlparse(request.headers.get("HX-Current-URL", "")).path
+    response.headers[HX_RESWAP] = "none"
+    current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
     if not current.startswith(path_prefix):
-        response.headers["HX-Refresh"] = "true"
+        response.headers[HX_REFRESH] = "true"
+
+
+def wants_json(request: Request) -> bool:
+    """True when the client asked for JSON and not HTML (single owner, T-Q262)."""
+    accept = request.headers.get("accept", "").lower()
+    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept

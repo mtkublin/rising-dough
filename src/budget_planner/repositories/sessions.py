@@ -23,14 +23,17 @@ import hashlib
 import secrets
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Final
 
+from budget_planner import clock
 from budget_planner.config import get_settings
 from budget_planner.repositories._shared import parse_dt, parse_dt_required, transaction
 
 SESSION_ID_BYTES: Final = 32
 _HANDLE_HEX_CHARS: Final = 16
+# T-Q205 (Q-034): a request inside this window of the last bump does not write.
+LAST_SEEN_THROTTLE: Final = timedelta(seconds=60)
 _COLUMNS = (
     "id, user_id, created_at, last_seen_at, expires_at, revoked_at, user_agent, ip, "
     "authenticated_at"
@@ -67,7 +70,7 @@ class IssuedSession:
 
 def hash_token(token: str) -> str:
     """Return the at-rest session id for cookie ``token`` (sha256 lowercase hex)."""
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def session_handle(token: str) -> str:
@@ -75,12 +78,8 @@ def session_handle(token: str) -> str:
     return hash_token(token)[:_HANDLE_HEX_CHARS]
 
 
-def _iso(value: datetime) -> str:
-    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
-
 def _now(now: datetime | None) -> datetime:
-    return datetime.now(UTC) if now is None else now
+    return clock.utc_now_ms() if now is None else now
 
 
 def _lifetime(lifetime_days: int | None) -> timedelta:
@@ -93,7 +92,7 @@ def _absolute(absolute_days: int | None) -> timedelta:
     return timedelta(days=days)
 
 
-def _hydrate(row: sqlite3.Row) -> Session:
+def _hydrate_session(row: sqlite3.Row) -> Session:
     created_at = parse_dt_required(row["created_at"])
     authenticated = parse_dt(row["authenticated_at"])
     return Session(
@@ -118,8 +117,13 @@ def create_session(
     lifetime_days: int | None = None,
     absolute_days: int | None = None,
     now: datetime | None = None,
+    credential_id: int | None = None,
 ) -> IssuedSession:
-    """Insert a fresh session for ``user_id``; return it with its raw token."""
+    """Insert a fresh session for ``user_id``; return it with its raw token.
+
+    ``credential_id`` is the ``webauthn_credentials.id`` a passkey login used
+    (T-Q253); revoking that passkey ends this session.
+    """
     current = _now(now)
     token = secrets.token_urlsafe(SESSION_ID_BYTES)
     session = Session(
@@ -139,14 +143,18 @@ def create_session(
             (
                 session.id,
                 session.user_id,
-                _iso(session.created_at),
-                _iso(session.last_seen_at),
-                _iso(session.expires_at),
+                clock.iso_utc(session.created_at),
+                clock.iso_utc(session.last_seen_at),
+                clock.iso_utc(session.expires_at),
                 session.user_agent,
                 session.ip,
-                _iso(session.authenticated_at),
+                clock.iso_utc(session.authenticated_at),
             ),
         )
+        if credential_id is not None:
+            conn.execute(
+                "UPDATE sessions SET credential_id = ? WHERE id = ?", (credential_id, session.id)
+            )
     return IssuedSession(session=session, token=token)
 
 
@@ -162,9 +170,9 @@ def get_session(
         "FROM sessions s JOIN users u ON u.id = s.user_id "
         "WHERE s.id = ? AND s.revoked_at IS NULL AND s.expires_at > ? "
         "AND u.deleted_at IS NULL",
-        (hash_token(token), _iso(_now(now))),
+        (hash_token(token), clock.iso_utc(_now(now))),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_session(row)
 
 
 def list_active_sessions(
@@ -175,9 +183,9 @@ def list_active_sessions(
         f"SELECT {_COLUMNS} FROM sessions "
         "WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? "
         "ORDER BY last_seen_at DESC, created_at DESC",
-        (user_id, _iso(_now(now))),
+        (user_id, clock.iso_utc(_now(now))),
     ).fetchall()
-    return tuple(_hydrate(r) for r in rows)
+    return tuple(_hydrate_session(r) for r in rows)
 
 
 def revoke_session_by_id(
@@ -187,9 +195,34 @@ def revoke_session_by_id(
     with transaction(conn):
         cur = conn.execute(
             "UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
-            (_iso(_now(now)), session_id),
+            (clock.iso_utc(_now(now)), session_id),
         )
     return cur.rowcount > 0
+
+
+def revoke_sessions_by_credential(
+    conn: sqlite3.Connection,
+    user_id: int,
+    credential_id: int,
+    *,
+    now: datetime | None = None,
+) -> tuple[str, ...]:
+    """Revoke ``user_id``'s live sessions opened with passkey ``credential_id``.
+
+    Returns the handles of the sessions ended (T-Q253).
+    """
+    with transaction(conn):
+        rows = conn.execute(
+            "SELECT id FROM sessions "
+            "WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL",
+            (user_id, credential_id),
+        ).fetchall()
+        conn.execute(
+            "UPDATE sessions SET revoked_at = ? "
+            "WHERE user_id = ? AND credential_id = ? AND revoked_at IS NULL",
+            (clock.iso_utc(_now(now)), user_id, credential_id),
+        )
+    return tuple(str(r["id"])[:_HANDLE_HEX_CHARS] for r in rows)
 
 
 def revoke_session(conn: sqlite3.Connection, token: str, *, now: datetime | None = None) -> bool:
@@ -213,7 +246,7 @@ def revoke_all_user_sessions(
         cur = conn.execute(
             "UPDATE sessions SET revoked_at = ? "
             "WHERE user_id = ? AND revoked_at IS NULL AND id IS NOT ?",
-            (_iso(_now(now)), user_id, spared),
+            (clock.iso_utc(_now(now)), user_id, spared),
         )
     return cur.rowcount
 
@@ -230,23 +263,27 @@ def touch_session(
 
     The new expiry is ``min(now + lifetime, created_at + absolute lifetime)``
     (ADR-0076 §1) and is returned. ``None`` (nothing changed) when the
-    session is revoked, expired, or unknown.
+    session is revoked, expired, or unknown. Inside ``LAST_SEEN_THROTTLE`` of
+    the previous bump nothing is written and the stored expiry is returned
+    (T-Q205, Q-034): one fewer write transaction per request.
     """
     current = _now(now)
     key = hash_token(token)
     with transaction(conn):
         row = conn.execute(
-            "SELECT created_at FROM sessions "
+            "SELECT created_at, last_seen_at, expires_at FROM sessions "
             "WHERE id = ? AND revoked_at IS NULL AND expires_at > ?",
-            (key, _iso(current)),
+            (key, clock.iso_utc(current)),
         ).fetchone()
         if row is None:
             return None
         created_at = parse_dt_required(row["created_at"])
+        if current - parse_dt_required(row["last_seen_at"]) < LAST_SEEN_THROTTLE:
+            return min(parse_dt_required(row["expires_at"]), created_at + _absolute(absolute_days))
         expires_at = min(current + _lifetime(lifetime_days), created_at + _absolute(absolute_days))
         conn.execute(
             "UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?",
-            (_iso(current), _iso(expires_at), key),
+            (clock.iso_utc(current), clock.iso_utc(expires_at), key),
         )
     return expires_at
 
@@ -258,7 +295,7 @@ def mark_authenticated(
     with transaction(conn):
         cur = conn.execute(
             "UPDATE sessions SET authenticated_at = ? WHERE id = ? AND revoked_at IS NULL",
-            (_iso(_now(now)), hash_token(token)),
+            (clock.iso_utc(_now(now)), hash_token(token)),
         )
     return cur.rowcount > 0
 
@@ -278,10 +315,11 @@ def rotate_session_token(conn: sqlite3.Connection, token: str) -> IssuedSession 
         if cur.rowcount == 0:
             return None
         row = conn.execute(f"SELECT {_COLUMNS} FROM sessions WHERE id = ?", (new_id,)).fetchone()
-    return IssuedSession(session=_hydrate(row), token=new_token)
+    return IssuedSession(session=_hydrate_session(row), token=new_token)
 
 
 __all__ = [
+    "LAST_SEEN_THROTTLE",
     "IssuedSession",
     "Session",
     "create_session",
@@ -292,6 +330,7 @@ __all__ = [
     "revoke_all_user_sessions",
     "revoke_session",
     "revoke_session_by_id",
+    "revoke_sessions_by_credential",
     "rotate_session_token",
     "session_handle",
     "touch_session",

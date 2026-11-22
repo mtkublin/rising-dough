@@ -17,9 +17,19 @@ import dataclasses
 import datetime as dt
 import logging
 import sqlite3
-from collections.abc import Iterable, Sequence
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Literal
 
+from budget_planner.domain.errors import require_present
+from budget_planner.domain.money import (
+    bps_to_percent,
+    format_bps_percent,
+    parse_percent_str,
+    percent_to_bps,
+    round_div,
+)
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
     AmountFormula,
@@ -29,6 +39,11 @@ from budget_planner.domain.recurring import (
     RecurringRule,
     TermSign,
 )
+from budget_planner.domain.recurring_schedule import generate_occurrences
+from budget_planner.repositories import categories as categories_repo, recurring as recurring_repo
+from budget_planner.services import fx as fx_service
+from budget_planner.services.fx import FxConverter
+from budget_planner.services.recurring_overrides import apply_overrides
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +51,8 @@ logger = logging.getLogger(__name__)
 # limit. Anything above this is almost certainly a data-entry mistake
 # (coefficient_bps=120 ≠ 1200 confusion). Floor is 1 bps (0.01%).
 _BPS_MIN = 1
+_FULL_BPS = 10_000  # 100% in basis points.
 _BPS_MAX = 1_000_000
-_PERCENT_TO_BPS = Decimal("100")
 
 
 class FormulaError(ValueError):
@@ -61,24 +76,35 @@ def parse_percent_to_bps(percent_str: str) -> int:
     normalised = (percent_str or "").strip().replace(",", ".")
     if not normalised:
         raise FormulaError("coefficient is required for formula rules")
-    try:
-        dec = Decimal(normalised)
-    except InvalidOperation as exc:
-        raise FormulaError("coefficient must be a decimal number") from exc
-    bps_dec = (dec * _PERCENT_TO_BPS).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    bps = int(bps_dec)
+    dec = parse_percent_str(normalised)
+    if dec is None:
+        raise FormulaError("coefficient must be a decimal number")
+    bps = percent_to_bps(dec)
     if bps < _BPS_MIN or bps > _BPS_MAX:
         raise FormulaError(
-            f"coefficient must be between {_BPS_MIN / 100:.2f}% and {_BPS_MAX / 100:.2f}%"
+            f"coefficient must be between {format_bps_percent(_BPS_MIN)}% "
+            f"and {format_bps_percent(_BPS_MAX)}%"
         )
     return bps
+
+
+def term_input_rows(formula: AmountFormula) -> list[dict[str, object]]:
+    """Persisted formula terms as form-shaped rows (percent string, sign, category ids)."""
+    return [
+        {
+            "sign": term.sign,
+            "coefficient_percent": format(bps_to_percent(term.coefficient_bps).normalize(), "f"),
+            "source_category_ids": tuple(term.source_category_ids),
+        }
+        for term in formula.terms
+    ]
 
 
 def _parse_sign(raw: str) -> TermSign:
     cleaned = (raw or "+").strip()
     if cleaned not in {"+", "-"}:
         raise FormulaError("term sign must be '+' or '-'")
-    return cleaned  # type: ignore[return-value]
+    return "+" if cleaned == "+" else "-"
 
 
 def build_term(
@@ -120,19 +146,9 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 # ---------------------------------------------------------------------------
 # Pure compute primitives (future tier B / C leaf operators)
 # ---------------------------------------------------------------------------
-def _month_bounds(year: int, month: int) -> tuple[dt.date, dt.date]:
-    first = dt.date(year, month, 1)
-    if month == 12:  # noqa: PLR2004
-        last = dt.date(year, 12, 31)
-    else:
-        last = dt.date(year, month + 1, 1) - dt.timedelta(days=1)
-    return first, last
-
-
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
-    """Return ``round_half_up(sum_minor * coefficient_bps / 10 000)`` as int."""
-    dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
-    return int(dec.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    """Return ``round_half_even(sum_minor * coefficient_bps / 10 000)`` as int."""
+    return round_div(sum_minor * coefficient_bps, _FULL_BPS)
 
 
 def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
@@ -143,6 +159,55 @@ def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
     return out
 
 
+_Memo = Mapping[tuple[int, int, int], int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class FormulaFx:
+    """Cache-only FX context so formula source sums convert across currencies (T-Q215).
+
+    A formula's value is in its own rule's account currency; each source rule's
+    monthly value is converted from the source account's currency at the rate
+    on the first day of the month. Required everywhere a formula amount is
+    computed (T-Q286, ADR-0139 amendment 2026-11-22): there is no same-currency
+    fallback, so one rule shows one number on every surface.
+    """
+
+    converter: FxConverter
+    currency_by_account: Mapping[int, str]
+
+    def currency_of(self, account_id: int) -> str:
+        return self.currency_by_account.get(account_id, self.converter.base_currency)
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class DatesOnly:
+    """Marker for callers that read occurrence dates only (income anchor lookups).
+
+    Formula amounts are not evaluated and read ``0``; use :data:`DATES_ONLY`.
+    """
+
+
+DATES_ONLY = DatesOnly()
+
+
+def formula_fx(conn: sqlite3.Connection, user_id: int, converter: FxConverter) -> FormulaFx:
+    """Build the :class:`FormulaFx` for ``user_id`` over an already-built converter."""
+    return FormulaFx(converter, fx_service.currency_by_account(conn, user_id, include_deleted=True))
+
+
+def formula_fx_for(
+    conn: sqlite3.Connection, user_id: int, settings: fx_service.HasBaseCurrency, today: dt.date
+) -> FormulaFx:
+    """Build the cache-only :class:`FormulaFx` from the settings' base currency (no network)."""
+    return formula_fx(conn, user_id, fx_service.converter_for(conn, settings, today))
+
+
+def _into_target(value: int, account_id: int, fx: FormulaFx, target_ccy: str, on: dt.date) -> int:
+    """``value`` (in the source account's currency) in ``target_ccy``."""
+    return fx.converter.to_currency(value, fx.currency_of(account_id), target_ccy, on)
+
+
 def _source_rule_month_value(
     conn: sqlite3.Connection,
     user_id: int,
@@ -151,8 +216,9 @@ def _source_rule_month_value(
     end: dt.date,
     *,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+    fx: FormulaFx,
+) -> tuple[int, _Memo]:
     """Sum the effective amounts of ``rule``'s occurrences in ``[start, end]``.
 
     Per ADR-0086 every source rule (fixed or formula) contributes its
@@ -163,17 +229,11 @@ def _source_rule_month_value(
     (ADR-0046). A formula source whose schedule has no occurrence in the
     month contributes 0 without being evaluated (ADR-0047 month-scope gate).
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-    from budget_planner.services.recurring import (  # noqa: PLC0415
-        apply_overrides,
-        generate_occurrences,
-    )
-
     occs = generate_occurrences(rule, start, end)
     if not occs:
-        return 0
+        return 0, cache
     if rule.amount_formula is not None:
-        per_occurrence = _evaluate(
+        per_occurrence, cache = _evaluate(
             conn,
             user_id,
             rule.amount_formula,
@@ -182,10 +242,12 @@ def _source_rule_month_value(
             exclude_rule_id=rule.id,
             in_progress=in_progress | {rule.id},
             cache=cache,
+            fx=fx,
+            target_ccy=fx.currency_of(rule.account_id),
         )
         occs = tuple(dataclasses.replace(occ, amount=per_occurrence) for occ in occs)
     overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
-    return sum(occ.amount for occ in apply_overrides(occs, overrides))
+    return sum(occ.amount for occ in apply_overrides(occs, overrides)), cache
 
 
 def _sum_category_in_month(
@@ -197,22 +259,23 @@ def _sum_category_in_month(
     *,
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+    fx: FormulaFx,
+    target_ccy: str,
+) -> tuple[int, _Memo]:
     """Sum monthly occurrence amounts across rules in ``category_ids``.
 
     Recurses into formula source rules (chaining per ADR-0047). ``in_progress``
     tracks the current ancestor chain for runtime cycle protection; ``cache``
-    memoises child-rule results keyed by ``(rule_id, year, month)`` so diamond
+    memoises child-rule results (an immutable mapping, threaded through and
+    returned, never mutated) keyed by ``(rule_id, year, month)`` so diamond
     deps compute once.
 
     Fixed source rules go through :func:`services.recurring.expand` with
     ``list_overrides_all`` (ADR-0046 soft-consume contract — historical
     overrides stay visible).
     """
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-
-    start, end = _month_bounds(year, month)
+    start, end = month_bounds(year, month)
     cat_set = set(category_ids)
     total = 0
     for rule in recurring_repo.list_rules(conn, user_id, active_only=True):
@@ -225,21 +288,13 @@ def _sum_category_in_month(
                 f"formula cycle detected via rule {rule.id} (ancestors: {sorted(in_progress)})"
             )
         key = (rule.id, year, month)
-        if key in cache:
-            total += cache[key]
-            continue
-        value = _source_rule_month_value(
-            conn,
-            user_id,
-            rule,
-            start,
-            end,
-            in_progress=in_progress,
-            cache=cache,
-        )
-        cache[key] = value
-        total += value
-    return total
+        if key not in cache:
+            value, cache = _source_rule_month_value(
+                conn, user_id, rule, start, end, in_progress=in_progress, cache=cache, fx=fx
+            )
+            cache = {**cache, key: value}
+        total += _into_target(cache[key], rule.account_id, fx, target_ccy, start)
+    return total, cache
 
 
 def _evaluate(
@@ -251,12 +306,14 @@ def _evaluate(
     *,
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
-    cache: dict[tuple[int, int, int], int],
-) -> int:
+    cache: _Memo,
+    fx: FormulaFx,
+    target_ccy: str,
+) -> tuple[int, _Memo]:
     """Evaluate the linear-combination formula for ``(year, month)``."""
     total = 0
     for term in formula.terms:
-        term_sum = _sum_category_in_month(
+        term_sum, cache = _sum_category_in_month(
             conn,
             user_id,
             term.source_category_ids,
@@ -265,10 +322,12 @@ def _evaluate(
             exclude_rule_id=exclude_rule_id,
             in_progress=in_progress,
             cache=cache,
+            fx=fx,
+            target_ccy=target_ccy,
         )
         magnitude = _apply_coefficient(term_sum, term.coefficient_bps)
         total += magnitude if term.sign == "+" else -magnitude
-    return total
+    return total, cache
 
 
 # ---------------------------------------------------------------------------
@@ -281,14 +340,20 @@ def compute_formula_amount(
     year: int,
     month: int,
     *,
+    fx: FormulaFx,
+    target_ccy: str,
     exclude_rule_id: int | None = None,
 ) -> int:
-    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``."""
-    cache: dict[tuple[int, int, int], int] = {}
+    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``.
+
+    Every source rule is converted into ``target_ccy`` (the owning rule's account
+    currency) through ``fx`` before summing (T-Q215, T-Q286); a missing cached
+    rate raises :class:`FxUnavailableError`.
+    """
     in_progress: frozenset[int] = (
         frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
     )
-    return _evaluate(
+    total, _ = _evaluate(
         conn,
         user_id,
         formula,
@@ -296,8 +361,11 @@ def compute_formula_amount(
         month,
         exclude_rule_id=exclude_rule_id,
         in_progress=in_progress,
-        cache=cache,
+        cache={},
+        fx=fx,
+        target_ccy=target_ccy,
     )
+    return total
 
 
 def resolve_rule_amount(
@@ -305,8 +373,12 @@ def resolve_rule_amount(
     user_id: int,
     rule: RecurringRule,
     occurrence_date: dt.date,
+    fx: FormulaFx,
 ) -> int:
-    """Return the amount to use for an occurrence of ``rule``."""
+    """Return the amount to use for an occurrence of ``rule``.
+
+    ``fx`` converts formula sources into the rule's account currency (T-Q215, T-Q286).
+    """
     if rule.amount_formula is None:
         return rule.default_amount
     return compute_formula_amount(
@@ -316,16 +388,20 @@ def resolve_rule_amount(
         occurrence_date.year,
         occurrence_date.month,
         exclude_rule_id=rule.id,
+        fx=fx,
+        target_ccy=fx.currency_of(rule.account_id),
     )
 
 
-def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
+def rt_expand(
     conn: sqlite3.Connection,
     user_id: int,
+    *,
     rule: RecurringRule,
     overrides: Iterable[RecurringOverride],
     range_start: dt.date,
     range_end: dt.date,
+    fx: FormulaFx | DatesOnly,
 ) -> tuple[Occurrence, ...]:
     """Expand ``rule`` with runtime amounts; chaining-aware (ADR-0047).
 
@@ -333,14 +409,9 @@ def rt_expand(  # noqa: PLR0917 — user_id gates isolation; ADR-0061 §5
     Formula rules get per-month computed amounts substituted before overrides
     apply (override amount still wins when present).
     """
-    from budget_planner.services.recurring import (  # noqa: PLC0415
-        apply_overrides,
-        generate_occurrences,
-    )
-
     occs = generate_occurrences(rule, range_start, range_end)
     if rule.amount_formula is not None:
-        occs = tuple(_with_formula_amount(conn, user_id, rule, occs))
+        occs = tuple(_with_formula_amount(conn, user_id, rule, occs, fx))
     return apply_overrides(occs, overrides)
 
 
@@ -349,20 +420,27 @@ def _with_formula_amount(
     user_id: int,
     rule: RecurringRule,
     occurrences: Sequence[Occurrence],
+    fx: FormulaFx | DatesOnly,
 ) -> Iterable[Occurrence]:
     """Yield occurrences with ``amount`` replaced by per-month formula result."""
-    assert rule.amount_formula is not None
+    formula = require_present(rule.amount_formula, "formula of a formula rule")
     month_cache: dict[tuple[int, int], int] = {}
     for occ in occurrences:
         key = (occ.occurrence_date.year, occ.occurrence_date.month)
         if key not in month_cache:
-            month_cache[key] = compute_formula_amount(
-                conn,
-                user_id,
-                rule.amount_formula,
-                key[0],
-                key[1],
-                exclude_rule_id=rule.id,
+            month_cache[key] = (
+                0
+                if isinstance(fx, DatesOnly)
+                else compute_formula_amount(
+                    conn,
+                    user_id,
+                    formula,
+                    key[0],
+                    key[1],
+                    fx=fx,
+                    target_ccy=fx.currency_of(rule.account_id),
+                    exclude_rule_id=rule.id,
+                )
             )
         yield Occurrence(
             rule_id=occ.rule_id,
@@ -389,8 +467,6 @@ def validate_formula_sources(
     exclude_rule_id: int | None = None,
 ) -> None:
     """Topological reachability check — reject cycles (ADR-0047)."""
-    from budget_planner.repositories import recurring as recurring_repo  # noqa: PLC0415
-
     # Sentinel for brand-new rules (not yet persisted) so the walk still
     # catches a cycle the new rule would introduce once persisted.
     target_id = -1 if exclude_rule_id is None else exclude_rule_id
@@ -400,8 +476,16 @@ def validate_formula_sources(
     for rule in all_rules:
         by_category.setdefault(rule.category_id, []).append(rule)
 
-    visited: set[int] = set()
-    # Seed the stack with every rule reachable from the proposed formula.
+    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id)
+    _walk_for_cycle(stack, all_rules, by_category, target_id)
+
+
+def _seed_cycle_stack(
+    formula: AmountFormula,
+    by_category: Mapping[int, Sequence[RecurringRule]],
+    exclude_rule_id: int | None,
+) -> list[int]:
+    """Every rule id reachable from the proposed formula (stack seed)."""
     stack: list[int] = []
     for cat_id in _collect_referenced_category_ids(formula):
         for rule in by_category.get(cat_id, []):
@@ -409,9 +493,20 @@ def validate_formula_sources(
                 # The rule being saved cannot source itself.
                 raise FormulaCycleError("a formula cannot reference its own category")
             stack.append(rule.id)
+    return stack
 
-    while stack:
-        rid = stack.pop()
+
+def _walk_for_cycle(
+    seeds: Sequence[int],
+    all_rules: Sequence[RecurringRule],
+    by_category: Mapping[int, Sequence[RecurringRule]],
+    target_id: int,
+) -> None:
+    """Depth-first walk from ``seeds``; raise when ``target_id`` is reachable."""
+    visited: set[int] = set()
+    pending = list(seeds)
+    while pending:
+        rid = pending.pop()
         if rid == target_id:
             raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
         if rid in visited:
@@ -421,18 +516,65 @@ def validate_formula_sources(
         if found is None or found.amount_formula is None:
             continue
         for cat_id in _collect_referenced_category_ids(found.amount_formula):
-            for child in by_category.get(cat_id, []):
-                if child.id not in visited:
-                    stack.append(child.id)
+            pending.extend(c.id for c in by_category.get(cat_id, []) if c.id not in visited)
 
 
 # ---------------------------------------------------------------------------
 # Preview — unsaved formula evaluation for the Add-entry builder (ADR-0056 §4).
 # ---------------------------------------------------------------------------
-from dataclasses import dataclass  # noqa: E402
-from typing import Literal  # noqa: E402
-
 PreviewErrorCode = Literal["cycle", "non_positive", "invalid_source", "empty"]
+
+
+def invalid_source_ids(
+    conn: sqlite3.Connection,
+    user_id: int,
+    source_groups: Sequence[Sequence[int]],
+) -> tuple[int, int] | None:
+    """Return (group_index, bad_category_id) for the first source id that is not
+    a live category of ``user_id`` (foreign, unknown or soft-deleted); ``None``
+    on all-valid input (Q-028: the save path shares this with the preview).
+    """
+    live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
+    for idx, group in enumerate(source_groups):
+        for cid in group:
+            if cid not in live_ids:
+                return idx, cid
+    return None
+
+
+def compute_savable_amount(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    year: int,
+    month: int,
+    *,
+    fx: FormulaFx,
+    target_ccy: str,
+    exclude_rule_id: int | None = None,
+) -> int:
+    """Validate a formula for saving and return its snapshot amount (minor units).
+
+    Rejects (``FormulaError``) a source category that is not the caller's, a
+    cycle, and a formula resolving to a non-positive amount (Q-028).
+    """
+    bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in formula.terms])
+    if bad is not None:
+        raise FormulaError(f"unknown or archived source category: {bad[1]}")
+    validate_formula_sources(conn, user_id, formula, exclude_rule_id=exclude_rule_id)
+    amount = compute_formula_amount(
+        conn,
+        user_id,
+        formula,
+        year,
+        month,
+        fx=fx,
+        target_ccy=target_ccy,
+        exclude_rule_id=exclude_rule_id,
+    )
+    if amount <= 0:
+        raise FormulaError("formula resolved to a non-positive amount")
+    return amount
 
 
 @dataclass(frozen=True, slots=True)
@@ -464,30 +606,15 @@ class PreviewError:
 PreviewResult = PreviewOk | PreviewError
 
 
-def _invalid_source_ids(
-    conn: sqlite3.Connection,
-    user_id: int,
-    terms: Sequence[DraftTerm],
-) -> tuple[int, int] | None:
-    """Return (term_index, bad_category_id) when a term points at an
-    unknown or soft-deleted category; ``None`` on all-valid input.
-    """
-    from budget_planner.repositories import categories as categories_repo  # noqa: PLC0415
-
-    live_ids = {c.id for c in categories_repo.list_all(conn, user_id)}
-    for idx, term in enumerate(terms):
-        for cid in term.source_category_ids:
-            if cid not in live_ids:
-                return idx, cid
-    return None
-
-
-def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shape
+def preview(
     conn: sqlite3.Connection,
     user_id: int,
     when: dt.date,
     draft_rule_id: int | None,
     terms: Sequence[DraftTerm],
+    *,
+    fx: FormulaFx,
+    target_ccy: str,
 ) -> PreviewResult:
     """Return the computed value for a draft term list, or an inline error.
 
@@ -502,21 +629,59 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
     - ``non_positive`` — the computed value is <= 0 for the preview month.
     """
     if not terms:
-        return PreviewError(
-            code="empty",
-            message="formula needs at least one term",
-            offending_term_index=None,
-        )
-
-    bad = _invalid_source_ids(conn, user_id, terms)
+        return _preview_error("empty", "formula needs at least one term")
+    bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in terms])
     if bad is not None:
         term_idx, bad_id = bad
-        return PreviewError(
-            code="invalid_source",
-            message=f"unknown or archived source category: {bad_id}",
-            offending_term_index=term_idx,
+        return _preview_error(
+            "invalid_source", f"unknown or archived source category: {bad_id}", term_idx
         )
+    formula = _build_draft_formula(terms)
+    if isinstance(formula, PreviewError):
+        return formula
+    return _evaluate_draft(
+        conn, user_id, formula, when, draft_rule_id, fx=fx, target_ccy=target_ccy
+    )
 
+
+def _preview_error(
+    code: PreviewErrorCode, message: str, offending_term_index: int | None = None
+) -> PreviewError:
+    return PreviewError(code=code, message=message, offending_term_index=offending_term_index)
+
+
+def _evaluate_draft(
+    conn: sqlite3.Connection,
+    user_id: int,
+    formula: AmountFormula,
+    when: dt.date,
+    draft_rule_id: int | None,
+    *,
+    fx: FormulaFx,
+    target_ccy: str,
+) -> PreviewResult:
+    """Cycle-check the draft, compute it for ``when`` and require a positive value."""
+    try:
+        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
+        amount_minor = compute_formula_amount(
+            conn,
+            user_id,
+            formula,
+            when.year,
+            when.month,
+            fx=fx,
+            target_ccy=target_ccy,
+            exclude_rule_id=draft_rule_id,
+        )
+    except FormulaCycleError as exc:
+        return _preview_error("cycle", str(exc))
+    if amount_minor <= 0:
+        return _preview_error("non_positive", "formula resolved to a non-positive amount")
+    return PreviewOk(amount_minor=amount_minor)
+
+
+def _build_draft_formula(terms: Sequence[DraftTerm]) -> AmountFormula | PreviewError:
+    """Build the formula from draft terms, mapping build errors to preview errors."""
     built: list[FormulaTerm] = []
     for idx, draft in enumerate(terms):
         try:
@@ -528,59 +693,20 @@ def preview(  # noqa: PLR0911 — flat error-code dispatch, splitting hides shap
                 )
             )
         except FormulaError as exc:
-            return PreviewError(
-                code="invalid_source",
-                message=str(exc),
-                offending_term_index=idx,
-            )
-
+            return _preview_error("invalid_source", str(exc), idx)
     try:
-        formula = build_formula(built)
+        return build_formula(built)
     except FormulaError as exc:
-        return PreviewError(
-            code="empty",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    try:
-        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
-    except FormulaCycleError as exc:
-        return PreviewError(
-            code="cycle",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    try:
-        amount_minor = compute_formula_amount(
-            conn,
-            user_id,
-            formula,
-            when.year,
-            when.month,
-            exclude_rule_id=draft_rule_id,
-        )
-    except FormulaCycleError as exc:
-        return PreviewError(
-            code="cycle",
-            message=str(exc),
-            offending_term_index=None,
-        )
-
-    if amount_minor <= 0:
-        return PreviewError(
-            code="non_positive",
-            message="formula resolved to a non-positive amount",
-            offending_term_index=None,
-        )
-    return PreviewOk(amount_minor=amount_minor)
+        return _preview_error("empty", str(exc))
 
 
 __all__ = [
+    "DATES_ONLY",
+    "DatesOnly",
     "DraftTerm",
     "FormulaCycleError",
     "FormulaError",
+    "FormulaFx",
     "PreviewError",
     "PreviewErrorCode",
     "PreviewOk",
@@ -588,6 +714,10 @@ __all__ = [
     "build_formula",
     "build_term",
     "compute_formula_amount",
+    "compute_savable_amount",
+    "formula_fx",
+    "formula_fx_for",
+    "invalid_source_ids",
     "parse_percent_to_bps",
     "preview",
     "resolve_rule_amount",

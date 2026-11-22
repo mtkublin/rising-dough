@@ -17,12 +17,12 @@ from __future__ import annotations
 
 from typing import Final
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from budget_planner.domain.errors import NotFoundError
 from budget_planner.web.errors import handle_not_found
+from budget_planner.web.middleware.asgi import http_only
 
 ADMIN_PATH_PREFIX: Final = "/settings/users"
 
@@ -37,15 +37,18 @@ def is_admin_user(user: object) -> bool:
     return bool(getattr(user, "is_admin", False))
 
 
-class AdminRequiredMiddleware(BaseHTTPMiddleware):
+async def _admin_gate(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
+    request = Request(scope, receive)
+    if is_admin_path(request.url.path) and not is_admin_user(getattr(request.state, "user", None)):
+        response = await handle_not_found(request, NotFoundError(entity="page", entity_id=0))
+        await response(scope, receive, send)
+        return
+    await app(scope, receive, send)
+
+
+def admin_required_middleware(app: ASGIApp) -> ASGIApp:
     """Answer 404 to non-admins on the admin subtree."""
-
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if is_admin_path(request.url.path) and not is_admin_user(
-            getattr(request.state, "user", None)
-        ):
-            return await handle_not_found(request, NotFoundError(entity="page", entity_id=0))
-        return await call_next(request)
+    return http_only(app, _admin_gate)
 
 
-__all__ = ["ADMIN_PATH_PREFIX", "AdminRequiredMiddleware", "is_admin_path", "is_admin_user"]
+__all__ = ["ADMIN_PATH_PREFIX", "admin_required_middleware", "is_admin_path", "is_admin_user"]

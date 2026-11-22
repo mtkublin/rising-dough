@@ -72,3 +72,53 @@ Superseded by [ADR-0109](0109-release-from-github-release-tags.md) for the relea
 ## Amendment 2026-11-18 (T-D147): non-deploy PRs skip the real gate
 
 Amended by [ADR-0121](0121-drill-gate-skip-for-non-deploy-prs.md): a PR whose changed files are all on a non-deploy allowlist gets `drill-gate` set to success by `drill-gate-skip.yml` without a drill VM. Every other PR still needs the real gate run.
+
+## Amendment 2026-11-21 (T-Q239, Q-041 / H1-03): the merge gate is tamper-resistant
+
+Finding: the `protect-main` ruleset's required status checks carry no `integration_id`, so any actor able to post a commit status or check run with the right name (a workflow in a PR branch, a PAT) satisfies `drill-gate` and the CI contexts; and a PR can edit the workflows that produce those checks. Evidence: `docs/plans/quality-audit/repro/H1/gh_api/ruleset_protect_main.json`.
+
+Decisions (ruleset edits are made by the operator; the repository half is `.github/CODEOWNERS` plus a guard):
+
+1. **Required workflows from `main`.** The `protect-main` ruleset gains a `workflows` rule (required workflows) pinned to `ci.yml` at ref `refs/heads/main`, so the CI that gates a PR is the one on `main`, not the one in the PR branch.
+2. **`integration_id` on every required status check context.** Each of `just ci (Python 3.12, ubuntu-latest)`, `drill-gate`, `uv lock --check`, `pip-audit (uv.lock)`, `trivy fs (repo)`, `trivy image (rising-dough:scan)` is bound to `integration_id` 15368 (GitHub Actions), so only the Actions app can satisfy it. `drill-gate` and `drill-gate-skip` are posted with `GITHUB_TOKEN`, which is that app.
+3. **CODEOWNERS over the trust boundary**: `.github/`, `scripts/ci/`, `terraform/`, `tests/architecture/ci_environments.toml`, `tests/architecture/allowlists/workflow_trust.toml`. It documents the boundary and auto-requests the owner's review; `tests/architecture/test_codeowners.py` fails if the file or a path rule disappears. **"Require review from Code Owners" is NOT enabled yet** (OQ-24): GitHub never lets a PR author approve their own PR, so with a single maintainer it would make every PR touching these paths unmergeable. Enable it once a second reviewer or a review bot exists.
+4. **Until then**, tamper-resistance comes from decisions 1 and 2 (required workflows from `main` plus `integration_id` 15368 on every required context). Repository-admin bypass stays as the operator's merge path; every bypass is recorded and visible in the ruleset's bypass log (Settings > Rules > Rulesets > `protect-main` > Rule insights, filter "Bypassed"; or Settings > Rules > Insights). Review that log after any merge that touched the CODEOWNERS paths.
+
+Operator checklist: [`runbooks/github-settings.md`](../plans/v3/runbooks/github-settings.md) section 3c. Relates to ADR-0121, ADR-0132.
+
+## Amendment 2026-11-21 (T-Q238, Q-040 / H1-02): signed-image identity pinned to `main`; rollback to `sha-*` needs ancestry
+
+Finding: the host agent's cosign `identity_regexp` ended at `build.yml@`, so a signature produced by `build.yml` run from any ref (a drill gate build of an arbitrary branch pushes `sha-<short>` too) was accepted on prod. Evidence: `docs/plans/quality-audit/repro/H1/gate_and_signing_probe.out` section 2 and 5.
+
+Decisions:
+
+1. **Verified signing identity.** On prod the agent accepts a signature only when the certificate identity is `build.yml@refs/heads/main` or `build.yml@refs/tags/v<release>` of this repository (`terraform/modules/compute/user_data.tf`, `local.cosign_identity_regexp`). Drill hosts set `allow_branch_builds` (root: `env == "drill"`) and accept `refs/(heads|tags)/.+` of the same workflow, so a drill can still run an image built from the PR branch; that variable is the only widening and prod can never receive it (`terraform test` asserts both renders).
+2. **Rollback to a `sha-*` tag (operator decision, OQ-24, 2026-11-21).** A `sha-*` image may run on prod ONLY if (a) its signature identity is `build.yml` on `refs/heads/main` (decision 1) AND (b) its commit is an ancestor of `main`. The host agent enforces (b) itself (`bp_agent.verify_main_ancestry`, GitHub compare API `main...<sha>`, status `behind` or `identical`), after the cosign check and before any file is written; an unreachable API fails closed (`ancestry_check`), a diverged or ahead commit is rejected (`ancestry_not_main`). Release-tag images are covered by decision 1 plus ADR-0109. Images signed from any other ref are rejected. The repository must be readable without authentication for the compare call; if it ever becomes private, rollback to a bare `sha-*` fails closed and a release tag (or an agent token) is needed.
+3. **Drill-gate skip classifier** is docs only; its verdict is bound to the head SHA (see ADR-0121 amendment 2026-11-21).
+
+Removes the `cosign-identity-unpinned` entry from `tests/architecture/allowlists/workflow_trust.toml`; the G17a guard also reads the `cosign_ref_regexp_prod` local. Relates to ADR-0100, ADR-0109, ADR-0111, ADR-0121.
+
+## Amendment 2026-11-22 (T-Q255, Q-067 / Q-068 / Q-069): pinning policy and workflow privilege
+
+Decisions:
+
+1. **Pinning policy.** Every image a host or build pulls is referenced as `<tag>@sha256:<digest>`: the Dockerfile base (`python:3.12-slim-trixie`, both stages), Caddy and Litestream in the compose template and in `restore-from-prod.tpl`. Digests were resolved read-only from the Docker Hub registry API (the multi-arch index digest). `uv` is installed as `uv==0.11.2` (same version as CI, ADR-0120 amendment) and tailscale as `tailscale=<exact version>` with `apt-mark hold`. Bumps are deliberate edits (re-resolve the digest), reviewed like any other change; Terraform `render.tftest.hcl` fails an unpinned image.
+2. **Least privilege for CI.** `ci.yml` declares `permissions: contents: read`; the `ci` job in `release.yml` is capped at `contents: read` so the called workflow does not inherit `packages: write`, `id-token: write` or `pull-requests: write`.
+3. **Allowlist is read from `main`.** `security.yml` reads `.security-allowlist.yml` from `origin/main` (never from the PR head), validates every id against `^[A-Za-z0-9][A-Za-z0-9._-]{3,63}$`, and passes pip-audit ignore args to `run:` via `env:` (no `${{ }}` interpolation into the script body).
+4. **Operator-only settings** (not code): Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected` (read back by `scripts/check_github_settings.py`).
+
+Relates to ADR-0100, ADR-0111, ADR-0120.
+
+## Amendment 2026-11-22 (T-Q298): required status contexts on `main`
+
+Decision 2 above does not list contexts; the list is in the 2026-11-21 amendment (T-Q239, item 2) and in ADR-0121, and both are now stale. The current required contexts of `protect-main`, each bound to `integration_id` 15368 (GitHub Actions), are:
+
+1. `drill-gate`
+2. `just ci (Python 3.12, ubuntu-latest)`
+3. `uv lock --check`
+4. `pip-audit (uv.lock)`
+5. `trivy fs (repo)`
+6. `trivy image (rising-dough:scan)`
+7. `tests/e2e (Chromium, Playwright container)` (added by T-Q297, ADR-0120 amendment 2026-11-22; the job name is the context)
+
+This list supersedes the ADR-0121 list for required contexts. Not yet required: `visual-gate` (T-Q251, ADR-0027). It becomes required when the visual baselines are committed; that is an operator repository setting, not part of this amendment. Adding a context needs an entry here and in `scripts/check_github_settings.py` `REQUIRED_CHECKS`.

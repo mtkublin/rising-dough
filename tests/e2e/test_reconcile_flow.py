@@ -8,6 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
+from tests.e2e.forms import PANEL, add_happened, wait_for_htmx
 from tests.ui_map import accounts, ledger
 from tests.ui_map.locator import to_playwright
 
@@ -31,25 +32,28 @@ def test_reconcile_creates_adjustment_transaction(
     ).ok
 
     account_id = db_probe.account_id(db_path, "Checking")
-    category_id = db_probe.category_id(db_path, "Food")
 
-    assert page.request.post(
-        f"{base_url}/transactions",
-        form={
-            "operation_date": "2026-01-15",
-            "category_id": str(category_id),
-            "account_id": str(account_id),
-            "amount": "40.00",
-            "description": "snack",
-        },
-    ).ok
-
-    # Reconcile: user asserts actual 70.00 → delta +10.00 adjustment.
-    reconcile_resp = page.request.post(
-        f"{base_url}/accounts/{account_id}/reconcile",
-        form={"actual_balance": "70.00"},
+    page.goto(f"{base_url}/ledger?view=actual")
+    add_happened(
+        page,
+        category="Food",
+        account="Checking",
+        amount="40.00",
+        day="2026-01-15",
+        note="snack",
     )
-    assert reconcile_resp.ok, reconcile_resp.text()
+
+    # Reconcile through the account row's form: bank says 70.00 -> +10.00 adjustment.
+    page.goto(f"{base_url}/accounts")
+    wait_for_htmx(page)
+    to_playwright(page, accounts.row(account_id)).get_by_role("button", name="Reconcile").click()
+    expect(to_playwright(page, PANEL)).to_be_visible()
+    to_playwright(page, accounts.reconcile_actual.inside(PANEL)).fill("70.00")
+    with page.expect_response(
+        lambda r: r.url.endswith("/reconcile") and r.request.method == "POST"
+    ) as resp:
+        to_playwright(page, accounts.reconcile_record).click()
+    assert resp.value.ok, resp.value.text()
 
     # Account card now shows 70.00.
     page.goto(f"{base_url}/accounts")

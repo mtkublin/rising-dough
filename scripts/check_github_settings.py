@@ -14,7 +14,10 @@ Expectations come from ADR-0099/0100/0121 and
 - no repo-level ``SCW_ACCESS_KEY`` / ``SCW_SECRET_KEY`` secrets;
 - ``main`` is protected (ruleset or classic) with a pull request requirement, the
   required status checks, and no force pushes / deletions;
-- the Actions permissions require SHA pinning when the API reports the setting.
+- the Actions permissions require SHA pinning when the API reports the setting;
+- the live Tailscale ACL equals ``docs/plans/v3/runbooks/tailscale-acl.hujson``
+  (T-Q238; needs ``TAILSCALE_API_TOKEN`` and ``TAILSCALE_OWNER_EMAIL`` in the
+  environment, otherwise SKIP; the token is never printed).
 
 Usage: ``uv run python scripts/check_github_settings.py [--repo OWNER/NAME]``
 """
@@ -23,14 +26,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from tailscale_acl_drift import OWNER_ENV, TOKEN_ENV, compare_live
+
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
-REQUIRED_CHECKS = ("just ci (Python 3.12, ubuntu-latest)", "drill-gate")
+REQUIRED_CHECKS = (
+    "just ci (Python 3.12, ubuntu-latest)",
+    "drill-gate",
+    "tests/e2e (Chromium, Playwright container)",
+)
 GATED_ENVS = {"prod": True}
 UNGATED_ENVS = ("prod-plan", "drill-teardown", "drill-plan")
 RELEASE_REFS = {("branch", "main"), ("tag", "v*")}
@@ -192,12 +202,43 @@ def check_actions_pinning(api: Api, repo: str) -> Result:
     )
 
 
+def check_allowed_actions(api: Api, repo: str) -> Result:
+    """T-Q255 (Q-068): only selected actions may run (operator-set repo setting)."""
+    perms = api(f"repos/{repo}/actions/permissions")
+    allowed = perms.get("allowed_actions")
+    if allowed is None:
+        return Result("actions: allowed_actions selected", SKIP, "setting not reported by the API")
+    ok = allowed == "selected"
+    return Result(
+        "actions: allowed_actions selected",
+        PASS if ok else FAIL,
+        "selected" if ok else str(allowed),
+    )
+
+
+def check_tailscale_acl(
+    environ: Mapping[str, str] = os.environ, compare: Callable[[str, str], list[str]] = compare_live
+) -> Result:
+    """T-Q238 / OQ-24: live Tailscale ACL vs the runbook copy. SKIP without a token."""
+    token, owner = environ.get(TOKEN_ENV, ""), environ.get(OWNER_ENV, "")
+    name = "tailscale ACL matches runbook copy"
+    if not token or not owner:
+        return Result(name, SKIP, f"set {TOKEN_ENV} and {OWNER_ENV} to enable")
+    try:
+        drift = compare(token, owner)
+    except (OSError, ValueError) as exc:
+        return Result(name, FAIL, f"could not fetch ({type(exc).__name__})")
+    return Result(name, FAIL if drift else PASS, "; ".join(drift) if drift else "identical")
+
+
 def run_checks(api: Api, repo: str) -> list[Result]:
     sections: Sequence[Callable[[], list[Result]]] = (
         lambda: check_environments(api, repo),
         lambda: [check_repo_secrets(api, repo)],
         lambda: check_main_protection(api, repo),
         lambda: [check_actions_pinning(api, repo)],
+        lambda: [check_allowed_actions(api, repo)],
+        lambda: [check_tailscale_acl()],
     )
     results: list[Result] = []
     for section in sections:

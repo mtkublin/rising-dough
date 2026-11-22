@@ -12,6 +12,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.budgets import (
     NewBudgetDefault,
     NewBudgetOneOffOverride,
@@ -90,7 +91,15 @@ def test_month_summary_integrates_actual_transactions_only(
         operation_date=date(2026, 1, 15),
     )
 
-    summary = budget_service.month_summary(conn, USER_ID, 2026, 1, today=date(2026, 1, 15))
+    summary = budget_service.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        1,
+        today=date(2026, 1, 15),
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     food_line = next(line for line in summary.lines if line.category_name == "Food")
     assert food_line.budgeted_minor == 50000
     assert food_line.spent_minor == 12000

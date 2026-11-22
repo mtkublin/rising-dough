@@ -46,6 +46,12 @@ variable "github_repo" {
   type        = string
 }
 
+variable "allow_branch_builds" {
+  description = "Drill only (T-Q238, Q-040, ADR-0099 amendment 2026-11-21): widen the cosign identity to build.yml signed from any branch or tag, and skip the main-ancestry check, so a drill can run an image built from the PR branch. Prod keeps the default false: only build.yml@refs/heads/main or a release tag is accepted, and a sha-* image must be an ancestor of main."
+  type        = bool
+  default     = false
+}
+
 variable "cosign_version" {
   description = "cosign release the host agent installs to verify images (ADR-0111)."
   type        = string
@@ -166,9 +172,16 @@ variable "scw_secret_key_restore" {
   sensitive   = true
 }
 
+variable "restore_source_age_identity" {
+  description = "PROD replica age identity for restore-from-prod, written to restore-source-age.key (0600) only when enable_restore_helper (ADR-0135). Distinct from litestream_age_identity (the host's own replica key)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # T-D56 / ADR-0078 section 3: Litestream replica age encryption.
 variable "litestream_age_identity" {
-  description = "age private identity (AGE-SECRET-KEY-1... line or the full age-keygen file) written to /etc/budget-planner/litestream-age.key (0600). Used by restores only."
+  description = "age private identity (AGE-SECRET-KEY-1... line or the full age-keygen file) written to /etc/budget-planner/litestream-age.key (0600). Used by restores of this host's own replica."
   type        = string
   sensitive   = true
 }

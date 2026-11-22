@@ -58,6 +58,7 @@ def _doc(tmp: Path, **overrides: Any) -> dict[str, Any]:
             "identity_regexp": "^https://github\\.com/o/r/",
             "issuer": "https://token.actions.githubusercontent.com",
         },
+        "ancestry": {"enabled": False, "repo": "o/r", "branch": "main"},
         "files": [
             {
                 "path": str(tmp / "etc" / "docker-compose.yml"),
@@ -626,3 +627,85 @@ def test_undrain_ignores_an_earlier_back_off(tmp_path: Path, host: Callable[...,
 
     assert host(_doc(tmp_path), runner) == 0  # same `now`: still inside the back-off
     assert "compose up" in runner.kinds()
+
+
+# --- T-Q238: sha-* images must be ancestors of main -------------------------
+
+
+def _ancestry_cfg(tmp_path: Path, ref: str = REF, enabled: bool = True) -> Any:
+    doc = _doc(tmp_path, ancestry={"enabled": enabled, "repo": "o/r", "branch": "main"})
+    doc["image"]["ref"] = ref
+    return agent.parse_config(json.dumps(doc).encode())
+
+
+@pytest.mark.parametrize(
+    ("ref", "tag"),
+    [(REF, "sha-89ac3c2"), ("ghcr.io/o/b:v3.0.5@sha256:" + "a" * 64, "v3.0.5")],
+)
+def test_image_tag(ref: str, tag: str) -> None:
+    assert agent.image_tag(ref) == tag
+
+
+@pytest.mark.parametrize(
+    ("status", "ok"),
+    [("behind", True), ("identical", True), ("ahead", False), ("diverged", False)],
+)
+def test_is_main_ancestor(status: str, ok: bool) -> None:
+    assert agent.is_main_ancestor({"status": status}) is ok
+    assert agent.is_main_ancestor([]) is False
+
+
+def test_rollback_to_sha_off_main_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(agent, "fetch_compare", lambda *_a: {"status": "diverged"})
+    with pytest.raises(agent.AgentError) as exc:
+        agent.verify_main_ancestry(_ancestry_cfg(tmp_path))
+    assert exc.value.code == "ancestry_not_main"
+
+
+def test_rollback_to_sha_on_main_is_accepted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[tuple[str, str, str]] = []
+
+    def fake(repo: str, branch: str, sha: str) -> object:
+        seen.append((repo, branch, sha))
+        return {"status": "behind"}
+
+    monkeypatch.setattr(agent, "fetch_compare", fake)
+    agent.verify_main_ancestry(_ancestry_cfg(tmp_path))
+    assert seen == [("o/r", "main", "89ac3c2")]
+
+
+def test_ancestry_check_fails_closed_when_api_unreachable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_a: str) -> object:
+        raise OSError("down")
+
+    monkeypatch.setattr(agent, "fetch_compare", boom)
+    with pytest.raises(agent.AgentError) as exc:
+        agent.verify_main_ancestry(_ancestry_cfg(tmp_path))
+    assert exc.value.code == "ancestry_check"
+
+
+def test_ancestry_skipped_for_release_tag_and_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_a: str) -> object:
+        raise AssertionError("must not be called")
+
+    monkeypatch.setattr(agent, "fetch_compare", boom)
+    agent.verify_main_ancestry(_ancestry_cfg(tmp_path, "ghcr.io/o/b:v3.0.5@sha256:" + "a" * 64))
+    agent.verify_main_ancestry(_ancestry_cfg(tmp_path, enabled=False))
+
+
+def test_apply_rejects_off_main_sha_before_touching_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host: Callable[..., Any]
+) -> None:
+    doc = _doc(tmp_path, ancestry={"enabled": True, "repo": "o/r", "branch": "main"})
+    monkeypatch.setattr(agent, "fetch_compare", lambda *_a: {"status": "diverged"})
+    assert host(doc, FakeRunner()) == 1
+    assert _status(tmp_path)["error"] == "ancestry_not_main"
+    assert not (tmp_path / "etc" / "docker-compose.yml").exists()

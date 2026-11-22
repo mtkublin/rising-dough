@@ -24,7 +24,6 @@ pytest_plugins = ("tests.contract.test_plan_support",)
 
 ALL_MUTATIONS = (
     ("/budget/defaults/{c}", {"amount": "10"}),
-    ("/budget/recurring/{c}/5", {"amount": "10"}),
     ("/budget/one-off/{c}/2026/10", {"amount": "10"}),
     ("/budget/rules/{c}/overrides", {"tier": "default", "amount": "10"}),
     ("/budget/preferences/income-anchor", {"category_id": ""}),
@@ -35,7 +34,6 @@ ALL_MUTATIONS = (
 
 @covers(
     "POST /budget/defaults/{category_id}",
-    "POST /budget/recurring/{category_id}/{month}",
     "POST /budget/one-off/{category_id}/{year}/{month}",
     "POST /budget/rules/{category_id}/overrides",
     "POST /budget/preferences/income-anchor",
@@ -53,7 +51,6 @@ def test_mutations_require_csrf_token(
 
 @covers(
     "POST /budget/defaults/{category_id}",
-    "POST /budget/recurring/{category_id}/{month}",
     "POST /budget/one-off/{category_id}/{year}/{month}",
     "POST /budget/rules/{category_id}/overrides",
     "POST /budget/preferences/income-anchor",
@@ -129,41 +126,6 @@ def test_set_default_rejects_bad_input_without_side_effects(
     assert "HX-Trigger" not in r.headers
     assert budgets_repo.get_default(db, USER_ID, cat_id) is None
     assert audit_count(db, "budget_default") == 0
-
-
-# --- POST /budget/recurring/{category_id}/{month} ----------------------------
-
-
-@covers("POST /budget/recurring/{category_id}/{month}")
-def test_set_recurring_writes_override_and_audits(
-    client: TestClient, db: sqlite3.Connection, cat_id: int
-) -> None:
-    r = client.post(f"/budget/recurring/{cat_id}/5", data={"amount": "200"})
-    assert r.status_code == 200
-    assert "budget-stale" in hx_events(r.headers)
-    assert audit_count(db, "budget_recurring_override") == 1
-
-
-@covers("POST /budget/recurring/{category_id}/{month}")
-@pytest.mark.parametrize(
-    ("category", "month", "amount", "status"),
-    [("9999", "5", "1", 404), ("{c}", "13", "1", 422), ("{c}", "5", "nope", 422)],
-)
-def test_set_recurring_rejects_bad_input(
-    client: TestClient,
-    *,
-    db: sqlite3.Connection,
-    cat_id: int,
-    category: str,
-    month: str,
-    amount: str,
-    status: int,
-) -> None:
-    r = client.post(
-        f"/budget/recurring/{category.format(c=cat_id)}/{month}", data={"amount": amount}
-    )
-    assert r.status_code == status
-    assert audit_count(db, "budget_recurring_override") == 0
 
 
 # --- POST /budget/one-off/{category_id}/{year}/{month} ------------------------

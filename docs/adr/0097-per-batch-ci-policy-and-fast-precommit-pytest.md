@@ -32,3 +32,11 @@ In orchestrator mode every change was tested three times: full `just ci` in the 
 - Rule 2 (batch `just ci` on the main work branch) is replaced for the pre-PR step by the note above. Items 1, 3 and 6 are unchanged.
 - Rule 5 (single-agent work keeps `just ci` green before handoff) is not changed by this note. The `CLAUDE.md` handoff checklist still says that.
 - Other `docs/` text that still describes a local per-batch full `just ci` (for example the `docs/adr/0108` orchestrator row and the `docs/plans/ui-redesign` and `docs/plans/ui-test-harness` READMEs) is read through this amendment.
+
+## Amendment 2026-11-22
+
+- The pre-commit hook no longer runs `tests/e2e`; e2e runs once per orchestrator wave and before PRs, and may be offloaded to the `e2e.yml` workflow on `wi/**` pushes. See ADR-0120 amendment 2026-11-22 (T-Q295).
+
+## Amendment 2026-11-22 (T-Q297)
+
+- The 2026-11-18 note "GitHub runners have no Playwright browser, so e2e runs locally before a PR" no longer holds: `e2e.yml` runs `tests/e2e` in the pinned Playwright container on every PR to `main` and is a required check. A local e2e run before a PR is optional (`just test-e2e`). See ADR-0120 amendment 2026-11-22 (T-Q297).

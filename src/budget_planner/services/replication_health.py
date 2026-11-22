@@ -8,9 +8,12 @@ turns its text into a verdict. Fail closed: anything unknown is not healthy.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 #: The probe runs every 5 min; three missed runs mean the probe itself is down.
 PROBE_MAX_AGE = timedelta(minutes=15)
@@ -49,6 +52,7 @@ def read_status_text(path: str) -> str | None:
     try:
         return Path(path).read_text(encoding="utf-8")
     except FileNotFoundError:
+        _logger.debug("replication status file absent: %s", path)
         return None
 
 
@@ -58,6 +62,7 @@ def _parse_time(value: object) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value)
     except ValueError:
+        _logger.debug("replication status timestamp is not ISO-8601")
         return None
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
@@ -114,3 +119,17 @@ def evaluate(  # noqa: PLR0911 - one early return per failure state
     age = max(now - newest, timedelta(0))
     fresh = age <= max_age
     return verdict("ok" if fresh else "stale", ok=fresh, age_seconds=int(age.total_seconds()))
+
+
+def check_status_file(
+    status_file: str | None, *, max_age_hours: int, now: datetime
+) -> ReplicationHealth:
+    """Read the probe's status file (when configured) and decide freshness (ADR-0119)."""
+    if not status_file:
+        return disabled()
+    try:
+        raw = read_status_text(status_file)
+    except OSError as exc:
+        _logger.warning("replication_status_unreadable", exc_info=exc)
+        raw = "unreadable"  # not JSON: evaluate() answers "unreadable"
+    return evaluate(raw, now=now, max_age=timedelta(hours=max_age_hours))

@@ -19,9 +19,9 @@ import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from typing import Final
+from typing import Final, Protocol
 
-from budget_planner.config import Settings
+from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import rate_limit as rate_limit_repo
 from budget_planner.repositories._shared import transaction, write_audit
@@ -142,17 +142,57 @@ def audit_throttled(
 
 
 # ---------------------------------------------------------------------------
+class RateLimitSettings(Protocol):
+    """The slice of ``Settings`` the rule sets read (keeps services off ``config``)."""
+
+    @property
+    def rate_limit_enabled(self) -> bool: ...
+
+    @property
+    def rate_limit_login_ip_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_login_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_login_per_minute(self) -> int: ...
+
+    @property
+    def rate_limit_passkey_login_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_passkey_login_per_minute(self) -> int: ...
+
+    @property
+    def rate_limit_password_change_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_password_change_per_minute(self) -> int: ...
+
+    @property
+    def rate_limit_reauth_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_reauth_per_minute(self) -> int: ...
+
+    @property
+    def rate_limit_register_per_hour(self) -> int: ...
+
+    @property
+    def rate_limit_register_per_minute(self) -> int: ...
+
+
 # Rule sets from settings (empty when the kill switch is off)
 # ---------------------------------------------------------------------------
 
 
-def _rules(settings: Settings, *pairs: tuple[int, int]) -> tuple[RateRule, ...]:
+def _rules(settings: RateLimitSettings, *pairs: tuple[int, int]) -> tuple[RateRule, ...]:
     if not settings.rate_limit_enabled:
         return ()
     return tuple(RateRule(limit=limit, window_seconds=window) for limit, window in pairs)
 
 
-def login_rules(settings: Settings) -> tuple[RateRule, ...]:
+def login_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per IP + email: password login."""
     return _rules(
         settings,
@@ -161,12 +201,12 @@ def login_rules(settings: Settings) -> tuple[RateRule, ...]:
     )
 
 
-def login_ip_rules(settings: Settings) -> tuple[RateRule, ...]:
+def login_ip_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per IP: backstop against spraying many emails from one address."""
     return _rules(settings, (settings.rate_limit_login_ip_per_hour, HOUR))
 
 
-def passkey_login_rules(settings: Settings) -> tuple[RateRule, ...]:
+def passkey_login_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per IP: usernameless passkey login finish."""
     return _rules(
         settings,
@@ -175,7 +215,7 @@ def passkey_login_rules(settings: Settings) -> tuple[RateRule, ...]:
     )
 
 
-def register_rules(settings: Settings) -> tuple[RateRule, ...]:
+def register_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per user: passkey registration finish."""
     return _rules(
         settings,
@@ -184,7 +224,7 @@ def register_rules(settings: Settings) -> tuple[RateRule, ...]:
     )
 
 
-def password_change_rules(settings: Settings) -> tuple[RateRule, ...]:
+def password_change_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per user: password change (T-D18a)."""
     return _rules(
         settings,
@@ -193,7 +233,7 @@ def password_change_rules(settings: Settings) -> tuple[RateRule, ...]:
     )
 
 
-def reauth_rules(settings: Settings) -> tuple[RateRule, ...]:
+def reauth_rules(settings: RateLimitSettings) -> tuple[RateRule, ...]:
     """Per user: step-up re-authentication attempts (T-D53b, ADR-0076 §2)."""
     return _rules(
         settings,
@@ -203,5 +243,5 @@ def reauth_rules(settings: Settings) -> tuple[RateRule, ...]:
 
 
 def normalise_email(email: str) -> str:
-    """Case-fold + trim so ``A@x`` and ``a@x `` share one counter."""
-    return email.strip().lower()
+    """Case-fold + trim so ``A@x`` and ``a@x `` share one counter (bounded, ADR-0133 §3)."""
+    return email.strip().lower()[:EMAIL_MAX_LENGTH]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from tests.ui_map.locator import Locator, by_id, label, role
+from tests.ui_map.locator import Locator, by_id, by_testid, label, role
 
 heading = role("heading", level=1)
 forecast_heading = role("heading", "Projected balance", level=1)
@@ -144,3 +144,19 @@ tier_default = label("New default")
 def year_cell_open(category_id: int, month: int) -> Locator:
     """The (single) cell button that opens the override popover of a year cell."""
     return role("button").inside(year_cell(category_id, month))
+
+
+# --- T-Q278: budget tab, year tab, forecast tab ----------------------------
+period_region = role("region", "Budget period")
+period_per_day = by_testid("period-per-day")
+budget_rows = by_id("budget-row-", prefix=True)
+budget_row_cells = role("cell").inside(budget_rows)
+budget_row_spent = role("progressbar", "Spent").inside(budget_rows)
+remainder_bar = role("progressbar", re.compile("actual vs planned"))
+year_heading = by_id("plan-year-heading")
+year_table = role("table", "Yearly budget heatmap")
+year_body_rows = role("row").inside(year_table)
+forecast_caption = by_id("forecast-caption")
+forecast_projection = role("table", "Monthly projection table")
+forecast_projection_rows = role("row").inside(forecast_projection)
+year_cell_open_any = by_id("yc-", prefix=True)

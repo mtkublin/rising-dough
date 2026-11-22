@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from typing import Any
 
 from budget_planner.domain.enums import Direction
 
@@ -54,7 +53,7 @@ class PatchPlannedTransaction:
     amount: int | None = None
     description: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             f.name: getattr(self, f.name) for f in fields(self) if getattr(self, f.name) is not None
         }
@@ -71,5 +70,6 @@ class PlannedFilter:
     directions: tuple[Direction, ...] = ()
     recurring_rule_id: int | None = None
     promoted: bool | None = None
+    live_accounts_only: bool = False  # ADR-0136: derived reads skip soft-deleted accounts
     limit: int | None = None
     offset: int = 0

@@ -12,9 +12,10 @@ Every outcome is audited as an ``auth_event`` row (``reauth`` /
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, Final
+from typing import Final
 
 from webauthn import (
     generate_authentication_options,
@@ -25,6 +26,7 @@ from webauthn.helpers import parse_authentication_credential_json
 from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import PublicKeyCredentialDescriptor, UserVerificationRequirement
 
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
@@ -33,7 +35,6 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.sessions import IssuedSession
-from budget_planner.services._passwords import dummy_hash, verify_password
 from budget_planner.services.auth import (
     AUTH_EVENT_ENTITY,
     CredentialPayload,
@@ -50,7 +51,7 @@ def _audit(
     conn: sqlite3.Connection,
     ctx: RequestCtx,
     user_id: int,
-    payload: dict[str, Any],
+    payload: Mapping[str, object],
 ) -> None:
     with transaction(conn):
         write_audit(
@@ -71,15 +72,20 @@ def _fail(
 
 
 def verify_password_reauth(
-    conn: sqlite3.Connection, user_id: int, password: str, *, ctx: RequestCtx
+    conn: sqlite3.Connection,
+    user_id: int,
+    password: str,
+    *,
+    hasher: PasswordHasher,
+    ctx: RequestCtx,
 ) -> bool:
     """Check ``password`` against the user's current hash; audit failures."""
     user = users_repo.get_live_by_id(conn, user_id)
     if user is None or not user.password_hash:
-        verify_password(password, dummy_hash())  # equalize timing
+        hasher.verify_dummy(password)  # equalize timing
         _fail(conn, ctx, user_id, METHOD_PASSWORD, "no_password")
         return False
-    if not password or not verify_password(password, user.password_hash):
+    if not password or not hasher.verify(password, user.password_hash):
         _fail(conn, ctx, user_id, METHOD_PASSWORD, "bad_password")
         return False
     return True
@@ -119,6 +125,9 @@ def verify_passkey_reauth(
     if stored is None or stored.user_id != user_id:
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "unknown_credential")
         return False
+    if not webauthn_repo.consume_challenge(conn, challenge):
+        _fail(conn, ctx, user_id, METHOD_PASSKEY, "challenge_replayed")
+        return False
     try:
         verified = verify_authentication_response(
             credential=parsed,
@@ -133,17 +142,29 @@ def verify_passkey_reauth(
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "verification_failed")
         return False
     if sign_count_regressed(stored.sign_count, verified.new_sign_count):
-        webauthn_repo.revoke_credential(
-            conn,
-            user_id,
-            stored.id,
-            reason="sign_count_regression",
-            request_ctx=replace(ctx, user_id=user_id),
-        )
+        _revoke_regressed(conn, user_id, stored.id, ctx)
         _fail(conn, ctx, user_id, METHOD_PASSKEY, "sign_count_regression")
         return False
-    webauthn_repo.update_sign_count(conn, user_id, stored.id, verified.new_sign_count)
+    _store_sign_count(conn, user_id, stored.id, verified.new_sign_count)
     return True
+
+
+def _revoke_regressed(
+    conn: sqlite3.Connection, user_id: int, credential_row_id: int, ctx: RequestCtx
+) -> None:
+    webauthn_repo.revoke_credential(
+        conn,
+        user_id,
+        credential_row_id,
+        reason="sign_count_regression",
+        request_ctx=replace(ctx, user_id=user_id),
+    )
+
+
+def _store_sign_count(
+    conn: sqlite3.Connection, user_id: int, credential_row_id: int, count: int
+) -> None:
+    webauthn_repo.update_sign_count(conn, user_id, credential_row_id, count)
 
 
 def complete_reauth(

@@ -26,9 +26,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from budget_planner import logging as bp_logging
+from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import _resolve_db_path, get_connection
+from budget_planner.db.connection import JOB_ERRORS, get_connection, resolve_db_path
 from budget_planner.db.migrate import (
     MIGRATIONS_DIR,
     Migration,
@@ -122,7 +122,7 @@ def prune_backups(
     )
     stale = set(backups[: max(len(backups) - keep, 0)])
     if max_age is not None:
-        cutoff = ((now or _utcnow()) - max_age).timestamp()
+        cutoff = ((now or clock.utc_now()) - max_age).timestamp()
         stale.update(p for p in backups if p.stat().st_mtime < cutoff)
     doomed = tuple(p for p in backups if p in stale)
     for path in doomed:
@@ -135,19 +135,15 @@ def backup_max_local_age(settings: Settings) -> dt.timedelta:
     return dt.timedelta(days=settings.backup_max_age_days - BACKUP_AGE_MARGIN_DAYS)
 
 
-def _utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.UTC)
-
-
 def run_startup_migrations(
     settings: Settings,
     *,
     migrations_dir: Path = MIGRATIONS_DIR,
     keep_backups: int = DEFAULT_KEEP_BACKUPS,
-    now: Callable[[], dt.datetime] = _utcnow,
+    now: Callable[[], dt.datetime] = clock.utc_now,
 ) -> StartupMigrationResult:
     """Back up if needed, apply pending migrations, prune old backups."""
-    db_path = _resolve_db_path(settings.database_url)
+    db_path = resolve_db_path(settings.resolve().database_url)
     conn = get_connection(settings)
     try:
         plan = plan_migrations(conn, migrations_dir)
@@ -180,7 +176,7 @@ def main(settings: Settings | None = None) -> int:
     log = bp_logging.get_logger("budget_planner.startup_migrate")
     try:
         result = run_startup_migrations(settings or get_settings())
-    except Exception as exc:  # any failure must block startup
+    except JOB_ERRORS as exc:  # a migration failure must block startup
         log.error("startup_migrations_failed", error=str(exc), error_type=type(exc).__name__)
         return 1
     if result.unknown_applied:

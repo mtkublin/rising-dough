@@ -8,8 +8,7 @@ import sqlite3
 from datetime import date, timedelta
 from decimal import Decimal
 
-import pytest
-
+from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.fx import NewFxRate
@@ -17,22 +16,19 @@ from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
-    categories as categories_repo,
     fx as fx_repo,
     planned as planned_repo,
     transactions as txn_repo,
 )
-from budget_planner.services import budget, forecast
+from budget_planner.services import budget, forecast_events, forecast_overlay, fx as fx_svc
+from budget_planner.services.aggregates import sum_by_category
+from tests.formula_fx_support import formula_fx_of
 
 U = 1
 TODAY = date(2026, 11, 19)
 M_START, M_END = date(2026, 11, 1), date(2026, 11, 30)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-008: forecast._spent_so_far sums raw native amounts, budget converts to base",
-)
 def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
     eur = accounts_repo.create(seeded, U, NewAccount(name="EUR Wallet", currency="EUR")).id
     fx_repo.upsert_rate(
@@ -53,17 +49,34 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
             date_from=M_START, date_to=TODAY, category_ids=(7,), directions=(Direction.EXPENSE,)
         ),
     )
-    b_spent = budget._sum_by_category(txns, budget.base_txn_converter(seeded, U)).get(7, 0)
-    f_spent = forecast._spent_so_far(seeded, U, 7, M_START, TODAY)
+    b_spent = sum_by_category(
+        txns, budget.txn_base_amounts(seeded, U, today=TODAY, base_currency="PLN")
+    ).get(7, 0)
+    converter = fx_svc.converter_for(seeded, get_settings(), TODAY)
+    ((f_spent_by_cat, _),) = forecast_overlay.month_inputs(
+        seeded,
+        U,
+        [forecast_overlay.MonthSpan(M_START, M_START, TODAY, False)],
+        today=TODAY,
+        fx=converter,
+    )
+    f_spent = f_spent_by_cat.get(7, 0)
     assert b_spent == f_spent, (b_spent, f_spent)
 
 
 def _committed_pair(conn: sqlite3.Connection) -> tuple[int, int]:
     win_start = TODAY + timedelta(days=1)
-    b = budget._committed_by_category(
-        conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY
+    b = budget.committed_by_category(
+        conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY, base_currency="PLN"
     ).get(6, 0)
-    f = forecast._committed_future_for_category(conn, U, 6, win_start, M_END, today=TODAY)
+    ((_, f_committed),) = forecast_overlay.month_inputs(
+        conn,
+        U,
+        [forecast_overlay.MonthSpan(M_START, win_start, M_END, False)],
+        today=TODAY,
+        fx=fx_svc.converter_for(conn, get_settings(), TODAY),
+    )
+    f = f_committed.get(6, 0)
     return b, f
 
 
@@ -72,10 +85,6 @@ def test_3b_committed_agrees_before_a_planned_row_is_linked(seeded: sqlite3.Conn
     assert b == f
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-002: forecast double counts a recurring occurrence that has a linked planned row (ADR-0087 dedup)",
-)
 def test_3b_committed_agrees_after_a_planned_row_is_linked(seeded: sqlite3.Connection) -> None:
     planned_repo.create(
         seeded,
@@ -94,10 +103,6 @@ def test_3b_committed_agrees_after_a_planned_row_is_linked(seeded: sqlite3.Conne
     assert b == f, (b, f)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-030: budget counts overdue unpromoted items (ADR-0105), the forecast event stream drops them",
-)
 def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
     seeded: sqlite3.Connection,
 ) -> None:
@@ -108,13 +113,11 @@ def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
             operation_date=date(2026, 11, 5), category_id=7, account_id=1, amount=5000
         ),
     )
-    budget_counts = budget._committed_by_category(
-        seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY
+    budget_counts = budget.committed_by_category(
+        seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY, base_currency="PLN"
     ).get(7, 0)
-    directions = {
-        c.id: c.direction for c in categories_repo.list_all(seeded, U, include_deleted=True)
-    }
-    events = forecast._collect_events(seeded, U, TODAY, M_END, directions)
-    in_stream = any(e.on_date == date(2026, 11, 5) for evs in events.values() for e in evs)
+    events = forecast_events.collect_events(seeded, U, TODAY, M_END, fx=formula_fx_of(seeded, U))
+    placed = [e for evs in events.values() for e in evs if e.amount_minor == -5000]
     assert budget_counts == 5000
-    assert in_stream
+    # OQ-6 default (ADR-0105 amendment 2026-11-21): overdue is placed on today + 1.
+    assert [(e.on_date, e.account_id) for e in placed] == [(TODAY + timedelta(days=1), 1)]

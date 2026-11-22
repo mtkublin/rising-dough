@@ -9,7 +9,10 @@
 # a workflow artifact BEFORE destroy, then a GitHub issue is opened. A forgotten
 # failed drill host would cost ~EUR 4.46/month, so cost stays bounded per run.
 #
-# Secrets (environment-scoped to `drill`):
+# Secrets (environment-scoped to `drill`; the PROD_REPLICA_RO_* pair and the PROD
+# LITESTREAM_AGE_IDENTITY live ONLY in the gated `prod-restore-read` environment,
+# used by the `apply` job, ADR-0132; `drill` holds no age key: the drill's own
+# key pair is generated in its Terraform state, ADR-0135):
 #   SCW_ACCESS_KEY, SCW_SECRET_KEY
 #   SCW_DEFAULT_PROJECT_ID         - the DRILL project (rising-dough-drill, ADR-0092).
 #   DEPLOY_SSH_PRIVATE_KEY         - ed25519 private key for operator SSH.
@@ -25,8 +28,8 @@
 #   APP_APPLICATION_ID, APP_SCW_ACCESS_KEY / APP_SCW_SECRET_KEY
 #                                  - drill Litestream identity (terraform/bootstrap/ci
 #                                    module.app_drill; ADR-0104).
-#   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica.
-#   LITESTREAM_AGE_RECIPIENT       - matching public age1... recipient (T-D56; a secret since ADR-0093).
+#   LITESTREAM_AGE_IDENTITY        - PROD age identity (T-D56); decrypts the replica; reaches
+#                                    Terraform as restore_source_age_identity (ADR-0135).
 #   Plus every other TF_VAR_* input: see scripts/ci/tf_env.py and operator-checklist A5 (ADR-0093).
 #
 # Third-party actions pinned by SHA (ADR-0037 §2 image-signing rationale
@@ -117,8 +120,9 @@ jobs:
           echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
           python3 scripts/ci/host_release.py resolve-ref --image "${IMAGE}" --tag "${TAG}" | tee -a "$GITHUB_OUTPUT"
 
-  # T-D133: apply is the shared terraform.yml job (environment `drill`, the one
-  # optional reviewer gate, none configured today; no replace and no expires-at tag, as before).
+  # T-D133: apply is the shared terraform.yml job. ADR-0132: `restore_source` runs it
+  # in the gated, main-only `prod-restore-read` environment (prod replica read key and
+  # prod age identity); no replace and no expires-at tag, as before.
   apply:
     name: terraform apply (drill)
     needs: [drill-lock, image]
@@ -130,6 +134,7 @@ jobs:
     with:
       env: drill
       image_ref: ${{ needs.image.outputs.ref }}
+      restore_source: true
     secrets: inherit  # pragma: allowlist secret
 
   restore-drill:

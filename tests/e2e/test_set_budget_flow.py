@@ -8,6 +8,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.e2e import db_probe
+from tests.e2e.forms import add_happened, wait_for_htmx
 from tests.ui_map import plan
 from tests.ui_map.locator import to_playwright
 
@@ -30,14 +31,28 @@ def test_set_budget_shows_remaining_after_spend(
         form={"name": "Groceries", "direction": "expense"},
     ).ok
 
-    account_id = db_probe.account_id(db_path, "Checking")
-    category_id = db_probe.category_id(db_path, "Groceries")
+    # Record a 120.00 expense in a known month to query /budget deterministically.
+    page.goto(f"{base_url}/ledger?view=actual")
+    add_happened(
+        page,
+        category="Groceries",
+        account="Checking",
+        amount="120.00",
+        day="2026-10-15",
+        note="weekly shop",
+    )
 
-    # Set a default budget of 500.00 for Groceries.
-    assert page.request.post(
-        f"{base_url}/budget/defaults/{category_id}",
-        form={"amount": "500.00"},
-    ).ok
+    # Set a default budget of 500.00 for Groceries through the inline rule form.
+    page.goto(f"{base_url}/budget?year=2026&month=10")
+    wait_for_htmx(page)
+    default_input = page.get_by_label("Default budget for Groceries")
+    default_input.fill("500.00")
+    with page.expect_response(
+        lambda r: "/budget/defaults/" in r.url and r.request.method == "POST"
+    ) as resp:
+        default_input.press("Enter")  # implicit form submission, as a user would
+    assert resp.value.ok, resp.value.text()
+    category_id = db_probe.category_id(db_path, "Groceries")
     assert (
         db_probe.scalar(
             db_path,
@@ -46,18 +61,6 @@ def test_set_budget_shows_remaining_after_spend(
         )
         == 50000
     )
-
-    # Record a 120.00 expense in a known month to query /budget deterministically.
-    assert page.request.post(
-        f"{base_url}/transactions",
-        form={
-            "operation_date": "2026-10-15",
-            "category_id": str(category_id),
-            "account_id": str(account_id),
-            "amount": "120.00",
-            "description": "weekly shop",
-        },
-    ).ok
 
     assert db_probe.txn_amounts(db_path, "weekly shop") == [12000]
 

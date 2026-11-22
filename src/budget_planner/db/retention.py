@@ -7,28 +7,27 @@ ignores it so the app still starts).
 
 from __future__ import annotations
 
-import datetime as dt
-
-from budget_planner import logging as bp_logging
+from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import get_connection
+from budget_planner.db.connection import JOB_ERRORS, get_connection
 from budget_planner.services import retention
 
 
 def run(settings: Settings) -> retention.PurgeResult:
+    """Open a connection, purge once at the current instant, close it."""
     conn = get_connection(settings)
     try:
-        return retention.purge(conn, dt.datetime.now(dt.UTC), settings)
+        return retention.purge(conn, clock.utc_now(), settings)
     finally:
         conn.close()
 
 
 def main(settings: Settings | None = None) -> int:
     bp_logging.configure()
-    log = bp_logging.get_logger("budget_planner.retention")
+    log = bp_logging.get_logger(bp_logging.RETENTION_LOGGER)
     try:
         run(settings or get_settings())
-    except Exception as exc:  # non-fatal for startup; report via exit code
+    except JOB_ERRORS as exc:  # non-fatal for startup; report via exit code
         log.error("retention_purge_failed", error=str(exc), error_type=type(exc).__name__)
         return 1
     return 0

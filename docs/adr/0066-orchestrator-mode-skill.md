@@ -24,6 +24,13 @@ Add a repo skill, `.claude/skills/orchestrator-mode/SKILL.md`, that codifies the
 
 Subagents are dispatched with an explicit, cheaper `model` than the orchestrator's: `sonnet` by default, `haiku` for small mechanical or read-only items. `opus` is used only on user request or after two `sonnet` failures on the same item. The orchestrator keeps the strong model, because decomposition, briefs, and merges are where reasoning quality matters most; implementation tokens dominate cost.
 
+## Amendment (2026-11-22): ways of working from the remediation run
+
+- Heavy runs (full e2e, full suite and coverage, visual baselines, mutation) go to GitHub workflows where one exists; item agents test only via the commit hooks, and the draft PR is opened early (once the user approves) so `ci.yml` tests merged combinations.
+- Agents are sized to under ~1 h: the orchestrator checks in at ~30 min and splits the item or hands the worktree to a fresh agent at ~60 min without commit progress; overruns go in the final report.
+- Merge review rejects guard-gaming: a syntactic dodge goes back to the agent. Merges skip hooks, so `just merge-item` (T-Q304) runs guards, lint-imports, ruff and mypy before the push and prunes only on success.
+- The brief is a shared `brief-common.md` plus the item-specific part (T-Q303).
+
 ## Consequences
 
 - Orchestrated sessions are reproducible and rule-compliant by construction; every change is attributable to one item branch.

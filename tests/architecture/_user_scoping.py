@@ -30,9 +30,11 @@ only on one branch still counts. It is a backstop, not a proof.
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterable, Iterator
+import importlib
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import sqlglot
 from sqlglot import exp
@@ -72,8 +74,26 @@ NOT_USER_OWNED_TABLES: frozenset[str] = frozenset(
 
 _EXECUTE_METHODS = frozenset({"execute", "executemany"})
 _DYN = "dyn"
+_DYN_TABLE_MESSAGE = (
+    "dynamic table name is not resolvable; use a repositories/_shared OwnedTable helper "
+    "(its SQL builders are checked per table)"
+)
 _KEYWORDS_BEFORE_EXPR = frozenset(
-    {"SELECT", "WHERE", "AND", "OR", "BY", "ON", "SET", "FROM", "JOIN", "IN", "VALUES"}
+    {
+        "SELECT",
+        "WHERE",
+        "AND",
+        "OR",
+        "BY",
+        "ON",
+        "SET",
+        "FROM",
+        "JOIN",
+        "IN",
+        "VALUES",
+        "UPDATE",
+        "INTO",
+    }
 )
 
 
@@ -391,6 +411,11 @@ def check_source(
         for site, statements in parsed:
             for statement in statements:
                 violations.extend(
+                    Violation(path, site.line, func.name, _DYN_TABLE_MESSAGE, site.sql)
+                    for table in statement.find_all(exp.Table)
+                    if table.name == _DYN
+                )
+                violations.extend(
                     Violation(path, site.line, func.name, problem, site.sql)
                     for problem in _check_statement(statement, scoped_parents)
                 )
@@ -405,4 +430,153 @@ def check_paths(
     for path in sorted(paths):
         rel = str(path.relative_to(root))
         out.extend(check_source(path.read_text(encoding="utf-8"), rel, allowed))
+    return out
+
+
+# --------------------------------------------------------------------------
+# OwnedTable specs (T-Q284, ADR-0130 amendment 2026-11-22)
+# --------------------------------------------------------------------------
+
+_SHARED_MODULE = "budget_planner.repositories._shared"
+_SPEC_FIELDS = ("table", "entity_type", "columns", "hydrate", "order_by")
+_SAMPLE_KEYS = ("id",)
+_SAMPLE_EXTRA_KEYS = ("account_id",)
+_DEFAULT_ORDER_BY = "id ASC"
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedSpec:
+    """One statically collected ``OwnedTable(...)`` call."""
+
+    path: str
+    line: int
+    table: str
+    columns: str
+    order_by: str
+
+
+Renderer = Callable[[OwnedSpec], list[str]]
+
+
+def default_renderers(shared: Any = None) -> dict[str, Renderer]:
+    """One renderer per ``*_sql`` builder of ``repositories/_shared`` (the runtime builders)."""
+    mod = shared if shared is not None else importlib.import_module(_SHARED_MODULE)
+    both = (False, True)
+    return {
+        "find_sql": lambda s: [
+            mod.find_sql(s.table, s.columns, _SAMPLE_KEYS, include_deleted=d) for d in both
+        ],
+        "list_sql": lambda s: [
+            mod.list_sql(s.table, s.columns, keys, s.order_by, include_deleted=d)
+            for d in both
+            for keys in ((), _SAMPLE_EXTRA_KEYS)
+        ],
+        "recently_deleted_sql": lambda s: [mod.recently_deleted_sql(s.table, s.columns)],
+        "insert_sql": lambda s: [mod.insert_sql(s.table, ("name",))],
+        "update_sql": lambda s: [mod.update_sql(s.table, ("name",))],
+        "soft_delete_sql": lambda s: [mod.soft_delete_sql(s.table)],
+        "undelete_sql": lambda s: [mod.undelete_sql(s.table)],
+    }
+
+
+def builder_names(shared_source: str) -> set[str]:
+    """Public ``*_sql`` builder functions defined at the top level of ``_shared``."""
+    return {
+        f.name
+        for f in _iter_functions(ast.parse(shared_source))
+        if f.name.endswith("_sql") and not f.name.startswith("_")
+    }
+
+
+def check_builders_covered(shared_source: str, renderers: dict[str, Renderer]) -> list[str]:
+    """Builders without a renderer (or renderers without a builder) are a silent skip: report."""
+    defined = builder_names(shared_source)
+    missing = [
+        f"SQL builder {n!r} has no guard renderer" for n in sorted(defined - renderers.keys())
+    ]
+    stale = [f"guard renderer {n!r} has no SQL builder" for n in sorted(renderers.keys() - defined)]
+    return missing + stale
+
+
+def _call_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Subscript):
+        func = func.value
+    if isinstance(func, ast.Name):
+        return func.id
+    return func.attr if isinstance(func, ast.Attribute) else None
+
+
+def _spec_arg(
+    resolver: _Resolver, args: dict[str, ast.expr], name: str, default: str
+) -> str | None:
+    return resolver.resolve(args[name]) if name in args else default
+
+
+def collect_owned_specs(source: str, path: str) -> tuple[list[OwnedSpec], list[Violation]]:
+    """Statically collect every ``OwnedTable(...)`` call; unresolvable ones are violations."""
+    tree = ast.parse(source)
+    resolver = _Resolver(_module_constants(tree), {}, {})
+    specs: list[OwnedSpec] = []
+    problems: list[Violation] = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and _call_name(node.func) == "OwnedTable"):
+            continue
+        args: dict[str, ast.expr] = dict(zip(_SPEC_FIELDS, node.args, strict=False))
+        args.update({kw.arg: kw.value for kw in node.keywords if kw.arg})
+        table = _spec_arg(resolver, args, "table", "")
+        columns = _spec_arg(resolver, args, "columns", "")
+        order = _spec_arg(resolver, args, "order_by", _DEFAULT_ORDER_BY)
+        if not table or not columns or order is None or _DYN in (table, columns, order):
+            problems.append(
+                Violation(path, node.lineno, "OwnedTable", "spec is not statically resolvable", "")
+            )
+            continue
+        specs.append(OwnedSpec(path, node.lineno, table, columns, order))
+    return specs, problems
+
+
+def _check_rendered(sql: str, table: str) -> list[str]:
+    try:
+        statements = _parse(sql)
+    except sqlglot.errors.ParseError as err:
+        return [f"unparseable rendered SQL ({err})"]
+    if not any(t.name == table for s in statements for t in s.find_all(exp.Table)):
+        return [f"rendered SQL does not touch table {table!r}"]
+    return [p for s in statements for p in _check_statement(s, set())]
+
+
+def check_owned_specs(
+    specs: Iterable[OwnedSpec], renderers: dict[str, Renderer]
+) -> list[Violation]:
+    """Render every builder for every spec's table and apply the user_id-predicate check."""
+    out: list[Violation] = []
+    for spec in specs:
+        if spec.table not in USER_OWNED_TABLES:
+            out.append(
+                Violation(spec.path, spec.line, "OwnedTable", f"unknown table {spec.table!r}", "")
+            )
+            continue
+        for name, render in renderers.items():
+            for sql in render(spec):
+                flat = " ".join(sql.split())
+                out.extend(
+                    Violation(spec.path, spec.line, name, f"table {spec.table!r}: {problem}", flat)
+                    for problem in _check_rendered(flat, spec.table)
+                )
+    return out
+
+
+def check_owned_tables(
+    paths: Iterable[Path], root: Path, renderers: dict[str, Renderer] | None = None
+) -> list[Violation]:
+    """Collect specs across ``paths`` and check every generated statement per table."""
+    specs: list[OwnedSpec] = []
+    out: list[Violation] = []
+    for path in sorted(paths):
+        found, problems = collect_owned_specs(
+            path.read_text(encoding="utf-8"), str(path.relative_to(root))
+        )
+        specs.extend(found)
+        out.extend(problems)
+    out.extend(check_owned_specs(specs, renderers or default_renderers()))
     return out

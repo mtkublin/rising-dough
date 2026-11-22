@@ -5,15 +5,20 @@ Keeping this out of `templating.py` so filters remain pure and testable.
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, Final
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
+from budget_planner.web.http_headers import HX_REQUEST
+
+SLIDEOVER_TEMPLATE: Final = "partials/_slideover.html"
+
 
 def is_hx_request(request: Request) -> bool:
     """True when the request originates from an HTMX swap (HX-Request header)."""
-    return request.headers.get("hx-request", "").lower() == "true"
+    return request.headers.get(HX_REQUEST, "").lower() == "true"
 
 
 def render(
@@ -22,7 +27,20 @@ def render(
     status_code: int = 200,
     **context: Any,
 ) -> HTMLResponse:
+    """Render a Jinja template with keyword context; see :func:`render_context`."""
+    return render_context(request, template_name, context, status_code=status_code)
+
+
+def render_context(
+    request: Request,
+    template_name: str,
+    context: Mapping[str, object],
+    *,
+    status_code: int = 200,
+) -> HTMLResponse:
     """Render a Jinja template, injecting `request` + `url_for` + settings.
+
+    Takes the template keys as one mapping (view-model builders return one).
 
     B-03 — When a non-HTMX client requests a route whose template is the
     bare slide-over fragment (``partials/_slideover.html``), transparently
@@ -32,7 +50,7 @@ def render(
     """
     env = request.app.state.jinja_env
     settings = request.app.state.settings
-    base_ctx: dict[str, Any] = {
+    base_ctx: dict[str, object] = {
         "request": request,
         "settings": settings,
         "url_for": request.url_for,
@@ -40,8 +58,8 @@ def render(
         "csrf_token": getattr(request.state, "csrf_token", ""),
     }
     base_ctx.update(context)
-    if template_name == "partials/_slideover.html" and not is_hx_request(request):
-        fragment_html = env.get_template("partials/_slideover.html").render(**base_ctx)
+    if template_name == SLIDEOVER_TEMPLATE and not is_hx_request(request):
+        fragment_html = env.get_template(SLIDEOVER_TEMPLATE).render(**base_ctx)
         base_ctx["_slideover_fragment"] = fragment_html
         template_name = "partials/_slideover_page.html"
     html: str = env.get_template(template_name).render(**base_ctx)

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Any
 
 from budget_planner.domain.transactions import (
     NewTransaction,
@@ -19,7 +18,21 @@ from budget_planner.domain.transactions import (
     Transaction,
     TransactionFilter,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
+from budget_planner.repositories._shared import (
+    FilterPart,
+    OwnedTable,
+    find_owned,
+    in_parts,
+    insert_owned,
+    join_filter_parts,
+    list_recently_deleted_owned,
+    parse_dt,
+    parse_dt_required,
+    require_owned,
+    soft_delete_owned,
+    undelete_owned,
+    update_owned,
+)
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -52,6 +65,15 @@ def _row_to_txn(row: sqlite3.Row) -> Transaction:
     )
 
 
+_TRANSACTIONS: OwnedTable[Transaction] = OwnedTable(
+    table="transactions",
+    entity_type="transaction",
+    columns=_COLUMNS,
+    hydrate=_row_to_txn,
+    order_by="operation_date DESC, id DESC",
+)
+
+
 def find_by_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -59,56 +81,68 @@ def find_by_id(
     *,
     include_deleted: bool = False,
 ) -> Transaction | None:
-    sql = f"SELECT {_COLUMNS} FROM transactions WHERE id = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (txn_id, user_id)).fetchone()
-    return _row_to_txn(row) if row is not None else None
+    return find_owned(conn, _TRANSACTIONS, user_id, {"id": txn_id}, include_deleted=include_deleted)
 
 
-def _append_filter_clauses(
+# ADR-0136: the one predicate that hides soft-deleted accounts from derived reads.
+_LIVE_ACCOUNT = (
+    "t.account_id IN (SELECT a.id FROM accounts a "
+    "WHERE a.user_id = t.user_id AND a.deleted_at IS NULL)"
+)
+
+
+def _txn_filter_clauses(
     filters: TransactionFilter,
     include_deleted: bool,
-) -> tuple[list[str], list[Any]]:
-    clauses: list[str] = []
-    params: list[Any] = []
+) -> tuple[list[str], list[object]]:
+    return join_filter_parts(
+        [
+            *_txn_date_parts(filters),
+            *in_parts("t.account_id", filters.account_ids),
+            *in_parts("t.category_id", filters.category_ids),
+            *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_txn_amount_text_parts(filters),
+            *_txn_scope_parts(filters, include_deleted),
+        ]
+    )
 
+
+def _txn_date_parts(filters: TransactionFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.date_from is not None:
-        clauses.append("t.operation_date >= ?")
-        params.append(filters.date_from.isoformat())
+        parts.append(("t.operation_date >= ?", [filters.date_from.isoformat()]))
     if filters.date_to is not None:
-        clauses.append("t.operation_date <= ?")
-        params.append(filters.date_to.isoformat())
+        parts.append(("t.operation_date <= ?", [filters.date_to.isoformat()]))
     if filters.up_to_date is not None:
-        clauses.append("t.operation_date <= ?")
-        params.append(filters.up_to_date.isoformat())
-    if filters.account_ids:
-        placeholders = ",".join("?" for _ in filters.account_ids)
-        clauses.append(f"t.account_id IN ({placeholders})")
-        params.extend(filters.account_ids)
-    if filters.category_ids:
-        placeholders = ",".join("?" for _ in filters.category_ids)
-        clauses.append(f"t.category_id IN ({placeholders})")
-        params.extend(filters.category_ids)
-    if filters.directions:
-        placeholders = ",".join("?" for _ in filters.directions)
-        clauses.append(f"c.direction IN ({placeholders})")
-        params.extend(d.value for d in filters.directions)
+        parts.append(("t.operation_date <= ?", [filters.up_to_date.isoformat()]))
+    return parts
+
+
+def _txn_amount_text_parts(filters: TransactionFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.amount_min is not None:
-        clauses.append("t.amount >= ?")
-        params.append(filters.amount_min)
+        parts.append(("t.amount >= ?", [filters.amount_min]))
     if filters.amount_max is not None:
-        clauses.append("t.amount <= ?")
-        params.append(filters.amount_max)
+        parts.append(("t.amount <= ?", [filters.amount_max]))
     if filters.description_contains is not None:
-        clauses.append("t.description LIKE ?")
-        params.append(f"%{filters.description_contains}%")
+        parts.append(("t.description LIKE ?", [f"%{filters.description_contains}%"]))
+    return parts
+
+
+def _txn_scope_parts(filters: TransactionFilter, include_deleted: bool) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.account_or_dest is not None:
-        clauses.append("(t.account_id = ? OR t.dest_account_id = ?)")
-        params.extend([filters.account_or_dest, filters.account_or_dest])
+        parts.append(
+            (
+                "(t.account_id = ? OR t.dest_account_id = ?)",
+                [filters.account_or_dest, filters.account_or_dest],
+            )
+        )
+    if filters.live_accounts_only:
+        parts.append((_LIVE_ACCOUNT, []))
     if not include_deleted:
-        clauses.append("t.deleted_at IS NULL")
-    return clauses, params
+        parts.append(("t.deleted_at IS NULL", []))
+    return parts
 
 
 def list_filtered(
@@ -123,7 +157,7 @@ def list_filtered(
         f"SELECT {cols} FROM transactions t "
         "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id"
     )
-    clauses, params = _append_filter_clauses(filters, include_deleted)
+    clauses, params = _txn_filter_clauses(filters, include_deleted)
     clauses.insert(0, "t.user_id = ?")
     params.insert(0, user_id)
     sql += " WHERE " + " AND ".join(clauses)
@@ -136,10 +170,118 @@ def list_filtered(
     return [_row_to_txn(r) for r in rows]
 
 
-def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
-    norm: dict[str, Any] = {}
+def count_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: TransactionFilter | None = None,
+    *,
+    include_deleted: bool = False,
+) -> int:
+    """``COUNT(*)`` of the user's rows matching ``filters`` (limit/offset ignored)."""
+    clauses, params = _txn_filter_clauses(filters or TransactionFilter(), include_deleted)
+    clauses.insert(0, "t.user_id = ?")
+    params.insert(0, user_id)
+    sql = (
+        "SELECT COUNT(*) FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses)
+    )
+    return int(conn.execute(sql, params).fetchone()[0])
+
+
+def sum_legs_by_direction(
+    conn: sqlite3.Connection,
+    user_id: int,
+    account_id: int,
+    *,
+    up_to_date: date | None = None,
+) -> list[tuple[str, bool, bool, int]]:
+    """``SUM(amount)`` of live rows touching ``account_id``, grouped.
+
+    Returns ``(category direction, is_source, is_dest, total)`` rows; the caller
+    applies the sign rule (ADR-0008) via the canonical balance owner.
+    """
+    clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
+    params: list[object] = [account_id, account_id, user_id]
+    if up_to_date is not None:
+        clauses.append("t.operation_date <= ?")
+        params.append(up_to_date.isoformat())
+    params.extend([account_id, account_id])
+    sql = (
+        "SELECT c.direction, t.account_id = ? AS is_source, "
+        "t.dest_account_id = ? AS is_dest, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses) + " AND (t.account_id = ? OR t.dest_account_id = ?) "
+        "GROUP BY c.direction, is_source, is_dest"
+    )
+    return [
+        (str(r[0]), bool(r[1]), bool(r[2]), int(r[3])) for r in conn.execute(sql, params).fetchall()
+    ]
+
+
+def sum_legs_by_account(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    up_to_date: date | None = None,
+) -> list[tuple[str, int, int | None, int]]:
+    """One-query ``SUM(amount)`` of the user's live rows, grouped per account pair.
+
+    Returns ``(category direction, account_id, dest_account_id, total)`` rows for
+    every account at once (T-Q234); the balance owner applies the sign rule.
+    """
+    clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
+    params: list[object] = [user_id]
+    if up_to_date is not None:
+        clauses.append("t.operation_date <= ?")
+        params.append(up_to_date.isoformat())
+    sql = (
+        "SELECT c.direction, t.account_id, t.dest_account_id, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE " + " AND ".join(clauses) + " "
+        "GROUP BY c.direction, t.account_id, t.dest_account_id"
+    )
+    return [
+        (str(r[0]), int(r[1]), None if r[2] is None else int(r[2]), int(r[3]))
+        for r in conn.execute(sql, params).fetchall()
+    ]
+
+
+def sum_legs_by_day(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    since: date,
+    until: date,
+) -> list[tuple[date, str, int, int | None, int]]:
+    """Like :func:`sum_legs_by_account` for ``since <= operation_date <= until``, per day."""
+    sql = (
+        "SELECT t.operation_date, c.direction, t.account_id, t.dest_account_id, SUM(t.amount) "
+        "FROM transactions t "
+        "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id "
+        "WHERE t.user_id = ? AND t.deleted_at IS NULL "
+        "AND t.operation_date >= ? AND t.operation_date <= ? "
+        "GROUP BY t.operation_date, c.direction, t.account_id, t.dest_account_id"
+    )
+    rows = conn.execute(sql, (user_id, since.isoformat(), until.isoformat())).fetchall()
+    return [
+        (
+            date.fromisoformat(str(r[0])),
+            str(r[1]),
+            int(r[2]),
+            None if r[3] is None else int(r[3]),
+            int(r[4]),
+        )
+        for r in rows
+    ]
+
+
+def _normalise_txn_patch(changes: dict[str, object]) -> dict[str, object]:
+    norm: dict[str, object] = {}
     for key, value in changes.items():
-        if key == "operation_date":
+        if key == "operation_date" and isinstance(value, date):
             norm[key] = value.isoformat()
         else:
             norm[key] = value
@@ -153,43 +295,25 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewTransaction) -> Tran
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
     )
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        cursor = c.execute(
-            "INSERT INTO transactions("
-            "user_id, operation_date, category_id, account_id, dest_account_id, "
-            "amount, description, promoted_from_planned_id, "
-            "promoted_from_recurring_rule_id, promoted_from_recurring_date) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                data.operation_date.isoformat(),
-                data.category_id,
-                data.account_id,
-                data.dest_account_id,
-                data.amount,
-                data.description,
-                data.promoted_from_planned_id,
-                data.promoted_from_recurring_rule_id,
-                (
-                    data.promoted_from_recurring_date.isoformat()
-                    if data.promoted_from_recurring_date is not None
-                    else None
-                ),
-            ),
-        )
-        new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
-        assert created is not None
-        return new_id, created
-
-    return mutate(
+    return insert_owned(
         conn,
-        entity_type="transaction",
-        operation="create",
-        prev=None,
-        action=_action,
-        user_id=user_id,
+        _TRANSACTIONS,
+        user_id,
+        {
+            "operation_date": data.operation_date.isoformat(),
+            "category_id": data.category_id,
+            "account_id": data.account_id,
+            "dest_account_id": data.dest_account_id,
+            "amount": data.amount,
+            "description": data.description,
+            "promoted_from_planned_id": data.promoted_from_planned_id,
+            "promoted_from_recurring_rule_id": data.promoted_from_recurring_rule_id,
+            "promoted_from_recurring_date": (
+                data.promoted_from_recurring_date.isoformat()
+                if data.promoted_from_recurring_date is not None
+                else None
+            ),
+        },
     )
 
 
@@ -199,110 +323,58 @@ def update(
     txn_id: int,
     data: PatchTransaction,
 ) -> Transaction:
-    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"transaction {txn_id} not found")
-    require_owned(
+    return update_owned(
         conn,
+        _TRANSACTIONS,
         user_id,
+        txn_id,
+        _normalise_txn_patch(data.as_dict()),
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
-    )
-    changes = _normalise_patch(data.as_dict())
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        if changes:
-            sets = [f"{field} = ?" for field in changes]
-            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
-            c.execute(
-                f"UPDATE transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), txn_id, user_id),
-            )
-        updated = find_by_id(c, user_id, txn_id, include_deleted=True)
-        assert updated is not None
-        return txn_id, updated
-
-    return mutate(
-        conn,
-        entity_type="transaction",
-        operation="update",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
     )
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> None:
-    prev = find_by_id(conn, user_id, txn_id)
-    if prev is None:
-        return
-
-    def _action(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            "UPDATE transactions SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (txn_id, user_id),
-        )
-        return txn_id, None
-
-    mutate(
-        conn,
-        entity_type="transaction",
-        operation="delete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    soft_delete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
 def list_recently_deleted(
     conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[Transaction]:
     """T-R70 — soft-deleted transactions within the last `days` days (ADR-0019)."""
-    sql = (
-        f"SELECT {_COLUMNS} FROM transactions "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL "
-        "AND deleted_at > datetime('now', ?) "
-        "ORDER BY deleted_at DESC "
-        "LIMIT ?"
-    )
-    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
-    return [_row_to_txn(r) for r in rows]
+    return list_recently_deleted_owned(conn, _TRANSACTIONS, user_id, days=days, limit=limit)
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction:
-    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"transaction {txn_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        c.execute(
-            "UPDATE transactions SET deleted_at = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (txn_id, user_id),
-        )
-        restored = find_by_id(c, user_id, txn_id)
-        assert restored is not None
-        return txn_id, restored
-
-    return mutate(
-        conn,
-        entity_type="transaction",
-        operation="undelete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return undelete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
 __all__ = [
+    "count_filtered",
     "create",
     "find_by_id",
     "list_filtered",
     "list_recently_deleted",
     "soft_delete",
+    "sum_legs_by_account",
+    "sum_legs_by_day",
+    "sum_legs_by_direction",
     "undelete",
     "update",
 ]
+
+
+def latest_operation_date_by_account(
+    conn: sqlite3.Connection, user_id: int, category_id: int
+) -> dict[int, date]:
+    """Return ``{account_id: max(operation_date)}`` for live transactions in one category."""
+    rows = conn.execute(
+        """
+        SELECT account_id, MAX(operation_date) AS d
+        FROM transactions
+        WHERE user_id = ? AND category_id = ? AND deleted_at IS NULL
+        GROUP BY account_id
+        """,
+        (user_id, category_id),
+    ).fetchall()
+    return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import json
+import sqlite3
+from collections.abc import Iterator
 from datetime import date
 
 import pyarrow.parquet as pq
@@ -21,10 +23,34 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
+
+
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _planned_state(db: sqlite3.Connection) -> list[tuple[object, ...]]:
+    """Every planned row (deleted included) as plain tuples, for before/after equality."""
+    return [
+        tuple(r)
+        for r in db.execute(
+            "SELECT id, operation_date, category_id, account_id, amount, description, "
+            "deleted_at IS NOT NULL, promoted_to_txn_id FROM planned_transactions ORDER BY id"
+        )
+    ]
+
+
+def _txn_count(db: sqlite3.Connection) -> int:
+    return int(db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
 
 
 @pytest.fixture
@@ -49,13 +75,6 @@ def ctx(_migrated: Settings) -> dict[str, int]:
         return {"acc": acc.id, "cat": cat.id, "pl": pl.id}
     finally:
         conn.close()
-
-
-def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> None:
-    """T-070: ``/planned`` returns 302 to the unified ledger (planned view)."""
-    r = client.get("/planned", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=planned"
 
 
 def test_table_fragment(client: TestClient, ctx: dict[str, int]) -> None:
@@ -85,7 +104,8 @@ def test_create(client: TestClient, ctx: dict[str, int]) -> None:
     assert "forecast-stale" in r.headers["HX-Trigger"]
 
 
-def test_create_bad_amount(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _planned_state(db)
     r = client.post(
         "/planned",
         data={
@@ -96,9 +116,12 @@ def test_create_bad_amount(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _planned_state(db) == before
 
 
-def test_create_bad_date(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_bad_date(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _planned_state(db)
     r = client.post(
         "/planned",
         data={
@@ -109,9 +132,14 @@ def test_create_bad_date(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert _planned_state(db) == before
 
 
-def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_unknown_account(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _planned_state(db)
     r = client.post(
         "/planned",
         data={
@@ -122,6 +150,8 @@ def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None
         },
     )
     assert r.status_code == 422
+    assert "account_id: unknown account" in _html.all_text(r.text, errors.alert)
+    assert _planned_state(db) == before
 
 
 def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
@@ -131,10 +161,12 @@ def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_edit_404(client: TestClient) -> None:
-    assert client.get("/planned/9999/edit").status_code == 404
+    r = client.get("/planned/9999/edit")
+    assert r.status_code == 404
+    assert "planned: not found" in _html.all_text(r.text, errors.alert)
 
 
-def test_update(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(
         f"/planned/{ctx['pl']}",
         data={
@@ -146,9 +178,14 @@ def test_update(client: TestClient, ctx: dict[str, int]) -> None:
     )
     assert r.status_code == 200
     assert "forecast-stale" in r.headers["HX-Trigger"]
+    stored = planned_repo.find_by_id(db, USER_ID, ctx["pl"])
+    assert stored is not None
+    assert stored.amount == 7_777
+    assert stored.operation_date == date(2026, 10, 20)
 
 
-def test_update_404(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _planned_state(db)
     r = client.post(
         "/planned/9999",
         data={
@@ -159,9 +196,12 @@ def test_update_404(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _planned_state(db) == before
 
 
-def test_update_invalid(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _planned_state(db)
     r = client.post(
         f"/planned/{ctx['pl']}",
         data={
@@ -172,6 +212,9 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _planned_state(db) == before
 
 
 def test_delete(client: TestClient, ctx: dict[str, int]) -> None:
@@ -180,8 +223,12 @@ def test_delete(client: TestClient, ctx: dict[str, int]) -> None:
     assert "forecast-stale" in r.headers["HX-Trigger"]
 
 
-def test_delete_404(client: TestClient) -> None:
-    assert client.post("/planned/9999/delete").status_code == 404
+def test_delete_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _planned_state(db)
+    r = client.post("/planned/9999/delete")
+    assert r.status_code == 404
+    assert r.text == "not found"
+    assert _planned_state(db) == before
 
 
 def test_promote_form(client: TestClient, ctx: dict[str, int]) -> None:
@@ -191,7 +238,9 @@ def test_promote_form(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_promote_form_404(client: TestClient) -> None:
-    assert client.get("/planned/9999/promote").status_code == 404
+    r = client.get("/planned/9999/promote")
+    assert r.status_code == 404
+    assert "planned: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
@@ -204,32 +253,50 @@ def test_promote_submit(client: TestClient, ctx: dict[str, int]) -> None:
     assert hx == {"balance-stale": True, "forecast-stale": True, "ledger-stale": True}
 
 
-def test_promote_submit_invalid(client: TestClient, ctx: dict[str, int]) -> None:
+def test_promote_submit_invalid(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _planned_state(db)
+    txns = _txn_count(db)
     r = client.post(
         f"/planned/{ctx['pl']}/promote",
         data={"operation_date": "bad", "amount": "-1"},
     )
     assert r.status_code == 422
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _planned_state(db) == before
+    assert _txn_count(db) == txns
 
 
-def test_promote_submit_404(client: TestClient) -> None:
+def test_promote_submit_404(client: TestClient, db: sqlite3.Connection) -> None:
+    txns = _txn_count(db)
     r = client.post(
         "/planned/9999/promote",
         data={"operation_date": "2026-10-20", "amount": "1"},
     )
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _txn_count(db) == txns
 
 
-def test_promote_already_promoted(client: TestClient, ctx: dict[str, int]) -> None:
+def test_promote_already_promoted(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
     client.post(
         f"/planned/{ctx['pl']}/promote",
         data={"operation_date": "2026-10-20", "amount": "500"},
     )
+    txns = _txn_count(db)
+    assert txns == 1
     r = client.post(
         f"/planned/{ctx['pl']}/promote",
         data={"operation_date": "2026-10-20", "amount": "500"},
     )
     assert r.status_code == 422
+    assert "This planned transaction was already promoted." in _html.all_text(r.text, errors.alert)
+    assert "promotion: 1" not in _html.all_text(r.text, errors.alert)
+    assert _txn_count(db) == txns
 
 
 def test_export_csv(client: TestClient, ctx: dict[str, int]) -> None:

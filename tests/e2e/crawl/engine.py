@@ -73,12 +73,14 @@ class Recorder:
 
     def _on_console(self, msg: Any) -> None:
         message = str(msg.text)
-        if msg.type == "error" and not re.search(r"status of 422", message):
+        if msg.type == "error" and not re.search(r"status of (422|409)|Error Code 409", message):
             self.problems.append(f"console.error: {message}")
 
     def _on_response(self, resp: Any) -> None:
-        if resp.status == 422 and resp.request.method == "POST":
-            return  # server-side form validation; htmx swaps the errors in (app-init.js)
+        if resp.status in (409, 422) and resp.request.method == "POST":
+            # 422: server-side form validation; 409: a domain refusal (delete of an account
+            # with a balance or references, F2.2a / F2.8). htmx swaps the message in.
+            return
         if resp.url.startswith(self._base) and resp.status >= 400:
             self.problems.append(f"HTTP {resp.status}: {resp.request.method} {resp.url}")
 

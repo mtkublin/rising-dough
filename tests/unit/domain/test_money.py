@@ -7,7 +7,8 @@ import pytest
 from budget_planner.domain.money import (
     currency_decimals,
     format_money,
-    from_minor_units,
+    format_whole,
+    minor_to_major,
     parse_amount_str,
     to_minor_units,
 )
@@ -28,7 +29,7 @@ def test_currency_decimals_defaults_to_two() -> None:
         (Decimal("0.01"), "EUR", 1),
         (Decimal("-0.01"), "EUR", -1),
         (Decimal("1234"), "JPY", 1234),
-        (Decimal("1234.5"), "JPY", 1235),  # rounds half-up
+        (Decimal("1234.5"), "JPY", 1234),  # tie -> even neighbour (T-Q281; was half-up 1235)
         (Decimal("0"), "USD", 0),
     ],
 )
@@ -36,10 +37,10 @@ def test_to_minor_units(major: Decimal, currency: str, expected_minor: int) -> N
     assert to_minor_units(major, currency) == expected_minor
 
 
-def test_from_minor_units_round_trip() -> None:
+def test_minor_to_major_round_trip() -> None:
     for amount in [-999999, -1, 0, 1, 500, 12345, 999999]:
         for ccy in ("PLN", "EUR", "USD", "JPY"):
-            back = from_minor_units(amount, ccy)
+            back = minor_to_major(amount, ccy)
             fwd = to_minor_units(back, ccy)
             assert fwd == amount, f"{ccy}:{amount} -> {back} -> {fwd}"
 
@@ -54,6 +55,29 @@ def test_format_money_negative() -> None:
 
 def test_format_money_zero_decimals_currency() -> None:
     assert format_money(1234, "JPY") == "1,234 JPY"
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected"), [("PLN", "0.00 PLN"), ("JPY", "0 JPY")], ids=["PLN", "JPY"]
+)
+def test_format_money_zero(currency: str, expected: str) -> None:
+    assert format_money(0, currency) == expected
+
+
+def test_format_money_minus_one_jpy_keeps_sign() -> None:
+    assert format_money(-1, "JPY") == "-1 JPY"
+
+
+@pytest.mark.parametrize("amount_minor", [-49, -1, 0, 49])
+def test_format_whole_rounds_to_zero_without_sign(amount_minor: int) -> None:
+    assert format_whole(amount_minor, "PLN") == "0"
+    assert format_whole(amount_minor, "PLN", grouped=False) == "0"
+
+
+def test_format_whole_keeps_sign_when_nonzero() -> None:
+    assert format_whole(-150, "PLN") == "-2"  # 1.5 -> 2
+    assert format_whole(-250, "PLN") == "-2"  # 2.5 -> even 2 (T-Q281; was -3)
+    assert format_whole(-51, "PLN") == "-1"
 
 
 def test_format_money_uppercases_currency() -> None:

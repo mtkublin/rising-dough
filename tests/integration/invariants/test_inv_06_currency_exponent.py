@@ -5,14 +5,16 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from datetime import date
+from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
 
 from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.money import ISO_4217_CURRENCIES, currency_decimals
-from budget_planner.repositories import accounts as accounts_repo
+from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
 from budget_planner.web.app import create_app
 from tests.auth_support import login_cookie
 
@@ -79,29 +81,24 @@ def wrong_exponents() -> dict[str, tuple[int, int]]:
     }
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Q-029: the exponent table misses 21 ISO 4217 zero- and three-decimal codes"
-)
 def test_6a_exponent_table_matches_iso_4217() -> None:
     assert not wrong_exponents()
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Q-029: ISK is reachable through the FX provider and has the wrong exponent"
-)
 def test_6a_every_fx_reachable_code_has_the_right_exponent() -> None:
     assert not set(wrong_exponents()) & FRANKFURTER
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-011: /today divides by 100.0 in the template, a JPY balance renders 123.45",
-)
 def test_6b_today_shows_jpy_balance_without_decimals(seeded: sqlite3.Connection) -> None:
     # The net-worth card lists only the first 7 accounts: archive 7 demo accounts (scratch DB only).
     seeded.execute("UPDATE accounts SET deleted_at = '2026-11-01T00:00:00.000Z' WHERE id <= 7")
     accounts_repo.create(
         seeded, 1, NewAccount(name="Tokyo JPY", currency="JPY", opening_balance=12_345)
+    )
+    # ADR-0139: a missing rate is a 503, so the render needs a cached JPY rate.
+    fx_repo.upsert_rate(
+        seeded,
+        NewFxRate(date=date(2026, 11, 1), from_ccy="JPY", to_ccy="PLN", rate=Decimal("0.0275")),
     )
     settings = get_settings()
     name, value = login_cookie(settings)

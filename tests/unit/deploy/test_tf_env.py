@@ -25,12 +25,15 @@ SECRETS = {
     "RESTORE_READER_APPLICATION_ID": "reader",
     "BUCKET_ADMIN_PRINCIPALS": '["a"]',
     "LITESTREAM_AGE_IDENTITY": "line1\nline2",
+    "LITESTREAM_AGE_RECIPIENT": "age1recipient",
 }
 VARS = {"CI_SSH_PUBKEY": "ssh-ed25519 AAAA ci", "TAILNET_DNS_NAME": "tail1.ts.net"}
 
 
-def _build(env: str) -> dict[str, str]:
-    out: dict[str, str] = tf_env.build_env(env, SECRETS, VARS, owner="owner", run_id="99")
+def _build(env: str, *, restore_source: bool = False) -> dict[str, str]:
+    out: dict[str, str] = tf_env.build_env(
+        env, SECRETS, VARS, owner="owner", run_id="99", restore_source=restore_source
+    )
     return out
 
 
@@ -42,8 +45,41 @@ def test_drill_gets_drill_only_inputs() -> None:
     assert out["TF_VAR_ci_ssh_pubkey"] == "ssh-ed25519 AAAA ci"  # T-D137
     assert out["TF_VAR_tailnet_dns_name"] == "tail1.ts.net"
     assert out["TF_VAR_drill_run_id"] == "99"  # T-D139
-    assert out["TF_VAR_scw_access_key_restore"] == "ro-id"
     assert out["TF_VAR_restore_reader_application_id"] == ""
+
+
+def test_prod_replica_read_key_only_with_restore_source() -> None:
+    """ADR-0132 / H4-03: an explore drill gets no prod read key; the restore drill apply does."""
+    explore = _build("drill")
+    restore = _build("drill", restore_source=True)
+
+    assert explore["TF_VAR_scw_access_key_restore"] == ""
+    assert explore["TF_VAR_scw_secret_key_restore"] == ""
+    assert restore["TF_VAR_scw_access_key_restore"] == "ro-id"
+    assert restore["TF_VAR_scw_secret_key_restore"] == SECRETS["PROD_REPLICA_RO_SECRET_KEY"]
+    assert _build("prod", restore_source=True)["TF_VAR_scw_access_key_restore"] == ""
+
+
+def test_drill_reads_no_age_secret_unless_restore_source() -> None:
+    """ADR-0135: the drill generates its own key pair; no age value reaches an explore drill."""
+    explore = _build("drill")
+    restore = _build("drill", restore_source=True)
+
+    for out in (explore, restore):
+        assert out["TF_VAR_litestream_age_identity"] == ""
+        assert out["TF_VAR_litestream_age_recipient"] == ""
+    assert explore["TF_VAR_restore_source_age_identity"] == ""
+    assert restore["TF_VAR_restore_source_age_identity"] == "line1\nline2"
+
+
+def test_prod_keeps_its_own_age_pair_and_no_restore_source() -> None:
+    out = _build("prod")
+    restore_flag = _build("prod", restore_source=True)
+
+    assert out["TF_VAR_litestream_age_identity"] == "line1\nline2"
+    assert out["TF_VAR_litestream_age_recipient"] == "age1recipient"
+    assert out["TF_VAR_restore_source_age_identity"] == ""
+    assert restore_flag["TF_VAR_restore_source_age_identity"] == ""
 
 
 def test_prod_never_gets_drill_only_inputs() -> None:
@@ -119,7 +155,7 @@ def test_main_appends_to_github_env(tmp_path: Path) -> None:
     assert tf_env.main(["--env", "drill"], environ) == 0
     written = target.read_text()
     assert "TF_VAR_drill_run_id=99\n" in written
-    assert "TF_VAR_litestream_age_identity<<" in written
+    assert "TF_VAR_litestream_age_identity=\n" in written  # drill: no age secret (ADR-0135)
 
 
 def test_main_rejects_bad_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

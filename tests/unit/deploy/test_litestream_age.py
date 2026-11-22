@@ -26,7 +26,7 @@ IMAGE_FILES = (
     CLOUD_INIT / "bin" / "restore-from-prod.tpl",
 )
 RECIPIENT_RE = re.compile(r"^age1[0-9a-z]{58}$")
-IMAGE_RE = re.compile(r"litestream/litestream:([0-9][^\s'\"]*)")
+IMAGE_RE = re.compile(r"litestream/litestream:([0-9][^\s'\"@]*)(?:@sha256:[0-9a-f]{64})?")
 
 
 def _replica(path: Path) -> dict[str, Any]:
@@ -133,11 +133,24 @@ def test_dev_identity_never_referenced_by_terraform() -> None:
             assert "DEV-ONLY" not in path.read_text(), path
 
 
-def test_terraform_declares_sensitive_identity_without_default() -> None:
+def test_terraform_age_inputs_are_prod_only_and_sensitive() -> None:
+    """ADR-0135: prod supplies the pair, a drill generates its own, identities are sensitive."""
     text = (ROOT / "terraform" / "variables.tf").read_text()
-    block = re.search(r'variable "litestream_age_identity" \{.*?\n\}', text, re.S)
-    assert block is not None
-    body = block.group(0)
-    assert "sensitive   = true" in body
-    assert "default" not in body
+    for name in ("litestream_age_identity", "restore_source_age_identity"):
+        block = re.search(rf'variable "{name}" \{{.*?\n\}}', text, re.S)
+        assert block is not None, name
+        assert "sensitive   = true" in block.group(0), name
+    prod = re.search(r'variable "litestream_age_identity" \{.*?\n\}', text, re.S)
+    assert prod is not None
+    assert 'var.env == "drill" || can(regex(' in prod.group(0)
     assert 'variable "litestream_age_recipient"' in text
+    main = (ROOT / "terraform" / "main.tf").read_text()
+    assert 'resource "age_secret_key" "drill"' in main
+    assert 'count = var.env == "drill" ? 1 : 0' in main
+
+
+def test_restore_helper_reads_the_prod_identity_not_the_host_key() -> None:
+    """ADR-0135: restore-from-prod gets its own identity file, never litestream-age.key."""
+    text = (ROOT / "terraform/modules/compute/user_data.tf").read_text()
+    assert 'age_key_file     = "${local.compose_dir}/restore-source-age.key"' in text
+    assert "var.restore_source_age_identity" in text

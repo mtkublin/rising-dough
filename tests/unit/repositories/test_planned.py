@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
@@ -42,7 +43,7 @@ def _mk(
 def test_create_round_trip(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:
     pid = _mk(conn, account_id, category_id)
     assert planned.find_by_id(conn, USER_ID, pid) is not None
-    entries = audit.list_entries(conn, "planned_transaction", pid)
+    entries = audit.list_entries(conn, 1, "planned_transaction", pid)
     assert len(entries) == 1
 
 
@@ -190,3 +191,23 @@ def test_hides_soft_deleted(conn: sqlite3.Connection, account_id: int, category_
     assert planned.list_filtered(conn, USER_ID, PlannedFilter()) == []
     with_deleted = planned.list_filtered(conn, USER_ID, PlannedFilter(), include_deleted=True)
     assert any(p.id == pid for p in with_deleted)
+
+
+def test_recently_deleted_window_uses_one_timestamp_format_and_the_clock(
+    conn: sqlite3.Connection, account_id: int, category_id: int
+) -> None:
+    """Q-031 K2: a row deleted 90d 12h ago is outside a 90-day window (no 'T' vs ' ' compare)."""
+    now = datetime(2026, 11, 21, 12, 0, tzinfo=UTC)
+    old_id = _mk(conn, account_id, category_id)
+    recent_id = _mk(conn, account_id, category_id)
+    stamps = {
+        old_id: clock.iso_utc(now - timedelta(days=90, hours=12)),
+        recent_id: clock.iso_utc(now - timedelta(days=89, hours=12)),
+    }
+    for pid, stamp in stamps.items():
+        conn.execute("UPDATE planned_transactions SET deleted_at = ? WHERE id = ?", (stamp, pid))
+
+    with clock.frozen(now):
+        ids = {p.id for p in planned.list_recently_deleted(conn, USER_ID, days=90)}
+
+    assert ids == {recent_id}

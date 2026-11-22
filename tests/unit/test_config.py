@@ -4,6 +4,7 @@ import warnings
 
 import pytest
 
+from budget_planner import config as config_module
 from budget_planner.config import Settings, get_settings
 
 
@@ -99,7 +100,7 @@ def test_cookie_secret_dev_fallback_warns(
 ) -> None:
     monkeypatch.setenv("BUDGET_ENV", "dev")
     s = Settings(_env_file=None)
-    assert s.cookie_secret  # populated by the dev fallback
+    assert s.resolve().cookie_secret  # populated by the dev fallback
     assert any("cookie_secret" in str(w.message) for w in recwarn.list)
 
 
@@ -109,7 +110,7 @@ def test_cookie_secret_test_env_also_falls_back(monkeypatch: pytest.MonkeyPatch)
         warnings.simplefilter("ignore")
         s = Settings(_env_file=None)
     assert s.env == "test"
-    assert s.cookie_secret
+    assert s.resolve().cookie_secret
 
 
 def test_session_lifetime_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,12 +126,13 @@ def test_session_lifetime_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_production_default_db_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BUDGET_DATABASE_URL")  # T-Q231 session fixture sets it
     monkeypatch.setenv("BUDGET_ENV", "production")
     monkeypatch.setenv("BUDGET_COOKIE_SECRET", "x")
     monkeypatch.setenv("BUDGET_WEBAUTHN_RP_ID", "budget.example.eu")
     monkeypatch.setenv("BUDGET_WEBAUTHN_ORIGIN", "https://budget.example.eu")
     s = Settings(_env_file=None)
-    assert s.database_url == "sqlite:////data/budget.db"
+    assert s.resolve().database_url == "sqlite:////data/budget.db"
 
 
 def test_production_db_override_wins(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -140,7 +142,7 @@ def test_production_db_override_wins(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BUDGET_WEBAUTHN_ORIGIN", "https://budget.example.eu")
     monkeypatch.setenv("BUDGET_DATABASE_URL", "sqlite:////srv/custom.db")
     s = Settings(_env_file=None)
-    assert s.database_url == "sqlite:////srv/custom.db"
+    assert s.resolve().database_url == "sqlite:////srv/custom.db"
 
 
 def _prod_env(monkeypatch: pytest.MonkeyPatch, **extra: str) -> None:
@@ -185,3 +187,12 @@ def test_webauthn_valid_pair_accepted_in_production(monkeypatch: pytest.MonkeyPa
 def test_webauthn_localhost_defaults_fine_outside_production() -> None:
     s = Settings(_env_file=None)
     assert s.webauthn_rp_id == "localhost"
+
+
+def test_bcrypt_rounds_floor_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config_module, "PRODUCTION_MIN_BCRYPT_ROUNDS", 12)
+    monkeypatch.setenv("BUDGET_ENV", "production")
+    monkeypatch.setenv("BUDGET_COOKIE_SECRET", "x" * 32)
+    monkeypatch.setenv("BUDGET_BCRYPT_ROUNDS", "4")
+    with pytest.raises(ValueError, match="bcrypt_rounds must be >= 12"):
+        Settings(_env_file=None)

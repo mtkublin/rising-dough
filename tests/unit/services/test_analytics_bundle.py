@@ -4,21 +4,29 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
+from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.fx import NewFxRate
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
+    fx as fx_repo,
     transactions as transactions_repo,
 )
-from budget_planner.services import analytics as analytics_svc
+from budget_planner.services import analytics as analytics_svc, fx as fx_svc
 
 USER_ID = 1
+
+
+def _converter(conn: sqlite3.Connection) -> fx_svc.FxConverter:
+    return fx_svc.converter_for(conn, Settings(_env_file=None), date(2026, 6, 1))
 
 
 @pytest.fixture
@@ -62,7 +70,9 @@ def seeded(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 def test_bundle_month_period(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 2, 20), period="month")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="month"
+    )
     assert data.period == "month"
     # Only Feb txns in spend-by-category (groc 7_000).
     labels = {r.category_name: r.amount_minor for r in data.spend_by_category}
@@ -70,7 +80,9 @@ def test_bundle_month_period(conn: sqlite3.Connection, seeded: dict[str, int]) -
 
 
 def test_bundle_year_period(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 6, 1), period="year")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 6, 1), period="year"
+    )
     labels = {r.category_name: r.amount_minor for r in data.spend_by_category}
     assert labels["Groceries"] == 12_000
     assert labels["Rent"] == 50_000
@@ -79,7 +91,9 @@ def test_bundle_year_period(conn: sqlite3.Connection, seeded: dict[str, int]) ->
 def test_bundle_trailing_12_averages_divide_by_12(
     conn: sqlite3.Connection, seeded: dict[str, int]
 ) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 2, 20), period="month")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="month"
+    )
     avgs = {r.category_name: r.amount_minor for r in data.twelve_month_averages}
     # (5000 + 7000) / 12 = 1000, (50000) / 12 = 4167
     assert avgs["Groceries"] == 1_000
@@ -87,7 +101,9 @@ def test_bundle_trailing_12_averages_divide_by_12(
 
 
 def test_bundle_monthly_flow_sorted(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 2, 20), period="month")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="month"
+    )
     flow = data.income_vs_expense_monthly
     assert [p.label for p in flow] == sorted(p.label for p in flow)
     by_month = {p.label: p for p in flow}
@@ -97,25 +113,81 @@ def test_bundle_monthly_flow_sorted(conn: sqlite3.Connection, seeded: dict[str, 
 
 
 def test_bundle_largest_items_ranked(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 6, 1), period="year")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 6, 1), period="year"
+    )
     assert data.largest_items[0].amount_minor == 50_000  # Rent is biggest expense
 
 
 def test_bundle_largest_limit(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
     data = analytics_svc.bundle(
-        conn, USER_ID, today=date(2026, 6, 1), period="year", largest_limit=1
+        conn, USER_ID, _converter(conn), today=date(2026, 6, 1), period="year", largest_limit=1
     )
     assert len(data.largest_items) == 1
 
 
 def test_bundle_empty_db(conn: sqlite3.Connection) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 1, 15), period="month")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 1, 15), period="month"
+    )
     assert data.spend_by_category == ()
     assert data.income_vs_expense_monthly == ()
     assert data.largest_items == ()
 
 
 def test_bundle_trailing_period_window(conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
-    data = analytics_svc.bundle(conn, USER_ID, today=date(2026, 2, 20), period="trailing-12")
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="trailing-12"
+    )
     # Trailing 12 starts 2025-03.
     assert data.period_start == date(2025, 3, 1)
+
+
+def _eur_grocery(conn: sqlite3.Connection, groc_id: int, *, rate: bool) -> None:
+    eur = accounts_repo.create(
+        conn, USER_ID, NewAccount(name="EUR", currency="EUR", opening_balance=0)
+    ).id
+    if rate:
+        fx_repo.upsert_rate(
+            conn,
+            NewFxRate(date=date(2026, 2, 12), from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+        )
+    transactions_repo.create(
+        conn,
+        USER_ID,
+        NewTransaction(
+            operation_date=date(2026, 2, 12),
+            category_id=groc_id,
+            account_id=eur,
+            amount=10_000,
+            description="eur",
+        ),
+    )
+
+
+def test_foreign_currency_amounts_convert_to_base_in_every_panel(
+    conn: sqlite3.Connection, seeded: dict[str, int]
+) -> None:
+    """Q-008: a 10_000 EUR expense at 4.30 is 43_000 PLN in all four panels."""
+    _eur_grocery(conn, seeded["groc_id"], rate=True)
+    data = analytics_svc.bundle(
+        conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="month"
+    )
+    assert {r.category_id: r.amount_minor for r in data.spend_by_category} == {
+        seeded["groc_id"]: 50_000  # 7_000 PLN + 43_000
+    }
+    avg = {r.category_id: r.amount_minor for r in data.twelve_month_averages}
+    assert avg[seeded["groc_id"]] == 4_583  # (5_000 + 7_000 + 43_000) / 12
+    feb = next(m for m in data.income_vs_expense_monthly if (m.year, m.month) == (2026, 2))
+    assert (feb.income_minor, feb.expense_minor) == (100_000, 50_000)
+    assert data.largest_items[0].amount_minor == 43_000
+
+
+def test_missing_rate_raises_fx_unavailable(
+    conn: sqlite3.Connection, seeded: dict[str, int]
+) -> None:
+    _eur_grocery(conn, seeded["groc_id"], rate=False)
+    with pytest.raises(fx_svc.FxUnavailableError):
+        analytics_svc.bundle(
+            conn, USER_ID, _converter(conn), today=date(2026, 2, 20), period="month"
+        )

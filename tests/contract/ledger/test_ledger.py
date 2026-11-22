@@ -22,8 +22,11 @@ def test_ledger_page_renders_each_view(client: TestClient, seeded: Ids) -> None:
 
 
 @covers("GET /ledger")
-def test_ledger_unknown_view_falls_back_to_actual(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/ledger", params={"view": "bogus"})
+def test_ledger_unknown_view_is_422_and_empty_view_is_actual(
+    client: TestClient, seeded: Ids
+) -> None:
+    assert client.get("/ledger", params={"view": "bogus"}).status_code == 422
+    r = client.get("/ledger", params={"view": ""})
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.row(seeded["txn"]))
 
@@ -36,9 +39,10 @@ def test_ledger_filters_and_pagination(client: TestClient, seeded: Ids) -> None:
     assert not _html.exists(miss.text, ledger.row(seeded["txn"]))
     by_account = client.get("/ledger/table", params={"account_id": seeded["acc2"]})
     assert not _html.exists(by_account.text, ledger.row(seeded["txn"]))
-    # page_size is clamped, bad ints fall back to defaults (no 4xx).
-    odd = client.get("/ledger", params={"page": "x", "page_size": "99999", "date_from": "nope"})
-    assert odd.status_code == 200
+    # page_size is clamped; a malformed value is a 422 (T-Q282), never a silent default.
+    assert client.get("/ledger", params={"page_size": "99999"}).status_code == 200
+    odd = client.get("/ledger", params={"page": "x", "date_from": "nope"})
+    assert odd.status_code == 422
 
 
 @covers("GET /ledger/table")

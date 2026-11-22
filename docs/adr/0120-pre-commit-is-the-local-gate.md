@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-18
 - **Amends**: [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) §4 (gates table), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) §§1, 2, 5, 7 (item-agent checks, batch CI, single-agent handoff, fast-subset hook); compatible with and extends the ADR-0097 amendment of 2026-11-18 (orchestrator pre-PR checks) to single-agent work
-- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: CI additionally runs `pre-commit run --all-files` with `SKIP=pytest-fast`)
+- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: CI additionally runs `pre-commit run --all-files` with `SKIP=pytest-fast`); amended 2026-11-21 (T-Q240, see Amendment below)
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0027](0027-frontend-toolchain-hardening.md)
 
 ## Context
@@ -42,3 +42,22 @@
 - **Drop local full runs but keep the unit-only hook.** Rejected: integration and e2e tests would run only in PR CI (e2e not at all).
 - **Add Chromium and e2e to GitHub CI now.** Deferred: cost against the 2-minute target; revisit with the evidence above.
 - **Run the full suite in the hook on every commit.** Rejected: 80 s+ per commit with parallel agents is the ADR-0097 contention problem again.
+
+## Amendment 2026-11-21: tool versions come from `uv.lock` (T-Q240, OQ-22, Q-044)
+
+- **OQ-22 answered (operator, 2026-11-20):** CI runs `pre-commit run --all-files` with `SKIP=pytest-fast` plus the full suite (`just ci`). Parity is CI-side only; local hook speed must not regress. `ci.yml` already does this (ADR-0130 section 8); no workflow change is needed beyond pinning `uv`.
+- **Single source of tool versions:** the Python tool hooks (ruff, ruff-format, mypy, bandit, detect-secrets, sqlfluff, djlint) are `repo: local`, `language: system`, `entry: uv run <tool>`, so they run the exact versions locked in `uv.lock` (no separate `rev` pins, no hook-private mypy environment). stylelint, tailwind-check and lint-imports are unchanged.
+- **Dependency hygiene:** `httpx2` stays (Starlette 1.9 `TestClient` imports it; added in T-004). The leftover plotly mypy override and warning filter are removed (ADR-0123).
+
+## Amendment 2026-11-22: e2e leaves the hook; one run per wave (T-Q295)
+
+- **Operator decision, 2026-11-22.** Item agents run the pre-commit hooks only, plus extra checks only where a hook cannot cover the change (examples: the `frontend-visual-audit` skill on template or CSS changes, a migration rehearsal). The full e2e suite runs after each wave of tasks, not per commit.
+- **Hook scope.** `just test-fast` (the `pytest-fast` hook) and `just test-changed` pass `--ignore=tests/e2e`, in both the testmon-selected and the full-suite fallback modes. `tests/visual` stays excluded by the default marker expression. `just test`, `just ci` and `ci.yml` are unchanged and collect the same tests as before.
+- **Cadence.** The orchestrator runs `just test-e2e` after each wave and before every PR, alone (no agents running). On failure it dispatches fix agents, then reruns e2e alone, until green. The ADR-0097 amendment 2026-11-18 stays: GitHub `ci.yml` runners have no Playwright browser, so the local pre-PR run remains until `.github/workflows/e2e.yml` has a green run on `remediation/quality` content.
+- **Offload.** An agent that genuinely needs the full suite pushes its `wi/**` branch; `e2e.yml` (push to `wi/**` or `workflow_dispatch`, never PRs or main) runs `tests/e2e` with 2 workers in the pinned Playwright container (same image as the visual job, T-Q251).
+
+## Amendment 2026-11-22: e2e is a required PR check (T-Q297)
+
+- **Operator decision, 2026-11-22:** "fold it into this PR, add it also to the main branch's policy".
+- `.github/workflows/e2e.yml` (proven green twice on GitHub in the pinned Playwright container) now also runs on `pull_request` to `main`. Its job `tests/e2e (Chromium, Playwright container)` is added to the required status checks of the `protect-main` ruleset (with the Actions `integration_id`, ADR-0099) and to `REQUIRED_CHECKS` in `scripts/check_github_settings.py`. The job name is the check context and must not change without updating both.
+- The local pre-PR e2e run required by the amendment above ("Cadence") is dropped; the PR run replaces it. The orchestrator no longer runs `just test-e2e` before opening or updating a PR. `just test-e2e` stays available as an optional local check; the per-wave run and the `wi/**` push offload are unchanged.

@@ -18,6 +18,8 @@ import os
 
 # G10: unconditional (not setdefault): an inherited BUDGET_ENV=prod must never reach the suite.
 os.environ["BUDGET_ENV"] = "test"
+# T-Q291: the web-edge bcrypt provider reads its cost from Settings; production stays 12.
+os.environ["BUDGET_BCRYPT_ROUNDS"] = "4"
 
 # Imported after the env pin: ``tests.db_template`` pulls in the app config.
 import functools
@@ -29,7 +31,11 @@ from typing import Any
 import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
-from tests.db_template import build_template, copy_template
+from budget_planner import config as config_module
+from budget_planner.config import Settings, get_settings
+from budget_planner.db.connection import get_connection
+from tests.auth_support import FAST_ROUNDS
+from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
 from tests.e2e.mockup_target import pytest_addoption as _mockup_addoption
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
@@ -76,6 +82,32 @@ def _prod_db_tripwire() -> Iterator[None]:
         yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _session_db_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """T-Q231: default every test to a session temp DB, never the production DB.
+
+    Sets ``BUDGET_DATABASE_URL`` to a session scratch path, unsets the
+    ``BUDGET_PLANNER_ADMIN_*`` bootstrap vars, and fails loudly if the settings
+    still resolve to the production file. Tests with their own temp DB override
+    via ``monkeypatch`` as before.
+    """
+    scratch = tmp_path_factory.mktemp("session_db") / "session.sqlite"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("BUDGET_DATABASE_URL", sqlite_url(scratch))
+        for key in [k for k in os.environ if k.startswith("BUDGET_PLANNER_ADMIN_")]:
+            mp.delenv(key)
+        get_settings.cache_clear()
+        resolved = db_path_of(Settings()).resolve()
+        if resolved == _PROD_DB:
+            pytest.exit(
+                f"T-Q231: test settings resolve to the production DB {_PROD_DB} "
+                "(CLAUDE.md Databases); refusing to run the suite.",
+                returncode=2,
+            )
+        yield
+        get_settings.cache_clear()
+
+
 @pytest.fixture(scope="session")
 def migrated_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """One fully migrated DB per pytest process (T-CS02); copy, never open it."""
@@ -86,3 +118,23 @@ def migrated_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def migrated_db(migrated_template: Path, tmp_path: Path) -> Path:
     """Path to this test's own copy of the migrated template (``tmp_path/db.sqlite``)."""
     return copy_template(migrated_template, tmp_path / "db.sqlite")
+
+
+@pytest.fixture(autouse=True)
+def _suite_bcrypt_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T-Q291: the suite pins ``BUDGET_BCRYPT_ROUNDS=4`` for speed, so lower the production floor.
+
+    ``tests/unit/test_config.py`` restores the real floor to assert it.
+    """
+    monkeypatch.setattr(config_module, "PRODUCTION_MIN_BCRYPT_ROUNDS", FAST_ROUNDS)
+
+
+@pytest.fixture
+def conn(migrated_db: Path) -> Iterator[sqlite3.Connection]:
+    """T-Q259: one connection to this test's own migrated DB copy (``migrated_db``)."""
+    settings = Settings(_env_file=None, database_url=sqlite_url(migrated_db))
+    c = get_connection(settings)
+    try:
+        yield c
+    finally:
+        c.close()

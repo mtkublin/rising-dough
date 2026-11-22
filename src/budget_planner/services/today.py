@@ -11,9 +11,9 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 
+from budget_planner.domain.money import round_div
 from budget_planner.services import budget as budget_service
 
 PaceTag = Literal["on_track", "tight", "over_limit"]
@@ -41,14 +41,13 @@ class AffordResult:
 # and tight; zero after the hypothetical spend lands on over_limit. Keeps the
 # tag deterministic for a given summary without a new preference.
 _TIGHT_FRACTION_BPS = 5_000  # 50% of baseline, in basis points.
+_FULL_BPS = 10_000  # 100% in basis points.
 
 
 def _div_round_half_even(numerator: int, denominator: int) -> int:
     if denominator <= 0:
         return 0
-    return int(
-        (Decimal(numerator) / Decimal(denominator)).quantize(Decimal("1"), rounding=ROUND_HALF_EVEN)
-    )
+    return round_div(numerator, denominator)
 
 
 def _pace_tag_for(
@@ -68,10 +67,14 @@ def _pace_tag_for(
         return "over_limit"
     if baseline_per_day_minor <= 0:
         return "on_track"
-    threshold = (Decimal(baseline_per_day_minor) * Decimal(_TIGHT_FRACTION_BPS)) / Decimal(10_000)
-    if Decimal(per_day_minor) < threshold:
+    if per_day_minor * _FULL_BPS < baseline_per_day_minor * _TIGHT_FRACTION_BPS:
         return "tight"
     return "on_track"
+
+
+def daily_share_minor(remaining_minor: int, days_left: int) -> int:
+    """Per-day share of ``remaining_minor`` (not clamped), same rounding as :func:`afford`."""
+    return _div_round_half_even(remaining_minor, max(days_left, 1))
 
 
 def afford(
@@ -79,6 +82,9 @@ def afford(
     user_id: int,
     today: date,
     amount_minor: int,
+    *,
+    base_currency: str,
+    display_timezone: str,
 ) -> AffordResult:
     """Return the recomputed per-day figure for a hypothetical spend.
 
@@ -92,7 +98,15 @@ def afford(
     # left-per-day. Using today.year/today.month pulls the wrong cycle when
     # today falls before the current calendar month's anchor paycheck.
     year, month = budget_service.fiscal_month_for(conn, user_id, today)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn,
+        user_id,
+        year,
+        month,
+        today=today,
+        base_currency=base_currency,
+        display_timezone=display_timezone,
+    )
     days_left = max(summary.days_until_next_income, 1)
     remaining_minor = max(summary.totals.remaining_minor, 0)
     baseline_per_day = _div_round_half_even(remaining_minor, days_left)
@@ -110,4 +124,4 @@ def afford(
     )
 
 
-__all__ = ["AffordResult", "PaceTag", "afford"]
+__all__ = ["AffordResult", "PaceTag", "afford", "daily_share_minor"]

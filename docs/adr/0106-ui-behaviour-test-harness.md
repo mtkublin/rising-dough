@@ -56,7 +56,7 @@ Build a harness that pins **behaviour** independently of markup, before the rede
 ### Visual regression (amends ADR-0027 §4)
 
 - During the redesign the reference images come from the handoff, not from the old app: each handoff page screenshotted at 1440 / 1024 / 375, light and dark, with the same fixed data the frozen server renders. Old baselines are deleted per surface as that surface migrates.
-- Tolerance and opt-in status (`CI_VISUAL=1`) are unchanged from ADR-0027.
+- ~~Tolerance and opt-in status (`CI_VISUAL=1`) are unchanged from ADR-0027.~~ Superseded by the amendment 2026-11-22 below: the suite runs in CI via `visual.yml` (ADR-0027 amendment 2026-11-22, T-Q251), not behind `CI_VISUAL=1`, and the redesign tolerance is strict.
 
 ### What the harness is not
 
@@ -76,3 +76,13 @@ Build a harness that pins **behaviour** independently of markup, before the rede
 - **Exhaustive click-by-click suite against today's UI.** Rejected: encodes the IA being replaced; most tests rewritten during migration.
 - **Only visual regression against the mockups.** Rejected: catches layout, not wiring (a button that renders correctly and posts nowhere passes).
 - **Write all tests only from the mockups, skip the current UI.** Rejected: loses the parity inventory, so features the designer did not draw would silently disappear.
+
+## Amendment 2026-11-22: pixel parity against the handoff
+
+Operator decision (2026-11-22; task T-UR00b). Redesign surfaces must match the designer handoff with no deviation, test-first: the handoff screenshots are the visual baselines, they fail red at first, and each surface task's goal is pixel parity.
+
+1. **Data parity (option a).** The visual fixture (the frozen server data the app renders in the visual suite) is seeded with exactly the data the handoff pages hardcode: names, amounts, dates, counts and the frozen clock date. App renders and handoff references then show identical content, so the diff checks layout and styling, not data. Masking dynamic regions is rejected (it leaves the layout inside them unchecked). The handoff data lives in the hardcoded markup of `docs/design/rising-dough-frontend/pages/**` (and `components.html`, `charts/`); extracting it into a seed is part of T-UR00b. This replaces the earlier assumption that `data/demo.sqlite` at 2026-10-31 is "the matching fixture".
+2. **Same renderer.** Handoff reference images are generated in the same pinned Playwright container as the app snapshots (`visual.yml`, `just visual-update` path), never on macOS. A provenance guard fails if references were produced elsewhere: a manifest recording the image tag and digest is written next to the references and checked against the image pinned by `tests/architecture/test_visual_image_pin.py`. Existing references in `tests/visual/reference/` are regenerated in the container.
+3. **Strict tolerance.** The default per-surface tolerance is the strict suite default, `MAX_DIFF_PIXEL_RATIO = 0.001` (0.1 percent of pixels, `tests/visual/test_snapshots.py`). A looser tolerance for a surface needs a row in `docs/plans/ui-redesign/derived.md` ("Tolerance exceptions") with the reason, plus operator sign-off. The current per-surface values in `handoff.SURFACE_TOLERANCE` (1 to 4 percent) are removed by T-UR00b. The `CI_VISUAL=1` opt-in wording no longer applies: the suite runs in CI via `visual.yml` on template and CSS PRs.
+
+Visual parity complements the behaviour harness (sections 1 to 4) and does not replace it: a surface is done only when both the contract, journey and crawler tests and the visual diff are green. The rejected alternative "Only visual regression against the mockups" stays rejected.

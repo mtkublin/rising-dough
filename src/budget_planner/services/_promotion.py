@@ -5,7 +5,7 @@ promotion flows must enforce the same guards:
 
 - `direction=adjustment` is unsupported (reconciliation handles it).
 - amount must be non-zero.
-- transit requires `dest_account_id` whose currency matches the source.
+- transit shape (`transactions.validate_transit_shape`, ADR-0008 amendment 2026-11-21).
 
 The error classes also live here so the planned service can re-export them
 without creating an import cycle. Callers may import either module —
@@ -18,15 +18,13 @@ from __future__ import annotations
 import sqlite3
 
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories import accounts as accounts_repo
-
-
-class UnsupportedDirectionError(RuntimeError):
-    """Raised for direction=adjustment; use reconciliation service instead."""
-
-
-class ValidationError(ValueError):
-    """Raised for invalid promotion payloads (zero amount, cross-currency transit, …)."""
+from budget_planner.domain.transactions import NewTransaction, Transaction
+from budget_planner.repositories import transactions as transactions_repo
+from budget_planner.services.transactions import (
+    UnsupportedDirectionError,
+    ValidationError,
+    check_transit_shape,
+)
 
 
 def validate_promotion(
@@ -45,17 +43,28 @@ def validate_promotion(
         )
     if amount == 0:
         raise ValidationError("amount must be non-zero")
-    if direction is Direction.TRANSIT:
-        if dest_account_id is None:
-            raise ValidationError("transit requires dest_account_id")
-        src = accounts_repo.find_by_id(conn, user_id, account_id)
-        dst = accounts_repo.find_by_id(conn, user_id, dest_account_id)
-        if src is None or dst is None:  # pragma: no cover - FK blocks it
-            raise ValidationError("transit source or destination account not found")
-        if src.currency != dst.currency:
-            raise ValidationError(
-                f"transit currencies must match (got {src.currency} vs {dst.currency})"
-            )
+    check_transit_shape(
+        conn,
+        user_id,
+        direction=direction,
+        account_id=account_id,
+        dest_account_id=dest_account_id,
+    )
 
 
-__all__ = ["UnsupportedDirectionError", "ValidationError", "validate_promotion"]
+def create_promoted_transaction(
+    conn: sqlite3.Connection, user_id: int, new_txn: NewTransaction
+) -> Transaction:
+    """Insert the promoted transaction; a soft-deleted parent is a ``ValidationError`` (T-Q287)."""
+    try:
+        return transactions_repo.create(conn, user_id, new_txn)
+    except LookupError as exc:
+        raise ValidationError(f"cannot promote: {exc} (archived or deleted)") from exc
+
+
+__all__ = [
+    "UnsupportedDirectionError",
+    "ValidationError",
+    "create_promoted_transaction",
+    "validate_promotion",
+]

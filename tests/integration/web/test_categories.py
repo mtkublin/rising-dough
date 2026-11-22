@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +21,20 @@ USER_ID = 1
 
 
 @pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _names(db: sqlite3.Connection) -> list[str]:
+    """Every category name incl. soft-deleted, sorted (row-count proxy with identity)."""
+    return sorted(c.name for c in categories_repo.list_all(db, USER_ID, include_deleted=True))
+
+
+@pytest.fixture
 def cat_id(_migrated: Settings) -> int:
     conn = get_connection(_migrated)
     try:
@@ -28,13 +44,6 @@ def cat_id(_migrated: Settings) -> int:
         return cat.id
     finally:
         conn.close()
-
-
-def test_index_redirects_to_settings(client: TestClient, cat_id: int) -> None:
-    """T-070: ``/categories`` returns 302 to the Settings drawer tab."""
-    r = client.get("/categories", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/settings?tab=categories"
 
 
 def test_new_form(client: TestClient) -> None:
@@ -50,44 +59,72 @@ def test_create(client: TestClient) -> None:
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
-def test_create_bad_direction(client: TestClient) -> None:
+def test_create_bad_direction(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
     r = client.post("/categories", data={"name": "X", "direction": "bogus"})
     assert r.status_code == 422
+    assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors)
+    assert _names(db) == before
 
 
-def test_create_rejects_transit_direction(client: TestClient) -> None:
+def test_create_rejects_transit_direction(client: TestClient, db: sqlite3.Connection) -> None:
     """T-115 — ``transit`` and ``adjustment`` are reserved for system seeds."""
+    before = _names(db)
     for direction in ("transit", "adjustment"):
         r = client.post("/categories", data={"name": "Nope", "direction": direction})
         assert r.status_code == 422, direction
+        assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors), direction
+    assert _names(db) == before
 
 
-def test_create_blank_name(client: TestClient) -> None:
+def test_create_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422
+    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
+    assert _names(db) == before
 
 
 def test_edit(client: TestClient, cat_id: int) -> None:
     r = client.get(f"/categories/{cat_id}/edit")
     assert r.status_code == 200
+    form = _html.form_of(r.text, ui.category_name)
+    assert form["hx-post"] == f"/categories/{cat_id}"
+    assert ("name", "Groceries") in _html.submitted_fields(form)
 
 
 def test_edit_404(client: TestClient) -> None:
-    assert client.get("/categories/9999/edit").status_code == 404
+    r = client.get("/categories/9999/edit")
+    assert r.status_code == 404
+    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
 
 
-def test_update(client: TestClient, cat_id: int) -> None:
+def test_update(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "Food"})
     assert r.status_code == 200
+    assert "Food" in _html.text_of(r.text, ui.any_category_row)
+    stored = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert stored is not None
+    assert stored.name == "Food"
+    assert stored.direction is Direction.EXPENSE
     assert "Food" in _html.text_of(r.text, ui.category_row(cat_id))
 
 
-def test_update_404(client: TestClient) -> None:
-    assert client.post("/categories/9999", data={"name": "X"}).status_code == 404
+def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
+    r = client.post("/categories/9999", data={"name": "X"})
+    assert r.status_code == 404
+    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
+    assert _names(db) == before
 
 
-def test_update_blank(client: TestClient, cat_id: int) -> None:
-    assert client.post(f"/categories/{cat_id}", data={"name": "  "}).status_code == 422
+def test_update_blank(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
+    r = client.post(f"/categories/{cat_id}", data={"name": "  "})
+    assert r.status_code == 422
+    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
+    stored = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert stored is not None
+    assert stored.name == "Groceries"
 
 
 def test_delete(client: TestClient, cat_id: int) -> None:
@@ -96,8 +133,12 @@ def test_delete(client: TestClient, cat_id: int) -> None:
     assert "budget-stale" in r.headers["HX-Trigger"]
 
 
-def test_delete_404(client: TestClient) -> None:
-    assert client.post("/categories/9999/delete").status_code == 404
+def test_delete_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
+    r = client.post("/categories/9999/delete")
+    assert r.status_code == 404
+    assert r.text == "not found"
+    assert _names(db) == before
 
 
 def test_delete_system_blocked(client: TestClient, _migrated: Settings) -> None:
@@ -108,6 +149,14 @@ def test_delete_system_blocked(client: TestClient, _migrated: Settings) -> None:
         conn.close()
     r = client.post(f"/categories/{transit.id}/delete")
     assert r.status_code == 409
+    assert r.text == "system categories cannot be deleted"
+    conn = get_connection(_migrated)
+    try:
+        still = categories_repo.find_by_id(conn, USER_ID, transit.id)
+    finally:
+        conn.close()
+    assert still is not None
+    assert still.deleted_at is None
 
 
 # -- ADR-0048 color override --------------------------------------------
@@ -149,25 +198,36 @@ def test_create_clear_color_wins_over_color_value(client: TestClient, _migrated:
     assert cat.color is None
 
 
-def test_create_invalid_hex_422(client: TestClient) -> None:
+def test_create_invalid_hex_422(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
     r = client.post(
         "/categories",
         data={"name": "Bad", "direction": "expense", "color": "not-hex"},
     )
     assert r.status_code == 422
+    assert "invalid color 'not-hex'; expected 6-digit hex" in _html.all_text(r.text, ui.form_errors)
+    assert _names(db) == before
 
 
-def test_update_set_color_then_clear(client: TestClient, cat_id: int) -> None:
+def test_update_set_color_then_clear(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
     set_resp = client.post(
         f"/categories/{cat_id}",
         data={"name": "Groceries", "color": "#112233"},
     )
     assert set_resp.status_code == 200
+    colored = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert colored is not None
+    assert colored.color == "#112233"
     clear_resp = client.post(
         f"/categories/{cat_id}",
         data={"name": "Groceries", "clear_color": "1"},
     )
     assert clear_resp.status_code == 200
+    cleared = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert cleared is not None
+    assert cleared.color is None
 
 
 # ---------------------------------------------------------------------------
@@ -185,9 +245,12 @@ def test_archive_category_204_with_undo_toast(client: TestClient, cat_id: int) -
     assert payload.get("settings-categories-stale") is True
 
 
-def test_archive_missing_404(client: TestClient) -> None:
+def test_archive_missing_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _names(db)
     r = client.post("/categories/99999/archive")
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _names(db) == before
 
 
 def test_archive_system_403(client: TestClient, _migrated: Settings) -> None:
@@ -199,26 +262,48 @@ def test_archive_system_403(client: TestClient, _migrated: Settings) -> None:
     assert recon is not None
     r = client.post(f"/categories/{recon.id}/archive")
     assert r.status_code == 403
+    assert r.text == "system categories cannot be archived"
+    conn = get_connection(_migrated)
+    try:
+        still = categories_repo.find_by_id(conn, USER_ID, recon.id)
+    finally:
+        conn.close()
+    assert still is not None
+    assert still.deleted_at is None
 
 
-def test_archive_double_post_404(client: TestClient, cat_id: int) -> None:
+def test_archive_double_post_404(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r1 = client.post(f"/categories/{cat_id}/archive")
     assert r1.status_code == 204
+    archived = categories_repo.find_by_id(db, USER_ID, cat_id, include_deleted=True)
+    assert archived is not None
+    assert archived.deleted_at is not None
     r2 = client.post(f"/categories/{cat_id}/archive")
     assert r2.status_code == 404
+    assert r2.text == "not found"
 
 
-def test_restore_after_archive(client: TestClient, cat_id: int) -> None:
+def test_restore_after_archive(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     client.post(f"/categories/{cat_id}/archive")
     r = client.post(f"/categories/{cat_id}/restore")
     assert r.status_code == 204
     trigger = r.headers.get("HX-Trigger")
     assert trigger is not None
+    restored = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert restored is not None
+    assert restored.deleted_at is None
+    assert restored.name == "Groceries"
 
 
-def test_restore_without_archive_404(client: TestClient, cat_id: int) -> None:
+def test_restore_without_archive_404(
+    client: TestClient, cat_id: int, db: sqlite3.Connection
+) -> None:
     r = client.post(f"/categories/{cat_id}/restore")
     assert r.status_code == 404
+    assert r.text == "not found"
+    live = categories_repo.find_by_id(db, USER_ID, cat_id)
+    assert live is not None
+    assert live.deleted_at is None
 
 
 def test_create_reloads_page_without_swap(client: TestClient) -> None:

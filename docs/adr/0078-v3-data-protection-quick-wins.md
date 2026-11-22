@@ -1,6 +1,6 @@
 # ADR-0078: v3 Data-Protection Quick Wins — Close Cross-User Leaks, Bound Copies, Encrypt Backups
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-11-21; implemented, was Proposed)
 - **Date**: 2026-11-04
 - **Amends**: [ADR-0034](0034-v3-sqlite-replication-litestream.md) §3 (replica encryption, retention ceiling), [ADR-0071](0071-production-startup-migrations.md) (pre-migration backup pruning by age). Extends T-D06 structured logging with a redaction processor (§5).
 - **Related**: [ADR-0061](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) (admin must not see user data), [ADR-0076](0076-session-hardening-absolute-cap-step-up-hashed-ids.md) (session hardening), [ADR-0079](0079-v4-threat-model-and-data-protection-goals.md) (v4 threat model; this ADR is its v3 down-payment)

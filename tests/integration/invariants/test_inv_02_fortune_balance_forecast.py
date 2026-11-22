@@ -7,15 +7,14 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
-from budget_planner.config import get_settings
+from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
-from budget_planner.services import balance, forecast, fortune
+from budget_planner.services import balance, forecast, fortune, fx
 from budget_planner.web import today_data
-from tests.integration.invariants.conftest import offline_http
 
 U = 1
 ORACLE = """
@@ -44,10 +43,18 @@ def derived_matches_oracle(conn: sqlite3.Connection, today: date) -> bool:
 
 def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
     s = get_settings()
-    fortune_result = fortune.compute_fortune(conn, U, s)
-    _, _, fortune_base = today_data.collect_account_rows(conn, U, s.base_currency)
+    converter = fx.converter_for(conn, s, today)
+    fortune_result = fortune.compute_fortune(conn, U, converter)
+    rows, _ = today_data.collect_account_rows(conn, U, converter)
+    fortune_base = sum(r.balance_base_minor for r in rows)
     series = forecast.forecast(
-        conn, U, offline_http(), today, 0, s.base_currency, include_budget_overlay=False
+        conn,
+        U,
+        converter,
+        today,
+        0,
+        include_budget_overlay=False,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     return {
         "fortune.net_base": fortune_result.net_base,
@@ -57,22 +64,18 @@ def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
 
 
 def test_derive_balance_equals_sql_oracle(seeded: sqlite3.Connection) -> None:
-    assert derived_matches_oracle(seeded, date.today())  # noqa: DTZ011
+    assert derived_matches_oracle(seeded, clock.today_local(Settings()))
 
 
 def test_pln_only_demo_totals_agree(seeded: sqlite3.Connection) -> None:
-    t = totals(seeded, date.today())  # noqa: DTZ011
+    t = totals(seeded, clock.today_local(Settings()))
     assert t["fortune.net_base"] == t["today_data.fortune_base"] == t["forecast.day0"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-009: fortune.net_base sums native amounts, forecast and today_data convert",
-)
 def test_foreign_currency_account_agrees_across_fortune_and_forecast(
     seeded: sqlite3.Connection,
 ) -> None:
-    today = date.today()  # noqa: DTZ011
+    today = clock.today_local(Settings())
     accounts_repo.create(
         seeded, U, NewAccount(name="EUR Wallet", currency="EUR", opening_balance=100_000)
     )

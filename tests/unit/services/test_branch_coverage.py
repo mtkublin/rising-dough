@@ -14,6 +14,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
@@ -122,6 +123,7 @@ def test_list_planned_promoted_true_filter_keeps_promoted_rows(
             date_to=date(2026, 1, 31),
             promoted=True,
         ),
+        today=clock.utc_now().date(),
     )
     kept = {v.persisted_id for v in result}
     assert promoted.id in kept
@@ -176,6 +178,7 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
             recurring_rule_id=rule.id,
             promoted=False,
         ),
+        today=clock.utc_now().date(),
     )
     ids = {v.persisted_id for v in filtered if v.persisted_id is not None}
     assert linked.id in ids
@@ -192,5 +195,6 @@ def test_list_planned_recurring_rule_id_filter_matches_persisted(
             recurring_rule_id=rule.id + 999,
             promoted=False,
         ),
+        today=clock.utc_now().date(),
     )
     assert nothing == ()

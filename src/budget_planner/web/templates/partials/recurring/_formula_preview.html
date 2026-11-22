@@ -3,7 +3,7 @@
   <span class="rd-chip rd-chip--ok"
         data-testid="formula-preview"
         data-formula-preview-ok>
-    = <strong>{{ "{:,.2f}".format(result.amount_minor / 100.0) }}</strong>
+    = <strong>{{ result.amount_minor|money_num(base_ccy) }}</strong>
   </span>
 {% else %}
   <span class="rd-chip rd-chip--err"

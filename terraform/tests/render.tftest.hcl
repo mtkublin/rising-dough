@@ -5,6 +5,44 @@ mock_provider "scaleway" {}
 mock_provider "tailscale" {}
 mock_provider "random" {}
 
+# T-Q277 / ADR-0135: deterministic stand-in for the generated drill key pair.
+mock_provider "age" {
+  mock_resource "age_secret_key" {
+    defaults = {
+      secret_key = "AGE-SECRET-KEY-1MOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILL" # pragma: allowlist secret
+      public_key = "age1mockdrillmockdrillmockdrillmockdrillmockdrillmockdrillmockdr"
+    }
+  }
+}
+
+override_resource {
+  target          = random_password.admin_initial_password
+  override_during = plan
+  values          = { result = "dummyadminpassword0000", bcrypt_hash = "x" }
+}
+
+override_resource {
+  target          = random_password.cookie_secret
+  override_during = plan
+  values          = { result = "dummycookiesecret0000000000000000000000000000000000" }
+}
+
+override_resource {
+  target          = tailscale_tailnet_key.vm
+  override_during = plan
+  values          = { key = "tskey-auth-DUMMY" } # pragma: allowlist secret
+}
+
+# Known at plan time so assertions can read the rendered host config.
+override_resource {
+  target          = age_secret_key.drill
+  override_during = plan
+  values = {
+    secret_key = "AGE-SECRET-KEY-1MOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILLMOCKDRILL" # pragma: allowlist secret
+    public_key = "age1mockdrillmockdrillmockdrillmockdrillmockdrillmockdrillmockdr"
+  }
+}
+
 run "user_data_starts_with_cloud_config" {
   command = plan
 
@@ -381,8 +419,6 @@ run "drill_expires_at_rejects_malformed" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -407,8 +443,8 @@ run "prod_render_keeps_public_web" {
   }
 
   assert {
-    condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow 80/tcp") && strcontains(nonsensitive(output.all_rendered), "email ops@render-check.example.invalid") && strcontains(nonsensitive(output.all_rendered), "\"80:80\"")
-    error_message = "Prod keeps ufw 80, ACME email and the 80:80 port mapping."
+    condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow 80/tcp") && strcontains(nonsensitive(output.all_rendered), "email ops@render-check.example.invalid")
+    error_message = "Prod keeps ufw 80 and the ACME email (Caddy is host-networked since ADR-0133, so there is no 80:80 mapping)."
   }
 
   assert {
@@ -447,6 +483,39 @@ run "drill_render_is_tailnet_only" {
     condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow in on tailscale0 to any port 443")
     error_message = "Drill allows 443 only on tailscale0."
   }
+
+  # T-Q255 (Q-078, ADR-0101 amendment): Caddy is host-networked, so Docker publishes
+  # nothing for it (DOCKER-USER does not see that traffic) and the host INPUT filter
+  # (ufw, tailscale0 only) is the control. The only published port is the app's
+  # loopback bind.
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "\"127.0.0.1:8000:8000\"") && !strcontains(nonsensitive(output.all_rendered), "\"0.0.0.0:") && length(regexall("- \"[0-9]+:[0-9]+\"", nonsensitive(output.all_rendered))) == 0
+    error_message = "Drill must publish no container port beyond the loopback app bind (T-Q255)."
+  }
+}
+
+run "images_and_packages_are_pinned" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  # T-Q255 (Q-067): Caddy and Litestream by digest, tailscale by exact apt version.
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "image: caddy:2.8@sha256:") && !strcontains(nonsensitive(output.all_rendered), "image: caddy:2.8\n")
+    error_message = "Caddy image must be pinned by @sha256 digest."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "image: litestream/litestream:0.3.14@sha256:") && !strcontains(nonsensitive(output.all_rendered), "image: litestream/litestream:0.3.14\n")
+    error_message = "Litestream image must be pinned by @sha256 digest."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "apt-get install -y tailscale=")
+    error_message = "tailscale must be installed at an exact pinned version."
+  }
 }
 
 run "drill_requires_tailnet_dns_name" {
@@ -462,8 +531,6 @@ run "drill_requires_tailnet_dns_name" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -515,8 +582,6 @@ run "tailnet_dns_name_rejects_malformed" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -567,8 +632,6 @@ run "restore_reader_rejected_on_drill" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -640,8 +703,6 @@ run "drill_instance_type_defaults_to_dev1_s" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -682,8 +743,6 @@ run "vm_spec_change_replaces_tailscale_key" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -742,8 +801,6 @@ run "drill_rehearsal_knobs_reach_the_vm" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -819,8 +876,6 @@ run "drill_root_volume_type_rejects_other_types" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -830,6 +885,29 @@ run "drill_root_volume_type_rejects_other_types" {
   }
 
   expect_failures = [var.drill_root_volume_type]
+}
+
+# T-Q238: drills verify branch builds under the drill identity; no ancestry check.
+run "drill_cosign_identity_accepts_branch_builds" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    allow_branch_builds = true
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@refs/(heads|tags)/.+$"
+    error_message = "drill cosign identity must accept branch builds of build.yml (T-Q238)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).ancestry.enabled == false
+    error_message = "drill must not require main ancestry (T-Q238)."
+  }
 }
 
 # ADR-0111: bp-config carries the digest-pinned image, the cosign policy and
@@ -846,9 +924,15 @@ run "host_config_pins_image_and_policy" {
     error_message = "bp-config image.ref must be repo:tag@digest (ADR-0111)."
   }
 
+  # T-Q238 (Q-040): prod accepts only build.yml signed from main or a release tag.
   assert {
-    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@"
-    error_message = "cosign identity must be this repo's build.yml (ADR-0111)."
+    condition     = jsondecode(nonsensitive(output.host_config)).cosign.identity_regexp == "^https://github\\.com/render-check-owner/render-check-repo/\\.github/workflows/build\\.yml@(refs/heads/main|refs/tags/v[0-9][0-9A-Za-z.+-]*)$"
+    error_message = "prod cosign identity must be build.yml@main or a v* tag (T-Q238)."
+  }
+
+  assert {
+    condition     = jsondecode(nonsensitive(output.host_config)).ancestry == { enabled = true, repo = "render-check-owner/render-check-repo", branch = "main" }
+    error_message = "prod must require sha-* images to be ancestors of main (T-Q238)."
   }
 
   assert {
@@ -889,23 +973,24 @@ run "host_config_pins_image_and_policy" {
     error_message = "Caddy must set the CSP via a handle_response response matcher (T-D132)."
   }
 
-  # T-D140a / ADR-0113: strict script-src, style-src without a nonce.
+  # T-Q254 / ADR-0036 addendum: the app owns the nonce CSP (script-src/style-src per ADR-0113);
+  # Caddy is a second layer with non-fetch directives only (two CSPs intersect).
   assert {
     condition = (
       strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "style-src 'self' 'unsafe-inline';"
+        "header Content-Security-Policy \"frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'\""
       )
       && !strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "style-src 'self' 'nonce-"
+        "script-src"
       )
       && !strcontains(
         one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/Caddyfile")]),
-        "script-src 'self' 'unsafe"
+        "{vars.nonce}"
       )
     )
-    error_message = "CSP: script-src must stay strict; style-src must be 'self' 'unsafe-inline' with no nonce (ADR-0113)."
+    error_message = "Caddy CSP must be the non-fetch second layer with no script-src and no Caddy nonce (T-Q254)."
   }
 
   assert {
@@ -990,8 +1075,6 @@ run "image_ref_must_be_digest_pinned" {
     github_owner                  = "owner"
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1105,8 +1188,6 @@ run "ci_ssh_key_authorised_on_drill" {
     ci_ssh_pubkey                 = "ssh-ed25519 AAAACIKEY ci-deploy"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1135,8 +1216,6 @@ run "ci_ssh_key_must_be_a_public_key" {
     ci_ssh_pubkey                 = "not-a-public-key"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1164,8 +1243,6 @@ run "drill_run_id_makes_tailnet_name_unique" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1199,8 +1276,6 @@ run "drill_without_run_id_keeps_fixed_name" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1229,8 +1304,6 @@ run "drill_run_id_rejects_non_digits" {
     operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
     app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     ghcr_pull_pat                 = "ghp_dummy"
-    litestream_age_identity       = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
-    litestream_age_recipient      = "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
     tailscale_oauth_client_id     = "dummy"
     tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
     app_application_id            = "00000000-0000-4000-8000-0000000000a1"
@@ -1303,4 +1376,300 @@ run "restore_guard_flag_renders_true" {
     condition     = strcontains(one([for f in jsondecode(nonsensitive(output.host_config)).files : f.content if endswith(f.path, "/docker-compose.yml")]), "LITESTREAM_ALLOW_EMPTY_DB: \"true\"")
     error_message = "allow_empty_db = true must reach the restore service (T-D156, ADR-0127)."
   }
+}
+
+# ----------------------------------------------------------------------------
+# T-Q277 / ADR-0135: per-drill age key pair generated in Terraform.
+# ----------------------------------------------------------------------------
+
+run "drill_generates_age_key_pair_and_needs_no_age_input" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = length(age_secret_key.drill) == 1
+    error_message = "A drill must generate its own age key pair (ADR-0135)."
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream-age.key")]), "AGE-SECRET-KEY-1MOCKDRILL")
+    error_message = "The drill host's own identity file must carry the generated secret key."
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream.yml")]), "age1mockdrill")
+    error_message = "The drill replica must be encrypted to the generated public key."
+  }
+
+  assert {
+    condition     = length([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.path if endswith(f.path, "/restore-source-age.key")]) == 0
+    error_message = "Without the restore helper no restore-source identity may reach the host."
+  }
+}
+
+run "drill_rejects_supplied_age_identity" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    litestream_age_identity       = "AGE-SECRET-KEY-1PRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPROD"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.litestream_age_identity]
+}
+
+run "drill_rejects_supplied_age_recipient" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    litestream_age_recipient      = "age1prodprodprodprodprodprodprodprodprodprodprodprodprodprodpr"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  expect_failures = [var.litestream_age_recipient]
+}
+
+run "prod_requires_age_identity" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    litestream_age_recipient      = "age1prodprodprodprodprodprodprodprodprodprodprodprodprodprodpr"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  expect_failures = [var.litestream_age_identity]
+}
+
+run "prod_requires_age_recipient" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    litestream_age_identity       = "AGE-SECRET-KEY-1PRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPROD"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  expect_failures = [var.litestream_age_recipient]
+}
+
+run "prod_rejects_malformed_age_identity" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    litestream_age_identity       = "not-an-age-key"
+    litestream_age_recipient      = "age1prodprodprodprodprodprodprodprodprodprodprodprodprodprodpr"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  expect_failures = [var.litestream_age_identity]
+}
+
+run "prod_uses_supplied_age_pair_and_generates_none" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    litestream_age_identity       = "AGE-SECRET-KEY-1PRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPROD"
+    litestream_age_recipient      = "age1prodprodprodprodprodprodprodprodprodprodprodprodprodprodpr"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  assert {
+    condition     = length(age_secret_key.drill) == 0
+    error_message = "Prod must not generate an age key pair (ADR-0135)."
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream-age.key")]), "AGE-SECRET-KEY-1PRODPROD") && strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream.yml")]), "age1prodprod")
+    error_message = "Prod keeps the operator-supplied age pair."
+  }
+}
+
+run "restore_source_identity_reaches_host_only_with_restore_helper" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    scw_access_key_restore        = "SCWDUMMYRESTOREKEY000"
+    scw_secret_key_restore        = "11111111-dummy-0000-0000-000000000000" # pragma: allowlist secret
+    restore_source_age_identity   = "AGE-SECRET-KEY-1RESTORERESTORERESTORERESTORERESTORERESTORERESTORERESTORE"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/restore-source-age.key")]), "AGE-SECRET-KEY-1RESTORERESTORE")
+    error_message = "With the restore helper the prod replica identity must be delivered as restore-source-age.key."
+  }
+
+  assert {
+    condition     = !strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream-age.key")]), "RESTORERESTORE") && strcontains(one([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.content if endswith(f.path, "/litestream-age.key")]), "MOCKDRILL")
+    error_message = "The host's own replica identity must stay the drill pair, never the prod identity."
+  }
+}
+
+run "restore_source_identity_not_rendered_without_restore_helper" {
+  command = plan
+
+  variables {
+    env                           = "drill"
+    tailnet_dns_name              = "tail1234.ts.net"
+    restore_source_age_identity   = "AGE-SECRET-KEY-1RESTORERESTORERESTORERESTORERESTORERESTORERESTORERESTORE"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+  }
+
+  assert {
+    condition     = length([for f in jsondecode(nonsensitive(module.compute.host_config)).files : f.path if endswith(f.path, "/restore-source-age.key")]) == 0 && !strcontains(nonsensitive(module.compute.host_config), "RESTORERESTORE")
+    error_message = "Without scw_access_key_restore (no helper) the prod identity must not reach the host."
+  }
+}
+
+run "restore_source_identity_rejected_on_prod" {
+  command = plan
+
+  variables {
+    env                           = "prod"
+    litestream_age_identity       = "AGE-SECRET-KEY-1PRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPRODPROD"
+    litestream_age_recipient      = "age1prodprodprodprodprodprodprodprodprodprodprodprodprodprodpr"
+    restore_source_age_identity   = "AGE-SECRET-KEY-1RESTORERESTORERESTORERESTORERESTORERESTORERESTORERESTORE"
+    admin_email                   = "admin@example.invalid"
+    scaleway_project_id           = "00000000-0000-4000-8000-000000000000"
+    scaleway_organization_id      = "00000000-0000-4000-8000-000000000000"
+    domain                        = "example.invalid"
+    github_owner                  = "owner"
+    operator_ssh_pubkey           = "ssh-ed25519 AAAA operator"
+    app_image_ref                 = "sha-1234567@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    ghcr_pull_pat                 = "ghp_dummy"
+    tailscale_oauth_client_id     = "dummy"
+    tailscale_oauth_client_secret = "dummy" # pragma: allowlist secret
+    app_application_id            = "00000000-0000-4000-8000-0000000000a1"
+    app_scw_access_key            = "SCWDUMMYDUMMYDUMMYDU"
+    app_scw_secret_key            = "00000000-0000-4000-8000-0000000000a2" # pragma: allowlist secret
+    restore_reader_application_id = "00000000-0000-4000-8000-0000000000a3"
+  }
+
+  expect_failures = [var.restore_source_age_identity]
 }

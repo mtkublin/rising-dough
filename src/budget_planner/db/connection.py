@@ -30,8 +30,14 @@ from budget_planner.config import Settings
 
 _SQLITE_PREFIX = "sqlite:///"
 
+#: Failures of opening or reading the database (driver, file system, bad URL). Probes and
+#: background jobs catch exactly these, log them and carry on (T-Q271).
+DB_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error, OSError, ValueError)
+#: ``DB_ERRORS`` plus the runner's own ``RuntimeError`` (foreign-key or checksum refusal).
+JOB_ERRORS: tuple[type[Exception], ...] = (*DB_ERRORS, RuntimeError)
 
-def _resolve_db_path(database_url: str) -> Path:
+
+def resolve_db_path(database_url: str) -> Path:
     if not database_url.startswith(_SQLITE_PREFIX):
         raise ValueError(f"Unsupported database_url (expected sqlite:///): {database_url!r}")
     return Path(database_url.removeprefix(_SQLITE_PREFIX))
@@ -62,7 +68,7 @@ def get_connection(settings: Settings) -> sqlite3.Connection:
 
     Creates the parent directory for the database file if missing.
     """
-    db_path = _resolve_db_path(settings.database_url)
+    db_path = resolve_db_path(settings.resolve().database_url)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     # NOTE: we intentionally do NOT pass `detect_types`. All our TIMESTAMP
     # / DATE columns are stored as ISO-8601 strings and parsed manually in

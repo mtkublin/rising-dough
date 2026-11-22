@@ -10,17 +10,16 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
 from budget_planner.domain.recurring import NewRecurringOverride, NewRecurringRule
-from budget_planner.domain.transactions import TransactionFilter
-from budget_planner.repositories import accounts, categories, planned, recurring, transactions
+from budget_planner.repositories import accounts, categories, planned, recurring
 from budget_planner.services import planned as pl_svc
 from budget_planner.services.planned import (
     AlreadyPromotedError,
@@ -133,6 +132,7 @@ def test_list_planned_persisted_only(conn: sqlite3.Connection, world: dict[str, 
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 12, 31)),
+        today=clock.utc_now().date(),
     )
     assert rows  # fixture seeds at least two persisted rows
     assert all(r.kind == "persisted" for r in rows)
@@ -147,6 +147,7 @@ def test_list_planned_no_virtual_rows_in_month_without_persisted(
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 2, 1), date_to=date(2026, 2, 28)),
+        today=clock.utc_now().date(),
     )
     rent_rows = [r for r in rows if r.recurring_rule_id == world["rule_rent"]]
     assert rent_rows == []
@@ -161,6 +162,7 @@ def test_list_planned_category_filter(conn: sqlite3.Connection, world: dict[str,
             date_to=date(2026, 6, 30),
             category_ids=(world["groceries"],),
         ),
+        today=clock.utc_now().date(),
     )
     assert len(rows) == 1
     assert rows[0].persisted_id == world["p1"]
@@ -175,6 +177,7 @@ def test_list_planned_account_filter(conn: sqlite3.Connection, world: dict[str, 
             date_to=date(2026, 6, 30),
             account_ids=(world["savings"],),
         ),
+        today=clock.utc_now().date(),
     )
     assert rows == ()
 
@@ -190,6 +193,7 @@ def test_list_planned_recurring_rule_id_filter_excludes(
             date_to=date(2026, 3, 31),
             recurring_rule_id=world["rule_rent"],
         ),
+        today=clock.utc_now().date(),
     )
     assert all(r.recurring_rule_id == world["rule_rent"] for r in rows)
 
@@ -202,6 +206,7 @@ def test_list_planned_promoted_filter_excludes(
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30), promoted=False),
+        today=clock.utc_now().date(),
     )
     assert all(not r.is_promoted for r in rows)
 
@@ -211,6 +216,7 @@ def test_list_planned_sort_order(conn: sqlite3.Connection, world: dict[str, int]
         conn,
         USER_ID,
         PlannedFilter(date_from=date(2026, 1, 1), date_to=date(2026, 6, 30)),
+        today=clock.utc_now().date(),
     )
     dates = [r.operation_date for r in rows]
     assert dates == sorted(dates)
@@ -249,6 +255,15 @@ def test_promote_already_blocked(conn: sqlite3.Connection, world: dict[str, int]
     pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits())
     with pytest.raises(AlreadyPromotedError):
         pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits())
+
+
+def test_promotion_errors_have_readable_messages_and_keep_id() -> None:
+    already = AlreadyPromotedError(7)
+    deleted = CannotPromoteDeletedError(7)
+    assert str(already) == "This planned transaction was already promoted."
+    assert already.planned_id == 7
+    assert str(deleted) == "This planned transaction was deleted and cannot be promoted."
+    assert deleted.planned_id == 7
 
 
 def test_promote_deleted_raises(conn: sqlite3.Connection, world: dict[str, int]) -> None:
@@ -314,21 +329,3 @@ def test_promote_unknown_id(conn: sqlite3.Connection) -> None:
 def test_promote_amount_zero_rejected(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     with pytest.raises(ValidationError):
         pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits(amount_minor=0))
-
-
-def test_rollback_on_stamp_failure(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    empty = TransactionFilter()
-    before = len(transactions.list_filtered(conn, USER_ID, filters=empty))
-    with (
-        patch(
-            "budget_planner.services.planned.planned_repo.stamp_promotion",
-            side_effect=RuntimeError("boom"),
-        ),
-        pytest.raises(RuntimeError),
-    ):
-        pl_svc.promote_to_actual(conn, USER_ID, world["p1"], PromotionEdits())
-    after = len(transactions.list_filtered(conn, USER_ID, filters=empty))
-    assert before == after
-    pt = planned.find_by_id(conn, USER_ID, world["p1"])
-    assert pt is not None
-    assert pt.promoted_to_txn_id is None

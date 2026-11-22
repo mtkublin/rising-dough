@@ -44,20 +44,6 @@ def _category(settings: Settings, name: str) -> dict[str, object]:
 # --- GET /categories ---------------------------------------------------------
 
 
-@covers("GET /categories")
-def test_index_redirects_to_settings_tab(client: TestClient) -> None:
-    r = client.get("/categories", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/settings?tab=categories"
-
-
-@covers("GET /categories")
-def test_index_requires_login(anon_client: TestClient) -> None:
-    r = anon_client.get("/categories", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"].startswith("/auth/login")
-
-
 # --- GET /categories/new ------------------------------------------------------
 
 

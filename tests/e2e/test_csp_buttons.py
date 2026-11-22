@@ -7,12 +7,17 @@ only need to drive the UI and assert its visible result.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Page, expect
 
+from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.domain.fx import NewFxRate
+from budget_planner.repositories import fx as fx_repo
 from tests.e2e import db_probe
 from tests.e2e.ui_actions import open_add_slide_over, pick
 from tests.ui_map import accounts, ledger, plan, settings, shell, today
@@ -238,6 +243,15 @@ def test_create_account_from_accounts_submits_under_csp(
 ) -> None:
     # T-D150: the create form targeted a non-existent #accounts-grid.
     base_url, db_path = live_server
+    # Net worth converts every account to base (ADR-0139): a EUR account needs a cached rate.
+    conn = get_connection(Settings(_env_file=None, database_url=f"sqlite:///{db_path.as_posix()}"))
+    try:
+        fx_repo.upsert_rate(
+            conn,
+            NewFxRate(date=date(2020, 1, 1), from_ccy="EUR", to_ccy="PLN", rate=Decimal("4.30")),
+        )
+    finally:
+        conn.close()
     _open_new_account_form(page, base_url)
     _fill(page, accounts.form_name, "Travel wallet", accounts.account_form)
     pick(page, accounts.form_currency, "EUR", scope=accounts.account_form)
@@ -262,7 +276,7 @@ def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], pa
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM accounts") == 0
 
 
-@pytest.mark.parametrize("entry", ["/settings?tab=categories", "/categories"])
+@pytest.mark.parametrize("entry", ["/settings?tab=categories"])
 def test_create_category_submits_under_csp(
     live_server: tuple[str, Path], page: Page, entry: str
 ) -> None:

@@ -8,6 +8,7 @@ from budget_planner.domain.enums import Direction
 from budget_planner.web.templating import (
     _category_label,
     _category_label_parts,
+    _direction_badge,
     _resolve_category_color,
 )
 
@@ -62,3 +63,10 @@ def test_category_label_escapes_name() -> None:
     html = str(_category_label(_Cat(name="<img src=x onerror=1>", direction=Direction.EXPENSE)))
     assert "<img" not in html
     assert "&lt;img" in html
+
+
+def test_direction_badge_escapes_unknown_value() -> None:
+    html = str(_direction_badge('<b>"x'))
+    assert "<b>" not in html
+    escaped = "&lt;b&gt;&#34;x"
+    assert html == f'<span class="pill pill-adjust" aria-label="{escaped}">{escaped}</span>'

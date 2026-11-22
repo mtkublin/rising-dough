@@ -47,7 +47,7 @@ def test_create_round_trip(conn: sqlite3.Connection, account_id: int, category_i
     fetched = transactions.find_by_id(conn, USER_ID, tid)
     assert fetched is not None
     assert fetched.amount == 250
-    assert audit.list_entries(conn, "transaction", tid)[0].operation.value == "create"
+    assert audit.list_entries(conn, 1, "transaction", tid)[0].operation.value == "create"
 
 
 def test_update(conn: sqlite3.Connection, account_id: int, category_id: int) -> None:

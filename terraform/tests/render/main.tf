@@ -65,6 +65,12 @@ variable "allow_empty_db" {
   default     = false
 }
 
+variable "allow_branch_builds" {
+  description = "Render the drill cosign identity (any branch) instead of the prod one (main or release tag), T-Q238."
+  type        = bool
+  default     = false
+}
+
 locals {
   dummy_digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # pragma: allowlist secret
 }
@@ -92,6 +98,8 @@ module "compute" {
   trusted_hosts_csv = var.tailnet_only ? "budget-planner-drill.tail0000.ts.net" : "render-check.example.invalid"
   tailnet_only      = var.tailnet_only
 
+  allow_branch_builds = var.allow_branch_builds
+
   tailscale_authkey  = "tskey-auth-DUMMY" # pragma: allowlist secret
   tailscale_hostname = "render-check"
   tailscale_tag      = "tag:drill"
@@ -105,6 +113,8 @@ module "compute" {
   restore_source_bucket  = "render-check-prod-bucket"
   scw_access_key_restore = var.enable_restore_helper ? "SCWDUMMYRESTOREKEY000" : ""
   scw_secret_key_restore = var.enable_restore_helper ? "11111111-dummy-0000-0000-000000000000" : ""
+
+  restore_source_age_identity = var.enable_restore_helper ? "AGE-SECRET-KEY-1RESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTOREDUMMYRESTO" : "" # pragma: allowlist secret
 
   litestream_age_identity  = "AGE-SECRET-KEY-1DUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY"
   litestream_age_recipient = "age1dummydummydummydummydummydummydummydummydummydummydummydummydum"

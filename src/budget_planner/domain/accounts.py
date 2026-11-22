@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from datetime import date, datetime
-from typing import Any
+from datetime import datetime
+
+from budget_planner.domain.limits import name_error
+
+ISO_CURRENCY_LENGTH = 3
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -55,13 +58,13 @@ class PatchAccount:
     credit_limit_minor: int | None = None
     clear_credit_limit: bool = False
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         """Return only the fields set to a non-None value.
 
         ``clear_credit_limit`` is a control flag, not a persisted field, so
         it is always excluded from the dict and interpreted by the repository.
         """
-        out: dict[str, Any] = {}
+        out: dict[str, object] = {}
         for f in fields(self):
             if f.name == "clear_credit_limit":
                 continue
@@ -94,9 +97,40 @@ class AccountStats:
     avg_inflow_minor: int = 0
     avg_outflow_minor: int = 0
 
-    @property
-    def last_activity_date(self) -> date | None:
-        """Parse ``last_txn_date`` into a ``date`` for typed consumers."""
-        if self.last_txn_date is None:
-            return None
-        return date.fromisoformat(self.last_txn_date)
+
+def currency_error(currency: str) -> str | None:
+    """Form error for a currency that is not a three-letter ISO 4217 code (or None)."""
+    ok = len(currency) == ISO_CURRENCY_LENGTH and currency.isalpha()
+    return None if ok else "ISO 4217 code required"
+
+
+def credit_limit_error(limit_minor: int | None) -> str | None:
+    """A stored credit limit is positive; ``None`` (no limit) is valid."""
+    if limit_minor is not None and limit_minor <= 0:
+        return "positive credit limit required"
+    return None
+
+
+def _non_empty(errors: dict[str, str | None]) -> dict[str, str]:
+    return {k: v for k, v in errors.items() if v is not None}
+
+
+def new_account_errors(data: NewAccount) -> dict[str, str]:
+    """Field errors for a new account command (empty when valid)."""
+    return _non_empty(
+        {
+            "name": name_error(data.name),
+            "currency": currency_error(data.currency),
+            "credit_limit": credit_limit_error(data.credit_limit_minor),
+        }
+    )
+
+
+def patch_account_errors(patch: PatchAccount) -> dict[str, str]:
+    """Field errors for an account patch (empty when valid)."""
+    return _non_empty(
+        {
+            "name": None if patch.name is None else name_error(patch.name),
+            "credit_limit": credit_limit_error(patch.credit_limit_minor),
+        }
+    )

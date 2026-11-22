@@ -1,4 +1,4 @@
-"""Per-request correlation id middleware.
+"""Per-request correlation id middleware (pure ASGI, T-Q274).
 
 Attaches a short random id to ``request.state.request_id`` and echoes it
 in the ``X-Request-Id`` response header. The id is grep-able in logs and
@@ -12,29 +12,37 @@ so the next request does not inherit a stale id.
 
 from __future__ import annotations
 
+import re
 from uuid import uuid4
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response
+from starlette.datastructures import Headers
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from budget_planner.logging import bind_request_id, clear_request_id
+from budget_planner.web.middleware.asgi import RESPONSE_START, http_only, set_header, set_state
 
 _HEADER = "X-Request-Id"
+#: A client-supplied id is echoed only when short and log-safe (T-Q289).
+_SAFE_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 
 
-class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Generate (or respect) a per-request id. Idempotent — never mutates
-    request state once set."""
+async def _correlate(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
+    supplied = Headers(scope=scope).get(_HEADER)
+    rid = supplied if supplied and _SAFE_ID.fullmatch(supplied) else uuid4().hex[:12]
+    set_state(scope, request_id=rid)
+    bind_request_id(rid)
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        existing = request.headers.get(_HEADER)
-        rid = existing if existing else uuid4().hex[:12]
-        request.state.request_id = rid
-        bind_request_id(rid)
-        try:
-            response = await call_next(request)
-        finally:
-            clear_request_id()
-        response.headers[_HEADER] = rid
-        return response
+    async def send_wrapper(message: Message) -> None:
+        if message["type"] == RESPONSE_START:
+            set_header(message, _HEADER, rid)
+        await send(message)
+
+    try:
+        await app(scope, receive, send_wrapper)
+    finally:
+        clear_request_id()
+
+
+def request_id_middleware(app: ASGIApp) -> ASGIApp:
+    """Generate (or respect) a per-request id and echo it on every response."""
+    return http_only(app, _correlate)

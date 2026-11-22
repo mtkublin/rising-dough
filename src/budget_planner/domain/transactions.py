@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from typing import Any
+from typing import assert_never
 
 from budget_planner.domain.enums import Direction
 
@@ -65,7 +65,7 @@ class PatchTransaction:
     amount: int | None = None
     description: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             f.name: getattr(self, f.name) for f in fields(self) if getattr(self, f.name) is not None
         }
@@ -88,6 +88,40 @@ class TransactionFilter:
     amount_max: int | None = None
     description_contains: str | None = None
     account_or_dest: int | None = None
+    live_accounts_only: bool = False  # ADR-0136: derived reads skip soft-deleted accounts
     limit: int | None = None
     offset: int = 0
     order_desc: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SignedLeg:
+    """Per-account signed effect of one transaction or planned item (ADR-0008)."""
+
+    account_id: int
+    amount_minor: int
+
+
+def signed_legs(
+    direction: Direction, amount: int, account_id: int, dest_account_id: int | None
+) -> tuple[SignedLeg, ...]:
+    """Canonical direction-to-sign rule: one or two signed legs of an amount (ADR-0008, 0009).
+
+    * ``income`` is ``(account, +amount)``; ``expense`` is ``(account, -amount)``.
+    * ``transit`` is ``(account, -amount)`` plus ``(dest, +amount)``; a missing destination raises.
+    * ``adjustment`` is ``(account, +amount)`` because the amount is stored already signed.
+    """
+    match direction:
+        case Direction.INCOME | Direction.ADJUSTMENT:
+            return (SignedLeg(account_id=account_id, amount_minor=amount),)
+        case Direction.EXPENSE:
+            return (SignedLeg(account_id=account_id, amount_minor=-amount),)
+        case Direction.TRANSIT:
+            if dest_account_id is None:
+                raise ValueError("transit transaction missing dest_account_id")
+            return (
+                SignedLeg(account_id=account_id, amount_minor=-amount),
+                SignedLeg(account_id=dest_account_id, amount_minor=amount),
+            )
+        case _ as unreachable:
+            assert_never(unreachable)

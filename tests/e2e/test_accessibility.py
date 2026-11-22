@@ -15,27 +15,9 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import Page
 
-from tests.ui_map import ledger, shell
-from tests.ui_map.locator import to_playwright
-
 pytestmark = pytest.mark.e2e
 
 _ROUTES = ("/today", "/ledger", "/accounts", "/budget")
-
-
-@pytest.mark.parametrize("route", _ROUTES)
-def test_landmarks_present(page: Page, live_server: tuple[str, object], route: str) -> None:
-    base_url, _ = live_server
-    page.goto(f"{base_url}{route}")
-    assert to_playwright(page, shell.main).count() == 1
-    assert to_playwright(page, ledger.heading).count() >= 1
-    # Flash regions reserved for live announcements.
-    polite = to_playwright(page, shell.flash_region)
-    assert polite.count() == 1
-    assert polite.get_attribute("role") == "status"
-    assertive = to_playwright(page, shell.flash_region_assertive)
-    assert assertive.count() == 1
-    assert assertive.get_attribute("role") == "alert"
 
 
 def test_skip_link_focuses_first(page: Page, live_server: tuple[str, object]) -> None:

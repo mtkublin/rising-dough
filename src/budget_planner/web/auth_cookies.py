@@ -17,15 +17,18 @@ import binascii
 import hashlib
 import hmac
 import json
-import time
+import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Final, Literal
 from urllib.parse import urlsplit
 
 from starlette.responses import Response
 
+from budget_planner import clock
 from budget_planner.config import Settings
+
+_logger = logging.getLogger(__name__)
 
 SESSION_COOKIE_NAME: Final = "__Host-session"
 SESSION_DEV_COOKIE_NAME: Final = "session"
@@ -65,7 +68,7 @@ def set_session_cookie(
     now: datetime | None = None,
 ) -> None:
     """Attach the session cookie; ``Max-Age`` follows the clamped ``expires_at`` (ADR-0076 §1)."""
-    remaining = expires_at - (datetime.now(UTC) if now is None else now)
+    remaining = expires_at - (clock.utc_now() if now is None else now)
     response.set_cookie(
         key=session_cookie_name(settings),
         value=token,
@@ -85,15 +88,6 @@ def clear_session_cookie(response: Response, settings: Settings) -> None:
         httponly=True,
         secure=not _is_dev(settings),
         samesite="lax",
-    )
-
-
-def response_sets_cookie(response: Response, name: str) -> bool:
-    """True when *response* already carries a ``Set-Cookie`` for *name*."""
-    prefix = f"{name}=".encode("latin-1")
-    return any(
-        key.lower() == b"set-cookie" and value.startswith(prefix)
-        for key, value in response.raw_headers
     )
 
 
@@ -120,7 +114,7 @@ def _b64d(text: str) -> bytes:
 
 
 def _mac(secret: str, payload: bytes) -> bytes:
-    return hmac.new(secret.encode("utf-8"), _CHALLENGE_DOMAIN + payload, hashlib.sha256).digest()
+    return hmac.new(secret.encode(), _CHALLENGE_DOMAIN + payload, hashlib.sha256).digest()
 
 
 def sign_challenge(
@@ -137,12 +131,12 @@ def sign_challenge(
             "p": purpose,
             "u": user_id,
             "c": _b64e(challenge),
-            "t": int(time.time() if now is None else now),
+            "t": int(clock.utc_now().timestamp() if now is None else now),
         },
         separators=(",", ":"),
         sort_keys=True,
-    ).encode("utf-8")
-    return f"{_b64e(payload)}.{_b64e(_mac(settings.cookie_secret, payload))}"
+    ).encode()
+    return f"{_b64e(payload)}.{_b64e(_mac(settings.resolve().cookie_secret, payload))}"
 
 
 def _decode_envelope(secret: str, value: str | None) -> dict[str, object] | None:
@@ -154,12 +148,14 @@ def _decode_envelope(secret: str, value: str | None) -> dict[str, object] | None
         payload = _b64d(body)
         signature = _b64d(sig)
     except (binascii.Error, ValueError):
+        _logger.debug("auth envelope is not valid base64")
         return None
     if not hmac.compare_digest(signature, _mac(secret, payload)):
         return None
     try:
         data = json.loads(payload)
     except ValueError:
+        _logger.debug("auth envelope payload is not valid JSON")
         return None
     return data if isinstance(data, dict) else None
 
@@ -173,15 +169,16 @@ def verify_challenge(
     now: float | None = None,
 ) -> ChallengeEnvelope | None:
     """Return the envelope iff *value* is authentic, fresh, and matches purpose/user."""
-    data = _decode_envelope(settings.cookie_secret, value)
+    data = _decode_envelope(settings.resolve().cookie_secret, value)
     if data is None or data.get("p") != purpose or data.get("u") != user_id:
         return None
     try:
         challenge = _b64d(str(data["c"]))
         issued = int(str(data["t"]))
     except (KeyError, ValueError, binascii.Error):
+        _logger.debug("challenge envelope is missing or has malformed fields")
         return None
-    current = time.time() if now is None else now
+    current = clock.utc_now().timestamp() if now is None else now
     if not issued <= current < issued + CHALLENGE_TTL_SECONDS:
         return None
     return ChallengeEnvelope(purpose=purpose, user_id=user_id, challenge=challenge)
@@ -216,16 +213,31 @@ def clear_challenge_cookie(response: Response, settings: Settings) -> None:
 # ---------------------------------------------------------------------------
 
 
-def safe_next(value: str | None) -> str:
-    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0077)."""
-    if not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\")):
-        return DEFAULT_LANDING
-    if "\\" in value or any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value):
-        return DEFAULT_LANDING
+def _is_unsafe_shape(value: str) -> bool:
+    """True for empty, root, non-absolute or protocol-relative paths."""
+    return not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\"))
+
+
+def _has_forbidden_chars(value: str) -> bool:
+    """True when the path holds a backslash or any control character."""
+    if "\\" in value:
+        return True
+    return any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value)
+
+
+def _is_external_or_login(value: str) -> bool:
+    """True for a URL carrying a scheme/host, or one pointing back at the login page."""
     parts = urlsplit(value)
     if parts.scheme or parts.netloc:
+        return True
+    return parts.path == LOGIN_PATH or parts.path.startswith(f"{LOGIN_PATH}/")
+
+
+def safe_next(value: str | None) -> str:
+    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0077)."""
+    if value is None or _is_unsafe_shape(value):
         return DEFAULT_LANDING
-    if parts.path == LOGIN_PATH or parts.path.startswith(f"{LOGIN_PATH}/"):
+    if _has_forbidden_chars(value) or _is_external_or_login(value):
         return DEFAULT_LANDING
     return value
 
@@ -242,7 +254,6 @@ __all__ = [
     "challenge_cookie_name",
     "clear_challenge_cookie",
     "clear_session_cookie",
-    "response_sets_cookie",
     "safe_next",
     "session_cookie_name",
     "set_challenge_cookie",

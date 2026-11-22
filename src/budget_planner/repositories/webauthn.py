@@ -10,19 +10,20 @@ covered by the login audit row the service writes (ADR-0067 §4).
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Final
 
 from webauthn.helpers import bytes_to_base64url
 
+from budget_planner import clock
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories._shared import (
     parse_dt,
     parse_dt_required,
     transaction,
-    utc_now_iso,
     write_audit,
 )
 
@@ -32,6 +33,8 @@ _COLUMNS = (
     "created_at, last_used_at, deleted_at"
 )
 _EMPTY_CTX = RequestCtx.empty()
+#: Consumed-challenge rows older than this are pruned (twice the 300 s cookie TTL).
+CHALLENGE_RETENTION: Final = timedelta(seconds=600)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -50,7 +53,7 @@ class WebAuthnCredential:
     deleted_at: datetime | None
 
 
-def audit_view(cred: WebAuthnCredential) -> dict[str, Any]:
+def audit_view(cred: WebAuthnCredential) -> dict[str, object]:
     """Return the audit-safe projection of ``cred`` (no public key)."""
     return {
         "id": cred.id,
@@ -68,7 +71,7 @@ def _split_transports(raw: str | None) -> tuple[str, ...]:
     return tuple(t for t in raw.split(",") if t)
 
 
-def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
+def _hydrate_credential(row: sqlite3.Row) -> WebAuthnCredential:
     return WebAuthnCredential(
         id=row["id"],
         user_id=row["user_id"],
@@ -83,12 +86,15 @@ def _hydrate(row: sqlite3.Row) -> WebAuthnCredential:
     )
 
 
-def _get_by_id(conn: sqlite3.Connection, user_id: int, row_id: int) -> WebAuthnCredential | None:
+def _get_by_id(
+    conn: sqlite3.Connection, user_id: int, row_id: int, *, include_deleted: bool = False
+) -> WebAuthnCredential | None:
+    live = "" if include_deleted else " AND deleted_at IS NULL"
     row = conn.execute(
-        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?",
+        f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE id = ? AND user_id = ?{live}",
         (row_id, user_id),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_credential(row)
 
 
 def list_credentials(
@@ -100,7 +106,7 @@ def list_credentials(
         f"SELECT {_COLUMNS} FROM webauthn_credentials WHERE user_id = ?{live} ORDER BY id",
         (user_id,),
     ).fetchall()
-    return tuple(_hydrate(r) for r in rows)
+    return tuple(_hydrate_credential(r) for r in rows)
 
 
 def get_by_credential_id(
@@ -112,7 +118,7 @@ def get_by_credential_id(
         "WHERE credential_id = ? AND deleted_at IS NULL",
         (credential_id,),
     ).fetchone()
-    return None if row is None else _hydrate(row)
+    return None if row is None else _hydrate_credential(row)
 
 
 def create_credential(
@@ -161,7 +167,7 @@ def update_sign_count(
     now: datetime | None = None,
 ) -> None:
     """Persist the authenticator's latest ``sign_count`` and ``last_used_at``."""
-    used_at = (now or datetime.now(UTC)).astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    used_at = clock.iso_utc(now or clock.utc_now())
     with transaction(conn):
         conn.execute(
             "UPDATE webauthn_credentials SET sign_count = ?, last_used_at = ? "
@@ -185,12 +191,12 @@ def revoke_credential(
     credential was revoked.
     """
     with transaction(conn):
-        current = _get_by_id(conn, user_id, credential_row_id)
+        current = _get_by_id(conn, user_id, credential_row_id, include_deleted=True)
         if current is None or current.deleted_at is not None:
             return False
         conn.execute(
             "UPDATE webauthn_credentials SET deleted_at = ? WHERE id = ? AND user_id = ?",
-            (utc_now_iso(), credential_row_id, user_id),
+            (clock.utc_now_iso(), credential_row_id, user_id),
         )
         write_audit(
             conn,
@@ -204,10 +210,39 @@ def revoke_credential(
     return True
 
 
+def _challenge_stamp(value: datetime) -> str:
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def consume_challenge(
+    conn: sqlite3.Connection, challenge: bytes, *, now: datetime | None = None
+) -> bool:
+    """Mark a passkey ``challenge`` used; ``True`` iff this is its first use.
+
+    Stores ``sha256(challenge)`` in ``passkey_challenges_consumed``; the primary
+    key makes the first attempt win atomically (ADR-0067 amendment 2026-11-21,
+    T-Q253). Rows past :data:`CHALLENGE_RETENTION` are pruned on each call.
+    """
+    current = clock.utc_now() if now is None else now
+    with transaction(conn):
+        conn.execute(
+            "DELETE FROM passkey_challenges_consumed WHERE consumed_at < ?",
+            (_challenge_stamp(current - CHALLENGE_RETENTION),),
+        )
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO passkey_challenges_consumed (challenge_hash, consumed_at) "
+            "VALUES (?, ?)",
+            (hashlib.sha256(challenge).hexdigest(), _challenge_stamp(current)),
+        )
+    return cur.rowcount == 1
+
+
 __all__ = [
+    "CHALLENGE_RETENTION",
     "ENTITY_TYPE",
     "WebAuthnCredential",
     "audit_view",
+    "consume_challenge",
     "create_credential",
     "get_by_credential_id",
     "list_credentials",

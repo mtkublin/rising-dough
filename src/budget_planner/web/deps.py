@@ -3,26 +3,53 @@ and the current user id surface (T-D16 / ADR-0061 §5)."""
 
 from __future__ import annotations
 
+import ipaddress
+import logging
 import sqlite3
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import date, datetime, timedelta
 from http import HTTPStatus
+from typing import Annotated
 from urllib.parse import quote, urlsplit
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
+from budget_planner import clock
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
+from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.config import Settings, get_settings as _get_settings
-from budget_planner.db.connection import get_connection
+from budget_planner.domain.client_ip import USER_AGENT_MAX_LENGTH, bound_text
+from budget_planner.domain.ports import PasswordHasher, TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.sessions import session_handle
+from budget_planner.services.connections import get_connection
+from budget_planner.services.recurring_formula import FormulaFx, formula_fx_for
 from budget_planner.web.auth_cookies import safe_next
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REDIRECT,
+    HX_REQUEST,
+    JSON_MEDIA_TYPE,
+)
 from budget_planner.web.middleware.auth import CurrentUser
 
+_LOG = logging.getLogger(__name__)
 REAUTH_PATH = "/auth/reauth"
 REAUTH_REQUIRED = "reauth_required"
 _FALLBACK_NEXT = "/settings/security"
+
+
+def get_token_source() -> TokenSource:
+    """Inject the CSPRNG adapter for the ``TokenSource`` port (ADR-0021 amendment)."""
+    return SecretsTokenSource()
+
+
+def get_password_hasher(request: Request) -> PasswordHasher:
+    """Inject the bcrypt adapter for the ``PasswordHasher`` port (T-Q291)."""
+    return BcryptHasher(rounds=get_settings_dep(request).bcrypt_rounds)
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -33,6 +60,16 @@ def get_settings_dep(request: Request) -> Settings:
     return _get_settings()
 
 
+def get_today(settings: Annotated[Settings, Depends(get_settings_dep)]) -> date:
+    """FastAPI dependency: today's date in the display timezone (ADR-0140)."""
+    return clock.today_local(settings)
+
+
+def today_for(request: Request) -> date:
+    """Today's display-zone date for helpers that already hold the request (ADR-0140)."""
+    return clock.today_local(get_settings_dep(request))
+
+
 def get_db(request: Request) -> Iterator[sqlite3.Connection]:
     """Yield a per-request SQLite connection with FK pragmas on."""
     settings = get_settings_dep(request)
@@ -41,6 +78,27 @@ def get_db(request: Request) -> Iterator[sqlite3.Connection]:
         yield conn
     finally:
         conn.close()
+
+
+def parse_client_ip(raw: str | None) -> str | None:
+    """Canonical IP literal for ``raw``, or ``None`` when it is not an address."""
+    if raw is None:
+        return None
+    try:
+        return str(ipaddress.ip_address(raw.strip()))
+    except ValueError:
+        _LOG.debug("client address is not an IP literal")
+        return None
+
+
+def client_ip(request: Request) -> str | None:
+    """Validated proxy-set client address, ``None`` if absent or not an IP (ADR-0133 §1)."""
+    return parse_client_ip(request.client.host if request.client else None)
+
+
+def request_user_agent(request: Request) -> str | None:
+    """User agent truncated for persistence (ADR-0133 §4)."""
+    return bound_text(request.headers.get("user-agent"), USER_AGENT_MAX_LENGTH)
 
 
 def get_request_ctx(request: Request) -> RequestCtx:
@@ -54,8 +112,8 @@ def get_request_ctx(request: Request) -> RequestCtx:
     The ``getattr`` probes keep this usable on exempt routes (``/auth/login``)
     where no user is attached yet.
     """
-    ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
+    ip = client_ip(request)
+    user_agent = request_user_agent(request)
     user = getattr(request.state, "user", None)
     raw_session_id = getattr(request.state, "session_id", None)
     user_id = None if user is None else int(user.id)
@@ -93,10 +151,20 @@ class ReauthRequired(Exception):  # noqa: N818  # control-flow signal, handled i
         self.response = response
 
 
+def get_formula_fx(
+    request: Request,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    user_id: Annotated[int, Depends(current_user_id)],
+) -> FormulaFx:
+    """Cache-only FX context so a formula amount converts the same on every surface (T-Q286)."""
+    settings = get_settings_dep(request)
+    return formula_fx_for(conn, user_id, settings, clock.today_local(settings))
+
+
 def reauth_now(request: Request) -> datetime:
     """Current time for re-auth checks; tests inject ``app.state.reauth_clock``."""
-    clock: Callable[[], datetime] | None = getattr(request.app.state, "reauth_clock", None)
-    return clock() if clock is not None else datetime.now(UTC)
+    override: Callable[[], datetime] | None = getattr(request.app.state, "reauth_clock", None)
+    return override() if override is not None else clock.utc_now()
 
 
 def _same_origin_path(url: str, request: Request) -> str | None:
@@ -111,7 +179,7 @@ def _return_path(request: Request) -> str:
 
     Never the POST route itself — a GET to it would 405.
     """
-    for header in ("hx-current-url", "referer"):
+    for header in (HX_CURRENT_URL, "referer"):
         path = _same_origin_path(request.headers.get(header, ""), request)
         if path:
             return safe_next(path)
@@ -126,14 +194,14 @@ def reauth_url(request: Request) -> str:
 def reauth_required_response(request: Request) -> Response:
     """Stale-session response in the shape the caller can handle (ADR-0076 §2)."""
     url = reauth_url(request)
-    if request.headers.get("hx-request", "").lower() == "true":
+    if request.headers.get(HX_REQUEST, "").lower() == "true":
         return JSONResponse(
             {"error": REAUTH_REQUIRED},
             status_code=HTTPStatus.FORBIDDEN,
-            headers={"HX-Redirect": url},
+            headers={HX_REDIRECT: url},
         )
     accept = request.headers.get("accept", "").lower()
-    if "application/json" in accept and "text/html" not in accept:
+    if JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept:
         return JSONResponse(
             {"error": REAUTH_REQUIRED, "redirect": url}, status_code=HTTPStatus.FORBIDDEN
         )
@@ -152,8 +220,8 @@ def is_recently_authenticated(request: Request, conn: sqlite3.Connection) -> boo
 
 def require_recent_auth(
     request: Request,
-    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008
-    _user: CurrentUser = Depends(current_user),  # noqa: B008
+    conn: sqlite3.Connection = Depends(get_db),  # noqa: B008 — FastAPI Depends default is idiomatic
+    _user: CurrentUser = Depends(current_user),  # noqa: B008 — FastAPI Depends default is idiomatic
 ) -> None:
     """Route dependency: 403 / redirect to ``/auth/reauth`` when the login is stale."""
     if not is_recently_authenticated(request, conn):

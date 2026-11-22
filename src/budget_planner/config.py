@@ -8,15 +8,20 @@ Access via `get_settings()`; the result is cached process-wide.
 from __future__ import annotations
 
 import warnings
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Final, Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+
 # Default dev DB lives under `data/` (gitignored). CI/tests override via env.
+DEFAULT_BASE_CURRENCY: Final = "PLN"
 _DEFAULT_SQLITE_PATH: Final = Path("data") / "budget.sqlite"
 _DEFAULT_DATABASE_URL: Final = f"sqlite:///{_DEFAULT_SQLITE_PATH.as_posix()}"
 # ADR-0034 §2: production DB lives on the host-mounted volume shared with
@@ -28,6 +33,24 @@ _DEV_COOKIE_SECRET: Final = "dev-only-cookie-secret-change-in-prod"  # noqa: S10
 
 
 Env = Literal["dev", "test", "production"]
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class ResolvedSettings:
+    """Values derived from :class:`Settings` (ADR-0021 amendment, ADR-0130 section 5).
+
+    Built by :meth:`Settings.resolve`; never mutated. ``cookie_secret`` is
+    secret, so it is left out of ``repr``.
+    """
+
+    database_url: str
+    cookie_secret: str
+
+    def __repr__(self) -> str:
+        return f"ResolvedSettings(database_url={self.database_url!r}, cookie_secret='***')"
+
+
+PRODUCTION_MIN_BCRYPT_ROUNDS = 12
 
 
 class Settings(BaseSettings):
@@ -43,8 +66,8 @@ class Settings(BaseSettings):
 
     env: Env = Field(default="dev")
     database_url: str = Field(default=_DEFAULT_DATABASE_URL)
-    base_currency: str = Field(default="PLN", min_length=3, max_length=3)
-    display_timezone: str = Field(default="Europe/Warsaw")
+    base_currency: str = Field(default=DEFAULT_BASE_CURRENCY, min_length=3, max_length=3)
+    display_timezone: str = Field(default=DEFAULT_DISPLAY_TIMEZONE)
     # Renamed from ``host`` / ``port`` in T-D03 — v3 config surface. The
     # loopback guard carries over from ADR-0005; v3 binds the container
     # loopback and Caddy terminates TLS in front of it (ADR-0036).
@@ -58,6 +81,8 @@ class Settings(BaseSettings):
     # Required in production. Dev / test fall back to a known value and
     # emit a warning so the fallback is observable.
     cookie_secret: str = Field(default="")
+    # T-Q291: bcrypt cost for the injected ``PasswordHasher`` (production 12; tests lower it).
+    bcrypt_rounds: int = Field(default=12, ge=4, le=31)
     session_lifetime_days: int = Field(default=14, ge=1, le=90)
     # ADR-0076 §1: hard cap measured from ``sessions.created_at``; sliding
     # expiry never extends past it.
@@ -67,7 +92,14 @@ class Settings(BaseSettings):
     # ADR-0078 §7: age after which audit ip / user_agent are nulled and ended
     # sessions deleted (T-D60).
     retention_personal_days: int = Field(default=90, ge=7, le=3650)
-    fx_api_url: str = Field(default="https://api.frankfurter.app")
+    # ADR-0145: NBP table A host; the adapter appends ``/api/exchangerates/tables/A/``.
+    fx_api_url: str = Field(default="https://api.nbp.pl")
+    # ADR-0145: in-app daily FX refresh. ``None`` = on in production, off in dev/test.
+    fx_refresh_enabled: bool | None = Field(default=None)
+    # ADR-0145 amendment: a table dated more than this many days before today is rejected whole.
+    fx_max_table_age_days: int = Field(default=7, ge=1, le=60)
+    # ADR-0146: ``/health/fx`` is 503 when a used currency's newest rate is older than this.
+    fx_max_rate_age_days: int = Field(default=4, ge=1, le=60)
     # ADR-0078 §4 / T-D57: ceiling (days) on the age of any copy of user data
     # outside the live DB. Pre-migration backups are pruned once older than
     # ``backup_max_age_days - 7``. The Terraform twin
@@ -109,11 +141,11 @@ class Settings(BaseSettings):
     # ``pydantic-alias`` ignore: AliasChoices is a dynamic alias by design
     # (env name + field name); both fields have defaults, so the plugin's
     # "required dynamic alias" concern does not apply.
-    admin_email: str | None = Field(  # type: ignore[pydantic-alias]
+    admin_email: str | None = Field(  # type: ignore[pydantic-alias]  # AliasChoices is a dynamic alias by design; field has a default
         default=None,
         validation_alias=AliasChoices("BUDGET_PLANNER_ADMIN_EMAIL", "admin_email"),
     )
-    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]
+    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]  # AliasChoices is a dynamic alias by design; field has a default
         default=None,
         validation_alias=AliasChoices(
             "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD", "admin_initial_password"
@@ -147,6 +179,14 @@ class Settings(BaseSettings):
             return None
         return v
 
+    @field_validator("fx_api_url")
+    @classmethod
+    def _validate_provider_url(cls, v: str) -> str:
+        parts = urlsplit(v)
+        if parts.scheme not in {"http", "https"} or not parts.hostname or parts.username:
+            raise ValueError("fx_api_url must be an http(s) URL without credentials (ADR-0145)")
+        return v
+
     @field_validator("display_timezone")
     @classmethod
     def _validate_tz(cls, v: str) -> str:
@@ -176,22 +216,23 @@ class Settings(BaseSettings):
             return tuple(host.strip() for host in v.split(",") if host.strip())
         return v
 
+    def _require_production_bcrypt_floor(self) -> None:
+        if self.bcrypt_rounds < PRODUCTION_MIN_BCRYPT_ROUNDS:
+            raise ValueError(
+                f"bcrypt_rounds must be >= {PRODUCTION_MIN_BCRYPT_ROUNDS} in production "
+                "(T-Q291, ADR-0033 §2)."
+            )
+
     @model_validator(mode="after")
     def _finalise(self) -> Settings:
         if self.session_absolute_lifetime_days < self.session_lifetime_days:
             raise ValueError(
                 "session_absolute_lifetime_days must be >= session_lifetime_days (ADR-0076 §1)."
             )
-        # T-D04: default the DB path to ``/data/budget.db`` in production
-        # when the operator has not overridden it. Dev / test keep the
-        # repo-local default so `just dev` works without env plumbing.
-        if self.env == "production" and self.database_url == _DEFAULT_DATABASE_URL:
-            object.__setattr__(self, "database_url", _PROD_DATABASE_URL)
-
         # T-D03: cookie_secret policy. Production without a secret is a
-        # hard failure; dev falls back to the known-dev value and emits a
-        # one-shot warning so the fallback is observable; test env also
-        # falls back but stays silent (test runs would otherwise be swamped).
+        # hard failure; dev falls back to the known-dev value (see
+        # :meth:`resolve`) and emits a one-shot warning so the fallback is
+        # observable; test env also falls back but stays silent.
         if not self.cookie_secret:
             if self.env == "production":
                 raise ValueError(
@@ -204,12 +245,15 @@ class Settings(BaseSettings):
                     "Set BUDGET_COOKIE_SECRET to silence this warning.",
                     stacklevel=2,
                 )
-            object.__setattr__(self, "cookie_secret", _DEV_COOKIE_SECRET)
+
+        if self.env == "production" and not self.fx_api_url.startswith("https://"):
+            raise ValueError("fx_api_url must be https in production (ADR-0145).")
 
         # T-D135: WebAuthn relying-party policy. The localhost defaults make
         # passkeys fail in the browser on the real hostname, so production
         # refuses to start with them (ADR-0067 §1).
         if self.env == "production":
+            self._require_production_bcrypt_floor()
             if self.webauthn_rp_id == "localhost":
                 raise ValueError(
                     "webauthn_rp_id must not be 'localhost' in production — set "
@@ -223,8 +267,31 @@ class Settings(BaseSettings):
                 )
         return self
 
+    def daily_refresh_active(self) -> bool:
+        """Whether the daily FX refresh task runs (explicit setting, else production only)."""
+        if self.fx_refresh_enabled is None:
+            return self.env == "production"
+        return self.fx_refresh_enabled
+
+    def resolve(self) -> ResolvedSettings:
+        """Return the derived values: prod DB default and dev cookie-secret fallback.
+
+        T-D04: production defaults the DB path to ``/data/budget.db`` when the
+        operator has not overridden it; dev / test keep the repo-local default.
+        T-D03: an empty ``cookie_secret`` falls back to the known dev value
+        (production already refused it in validation).
+        """
+        database_url = (
+            _PROD_DATABASE_URL
+            if self.env == "production" and self.database_url == _DEFAULT_DATABASE_URL
+            else self.database_url
+        )
+        return ResolvedSettings(
+            database_url=database_url, cookie_secret=self.cookie_secret or _DEV_COOKIE_SECRET
+        )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return the process-wide settings instance (cached)."""
+    """Return the process-wide settings instance (cached; tests clear it via ``cache_clear``)."""
     return Settings()

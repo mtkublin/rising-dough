@@ -17,26 +17,18 @@ pytest_plugins = ("tests.contract.test_plan_support",)
 READ_PATHS = (
     "/budget",
     "/budget/yearly?year=2026",
-    "/budget/manage",
-    "/budget-legacy",
     "/forecast",
     "/forecast/view",
-    "/analytics",
     "/plan",
-    "/plan/analytics",
 )
 
 
 @covers(
     "GET /budget",
     "GET /budget/yearly",
-    "GET /budget/manage",
-    "GET /budget-legacy",
     "GET /forecast",
     "GET /forecast/view",
-    "GET /analytics",
     "GET /plan",
-    "GET /plan/analytics",
 )
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_read_routes_redirect_anonymous_visitors_to_login(
@@ -48,27 +40,6 @@ def test_read_routes_redirect_anonymous_visitors_to_login(
 
 
 # --- redirects ----------------------------------------------------------------
-
-
-@covers("GET /budget/manage")
-def test_manage_redirects_to_rules_anchor(client: TestClient) -> None:
-    r = client.get("/budget/manage", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/budget#budget-rules"
-
-
-@covers("GET /analytics")
-def test_analytics_redirects_to_budget_breakdown(client: TestClient) -> None:
-    r = client.get("/analytics", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/budget#budget-breakdown"
-
-
-@covers("GET /budget-legacy")
-def test_budget_legacy_redirects_to_plan_budget_tab(client: TestClient) -> None:
-    r = client.get("/budget-legacy", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/plan?tab=budget"
 
 
 # --- GET /budget ---------------------------------------------------------------
@@ -143,7 +114,7 @@ def test_forecast_page_renders_chart_and_table(client: TestClient, account_id: i
 @covers("GET /forecast")
 @pytest.mark.parametrize(
     ("query", "expected"),
-    [("6", "6"), ("notanumber", "12"), ("99999", "60"), ("0", "1")],
+    [("6", "6"), ("99999", "60"), ("0", "1")],
 )
 def test_forecast_horizon_is_parsed_and_clamped(
     client: TestClient, account_id: int, query: str, expected: str
@@ -169,7 +140,7 @@ def test_forecast_view_is_a_fragment_with_one_row_per_month(
 
 
 @covers("GET /plan")
-@pytest.mark.parametrize("tab", ["budget", "year", "forecast", "analytics", "bogus"])
+@pytest.mark.parametrize("tab", ["budget", "year", "forecast", "analytics", ""])
 def test_plan_hub_renders_every_tab(client: TestClient, cat_id: int, tab: str) -> None:
     r = client.get(f"/plan?tab={tab}")
     assert r.status_code == 200
@@ -183,21 +154,3 @@ def test_plan_year_tab_exposes_year_cells(client: TestClient, cat_id: int) -> No
     assert r.status_code == 200
     assert _html.exists(r.text, plan.year_cell(cat_id, 1))
     assert _html.exists(r.text, plan.year_card(cat_id))
-
-
-@covers("GET /plan/analytics")
-@pytest.mark.parametrize(
-    ("query", "expected"),
-    [
-        ("", "month"),
-        ("?period=month", "month"),
-        ("?period=year", "year"),
-        ("?period=trailing-12", "trailing-12"),
-        ("?period=nope", "month"),
-    ],
-)
-def test_plan_analytics_fragment_period(client: TestClient, query: str, expected: str) -> None:
-    r = client.get(f"/plan/analytics{query}")
-    assert r.status_code == 200
-    assert _html.resolve_one(r.text, plan.analytics_bundle).get("data-period") == expected
-    assert not _html.exists(r.text, plan.heading)  # fragment

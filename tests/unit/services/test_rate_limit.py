@@ -46,11 +46,19 @@ def test_consume_allows_up_to_limit_then_denies(conn: sqlite3.Connection) -> Non
     assert denied.scope == "s"
 
 
+def _count(conn: sqlite3.Connection, key: str, bucket_start: datetime) -> int:
+    row = conn.execute(
+        "SELECT count FROM auth_rate_limit WHERE key = ? AND bucket_start = ?",
+        (key, bucket_start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")),
+    ).fetchone()
+    return 0 if row is None else int(row[0])
+
+
 def test_throttled_attempts_still_count(conn: sqlite3.Connection) -> None:
     for _ in range(4):
         svc.consume(conn, "s", "id", PER_MINUTE, now=T0)
     start = svc.bucket_start(T0, 60)
-    assert repo.get_count(conn, svc.counter_key("s", 60, "id"), start) == 4
+    assert _count(conn, svc.counter_key("s", 60, "id"), start) == 4
 
 
 def test_window_reset_allows_again(conn: sqlite3.Connection) -> None:
@@ -97,7 +105,7 @@ def test_repo_prune_returns_rowcount(conn: sqlite3.Connection) -> None:
     repo.hit(conn, "k", T0)
     assert repo.prune(conn, T0) == 0
     assert repo.prune(conn, T0 + timedelta(seconds=1)) == 1
-    assert repo.get_count(conn, "k", T0) == 0
+    assert _count(conn, "k", T0) == 0
 
 
 def test_combine_picks_longest_denial() -> None:

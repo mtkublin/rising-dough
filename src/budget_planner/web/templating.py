@@ -7,21 +7,27 @@ registered on `env`. See ADR-0021 (functional style) + T-030 plan.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
-from markupsafe import Markup, escape
+from markupsafe import Markup
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import (
     ISO_4217_CURRENCIES,
+    bps_to_percent,
     currency_decimals,
+    format_major,
     format_money,
-    from_minor_units,
+    format_whole,
+    major_float,
+    minor_to_major,
 )
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -43,7 +49,7 @@ def _money_num_filter(
     """
     if amount_minor is None:
         return ""
-    value = from_minor_units(int(amount_minor), currency)
+    value = minor_to_major(int(amount_minor), currency)
     if abs_value:
         value = abs(value)
     spec = f"{'+' if signed else ''},.{currency_decimals(currency)}f"
@@ -58,9 +64,24 @@ def _money_major_filter(amount_minor: int | None, currency: str) -> str:
     """
     if amount_minor is None:
         return ""
-    decimals = currency_decimals(currency)
-    value = from_minor_units(int(amount_minor), currency)
-    return f"{value:.{decimals}f}"
+    return format_major(int(amount_minor), currency)
+
+
+def _money_whole_filter(amount_minor: int | None, currency: str, grouped: bool = True) -> str:
+    """Whole major units for dense tables (ADR-0006 amendment 2026-11-21)."""
+    if amount_minor is None:
+        return ""
+    return format_whole(int(amount_minor), currency, grouped=grouped)
+
+
+def _major_float_filter(amount_minor: int | None, currency: str) -> float:
+    """Major-unit float for visual scales (heat weights), never for display text."""
+    return major_float(int(amount_minor or 0), currency)
+
+
+def _bps_percent_filter(bps: int) -> str:
+    """Basis points as a plain percent number (``150`` -> ``1.5``)."""
+    return format(bps_to_percent(int(bps)).normalize(), "f")
 
 
 def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-%d") -> str:
@@ -75,7 +96,27 @@ def _date_fmt_filter(value: date | datetime | str | None, pattern: str = "%Y-%m-
     return value.strftime(pattern)
 
 
-def _dt_local_factory(tz_name: str) -> Any:
+# T-Q237 (G9): named date styles so templates never carry strftime patterns.
+_DATE_STYLES: Mapping[str, str] = MappingProxyType(
+    {
+        "date_day_month": "%-d %b",
+        "date_month_day": "%b %d",
+        "date_month_year": "%b %Y",
+        "date_day_month_year": "%d %b %Y",
+        "date_year_month": "%Y-%m",
+        "date_weekday_long": "%A · %d %B %Y",
+    }
+)
+
+
+def _date_style_filter(pattern: str) -> Callable[[date | datetime | str | None], str]:
+    def _styled(value: date | datetime | str | None) -> str:
+        return _date_fmt_filter(value, pattern)
+
+    return _styled
+
+
+def _dt_local_factory(tz_name: str) -> Callable[..., str]:
     tz = ZoneInfo(tz_name)
 
     def _dt_local(value: datetime | str | None, pattern: str = "%Y-%m-%d %H:%M") -> str:
@@ -95,22 +136,26 @@ def _dt_local_factory(tz_name: str) -> Any:
     return _dt_local
 
 
-_DIRECTION_COLORS: dict[str, str] = {
-    Direction.INCOME.value: "pill-income",
-    Direction.EXPENSE.value: "pill-expense",
-    Direction.TRANSIT.value: "pill-transit",
-    Direction.ADJUSTMENT.value: "pill-adjust",
-}
+_DIRECTION_COLORS: Mapping[str, str] = MappingProxyType(
+    {
+        Direction.INCOME.value: "pill-income",
+        Direction.EXPENSE.value: "pill-expense",
+        Direction.TRANSIT.value: "pill-transit",
+        Direction.ADJUSTMENT.value: "pill-adjust",
+    }
+)
 
 # ADR-0048: CSS color used when a category has no override. Keeps the direction
 # palette in a single lookup; the actual oklch values live in app.css under the
 # matching custom properties.
-_DIRECTION_CSS_VARS: dict[str, str] = {
-    Direction.INCOME.value: "var(--income)",
-    Direction.EXPENSE.value: "var(--expense)",
-    Direction.TRANSIT.value: "var(--transit)",
-    Direction.ADJUSTMENT.value: "var(--adjust)",
-}
+_DIRECTION_CSS_VARS: Mapping[str, str] = MappingProxyType(
+    {
+        Direction.INCOME.value: "var(--income)",
+        Direction.EXPENSE.value: "var(--expense)",
+        Direction.TRANSIT.value: "var(--transit)",
+        Direction.ADJUSTMENT.value: "var(--adjust)",
+    }
+)
 
 
 def _direction_badge(direction: Direction | str | None) -> Markup:
@@ -119,11 +164,8 @@ def _direction_badge(direction: Direction | str | None) -> Markup:
     value = direction.value if isinstance(direction, Direction) else str(direction)
     css = _DIRECTION_COLORS.get(value, "pill-adjust")
     label = value.capitalize()
-    # Values come from the Direction StrEnum or a bounded string set; label is
-    # just capitalised. Safe to mark as Markup — content is derived not user.
-    return Markup(  # noqa: S704
-        f'<span class="pill {css}" aria-label="{label}">{label}</span>'
-    )
+    # Markup built from a literal template; ``.format`` escapes every argument.
+    return Markup('<span class="pill {}" aria-label="{}">{}</span>').format(css, label, label)
 
 
 def _resolve_category_color(direction: Direction | str | None, color: str | None) -> str:
@@ -156,14 +198,12 @@ def _category_label_parts(
     if not name:
         return Markup("")
     css_color = _resolve_category_color(direction, color)
-    safe_name = escape(name)
     style = f"background: color-mix(in oklab, {css_color} 16%, transparent); color: {css_color}"
-    return Markup(  # noqa: S704
-        f'<span class="pill cat-pill" style="{style}">{safe_name}</span>'
-    )
+    # Literal template; ``.format`` escapes name and style.
+    return Markup('<span class="pill cat-pill" style="{}">{}</span>').format(style, name)
 
 
-def _category_label(category: Any) -> Markup:
+def _category_label(category: object) -> Markup:
     """Render a coloured category name span from a ``Category``-shaped object.
 
     Accepts anything with ``name`` / ``direction`` / ``color`` attributes.
@@ -179,19 +219,13 @@ def _category_label(category: Any) -> Markup:
     )
 
 
-def _csrf_token() -> str:
-    # v1 single-user, no auth (ADR-0005). Keep the attr shape stable.
-    return ""
+def _display_today_global(settings: Settings) -> Callable[[], str]:
+    """Jinja global: today's date in `display_timezone` as ISO string (ADR-0030 §1, ADR-0140)."""
 
+    def _display_today() -> str:
+        return clock.today_local(settings).isoformat()
 
-def _today_local_factory(tz_name: str) -> Any:
-    """Return today's date in `display_timezone` as ISO string (ADR-0030 §1)."""
-    tz = ZoneInfo(tz_name)
-
-    def _today_local() -> str:
-        return datetime.now(tz).date().isoformat()
-
-    return _today_local
+    return _display_today
 
 
 def build_jinja_env(settings: Settings) -> Environment:
@@ -207,8 +241,13 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["money"] = _money_filter
     env.filters["money_num"] = _money_num_filter
     env.filters["currency_decimals"] = currency_decimals
+    env.filters["money_whole"] = _money_whole_filter
+    env.filters["major_float"] = _major_float_filter
+    env.filters["bps_percent"] = _bps_percent_filter
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
+    for name, pattern in _DATE_STYLES.items():
+        env.filters[name] = _date_style_filter(pattern)
     env.filters["dt_local"] = _dt_local_factory(settings.display_timezone)
     env.filters["direction_badge"] = _direction_badge
     env.globals["direction_badge"] = _direction_badge
@@ -216,9 +255,8 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.globals["category_label"] = _category_label
     env.globals["category_label_parts"] = _category_label_parts
     env.globals["base_ccy"] = settings.base_currency
-    env.globals["csrf_token"] = _csrf_token
     env.globals["Direction"] = Direction
     # T-110 / ADR-0030 — shared primitives: default-date-today + ISO 4217 list.
-    env.globals["today_local"] = _today_local_factory(settings.display_timezone)
+    env.globals["today_local"] = _display_today_global(settings)
     env.globals["iso_4217_currencies"] = ISO_4217_CURRENCIES
     return env

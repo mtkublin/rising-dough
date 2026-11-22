@@ -98,3 +98,86 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 - `pylint duplicate-code`: dropped, 19 boilerplate hits and none of the semantic duplicates.
 - Report-only guards: rejected, the ratchet gives the same green CI while making regressions fail.
 - A cyclomatic-complexity gate: deferred; the ADR-0107 redesign rewrites most routers.
+
+## Amendment 2026-11-21 (ADR-0134 number held by another branch)
+
+- **Exemption.** `tests/architecture/test_adr_index.py` gains the constant `TEMPORARY_GAPS = {134}` next to `GRANDFATHERED_GAPS` (G14, Q-051). It is temporary, unlike the 0044 gap.
+- **Why.** ADR-0134 was written on `feat/ui-test-harness` (commit abbdc34) by another session and is not on `remediation/quality`. ADR-0135 (T-Q277) was numbered after it to avoid a collision, which leaves a transient gap on this branch. The ADR file must not be copied across branches. Every other gap still fails the guard.
+- **Removal trigger.** When ADR-0134 reaches `main` and `main` is merged into `remediation/quality`, delete the constant. The guard reports `stale-gap-exemption` as soon as an `0134-*.md` file exists, so the exemption cannot outlive its reason and that failure is the reminder.
+
+## Amendment 2026-11-22 (SYNC-MAIN): `TEMPORARY_GAPS` removed
+
+`origin/main` was merged into `remediation/quality`. The redesign-scope ADR (main numbered it 0132, which collided with this branch's CI-environments ADR-0132) is renumbered back to ADR-0134, filling the gap; `TEMPORARY_GAPS`, its `stale-gap-exemption` rule and test are deleted as the removal trigger above required.
+
+## Amendment 2026-11-21 (operator): template-logic burn-down is finished by the redesign
+
+- **Decision D3.** The Sourdough redesign ([ADR-0107](0107-sourdough-redesign-from-designer-handoff.md)) deletes the old templates, so remediation does **not** burn down `tests/architecture/allowlists/template_logic.toml` entries for templates the redesign replaces. Remediation stops at templates that survive the redesign (T-Q237 and T-Q273 are re-scoped accordingly; their Q-ids stay traceable).
+- **After the redesign, `tests/architecture/allowlists/template_logic.toml` must be empty** (burned to zero; the zero-violation policy of Decision 1 is unchanged). New redesign templates add no entries. The removal/cleanup task of the redesign plan (T-UR15) is not done while the file still holds an entry.
+- **Decisions D1 and D2 (operator, 2026-11-21):** defaults taken (D1: only `[pre-v4-P3]` gates T-E00; D2: T-Q260 stays after Phase 3, Band 4). Moot in practice because all remediation waves run before v4 Phase 3.
+
+## Tooling note 2026-11-21 (T-Q275): bandit 1.9.4
+
+- **Pin.** bandit is pinned `==1.9.4` in `pyproject.toml` dev dependencies and `uv.lock`; the local pre-commit hook (`uv run`, ADR-0120, T-Q240) and CI therefore share one version. 1.9.4 added three findings (B105 on the audit key `password_changed`, two B704 on `Markup(f"...")` in `web/templating.py`). All three are fixed in code; no `# nosec` was added.
+- **`# nosec` convention.** A `# nosec` names the rule id and carries the reason on the same line (`# nosec B105 - <reason>`); it still needs an amendment line here and must satisfy G4. Prefer a code fix.
+
+## Amendment 2026-11-21 (T-Q228): permanent entry for the fenced audit-free helpers
+
+- **Entry.** `tests/architecture/allowlists/read_filters.toml` gains one `[[permanent]]` row: `src/budget_planner/repositories/_unaudited.py`, rule `mutation-unaudited`, count 3.
+- **Reason.** These UPDATEs skip `audit_log` by design. The module is importable only by `services/recurring.py` (`tests/architecture/test_unaudited_imports.py`), and that caller writes the paired audit row in the same transaction ([ADR-0022](0022-repository-layer-soft-delete-audit-discipline.md) amendment 2026-11-21). It replaces the burn-down entry on `repositories/recurring.py` (deleted), so it is a lasting, justified category, not new debt.
+
+## Amendment 2026-11-21 (T-Q268): permanent entries for secret-keyed lookups and credential bookkeeping
+
+- **Entries.** `tests/architecture/allowlists/read_filters.toml` gains `[[permanent]]` rows (all replace deleted burn-down entries, so the total only shrinks): `repositories/sessions.py` `read-no-user-filter` x2 (`touch_session`, `rotate_session_token`); `repositories/webauthn.py` `read-no-user-filter` x1 (`get_by_credential_id`) and `mutation-unaudited` x1 (`update_sign_count`).
+- **Reason.** The first three are keyed by a secret (the hashed session token, the authenticator's credential id): possession of the key is the authorization and the user is not known before the lookup. `update_sign_count` is per-login counter bookkeeping on a credential (same class as `sessions`, an exempt table); auditing every login would bury the real credential create/revoke events. Everything else in the T-Q268 list was fixed or made explicit in code (ADR-0019 amendment 2026-11-21).
+
+## Amendment 2026-11-21 (T-Q241): `thin_router` helper-in-router counts rise, totals fall
+
+- **Entries.** `tests/architecture/allowlists/thin_router.toml` `helper-in-router` counts rise for `accounts.py` (3 to 5), `auth.py` (22 to 23), `ledger.py` (2 to 6), `recurring.py` (3 to 6), `transactions.py` (1 to 2). Matching `logic-in-router` counts fall by more (accounts 8 to 0, auth 2 to 0, ledger 11 to 5, recurring 17 to 3, transactions 9 to 2, budget 5 to 1, planned 9 to 1, categories 4 to 0, today 3 to 0).
+- **Reason.** The scanner tags a router function `logic-in-router` when it calls a repository (signal `R`). Moving those calls behind services (ADR-0142) removes the signal, so private helpers that only did repository reads are now plain `helper-in-router`. No code was added: per file, logic plus helper strictly shrinks. T-Q265 to T-Q267 move the helpers out.
+
+## Amendment 2026-11-22 (operator decision; T-Q283, T-Q284)
+
+- **T-Q283, permanent `money_scope` entries.** The three false positives of the money-scope scanner (G27) become `[[permanent]]` entries with written reasons; the scanner is unchanged: `web/charts.py` (chart geometry in pixels, not money), the rate-limit `Retry-After` seconds, and `services/balance.sparkline_points` scaling (plot coordinates, not amounts). They replace three burn-down entries, so the total only shrinks. The implementation task edits `money_scope.toml`.
+- **T-Q284, user-scoping guard extension.** `tests/architecture/_user_scoping.py` resolves `repositories/_shared.OwnedTable` specs and checks every generated statement per table; no dynamic-table SQL is skipped.
+
+## Amendment 2026-11-22 (operator decision; T-Q232 redesign carve-out)
+
+The closing gate (T-Q232) passes with one carve-out: `tests/architecture/allowlists/template_logic.toml` keeps the 83 D3 entries (T-Q273, templates the redesign replaces), each tagged with its T-UR owner task. Every other allowlist is empty and every other guard strict. The redesign's last task burns the 83 entries to zero. The gate fails on an untagged or additional `template_logic.toml` entry.
+
+## Amendment 2026-11-22 (T-Q270): cyclomatic-complexity ceiling wired
+
+The "cyclomatic-complexity gate: deferred" alternative above is superseded. `xenon --max-absolute C src` (dev dependency `xenon`, which brings `radon`) runs as the pre-commit hook `xenon` and in `just lint`; CI runs it through `pre-commit run --all-files` (Decision 8). Any function ranked D or worse (cyclomatic complexity > 20) fails. The tree passed at wiring time with no allowlist and no suppression. The G25 `cc>=11` ratchet (own approximation, stricter) stays for the remaining `recurring.py` entries.
+
+## Amendment 2026-11-22 (T-Q271): hygiene sweep
+
+`tests/architecture/allowlists/hygiene.toml` reaches zero entries (no `[[permanent]]` either). Conventions: (1) `assert` in `src` is replaced by `domain.errors.require_present(value, what)` / `InvariantError` (a `RuntimeError`, 500 via the catch-all handler); (2) intentional parse sentinels (`return None` on a malformed cookie or timestamp) log a fixed-text `debug` line and never the offending value; (3) rollback-and-reraise uses `try/finally` with a completion flag (`db.migrate._begin_commit`, `repositories._shared.transaction`) instead of `except Exception`; batch jobs and probes catch `db.connection.DB_ERRORS` / `JOB_ERRORS` (re-exported by `services.connections` for `web`); (4) CLI output in `db/migrate.py` and `db/seed.py` is `sys.stdout.write`, as in `cli/`; (5) audit payloads are typed `domain.audit.AuditPayload`, other former `Any` become `object`, `Mapping[str, object]`, `Callable` or `structlog.typing.Processor`.
+
+## Amendment 2026-11-22 (T-Q272): suppressions all carry a reason; allowlist empty
+
+- **Result.** `tests/architecture/allowlists/suppressions.toml` has no `[[entry]]` rows (8 deleted, 12 violations); `[ceilings]` stays at zero for `PLC0415`, `PLR0917`, `DTZ011`. No `[[permanent]]` row is needed: every surviving suppression carries its reason on the same line, which is what G4 checks.
+- **Fixed by code.** `recurring_formula._parse_sign` narrows to a literal (no `type: ignore`); the two mid-module imports moved to the top (no `noqa: E402`); year and month range checks in `web/routers/recurring.py` use named `range` constants (no `noqa: PLR2004`); `domain/errors.py` drops `ConflictError.__str__` (the base class already prints the message) and covers the other three `__str__` methods with `tests/unit/domain/test_errors.py` (no `pragma: no cover`).
+- **Kept, with reason.** `config.py` `type: ignore[pydantic-alias]` on the two `AliasChoices` fields (mypy plugin rejects a dynamic alias on a field that has a default; removing it fails `mypy --strict`); `web/deps.py` `noqa: B008` (FastAPI `Depends` default); `__main__` guards `pragma: no cover` in `db/migrate.py` and `db/seed.py`.
+- **Per-file-ignores.** Every `pyproject.toml` per-file-ignore already carries a reason comment; none removed.
+
+## Amendment 2026-11-22 (T-Q293): `fx-def` keys on behaviour
+
+- **Rule.** G27 `fx-def` (scanner `tests/architecture/_scan/p08_money.py`) flags rate arithmetic or conversion outside `services/fx.py` and `domain/fx.py` (and the other canonical FX files): `*`, `/` or `//` with a rate operand (a name, attribute or string subscript with the token `rate`, `rates` or `mid`, or a call to a rate lookup such as `rate_for`, `latest_rate`), and `.quantize(<rate>)`. Function names no longer matter, so `formula_fx` or `rates_freshness` are fine and a conversion under a neutral name is flagged. The old `fx-arith` rule is folded into `fx-def`. `rate_limit`-style names are ignored.
+- **Dodge-renames reverted.** `formula_ctx*`/`get_formula_ctx` back to `formula_fx*`/`get_formula_fx` (T-Q286); `refresh_from_source` back to `refresh_rates` and `cache_empty_today` to `rates_missing_today` (T-Q290); `/health/fx` handler `currency_freshness` to `fx_freshness` (T-Q292).
+- **Allowlist.** The three burn-down entries of `money_scope.toml` are fixed in code and deleted (forecast `value_major` float field removed, chart geometry converted in the plan router via `major_float`; `Decimal(...)` basis-point arithmetic replaced by `round_div` and integer comparison). The three `[[permanent]]` entries stay (the scanner still flags them: pixel and seconds rounding). No entry added.
+
+## Amendment 2026-11-22 (T-Q296): residual allowlist burn-down
+
+- `functional_first.toml` `config.py` `hidden-cache` moves to `[[permanent]]`: `get_settings` is the process-wide Settings singleton at the config edge; tests clear it via `cache_clear`. Deleted by code: `size_complexity` `web/routers/recurring.py` (7 violations, split into `web/recurring_forms.py` and `web/recurring_views.py`), `private_imports` `db/startup_migrate.py` (`resolve_db_path` made public), `hygiene` `web/routers/recurring.py` `assert-in-src` (3).
+
+## Amendment 2026-11-22 (T-Q232): closing gate, final allowlist inventory
+
+- **Gate.** `tests/architecture/test_closing_gate.py` (G32) fails when any allowlist file other than `template_logic.toml` has an `[[entry]]` row or a non-zero `[ceilings]` value, when a `[[permanent]]` / `[[framework]]` row has no `reason` or its path is not named in this ADR, and when `template_logic.toml` holds more than 83 entries or an entry without a `T-UR` owner (`owner = "T-URnn"`, a task of `docs/plans/ui-redesign/tasks.md`). T-UR15 deletes the carve-out with the last entry.
+- **Carve-out (operator, 2026-11-22).** `template_logic.toml`: 83 `[[entry]]` rows over 51 old templates, tagged by owner: T-UR02 3, T-UR04 1, T-UR06 4, T-UR08 11, T-UR09 9, T-UR10 11, T-UR13 6, T-UR14 7, T-UR24 4, T-UR15 27 (shared components, deleted in the final sweep).
+- **Kept rows, named here (reason is in each TOML row; none is burn-down debt).**
+  - `functional_first.toml` `[[permanent]]` (2): `src/budget_planner/config.py [hidden-cache]`, `src/budget_planner/clock.py [module-state]`
+  - `functional_first.toml` `[[framework]]` (20): `src/budget_planner/web/htmx.py [param-mutation:framework]`, `src/budget_planner/web/routers/accounts.py [module-singleton]`, `src/budget_planner/web/routers/auth.py [module-singleton]`, `src/budget_planner/web/routers/budget.py [module-singleton]`, `src/budget_planner/web/routers/categories.py [module-singleton]`, `src/budget_planner/web/routers/debug.py [module-singleton]`, `src/budget_planner/web/routers/dev_components.py [module-singleton]`, `src/budget_planner/web/routers/forecast.py [module-singleton]`, `src/budget_planner/web/routers/health.py [module-singleton]`, `src/budget_planner/web/routers/ledger.py [module-singleton]`, `src/budget_planner/web/routers/plan.py [module-singleton]`, `src/budget_planner/web/routers/planned.py [module-singleton]`, `src/budget_planner/web/routers/recurring.py [module-singleton]`, `src/budget_planner/web/routers/settings.py [module-singleton]`, `src/budget_planner/web/routers/settings_password.py [module-singleton]`, `src/budget_planner/web/routers/settings_security.py [module-singleton]`, `src/budget_planner/web/routers/settings_users.py [module-singleton]`, `src/budget_planner/web/routers/today.py [module-singleton]`, `src/budget_planner/web/routers/transactions.py [module-singleton]`, `src/budget_planner/web/middleware/asgi.py [param-mutation:framework]`
+  - `money_scope.toml` `[[permanent]]` (3): `src/budget_planner/services/balance.py [money-round]`, `src/budget_planner/services/rate_limit.py [money-round]`, `src/budget_planner/web/charts.py [money-round]`
+  - `prod_db_refs.toml` `[[permanent]]` (6): `tests/auth_support.py`, `tests/conftest.py`, `tests/e2e/test_drill_passkey_check.py`, `tests/unit/deploy/test_prod_db_seed.py`, `tests/unit/web/test_production_assertions.py`, `tests/visual/conftest.py`
+  - `read_filters.toml` `[[permanent]]` (4): `src/budget_planner/repositories/_unaudited.py [mutation-unaudited]`, `src/budget_planner/repositories/sessions.py [read-no-user-filter]`, `src/budget_planner/repositories/webauthn.py [read-no-user-filter]`, `src/budget_planner/repositories/webauthn.py [mutation-unaudited]`
+  - `sql_sites.toml` `[[permanent]]` (8): `src/budget_planner/db/connection.py [sql-exec:bootstrap]`, `src/budget_planner/db/connection.py [sql-literal:bootstrap]`, `src/budget_planner/db/startup_migrate.py [sql-exec:bootstrap]`, `src/budget_planner/db/startup_migrate.py [sql-literal:bootstrap]`, `src/budget_planner/services/users.py [sql-exec:real]`, `src/budget_planner/services/users.py [sql-literal:real]`, `src/budget_planner/web/app.py [sql-exec:bootstrap]`, `src/budget_planner/web/app.py [sql-literal:real]`
+- **Everything else is empty:** `suppressions.toml` ceilings are 0, `invariants.toml` has no strict xfail, all other allowlists have no rows.

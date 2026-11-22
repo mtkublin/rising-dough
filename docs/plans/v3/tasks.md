@@ -246,12 +246,14 @@ Owner: `terraform/` directory. All tasks block Phase 3.
 - File: `phase-2-infrastructure/T-D20-tf-bootstrap.md`. Reference: ADR-0035 §4.
 
 ### ✅ T-D21 [S] IAM + Object Storage modules → T-D20
+- Reconciled 2026-11-21 (T-Q246): landed in 1ddc192 (2026-11-02), marked in f0c85c5; no CHANGELOG line exists.
 - `modules/iam/`: application + policy + key.
 - `modules/storage/`: bucket (versioning on, encryption on, no public access) + bucket policy.
 - Outputs: `scw_access_key`, `scw_secret_key` (sensitive), `bucket_name`, `endpoint_url`.
 - File: `phase-2-infrastructure/T-D21-iam-storage.md`. Reference: ADR-0035 §3, ADR-0032 §3.
 
 ### ✅ T-D22 [S] DNS module → T-D20
+- Reconciled 2026-11-21 (T-Q246): landed in 902cd54 (2026-11-02), marked in f0c85c5; no CHANGELOG line exists.
 - `modules/dns/`: zone + A + AAAA records for `budget.<domain>`.
 - Supports either a Scaleway-managed zone or an external zone (operator provisions out-of-band if external).
 - File: `phase-2-infrastructure/T-D22-dns.md`.
@@ -782,6 +784,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Not chosen: `tailscale logout` from a shutdown hook on the VM (Scaleway destroy does not reliably shut down cleanly first).
 
 ### ◐ T-D126 [S] GHCR image retention for `budget-planner` → ADR-0099
+- Reconciled 2026-11-21 (T-Q246): stays ◐. Fix landed (6a65de7, CHANGELOG 2026-11-18); waiting on the first real scheduled run, 2026-11-23 03:17 UTC.
 - No retention today: every release and every drill gate pushes a `sha-…` image (plus cosign signature artifacts) to `ghcr.io/mtkublin/budget-planner`, and GHCR keeps all versions forever. A private package counts against the GitHub Packages storage quota.
 - Plan: weekly `image-retention.yml` (cron + `workflow_dispatch` with `dry_run`, default true for the first runs) using `actions/delete-package-versions` (pinned by SHA):
   - keep: newest 20 `sha-…` versions, everything tagged `main` or `v*` (T-D125), and the images prod has as `current` and `previous` (read via the deploy `status` command, or covered by N);
@@ -944,18 +947,20 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Prod: all domain audit rows since multi-user (v3, migration 0012 / T-D14) have `user_id` NULL; after the release the 0016 migration attributes them (except hard-deleted `recurring_override` rows and `fx_rate`). Applied by the normal release only, never by hand.
 - Done when: merged and released; a non-admin write on prod shows `user_id`/`actor_user_id` set in `/debug/audit-tail`.
 
-### ◐ T-D146 [S] `/health`, `/health/replication` and `/ready` answer HEAD like GET → T-D144, ADR-0033, ADR-0119
+### ✅ T-D146 [S] `/health`, `/health/replication` and `/ready` answer HEAD like GET → T-D144, ADR-0033, ADR-0119
 - Found 2026-11-18 on prod v3.0.3: `HEAD` on all monitored paths returned 405 while `GET` returned 200. The free UptimeRobot plan monitors with HEAD and cannot change the method, so the monitors would report down.
 - Change: the three routes use `api_route(..., methods=["GET", "HEAD"])` (precedent: `today.py`). HEAD returns the same status as GET, including 503 on stale replication and on not-ready, with an empty body. Auth, CSRF, must-change-password and cache-control middleware do not filter by GET only, and the app rate limit covers auth routes only (ADR-0072), so no middleware change.
 - Tests: `tests/integration/web/test_health.py`, `tests/integration/web/test_health_replication.py` (HEAD status equals GET status, empty body, ok and failing cases).
 - 2026-11-18: fix in PR #26 (`fix/T-D146-head-health`, commit 1be10cf). Not on prod yet: the prod release is deferred to v3.0.4, bundled with other agents' fixes (user decision). prod: ships in v3.0.4.
 - Done when: merged and released; `curl -sI https://budget.rising-dough.eu/health/replication` returns 200 on prod and UptimeRobot monitors are green.
+- Reconciled 2026-11-21 (T-Q246): merged (PR #26, 1be10cf) and in tags v3.0.4 to v3.0.8; prod runs v3.0.8 (CHANGELOG 2026-11-19). The prod HEAD curl and monitor check is not recorded in the CHANGELOG (the monitoring moved to `uptime.yml`, T-D44).
 
-### T-D147 [S] Auto-satisfy `drill-gate` for PRs that cannot affect the deploy → ADR-0121, ADR-0099, T-D98
+### ✅ T-D147 [S] Auto-satisfy `drill-gate` for PRs that cannot affect the deploy → ADR-0121, ADR-0099, T-D98
 - Decision 2026-11-18: a full drill on docs-only PRs is overkill.
 - Change: `.github/workflows/drill-gate-skip.yml` (pull_request_target to `main`; `statuses: write`, `contents: read`) and `scripts/ci/drill_gate_skip.py` (allowlist classifier, fail closed). On `skip` it posts `drill-gate` success (`skipped: no deploy-relevant changes (ADR-0121)`); on `gate` it posts nothing.
 - Tests: `tests/unit/deploy/test_drill_gate_skip.py` (classifier table, workflow context, permissions, no failure/pending, SHA pins).
 - Done when: merged, and a docs-only PR shows `drill-gate` success without a drill run while a `src/` PR still needs the real gate.
+- Reconciled 2026-11-21 (T-Q246): done; merged 2026-11-18 (6bfd05a, FIX2 7e0c7db), first real skip on PR #30; CHANGELOG 2026-11-18 T-D147 lines.
 - 2026-11-18: first real skip worked on PR #30 (run 44397753231); PR #29 exposed the stale-base-SHA bug; fixed in T-D147-FIX2
 
 ### ✅ T-D140 [M] Prod CSP blocks HTMX and inline JS → ADR-0113, ADR-0036
@@ -1020,6 +1025,7 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Done when: e2e (`tests/e2e/test_override_tier_toggle.py`, prod CSP) shows the active chip and hint change on the Year popover and the Budget tab inline form, and a recurring override saved from the Year popover appears in the cell.
 
 ### ◐ T-D156 [M] Make a prod VM replacement safe unattended → ADR-0127, ADR-0071, ADR-0094, ADR-0111
+- Reconciled 2026-11-21 (T-Q246): stays ◐. Items (a) to (f) landed and the prod replacement ran in v3.0.8 (CHANGELOG 2026-11-19); the one open item is a `restore-drill.yml` run after those merges (last green 2026-11-18).
 - Found 2026-11-18 (T-D143 review): a replacing prod apply would boot with a used, expired single-use Tailscale key (no SSH); a wrong or empty replica gives a silent empty DB (`-if-replica-exists`); nothing proves the data came back; the last writes before destroy are unproven; the 600 s release wait is untimed for a fresh Stardust boot. Cross-checked against `docs/v3-remaining` (2026-11-18): the generation risk is gone (v3.0.2, generation `2901fbd3873a6696`), and the restore itself is proven by run 44330551119 (through `restore-from-prod`, not the compose path). The rest is open on every branch.
 - Work items:
   - (a) `local.vm_spec` hash in the `tailscale_tailnet_key.vm` description (forces a new key with every replacement); prod mode for `tailnet-cleanup.yml` (remove offline `budget-planner-prod*` nodes except the new one) after a replacement converges.
@@ -1063,8 +1069,9 @@ Explicitly out of v3 scope. Add an ADR before promoting any of these to the acti
 - Proof: drill gate green on each PR. Release A: status shows `"drain": null`, no replacement. Release B: `drained` logged, restore `restored`, `audit_log` counts from the old host match on the new one.
 - 2026-11-19 (closeout): release B v3.0.8 (run 44559131362, merge 9ace5bb, PR #37) replaced the prod VM onto `l_ssd`. Capability check "host agent can drain" 15:56:53Z; drain request `44559131362-1`, `drained` 15:57:43Z (~50 s); apply 2 added / 2 destroyed 15:58:11Z; restore `restored` (generation `2901fbd3873a6696`) 16:00:45Z; converged on v3.0.8 16:01:21Z; downtime ~4.5 min. `audit_log` before approval on the old host `(302, 302, '2026-11-19T13:18:27.471Z')`, identical on the new host: 0 lost rows. `tailnet-cleanup-prod` was skipped (masked `server_replaced` output, fixed by T-D159); the operator removed the old node and renamed the new one by hand. Closes T-D143.
 
-### T-D159 [S] Read MANAGED_DNS_ZONE as a variable, not a secret → ADR-0093 (amendment 2026-11-19), ADR-0127
+### ✅ T-D159 [S] Read MANAGED_DNS_ZONE as a variable, not a secret → ADR-0093 (amendment 2026-11-19), ADR-0127
 - Found 2026-11-19 by release v3.0.8 (run 44559131362): the prod VM was replaced, but `release.yml` skipped `tailnet-cleanup-prod` (`Skip output 'server_replaced' since it may contain secret.`). `scripts/ci/tf_env.py` read `MANAGED_DNS_ZONE` from secrets; on prod its value is `true`, so GitHub masked every `true` in the logs (`replaced=***`, `TF_VAR_drill_allow_empty_db: ***`) and dropped job outputs equal to `true`. The value is not secret.
 - Change: `tf_env.py` reads `MANAGED_DNS_ZONE` from the environment variables (`var`, default `false`). Operator: variable `MANAGED_DNS_ZONE=true` already added to `prod` and `prod-plan` (2026-11-19); drill envs have none (default `false`, as before). Runbooks `github-settings.md`, both operator checklists updated. Also fixed: the `audit_log` count and `integrity_check` commands in `deploy.md` / `restore.md` (run through `docker exec` read-only; `operator` cannot open the DB file; column `changed_at`), and the `ssh-keygen -R` note after a replacement.
 - Tests: `test_tf_env.py`: the variable is read from `vars` and ignored in secrets; no entry with a `true`/`false` default reads a secret.
 - Proof: drill gate green on the PR. After the merge: delete the `MANAGED_DNS_ZONE` secret from `prod` and `prod-plan`; the next replacing release runs `tailnet-cleanup-prod` (job output `server_replaced` not dropped).
+- Reconciled 2026-11-21 (T-Q246): fix landed (c87f3eb, PR #38; CHANGELOG 2026-11-19). The operator-side secret deletion is not recorded in the CHANGELOG; the next replacing release is the proof.

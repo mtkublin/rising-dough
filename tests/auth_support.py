@@ -8,18 +8,22 @@ login form each time. Never point them at ``data/budget.sqlite``.
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from typing import Final
 
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.repositories import sessions as sessions_repo
-from budget_planner.services import _passwords
 from budget_planner.web.auth_cookies import session_cookie_name
 
 TEST_EMAIL: Final = "owner@example.test"
 TEST_PASSWORD: Final = "correct-horse-battery"  # noqa: S105  # pragma: allowlist secret
 FAST_ROUNDS: Final = 4
+#: Real bcrypt at the minimum cost (web-edge tests); services use ``FakePasswordHasher``.
+FAST_HASHER: Final = BcryptHasher(rounds=FAST_ROUNDS)
 
 
 def seed_login_user(
@@ -28,9 +32,10 @@ def seed_login_user(
     user_id: int = 1,
     email: str = TEST_EMAIL,
     password: str = TEST_PASSWORD,
+    hasher: PasswordHasher = FAST_HASHER,
 ) -> int:
     """Give ``user_id`` an email + bcrypt (cost 4) password; insert it if missing."""
-    password_hash = _passwords.hash_password(password, rounds=FAST_ROUNDS)
+    password_hash = hasher.hash(password)
     exists = conn.execute("SELECT 1 FROM users WHERE id = ?", (user_id,)).fetchone()
     if exists:
         conn.execute(
@@ -65,6 +70,8 @@ def login_cookie(
 
 
 __all__ = [
+    "FAKE_HASHER",
+    "FAST_HASHER",
     "FAST_ROUNDS",
     "TEST_EMAIL",
     "TEST_PASSWORD",
@@ -72,3 +79,45 @@ __all__ = [
     "login_cookie",
     "seed_login_user",
 ]
+
+
+class FakeTokenSource:
+    """Deterministic ``TokenSource`` fake: ``tok-<n>-<nbytes>`` (T-Q264)."""
+
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+
+    def new_token(self, nbytes: int) -> str:
+        self.calls.append(nbytes)
+        return f"tok-{len(self.calls)}-{nbytes}"
+
+
+class FakePasswordHasher:
+    """Instant deterministic ``PasswordHasher`` fake: ``fake$<sha256 prefix>`` (T-Q291).
+
+    The digest keeps the plaintext out of the stored value, so "plaintext never persisted"
+    assertions stay meaningful.
+    """
+
+    PREFIX: Final = "fake$"
+
+    def __init__(self) -> None:
+        self.dummy_verifies: list[str] = []
+
+    def hash(self, password: str) -> str:
+        if not password:
+            raise ValueError("password must not be empty")
+        return self._digest(password)
+
+    @classmethod
+    def _digest(cls, password: str) -> str:
+        return cls.PREFIX + hashlib.sha256(password.encode()).hexdigest()[:24]
+
+    def verify(self, password: str, hashed: str | None) -> bool:
+        return bool(password) and hashed == self._digest(password)
+
+    def verify_dummy(self, password: str) -> None:
+        self.dummy_verifies.append(password)
+
+
+FAKE_HASHER: Final = FakePasswordHasher()

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from budget_planner.services import _passwords
-from tests.auth_support import FAST_ROUNDS
 from tests.contract.route_inventory import KEY_PATTERN
 
 
@@ -28,9 +26,3 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers", "covers(*routes): contract test covers these '<METHOD> <path>' routes (T-UT03)"
     )
-
-
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Cheap bcrypt for tests under tests/contract only (conftest scope, not session-wide)."""
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", FAST_ROUNDS)

@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-23
-- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: "today" and "now" come only from `budget_planner.clock`)
+- **Amended by**: [ADR-0140](0140-canonical-clock-and-today-dependency.md) (2026-11-21: one display-zone "today", `today` dependency, Warsaw only), [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: "today" and "now" come only from `budget_planner.clock`)
 
 ## Decision
 

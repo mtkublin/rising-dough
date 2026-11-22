@@ -1,46 +1,36 @@
 {% from "_partials/components/_progress_bar.html" import progress_bar %}
-{% set budget_minor = summary.totals.budgeted_minor|int %}
-{% set spent_minor = summary.totals.spent_minor|int %}
-{% set committed_minor = summary.totals.committed_minor|int %}
-{% set remaining_minor = summary.totals.remaining_minor|int %}
-{% set budget = budget_minor / 100.0 %}
-{% set spent = spent_minor / 100.0 %}
-{% set committed = committed_minor / 100.0 %}
-{% set remaining = remaining_minor / 100.0 %}
-{% set spent_pct = (100.0 * spent_minor / budget_minor) if budget_minor > 0 else 0 %}
-{% set committed_pct = (100.0 * committed_minor / budget_minor) if budget_minor > 0 else 0 %}
-{% set per_day = (remaining / (summary.days_until_next_income or 1)) %}
 <div id="plan-budget">
-  <section class="rd-period-bar">
+  <section class="rd-period-bar" aria-label="Budget period">
     <div class="rd-period-bar__left">
       <div class="rd-eyebrow">Period</div>
       <div class="rd-period-bar__range">
-        {{ summary.period_start.strftime("%-d %b") }} → {{ summary.next_income_date.strftime("%-d %b") }}
+        {{ budget.summary.period_start|date_day_month }} → {{ budget.summary.next_income_date|date_day_month }}
       </div>
       <div class="mut rd-period-bar__anchor">
-        anchor: {{ summary.anchor_category_name or '—' }} · <a href="/settings?tab=prefs#income-anchor">change</a>
+        anchor: {{ budget.summary.anchor_category_name or '—' }} · <a href="/settings?tab=prefs#income-anchor">change</a>
       </div>
     </div>
     <div class="rd-period-bar__bar">
-      {{ progress_bar(spent_pct, committed_pct=committed_pct, over=(spent_minor > budget_minor and budget_minor > 0)) }}
+      {{ progress_bar(budget.spent_pct, committed_pct=budget.committed_pct, over=budget.is_over) }}
     </div>
     <div class="rd-period-bar__right">
-      <span class="num rd-period-bar__perday">{{ "{:,.2f}".format(per_day) }}</span>
+      <span class="num rd-period-bar__perday"
+            data-testid="period-per-day">{{ budget.left_per_day_minor|money_num(base_ccy) }}</span>
       <span class="cur num">{{ base_ccy }} / day</span>
       <div class="mut num rd-period-bar__meta">
-        {{ "{:,.2f}".format(committed) }} committed · {{ summary.days_until_next_income }} days left
+        {{ budget.summary.totals.committed_minor|money_num(base_ccy) }} committed · {{ budget.summary.days_until_next_income }} days left
       </div>
-      {% if summary.totals.unbudgeted_committed_minor > 0 %}
+      {% if budget.summary.totals.unbudgeted_committed_minor > 0 %}
         <div class="mut num rd-period-bar__meta"
-             data-unbudgeted-committed="{{ summary.totals.unbudgeted_committed_minor }}">
-          + {{ "{:,.2f}".format(summary.totals.unbudgeted_committed_minor / 100.0) }} planned in unbudgeted categories (not counted)
+             data-unbudgeted-committed="{{ budget.summary.totals.unbudgeted_committed_minor }}">
+          + {{ budget.summary.totals.unbudgeted_committed_minor|money_num(base_ccy) }} planned in unbudgeted categories (not counted)
         </div>
       {% endif %}
     </div>
   </section>
   <div class="rd-table-scroll">
     <table class="rd-table">
-      <caption class="sr-only">Budget by category for {{ today.strftime("%B %Y") }}</caption>
+      <caption class="sr-only">Budget by category for {{ header.month_label }}</caption>
       <thead>
         <tr>
           <th scope="col">Category</th>
@@ -52,39 +42,36 @@
         </tr>
       </thead>
       <tbody>
-        {% for row in summary.lines %}
-          {% set p = (row.budgeted_minor|int) / 100.0 %}
-          {% set a = (row.spent_minor|int) / 100.0 %}
-          {% set r = p - a %}
-          {% set used = (100.0 * a / p) if p > 0 else 0 %}
-          <tr id="budget-row-{{ row.category_id }}">
-            <td>{{ category_label_parts(row.category_name, row.category_direction, row.category_color) }}</td>
-            <td class="num">{{ "{:,.2f}".format(p) }}</td>
-            <td class="num">{{ "{:,.2f}".format(a) }}</td>
-            <td>{{ progress_bar(used, over=(a > p)) }}</td>
-            <td class="num"><span class="{% if r < 0 %}neg{% endif %}">{{ "{:,.2f}".format(r) }}</span></td>
+        {% for row in budget.lines %}
+          <tr id="budget-row-{{ row.line.category_id }}">
+            <td>{{ category_label_parts(row.line.category_name, row.line.category_direction, row.line.category_color) }}</td>
+            <td class="num">{{ row.budgeted_minor|money_num(base_ccy) }}</td>
+            <td class="num">{{ row.line.spent_minor|money_num(base_ccy) }}</td>
+            <td>{{ progress_bar(row.used_pct, over=row.is_over) }}</td>
+            <td class="num"><span class="{% if row.remaining_after_minor < 0 %}neg{% endif %}">{{ row.remaining_after_minor|money_num(base_ccy) }}</span></td>
             <td class="rd-actions">
               <button type="button"
                       class="rd-btn rd-btn--sm rd-btn--ghost"
-                      hx-get="/budget/rules/{{ row.category_id }}/overrides/new?inline=1"
-                      hx-target="#override-slot-{{ row.category_id }}"
+                      hx-get="/budget/rules/{{ row.line.category_id }}/overrides/new?inline=1"
+                      hx-target="#override-slot-{{ row.line.category_id }}"
                       hx-swap="innerHTML"
-                      data-override-open="{{ row.category_id }}"
-                      aria-label="Override {{ row.category_name }}">⋯</button>
+                      data-override-open="{{ row.line.category_id }}"
+                      aria-label="Override {{ row.line.category_name }}">⋯</button>
             </td>
           </tr>
-          <tr class="rd-override-slot-row" id="override-row-{{ row.category_id }}">
+          <tr class="rd-override-slot-row"
+              id="override-row-{{ row.line.category_id }}">
             <td colspan="6"
-                id="override-slot-{{ row.category_id }}"
+                id="override-slot-{{ row.line.category_id }}"
                 data-override-slot></td>
           </tr>
         {% endfor %}
         <tr>
           <td><strong>Total</strong></td>
-          <td class="num"><strong>{{ "{:,.2f}".format(budget) }}</strong></td>
-          <td class="num"><strong>{{ "{:,.2f}".format(spent) }}</strong></td>
+          <td class="num"><strong>{{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }}</strong></td>
+          <td class="num"><strong>{{ budget.summary.totals.spent_minor|money_num(base_ccy) }}</strong></td>
           <td></td>
-          <td class="num"><strong>{{ "{:,.2f}".format(remaining) }}</strong></td>
+          <td class="num"><strong>{{ budget.summary.totals.remaining_minor|money_num(base_ccy) }}</strong></td>
           <td></td>
         </tr>
       </tbody>

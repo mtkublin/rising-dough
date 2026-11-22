@@ -7,18 +7,21 @@ from datetime import date
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringRule
 from budget_planner.repositories import accounts, categories, planned, recurring
+from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import (
     account_planned as ap,
     budget as bs,
-    forecast as fc,
+    forecast_events,
     recurring as recurring_svc,
 )
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 TODAY = date(2026, 11, 6)
@@ -46,7 +49,7 @@ def ids(conn: sqlite3.Connection) -> dict[str, int]:
             day_of_month=15,
         ),
     )
-    recurring.set_next_due(conn, USER_ID, rule.id, next_due=OCC, last_promoted_date=None)
+    set_next_due(conn, USER_ID, rule.id, next_due=OCC, last_promoted_date=None)
     return {"acct": acct.id, "cat": cat.id, "rule": rule.id}
 
 
@@ -68,17 +71,23 @@ def _planned(
 
 
 def _budget(conn: sqlite3.Connection) -> int:
-    return bs.committed_in_window(conn, USER_ID, start=START, end=END)
+    return bs.committed_in_window(
+        conn, USER_ID, start=START, end=END, today=clock.utc_now().date(), base_currency="PLN"
+    )
 
 
 def _forecast(conn: sqlite3.Connection, ids: dict[str, int]) -> int:
-    events = fc._collect_events(conn, USER_ID, TODAY, END, {ids["cat"]: Direction.EXPENSE})
+    events = forecast_events.collect_events(
+        conn, USER_ID, TODAY, END, fx=formula_fx_of(conn, USER_ID)
+    )
     return sum(ev.amount_minor for evs in events.values() for ev in evs)
 
 
 def _accounts(conn: sqlite3.Connection) -> int:
     window = ap.PlannedWindow(start=START, end=END)
-    return sum(ap.planned_net_by_account(conn, USER_ID, window).values())
+    return sum(
+        ap.planned_net_by_account(conn, USER_ID, window, formula_fx_of(conn, USER_ID)).values()
+    )
 
 
 def test_linked_row_in_window_counted_once_everywhere(

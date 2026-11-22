@@ -14,18 +14,28 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.repositories import planned as planned_repo
 from budget_planner.services import account_planned, budget
+from tests.formula_fx_support import formula_fx_of
 
 U = 1
 TODAY = date(2026, 11, 19)
 
 
 def _snapshot(conn: sqlite3.Connection) -> tuple[int, int, int]:
-    s = budget.month_summary(conn, U, 2026, 11, today=TODAY)
+    s = budget.month_summary(
+        conn,
+        U,
+        2026,
+        11,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     win = account_planned.resolve_window(conn, U, TODAY)
-    net1 = account_planned.planned_net_by_account(conn, U, win).get(1, 0)
+    net1 = account_planned.planned_net_by_account(conn, U, win, formula_fx_of(conn, U)).get(1, 0)
     committed = s.totals.committed_minor + s.totals.unbudgeted_committed_minor
     return committed, net1, s.days_until_next_income
 
@@ -53,10 +63,6 @@ def test_an_item_before_the_last_day_is_counted_by_both(no_anchor: sqlite3.Conne
     assert (b1 - b0, n1 - n0) == (5000, -5000)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Q-003: budget's committed window excludes the last day of the month, account_planned includes it",
-)
 def test_an_item_on_the_last_day_is_counted_by_both(no_anchor: sqlite3.Connection) -> None:
     b0, n0, _ = _snapshot(no_anchor)
     _plan(no_anchor, date(2026, 11, 30))
@@ -64,9 +70,6 @@ def test_an_item_on_the_last_day_is_counted_by_both(no_anchor: sqlite3.Connectio
     assert (b1 - b0, n1 - n0) == (5000, -5000)
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Q-003: the left-per-day divisor omits the last day of the month"
-)
 def test_left_per_day_divisor_counts_today_through_month_end(no_anchor: sqlite3.Connection) -> None:
     _, _, days = _snapshot(no_anchor)
     assert days == (date(2026, 11, 30) - TODAY).days + 1

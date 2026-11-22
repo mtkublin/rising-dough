@@ -8,6 +8,8 @@ from decimal import Decimal
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
@@ -27,7 +29,8 @@ from budget_planner.repositories import (
     recurring,
     transactions,
 )
-from budget_planner.services import budget as bs, forecast
+from budget_planner.services import budget as bs, forecast_overlay
+from budget_planner.services.fx import FxUnavailableError, converter_for
 
 USER_ID = 1
 TODAY = date(2026, 2, 15)
@@ -81,7 +84,9 @@ def _plan(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) -
 
 
 def _committed(conn: sqlite3.Connection) -> int:
-    return bs.committed_in_window(conn, USER_ID, start=START, end=END, today=TODAY)
+    return bs.committed_in_window(
+        conn, USER_ID, start=START, end=END, today=TODAY, base_currency="PLN"
+    )
 
 
 def test_planned_eur_converted_with_latest_rate_before_today(
@@ -123,19 +128,28 @@ def test_month_summary_split_and_remaining_converted(
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 20))  # budgeted
     _plan(conn, world["rent"], world["eur"], 5_000, date(2026, 2, 21))  # unbudgeted
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY)
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 40_000
     assert s.totals.unbudgeted_committed_minor == 20_000
     assert s.totals.remaining_minor == 100_000 - 40_000
     assert s.left_daily_spend_minor == 6_000  # 60_000 / 10 days
 
 
-def test_missing_rate_degrades_to_native_amount(
+def test_missing_rate_raises_not_native_amount(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    """No cached rate: same graceful degradation as the Today account rows (rate 1)."""
+    """ADR-0139: no cached rate raises (never the native amount or rate 1)."""
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    assert _committed(conn) == 12_000
+    with pytest.raises(FxUnavailableError):
+        _committed(conn)
 
 
 def test_forecast_overlay_committed_converted(
@@ -143,10 +157,14 @@ def test_forecast_overlay_committed_converted(
 ) -> None:
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    got = forecast._committed_future_for_category(
-        conn, USER_ID, world["groceries"], date(2026, 2, 16), date(2026, 2, 28), today=TODAY
+    span = forecast_overlay.MonthSpan(
+        date(2026, 2, 16), date(2026, 2, 16), date(2026, 2, 28), False
     )
-    assert got == 48_000
+    converter = converter_for(conn, get_settings(), TODAY)
+    ((_, committed),) = forecast_overlay.month_inputs(
+        conn, USER_ID, [span], today=TODAY, fx=converter
+    )
+    assert committed.get(world["groceries"], 0) == 48_000
 
 
 # --- T-FIX6: posted spent converts at the historical (tx-date) rate -----------
@@ -161,7 +179,15 @@ def _spend(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) 
 
 
 def _groceries_line(conn: sqlite3.Connection, world: dict[str, int]) -> bs.CategoryBudgetLine:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY)
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     return next(ln for ln in s.lines if ln.category_id == world["groceries"])
 
 
@@ -180,11 +206,10 @@ def test_pln_spent_unchanged(conn: sqlite3.Connection, world: dict[str, int]) ->
     assert _groceries_line(conn, world).spent_minor == 10_000
 
 
-def test_spent_missing_rate_falls_back_to_native(
-    conn: sqlite3.Connection, world: dict[str, int]
-) -> None:
+def test_spent_missing_rate_raises(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     _spend(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 10))
-    assert _groceries_line(conn, world).spent_minor == 10_000
+    with pytest.raises(FxUnavailableError):
+        _groceries_line(conn, world)
 
 
 def test_spent_uses_rate_of_each_transaction_date(

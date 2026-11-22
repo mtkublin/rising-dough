@@ -13,6 +13,15 @@
 # ----------------------------------------------------------------------------
 
 locals {
+  # T-Q238 (Q-040): the verified signing identity is build.yml run from main or
+  # from a release tag. A signature from any other ref (a PR or attacker branch
+  # that reached the reusable build) is rejected on prod. Drill hosts verify
+  # branch builds, so they accept any branch or tag ref of the same workflow.
+  cosign_identity_prefix  = "^https://github\\.com/${var.github_owner}/${var.github_repo}/\\.github/workflows/build\\.yml@"
+  cosign_ref_regexp_prod  = "(refs/heads/main|refs/tags/v[0-9][0-9A-Za-z.+-]*)$"
+  cosign_ref_regexp_drill = "refs/(heads|tags)/.+$"
+  cosign_identity_regexp  = "${local.cosign_identity_prefix}${var.allow_branch_builds ? local.cosign_ref_regexp_drill : local.cosign_ref_regexp_prod}"
+
   image_repo  = "ghcr.io/${var.github_owner}/budget-planner"
   compose_dir = "/etc/budget-planner"
 
@@ -59,7 +68,7 @@ locals {
     source_endpoint  = var.bucket_endpoint
     source_region    = var.bucket_region
     drill_bucket     = var.bucket_name
-    age_key_file     = "${local.compose_dir}/litestream-age.key"
+    age_key_file     = "${local.compose_dir}/restore-source-age.key"
   }) : ""
 
   docker_config_json = jsonencode({
@@ -90,6 +99,8 @@ locals {
     var.enable_restore_helper ? [
       # T-D41a: drill-only read-only credential for the PROD replica + helper.
       { path = "${local.compose_dir}/restore-source.env", mode = "0600", content = "RESTORE_ACCESS_KEY_ID=${var.scw_access_key_restore}\nRESTORE_SECRET_ACCESS_KEY=${var.scw_secret_key_restore}\n", restart = [] },
+      # ADR-0135: the PROD replica identity, never the host's own litestream-age.key.
+      { path = "${local.compose_dir}/restore-source-age.key", mode = "0600", content = "${trimspace(var.restore_source_age_identity)}\n", restart = [] },
       { path = "/usr/local/bin/restore-from-prod", mode = "0755", content = local.restore_script_rendered, restart = [] },
     ] : [],
   )
@@ -115,8 +126,16 @@ locals {
       version         = var.cosign_version
       url             = "https://github.com/sigstore/cosign/releases/download/${var.cosign_version}/cosign-linux-amd64"
       sha256          = var.cosign_sha256
-      identity_regexp = "^https://github\\.com/${var.github_owner}/${var.github_repo}/\\.github/workflows/build\\.yml@"
+      identity_regexp = local.cosign_identity_regexp
       issuer          = "https://token.actions.githubusercontent.com"
+    }
+    # T-Q238 (Q-040, ADR-0099 amendment 2026-11-21): a sha-* image is accepted
+    # only when its commit is an ancestor of main (host agent, GitHub compare
+    # API). Drills build from arbitrary branches, so the check is off there.
+    ancestry = {
+      enabled = !var.allow_branch_builds
+      repo    = "${var.github_owner}/${var.github_repo}"
+      branch  = "main"
     }
     files = [for f in local.managed_files : merge(f, { owner = "root", group = "root" })]
   }

@@ -13,33 +13,70 @@ from __future__ import annotations
 import signal
 import sqlite3
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import get_connection
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
-from budget_planner.web import retention_task
+from budget_planner.services.connections import get_connection
+from budget_planner.web import fx_refresh_task, retention_task
 from budget_planner.web.errors import register_exception_handlers
-from budget_planner.web.middleware.admin import AdminRequiredMiddleware
-from budget_planner.web.middleware.auth import AuthRequiredMiddleware
-from budget_planner.web.middleware.cache_control import CacheControlMiddleware
-from budget_planner.web.middleware.csrf import CSRFMiddleware
-from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
-from budget_planner.web.middleware.request_id import RequestIdMiddleware
-from budget_planner.web.middleware.security_headers import SecurityHeadersMiddleware
+from budget_planner.web.middleware.admin import admin_required_middleware
+from budget_planner.web.middleware.auth import auth_required_middleware
+from budget_planner.web.middleware.body_limit import body_limit_middleware
+from budget_planner.web.middleware.cache_control import cache_control_middleware
+from budget_planner.web.middleware.csrf import csrf_middleware
+from budget_planner.web.middleware.must_change_password import must_change_password_middleware
+from budget_planner.web.middleware.request_id import request_id_middleware
+from budget_planner.web.middleware.security_headers import security_headers_middleware
+from budget_planner.web.routers import (
+    accounts,
+    auth,
+    budget,
+    categories,
+    debug,
+    dev_components,
+    forecast,
+    health,
+    ledger,
+    plan,
+    planned,
+    recurring,
+    settings,
+    settings_password,
+    settings_security,
+    settings_users,
+    today,
+    transactions,
+)
 from budget_planner.web.templating import build_jinja_env
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
     from contextlib import AbstractAsyncContextManager
+    from types import FrameType
+
+    from structlog.stdlib import BoundLogger
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_SIGTERM_INSTALLED = False
+
+# ADR-0036 addendum 2026-11-21: loopback is always a legal Host (container
+# healthcheck, loopback-only bind); test/IPv6 names only outside production.
+_LOOPBACK_HOSTS = ("localhost", "127.0.0.1")
+_NON_PRODUCTION_HOSTS = ("testserver", "[::1]")
+
+
+def allowed_hosts(cfg: Settings) -> list[str]:
+    """Host allow-list: ``BUDGET_TRUSTED_HOSTS`` plus loopback (and test hosts off prod)."""
+    extra = () if cfg.env == "production" else _NON_PRODUCTION_HOSTS
+    return list(dict.fromkeys((*cfg.trusted_hosts, *_LOOPBACK_HOSTS, *extra)))
 
 
 def _assert_production_pragmas(cfg: Settings) -> None:
@@ -83,28 +120,34 @@ def _install_sigterm_observer() -> None:
     Idempotent across repeated ``create_app`` calls (tests). No-op on
     platforms without SIGTERM.
     """
-    global _SIGTERM_INSTALLED  # noqa: PLW0603 — module-level idempotence flag
-    if _SIGTERM_INSTALLED:
-        return
     if not hasattr(signal, "SIGTERM"):
         return
 
-    log = get_logger("budget_planner.lifespan")
     previous = signal.getsignal(signal.SIGTERM)
+    # The installed handler is a ``partial`` of ``_on_sigterm``; seeing one in
+    # the slot is the idempotence state (no module-level flag, T-Q263).
+    if isinstance(previous, partial) and previous.func is _on_sigterm:
+        return
 
-    def _on_sigterm(signum: int, frame: object | None) -> None:
-        log.info("sigterm_received", signum=signum)
-        # Chain the previous handler so uvicorn's drain still runs.
-        if callable(previous):
-            previous(signum, frame)  # type: ignore[arg-type]
-
+    log = get_logger("budget_planner.lifespan")
     try:
-        signal.signal(signal.SIGTERM, _on_sigterm)
+        signal.signal(signal.SIGTERM, partial(_on_sigterm, log, previous))
     except ValueError:
         # ``signal.signal`` only works on the main thread; TestClient
         # paths that import the app from a worker thread hit this.
-        return
-    _SIGTERM_INSTALLED = True
+        log.debug("sigterm_observer_skipped", reason="not the main thread")
+
+
+def _on_sigterm(
+    log: BoundLogger,
+    previous: Callable[[int, FrameType | None], object] | int | signal.Handlers | None,
+    signum: int,
+    frame: FrameType | None,
+) -> None:
+    log.info("sigterm_received", signum=signum)
+    # Chain the previous handler so uvicorn's drain still runs.
+    if callable(previous):
+        previous(signum, frame)
 
 
 def _close_app_connections(app: FastAPI) -> None:
@@ -121,8 +164,10 @@ def _close_app_connections(app: FastAPI) -> None:
         if isinstance(value, sqlite3.Connection):
             try:
                 value.close()
-            except sqlite3.Error:  # pragma: no cover — best-effort cleanup
-                continue
+            except sqlite3.Error as exc:
+                get_logger("budget_planner.lifespan").warning(
+                    "app_connection_close_failed", attr=attr, error_type=type(exc).__name__
+                )
 
 
 def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
@@ -136,7 +181,9 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
         # T-D19 / ADR-0061 §3 / ADR-0069: ensure a live admin exists.
         # Missing credentials with no admin → exit non-zero (fail fast).
         try:
-            users_service.bootstrap_admin_at_startup(cfg)
+            users_service.bootstrap_admin_at_startup(
+                cfg, connect=get_connection, hasher=BcryptHasher(rounds=cfg.bcrypt_rounds)
+            )
         except (
             users_service.BootstrapAdminMissingEnv,
             users_service.SchemaNotMigratedError,
@@ -146,10 +193,12 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
         _install_sigterm_observer()
         log.info("lifespan_startup", env=cfg.env)
         purge_task = retention_task.start(cfg)
+        fx_task = fx_refresh_task.start(cfg)
         try:
             yield
         finally:
             await retention_task.stop(purge_task)
+            await fx_refresh_task.stop(fx_task)
             _close_app_connections(app)
             # Litestream relies on this drain window: the app has
             # finished writing, Litestream has `stop_grace_period: 30s`
@@ -159,21 +208,11 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
     return _lifespan
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    cfg = settings or get_settings()
-    _configure_logging()
-    app = FastAPI(
-        title="Budget Planner",
-        version="0.1.0",
-        docs_url="/docs",
-        redoc_url=None,
-        lifespan=_make_lifespan(cfg),
-    )
-    app.state.settings = cfg
-    app.state.jinja_env = build_jinja_env(cfg)
-
+def _install_middleware(app: FastAPI, cfg: Settings) -> None:
+    """Register the user middleware stack (innermost first, see the order below)."""
     # Middleware order, outermost first (ADR-0033 §5 as amended by ADR-0070 §6):
-    #   RequestId → SecurityHeaders → AuthRequired → MustChangePassword →
+    #   SecurityHeaders (outermost, wraps the stack) → RequestId → TrustedHost →
+    #   body limit → AuthRequired → MustChangePassword →
     #   AdminRequired → CSRF → routers (ADR-0074 §3, ADR-0073 §1).
     # Starlette's ``add_middleware`` wraps each new layer *around* the ones
     # already registered, so registration runs innermost-first:
@@ -184,67 +223,78 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     #   admin-only) register between CSRF and AuthRequired.
     # * SecurityHeaders (T-D07) + RequestId wrap everything so every 302 /
     #   401 / 403 still carries the baseline headers and ``X-Request-Id``.
-    app.add_middleware(CSRFMiddleware)
+    app.add_middleware(csrf_middleware)
     # T-D17 / ADR-0073 §1: 404 for non-admins on /settings/users*. Sits
     # *inside* MustChangePassword so a flagged user gets the same rotation
     # redirect on /settings/users as on any unknown path (no fingerprint);
     # once rotated, non-admins get the standard 404.
-    app.add_middleware(AdminRequiredMiddleware)
-    app.add_middleware(MustChangePasswordMiddleware)  # T-D18 / ADR-0074 §3
+    app.add_middleware(admin_required_middleware)
+    app.add_middleware(must_change_password_middleware)  # T-D18 / ADR-0074 §3
     # T-D55 / ADR-0078 §2: no-store on authenticated responses; inside Auth
     # (user hydrated), outside MustChangePassword so its redirects are covered.
-    app.add_middleware(CacheControlMiddleware)
-    app.add_middleware(AuthRequiredMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(cache_control_middleware)
+    app.add_middleware(auth_required_middleware)
+    app.add_middleware(body_limit_middleware)  # T-Q235: 413 above MAX_BODY_BYTES
+    # T-Q254: Host allow-list, inside RequestId so a 400 still carries X-Request-Id.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts(cfg))
+    app.add_middleware(request_id_middleware)
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    cfg = settings or get_settings()
+    _configure_logging()
+    # OQ-20 default (2026-11-21): interactive docs and the schema are dev-only.
+    is_production = cfg.env == "production"
+    app = FastAPI(
+        title="Budget Planner",
+        version="0.1.0",
+        docs_url=None if is_production else "/docs",
+        openapi_url=None if is_production else "/openapi.json",
+        redoc_url=None,
+        lifespan=_make_lifespan(cfg),
+    )
+    app.state.settings = cfg
+    app.state.jinja_env = build_jinja_env(cfg)
+
+    _install_middleware(app, cfg)
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    _register_routers(app)
+    _register_routers(app, include_dev=not is_production)
     register_exception_handlers(app)
+
+    # T-Q254: SecurityHeaders is the outermost layer, outside ServerErrorMiddleware,
+    # so unhandled-exception 500 pages carry the headers. ``add_middleware`` cannot
+    # place a layer there, so wrap the finished stack (built here, once, after all
+    # routers and handlers are registered).
+    app.middleware_stack = security_headers_middleware(app.build_middleware_stack())
 
     return app
 
 
-_ROUTER_NAMES: tuple[str, ...] = (
-    # Health first — it must be registered before any auth middleware so
+def _register_routers(app: FastAPI, *, include_dev: bool) -> None:
+    """Include every router explicitly; a router that fails to import fails startup."""
+    # Health first: it must be registered before any auth middleware so
     # /health + /ready stay publicly reachable (ADR-0033 §5).
-    "health",
-    # T-D02b — login / logout / passkeys / sessions (ADR-0070).
-    "auth",
-    "transactions",
-    "accounts",
-    "categories",
-    "planned",
-    "recurring",
-    "budget",
-    "forecast",
-    "analytics",
-    "settings",
-    "settings_users",
-    "settings_password",
-    "settings_security",
-    "debug",
-    "ledger",
-    "today",
-    "plan",
-    "dev_components",
-)
-
-
-def _register_routers(app: FastAPI) -> None:
-    """Register Phase 3 routers; missing modules (during iterative landing)
-    are tolerated so each task can commit atomically."""
-    import importlib  # noqa: PLC0415
-
-    for name in _ROUTER_NAMES:
-        try:
-            mod = importlib.import_module(f"budget_planner.web.routers.{name}")
-        except ImportError:  # pragma: no cover
-            continue
-        router = getattr(mod, "router", None)
-        if router is not None:
-            app.include_router(router)
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(transactions.router)
+    app.include_router(accounts.router)
+    app.include_router(categories.router)
+    app.include_router(planned.router)
+    app.include_router(recurring.router)
+    app.include_router(budget.router)
+    app.include_router(forecast.router)
+    app.include_router(settings.router)
+    app.include_router(settings_users.router)
+    app.include_router(settings_password.router)
+    app.include_router(settings_security.router)
+    app.include_router(debug.router)
+    app.include_router(ledger.router)
+    app.include_router(today.router)
+    app.include_router(plan.router)
+    if include_dev:  # ADR-0053, OQ-20: dev surfaces never ship in production
+        app.include_router(dev_components.router)
 
 
 app = create_app()

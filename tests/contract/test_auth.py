@@ -360,6 +360,9 @@ def test_register_finish_rejects_bad_input_without_storing_a_passkey(
 def test_register_finish_is_rate_limited_per_user(
     client: TestClient, db: sqlite3.Connection
 ) -> None:
+    # A fixed instant keeps the five posts inside one rate-limit window on a loaded machine.
+    fixed = datetime(2026, 11, 3, 12, 0, 10, tzinfo=UTC)
+    client.app.state.rate_limit_clock = lambda: fixed  # type: ignore[attr-defined]
     codes = [
         client.post(
             "/auth/register/finish", json={"label": "x", "credential": CREDENTIAL}

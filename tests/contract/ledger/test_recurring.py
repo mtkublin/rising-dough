@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.repositories import recurring as recurring_repo
+from budget_planner.repositories._unaudited import set_next_due
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, query, rule_form, scalar
 from tests.ui_map import _html, ledger
@@ -26,7 +26,7 @@ def _next_due(settings: Settings, rule_id: int) -> str:
 def _make_due(settings: Settings, rule_id: int) -> None:
     conn = get_connection(settings)
     try:
-        recurring_repo.set_next_due(
+        set_next_due(
             conn,
             1,
             rule_id,
@@ -35,13 +35,6 @@ def _make_due(settings: Settings, rule_id: int) -> None:
         )
     finally:
         conn.close()
-
-
-@covers("GET /recurring")
-def test_index_redirects_to_recurring_ledger(client: TestClient) -> None:
-    r = client.get("/recurring", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=recurring"
 
 
 @covers("GET /recurring/new")
@@ -85,17 +78,18 @@ def test_create_with_formula_term(client: TestClient, seeded: Ids, _migrated: Se
         "/recurring",
         data=rule_form(
             seeded,
-            category_id=seeded["exp"],
+            start_date=date.today().isoformat(),  # noqa: DTZ011 - the exp source rule must occur in the start month (Q-028)
+            category_id=seeded["inc"],
             amount_source="formula",
             default_amount="",
             **{
                 "terms[0][sign]": "+",
                 "terms[0][coefficient_percent]": "10",
-                "terms[0][source_category_ids]": str(seeded["inc"]),
+                "terms[0][source_category_ids]": str(seeded["exp"]),
             },
         ),
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     new_id = scalar(_migrated, "SELECT MAX(id) FROM recurring_rules")
     assert (
         scalar(
@@ -341,42 +335,3 @@ def test_skip_next_advances_without_a_transaction(
     assert client.post("/recurring/99999/skip-next").status_code == 404
     client.post(f"/recurring/{rid}/deactivate")
     assert client.post(f"/recurring/{rid}/skip-next").status_code == 422
-
-
-@covers("POST /recurring/batch/promote-due", "POST /recurring/batch/undo")
-def test_batch_promote_due_and_undo(client: TestClient, seeded: Ids, _migrated: Settings) -> None:
-    rid = seeded["rule"]
-    _make_due(_migrated, rid)
-    due_before = _next_due(_migrated, rid)
-    r = client.post("/recurring/batch/promote-due")
-    assert r.status_code == 204
-    events = hx_events(r)
-    toast = events["toast"]
-    assert toast["undo_url"] == "/recurring/batch/undo"
-    assert events["budget-stale"] is True
-    payload = toast["undo_payload"]
-    assert rid in payload["advanced_rule_ids"]
-    assert payload["promoted_txn_ids"]
-    assert _next_due(_migrated, rid) > due_before
-
-    undo = client.post(
-        "/recurring/batch/undo",
-        data={
-            "promoted_txn_ids": ",".join(map(str, payload["promoted_txn_ids"])),
-            "advanced_rule_ids": ",".join(map(str, payload["advanced_rule_ids"])),
-        },
-    )
-    assert undo.status_code == 204
-    assert hx_events(undo)["toast"] == {"variant": "info", "message": "Undone"}
-    assert _next_due(_migrated, rid) == due_before
-    deleted = scalar(
-        _migrated,
-        "SELECT deleted_at IS NOT NULL FROM transactions WHERE id = ?",
-        (payload["promoted_txn_ids"][0],),
-    )
-    assert deleted == 1
-
-
-@covers("POST /recurring/batch/undo")
-def test_batch_undo_rejects_malformed_ids(client: TestClient, seeded: Ids) -> None:
-    assert client.post("/recurring/batch/undo", data={"advanced_rule_ids": "x"}).status_code == 422

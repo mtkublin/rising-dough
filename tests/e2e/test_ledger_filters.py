@@ -81,14 +81,17 @@ def _open_filtered(live_server: tuple[str, Path], page: Page, *, use_alpha: bool
     page.on("console", lambda m: messages.append(m.text))
     alpha, beta = _seed(base_url, db_path, page)
     page.goto(f"{base_url}/ledger")
+    page.wait_for_function("typeof window.htmx === 'object'")
+    wanted = alpha if use_alpha else beta
     # The unfiltered first page also has _PAGE_SIZE rows, so wait for the filtered
-    # response (not just a matching count) before the caller interacts further.
-    with page.expect_response(lambda r: "/ledger/table" in r.url and "category" in r.url):
-        to_playwright(page, ledger.filter_category).select_option(alpha if use_alpha else beta)
+    # response (not just a matching count) before the caller interacts further (T-Q248).
+    with page.expect_response(lambda r: f"category_id={wanted}" in r.url):
+        to_playwright(page, ledger.filter_category).select_option(wanted)
     expect(_rows(page, "actual")).to_have_count(_PAGE_SIZE if use_alpha else _ROWS_B)
     expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text(
         "beta banana" if use_alpha else "alpha apple"
     )
+    page.wait_for_function("document.querySelector('#ledger-table.htmx-request') === null")
     return messages
 
 
@@ -120,7 +123,8 @@ def test_search_keeps_other_filters(live_server: tuple[str, Path], page: Page) -
 
 def test_pagination_keeps_filters(live_server: tuple[str, Path], page: Page) -> None:
     messages = _open_filtered(live_server, page, use_alpha=True)
-    to_playwright(page, ledger.older_button).click()
+    with page.expect_response(lambda r: "page=2" in r.url):
+        to_playwright(page, ledger.older_button).click()
     expect(_rows(page, "actual")).to_have_count(_ROWS_A - _PAGE_SIZE)
     expect(to_playwright(page, ledger.view_table("actual"))).not_to_contain_text("beta banana")
     _assert_no_include_warning(messages)

@@ -10,27 +10,28 @@ import pytest
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.repositories.users import UserNotFoundError
-from budget_planner.services import _passwords, password_change as svc
+from budget_planner.services import password_change as svc
 from budget_planner.services.password_change import (
     PasswordChangeOutcome,
     PasswordChangeRequest,
     change_own_password,
     validate_new_password,
 )
-from tests.auth_support import TEST_PASSWORD, issue_session, seed_login_user
+from tests.auth_support import (
+    FAKE_HASHER,
+    TEST_PASSWORD,
+    FakePasswordHasher,
+    issue_session,
+    seed_login_user,
+)
 
 NEW_PASSWORD = "a-brand-new-passphrase"  # noqa: S105  # pragma: allowlist secret
 CTX = RequestCtx(ip="203.0.113.7", user_id=1, session_id="h4ndle", user_agent="pytest-ua")
 
 
-@pytest.fixture(autouse=True)
-def _fast_bcrypt(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 4)
-
-
 @pytest.fixture
 def user_id(conn: sqlite3.Connection) -> int:
-    uid = seed_login_user(conn)
+    uid = seed_login_user(conn, hasher=FAKE_HASHER)
     conn.execute("UPDATE users SET must_change_password = 1 WHERE id = ?", (uid,))
     return uid
 
@@ -103,19 +104,26 @@ def test_change_own_password_happy_path(conn: sqlite3.Connection, user_id: int) 
     current = issue_session(conn, user_id=user_id)
     other_a = issue_session(conn, user_id=user_id)
     other_b = issue_session(conn, user_id=user_id)
-    foreign_user = seed_login_user(conn, user_id=2, email="someone@example.test")
+    foreign_user = seed_login_user(
+        conn, user_id=2, email="someone@example.test", hasher=FAKE_HASHER
+    )
     foreign = issue_session(conn, user_id=foreign_user)
 
     outcome = change_own_password(
-        conn, user_id, _req(), current_session_id=current, request_ctx=CTX
+        conn,
+        user_id,
+        _req(),
+        current_session_id=current,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
 
     assert outcome.ok
     assert outcome.revoked_sessions == 2
     row = _user_row(conn, user_id)
     assert row["must_change_password"] == 0
-    assert _passwords.verify_password(NEW_PASSWORD, row["password_hash"])
-    assert not _passwords.verify_password(TEST_PASSWORD, row["password_hash"])
+    assert FAKE_HASHER.verify(NEW_PASSWORD, row["password_hash"])
+    assert not FAKE_HASHER.verify(TEST_PASSWORD, row["password_hash"])
     assert outcome.rotated is not None
     assert sessions_repo.get_session(conn, current) is None  # old token rotated away
     assert sessions_repo.get_session(conn, outcome.rotated.token) is not None
@@ -127,7 +135,9 @@ def test_change_own_password_happy_path(conn: sqlite3.Connection, user_id: int) 
 def test_change_own_password_audits_without_secrets(conn: sqlite3.Connection, user_id: int) -> None:
     current = issue_session(conn, user_id=user_id)
     issue_session(conn, user_id=user_id)
-    change_own_password(conn, user_id, _req(), current_session_id=current, request_ctx=CTX)
+    change_own_password(
+        conn, user_id, _req(), current_session_id=current, request_ctx=CTX, hasher=FAKE_HASHER
+    )
 
     rows = _audit(conn)
     users_rows = [r for r in rows if r["entity_type"] == "users"]
@@ -157,7 +167,12 @@ def test_change_own_password_no_other_sessions_skips_revoke_audit(
 ) -> None:
     current = issue_session(conn, user_id=user_id)
     outcome = change_own_password(
-        conn, user_id, _req(), current_session_id=current, request_ctx=CTX
+        conn,
+        user_id,
+        _req(),
+        current_session_id=current,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert outcome.ok
     assert outcome.revoked_sessions == 0
@@ -174,6 +189,7 @@ def test_change_own_password_wrong_current(conn: sqlite3.Connection, user_id: in
         _req(current="not-my-password"),
         current_session_id=None,
         request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
 
     assert _fields(outcome) == {"current_password"}
@@ -206,13 +222,16 @@ def test_change_own_password_wrong_current_also_reports_policy(
         _req(current="nope-nope-nope", new="short"),
         current_session_id=None,
         request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert _fields(outcome) == {"current_password", "new_password"}
 
 
 def test_change_own_password_no_password_hash(conn: sqlite3.Connection, user_id: int) -> None:
     conn.execute("UPDATE users SET password_hash = NULL WHERE id = ?", (user_id,))
-    outcome = change_own_password(conn, user_id, _req(), current_session_id=None, request_ctx=CTX)
+    outcome = change_own_password(
+        conn, user_id, _req(), current_session_id=None, request_ctx=CTX, hasher=FAKE_HASHER
+    )
     assert _fields(outcome) == {"current_password"}
     assert json.loads(_audit(conn)[0]["new_json"])["reason"] == "no_password"
 
@@ -221,7 +240,12 @@ def test_change_own_password_missing_current_is_not_audited(
     conn: sqlite3.Connection, user_id: int
 ) -> None:
     outcome = change_own_password(
-        conn, user_id, _req(current=""), current_session_id=None, request_ctx=CTX
+        conn,
+        user_id,
+        _req(current=""),
+        current_session_id=None,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert outcome.message_for("current_password") == svc.MSG_CURRENT_REQUIRED
     assert _audit(conn) == []
@@ -241,7 +265,12 @@ def test_change_own_password_policy_failure_no_mutation(
 ) -> None:
     before = _user_row(conn, user_id)["password_hash"]
     outcome = change_own_password(
-        conn, user_id, _req(new=new, confirm=confirm), current_session_id=None, request_ctx=CTX
+        conn,
+        user_id,
+        _req(new=new, confirm=confirm),
+        current_session_id=None,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert field in _fields(outcome)
     assert "current_password" not in _fields(outcome)
@@ -252,21 +281,23 @@ def test_change_own_password_policy_failure_no_mutation(
 def test_change_own_password_stale_hash_rejected(
     conn: sqlite3.Connection, user_id: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    real_hash = _passwords.hash_password
+    class _RacingHasher(FakePasswordHasher):
+        def hash(self, password: str) -> str:
+            conn.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (super().hash("someone-else-won"), user_id),
+            )
+            return super().hash(password)
 
-    def _hash_then_race(plain: str, *, rounds: int | None = None) -> str:
-        conn.execute(
-            "UPDATE users SET password_hash = ? WHERE id = ?",
-            (real_hash("someone-else-won", rounds=4), user_id),
-        )
-        return real_hash(plain, rounds=rounds)
-
-    monkeypatch.setattr(_passwords, "hash_password", _hash_then_race)
-    outcome = change_own_password(conn, user_id, _req(), current_session_id=None, request_ctx=CTX)
+    outcome = change_own_password(
+        conn, user_id, _req(), hasher=_RacingHasher(), current_session_id=None, request_ctx=CTX
+    )
     assert outcome.message_for("current_password") == svc.MSG_STALE
     assert _user_row(conn, user_id)["must_change_password"] == 1
 
 
 def test_change_own_password_unknown_user(conn: sqlite3.Connection) -> None:
     with pytest.raises(UserNotFoundError):
-        change_own_password(conn, 999, _req(), current_session_id=None, request_ctx=CTX)
+        change_own_password(
+            conn, 999, _req(), current_session_id=None, request_ctx=CTX, hasher=FAKE_HASHER
+        )

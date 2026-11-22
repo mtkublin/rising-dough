@@ -12,15 +12,34 @@ from __future__ import annotations
 
 import ast
 import sqlite3
-from collections.abc import Callable
 from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
-from budget_planner.domain.planned import PlannedFilter
-from budget_planner.services import accounts, analytics, balance, budget, fortune, planned
+from budget_planner.domain.errors import ConflictError
+from budget_planner.domain.recurring import AmountFormula, FormulaTerm
+from budget_planner.services import (
+    accounts,
+    analytics,
+    budget,
+    fortune,
+    fx,
+    recurring_formula,
+)
 from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, repo_rel, src_files
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
+from tests.unit.services import (  # noqa: F401 - importing registers the cases
+    _isolation_account_cases,
+    _isolation_crud_cases,
+    _isolation_ledger_cases,
+    _isolation_read_cases,
+    _isolation_t266_cases,
+    _isolation_t267_cases,
+    _isolation_write_cases,
+)
+from tests.unit.services._isolation_registry import COVERED, covers
 from tests.unit.services.conftest import (
     OTHER_BALANCE,
     OTHER_ID,
@@ -52,11 +71,9 @@ def public_functions_with_user_id(files: dict[str, str]) -> set[tuple[str, str]]
 
 
 def _fortune(conn: sqlite3.Connection, user_id: int) -> int:
-    return fortune.compute_fortune(conn, user_id, Settings(_env_file=None)).net_base
-
-
-def _planned_ids(conn: sqlite3.Connection, user_id: int) -> set[int | None]:
-    return {v.persisted_id for v in planned.list_planned(conn, user_id, PlannedFilter())}
+    return fortune.compute_fortune(
+        conn, user_id, fx.converter_for(conn, Settings(_env_file=None), TODAY)
+    ).net_base
 
 
 def _checked_accounts(conn: sqlite3.Connection, user_id: int) -> set[int]:
@@ -64,37 +81,21 @@ def _checked_accounts(conn: sqlite3.Connection, user_id: int) -> set[int]:
 
 
 def _analytics_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
-    bundle = analytics.bundle(conn, user_id, today=TODAY, period="month")
+    bundle = analytics.bundle(
+        conn,
+        user_id,
+        fx.converter_for(conn, Settings(_env_file=None), TODAY),
+        today=TODAY,
+        period="month",
+    )
     return {r.category_id for r in bundle.spend_by_category}
 
 
 def _grid_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
-    return {r.category_id for r in budget.yearly_grid(conn, user_id, 2026)}
-
-
-def _derived(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
-    try:
-        return balance.derive_balance(conn, user_id, account_id)
-    except Exception:
-        return 0
-
-
-# function id ("module.function") -> case; registry below must list exactly these ids
-COVERED: dict[str, Callable[[sqlite3.Connection, World], None]] = {}
-
-
-def covers(
-    function_id: str,
-) -> Callable[
-    [Callable[[sqlite3.Connection, World], None]], Callable[[sqlite3.Connection, World], None]
-]:
-    def register(
-        case: Callable[[sqlite3.Connection, World], None],
-    ) -> Callable[[sqlite3.Connection, World], None]:
-        COVERED[function_id] = case
-        return case
-
-    return register
+    return {
+        r.category_id
+        for r in budget.yearly_grid(conn, user_id, 2099, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    }  # far after the tombstone archive month (ADR-0136)
 
 
 @covers("fortune.compute_fortune")
@@ -105,16 +106,25 @@ def _case_fortune(conn: sqlite3.Connection, world: World) -> None:
     assert other == OTHER_BALANCE - 2_000
 
 
-@covers("planned.list_planned")
-def _case_planned(conn: sqlite3.Connection, world: World) -> None:
-    assert _planned_ids(conn, OWNER_ID) == {world.owner.planned_id}
-    assert _planned_ids(conn, OTHER_ID) == {world.other.planned_id}
-
-
 @covers("accounts.last_checked")
 def _case_last_checked(conn: sqlite3.Connection, world: World) -> None:
     assert world.other.account_id not in _checked_accounts(conn, OWNER_ID)
     assert world.owner.account_id not in _checked_accounts(conn, OTHER_ID)
+
+
+@covers("accounts.archive_account")
+def _case_archive_account(conn: sqlite3.Connection, world: World) -> None:
+    # The owner cannot archive (or even see) the other user's account: a no-op, nothing leaks or changes.
+    accounts.archive_account(conn, OWNER_ID, world.other.account_id)
+    assert world.other.account_id in _checked_accounts(conn, OTHER_ID)
+    # The owner's own account carries a balance, rules and planned rows: refused, still live.
+    with pytest.raises(ConflictError) as err:
+        accounts.archive_account(conn, OWNER_ID, world.owner.account_id)
+    assert err.value.message == (
+        "Cannot archive account: Balance is not zero; 2 recurring rules use this account; "
+        "1 planned transaction uses this account"
+    )
+    assert world.owner.account_id in _checked_accounts(conn, OWNER_ID)
 
 
 @covers("analytics.bundle")
@@ -129,17 +139,47 @@ def _case_yearly_grid(conn: sqlite3.Connection, world: World) -> None:
     assert world.owner.category_id not in _grid_categories(conn, OTHER_ID)
 
 
-@covers("balance.derive_balance")
-def _case_derive_balance(conn: sqlite3.Connection, world: World) -> None:
-    assert _derived(conn, OWNER_ID, world.owner.account_id) == OWNER_BALANCE - 1_000
-    assert _derived(conn, OTHER_ID, world.owner.account_id) != OWNER_BALANCE - 1_000
+@covers("recurring_formula.invalid_source_ids")
+def _case_invalid_source_ids(conn: sqlite3.Connection, world: World) -> None:
+    mine, theirs = world.owner.category_id, world.other.category_id
+    assert recurring_formula.invalid_source_ids(conn, OWNER_ID, [(mine,)]) is None
+    assert recurring_formula.invalid_source_ids(conn, OWNER_ID, [(mine,), (theirs,)]) == (1, theirs)
+    assert recurring_formula.invalid_source_ids(conn, OTHER_ID, [(mine,)]) == (0, mine)
+
+
+@covers("recurring_formula.compute_savable_amount")
+def _case_compute_savable_amount(conn: sqlite3.Connection, world: World) -> None:
+    def formula(category_id: int) -> AmountFormula:
+        term = FormulaTerm(sign="+", coefficient_bps=10_000, source_category_ids=(category_id,))
+        return AmountFormula(terms=(term,))
+
+    with pytest.raises(recurring_formula.FormulaError):
+        recurring_formula.compute_savable_amount(
+            conn,
+            OWNER_ID,
+            formula(world.other.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        )
+    with pytest.raises(recurring_formula.FormulaError):
+        recurring_formula.compute_savable_amount(
+            conn,
+            OTHER_ID,
+            formula(world.owner.category_id),
+            2026,
+            11,
+            fx=formula_fx_of(conn, OTHER_ID),
+            target_ccy=TARGET_CCY,
+        )
 
 
 @pytest.mark.parametrize("function_id", sorted(COVERED))
 def test_user_data_never_crosses_users(
-    function_id: str, conn: sqlite3.Connection, world_with_two_users: World
+    function_id: str, conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
-    COVERED[function_id](conn, world_with_two_users)
+    COVERED[function_id](conn, world_with_tombstones)
 
 
 def test_soft_deleted_rows_stay_out_of_the_owners_results(
@@ -161,6 +201,10 @@ def collect() -> list[Violation]:
     return missing
 
 
+@pytest.mark.skipif(
+    "mutants" in REPO_ROOT.parts,
+    reason="mutmut copies src/ with mangled function names (x_<fn>__mutmut_N); the registry scan only holds for the real tree",
+)
 def test_isolation_registry_matches_allowlist() -> None:
     assert_ratchet("user_isolation", collect(), TEACH)
 

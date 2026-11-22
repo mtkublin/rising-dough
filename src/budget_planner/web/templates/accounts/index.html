@@ -17,10 +17,16 @@
               hx-swap="innerHTML">+ New account</button>
     </div>
   </header>
-  <section class="rd-accounts-hero">
+  <section id="accounts-hero"
+           class="rd-accounts-hero"
+           hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+           hx-trigger="balance-stale from:body"
+           hx-select="#accounts-hero"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap">
     <div class="rd-accounts-hero__total">
       <div class="rd-accounts-hero__amount num">
-        {{ "{:,.2f}".format(fortune.net_base / 100.0) }}<span class="cur">{{ base_ccy }}</span>
+        {{ fortune.net_base|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span>
       </div>
       <div class="mut rd-accounts-hero__hint">
         All balances in base currency {{ base_ccy }}. No FX conversions needed today.
@@ -28,15 +34,15 @@
     </div>
     <div class="rd-accounts-hero__item">
       <div class="rd-eyebrow">Assets</div>
-      <div class="num rd-accounts-hero__sub">{{ "{:,.2f}".format(fortune.assets_base / 100.0) }}</div>
+      <div class="num rd-accounts-hero__sub">{{ fortune.assets_base|money_num(base_ccy) }}</div>
     </div>
     <div class="rd-accounts-hero__item">
       <div class="rd-eyebrow">Liabilities</div>
-      <div class="num neg rd-accounts-hero__sub">{{ "{:,.2f}".format(fortune.liabilities_base / 100.0) }}</div>
+      <div class="num neg rd-accounts-hero__sub">{{ fortune.liabilities_base|money_num(base_ccy) }}</div>
     </div>
     <div class="rd-accounts-hero__item" id="accounts-planned-total">
       <div class="rd-eyebrow">Planned</div>
-      <div class="num rd-accounts-hero__sub {{ 'neg' if planned_base < 0 else ('pos' if planned_base > 0 else '') }}">{{ '−' if planned_base < 0 else ('+' if planned_base > 0 else '') }}{{ "{:,.2f}".format(planned_base|abs / 100.0) }}</div>
+      <div class="num rd-accounts-hero__sub {{ 'neg' if planned_base < 0 else ('pos' if planned_base > 0 else '') }}">{{ '−' if planned_base < 0 else ('+' if planned_base > 0 else '') }}{{ (planned_base|abs)|money_num(base_ccy) }}</div>
     </div>
   </section>
   <div class="rd-table-scroll">
@@ -73,16 +79,15 @@
               <span class="rd-acct-name">{{ a.name }}</span>
               <small class="text-muted rd-acct-type">{{ a.type or 'account' }}</small>
               {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
-              {%- if a.is_liability and a.credit_limit_minor %}
-                {%- set used_minor = -card.balance if card.balance < 0 else 0 -%}
-                {%- set available_minor = (a.credit_limit_minor - used_minor) if a.credit_limit_minor else 0 -%}
-                {%- set used_pct = (100.0 * used_minor / a.credit_limit_minor) if a.credit_limit_minor > 0 else 0 -%}
-                <div class="rd-credit-bar" style="--used-pct: {{ [used_pct, 100]|min }}%;">
+              {%- if card.utilisation %}
+                <div class="rd-credit-bar"
+                     data-testid="credit-utilisation"
+                     style="--used-pct: {{ card.utilisation.bar_pct }}%">
                   <span class="rd-credit-bar__track" aria-hidden="true"></span>
                   <small class="rd-credit-bar__meta">
-                    Limit {{ a.credit_limit_minor|money_num(a.currency) }} ·
-                    Available {{ available_minor|money_num(a.currency) }} ·
-                    Used {{ "{:.0f}".format(used_pct) }}%
+                    Limit {{ card.utilisation.limit_minor|money_num(a.currency) }} ·
+                    Available {{ card.utilisation.available_minor|money_num(a.currency) }} ·
+                    Used {{ card.utilisation.used_pct }}%
                   </small>
                 </div>
               {%- endif %}

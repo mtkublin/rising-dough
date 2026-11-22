@@ -30,7 +30,7 @@ def test_set_and_clear_default(conn: sqlite3.Connection, category_id: int) -> No
     # Clearing again is a no-op.
     budgets.clear_default(conn, USER_ID, category_id)
 
-    ops = [e.operation.value for e in audit.list_entries(conn, "budget_default", created.id)]
+    ops = [e.operation.value for e in audit.list_entries(conn, 1, "budget_default", created.id)]
     assert ops == ["create", "update", "delete"]
 
 

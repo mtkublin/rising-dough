@@ -51,6 +51,8 @@ _STATIC_ROLES = {
     "ul": "list",
     "ol": "list",
     "li": "listitem",
+    "dt": "term",
+    "dd": "definition",
     "textarea": "textbox",
     "img": "img",
     "progress": "progressbar",
@@ -295,3 +297,67 @@ def exists(source: Source, loc: Locator) -> bool:
 def text_of(source: Source, loc: Locator) -> str:
     """Normalised text content of the single match."""
     return _visible_text(resolve_one(source, loc))
+
+
+def all_text(source: Source, loc: Locator) -> str:
+    """Normalised text of every match, joined with a space (empty when none)."""
+    return _norm(" ".join(_visible_text(el) for el in resolve(source, loc)))
+
+
+def page_text(source: Source) -> str:
+    """Normalised visible text of the whole document (no markup, no attributes)."""
+    return _norm(_soup(source).get_text(" "))
+
+
+def document_title(source: Source) -> str:
+    """Normalised ``<title>`` text (empty when the document has none)."""
+    title = _soup(source).find("title")
+    return _visible_text(title) if isinstance(title, Tag) else ""
+
+
+def form_of(source: Source, loc: Locator) -> Tag:
+    """The ``<form>`` that is (or contains) the single match of ``loc``."""
+    el = resolve_one(source, loc)
+    form = el if el.name == "form" else el.find_parent("form")
+    if not isinstance(form, Tag):
+        raise LookupError(f"{loc!r} is not inside a form")
+    return form
+
+
+def submitted_fields(form: Tag) -> list[tuple[str, str]]:
+    """``(name, value)`` pairs the browser would submit for ``form`` as rendered.
+
+    Mirrors HTML successful-controls: disabled and nameless controls are skipped,
+    checkboxes and radios only when checked, selects by their selected option.
+    """
+    fields: list[tuple[str, str]] = []
+    for el in form.find_all(["input", "select", "textarea"]):
+        name = el.get("name")
+        if not isinstance(name, str) or el.has_attr("disabled"):
+            continue
+        kind = str(el.get("type", "text")).lower()
+        if el.name == "input" and kind in {"checkbox", "radio"} and not el.has_attr("checked"):
+            continue
+        if el.name == "input" and kind in {"submit", "button", "image", "reset", "file"}:
+            continue
+        if el.name == "textarea":
+            fields.append((name, el.get_text()))
+        elif el.name == "select":
+            chosen = el.find("option", selected=True) or el.find("option")
+            if isinstance(chosen, Tag):
+                fields.append((name, str(chosen.get("value", chosen.get_text(strip=True)))))
+        else:
+            fields.append(
+                (name, str(el.get("value", "on" if kind in {"checkbox", "radio"} else "")))
+            )
+    return fields
+
+
+def texts(source: Source, loc: Locator) -> list[str]:
+    """Normalised text of every match, in document order."""
+    return [_visible_text(el) for el in resolve(source, loc)]
+
+
+def is_fragment(source: Source) -> bool:
+    """True when ``source`` is a bare fragment (no ``<html>`` document element)."""
+    return _soup(source).find("html") is None

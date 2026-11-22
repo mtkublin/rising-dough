@@ -39,14 +39,7 @@ USER_ID = 1
 
 # ``old → new`` tuples. Kept here so the acceptance list in
 # ADR-0023 maps 1:1 to a parametrised test case.
-_REDIRECTS: tuple[tuple[str, str], ...] = (
-    ("/transactions", "/ledger?view=actual"),
-    ("/planned", "/ledger?view=planned"),
-    ("/recurring", "/ledger?view=recurring"),
-    ("/categories", "/settings?tab=categories"),
-    ("/analytics", "/budget#budget-breakdown"),
-    ("/budget/manage", "/budget#budget-rules"),
-)
+_REDIRECTS: tuple[tuple[str, str], ...] = (("/transactions", "/ledger?view=actual"),)
 
 
 @pytest.fixture
@@ -82,36 +75,6 @@ def test_legacy_transactions_redirects(client: TestClient) -> None:
     r = client.get("/transactions", follow_redirects=False)
     assert r.status_code == 302
     assert r.headers["location"] == "/ledger?view=actual"
-
-
-def test_legacy_planned_redirects(client: TestClient) -> None:
-    r = client.get("/planned", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=planned"
-
-
-def test_legacy_recurring_redirects(client: TestClient) -> None:
-    r = client.get("/recurring", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=recurring"
-
-
-def test_legacy_categories_redirects(client: TestClient) -> None:
-    r = client.get("/categories", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/settings?tab=categories"
-
-
-def test_legacy_analytics_redirects(client: TestClient) -> None:
-    r = client.get("/analytics", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/budget#budget-breakdown"
-
-
-def test_legacy_budget_manage_redirects(client: TestClient) -> None:
-    r = client.get("/budget/manage", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/budget#budget-rules"
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +123,6 @@ def test_crud_subroutes_post_create_still_200(client: TestClient, seeded: dict[s
                 "default_amount": "7.00",
             },
         ),
-        ("/categories", {"name": "Redirect-Test-Cat", "direction": "expense"}),
     )
     for path, data in posts:
         r = client.post(path, data=data, follow_redirects=False)

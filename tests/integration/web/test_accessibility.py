@@ -32,12 +32,8 @@ _ROUTES = (
     "/",
     "/transactions",
     "/accounts",
-    "/planned",
-    "/recurring",
     "/budget",
-    "/budget/manage",
     "/forecast",
-    "/analytics",
     # T-071 — new ADR-0023 surfaces.
     "/ledger",
     "/ledger?view=planned",
@@ -113,9 +109,6 @@ def _control_is_labelled(control: Tag) -> bool:
         "/transactions",
         "/transactions/new",
         "/accounts",
-        "/planned",
-        "/recurring",
-        "/budget/manage",
         "/forecast",
     ),
 )

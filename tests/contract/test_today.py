@@ -33,7 +33,7 @@ from tests.ui_map import _html, today
 pytest_plugins = ["tests.contract.web_support_t_ut04b"]  # client, anon_client, raw_client
 
 USER_ID = 1
-AFFORD_PATHS = ["/today/afford", "/afford"]
+AFFORD_PATHS = ["/today/afford"]  # bare /afford alias removed (T-Q257)
 
 
 def _seed_planned(settings: Settings, user_id: int, offsets: dict[str, int]) -> dict[str, int]:
@@ -131,13 +131,18 @@ def test_upcoming_row_status_overdue_due_future(client: TestClient, _migrated: S
 
 
 @covers("GET /today/upcoming")
+def test_upcoming_unknown_window_is_422(client: TestClient) -> None:
+    assert client.get("/today/upcoming", params={"window": "bogus"}).status_code == 422
+
+
+@covers("GET /today/upcoming")
 @pytest.mark.parametrize(
     ("window", "expected"),
     [
         ("7", {"Soon"}),
         ("30", {"Soon", "Later"}),
         ("all", {"Soon", "Later", "Far"}),
-        ("bogus", {"Soon", "Later"}),  # unknown window falls back to the 30-day default
+        ("", {"Soon", "Later"}),  # empty window is the 30-day default
         (None, {"Soon", "Later"}),
     ],
 )
@@ -168,10 +173,10 @@ def test_upcoming_requires_login(anon_client: TestClient) -> None:
     assert r.headers["location"].startswith("/auth/login")
 
 
-# --- GET /today/afford and the /afford alias -------------------------------
+# --- GET /today/afford ---------------------------------------------------
 
 
-@covers("GET /today/afford", "GET /afford")
+@covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
 @pytest.mark.parametrize("amount", ["10000", "100.00", "0", ""])
 def test_afford_accepts_non_negative_amounts(client: TestClient, path: str, amount: str) -> None:
@@ -182,7 +187,7 @@ def test_afford_accepts_non_negative_amounts(client: TestClient, path: str, amou
     assert _html.exists(r.text, today.afford_delta) is (amount not in {"0", ""})
 
 
-@covers("GET /today/afford", "GET /afford")
+@covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
 @pytest.mark.parametrize("amount", ["not-a-number", "-1"])
 def test_afford_rejects_invalid_amount(client: TestClient, path: str, amount: str) -> None:
@@ -190,7 +195,7 @@ def test_afford_rejects_invalid_amount(client: TestClient, path: str, amount: st
     assert r.status_code == 422
 
 
-@covers("GET /today/afford", "GET /afford")
+@covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
 def test_afford_is_a_pure_read(client: TestClient, _migrated: Settings, path: str) -> None:
     before = _audit_count(_migrated)
@@ -198,7 +203,7 @@ def test_afford_is_a_pure_read(client: TestClient, _migrated: Settings, path: st
     assert _audit_count(_migrated) == before
 
 
-@covers("GET /today/afford", "GET /afford")
+@covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
 def test_afford_requires_login(anon_client: TestClient, path: str) -> None:
     r = anon_client.get(path, params={"amount": "1"}, follow_redirects=False)

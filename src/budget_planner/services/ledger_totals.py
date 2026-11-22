@@ -11,9 +11,13 @@ spans accounts in different currencies is summed in one unit.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 
-from budget_planner.domain.enums import Direction
+from budget_planner.domain.enums import Cadence, Direction, months_per_cadence
+from budget_planner.domain.money import divide_minor_units, format_money
+from budget_planner.domain.transactions import signed_legs
+from budget_planner.services.fx import FxUnavailableError
 
 # (amount_minor, operation_date, from_ccy) -> base-currency minor units
 Converter = Callable[[int, dt.date, str], int]
@@ -21,18 +25,14 @@ Converter = Callable[[int, dt.date, str], int]
 
 def signed_effect(amount_minor: int, direction: Direction) -> int:
     """Signed contribution of one transaction to a day's net (0 for transit)."""
-    if direction is Direction.INCOME:
-        return amount_minor
-    if direction is Direction.EXPENSE:
-        return -amount_minor
-    if direction is Direction.ADJUSTMENT:
-        return amount_minor  # pre-signed (ADR-0008)
-    return 0
+    if direction is Direction.TRANSIT:
+        return 0
+    return signed_legs(direction, amount_minor, 0, None)[0].amount_minor
 
 
 def day_nets(
     rows: Iterable[tuple[dt.date, int, Direction | None, str]],
-    convert: Converter,
+    base_of: Converter,
 ) -> dict[dt.date, int]:
     """Sum signed base-currency effects per operation date.
 
@@ -47,8 +47,140 @@ def day_nets(
         if effect == 0:
             out.setdefault(day, 0)
             continue
-        out[day] = out.get(day, 0) + convert(effect, day, ccy)
+        out[day] = out.get(day, 0) + base_of(effect, day, ccy)
     return out
 
 
-__all__ = ["Converter", "day_nets", "signed_effect"]
+def actual_day_nets(
+    rows: Iterable[tuple[dt.date, int, Direction | None, str]],
+    base_of: Converter,
+) -> dict[str, int | None]:
+    """Per-day net with ISO-date keys for the Ledger Actual view (T-D48).
+
+    A day whose FX rate is unavailable maps to ``None`` so the header omits a wrong figure.
+    """
+    items = list(rows)
+    out: dict[str, int | None] = {}
+    for day in {i[0] for i in items}:
+        try:
+            out[day.isoformat()] = day_nets([i for i in items if i[0] == day], base_of)[day]
+        except FxUnavailableError:
+            out[day.isoformat()] = None
+    return out
+
+
+@dataclass(frozen=True)
+class RecurringTotals:
+    """Monthly-equivalent in/out for the Recurring strip (magnitudes, minor units)."""
+
+    monthly_in_minor: int
+    monthly_out_minor: int
+    monthly_in_display: str
+    monthly_out_display: str
+
+
+@dataclass(frozen=True)
+class PlannedTotals:
+    """Pending planned count and direction-signed net for the Planned strip."""
+
+    count: int
+    net_minor: int
+    net_display: str
+
+
+def _int_field(row: Mapping[str, object], key: str) -> int:
+    value = row.get(key)
+    return value if isinstance(value, int) else 0
+
+
+def _direction_of(row: Mapping[str, object]) -> Direction | None:
+    direction = getattr(row.get("category"), "direction", None)
+    return direction if isinstance(direction, Direction) else None
+
+
+def _date_field(row: Mapping[str, object], key: str) -> dt.date:
+    value = row.get(key)
+    if not isinstance(value, dt.date):
+        raise ValueError(f"ledger strip row has no {key} date")
+    return value
+
+
+def _ccy_field(row: Mapping[str, object], base: str) -> str:
+    value = row.get("currency")
+    return value if isinstance(value, str) and value else base
+
+
+def recurring_monthly_totals(
+    rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
+) -> RecurringTotals:
+    """Roll active recurring rows up to monthly-equivalent in/out (ADR-0056 section 4).
+
+    Each row carries ``effective_amount_minor``, ``cadence`` and a ``category``
+    with a direction. The monthly amount is signed via ``signed_effect``
+    (ADR-0008): positives are income (in), negatives expense (out, reported as a
+    magnitude). Rows without a direction are ignored. Each monthly amount is
+    converted from its account currency to ``currency`` (the base) at the rate
+    on the rule's ``next_due`` via ``base_of`` (ADR-0006, ADR-0139); a missing
+    rate raises ``FxUnavailableError``.
+    """
+    monthly_in = 0
+    monthly_out = 0
+    for row in rows:
+        cadence = Cadence(str(row.get("cadence")))  # unknown or missing cadence raises
+        direction = _direction_of(row)
+        if direction is None:
+            continue
+        amount = divide_minor_units(
+            _int_field(row, "effective_amount_minor"), months_per_cadence(cadence)
+        )
+        effect = base_of(
+            signed_effect(amount, direction),
+            _date_field(row, "next_due"),
+            _ccy_field(row, currency),
+        )
+        if effect >= 0:
+            monthly_in += effect
+        else:
+            monthly_out -= effect
+    return RecurringTotals(
+        monthly_in_minor=monthly_in,
+        monthly_out_minor=monthly_out,
+        monthly_in_display=format_money(monthly_in, currency),
+        monthly_out_display=format_money(monthly_out, currency),
+    )
+
+
+def planned_totals(
+    rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
+) -> PlannedTotals:
+    """Count pending planned rows and sum their direction-signed net (ADR-0008).
+
+    Rows carry ``amount_minor``, ``is_promoted`` and a ``category`` with a
+    direction. Promoted rows are already in the ledger and are excluded from
+    both the count and the net; rows without a direction add nothing. Each
+    amount is converted to ``currency`` (the base) at its ``operation_date`` via
+    ``base_of`` (ADR-0006, ADR-0139); a missing rate raises ``FxUnavailableError``.
+    """
+    pending = [row for row in rows if not row.get("is_promoted")]
+    net = 0
+    for row in pending:
+        direction = _direction_of(row)
+        if direction is not None:
+            net += base_of(
+                signed_effect(_int_field(row, "amount_minor"), direction),
+                _date_field(row, "operation_date"),
+                _ccy_field(row, currency),
+            )
+    return PlannedTotals(count=len(pending), net_minor=net, net_display=format_money(net, currency))
+
+
+__all__ = [
+    "Converter",
+    "PlannedTotals",
+    "RecurringTotals",
+    "actual_day_nets",
+    "day_nets",
+    "planned_totals",
+    "recurring_monthly_totals",
+    "signed_effect",
+]

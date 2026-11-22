@@ -5,11 +5,14 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
+import sqlite3
+from collections.abc import Iterator
 from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -23,10 +26,39 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, ledger
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
+
+
+@pytest.fixture
+def db(_migrated: Settings) -> Iterator[sqlite3.Connection]:
+    conn = get_connection(_migrated)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _state(db: sqlite3.Connection) -> list[tuple[object, ...]]:
+    """Rules + overrides + transaction ids as plain tuples (before/after equality)."""
+    rules = [
+        tuple(r)
+        for r in db.execute(
+            "SELECT id, cadence, start_date, default_amount, active, next_due, "
+            "deleted_at IS NOT NULL FROM recurring_rules ORDER BY id"
+        )
+    ]
+    overrides = [
+        tuple(r)
+        for r in db.execute(
+            "SELECT rule_id, occurrence_date, state, amount_override, promoted_to_txn_id "
+            "FROM recurring_rule_overrides ORDER BY id"
+        )
+    ]
+    txns = [tuple(r) for r in db.execute("SELECT id FROM transactions ORDER BY id")]
+    return [*rules, *overrides, *txns]
 
 
 @pytest.fixture
@@ -51,13 +83,6 @@ def ctx(_migrated: Settings) -> dict[str, int]:
         return {"acc": acc.id, "cat": cat.id, "rule": rule.id}
     finally:
         conn.close()
-
-
-def test_index_redirects_to_ledger(client: TestClient, ctx: dict[str, int]) -> None:
-    """T-070: ``/recurring`` returns 302 to the unified ledger (recurring view)."""
-    r = client.get("/recurring", follow_redirects=False)
-    assert r.status_code == 302
-    assert r.headers["location"] == "/ledger?view=recurring"
 
 
 def test_new_form(client: TestClient) -> None:
@@ -104,7 +129,10 @@ def test_create(client: TestClient, ctx: dict[str, int]) -> None:
     assert "forecast-stale" in r.headers["HX-Trigger"]
 
 
-def test_create_invalid_cadence(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_invalid_cadence(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         "/recurring",
         data={
@@ -116,9 +144,14 @@ def test_create_invalid_cadence(client: TestClient, ctx: dict[str, int]) -> None
         },
     )
     assert r.status_code == 422
+    assert "cadence: invalid cadence" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_create_invalid_date(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_invalid_date(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         "/recurring",
         data={
@@ -130,9 +163,14 @@ def test_create_invalid_date(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "start_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_create_invalid_amount(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_invalid_amount(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         "/recurring",
         data={
@@ -144,9 +182,14 @@ def test_create_invalid_amount(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "default_amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None:
+def test_create_unknown_account(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         "/recurring",
         data={
@@ -158,6 +201,8 @@ def test_create_unknown_account(client: TestClient, ctx: dict[str, int]) -> None
         },
     )
     assert r.status_code == 422
+    assert "account_id: unknown account" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
 def test_create_transit_persists_dest_account(
@@ -326,10 +371,12 @@ def test_edit(client: TestClient, ctx: dict[str, int]) -> None:
 
 
 def test_edit_404(client: TestClient) -> None:
-    assert client.get("/recurring/9999/edit").status_code == 404
+    r = client.get("/recurring/9999/edit")
+    assert r.status_code == 404
+    assert "rule: not found" in _html.all_text(r.text, errors.alert)
 
 
-def test_update(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}",
         data={
@@ -341,9 +388,14 @@ def test_update(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 200
+    stored = recurring_repo.find_rule(db, USER_ID, ctx["rule"])
+    assert stored is not None
+    assert stored.default_amount == 77_700
+    assert stored.start_date == date(2026, 3, 1)
 
 
-def test_update_404(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _state(db)
     r = client.post(
         "/recurring/9999",
         data={
@@ -355,9 +407,12 @@ def test_update_404(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _state(db) == before
 
 
-def test_update_invalid(client: TestClient, ctx: dict[str, int]) -> None:
+def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}",
         data={
@@ -369,15 +424,26 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int]) -> None:
         },
     )
     assert r.status_code == 422
+    assert "cadence: invalid" in _html.all_text(r.text, errors.alert)
+    assert "start_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert "default_amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_deactivate(client: TestClient, ctx: dict[str, int]) -> None:
+def test_deactivate(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     r = client.post(f"/recurring/{ctx['rule']}/deactivate")
     assert r.status_code == 200
+    stored = recurring_repo.find_rule(db, USER_ID, ctx["rule"])
+    assert stored is not None
+    assert stored.active is False
 
 
-def test_deactivate_404(client: TestClient) -> None:
-    assert client.post("/recurring/9999/deactivate").status_code == 404
+def test_deactivate_404(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
+    before = _state(db)
+    r = client.post("/recurring/9999/deactivate")
+    assert r.status_code == 404
+    assert r.text == "not found"
+    assert _state(db) == before
 
 
 def test_add_override_overridden_amount(client: TestClient, ctx: dict[str, int]) -> None:
@@ -389,36 +455,57 @@ def test_add_override_overridden_amount(client: TestClient, ctx: dict[str, int])
     assert "forecast-stale" in r.headers["HX-Trigger"]
 
 
-def test_add_override_accepts_comma_decimal(client: TestClient, ctx: dict[str, int]) -> None:
+def test_add_override_accepts_comma_decimal(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": 2026, "month": 5, "amount": "9,99"},
     )
     assert r.status_code == 200
+    overrides = recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"])
+    assert [(o.occurrence_date, o.amount_override) for o in overrides] == [(date(2026, 5, 1), 999)]
 
 
-def test_override_invalid_month(client: TestClient, ctx: dict[str, int]) -> None:
+def test_override_invalid_month(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": 2026, "month": 13, "amount": "9.99"},
     )
     assert r.status_code == 422
+    assert "month: invalid year or month" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_override_invalid_amount(client: TestClient, ctx: dict[str, int]) -> None:
+def test_override_invalid_amount(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": 2026, "month": 5, "amount": "nope"},
     )
     assert r.status_code == 422
+    assert "amount: amount must be a decimal number within range" in _html.all_text(
+        r.text, errors.alert
+    )
+    assert _state(db) == before
 
 
-def test_override_non_positive_amount(client: TestClient, ctx: dict[str, int]) -> None:
+def test_override_non_positive_amount(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": 2026, "month": 5, "amount": "0"},
     )
     assert r.status_code == 422
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
 def test_override_404_rule(client: TestClient) -> None:
@@ -427,24 +514,35 @@ def test_override_404_rule(client: TestClient) -> None:
         data={"year": 2026, "month": 5, "amount": "9.99"},
     )
     assert r.status_code == 404
+    assert r.text == "not found"
 
 
-def test_delete_override(client: TestClient, ctx: dict[str, int]) -> None:
+def test_delete_override(client: TestClient, ctx: dict[str, int], db: sqlite3.Connection) -> None:
     client.post(
         f"/recurring/{ctx['rule']}/overrides",
         data={"year": 2026, "month": 5, "amount": "9.99"},
     )
+    assert len(recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"])) == 1
     r = client.post(f"/recurring/{ctx['rule']}/overrides/2026-05-01/delete")
     assert r.status_code == 200
+    assert _html.exists(r.text, ledger.recurring_row(ctx["rule"]))
+    assert recurring_repo.list_overrides_all(db, USER_ID, ctx["rule"]) == []
 
 
 def test_delete_override_404_rule(client: TestClient) -> None:
-    assert client.post("/recurring/9999/overrides/2026-05-01/delete").status_code == 404
+    r = client.post("/recurring/9999/overrides/2026-05-01/delete")
+    assert r.status_code == 404
+    assert r.text == "not found"
 
 
-def test_delete_override_bad_date(client: TestClient, ctx: dict[str, int]) -> None:
+def test_delete_override_bad_date(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(f"/recurring/{ctx['rule']}/overrides/bad/delete")
     assert r.status_code == 422
+    assert r.text == "invalid date"
+    assert _state(db) == before
 
 
 # ---------------------------------------------------------------------------
@@ -472,6 +570,7 @@ def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
 def test_promote_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/promote")
     assert r.status_code == 404
+    assert "rule: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_promote_submit_no_edits(
@@ -492,9 +591,12 @@ def test_promote_submit_no_edits(
         conn.close()
 
 
-def test_promote_submit_404(client: TestClient) -> None:
+def test_promote_submit_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _state(db)
     r = client.post("/recurring/9999/promote", data={})
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _state(db) == before
 
 
 def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, int]) -> None:
@@ -506,20 +608,30 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
     assert "amount" in _html.text_of(r.text, ledger.form_errors).lower()
 
 
-def test_promote_submit_zero_amount_422(client: TestClient, ctx: dict[str, int]) -> None:
+def test_promote_submit_zero_amount_422(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}/promote",
         data={"amount": "0"},
     )
     assert r.status_code == 422
+    assert "amount: amount must be positive" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
-def test_promote_submit_invalid_date_422(client: TestClient, ctx: dict[str, int]) -> None:
+def test_promote_submit_invalid_date_422(
+    client: TestClient, ctx: dict[str, int], db: sqlite3.Connection
+) -> None:
+    before = _state(db)
     r = client.post(
         f"/recurring/{ctx['rule']}/promote",
         data={"operation_date": "not-a-date"},
     )
     assert r.status_code == 422
+    assert "operation_date: invalid date" in _html.all_text(r.text, errors.alert)
+    assert _state(db) == before
 
 
 def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated: Settings) -> None:
@@ -546,6 +658,12 @@ def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated
         conn.close()
     r = client.post(f"/recurring/{rule_id}/promote", data={})
     assert r.status_code == 422
+    assert "promotion: cross-currency transit not supported" in _html.all_text(r.text, errors.alert)
+    conn = get_connection(_migrated)
+    try:
+        assert transactions_repo.list_filtered(conn, USER_ID, TransactionFilter()) == []
+    finally:
+        conn.close()
 
 
 def test_skip_next_advances(client: TestClient, ctx: dict[str, int], _migrated: Settings) -> None:
@@ -566,9 +684,12 @@ def test_skip_next_advances(client: TestClient, ctx: dict[str, int], _migrated: 
         conn.close()
 
 
-def test_skip_next_404(client: TestClient) -> None:
+def test_skip_next_404(client: TestClient, db: sqlite3.Connection) -> None:
+    before = _state(db)
     r = client.post("/recurring/9999/skip-next")
     assert r.status_code == 404
+    assert r.text == "not found"
+    assert _state(db) == before
 
 
 # ---------------------------------------------------------------------------
@@ -719,6 +840,7 @@ def test_recurring_overrides_new_form_renders(
 def test_recurring_overrides_new_form_404(client: TestClient) -> None:
     r = client.get("/recurring/9999/overrides/new")
     assert r.status_code == 404
+    assert "rule: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_recurring_overrides_new_form_defaults_to_next_due(
@@ -760,7 +882,7 @@ def test_promote_submit_backfilled_next_due(client: TestClient, _migrated: Setti
         )
         # Pick a start_date in the past so repository backfills next_due to a
         # future canonical date (not start_date itself).
-        past_start = dt.date.today() - dt.timedelta(days=800)  # noqa: DTZ011
+        past_start = clock.today_local(Settings()) - dt.timedelta(days=800)
         rule = recurring_repo.create_rule(
             conn,
             USER_ID,
@@ -1071,7 +1193,7 @@ def test_override_errors_rerender_form_with_message(
 ) -> None:
     for form, text in (
         ({"year": "2026", "month": "13", "amount": "5"}, "invalid year or month"),
-        ({"year": "2026", "month": "5", "amount": "abc"}, "invalid amount"),
+        ({"year": "2026", "month": "5", "amount": "abc"}, "decimal number within range"),
         ({"year": "2026", "month": "5", "amount": "-1"}, "must be positive"),
     ):
         r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_ON_LEDGER)
