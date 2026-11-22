@@ -1,9 +1,11 @@
 """Request parameter parsing: query/form/path text to typed values (T-Q233, Q-023).
 
 Pure functions. Lenient parsers (``parse_date``, ``parse_int``) return ``None`` for text they
-cannot accept so list filters degrade to "no filter"; the strict helpers raise
-``domain.errors.ValidationError`` so a bad value is a visible 422, never a 500. Amount text is
-parsed by ``domain.money.parse_amount_str`` / ``parse_amount_minor``, not here.
+cannot accept; they serve form fields whose callers report their own field error. A malformed
+*query* parameter is never silently dropped (ADR-0141 amendment 2026-11-22, T-Q282): the
+``query_*`` helpers and ``parse_year_month`` raise ``ParamError`` (a visible 422) for a present
+but invalid value, while an absent or empty one is ``None`` or the caller's default. Amount text
+is parsed by ``domain.money.parse_amount_str`` / ``parse_amount_minor``, not here.
 """
 
 from __future__ import annotations
@@ -60,17 +62,55 @@ def parse_int(
     return number
 
 
+def query_date(name: str, value: str | None) -> date | None:
+    """Query ``YYYY-MM-DD``: absent or empty is ``None``, malformed raises ``ParamError``."""
+    if not value:
+        return None
+    parsed = parse_date(value)
+    if parsed is None:
+        raise ParamError({name: f"{name} must be a date like 2026-01-31"})
+    return parsed
+
+
+def query_int(
+    name: str,
+    value: str | None,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = ID_MAX,
+    choices: tuple[int, ...] | None = None,
+) -> int | None:
+    """Query integer: absent or empty is ``None``; bad, out of range or off-``choices`` raises."""
+    if value is None or value.strip() == "":
+        return None
+    number = parse_int(value, minimum=minimum, maximum=maximum)
+    if number is None or (choices is not None and number not in choices):
+        raise ParamError({name: _int_message(name, minimum, maximum, choices)})
+    return number
+
+
+def _int_message(
+    name: str, minimum: int | None, maximum: int | None, choices: tuple[int, ...] | None
+) -> str:
+    if choices is not None:
+        return f"{name} must be one of {', '.join(str(c) for c in choices)}"
+    if minimum is not None and maximum is not None:
+        return f"{name} must be a whole number between {minimum} and {maximum}"
+    return f"{name} must be a whole number"
+
+
+def require_year_month(year_raw: str | None, month_raw: str | None) -> None:
+    """Raise ``ParamError`` when a present ``year`` or ``month`` text is malformed."""
+    parse_year_month(year_raw, month_raw, (MIN_YEAR, 1))
+
+
 def parse_year_month(
     year_raw: str | None, month_raw: str | None, fallback: tuple[int, int]
 ) -> tuple[int, int]:
     """Year and month from raw text; absent takes ``fallback``, bad raises ``ParamError``."""
-    year = (
-        fallback[0] if year_raw is None else parse_int(year_raw, minimum=MIN_YEAR, maximum=MAX_YEAR)
-    )
+    year = fallback[0] if not year_raw else parse_int(year_raw, minimum=MIN_YEAR, maximum=MAX_YEAR)
     month = (
-        fallback[1]
-        if month_raw is None
-        else parse_int(month_raw, minimum=1, maximum=_MONTHS_IN_YEAR)
+        fallback[1] if not month_raw else parse_int(month_raw, minimum=1, maximum=_MONTHS_IN_YEAR)
     )
     if year is not None and month is not None:
         return year, month

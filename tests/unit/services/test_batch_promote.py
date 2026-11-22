@@ -183,3 +183,30 @@ class TestPlannedBatch:
         # Second batch pass sees nothing to promote.
         result = planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
         assert result.promoted_txn_ids == ()
+
+
+class TestPromoteAgainstArchivedCategory:
+    """T-Q287: a soft-deleted parent is a ValidationError, not a raw LookupError."""
+
+    def test_planned_promote_refused_and_nothing_written(
+        self, conn: sqlite3.Connection, seeded: dict[str, int]
+    ) -> None:
+        row = planned_repo.create(
+            conn,
+            USER_ID,
+            NewPlannedTransaction(
+                operation_date=date(2026, 10, 20),
+                category_id=seeded["category_id"],
+                account_id=seeded["account_id"],
+                amount=1_500,
+            ),
+        )
+        categories_repo.soft_delete(conn, USER_ID, seeded["category_id"])
+
+        with pytest.raises(planned_svc.ValidationError, match="cannot promote"):
+            planned_svc.batch_promote_due(conn, USER_ID, date(2026, 10, 29))
+
+        assert conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 0
+        stored = planned_repo.find_by_id(conn, USER_ID, row.id)
+        assert stored is not None
+        assert stored.promoted_to_txn_id is None

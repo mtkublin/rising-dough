@@ -47,12 +47,6 @@ class MonthSpan:
     include_overdue: bool
 
 
-def _base_of_txn(
-    conn: sqlite3.Connection, user_id: int, fx: fx_svc.FxConverter
-) -> Callable[[Transaction], int]:
-    return fx_svc.txn_base_of(fx, fx_svc.currency_by_account(conn, user_id))
-
-
 def _spent_per_span(
     conn: sqlite3.Connection,
     user_id: int,
@@ -104,7 +98,11 @@ def month_inputs(
     if not spans:
         return []
     spent = _spent_per_span(
-        conn, user_id, spans, today=today, base_of=_base_of_txn(conn, user_id, fx)
+        conn,
+        user_id,
+        spans,
+        today=today,
+        base_of=fx_svc.txn_base_of(fx, fx_svc.currency_by_account(conn, user_id)),
     )
     committed = budget_batch.committed_by_category_windows(
         conn,

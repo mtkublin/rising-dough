@@ -19,7 +19,7 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.enums import Direction, OverrideState
 from budget_planner.domain.planned import NewPlannedTransaction, PlannedFilter
 from budget_planner.domain.recurring import AmountFormula, NewRecurringOverride, RecurringRule
-from budget_planner.domain.transactions import TransactionFilter
+from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -730,6 +730,34 @@ def _case_validate_promotion(conn: sqlite3.Connection, world: World) -> None:
         transit(world.other.account_id)  # user 2's account is invisible to user 1
     with pytest.raises(_promotion.ValidationError):
         transit(world.tombstones.account_id)  # a soft-deleted account is not a valid destination
+
+
+@covers("_promotion.create_promoted_transaction")
+def _case_create_promoted_transaction(conn: sqlite3.Connection, world: World) -> None:
+    assert world.tombstones is not None
+
+    def promote(account_id: int, category_id: int) -> None:
+        _promotion.create_promoted_transaction(
+            conn,
+            OWNER_ID,
+            NewTransaction(
+                operation_date=T,
+                category_id=category_id,
+                account_id=account_id,
+                dest_account_id=None,
+                amount=5,
+                description="",
+                promoted_from_planned_id=None,
+            ),
+        )
+
+    before = len(transactions_repo.list_filtered(conn, OWNER_ID, TransactionFilter()))
+    other_before = len(transactions_repo.list_filtered(conn, OTHER_ID, TransactionFilter()))
+    for account_id in (world.other.account_id, world.tombstones.account_id):
+        with pytest.raises(_promotion.ValidationError, match="cannot promote"):
+            promote(account_id, world.owner.category_id)  # user 2's and deleted accounts refused
+    assert len(transactions_repo.list_filtered(conn, OWNER_ID, TransactionFilter())) == before
+    assert len(transactions_repo.list_filtered(conn, OTHER_ID, TransactionFilter())) == other_before
 
 
 @covers("transactions.check_transit_shape")

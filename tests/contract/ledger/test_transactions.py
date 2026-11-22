@@ -43,7 +43,7 @@ def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
 
 
 @covers("GET /transactions/_limit_preview")
-def test_limit_preview_is_soft_failing(client: TestClient, seeded: Ids) -> None:
+def test_limit_preview_blank_ok_and_malformed_ids_422(client: TestClient, seeded: Ids) -> None:
     blank = client.get("/transactions/_limit_preview")
     assert blank.status_code == 200
     non_liability = client.get(
@@ -55,7 +55,7 @@ def test_limit_preview_is_soft_failing(client: TestClient, seeded: Ids) -> None:
         "/transactions/_limit_preview",
         params={"account_id": "x", "category_id": "y", "amount": "z"},
     )
-    assert garbage.status_code == 200
+    assert garbage.status_code == 422  # T-Q282: malformed ids are a 422, not a blank preview
 
 
 @covers("POST /transactions")

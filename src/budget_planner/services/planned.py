@@ -29,6 +29,7 @@ from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.services._promotion import (
     UnsupportedDirectionError,
     ValidationError,
+    create_promoted_transaction,
     validate_promotion as _shared_validate_promotion,
 )
 
@@ -196,7 +197,7 @@ def promote_to_actual(
             promoted_from_planned_id=planned_id,
         )
 
-        txn = transactions_repo.create(conn, user_id, new_txn)
+        txn = create_promoted_transaction(conn, user_id, new_txn)
         planned_repo.stamp_promotion(conn, user_id, planned_id, txn.id)
     return txn
 
