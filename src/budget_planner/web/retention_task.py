@@ -14,7 +14,7 @@ from typing import Final
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.logging import get_logger
+from budget_planner.logging import RETENTION_LOGGER, get_logger
 from budget_planner.services import retention
 from budget_planner.services.connections import get_connection
 
@@ -31,7 +31,7 @@ def run_once(cfg: Settings) -> retention.PurgeResult:
 
 
 async def run_forever(cfg: Settings, interval_seconds: float = PURGE_INTERVAL_SECONDS) -> None:
-    log = get_logger("budget_planner.retention")
+    log = get_logger(RETENTION_LOGGER)
     while True:
         await asyncio.sleep(interval_seconds)
         try:

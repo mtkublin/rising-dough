@@ -26,6 +26,7 @@ from budget_planner.services import (
     recurring as recurring_svc,
 )
 from budget_planner.services.fx import HasBaseCurrency
+from budget_planner.services.recurring_formula import FormulaFx, formula_ctx_for
 
 PlannedWindow = PeriodWindow  # half-open fiscal window ``[start, end)`` (ADR-0138)
 
@@ -76,13 +77,14 @@ def _legs(
 
 
 def _collect_legs(
-    conn: sqlite3.Connection, user_id: int, window: PlannedWindow
+    conn: sqlite3.Connection, user_id: int, window: PlannedWindow, fx: FormulaFx
 ) -> list[tuple[int, int]]:
     # Archived categories keep their unpromoted items; count them by direction (ADR-0089).
     # Overdue stays clamped to the period start (ADR-0089), so ``include_overdue=False``.
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=fx,
         start=window.start,
         end=window.last_day + dt.timedelta(days=1),
         today=None,
@@ -95,11 +97,11 @@ def _collect_legs(
 
 
 def planned_net_by_account(
-    conn: sqlite3.Connection, user_id: int, window: PlannedWindow
+    conn: sqlite3.Connection, user_id: int, window: PlannedWindow, fx: FormulaFx
 ) -> dict[int, int]:
     """Return ``{account_id: signed_net_minor}`` for the window (zero nets omitted)."""
     totals: dict[int, int] = {}
-    for account_id, signed in _collect_legs(conn, user_id, window):
+    for account_id, signed in _collect_legs(conn, user_id, window, fx):
         totals[account_id] = totals.get(account_id, 0) + signed
     return {k: v for k, v in totals.items() if v != 0}
 
@@ -109,7 +111,8 @@ def compute_accounts_planned(
 ) -> AccountsPlanned:
     """Compose per-account planned net, projected balance and the base-ccy hero total."""
     window = resolve_window(conn, user_id, today)
-    nets = planned_net_by_account(conn, user_id, window)
+    fx = formula_ctx_for(conn, user_id, settings, today)
+    nets = planned_net_by_account(conn, user_id, window, fx)
     by_account: dict[int, AccountPlanned] = {}
     base_net = 0
     accounts = accounts_repo.list_all(conn, user_id)

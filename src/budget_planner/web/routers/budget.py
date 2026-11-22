@@ -36,8 +36,9 @@ from budget_planner.web import view_models
 from budget_planner.web.budget_forms import non_negative_amount, parse_override, valid_month
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import Event, trigger
+from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
-from budget_planner.web.rendering import render
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/budget", tags=["budget"])
 
@@ -64,7 +65,9 @@ def yearly_fragment(
     q = request.query_params
     today = clock.today_local(settings)
     year, _ = parse_year_month(q.get("year"), None, (today.year, 1))
-    yearly = budget_service.yearly_grid(conn, user_id, year)
+    yearly = budget_service.yearly_grid(
+        conn, user_id, year, display_timezone=settings.display_timezone
+    )
     return render(
         request,
         "budget/_yearly.html",
@@ -117,7 +120,7 @@ def new_override_form(
         )
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title=f"Override · {cat.name}",
         form_include="partials/budget/_override_form.html",
         category=cat,
@@ -154,7 +157,7 @@ def create_override(
     if parsed.command is None:
         return Response(status_code=422, content=parsed.error)
     budget_rules.apply_override(conn, user_id, parsed.command)
-    resp = Response(content="ok", media_type="text/html")
+    resp = Response(content="ok", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BUDGET_STALE)
     return resp
 
@@ -172,7 +175,13 @@ def index(
     year, month = parse_year_month(q.get("year"), q.get("month"), fiscal)
     today = clock.today_local(settings)
     summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+        conn,
+        user_id,
+        year,
+        month,
+        today=today,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
     )
     return render(
         request,
@@ -183,7 +192,9 @@ def index(
         period_label=view_models.period_label(year, month),
         month_options=view_models.month_options(month),
         rules=budget_rules.rules_rows(conn, user_id),
-        yearly=budget_service.yearly_grid(conn, user_id, year),
+        yearly=budget_service.yearly_grid(
+            conn, user_id, year, display_timezone=settings.display_timezone
+        ),
         month_labels=view_models.MONTH_SHORT,
         base_ccy=settings.base_currency,
     )
@@ -206,7 +217,7 @@ def set_default(
     budget_overrides_service.set_default(
         conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor)
     )
-    resp = Response(content="ok", media_type="text/html")
+    resp = Response(content="ok", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BUDGET_STALE)
     return resp
 
@@ -233,7 +244,7 @@ def set_income_anchor(
             preferences_svc.set_income_anchor_category_id(conn, user_id, parsed)
         except InvalidAnchorCategoryError as err:
             return Response(status_code=422, content=str(err))
-    resp = Response(content="ok", media_type="text/html")
+    resp = Response(content="ok", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BUDGET_STALE)
     return resp
 
@@ -262,6 +273,6 @@ def set_one_off(
         user_id,
         NewBudgetOneOffOverride(category_id=category_id, year=year, month=month, amount=minor),
     )
-    resp = Response(content="ok", media_type="text/html")
+    resp = Response(content="ok", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.BUDGET_STALE)
     return resp

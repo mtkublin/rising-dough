@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import functools
 import logging
 import sqlite3
 from collections import defaultdict
@@ -28,9 +29,10 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import (
     MONTHS_IN_YEAR,
     PeriodWindow,
@@ -59,6 +61,7 @@ from budget_planner.services.budget_lines import (
     CategorySums,
     build_budget_lines,
 )
+from budget_planner.services.recurring_formula import formula_ctx_for
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +240,7 @@ def committed_by_category(
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx_for(conn, user_id, fx_svc.BaseCurrency(base_currency), today),
         start=start,
         end=end,
         today=today,
@@ -414,16 +418,19 @@ def month_summary(
     today: date,
     base_currency: str,
     period_window: tuple[date, date] | None = None,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
 ) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
 
-    Lines include every live expense-direction category; totals exclude unbudgeted
-    lines. ``today`` is injected (ADR-0007). ``period_window`` optionally caps the
-    ``spent_minor`` lookup to an explicit ``(start, end)`` range (Plan · Budget for a
-    non-current month, so "Actual" reflects that calendar month; V.32).
+    Lines are the expense categories that reserve budget in the month (live, or archived later;
+    ADR-0136, T-Q279); totals exclude unbudgeted lines. ``today`` is injected (ADR-0007).
+    ``period_window`` caps the ``spent_minor`` lookup to an explicit ``(start, end)`` range
+    (Plan · Budget for a non-current month; V.32).
     """
     ctx = _SummaryCtx(conn, user_id, year, month, today, base_currency)
-    cats = categories_svc.expense_categories(conn, user_id, include_archived=False)
+    cats = categories_svc.budgeted_expense_categories(
+        conn, user_id, year, month, display_timezone=display_timezone
+    )
     # Budgets first: zero-budget months skip the paycheck-window shift (ADR-0041).
     budgets_by_cat: dict[int, int | None] = {
         cat.id: resolve_budget(conn, user_id, cat.id, year, month) for cat in cats
@@ -443,7 +450,7 @@ def month_summary(
         lines=tuple(lines),
         totals=totals,
         left_daily_spend_minor=(
-            round_div(totals.remaining_minor, days_until_next_income, mode=HALF_EVEN)
+            round_div(totals.remaining_minor, days_until_next_income)
             if budgeted_total != 0
             else None
         ),
@@ -624,6 +631,7 @@ def month_summary_for_picker(
     today: date,
     *,
     base_currency: str,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
 ) -> MonthSummary:
     """Return the Plan · Budget summary for the picked month (ADR-0138).
 
@@ -633,19 +641,20 @@ def month_summary_for_picker(
     scheduled; past: already actuals) and spent clamped to that calendar month.
     """
     year, month = picked.year, picked.month
-    if picked.is_fiscal:
-        return month_summary(conn, user_id, year, month, today=today, base_currency=base_currency)
-    month_first, month_last = month_bounds(year, month)
-    ref = today.replace(year=year, month=month, day=min(today.day, month_last.day))
-    summary = month_summary(
+    summarise = functools.partial(
+        month_summary,
         conn,
         user_id,
         year,
         month,
-        today=ref,
         base_currency=base_currency,
-        period_window=(month_first, month_last),
+        display_timezone=display_timezone,
     )
+    if picked.is_fiscal:
+        return summarise(today=today)
+    month_first, month_last = month_bounds(year, month)
+    ref = today.replace(year=year, month=month, day=min(today.day, month_last.day))
+    summary = summarise(today=ref, period_window=(month_first, month_last))
     anchor_day = _anchor_day_for_picker(conn, user_id)
     window = PeriodWindow(
         start=clamp_day(year, month, anchor_day),
@@ -675,40 +684,69 @@ def yearly_grid_totals(rows: tuple[YearlyRow, ...]) -> tuple[tuple[int, ...], in
     return columns, sum(row.total_minor for row in rows)
 
 
-def yearly_grid(conn: sqlite3.Connection, user_id: int, year: int) -> tuple[YearlyRow, ...]:
-    """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets."""
-    cats = categories_svc.expense_categories(conn, user_id, include_archived=False)
-    defaults_by_cat = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
-    recurring_by_key: dict[tuple[int, int], int] = {
-        (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn, user_id)
-    }
-    one_off_by_key: dict[tuple[int, int], int] = {
-        (o.category_id, o.month): o.amount
-        for o in budgets_repo.list_one_off(conn, user_id, year=year)
-    }
+@dataclass(frozen=True, slots=True)
+class _YearlyTiers:
+    """The three budget tiers loaded once for the yearly grid."""
 
-    rows: list[YearlyRow] = []
-    for cat in cats:
-        cells: list[YearlyCell] = []
-        total = 0
-        for month in range(1, 13):
-            amount, origin = pick_tier(
-                one_off_by_key.get((cat.id, month)),
-                recurring_by_key.get((cat.id, month)),
-                defaults_by_cat.get(cat.id),
-            )
-            cells.append(YearlyCell(amount_minor=amount, origin=origin))
-            total += amount or 0
-        rows.append(
-            YearlyRow(
-                category_id=cat.id,
-                category_name=cat.name,
-                category_direction=cat.direction,
-                category_color=cat.color,
-                cells=tuple(cells),
-                total_minor=total,
-            )
+    defaults: Mapping[int, int]
+    recurring: Mapping[tuple[int, int], int]
+    one_off: Mapping[tuple[int, int], int]
+
+    def cell(self, category_id: int, month: int) -> YearlyCell:
+        amount, origin = pick_tier(
+            self.one_off.get((category_id, month)),
+            self.recurring.get((category_id, month)),
+            self.defaults.get(category_id),
         )
+        return YearlyCell(amount_minor=amount, origin=origin)
+
+
+def _yearly_row(cat: Category, tiers: _YearlyTiers, reserving: Sequence[bool]) -> YearlyRow:
+    """One grid row; months that do not reserve budget show the unset cell."""
+    unset = YearlyCell(*pick_tier(None, None, None))
+    cells = tuple(
+        tiers.cell(cat.id, month) if reserving[month - 1] else unset for month in range(1, 13)
+    )
+    return YearlyRow(
+        category_id=cat.id,
+        category_name=cat.name,
+        category_direction=cat.direction,
+        category_color=cat.color,
+        cells=cells,
+        total_minor=sum(c.amount_minor or 0 for c in cells),
+    )
+
+
+def yearly_grid(
+    conn: sqlite3.Connection,
+    user_id: int,
+    year: int,
+    *,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+) -> tuple[YearlyRow, ...]:
+    """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets.
+
+    An archived category keeps its cells before its archive month and has no budget (and no
+    row, when none of the year's months reserve it) from then on (ADR-0136, T-Q279).
+    """
+    tiers = _YearlyTiers(
+        defaults={d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)},
+        recurring={
+            (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn, user_id)
+        },
+        one_off={
+            (o.category_id, o.month): o.amount
+            for o in budgets_repo.list_one_off(conn, user_id, year=year)
+        },
+    )
+    rows: list[YearlyRow] = []
+    for cat in categories_svc.expense_categories(conn, user_id):
+        reserving = [
+            categories_svc.reserves_budget(cat, year, month, display_timezone=display_timezone)
+            for month in range(1, 13)
+        ]
+        if any(reserving):
+            rows.append(_yearly_row(cat, tiers, reserving))
     rows.sort(key=lambda r: r.category_name.casefold())
     return tuple(rows)
 

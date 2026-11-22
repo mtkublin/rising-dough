@@ -43,6 +43,8 @@ from budget_planner.services import (
     today as today_svc,
     upcoming,
 )
+from budget_planner.services.recurring_formula import formula_ctx, formula_ctx_for
+from tests.formula_fx_support import formula_fx_of
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import (
     EXPENSE_RULE_DUE,
@@ -494,12 +496,12 @@ def _case_resolve_window(conn: sqlite3.Connection, world: World) -> None:
 @covers("account_planned.planned_net_by_account")
 def _case_planned_net_by_account(conn: sqlite3.Connection, world: World) -> None:
     window = account_planned.PlannedWindow(start=dt.date(2026, 11, 1), end=END_OF_CYCLE)
-    assert account_planned.planned_net_by_account(conn, OWNER_ID, window) == {
-        world.owner.account_id: -1_200
-    }
-    assert account_planned.planned_net_by_account(conn, OTHER_ID, window) == {
-        world.other.account_id: -2_400
-    }
+    assert account_planned.planned_net_by_account(
+        conn, OWNER_ID, window, formula_fx_of(conn, OWNER_ID)
+    ) == {world.owner.account_id: -1_200}
+    assert account_planned.planned_net_by_account(
+        conn, OTHER_ID, window, formula_fx_of(conn, OTHER_ID)
+    ) == {world.other.account_id: -2_400}
 
 
 @covers("account_planned.compute_accounts_planned")
@@ -587,7 +589,9 @@ def _case_set_anchor(conn: sqlite3.Connection, world: World) -> None:
 def _case_list_upcoming(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _own(world, user_id)
-        items = upcoming.list_upcoming(conn, user_id, today=T, window_days=None)
+        items = upcoming.list_upcoming(
+            conn, user_id, today=T, window_days=None, fx=formula_fx_of(conn, user_id)
+        )
         assert [(i.kind, i.effective_date, i.amount_minor, i.account_id) for i in items] == [
             ("planned", dt.date(2026, 11, 13), 500 * user_id, rows.account_id),
             ("recurring", EXPENSE_RULE_DUE, 700 * user_id, rows.account_id),
@@ -598,7 +602,9 @@ def _case_list_upcoming(conn: sqlite3.Connection, world: World) -> None:
             (None, rows.rule_id),
             (None, rows.income_rule_id),
         ]
-    windowed = upcoming.list_upcoming(conn, OWNER_ID, today=T, window_days=5)
+    windowed = upcoming.list_upcoming(
+        conn, OWNER_ID, today=T, window_days=5, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert [i.amount_minor for i in windowed] == [500, 700]
 
 
@@ -659,6 +665,32 @@ def _case_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
         assert found == _expected_expense_ids(world, user_id)
 
 
+@covers("categories.budget_reserver")
+def _case_budget_reserver(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        reserves = categories_svc.budget_reserver(conn, user_id)
+        assert reserves(_own(world, user_id).category_id, 2099, 1) is True
+    if world.tombstones is not None:
+        owner = categories_svc.budget_reserver(conn, OWNER_ID)
+        assert owner(world.tombstones.category_id, 2099, 1) is False  # archived long before
+        other = categories_svc.budget_reserver(conn, OTHER_ID)
+        assert other(world.tombstones.category_id, 2099, 1) is True  # not the other user's row
+
+
+@covers("categories.budgeted_expense_categories")
+def _case_budgeted_expense_categories(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = {c.id for c in categories_svc.budgeted_expense_categories(conn, user_id, 2099, 1)}
+        assert found == {_own(world, user_id).category_id}
+
+
+@covers("categories.budgeted_expense_category_ids")
+def _case_budgeted_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = set(categories_svc.budgeted_expense_category_ids(conn, user_id, 2099, 1))
+        assert found == {_own(world, user_id).category_id}
+
+
 # --- limit_preview -----------------------------------------------------------------------------------------------
 
 
@@ -711,3 +743,21 @@ def _case_compute_limit_preview(conn: sqlite3.Connection, world: World) -> None:
         )
         is None
     )
+
+
+@covers("recurring_formula.formula_ctx")
+def _case_formula_ctx(conn: sqlite3.Connection, world: World) -> None:
+    converter = fx.build_converter("PLN", WORLD_TODAY, ())
+    owner = formula_ctx(conn, OWNER_ID, converter)
+    other = formula_ctx(conn, OTHER_ID, converter)
+    assert world.owner.account_id in owner.currency_by_account
+    assert world.other.account_id not in owner.currency_by_account
+    assert set(other.currency_by_account) == {world.other.account_id}
+
+
+@covers("recurring_formula.formula_ctx_for")
+def _case_formula_ctx_for(conn: sqlite3.Connection, world: World) -> None:
+    owner = formula_ctx_for(conn, OWNER_ID, fx.BaseCurrency("PLN"), WORLD_TODAY)
+    assert world.other.account_id not in owner.currency_by_account
+    assert world.owner.account_id in owner.currency_by_account
+    assert owner.converter.base_currency == "PLN"

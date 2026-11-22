@@ -67,6 +67,10 @@ def fixed_clock(instant: datetime) -> FixedClock:
     return FixedClock(instant)
 
 
+DEFAULT_DISPLAY_TIMEZONE = "Europe/Warsaw"
+"""Display timezone default (ADR-0007); ``Settings.display_timezone`` uses it."""
+
+
 def utc_now() -> datetime:
     """Current instant as a timezone-aware UTC datetime."""
     source: Clock = _override.get() or SYSTEM_CLOCK

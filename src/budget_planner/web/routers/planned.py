@@ -23,8 +23,10 @@ from budget_planner.services import (
 from budget_planner.web import entry_forms, ledger_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
+from budget_planner.web.http_headers import CONTENT_DISPOSITION, HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_date, positive_amount
-from budget_planner.web.rendering import render
+from budget_planner.web.paths import LEDGER_PATH, NEW_PATH, TABLE_PATH
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/planned", tags=["planned"])
 
@@ -102,7 +104,7 @@ async def planned_batch_undo(
     return resp
 
 
-@router.get("/table", response_class=HTMLResponse)
+@router.get(TABLE_PATH, response_class=HTMLResponse)
 def table_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -119,7 +121,7 @@ def table_fragment(
     )
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(NEW_PATH, response_class=HTMLResponse)
 def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
@@ -128,7 +130,7 @@ def new_form(
     # T-069 — slide-over wrapper for FAB launches.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="New planned transaction",
         form_include="partials/planned/_form.html",
         planned=None,
@@ -190,7 +192,7 @@ def create_planned(
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's overlay: no row insert; the ledger
     # refetches on `ledger-stale`, other pages reload (T-D142).
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -216,7 +218,7 @@ def edit_form(
     # T-114 / ADR-0030 §4 — slide-over wrapper mirrors /planned/new.
     return render(
         request,
-        "partials/_slideover.html",
+        SLIDEOVER_TEMPLATE,
         slide_over_title="Edit planned transaction",
         form_include="partials/planned/_form.html",
         planned=pl,
@@ -281,7 +283,7 @@ def update_planned(
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -295,7 +297,7 @@ def delete_planned(
     if pl is None:
         return Response(status_code=404, content="not found")
     planned_service.soft_delete(conn, user_id, planned_id)
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
@@ -311,7 +313,7 @@ def restore_planned(
         planned_service.undelete(conn, user_id, planned_id)
     except LookupError:
         return Response(status_code=404, content="not found")
-    resp = Response(content="", media_type="text/html")
+    resp = Response(content="", media_type=HTML_MEDIA_TYPE)
     trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
@@ -425,7 +427,7 @@ def promote_submit(
         )
     html = Response()
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
-    refresh_unless_on(request, html, "/ledger")
+    refresh_unless_on(request, html, LEDGER_PATH)
     return html
 
 
@@ -463,10 +465,10 @@ def export(
         return Response(
             content=export_service.export_parquet(rows, columns),
             media_type="application/vnd.apache.parquet",
-            headers={"Content-Disposition": f'attachment; filename="planned_{stamp}.parquet"'},
+            headers={CONTENT_DISPOSITION: f'attachment; filename="planned_{stamp}.parquet"'},
         )
     return Response(
         content=export_service.export_csv(rows, columns),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="planned_{stamp}.csv"'},
+        headers={CONTENT_DISPOSITION: f'attachment; filename="planned_{stamp}.csv"'},
     )

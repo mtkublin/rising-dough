@@ -70,7 +70,7 @@ class IssuedSession:
 
 def hash_token(token: str) -> str:
     """Return the at-rest session id for cookie ``token`` (sha256 lowercase hex)."""
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def session_handle(token: str) -> str:

@@ -18,7 +18,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+
 # Default dev DB lives under `data/` (gitignored). CI/tests override via env.
+DEFAULT_BASE_CURRENCY: Final = "PLN"
 _DEFAULT_SQLITE_PATH: Final = Path("data") / "budget.sqlite"
 _DEFAULT_DATABASE_URL: Final = f"sqlite:///{_DEFAULT_SQLITE_PATH.as_posix()}"
 # ADR-0034 §2: production DB lives on the host-mounted volume shared with
@@ -60,8 +63,8 @@ class Settings(BaseSettings):
 
     env: Env = Field(default="dev")
     database_url: str = Field(default=_DEFAULT_DATABASE_URL)
-    base_currency: str = Field(default="PLN", min_length=3, max_length=3)
-    display_timezone: str = Field(default="Europe/Warsaw")
+    base_currency: str = Field(default=DEFAULT_BASE_CURRENCY, min_length=3, max_length=3)
+    display_timezone: str = Field(default=DEFAULT_DISPLAY_TIMEZONE)
     # Renamed from ``host`` / ``port`` in T-D03 — v3 config surface. The
     # loopback guard carries over from ADR-0005; v3 binds the container
     # loopback and Caddy terminates TLS in front of it (ADR-0036).

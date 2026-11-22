@@ -31,10 +31,11 @@ from budget_planner.web.password_flow import (
     render_form,
     success_response,
 )
+from budget_planner.web.paths import SETTINGS_PATH
 from budget_planner.web.rendering import is_hx_request
 from budget_planner.web.security_context import PASSWORD_ANCHOR
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(prefix=SETTINGS_PATH, tags=["settings"])
 
 
 @router.get("/password", response_class=HTMLResponse)

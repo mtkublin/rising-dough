@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from budget_planner.config import Settings
 from budget_planner.services import password_change as password_service
 from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next, set_session_cookie
+from budget_planner.web.http_headers import HX_REDIRECT
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.middleware.must_change_password import PASSWORD_PATH
 from budget_planner.web.rendering import is_hx_request, render
@@ -24,7 +25,6 @@ PAGE: Final = "settings/password.html"
 FORM: Final = "settings/_password_form.html"
 SECURITY_PAGE: Final = "settings/security.html"
 THROTTLED_FORM_ERROR: Final = "Too many attempts. Please wait a few minutes and try again."
-HX_REDIRECT: Final = "HX-Redirect"
 
 
 def landing_target(next_path: str | None) -> str:

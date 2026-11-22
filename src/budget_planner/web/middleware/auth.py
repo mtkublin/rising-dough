@@ -48,6 +48,13 @@ from budget_planner.web.auth_cookies import (
     session_cookie_name,
     set_session_cookie,
 )
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REDIRECT,
+    HX_REQUEST,
+    JSON_MEDIA_TYPE,
+)
 from budget_planner.web.middleware.asgi import (
     RESPONSE_START,
     add_cookie,
@@ -134,7 +141,7 @@ def _login_url(next_path: str) -> str:
 
 
 def _hx_current_path(request: Request) -> str:
-    current = request.headers.get("hx-current-url", "")
+    current = request.headers.get(HX_CURRENT_URL, "")
     parts = urlsplit(current)
     if not parts.path or (parts.netloc and parts.netloc != request.url.netloc):
         return DEFAULT_LANDING
@@ -143,16 +150,16 @@ def _hx_current_path(request: Request) -> str:
 
 def _wants_json(request: Request) -> bool:
     accept = request.headers.get("accept", "").lower()
-    return "application/json" in accept and "text/html" not in accept
+    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept
 
 
 def unauthenticated_response(request: Request) -> Response:
     """Build the ADR-0070 §4 response for an anonymous request."""
-    if request.headers.get("hx-request", "").lower() == "true":
+    if request.headers.get(HX_REQUEST, "").lower() == "true":
         return JSONResponse(
             dict(_UNAUTHORIZED_BODY),
             status_code=HTTPStatus.UNAUTHORIZED,
-            headers={"HX-Redirect": _login_url(_hx_current_path(request))},
+            headers={HX_REDIRECT: _login_url(_hx_current_path(request))},
         )
     if _wants_json(request):
         return JSONResponse(dict(_UNAUTHORIZED_BODY), status_code=HTTPStatus.UNAUTHORIZED)

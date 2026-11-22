@@ -14,7 +14,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
+from budget_planner.domain.money import round_div
 from budget_planner.services import budget as budget_service
 
 PaceTag = Literal["on_track", "tight", "over_limit"]
@@ -47,7 +48,7 @@ _TIGHT_FRACTION_BPS = 5_000  # 50% of baseline, in basis points.
 def _div_round_half_even(numerator: int, denominator: int) -> int:
     if denominator <= 0:
         return 0
-    return round_div(numerator, denominator, mode=HALF_EVEN)
+    return round_div(numerator, denominator)
 
 
 def _pace_tag_for(
@@ -85,6 +86,7 @@ def afford(
     amount_minor: int,
     *,
     base_currency: str,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
 ) -> AffordResult:
     """Return the recomputed per-day figure for a hypothetical spend.
 
@@ -99,7 +101,13 @@ def afford(
     # today falls before the current calendar month's anchor paycheck.
     year, month = budget_service.fiscal_month_for(conn, user_id, today)
     summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today, base_currency=base_currency
+        conn,
+        user_id,
+        year,
+        month,
+        today=today,
+        base_currency=base_currency,
+        display_timezone=display_timezone,
     )
     days_left = max(summary.days_until_next_income, 1)
     remaining_minor = max(summary.totals.remaining_minor, 0)

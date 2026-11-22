@@ -149,7 +149,7 @@ symbol = "expense_category_ids"
 status = "exists"
 finding = "Q-030"
 epic = "E01"
-search = ["expense_category_ids", "category_ids", "archived"]
+search = ["expense_category_ids", "budgeted_expense_category_ids", "reserves_budget", "category_ids", "archived"]
 banned = ["_expense_category_ids*", "_live_category_ids*"]
 
 [[row]]
