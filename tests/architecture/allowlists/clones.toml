@@ -3,20 +3,6 @@
 guard = "clones"
 
 [[entry]]
-path = "src/budget_planner/repositories/accounts.py"
-rule = "clone-group"
-count = 7
-finding = "P1"
-epic = "E02"
-
-[[entry]]
-path = "src/budget_planner/repositories/accounts.py"
-rule = "same-name"
-count = 4
-finding = "P1"
-epic = "E02"
-
-[[entry]]
 path = "src/budget_planner/repositories/auth_users.py"
 rule = "same-name"
 count = 1
