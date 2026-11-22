@@ -1114,7 +1114,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (owns `money_scope.toml`).
 - Done when: the three entries are permanent with reasons; guards stay green; the CLAUDE.md handoff checklist is complete.
 
-### T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
+### ✅ T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
 - Findings: Q-025 (ADR-0130 G7).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none
