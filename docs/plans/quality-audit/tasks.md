@@ -1102,7 +1102,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q283 [S] Three permanent `money_scope` entries with written reasons
+### ✅ T-Q283 [S] Three permanent `money_scope` entries with written reasons
 - Findings: Q-076 (G27).
 - Epic: E05
 - Band: 3 · Size: S · Tags: none
