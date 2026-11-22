@@ -20,7 +20,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as txn_repo,
 )
-from budget_planner.services import budget, forecast, fx as fx_svc
+from budget_planner.services import budget, forecast_events, forecast_overlay, fx as fx_svc
 from budget_planner.services.aggregates import sum_by_category
 
 U = 1
@@ -52,8 +52,12 @@ def test_3a_spent_in_base_currency_agrees(seeded: sqlite3.Connection) -> None:
         txns, budget.txn_base_amounts(seeded, U, today=TODAY, base_currency="PLN")
     ).get(7, 0)
     converter = fx_svc.converter_for(seeded, get_settings(), TODAY)
-    ((f_spent_by_cat, _),) = forecast._month_inputs(
-        seeded, U, [forecast._MonthSpan(M_START, M_START, TODAY, False)], today=TODAY, fx=converter
+    ((f_spent_by_cat, _),) = forecast_overlay.month_inputs(
+        seeded,
+        U,
+        [forecast_overlay.MonthSpan(M_START, M_START, TODAY, False)],
+        today=TODAY,
+        fx=converter,
     )
     f_spent = f_spent_by_cat.get(7, 0)
     assert b_spent == f_spent, (b_spent, f_spent)
@@ -64,10 +68,10 @@ def _committed_pair(conn: sqlite3.Connection) -> tuple[int, int]:
     b = budget.committed_by_category(
         conn, U, start=win_start, end=M_END + timedelta(days=1), today=TODAY, base_currency="PLN"
     ).get(6, 0)
-    ((_, f_committed),) = forecast._month_inputs(
+    ((_, f_committed),) = forecast_overlay.month_inputs(
         conn,
         U,
-        [forecast._MonthSpan(M_START, win_start, M_END, False)],
+        [forecast_overlay.MonthSpan(M_START, win_start, M_END, False)],
         today=TODAY,
         fx=fx_svc.converter_for(conn, get_settings(), TODAY),
     )
@@ -111,7 +115,7 @@ def test_3c_overdue_planned_item_is_in_the_forecast_event_stream(
     budget_counts = budget.committed_by_category(
         seeded, U, start=None, end=M_END + timedelta(days=1), today=TODAY, base_currency="PLN"
     ).get(7, 0)
-    events = forecast._collect_events(seeded, U, TODAY, M_END)
+    events = forecast_events.collect_events(seeded, U, TODAY, M_END)
     placed = [e for evs in events.values() for e in evs if e.amount_minor == -5000]
     assert budget_counts == 5000
     # OQ-6 default (ADR-0105 amendment 2026-11-21): overdue is placed on today + 1.

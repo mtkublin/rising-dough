@@ -27,13 +27,13 @@ from budget_planner.services import users as users_service
 from budget_planner.services.connections import get_connection
 from budget_planner.web import retention_task
 from budget_planner.web.errors import register_exception_handlers
-from budget_planner.web.middleware.admin import AdminRequiredMiddleware
-from budget_planner.web.middleware.auth import AuthRequiredMiddleware
+from budget_planner.web.middleware.admin import admin_required_middleware
+from budget_planner.web.middleware.auth import auth_required_middleware
 from budget_planner.web.middleware.body_limit import body_limit_middleware
-from budget_planner.web.middleware.cache_control import CacheControlMiddleware
-from budget_planner.web.middleware.csrf import CSRFMiddleware
-from budget_planner.web.middleware.must_change_password import MustChangePasswordMiddleware
-from budget_planner.web.middleware.request_id import RequestIdMiddleware
+from budget_planner.web.middleware.cache_control import cache_control_middleware
+from budget_planner.web.middleware.csrf import csrf_middleware
+from budget_planner.web.middleware.must_change_password import must_change_password_middleware
+from budget_planner.web.middleware.request_id import request_id_middleware
 from budget_planner.web.middleware.security_headers import security_headers_middleware
 from budget_planner.web.routers import (
     accounts,
@@ -216,21 +216,21 @@ def _install_middleware(app: FastAPI, cfg: Settings) -> None:
     #   admin-only) register between CSRF and AuthRequired.
     # * SecurityHeaders (T-D07) + RequestId wrap everything so every 302 /
     #   401 / 403 still carries the baseline headers and ``X-Request-Id``.
-    app.add_middleware(CSRFMiddleware)
+    app.add_middleware(csrf_middleware)
     # T-D17 / ADR-0073 §1: 404 for non-admins on /settings/users*. Sits
     # *inside* MustChangePassword so a flagged user gets the same rotation
     # redirect on /settings/users as on any unknown path (no fingerprint);
     # once rotated, non-admins get the standard 404.
-    app.add_middleware(AdminRequiredMiddleware)
-    app.add_middleware(MustChangePasswordMiddleware)  # T-D18 / ADR-0074 §3
+    app.add_middleware(admin_required_middleware)
+    app.add_middleware(must_change_password_middleware)  # T-D18 / ADR-0074 §3
     # T-D55 / ADR-0078 §2: no-store on authenticated responses; inside Auth
     # (user hydrated), outside MustChangePassword so its redirects are covered.
-    app.add_middleware(CacheControlMiddleware)
-    app.add_middleware(AuthRequiredMiddleware)
+    app.add_middleware(cache_control_middleware)
+    app.add_middleware(auth_required_middleware)
     app.add_middleware(body_limit_middleware)  # T-Q235: 413 above MAX_BODY_BYTES
     # T-Q254: Host allow-list, inside RequestId so a 400 still carries X-Request-Id.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts(cfg))
-    app.add_middleware(RequestIdMiddleware)
+    app.add_middleware(request_id_middleware)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

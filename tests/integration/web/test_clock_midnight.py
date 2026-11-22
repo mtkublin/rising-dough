@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
+from tests.ui_map import _html
 
 # 22:30 UTC on 30 June is 00:30 on 1 July in Europe/Warsaw.
 WARSAW_MIDNIGHT = datetime(2026, 6, 30, 22, 30, tzinfo=UTC)
@@ -17,7 +18,7 @@ def test_budget_defaults_to_the_display_zone_month(client: TestClient) -> None:
         response = client.get("/budget")
 
     assert response.status_code == 200
-    assert "Budget 2026-07 " in response.text
+    assert _html.document_title(response.text).startswith("Budget 2026-07 ")
 
 
 def test_today_page_and_budget_page_share_the_display_zone_day(client: TestClient) -> None:
@@ -26,4 +27,4 @@ def test_today_page_and_budget_page_share_the_display_zone_day(client: TestClien
         budget_page = client.get("/budget")
 
     assert today_page.status_code == 200
-    assert "Budget 2026-07 " in budget_page.text
+    assert _html.document_title(budget_page.text).startswith("Budget 2026-07 ")

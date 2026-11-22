@@ -48,11 +48,12 @@ from typing import Final
 
 from starlette.exceptions import HTTPException
 from starlette.formparsers import MultiPartException
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from budget_planner.config import Settings
+from budget_planner.web.middleware.asgi import RESPONSE_START, add_cookie, http_only, set_state
 
 #: Cookie name — the ``__Host-`` prefix is a browser-enforced invariant
 #: that pins the cookie to the exact origin and requires ``Secure`` +
@@ -116,33 +117,32 @@ class MalformedFormError(Exception):
     """The request body could not be parsed as the form its content type claims."""
 
 
-async def _read_form_token(request: Request) -> str | None:
-    """Return the ``_csrf_token`` form field if the body is a form payload.
-
-    Starlette's :meth:`Request.form` consumes the underlying receive stream,
-    which breaks downstream FastAPI handlers that re-parse the form. To
-    stay compatible we buffer the body first, cache it on
-    ``request._body``, and replace ``request._receive`` with an async
-    generator that re-plays the buffered body. Starlette itself uses the
-    same pattern — see ``starlette.requests.Request._receive``.
-    """
+def _is_form(request: Request) -> bool:
     content_type = request.headers.get("content-type", "").lower()
-    if not (
-        content_type.startswith("application/x-www-form-urlencoded")
-        or content_type.startswith("multipart/form-data")
-    ):
-        return None
+    return content_type.startswith(("application/x-www-form-urlencoded", "multipart/form-data"))
 
-    body = await request.body()
 
-    async def _replay() -> dict[str, object]:
+def _replaying(body: bytes, receive: Receive) -> Receive:
+    """A ``receive`` that yields *body* once, then defers to the real channel.
+
+    Deferring (instead of replaying forever) keeps ``http.disconnect`` visible to
+    downstream streaming responses.
+    """
+    sent = False
+
+    async def replay() -> Message:
+        nonlocal sent
+        if sent:
+            return await receive()
+        sent = True
         return {"type": "http.request", "body": body, "more_body": False}
 
-    # ``_receive`` is private but is the canonical ASGI replay hook used by
-    # Starlette's own form parsing; this mirrors the recipe from
-    # https://github.com/encode/starlette/discussions/1933.
-    request._receive = _replay
+    return replay
 
+
+async def _form_token(scope: Scope, body: bytes, receive: Receive) -> str | None:
+    """Return the ``_csrf_token`` form field parsed from the buffered *body*."""
+    request = Request(scope, _replaying(body, receive))
     try:
         form = await request.form()
     except (HTTPException, MultiPartException):
@@ -150,52 +150,71 @@ async def _read_form_token(request: Request) -> str | None:
         raise MalformedFormError from None
     try:
         value = form.get(CSRF_FORM_FIELD)
-        if isinstance(value, str):
-            return value
-        return None
+        return value if isinstance(value, str) else None
     finally:
         await form.close()
-        # Reset again so FastAPI's own form parsing sees the full body.
-        request._receive = _replay
 
 
-class CSRFMiddleware(BaseHTTPMiddleware):
+async def _check(
+    scope: Scope, receive: Receive, existing: str | None
+) -> tuple[JSONResponse | None, Receive]:
+    """Enforce the double-submit token; return a rejection or the receive to pass on."""
+    if existing is None:
+        return _reject("missing_cookie"), receive
+    request = Request(scope, receive)
+    header_token = request.headers.get(CSRF_HEADER_NAME)
+    form_token: str | None = None
+    downstream = receive
+    if _is_form(request):
+        body = await request.body()
+        downstream = _replaying(body, receive)
+        try:
+            form_token = await _form_token(scope, body, receive)
+        except MalformedFormError:
+            return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST), downstream
+    submitted = header_token or form_token
+    if submitted is None or not secrets.compare_digest(
+        submitted.encode("utf-8"), existing.encode("utf-8")
+    ):
+        return _reject("invalid_csrf"), downstream
+    return None, downstream
+
+
+async def _protect_csrf(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
+    request = Request(scope, receive)
+    settings: Settings = request.app.state.settings
+    # ``__Host-`` cookies require ``Secure`` to be honoured by browsers.
+    # Dev runs over plain HTTP, so it uses the un-prefixed
+    # ``CSRF_DEV_COOKIE_NAME`` without ``Secure`` (ADR-0065). Tests pin
+    # ``env=test`` so they get ``__Host-csrf`` + ``Secure=True`` and the
+    # TestClient fixture pins ``base_url=https://`` to match.
+    secure_cookie = settings.env != "dev"
+    cookie_name = csrf_cookie_name(settings)
+
+    existing = request.cookies.get(cookie_name)
+    token = existing if existing else _generate_token()
+    set_state(scope, csrf_token=token)
+
+    downstream = receive
+    if request.method in _UNSAFE_METHODS and request.url.path not in _EXEMPT_PATHS:
+        rejection, downstream = await _check(scope, receive, existing)
+        if rejection is not None:
+            await rejection(scope, receive, send)
+            return
+
+    async def send_wrapper(message: Message) -> None:
+        if message["type"] == RESPONSE_START and existing is None:
+            add_cookie(
+                message, lambda r: _attach_cookie(r, cookie_name, token, secure=secure_cookie)
+            )
+        await send(message)
+
+    await app(scope, downstream, send_wrapper)
+
+
+def csrf_middleware(app: ASGIApp) -> ASGIApp:
     """Mint, surface, and enforce the double-submit CSRF token."""
-
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        settings: Settings = request.app.state.settings
-        # ``__Host-`` cookies require ``Secure`` to be honoured by browsers.
-        # Dev runs over plain HTTP, so it uses the un-prefixed
-        # ``CSRF_DEV_COOKIE_NAME`` without ``Secure`` (ADR-0065). Tests pin
-        # ``env=test`` so they get ``__Host-csrf`` + ``Secure=True`` and the
-        # TestClient fixture pins ``base_url=https://`` to match.
-        secure_cookie = settings.env != "dev"
-        cookie_name = csrf_cookie_name(settings)
-
-        existing = request.cookies.get(cookie_name)
-        token = existing if existing else _generate_token()
-        request.state.csrf_token = token
-
-        if request.method in _UNSAFE_METHODS and request.url.path not in _EXEMPT_PATHS:
-            if existing is None:
-                return _reject("missing_cookie")
-            header_token = request.headers.get(CSRF_HEADER_NAME)
-            try:
-                form_token = await _read_form_token(request)
-            except MalformedFormError:
-                return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST)
-            submitted = header_token or form_token
-            if submitted is None or not secrets.compare_digest(
-                submitted.encode("utf-8"), existing.encode("utf-8")
-            ):
-                return _reject("invalid_csrf")
-
-        response = await call_next(request)
-
-        if existing is None:
-            _attach_cookie(response, cookie_name, token, secure=secure_cookie)
-
-        return response
+    return http_only(app, _protect_csrf)
 
 
 def _reject(detail: str, *, status: HTTPStatus = HTTPStatus.FORBIDDEN) -> JSONResponse:

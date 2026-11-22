@@ -4,44 +4,29 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Any, Final
+from typing import Final
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
+from budget_planner.config import Settings
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
-    PlannedFilter,
 )
 from budget_planner.services import (
     accounts as accounts_service,
     categories as categories_service,
     export as export_service,
     planned as planned_service,
-    transactions as transactions_service,
 )
-from budget_planner.services.account_pair import validate_distinct_accounts
-from budget_planner.web.deps import current_user_id, get_db, get_today
+from budget_planner.web import entry_forms, ledger_data
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.params import parse_date, positive_amount
 from budget_planner.web.rendering import render
-from budget_planner.web.routers.ledger import render_table_for
 
 router = APIRouter(prefix="/planned", tags=["planned"])
-
-
-def parse_filter(request: Request) -> PlannedFilter:
-    q = request.query_params
-    scope = q.get("scope", "all")
-    promoted: bool | None = None
-    if scope == "unpromoted":
-        promoted = False
-    return PlannedFilter(
-        date_from=parse_date(q.get("date_from")),
-        date_to=parse_date(q.get("date_to")),
-        promoted=promoted,
-    )
 
 
 _PROMOTE_EVENTS: Final = (
@@ -121,13 +106,17 @@ async def planned_batch_undo(
 def table_fragment(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> HTMLResponse:
     """Legacy fragment alias (T-064).
 
     Delegates to the unified ledger fragment with ``view=planned``.
     """
-    return render_table_for(request, conn, user_id, "planned")
+    return ledger_data.render_table_for(
+        request, conn, user_id, settings=settings, view="planned", today=today
+    )
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -151,8 +140,9 @@ def new_form(
 
 
 @router.post("")
-def create_planned(  # noqa: PLR0917
+def create_planned(
     request: Request,
+    *,
     operation_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
@@ -162,49 +152,16 @@ def create_planned(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    errors: dict[str, str] = {}
-    op_date = parse_date(operation_date)
-    if op_date is None:
-        errors["operation_date"] = "invalid date"
-    acc = accounts_service.find_by_id(conn, user_id, account_id)
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if acc is None:
-        errors["account_id"] = "unknown account"
-    if cat is None:
-        errors["category_id"] = "unknown category"
-    dest_id: int | None = None
-    if dest_account_id.strip():
-        try:
-            dest_id = int(dest_account_id)
-        except ValueError:
-            errors["dest_account_id"] = "invalid dest account"
-        else:
-            if accounts_service.find_by_id(conn, user_id, dest_id) is None:
-                errors["dest_account_id"] = "unknown dest account"
-            elif (same := validate_distinct_accounts(account_id, dest_id)) is not None:
-                errors["dest_account_id"] = same
-    if (
-        cat is not None
-        and acc is not None
-        and "dest_account_id" not in errors
-        and (
-            shape := transactions_service.transit_shape_error(
-                conn,
-                user_id,
-                direction=cat.direction,
-                account_id=account_id,
-                dest_account_id=dest_id,
-            )
-        )
-        is not None
-    ):
-        errors["dest_account_id"] = shape
-    minor: int | None = None
-    if acc is not None:
-        minor, err = positive_amount(amount, acc.currency)
-        if err:
-            errors["amount"] = err
-    if errors:
+    check = entry_forms.check_planned_create(
+        conn,
+        user_id,
+        operation_date=operation_date,
+        category_id=category_id,
+        account_id=account_id,
+        amount=amount,
+        dest_account_id=dest_account_id,
+    )
+    if check.errors:
         return render(
             request,
             "partials/planned/_form.html",
@@ -212,43 +169,29 @@ def create_planned(  # noqa: PLR0917
             action="/planned",
             categories=categories_service.list_all(conn, user_id),
             accounts=accounts_service.list_all(conn, user_id),
-            errors=errors,
+            errors=check.errors,
             status_code=422,
         )
-    assert op_date is not None and minor is not None
+    assert check.op_date is not None and check.minor is not None
     pl = planned_service.create(
         conn,
         user_id,
         NewPlannedTransaction(
-            operation_date=op_date,
+            operation_date=check.op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=minor,
+            amount=check.minor,
             description=description,
-            dest_account_id=dest_id,
+            dest_account_id=check.dest_id,
         ),
     )
-    html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))
+    view = ledger_data.planned_row_from_persisted(pl, check.account, check.category)
+    html = render(request, "partials/planned/_row.html", view=view)
     trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's overlay: no row insert; the ledger
     # refetches on `ledger-stale`, other pages reload (T-D142).
     refresh_unless_on(request, html, "/ledger")
     return html
-
-
-def _from_persisted(pl: Any, acc: Any, cat: Any) -> dict[str, Any]:
-    return {
-        "key": f"p-{pl.id}",
-        "kind": "persisted",
-        "operation_date": pl.operation_date,
-        "amount_minor": pl.amount,
-        "description": pl.description,
-        "is_promoted": pl.promoted_to_txn_id is not None,
-        "account": acc,
-        "category": cat,
-        "persisted_id": pl.id,
-        "currency": acc.currency if acc else "",
-    }
 
 
 @router.get("/{planned_id}/edit", response_class=HTMLResponse)
@@ -285,9 +228,10 @@ def edit_form(
 
 
 @router.post("/{planned_id}")
-def update_planned(  # noqa: PLR0917
+def update_planned(
     planned_id: int,
     request: Request,
+    *,
     operation_date: str = Form(...),
     category_id: int = Form(...),
     account_id: int = Form(...),
@@ -300,43 +244,17 @@ def update_planned(  # noqa: PLR0917
     pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_service.find_by_id(conn, user_id, account_id)
-    errors: dict[str, str] = {}
-    op_date = parse_date(operation_date)
-    if op_date is None:
-        errors["operation_date"] = "invalid date"
-    if acc is None:
-        errors["account_id"] = "unknown account"
-    # The submitted destination wins; otherwise the stored one still applies
-    # (editing the source onto the stored destination trips the CHECK).
-    submitted_dest = int(dest_account_id) if dest_account_id.strip().isdigit() else None
-    same = validate_distinct_accounts(
-        account_id, submitted_dest if submitted_dest is not None else pl.dest_account_id
+    check = entry_forms.check_planned_update(
+        conn,
+        user_id,
+        existing_dest_id=pl.dest_account_id,
+        operation_date=operation_date,
+        category_id=category_id,
+        account_id=account_id,
+        amount=amount,
+        dest_account_id=dest_account_id,
     )
-    if same is not None:
-        errors["dest_account_id"] = same
-    cat = categories_service.find_by_id(conn, user_id, category_id)
-    if cat is None:
-        errors["category_id"] = "unknown category"
-    elif acc is not None and same is None:
-        try:
-            transactions_service.check_transit_shape(
-                conn,
-                user_id,
-                direction=cat.direction,
-                account_id=account_id,
-                dest_account_id=submitted_dest
-                if submitted_dest is not None
-                else pl.dest_account_id,
-            )
-        except transactions_service.ValidationError as exc:
-            errors["dest_account_id"] = str(exc)
-    minor: int | None = None
-    if acc is not None:
-        minor, err = positive_amount(amount, acc.currency)
-        if err:
-            errors["amount"] = err
-    if errors:
+    if check.errors:
         return render(
             request,
             "partials/planned/_form.html",
@@ -344,19 +262,19 @@ def update_planned(  # noqa: PLR0917
             action=f"/planned/{planned_id}",
             categories=categories_service.list_all(conn, user_id),
             accounts=accounts_service.list_all(conn, user_id),
-            errors=errors,
+            errors=check.errors,
             status_code=422,
         )
-    assert op_date is not None and minor is not None
+    assert check.op_date is not None and check.minor is not None
     planned_service.update(
         conn,
         user_id,
         planned_id,
         PatchPlannedTransaction(
-            operation_date=op_date,
+            operation_date=check.op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=minor,
+            amount=check.minor,
             description=description,
         ),
     )
@@ -447,9 +365,10 @@ def promote_inline(
 
 
 @router.post("/{planned_id}/promote")
-def promote_submit(  # noqa: PLR0917
+def promote_submit(
     planned_id: int,
     request: Request,
+    *,
     operation_date: str = Form(...),
     amount: str = Form(...),
     description: str = Form(""),
@@ -518,7 +437,7 @@ def export(
     today: date = Depends(get_today),
 ) -> Response:
     fmt = request.query_params.get("format", "csv")
-    flt = parse_filter(request)
+    flt = ledger_data.parse_planned_filter(request)
     views = list(planned_service.list_planned(conn, user_id, flt, today=today))
     rows = [
         {

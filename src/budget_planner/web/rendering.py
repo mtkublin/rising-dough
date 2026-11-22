@@ -23,23 +23,20 @@ def render(
     status_code: int = 200,
     **context: Any,
 ) -> HTMLResponse:
-    """Render a Jinja template, injecting `request` + `url_for` + settings.
-
-    Keyword form of :func:`render_context`.
-    """
-    return render_context(request, template_name, context, status_code)
+    """Render a Jinja template with keyword context; see :func:`render_context`."""
+    return render_context(request, template_name, context, status_code=status_code)
 
 
 def render_context(
     request: Request,
     template_name: str,
     context: Mapping[str, object],
+    *,
     status_code: int = 200,
 ) -> HTMLResponse:
-    """Render a Jinja template from a ready-made context mapping (T-Q267).
+    """Render a Jinja template, injecting `request` + `url_for` + settings.
 
-    Injects `request` + `url_for` + settings; services return a context mapping, routers pass
-    it here without unpacking.
+    Takes the template keys as one mapping (view-model builders return one).
 
     B-03 — When a non-HTMX client requests a route whose template is the
     bare slide-over fragment (``partials/_slideover.html``), transparently

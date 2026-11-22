@@ -12,6 +12,7 @@ from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import accounts as accounts_repo, categories as categories_repo
 from budget_planner.services import balance as balance_svc
+from tests.ui_map import _html, errors
 
 USER_ID = 1
 OPENING = 100_000
@@ -56,7 +57,7 @@ def test_mismatching_category_is_rejected_and_writes_nothing(
         data={"actual_balance": typed, "category_id": str(world[cat])},
     )
     assert r.status_code == 422
-    assert f"a {cat} category cannot book" in r.text
+    assert f"a {cat} category cannot book" in _html.all_text(r.text, errors.alert)
     assert _state(_migrated, world["a"]) == (0, OPENING)
 
 

@@ -20,78 +20,6 @@ epic = "E04"
 reason = "request.state / response.headers mutation is the Starlette contract"
 
 [[framework]]
-path = "src/budget_planner/web/middleware/admin.py"
-rule = "class-framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/auth.py"
-rule = "class-framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/auth.py"
-rule = "param-mutation:framework"
-count = 4
-finding = "framework"
-epic = "E04"
-reason = "request.state / response.headers mutation is the Starlette contract"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/cache_control.py"
-rule = "class-plain"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/csrf.py"
-rule = "class-framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/csrf.py"
-rule = "param-mutation:framework"
-count = 3
-finding = "framework"
-epic = "E04"
-reason = "request.state / response.headers mutation is the Starlette contract"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/must_change_password.py"
-rule = "class-framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/request_id.py"
-rule = "class-framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "Starlette BaseHTTPMiddleware / ASGI middleware class: framework-imposed (operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/middleware/request_id.py"
-rule = "param-mutation:framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "request.state / response.headers mutation is the Starlette contract"
-
-[[framework]]
 path = "src/budget_planner/web/routers/accounts.py"
 rule = "module-singleton"
 count = 1
@@ -242,3 +170,11 @@ count = 1
 finding = "Q-031"
 epic = "E07"
 reason = "canonical clock override (ADR-0130 §4)"
+
+[[framework]]
+path = "src/budget_planner/web/middleware/asgi.py"
+rule = "param-mutation:framework"
+count = 1
+finding = "framework"
+epic = "E04"
+reason = "set_state: ASGI scope['state'] is how Starlette exposes request.state; the one funnel for it (ADR-0144)"

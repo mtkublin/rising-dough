@@ -95,14 +95,14 @@ def test_afford_endpoint_zero(client: TestClient) -> None:
     r = client.get("/today/afford?amount=0")
     assert r.status_code == 200
     # No delta is shown with zero amount — just the per-day line.
-    assert "rd-afford__new" in r.text
+    assert _html.exists(r.text, today.afford_per_day)
 
 
 def test_afford_endpoint_major_units_fallback(client: TestClient) -> None:
     # Backwards-compat: the existing form posts step=0.01 decimals.
     r = client.get("/today/afford?amount=100.00")
     assert r.status_code == 200
-    assert "rd-afford__new" in r.text
+    assert _html.exists(r.text, today.afford_per_day)
 
 
 def test_afford_endpoint_invalid_amount(client: TestClient) -> None:

@@ -1,11 +1,9 @@
 """Forecast router (T-037, ADR-0043; T-R50 removes Plotly per ADR-0054).
 
 The user-facing horizon is specified in **months** (ADR-0043) and expanded
-to days at the router boundary so the pure daily projection service stays
+to days inside the forecast service so the pure daily projection stays
 unchanged. Chart granularity is monthly: one point per month at EOM.
-
-Charts are now server-rendered SVG via :mod:`budget_planner.web.charts`
-(ADR-0054); Plotly has been removed.
+Parse, call, render: the chart and context assembly lives in ``web/forecast_data.py``.
 """
 
 from __future__ import annotations
@@ -17,34 +15,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from budget_planner.config import Settings
-from budget_planner.services import forecast as forecast_service
-from budget_planner.web import charts
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
+from budget_planner.web import forecast_data
+from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
 from budget_planner.web.params import parse_int
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
-
-_DEFAULT_HORIZON_MONTHS = 12
-_MIN_HORIZON_MONTHS = 1
-_MAX_HORIZON_MONTHS = 60
-
-
-def _parse_horizon_months(request: Request) -> int:
-    val = parse_int(request.query_params.get("horizon_months"))
-    if val is None:
-        return _DEFAULT_HORIZON_MONTHS
-    return max(_MIN_HORIZON_MONTHS, min(val, _MAX_HORIZON_MONTHS))
-
-
-def _compute(
-    conn: sqlite3.Connection,
-    user_id: int,
-    settings: Settings,
-    horizon_months: int,
-    today: date,
-) -> forecast_service.MonthlySeries:
-    return forecast_service.monthly_for_settings(conn, user_id, settings, today, horizon_months)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -53,20 +29,16 @@ def index(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> HTMLResponse:
-    horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, user_id, settings, horizon_months, today_for(request))
-    chart = charts.line_area_minor(
-        tuple(m.end_balance_base_minor for m in monthly.months),
-        settings.base_currency,
-        tuple(m.month.strftime("%b %Y") for m in monthly.months),
-    )
+    horizon = parse_int(request.query_params.get("horizon_months"))
+    v = forecast_data.build_view(conn, user_id, settings, today, horizon)
     return render(
         request,
         "forecast/index.html",
-        horizon_months=horizon_months,
-        monthly=monthly,
-        chart=chart,
+        horizon_months=v.horizon_months,
+        monthly=v.monthly,
+        chart=v.chart,
     )
 
 
@@ -76,18 +48,14 @@ def view_fragment(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    today: date = Depends(get_today),
 ) -> HTMLResponse:
-    horizon_months = _parse_horizon_months(request)
-    monthly = _compute(conn, user_id, settings, horizon_months, today_for(request))
-    chart = charts.line_area_minor(
-        tuple(m.end_balance_base_minor for m in monthly.months),
-        settings.base_currency,
-        tuple(m.month.strftime("%b %Y") for m in monthly.months),
-    )
+    horizon = parse_int(request.query_params.get("horizon_months"))
+    v = forecast_data.build_view(conn, user_id, settings, today, horizon)
     return render(
         request,
         "partials/forecast/_view.html",
-        chart=chart,
-        monthly=monthly,
-        horizon_months=horizon_months,
+        horizon_months=v.horizon_months,
+        monthly=v.monthly,
+        chart=v.chart,
     )

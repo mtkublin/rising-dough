@@ -100,6 +100,7 @@ def test_accounts_index_renders_service_utilisation(
     _make_card(_migrated, limit=500_000)
     r = client.get("/accounts")
     assert r.status_code == 200
-    assert "Used 24%" in r.text
-    assert "Available 3,765.44" in r.text
-    assert "--used-pct: 24%" in r.text
+    bar = _html.resolve_one(r.text, accounts.credit_utilisation)
+    assert "Used 24%" in _html.text_of(r.text, accounts.credit_utilisation)
+    assert "Available 3,765.44" in _html.text_of(r.text, accounts.credit_utilisation)
+    assert "--used-pct: 24%" in str(bar["style"])
