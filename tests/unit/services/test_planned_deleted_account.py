@@ -23,6 +23,7 @@ from budget_planner.services import (
     ledger_totals,
     recurring as recurring_svc,
 )
+from budget_planner.services.recurring_formula import DATES_ONLY, FormulaFx, formula_ctx_for
 from budget_planner.web import ledger_data
 from budget_planner.web.ledger_types import LedgerFilters
 from tests.unit.services.conftest import OTHER_ID, OWNER_ID, WORLD_TODAY, World
@@ -107,9 +108,13 @@ def _strip(ctx: dict[str, object]) -> tuple[int, int]:
     return summary.count, summary.net_minor
 
 
+def _fx(conn: sqlite3.Connection) -> FormulaFx:
+    return formula_ctx_for(conn, OWNER_ID, Settings(_env_file=None), WORLD_TODAY)
+
+
 def _forecast_total(conn: sqlite3.Connection) -> int:
     events = forecast_events.collect_events(
-        conn, OWNER_ID, today=WORLD_TODAY, end_date=dt.date(2026, 11, 30)
+        conn, OWNER_ID, WORLD_TODAY, dt.date(2026, 11, 30), _fx(conn)
     )
     return sum(ev.amount_minor for evs in events.values() for ev in evs)
 
@@ -130,7 +135,13 @@ def test_planned_base_amounts_never_see_a_deleted_accounts_row(
     assert _base_of_dead(conn, scene) == DEAD_PLANNED
     _delete(conn, scene)
     items = recurring_svc.pending_occurrences(
-        conn, OWNER_ID, start=MONTH_START, end=MONTH_END, today=WORLD_TODAY, include_overdue=False
+        conn,
+        OWNER_ID,
+        fx=DATES_ONLY,
+        start=MONTH_START,
+        end=MONTH_END,
+        today=WORLD_TODAY,
+        include_overdue=False,
     )
     assert [(i.account_id, i.amount) for i in items] == [
         (scene.world.owner.account_id, LIVE_PLANNED)
@@ -142,10 +153,10 @@ def test_accounts_tab_planned_net_excludes_deleted_account(
 ) -> None:
     window = account_planned_svc.resolve_window(conn, OWNER_ID, WORLD_TODAY)
     owner_acc = scene.world.owner.account_id
-    before = account_planned_svc.planned_net_by_account(conn, OWNER_ID, window)
+    before = account_planned_svc.planned_net_by_account(conn, OWNER_ID, window, _fx(conn))
     assert before == {owner_acc: -LIVE_PLANNED, scene.dead_account_id: -DEAD_PLANNED}
     _delete(conn, scene)
-    assert account_planned_svc.planned_net_by_account(conn, OWNER_ID, window) == {
+    assert account_planned_svc.planned_net_by_account(conn, OWNER_ID, window, _fx(conn)) == {
         owner_acc: -LIVE_PLANNED
     }
     hero = account_planned_svc.compute_accounts_planned(
@@ -153,7 +164,7 @@ def test_accounts_tab_planned_net_excludes_deleted_account(
     )
     assert hero.base_net_minor == -LIVE_PLANNED
     _undo(conn, scene)
-    assert account_planned_svc.planned_net_by_account(conn, OWNER_ID, window) == before
+    assert account_planned_svc.planned_net_by_account(conn, OWNER_ID, window, _fx(conn)) == before
 
 
 def test_ledger_strip_total_excludes_deleted_account_but_list_keeps_row(
@@ -187,7 +198,13 @@ def test_second_users_deleted_account_rows_are_absent_and_do_not_leak(
     _delete(conn, scene)
     assert _committed(conn, scene) == LIVE_PLANNED
     other = recurring_svc.pending_occurrences(
-        conn, OTHER_ID, start=MONTH_START, end=MONTH_END, today=WORLD_TODAY, include_overdue=False
+        conn,
+        OTHER_ID,
+        fx=DATES_ONLY,
+        start=MONTH_START,
+        end=MONTH_END,
+        today=WORLD_TODAY,
+        include_overdue=False,
     )
     assert other == ()
     assert _strip(_ledger(conn)) == (1, -LIVE_PLANNED)
