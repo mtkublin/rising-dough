@@ -28,7 +28,7 @@ from budget_planner.repositories import (
     recurring,
     transactions,
 )
-from budget_planner.services import budget as bs, forecast
+from budget_planner.services import budget as bs, forecast_overlay
 from budget_planner.services.fx import FxUnavailableError, converter_for
 
 USER_ID = 1
@@ -148,9 +148,13 @@ def test_forecast_overlay_committed_converted(
 ) -> None:
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 12_000, date(2026, 2, 20))
-    span = forecast._MonthSpan(date(2026, 2, 16), date(2026, 2, 16), date(2026, 2, 28), False)
+    span = forecast_overlay.MonthSpan(
+        date(2026, 2, 16), date(2026, 2, 16), date(2026, 2, 28), False
+    )
     converter = converter_for(conn, get_settings(), TODAY)
-    ((_, committed),) = forecast._month_inputs(conn, USER_ID, [span], today=TODAY, fx=converter)
+    ((_, committed),) = forecast_overlay.month_inputs(
+        conn, USER_ID, [span], today=TODAY, fx=converter
+    )
     assert committed.get(world["groceries"], 0) == 48_000
 
 

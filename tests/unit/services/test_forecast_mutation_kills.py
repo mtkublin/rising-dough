@@ -34,7 +34,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.repositories._unaudited import set_next_due
-from budget_planner.services import forecast as fc, fx as fx_svc
+from budget_planner.services import forecast as fc, forecast_events, forecast_overlay, fx as fx_svc
 from budget_planner.services.fx import FxUnavailableError
 from tests.unit.services.conftest import (
     OTHER_ID,
@@ -478,33 +478,36 @@ def test_horizon_days_for_months(today: date, months: int, expected: int) -> Non
 
 
 def test_iter_months_spans_year_end() -> None:
-    assert fc._iter_months(date(2026, 11, 5), date(2027, 2, 1)) == [
+    assert forecast_overlay.iter_months(date(2026, 11, 5), date(2027, 2, 1)) == [
         (2026, 11),
         (2026, 12),
         (2027, 1),
         (2027, 2),
     ]
-    assert fc._iter_months(date(2026, 12, 31), date(2026, 12, 31)) == [(2026, 12)]
-    assert fc._iter_months(date(2026, 12, 31), date(2027, 1, 1)) == [(2026, 12), (2027, 1)]
+    assert forecast_overlay.iter_months(date(2026, 12, 31), date(2026, 12, 31)) == [(2026, 12)]
+    assert forecast_overlay.iter_months(date(2026, 12, 31), date(2027, 1, 1)) == [
+        (2026, 12),
+        (2027, 1),
+    ]
 
 
 def test_overlay_months_window_and_overdue_flag() -> None:
-    months = fc._overlay_months(date(2026, 10, 24), date(2026, 11, 3))
+    months = forecast_overlay.overlay_months(date(2026, 10, 24), date(2026, 11, 3))
     assert [(m.year, m.month, m.window_end) for m in months] == [
         (2026, 10, date(2026, 10, 31)),
         (2026, 11, date(2026, 11, 3)),
     ]
     assert [m.span for m in months] == [
-        fc._MonthSpan(date(2026, 10, 1), date(2026, 10, 24), date(2026, 10, 31), True),
-        fc._MonthSpan(date(2026, 11, 1), date(2026, 11, 1), date(2026, 11, 30), False),
+        forecast_overlay.MonthSpan(date(2026, 10, 1), date(2026, 10, 24), date(2026, 10, 31), True),
+        forecast_overlay.MonthSpan(date(2026, 11, 1), date(2026, 11, 1), date(2026, 11, 30), False),
     ]
-    assert fc._overlay_months(date(2026, 10, 24), date(2026, 10, 24))[0].window_end == date(
-        2026, 10, 24
-    )
+    assert forecast_overlay.overlay_months(date(2026, 10, 24), date(2026, 10, 24))[
+        0
+    ].window_end == date(2026, 10, 24)
 
 
 def test_distribute_overlay_exact_events() -> None:
-    evs = fc._distribute_overlay(
+    evs = forecast_overlay.distribute_overlay(
         unaccounted_minor=10,
         window_start=date(2026, 5, 1),
         window_end_inclusive=date(2026, 5, 3),
@@ -515,7 +518,7 @@ def test_distribute_overlay_exact_events() -> None:
         (date(2026, 5, 2), 9, -3),
         (date(2026, 5, 3), 9, -4),
     ]
-    one = fc._distribute_overlay(
+    one = forecast_overlay.distribute_overlay(
         unaccounted_minor=7,
         window_start=date(2026, 5, 1),
         window_end_inclusive=date(2026, 5, 1),
@@ -523,14 +526,14 @@ def test_distribute_overlay_exact_events() -> None:
     )
     assert [e.amount_minor for e in one] == [-7]
     # per-day rounds to zero: leading zero days omitted, last day carries the amount
-    tiny = fc._distribute_overlay(
+    tiny = forecast_overlay.distribute_overlay(
         unaccounted_minor=1,
         window_start=date(2026, 5, 1),
         window_end_inclusive=date(2026, 5, 4),
         account_id=9,
     )
     assert [(e.on_date, e.amount_minor) for e in tiny] == [(date(2026, 5, 4), -1)]
-    half = fc._distribute_overlay(
+    half = forecast_overlay.distribute_overlay(
         unaccounted_minor=5,
         window_start=date(2026, 5, 1),
         window_end_inclusive=date(2026, 5, 2),
@@ -541,10 +544,10 @@ def test_distribute_overlay_exact_events() -> None:
 
 def test_signed_events_each_direction() -> None:
     d = date(2026, 5, 1)
-    inc = fc._signed_events_for_direction(Direction.INCOME, d, 1, None, 50)
-    exp = fc._signed_events_for_direction(Direction.EXPENSE, d, 1, None, 50)
-    tr = fc._signed_events_for_direction(Direction.TRANSIT, d, 1, 2, 50)
-    adj = fc._signed_events_for_direction(Direction.ADJUSTMENT, d, 1, None, 50)
+    inc = forecast_events.signed_events_for_direction(Direction.INCOME, d, 1, None, 50)
+    exp = forecast_events.signed_events_for_direction(Direction.EXPENSE, d, 1, None, 50)
+    tr = forecast_events.signed_events_for_direction(Direction.TRANSIT, d, 1, 2, 50)
+    adj = forecast_events.signed_events_for_direction(Direction.ADJUSTMENT, d, 1, None, 50)
     assert [(e.on_date, e.account_id, e.amount_minor) for e in inc] == [(d, 1, 50)]
     assert [(e.on_date, e.account_id, e.amount_minor) for e in exp] == [(d, 1, -50)]
     assert [(e.on_date, e.account_id, e.amount_minor) for e in tr] == [(d, 1, -50), (d, 2, 50)]
@@ -696,11 +699,13 @@ def test_signed_events_guard_messages_and_adjustment_debug_log(
 ) -> None:
     d = date(2026, 5, 1)
     with pytest.raises(ValueError, match=r"^transit event missing dest_account_id$"):
-        fc._signed_events_for_direction(Direction.TRANSIT, d, 1, None, 5)
+        forecast_events.signed_events_for_direction(Direction.TRANSIT, d, 1, None, 5)
     with pytest.raises(ValueError, match=r"^transit source and dest must differ$"):
-        fc._signed_events_for_direction(Direction.TRANSIT, d, 1, 1, 5)
-    with caplog.at_level("DEBUG", logger=fc.logger.name):
-        assert fc._signed_events_for_direction(Direction.ADJUSTMENT, d, 7, None, 5) == ()
+        forecast_events.signed_events_for_direction(Direction.TRANSIT, d, 1, 1, 5)
+    with caplog.at_level("DEBUG", logger=forecast_events.logger.name):
+        assert (
+            forecast_events.signed_events_for_direction(Direction.ADJUSTMENT, d, 7, None, 5) == ()
+        )
     assert [r.getMessage() for r in caplog.records] == [
         "forecast skipping adjustment-direction planned leg on 2026-05-01 acct=7"
     ]
