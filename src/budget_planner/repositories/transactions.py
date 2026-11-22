@@ -19,7 +19,18 @@ from budget_planner.domain.transactions import (
     Transaction,
     TransactionFilter,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
+from budget_planner.repositories._shared import (
+    OwnedTable,
+    find_owned,
+    insert_owned,
+    list_recently_deleted_owned,
+    parse_dt,
+    parse_dt_required,
+    require_owned,
+    soft_delete_owned,
+    undelete_owned,
+    update_owned,
+)
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -52,6 +63,15 @@ def _row_to_txn(row: sqlite3.Row) -> Transaction:
     )
 
 
+_TRANSACTIONS: OwnedTable[Transaction] = OwnedTable(
+    table="transactions",
+    entity_type="transaction",
+    columns=_COLUMNS,
+    hydrate=_row_to_txn,
+    order_by="operation_date DESC, id DESC",
+)
+
+
 def find_by_id(
     conn: sqlite3.Connection,
     user_id: int,
@@ -59,11 +79,7 @@ def find_by_id(
     *,
     include_deleted: bool = False,
 ) -> Transaction | None:
-    sql = f"SELECT {_COLUMNS} FROM transactions WHERE id = ? AND user_id = ?"
-    if not include_deleted:
-        sql += " AND deleted_at IS NULL"
-    row = conn.execute(sql, (txn_id, user_id)).fetchone()
-    return _row_to_txn(row) if row is not None else None
+    return find_owned(conn, _TRANSACTIONS, user_id, {"id": txn_id}, include_deleted=include_deleted)
 
 
 # ADR-0136: the one predicate that hides soft-deleted accounts from derived reads.
@@ -73,7 +89,7 @@ _LIVE_ACCOUNT = (
 )
 
 
-def _append_filter_clauses(
+def _txn_filter_clauses(
     filters: TransactionFilter,
     include_deleted: bool,
 ) -> tuple[list[str], list[Any]]:
@@ -132,7 +148,7 @@ def list_filtered(
         f"SELECT {cols} FROM transactions t "
         "JOIN categories c ON c.id = t.category_id AND c.user_id = t.user_id"
     )
-    clauses, params = _append_filter_clauses(filters, include_deleted)
+    clauses, params = _txn_filter_clauses(filters, include_deleted)
     clauses.insert(0, "t.user_id = ?")
     params.insert(0, user_id)
     sql += " WHERE " + " AND ".join(clauses)
@@ -153,7 +169,7 @@ def count_filtered(
     include_deleted: bool = False,
 ) -> int:
     """``COUNT(*)`` of the user's rows matching ``filters`` (limit/offset ignored)."""
-    clauses, params = _append_filter_clauses(filters or TransactionFilter(), include_deleted)
+    clauses, params = _txn_filter_clauses(filters or TransactionFilter(), include_deleted)
     clauses.insert(0, "t.user_id = ?")
     params.insert(0, user_id)
     sql = (
@@ -253,7 +269,7 @@ def sum_legs_by_day(
     ]
 
 
-def _normalise_patch(changes: dict[str, Any]) -> dict[str, Any]:
+def _normalise_txn_patch(changes: dict[str, Any]) -> dict[str, Any]:
     norm: dict[str, Any] = {}
     for key, value in changes.items():
         if key == "operation_date":
@@ -270,43 +286,25 @@ def create(conn: sqlite3.Connection, user_id: int, data: NewTransaction) -> Tran
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
     )
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        cursor = c.execute(
-            "INSERT INTO transactions("
-            "user_id, operation_date, category_id, account_id, dest_account_id, "
-            "amount, description, promoted_from_planned_id, "
-            "promoted_from_recurring_rule_id, promoted_from_recurring_date) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                data.operation_date.isoformat(),
-                data.category_id,
-                data.account_id,
-                data.dest_account_id,
-                data.amount,
-                data.description,
-                data.promoted_from_planned_id,
-                data.promoted_from_recurring_rule_id,
-                (
-                    data.promoted_from_recurring_date.isoformat()
-                    if data.promoted_from_recurring_date is not None
-                    else None
-                ),
-            ),
-        )
-        new_id = int(cursor.lastrowid or 0)
-        created = find_by_id(c, user_id, new_id)
-        assert created is not None
-        return new_id, created
-
-    return mutate(
+    return insert_owned(
         conn,
-        entity_type="transaction",
-        operation="create",
-        prev=None,
-        action=_action,
-        user_id=user_id,
+        _TRANSACTIONS,
+        user_id,
+        {
+            "operation_date": data.operation_date.isoformat(),
+            "category_id": data.category_id,
+            "account_id": data.account_id,
+            "dest_account_id": data.dest_account_id,
+            "amount": data.amount,
+            "description": data.description,
+            "promoted_from_planned_id": data.promoted_from_planned_id,
+            "promoted_from_recurring_rule_id": data.promoted_from_recurring_rule_id,
+            "promoted_from_recurring_date": (
+                data.promoted_from_recurring_date.isoformat()
+                if data.promoted_from_recurring_date is not None
+                else None
+            ),
+        },
     )
 
 
@@ -316,102 +314,30 @@ def update(
     txn_id: int,
     data: PatchTransaction,
 ) -> Transaction:
-    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"transaction {txn_id} not found")
-    require_owned(
+    return update_owned(
         conn,
+        _TRANSACTIONS,
         user_id,
+        txn_id,
+        _normalise_txn_patch(data.as_dict()),
         account_ids=(data.account_id, data.dest_account_id),
         category_ids=(data.category_id,),
-    )
-    changes = _normalise_patch(data.as_dict())
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        if changes:
-            sets = [f"{field} = ?" for field in changes]
-            sets.append("updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))")
-            c.execute(
-                f"UPDATE transactions SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
-                (*changes.values(), txn_id, user_id),
-            )
-        updated = find_by_id(c, user_id, txn_id, include_deleted=True)
-        assert updated is not None
-        return txn_id, updated
-
-    return mutate(
-        conn,
-        entity_type="transaction",
-        operation="update",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
     )
 
 
 def soft_delete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> None:
-    prev = find_by_id(conn, user_id, txn_id)
-    if prev is None:
-        return
-
-    def _action(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(
-            "UPDATE transactions SET deleted_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
-            (txn_id, user_id),
-        )
-        return txn_id, None
-
-    mutate(
-        conn,
-        entity_type="transaction",
-        operation="delete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    soft_delete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
 def list_recently_deleted(
     conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
 ) -> list[Transaction]:
     """T-R70 — soft-deleted transactions within the last `days` days (ADR-0019)."""
-    sql = (
-        f"SELECT {_COLUMNS} FROM transactions "
-        "WHERE user_id = ? AND deleted_at IS NOT NULL "
-        "AND deleted_at > datetime('now', ?) "
-        "ORDER BY deleted_at DESC "
-        "LIMIT ?"
-    )
-    rows = conn.execute(sql, (user_id, f"-{days} days", limit)).fetchall()
-    return [_row_to_txn(r) for r in rows]
+    return list_recently_deleted_owned(conn, _TRANSACTIONS, user_id, days=days, limit=limit)
 
 
 def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction:
-    prev = find_by_id(conn, user_id, txn_id, include_deleted=True)
-    if prev is None:
-        raise LookupError(f"transaction {txn_id} not found")
-
-    def _action(c: sqlite3.Connection) -> tuple[int, Transaction]:
-        c.execute(
-            "UPDATE transactions SET deleted_at = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-            "WHERE id = ? AND user_id = ?",
-            (txn_id, user_id),
-        )
-        restored = find_by_id(c, user_id, txn_id)
-        assert restored is not None
-        return txn_id, restored
-
-    return mutate(
-        conn,
-        entity_type="transaction",
-        operation="undelete",
-        prev=prev,
-        action=_action,
-        user_id=user_id,
-    )
+    return undelete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
 __all__ = [
