@@ -20,12 +20,13 @@ import logging
 import re
 import sys
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import structlog
 
 if TYPE_CHECKING:
     from structlog.stdlib import BoundLogger
+    from structlog.typing import Processor
 
 
 # T-D59 / ADR-0078 §5: keys whose values never reach a log line.
@@ -45,21 +46,27 @@ def _is_sensitive_key(key: object) -> bool:
     return k in _DENY_EXACT or k.startswith(_DENY_PREFIXES) or k.endswith(_DENY_SUFFIXES)
 
 
-def _redact(value: Any) -> Any:
+def _redact_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    return {k: (REDACTED if _is_sensitive_key(k) else _redact(v)) for k, v in value.items()}
+
+
+def _redact(value: object) -> object:
     if isinstance(value, dict):
-        return {k: (REDACTED if _is_sensitive_key(k) else _redact(v)) for k, v in value.items()}
+        return _redact_mapping(value)
     if isinstance(value, (list, tuple)):
         return [_redact(v) for v in value]
     return value
 
 
-def redact_sensitive(_logger: Any, _method: str, event_dict: Any) -> Any:
+def redact_sensitive(
+    _logger: object, _method: str, event_dict: Mapping[str, object]
+) -> Mapping[str, object]:
     """structlog processor: replace value-bearing keys with ``[redacted]``.
 
     Case-insensitive, prefix/suffix aware, recursive into dicts and lists.
     Returns a new dict; the input is not mutated.
     """
-    return _redact(dict(event_dict))
+    return _redact_mapping(event_dict)
 
 
 def strip_access_query(
@@ -117,7 +124,7 @@ def scrub_exception_text(
     return {**event_dict, "exception": _scrub_traceback(text)}
 
 
-def _processors() -> list[Any]:
+def _processors() -> list[Processor]:
     """Shared processor chain. Order matters.
 
     ``merge_contextvars`` picks up ``request_id`` (and any other

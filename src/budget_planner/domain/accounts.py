@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import datetime
-from typing import Any
 
 from budget_planner.domain.limits import name_error
 
@@ -59,13 +58,13 @@ class PatchAccount:
     credit_limit_minor: int | None = None
     clear_credit_limit: bool = False
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         """Return only the fields set to a non-None value.
 
         ``clear_credit_limit`` is a control flag, not a persisted field, so
         it is always excluded from the dict and interpreted by the repository.
         """
-        out: dict[str, Any] = {}
+        out: dict[str, object] = {}
         for f in fields(self):
             if f.name == "clear_credit_limit":
                 continue

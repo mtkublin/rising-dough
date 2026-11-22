@@ -30,6 +30,12 @@ from budget_planner.config import Settings
 
 _SQLITE_PREFIX = "sqlite:///"
 
+#: Failures of opening or reading the database (driver, file system, bad URL). Probes and
+#: background jobs catch exactly these, log them and carry on (T-Q271).
+DB_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error, OSError, ValueError)
+#: ``DB_ERRORS`` plus the runner's own ``RuntimeError`` (foreign-key or checksum refusal).
+JOB_ERRORS: tuple[type[Exception], ...] = (*DB_ERRORS, RuntimeError)
+
 
 def resolve_db_path(database_url: str) -> Path:
     if not database_url.startswith(_SQLITE_PREFIX):

@@ -14,6 +14,7 @@ from datetime import date
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.errors import require_present
 from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
 from budget_planner.services import (
     accounts as accounts_service,
@@ -34,6 +35,13 @@ class EntryCheck:
     dest_id: int | None = None
     account: Account | None = None
     category: Category | None = None
+
+    def valid_values(self) -> tuple[date, int]:
+        """The parsed date and amount of an error-free check (``InvariantError`` otherwise)."""
+        return (
+            require_present(self.op_date, "validated operation date"),
+            require_present(self.minor, "validated amount"),
+        )
 
 
 def _amount(raw: str, acc: Account | None) -> tuple[int | None, dict[str, str]]:

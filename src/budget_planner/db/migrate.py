@@ -33,7 +33,9 @@ import hashlib
 import json
 import re
 import sqlite3
-from collections.abc import Callable, Mapping
+import sys
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -49,6 +51,20 @@ MIGRATIONS_DIR: Path = Path(__file__).resolve().parents[3] / "migrations"
 _COMMIT = "COMMIT"
 _ROLLBACK = "ROLLBACK"
 _FILENAME_RE = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
+
+
+@contextmanager
+def _begin_commit(conn: sqlite3.Connection) -> Iterator[None]:
+    """One ``BEGIN`` / ``COMMIT`` block; any exit that skips the commit rolls back."""
+    conn.execute("BEGIN")
+    committed = False
+    try:
+        yield
+        conn.execute(_COMMIT)
+        committed = True
+    finally:
+        if not committed:
+            conn.execute(_ROLLBACK)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,14 +187,9 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
         return
 
     today = clock.utc_now().date()  # UTC vs local is irrelevant for a date-only anchor
-    conn.execute("BEGIN")
-    try:
+    with _begin_commit(conn):
         for row in rows:
             _backfill_one_rule(conn, row, today)
-        conn.execute(_COMMIT)
-    except Exception:
-        conn.execute(_ROLLBACK)
-        raise
 
 
 # 400 days covers monthly / quarterly / yearly in one shot: the first
@@ -248,8 +259,7 @@ def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
     rows = conn.execute(
         "SELECT id, amount_formula FROM recurring_rules WHERE amount_formula IS NOT NULL"
     ).fetchall()
-    conn.execute("BEGIN")
-    try:
+    with _begin_commit(conn):
         for row in rows:
             raw = row["amount_formula"]
             data = json.loads(raw)
@@ -270,10 +280,6 @@ def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
                 "UPDATE recurring_rules SET amount_formula = ? WHERE id = ?",
                 (json.dumps(v2, separators=(",", ":"), sort_keys=True), row["id"]),
             )
-        conn.execute(_COMMIT)
-    except Exception:
-        conn.execute(_ROLLBACK)
-        raise
 
 
 # Mapping of migration version -> post-apply hook. Hooks run inside their
@@ -371,18 +377,13 @@ def _run_migration_sql(conn: sqlite3.Connection, mig: Migration) -> None:
     any open transaction); a failure anywhere rolls the whole thing back,
     including the ``schema_migrations`` INSERT.
     """
-    conn.execute("BEGIN")
-    try:
+    with _begin_commit(conn):
         for statement in _split_sql_statements(mig.sql):
             conn.execute(statement)
         conn.execute(
             "INSERT INTO schema_migrations(version, filename, checksum) VALUES (?, ?, ?)",
             (mig.version, mig.filename, mig.checksum),
         )
-        conn.execute(_COMMIT)
-    except Exception:
-        conn.execute(_ROLLBACK)
-        raise
 
 
 def _require_clean_foreign_keys(conn: sqlite3.Connection, mig: Migration) -> None:
@@ -402,7 +403,7 @@ def main() -> None:  # pragma: no cover - CLI shim exercised via `just migrate`
     try:
         applied = apply_migrations(conn)
         for migration in applied:
-            print(f"applied {migration.filename}")
+            sys.stdout.write(f"applied {migration.filename}\n")
     finally:
         conn.close()
 

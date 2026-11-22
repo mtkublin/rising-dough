@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from budget_planner.db.connection import get_connection
+from budget_planner.db.connection import DB_ERRORS, JOB_ERRORS, get_connection
 from budget_planner.repositories import users as users_repo
 
 
@@ -18,4 +18,4 @@ def ping(conn: sqlite3.Connection) -> None:
     users_repo.has_live_admin(conn)
 
 
-__all__ = ["get_connection", "ping"]
+__all__ = ["DB_ERRORS", "JOB_ERRORS", "get_connection", "ping"]

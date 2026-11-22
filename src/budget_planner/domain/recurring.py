@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from budget_planner.domain.enums import Cadence, OverrideState
 
@@ -131,8 +131,8 @@ class PatchRecurringRule:
     next_due: date | object = _UNCHANGED
     amount_formula: AmountFormula | object | None = _UNCHANGED
 
-    def as_dict(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
+    def as_dict(self) -> dict[str, object]:
+        out: dict[str, object] = {}
         for f in fields(self):
             value = getattr(self, f.name)
             if f.name in {"next_due", "amount_formula", "end_date"}:

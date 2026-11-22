@@ -52,6 +52,7 @@ def read_status_text(path: str) -> str | None:
     try:
         return Path(path).read_text(encoding="utf-8")
     except FileNotFoundError:
+        _logger.debug("replication status file absent: %s", path)
         return None
 
 
@@ -61,6 +62,7 @@ def _parse_time(value: object) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value)
     except ValueError:
+        _logger.debug("replication status timestamp is not ISO-8601")
         return None
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 

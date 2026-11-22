@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from datetime import date, datetime
-from typing import Any
 
 from budget_planner.domain.enums import Direction
 
@@ -54,7 +53,7 @@ class PatchPlannedTransaction:
     amount: int | None = None
     description: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             f.name: getattr(self, f.name) for f in fields(self) if getattr(self, f.name) is not None
         }

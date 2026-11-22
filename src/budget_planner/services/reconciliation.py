@@ -15,6 +15,7 @@ import sqlite3
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.errors import InvariantError
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.domain.transactions import NewTransaction, Transaction
 from budget_planner.repositories import (
@@ -91,7 +92,8 @@ def _adjustment_category(
     default = categories_repo.find_by_name(conn, user_id, RECONCILIATION_CATEGORY_NAME)
     if default is None:
         raise MissingSystemCategoryError(RECONCILIATION_CATEGORY_NAME)
-    assert default.direction is Direction.ADJUSTMENT  # schema invariant
+    if default.direction is not Direction.ADJUSTMENT:  # schema invariant
+        raise InvariantError(f"{RECONCILIATION_CATEGORY_NAME} category is not an adjustment")
     return default
 
 

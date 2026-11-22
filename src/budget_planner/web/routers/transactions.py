@@ -131,15 +131,15 @@ def create_txn(
     )
     if check.errors:
         return form_responses.txn_form_errors(request, conn, user_id, txn=None, errors=check.errors)
-    assert check.op_date is not None and check.minor is not None
+    op_date, amount_minor = check.valid_values()
     new_txn = transactions_service.create(
         conn,
         user_id,
         NewTransaction(
-            operation_date=check.op_date,
+            operation_date=op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=check.minor,
+            amount=amount_minor,
             description=description,
             dest_account_id=check.dest_id,
         ),
@@ -222,16 +222,16 @@ def update_txn(
         return form_responses.txn_form_errors(
             request, conn, user_id, txn=existing, errors=check.errors
         )
-    assert check.op_date is not None and check.minor is not None
+    op_date, amount_minor = check.valid_values()
     transactions_service.update(
         conn,
         user_id,
         txn_id,
         PatchTransaction(
-            operation_date=check.op_date,
+            operation_date=op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=check.minor,
+            amount=amount_minor,
             description=description,
             dest_account_id=check.dest_id,
         ),

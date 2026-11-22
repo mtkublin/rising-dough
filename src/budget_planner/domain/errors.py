@@ -58,3 +58,17 @@ class ServiceError(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+class InvariantError(RuntimeError):
+    """A state the surrounding code guarantees was found violated. 500 on the wire (T-Q271).
+
+    Replaces ``assert`` in ``src``: it survives ``python -O`` and names what was missing.
+    """
+
+
+def require_present[T](value: T | None, what: str) -> T:
+    """Return ``value``, or raise :class:`InvariantError` naming ``what`` when it is ``None``."""
+    if value is None:
+        raise InvariantError(f"{what} is missing")
+    return value

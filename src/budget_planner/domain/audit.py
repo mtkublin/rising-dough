@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from budget_planner.domain.enums import AuditOperation
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+#: What an audit row may carry as ``prev`` / ``new``: a frozen DTO or a plain mapping (T-Q271).
+type AuditPayload = Mapping[str, object] | DataclassInstance
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

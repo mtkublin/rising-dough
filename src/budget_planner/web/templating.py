@@ -11,7 +11,6 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
@@ -117,7 +116,7 @@ def _date_style_filter(pattern: str) -> Callable[[date | datetime | str | None],
     return _styled
 
 
-def _dt_local_factory(tz_name: str) -> Any:
+def _dt_local_factory(tz_name: str) -> Callable[..., str]:
     tz = ZoneInfo(tz_name)
 
     def _dt_local(value: datetime | str | None, pattern: str = "%Y-%m-%d %H:%M") -> str:
@@ -204,7 +203,7 @@ def _category_label_parts(
     return Markup('<span class="pill cat-pill" style="{}">{}</span>').format(style, name)
 
 
-def _category_label(category: Any) -> Markup:
+def _category_label(category: object) -> Markup:
     """Render a coloured category name span from a ``Category``-shaped object.
 
     Accepts anything with ``name`` / ``direction`` / ``color`` attributes.
@@ -220,7 +219,7 @@ def _category_label(category: Any) -> Markup:
     )
 
 
-def _display_today_global(settings: Settings) -> Any:
+def _display_today_global(settings: Settings) -> Callable[[], str]:
     """Jinja global: today's date in `display_timezone` as ISO string (ADR-0030 §1, ADR-0140)."""
 
     def _display_today() -> str:
