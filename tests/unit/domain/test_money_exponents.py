@@ -63,7 +63,7 @@ def test_money_num_filter_pln_equal_jpy_whole() -> None:
 
 def test_format_whole_and_major() -> None:
     assert format_whole(123456, "PLN") == "1,235"
-    assert format_whole(-50, "PLN") == "-1"
+    assert format_whole(-250, "PLN") == "-2"  # tie -> even (T-Q281)
     assert format_whole(123456, "JPY", grouped=False) == "123456"
     assert format_major(1550, "PLN") == "15.50"
     assert format_major(1550, "JPY") == "1550"
@@ -71,7 +71,7 @@ def test_format_whole_and_major() -> None:
 
 def test_bps_helpers_round_trip() -> None:
     assert bps_to_percent(150) == Decimal("1.5")
-    assert percent_to_bps(Decimal("12.345")) == 1235
+    assert percent_to_bps(Decimal("12.345")) == 1234  # tie -> even (T-Q281; was 1235)
     assert format_bps_percent(1) == "0.01"
 
 

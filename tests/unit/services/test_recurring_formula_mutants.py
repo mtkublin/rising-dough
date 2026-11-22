@@ -102,9 +102,9 @@ class TestParsePercentBoundaries:
             parse_percent_to_bps("0.004")
         assert str(exc.value) == "coefficient must be between 0.01% and 10000.00%"
 
-    def test_half_up_on_sub_bps_tie(self) -> None:
+    def test_half_even_on_sub_bps_tie(self) -> None:
         assert parse_percent_to_bps("0.015") == 2  # 1.5 bps -> 2
-        assert parse_percent_to_bps("0.025") == 3  # 2.5 bps -> 3 (HALF_EVEN would give 2)
+        assert parse_percent_to_bps("0.025") == 2  # 2.5 bps -> 2 (even; T-Q281, was 3)
 
 
 class TestMonthBounds:
@@ -121,22 +121,22 @@ class TestMonthBounds:
         assert month_bounds(year, month) == (first, last)
 
 
-class TestApplyCoefficientHalfUp:
+class TestApplyCoefficientHalfEven:
     @pytest.mark.parametrize(
         "sum_minor, bps, expected",
         [
-            (100, 1250, 13),  # 12.5% of 100 = 12.5 -> 13
-            (1001, 5000, 501),  # 500.5 -> 501
-            (5, 5000, 3),  # 2.5 -> 3 (HALF_EVEN would give 2)
-            (1, 5000, 1),  # 0.5 -> 1
+            (100, 1250, 12),  # 12.5 -> 12 (even; T-Q281, was 13)
+            (1001, 5000, 500),  # 500.5 -> 500
+            (5, 5000, 2),  # 2.5 -> 2
+            (1, 5000, 0),  # 0.5 -> 0
             (3, 5000, 2),  # 1.5 -> 2
-            (2, 2500, 1),  # 0.5 -> 1
+            (2, 2500, 0),  # 0.5 -> 0
             (7, 2500, 2),  # 1.75 -> 2
             (9, 1000, 1),  # 0.9 -> 1
-            (4, 1250, 1),  # 0.5 -> 1
+            (4, 1250, 0),  # 0.5 -> 0
         ],
     )
-    def test_ties_round_up(self, sum_minor: int, bps: int, expected: int) -> None:
+    def test_ties_round_to_even(self, sum_minor: int, bps: int, expected: int) -> None:
         assert _apply_coefficient(sum_minor, bps) == expected
 
 
@@ -148,7 +148,9 @@ class TestComputeFormulaAmount:
         # 700 (live) + 301 (second live item); the inactive 6 000 and deleted 7 000 never count.
         seed_rule(conn, OWNER_ID, owner.category_id, owner.account_id, EXPENSE_RULE_DUE, amount=301)
         formula = _f(("+", 5000, (owner.category_id,)))
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 501  # 1001 * 50% HALF_UP
+        assert (
+            compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 500
+        )  # 1001 * 50% = 500.5 -> 500 (even)
 
     def test_terms_are_summed_with_signs(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -609,7 +611,9 @@ class TestPreviewAndSavable:
     ) -> None:
         world = world_with_two_users
         own = _f(("+", 1250, (world.owner.category_id,)))
-        assert compute_savable_amount(conn, OWNER_ID, own, *NOV) == 88  # 87.5 HALF_UP
+        assert (
+            compute_savable_amount(conn, OWNER_ID, own, *NOV) == 88
+        )  # 87.5 -> 88 (even neighbour)
         with pytest.raises(FormulaError, match="non-positive"):
             compute_savable_amount(
                 conn, OWNER_ID, _f(("-", 1000, (world.owner.category_id,))), *NOV

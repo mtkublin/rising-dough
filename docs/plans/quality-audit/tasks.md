@@ -1078,7 +1078,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (same owner as T-Q279, merge after it).
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q281 [M] One rounding mode: HALF_EVEN at every `round_div` call site
+### ✅ T-Q281 [M] One rounding mode: HALF_EVEN at every `round_div` call site
 - Findings: Q-076 (OQ-ROUND answered 2026-11-22).
 - Epic: E05
 - Band: 3 · Size: M · Tags: none
