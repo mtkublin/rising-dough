@@ -929,6 +929,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Operator question blocking it: none.
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+- Outcome: baselines bootstrapped from the PR #43 CI artifact (run 45056330451), 8 routes x 375/1024/1440 = 24 PNGs in `tests/visual/__snapshots__/`, committed unmodified (T-Q251b).
 
 ### ✅ T-Q252 [P] Plan page and `monthly_projection` get tests; `format_money` zero
 - Findings: Q-021 (F-13), Q-022 (F-01).
