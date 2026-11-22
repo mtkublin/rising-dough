@@ -54,7 +54,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | HTMX events and toast payloads | `web/htmx.py` `trigger`, `Event`, `toast_payload` | exists (Q-038, ADR-0143) | - |
 | Transit validation | `services/transactions.validate_transit_shape` | exists (Q-004) | - |
 | Balance as of a date | `services/balance.as_of_today` | exists (Q-032) | - |
-| Category selection (expense category ids) | `services/categories.expense_category_ids` (archived included, ADR-0136) | exists (Q-030) | - |
+| Category selection (expense category ids) | `services/categories.expense_category_ids` (actuals, archived included) and `reserves_budget` / `budgeted_expense_category_ids` (budget, archived excluded from the archive month on; ADR-0136) | exists (Q-030) | - |
 | Budget tier resolution | `services/budget.pick_tier` | exists (Q-075) | - |
 | Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | exists (Q-039) | - |
 

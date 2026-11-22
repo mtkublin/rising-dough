@@ -2,14 +2,17 @@
 # ruff: noqa: E501
 """INV-9: "which categories count" is one set across budget, forecast overlay and monthly budget (Q-030).
 
-An archived expense category that still has a default budget is planted; the daily overlay (``include_deleted=True``)
-and the monthly table (live categories only) must attribute the same amount to it.
+An archived expense category with a default budget is planted; the daily overlay and the monthly table must
+attribute the same amount to it: nothing from its archive month onward, the full budget before it (ADR-0136
+amendment 2026-11-22, T-Q279).
 """
 
 from __future__ import annotations
 
 import sqlite3
 from datetime import date
+
+import pytest
 
 from budget_planner.config import get_settings
 from budget_planner.domain.budgets import NewBudgetDefault
@@ -21,9 +24,17 @@ TODAY = date(2026, 11, 19)
 ARCHIVED = 25  # "Bank Fees #17", archived in the demo data
 
 
+@pytest.mark.parametrize(
+    ("archived_at", "expected"),
+    [
+        ("2026-11-05T10:00:00.000Z", 0),  # archive month == the forecast month: reserves nothing
+        ("2026-12-05T10:00:00.000Z", 100_000),  # archived later: November still reserves it
+    ],
+)
 def test_archived_category_budget_affects_both_forecast_paths_equally(
-    seeded: sqlite3.Connection,
+    seeded: sqlite3.Connection, archived_at: str, expected: int
 ) -> None:
+    seeded.execute("UPDATE categories SET deleted_at = ? WHERE id = ?", (archived_at, ARCHIVED))
     budgets_repo.set_default(seeded, U, NewBudgetDefault(category_id=ARCHIVED, amount=100_000))
     end = date(2026, 11, 30)
     month = date(2026, 11, 1)
@@ -48,5 +59,5 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
     seeded.execute("DELETE FROM budget_defaults WHERE category_id = ?", (ARCHIVED,))
     overlay_without, monthly_without = paths()
     assert overlay_with - overlay_without == monthly_with - monthly_without
-    # Archived == soft-deleted here (``categories.deleted_at``); ADR-0136 says it still counts, in full, in both paths.
-    assert overlay_with - overlay_without == 100_000
+    # Archived == soft-deleted here (``categories.deleted_at``); the archive month onward reserves nothing, in both paths.
+    assert overlay_with - overlay_without == expected
