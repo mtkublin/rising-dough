@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from typing import Any, Final
+from typing import Final
 
 from budget_planner.domain.audit import AuditEntry
 from budget_planner.repositories import audit as audit_repo
@@ -20,7 +20,7 @@ OTHER_USER: Final = "[other-user]"
 _SECRET_MARKERS: Final = ("password", "secret", "token", "hash")
 
 
-def _scrub(value: Any) -> Any:
+def _scrub(value: object) -> object:
     if isinstance(value, dict):
         return {
             k: REDACTED if any(m in str(k).lower() for m in _SECRET_MARKERS) else _scrub(v)
@@ -31,7 +31,7 @@ def _scrub(value: Any) -> Any:
     return value
 
 
-def _parse(raw: str | None) -> Any:
+def _parse(raw: str | None) -> object:
     if raw is None:
         return None
     try:
@@ -48,7 +48,7 @@ def _is_own(e: AuditEntry, viewer_user_id: int) -> bool:
 
 def audit_tail(
     conn: sqlite3.Connection, viewer_user_id: int, n: int = DEFAULT_TAIL
-) -> list[dict[str, Any]]:
+) -> list[dict[str, object]]:
     """Latest ``n`` audit rows (newest first), ``n`` clamped to 1..MAX_TAIL.
 
     Payloads are shown only for the viewer's own rows (ADR-0078 section 1,

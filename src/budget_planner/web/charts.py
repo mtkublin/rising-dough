@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import format_axis_number, major_float
@@ -338,7 +338,7 @@ _GROUPED_GROUP_GAP_RATIO = 0.3  # fraction of group slot used as padding
 
 
 def grouped_bars(
-    groups: Sequence[dict[str, Any]],
+    groups: Sequence[Mapping[str, object]],
     *,
     width: float = _GROUPED_WIDTH,
     height: float = _GROUPED_HEIGHT,

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Any
 
 from budget_planner.domain.transactions import (
     NewTransaction,
@@ -95,7 +94,7 @@ _LIVE_ACCOUNT = (
 def _txn_filter_clauses(
     filters: TransactionFilter,
     include_deleted: bool,
-) -> tuple[list[str], list[Any]]:
+) -> tuple[list[str], list[object]]:
     return join_filter_parts(
         [
             *_txn_date_parts(filters),
@@ -203,7 +202,7 @@ def sum_legs_by_direction(
     applies the sign rule (ADR-0008) via the canonical balance owner.
     """
     clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
-    params: list[Any] = [account_id, account_id, user_id]
+    params: list[object] = [account_id, account_id, user_id]
     if up_to_date is not None:
         clauses.append("t.operation_date <= ?")
         params.append(up_to_date.isoformat())
@@ -233,7 +232,7 @@ def sum_legs_by_account(
     every account at once (T-Q234); the balance owner applies the sign rule.
     """
     clauses = ["t.user_id = ?", "t.deleted_at IS NULL"]
-    params: list[Any] = [user_id]
+    params: list[object] = [user_id]
     if up_to_date is not None:
         clauses.append("t.operation_date <= ?")
         params.append(up_to_date.isoformat())
@@ -279,10 +278,10 @@ def sum_legs_by_day(
     ]
 
 
-def _normalise_txn_patch(changes: dict[str, Any]) -> dict[str, Any]:
-    norm: dict[str, Any] = {}
+def _normalise_txn_patch(changes: dict[str, object]) -> dict[str, object]:
+    norm: dict[str, object] = {}
     for key, value in changes.items():
-        if key == "operation_date":
+        if key == "operation_date" and isinstance(value, date):
             norm[key] = value.isoformat()
         else:
             norm[key] = value

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import date
-from typing import Any, cast
+from typing import cast
 
 from budget_planner import clock
 from budget_planner.config import get_settings
@@ -205,7 +205,7 @@ def _normalise_patch_value(key: str, value: object) -> object:
     return value
 
 
-def _normalise_rule_patch(changes: dict[str, Any]) -> dict[str, Any]:
+def _normalise_rule_patch(changes: dict[str, object]) -> dict[str, object]:
     return {key: _normalise_patch_value(key, value) for key, value in changes.items()}
 
 

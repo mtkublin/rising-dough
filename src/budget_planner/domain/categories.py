@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import name_error
@@ -73,8 +72,8 @@ class PatchCategory:
     color: str | None = None
     clear_color: bool = False
 
-    def as_dict(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
+    def as_dict(self) -> dict[str, object]:
+        out: dict[str, object] = {}
         if self.name is not None:
             out["name"] = self.name
         if self.clear_color:

@@ -135,7 +135,7 @@ def _install_sigterm_observer() -> None:
     except ValueError:
         # ``signal.signal`` only works on the main thread; TestClient
         # paths that import the app from a worker thread hit this.
-        return
+        log.debug("sigterm_observer_skipped", reason="not the main thread")
 
 
 def _on_sigterm(
@@ -164,8 +164,10 @@ def _close_app_connections(app: FastAPI) -> None:
         if isinstance(value, sqlite3.Connection):
             try:
                 value.close()
-            except sqlite3.Error:  # pragma: no cover — best-effort cleanup
-                continue
+            except sqlite3.Error as exc:
+                get_logger("budget_planner.lifespan").warning(
+                    "app_connection_close_failed", attr=attr, error_type=type(exc).__name__
+                )
 
 
 def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:

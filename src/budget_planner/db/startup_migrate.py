@@ -28,7 +28,7 @@ from pathlib import Path
 
 from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import get_connection, resolve_db_path
+from budget_planner.db.connection import JOB_ERRORS, get_connection, resolve_db_path
 from budget_planner.db.migrate import (
     MIGRATIONS_DIR,
     Migration,
@@ -176,7 +176,7 @@ def main(settings: Settings | None = None) -> int:
     log = bp_logging.get_logger("budget_planner.startup_migrate")
     try:
         result = run_startup_migrations(settings or get_settings())
-    except Exception as exc:  # any failure must block startup
+    except JOB_ERRORS as exc:  # a migration failure must block startup
         log.error("startup_migrations_failed", error=str(exc), error_type=type(exc).__name__)
         return 1
     if result.unknown_applied:

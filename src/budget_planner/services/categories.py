@@ -22,7 +22,7 @@ from budget_planner.domain.categories import (
     patch_category_errors,
 )
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.errors import ValidationError
+from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
@@ -167,9 +167,10 @@ def archive(
             refs,
         )
     categories_repo.soft_delete(conn, user_id, category_id)
-    archived = categories_repo.find_by_id(conn, user_id, category_id, include_deleted=True)
-    assert archived is not None
-    return archived
+    return require_present(
+        categories_repo.find_by_id(conn, user_id, category_id, include_deleted=True),
+        "archived category",
+    )
 
 
 def restore(conn: sqlite3.Connection, user_id: int, category_id: int) -> Category:

@@ -162,6 +162,7 @@ def test_audit_tail_shows_owner_their_own_payload(owner_conn: sqlite3.Connection
     mine = audit_tail.audit_tail(owner_conn, OWNER, 1)[0]
     assert mine["entity_id"] == acc.id
     assert mine["new"] != audit_tail.OTHER_USER
+    assert isinstance(mine["new"], dict)
     assert mine["new"]["name"] == "Mine"
     assert audit_tail.audit_tail(owner_conn, OTHER, 1)[0]["new"] == audit_tail.OTHER_USER
 

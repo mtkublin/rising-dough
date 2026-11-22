@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
-from budget_planner.db.connection import get_connection
+from budget_planner.db.connection import JOB_ERRORS, get_connection
 from budget_planner.services import retention
 
 
@@ -27,7 +27,7 @@ def main(settings: Settings | None = None) -> int:
     log = bp_logging.get_logger(bp_logging.RETENTION_LOGGER)
     try:
         run(settings or get_settings())
-    except Exception as exc:  # non-fatal for startup; report via exit code
+    except JOB_ERRORS as exc:  # non-fatal for startup; report via exit code
         log.error("retention_purge_failed", error=str(exc), error_type=type(exc).__name__)
         return 1
     return 0
