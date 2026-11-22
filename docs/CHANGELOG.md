@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q254b: Caddyfile comment vs CSP render test)
+- **Fix(T-Q254): the Caddyfile template comment contained the literal `script-src`, tripping the `terraform test` assertion that the rendered Caddy CSP has no script-src; comment reworded, assertion untouched.** Caught by the drill gate (terraform PR workflow sits in action_required).
+
 ## 2026-11-22 (T-Q251b: bootstrap visual baselines)
 - **Test(T-Q251): 24 visual baselines (8 routes x 375/1024/1440) committed to `tests/visual/__snapshots__/`, bootstrapped unmodified from the PR #43 CI artifact (run 45056330451, pinned Playwright container).**
 ## 2026-11-22 (T-UR00b: redesign pixel parity against handoff references)
