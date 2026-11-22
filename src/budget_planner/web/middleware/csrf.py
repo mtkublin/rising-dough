@@ -43,17 +43,31 @@ layers so that:
 from __future__ import annotations
 
 import secrets
+from dataclasses import dataclass
 from http import HTTPStatus
+from http.cookies import CookieError, SimpleCookie
 from typing import Final
 
+from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException
 from starlette.formparsers import MultiPartException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.config import Settings
-from budget_planner.web.middleware.asgi import RESPONSE_START, add_cookie, http_only, set_state
+from budget_planner.web.auth_cookies import session_cookie_name
+from budget_planner.web.csrf_token import mint_token, verify_token
+from budget_planner.web.middleware.asgi import (
+    RESPONSE_START,
+    SET_COOKIE,
+    add_cookie,
+    http_only,
+    set_header,
+    set_state,
+)
+from budget_planner.web.middleware.auth import STATIC_PREFIX
 
 #: Cookie name — the ``__Host-`` prefix is a browser-enforced invariant
 #: that pins the cookie to the exact origin and requires ``Secure`` +
@@ -71,6 +85,12 @@ CSRF_HEADER_NAME: Final = "X-CSRF-Token"
 #: Form field name non-HTMX HTML forms use to submit the token.
 CSRF_FORM_FIELD: Final = "_csrf_token"
 
+#: CSPRNG adapter for the nonce (stateless; ADR-0021 amendment).
+_TOKENS: Final = SecretsTokenSource()
+
+#: Template value on static paths (no token is minted there).
+NO_TOKEN: Final = ""
+
 #: HTTP methods that must carry a matching token.
 _UNSAFE_METHODS: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -79,17 +99,10 @@ _UNSAFE_METHODS: Final = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 #: endpoints once T-D02 lands.
 _EXEMPT_PATHS: Final = frozenset({"/health", "/ready", "/healthz"})
 
-#: 32 bytes of entropy — ``token_urlsafe(32)`` yields a 43-char string.
-_TOKEN_BYTES: Final = 32
-
 
 def csrf_cookie_name(settings: Settings) -> str:
     """Return the CSRF cookie name for *settings* (ADR-0065)."""
     return CSRF_DEV_COOKIE_NAME if settings.env == "dev" else CSRF_COOKIE_NAME
-
-
-def _generate_token() -> str:
-    return secrets.token_urlsafe(_TOKEN_BYTES)
 
 
 def _attach_cookie(response: Response, name: str, token: str, *, secure: bool) -> None:
@@ -156,10 +169,14 @@ async def _form_token(scope: Scope, body: bytes, receive: Receive) -> str | None
 
 
 async def _check(
-    scope: Scope, receive: Receive, existing: str | None
+    scope: Scope, receive: Receive, existing: str | None, *, bound: bool
 ) -> tuple[JSONResponse | None, Receive]:
-    """Enforce the double-submit token; return a rejection or the receive to pass on."""
-    if existing is None:
+    """Enforce the double-submit token; return a rejection or the receive to pass on.
+
+    *bound* says the cookie token verifies for the request's session context
+    (T-Q289); a stale or foreign token is refused even when the header echoes it.
+    """
+    if not existing:
         return _reject("missing_cookie"), receive
     request = Request(scope, receive)
     header_token = request.headers.get(CSRF_HEADER_NAME)
@@ -173,38 +190,104 @@ async def _check(
         except MalformedFormError:
             return _reject("malformed_form", status=HTTPStatus.BAD_REQUEST), downstream
     submitted = header_token or form_token
-    if submitted is None or not secrets.compare_digest(submitted.encode(), existing.encode()):
+    matches = submitted is not None and secrets.compare_digest(
+        submitted.encode(), existing.encode()
+    )
+    if not (bound and matches):
         return _reject("invalid_csrf"), downstream
     return None, downstream
 
 
+def _rotated_session(
+    message: Message, cookie_name: str, current: str | None
+) -> tuple[bool, str | None]:
+    """Return ``(rotated, new_session_id)`` from the session cookie the app set (login/logout)."""
+    for raw in Headers(scope=message).getlist(SET_COOKIE):
+        if not raw.startswith(f"{cookie_name}="):
+            continue
+        jar: SimpleCookie = SimpleCookie()
+        try:
+            jar.load(raw)
+        except CookieError:
+            return False, current
+        value = jar[cookie_name].value or None
+        return value != current, value
+    return False, current
+
+
+@dataclass(frozen=True, slots=True)
+class _Context:
+    """Per-request CSRF inputs derived from settings, session and cookie."""
+
+    secret: str
+    cookie_name: str
+    session_name: str
+    secure: bool
+    session_id: str | None
+    existing: str | None
+    bound: bool
+
+
+def _request_context(request: Request) -> _Context:
+    settings: Settings = request.app.state.settings
+    secret = settings.resolve().cookie_secret
+    # ``session_id`` is set by the auth layer only for a live session (T-Q289).
+    session_id: str | None = request.scope.get("state", {}).get("session_id")
+    existing = request.cookies.get(csrf_cookie_name(settings))
+    return _Context(
+        secret=secret,
+        cookie_name=csrf_cookie_name(settings),
+        session_name=session_cookie_name(settings),
+        # ``__Host-`` cookies require ``Secure``; dev (plain HTTP) drops both (ADR-0065).
+        secure=settings.env != "dev",
+        session_id=session_id,
+        existing=existing,
+        bound=verify_token(secret, existing, session_id),
+    )
+
+
+def _cookie_to_set(ctx: _Context, token: str, message: Message) -> str | None:
+    """The CSRF cookie value this response must set, or ``None`` to leave it alone."""
+    rotated, new_session = _rotated_session(message, ctx.session_name, ctx.session_id)
+    if rotated:
+        return mint_token(ctx.secret, new_session, _TOKENS)
+    return None if ctx.bound else token
+
+
 async def _protect_csrf(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
     request = Request(scope, receive)
-    settings: Settings = request.app.state.settings
-    # ``__Host-`` cookies require ``Secure`` to be honoured by browsers.
-    # Dev runs over plain HTTP, so it uses the un-prefixed
-    # ``CSRF_DEV_COOKIE_NAME`` without ``Secure`` (ADR-0065). Tests pin
-    # ``env=test`` so they get ``__Host-csrf`` + ``Secure=True`` and the
-    # TestClient fixture pins ``base_url=https://`` to match.
-    secure_cookie = settings.env != "dev"
-    cookie_name = csrf_cookie_name(settings)
-
-    existing = request.cookies.get(cookie_name)
-    token = existing if existing else _generate_token()
+    if request.url.path.startswith(STATIC_PREFIX) and request.method not in _UNSAFE_METHODS:
+        # The auth layer never hydrates the session for static assets, so the
+        # session-bound token cannot be judged here; never mint or rotate on them.
+        set_state(scope, csrf_token=NO_TOKEN)
+        await app(scope, receive, send)
+        return
+    ctx = _request_context(request)
+    token = (
+        ctx.existing
+        if ctx.bound and ctx.existing
+        else mint_token(ctx.secret, ctx.session_id, _TOKENS)
+    )
     set_state(scope, csrf_token=token)
 
     downstream = receive
     if request.method in _UNSAFE_METHODS and request.url.path not in _EXEMPT_PATHS:
-        rejection, downstream = await _check(scope, receive, existing)
+        rejection, downstream = await _check(scope, receive, ctx.existing, bound=ctx.bound)
         if rejection is not None:
             await rejection(scope, receive, send)
             return
 
     async def send_wrapper(message: Message) -> None:
-        if message["type"] == RESPONSE_START and existing is None:
-            add_cookie(
-                message, lambda r: _attach_cookie(r, cookie_name, token, secure=secure_cookie)
-            )
+        if message["type"] == RESPONSE_START:
+            fresh = _cookie_to_set(ctx, token, message)
+            if fresh is not None:
+                # HTMX re-reads this and refreshes the meta tag, so an open tab survives
+                # a session rotation (password change) without a reload (T-Q289).
+                set_header(message, CSRF_HEADER_NAME, fresh)
+                add_cookie(
+                    message,
+                    lambda r: _attach_cookie(r, ctx.cookie_name, fresh, secure=ctx.secure),
+                )
         await send(message)
 
     await app(scope, downstream, send_wrapper)

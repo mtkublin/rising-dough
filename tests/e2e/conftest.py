@@ -37,7 +37,7 @@ from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F4
 SERVER_READY_TIMEOUT_S = float(os.environ.get("E2E_SERVER_READY_TIMEOUT_S", "60"))
 
 try:
-    from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+    from playwright.sync_api import Browser, Page, Playwright, Response, sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore[assignment]
 
@@ -269,9 +269,24 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     assert any(c["name"] == SESSION_DEV_COOKIE_NAME for c in context.cookies()), (
         "browser did not store the session cookie (ADR-0070)"
     )
+    # T-Q289: login rotated the session-bound CSRF cookie; use the new token.
+    token = next(
+        (c["value"] for c in context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME),
+        "",
+    )
+    assert token, "login did not set a session-bound CSRF cookie (T-Q289)"
     # ADR-0113 / T-D140c / T-Q254: the app itself sends the prod CSP (app-minted
     # nonce) in every environment, so the browser enforces it with no injection.
     context.set_extra_http_headers({CSRF_HEADER_NAME: token})
+
+    def _follow_rotation(response: Response) -> None:
+        # The server echoes a re-bound token on login/logout/session rotation (T-Q289);
+        # keep the blanket header current.
+        fresh = response.headers.get(CSRF_HEADER_NAME.lower())
+        if fresh:
+            context.set_extra_http_headers({CSRF_HEADER_NAME: fresh})
+
+    context.on("response", _follow_rotation)
     violations: list[str] = []
 
     def _record(message: str) -> None:
