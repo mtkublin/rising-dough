@@ -12,6 +12,12 @@
     },
     {
       "kind": "hx-get",
+      "name": "8,945.50PLN All balances in base currency PLN. No FX convers...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/accounts"
+    },
+    {
+      "kind": "hx-get",
       "name": "Reconcile",
       "target": "/accounts/{id}/reconcile"
     },
@@ -212,6 +218,18 @@
       "kind": "hx-get",
       "name": "Add override for Groceries",
       "target": "/budget/rules/{id}/overrides/new"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Left to spend per day",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Monthly summary",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/budget"
     },
     {
       "kind": "hx-get",
@@ -754,6 +772,12 @@
       "target": "/categories/{id}/edit"
     },
     {
+      "kind": "hx-get",
+      "name": "Expense 1 Groceries Expense Direction default Edit \u00b7 Archive...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings?tab=categories"
+    },
+    {
       "destructive": true,
       "kind": "hx-post",
       "name": "Archive category 5",
@@ -844,6 +868,13 @@
       "name": "Sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Expense 1 Income 1 Paycheck Income Direction default Edit \u00b7 ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings?tab=categories",
+      "via": "Archive category 5"
     },
     {
       "kind": "button",
@@ -1349,6 +1380,18 @@
     },
     {
       "kind": "hx-get",
+      "name": "Left to spend per day",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Next 7 days {day} planned shop \u00b7 Checking GROCERIES 80.00PL...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today"
+    },
+    {
+      "kind": "hx-get",
       "name": "Override",
       "target": "/planned/{id}/edit"
     },
@@ -1511,6 +1554,13 @@
       "kind": "hx-get",
       "name": "Esc",
       "target": "/today/upcoming",
+      "via": "Promote"
+    },
+    {
+      "kind": "hx-get",
+      "name": "Next 7 days {day} planned shop \u00b7 GROCERIES Checking Date Am...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today",
       "via": "Promote"
     },
     {

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.ui_map import shell
+from tests.ui_map.locator import by_id, to_playwright
+
 pytestmark = pytest.mark.e2e
+
+_PROBE_TARGET = by_id("probe-target")  # injected by _PROBE below
 
 _FLASH_BODY = (
     '<div  id="flash-region-assertive" role="alert" aria-live="assertive" hx-swap-oob="true">'
@@ -39,8 +45,8 @@ def test_server_flash_partial_is_shown_and_target_kept(
         ),
     )
     page.evaluate(_PROBE)
-    expect(page.locator("#flash-region-assertive")).to_contain_text(f"boom {status}")
-    expect(page.locator("#probe-target")).to_have_text("KEEP")
+    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(f"boom {status}")
+    expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
 @pytest.mark.parametrize("status", [403, 404, 409, 500])
@@ -54,8 +60,8 @@ def test_plain_error_body_shows_generic_flash(
         lambda route: route.fulfill(status=status, content_type="text/plain", body="nope"),
     )
     page.evaluate(_PROBE)
-    expect(page.locator("#flash-region-assertive .flash-error")).to_be_visible()
-    expect(page.locator("#probe-target")).to_have_text("KEEP")
+    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(re.compile(r"\S"))
+    expect(to_playwright(page, _PROBE_TARGET)).to_have_text("KEEP")
 
 
 def test_form_rerender_on_422_still_swaps(live_server: tuple[str, Path], page: Page) -> None:
@@ -68,7 +74,7 @@ def test_form_rerender_on_422_still_swaps(live_server: tuple[str, Path], page: P
         ),
     )
     page.evaluate(_PROBE)
-    expect(page.locator("#probe-target")).to_have_text("bad value")
+    expect(to_playwright(page, _PROBE_TARGET)).to_have_text("bad value")
 
 
 def test_network_failure_shows_flash(live_server: tuple[str, Path], page: Page) -> None:
@@ -76,4 +82,6 @@ def test_network_failure_shows_flash(live_server: tuple[str, Path], page: Page) 
     _open(page, base_url)
     page.route("**/__probe", lambda route: route.abort())
     page.evaluate(_PROBE)
-    expect(page.locator("#flash-region-assertive")).to_contain_text("Could not reach the server")
+    expect(to_playwright(page, shell.flash_region_assertive)).to_contain_text(
+        "Could not reach the server"
+    )

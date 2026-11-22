@@ -372,7 +372,7 @@ def test_delete_soft_deletes_with_toast_and_audit(
     assert json.loads(r.headers["HX-Trigger"]) == {
         "balance-stale": True,
         "forecast-stale": True,
-        "toast": {"kind": "success", "message": "Account deleted"},
+        "toast": {"variant": "success", "message": "Account deleted"},
     }
     row = _account_rows(_migrated)[0]
     assert row["deleted_at"] is not None
@@ -429,7 +429,7 @@ def test_snapshot_records_current_balance(
     assert r.status_code == 200
     assert _html.exists(r.text, accounts.snapshot_item)
     assert json.loads(r.headers["HX-Trigger"]) == {
-        "toast": {"kind": "success", "message": "Snapshot saved"}
+        "toast": {"variant": "success", "message": "Snapshot saved"}
     }
     snaps = fetch_all(_migrated, "SELECT account_id, balance, note FROM account_snapshots")
     assert snaps == [{"account_id": acc_id, "balance": -1000, "note": "user snapshot"}]
