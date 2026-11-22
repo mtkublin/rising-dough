@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
@@ -127,7 +128,14 @@ def _spend_total(conn: sqlite3.Connection) -> int:
 
 def _budget_spent(conn: sqlite3.Connection, scene: Scene) -> int:
     summary = budget_svc.month_summary(
-        conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN", period_window=MONTH
+        conn,
+        OWNER_ID,
+        2026,
+        11,
+        today=WORLD_TODAY,
+        base_currency="PLN",
+        period_window=MONTH,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     line = next(ln for ln in summary.lines if ln.category_id == scene.world.owner.category_id)
     return line.spent_minor
@@ -189,7 +197,13 @@ def test_archived_category_still_counts_in_analytics(
 def test_forecast_lists_only_live_accounts(conn: sqlite3.Connection, scene: Scene) -> None:
     _delete(conn, scene)
     series = forecast_svc.forecast(
-        conn, OWNER_ID, _converter(conn), WORLD_TODAY, 3, include_budget_overlay=False
+        conn,
+        OWNER_ID,
+        _converter(conn),
+        WORLD_TODAY,
+        3,
+        include_budget_overlay=False,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     day0 = series.days[0]
     assert [p.account_id for p in day0.by_account] == [scene.world.owner.account_id]

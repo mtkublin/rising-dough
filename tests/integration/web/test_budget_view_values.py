@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -91,7 +92,13 @@ def test_today_hero_shows_view_model_values(
 ) -> None:
     year, month = budget_service.fiscal_month_for(db, USER_ID, today)
     summary = budget_service.month_summary(
-        db, USER_ID, year, month, today=today, base_currency="PLN"
+        db,
+        USER_ID,
+        year,
+        month,
+        today=today,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     view = view_models.budget_view(summary, today)
     expected_per_day = _money_num(client, view_models.left_per_day(summary))
@@ -113,7 +120,12 @@ def test_plan_budget_tab_shows_view_model_values(
 ) -> None:
     picked = budget_service.resolve_picker_month(db, USER_ID, today)
     summary = budget_service.month_summary_for_picker(
-        db, USER_ID, picked, today, base_currency="PLN"
+        db,
+        USER_ID,
+        picked,
+        today,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     view = view_models.budget_view(summary, today)
 

@@ -14,6 +14,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import get_settings
 from budget_planner.services import forecast, forecast_overlay, fx as fx_svc
 
@@ -52,9 +53,12 @@ def test_archived_category_budget_affects_both_forecast_paths_equally(
                 end_date=end,
                 primary_account_id=1,
                 fx=fx,
+                display_timezone=DEFAULT_DISPLAY_TIMEZONE,
             )
         )
-        return overlay, forecast._planned_budget_per_month(seeded, U, TODAY, 1, fx=fx)[month]
+        return overlay, forecast._planned_budget_per_month(
+            seeded, U, TODAY, 1, fx=fx, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+        )[month]
 
     overlay_with, monthly_with = paths()
     seeded.execute("DELETE FROM budget_defaults WHERE category_id = ?", (ARCHIVED,))

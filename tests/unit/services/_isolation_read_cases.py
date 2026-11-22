@@ -17,6 +17,7 @@ from decimal import Decimal
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import AccountStats, NewAccount
 from budget_planner.domain.categories import NewCategory
@@ -239,7 +240,15 @@ def _expected_summary_totals(user_id: int) -> budget.MonthTotals:
 def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _own(world, user_id)
-        summary = budget.month_summary(conn, user_id, 2026, 11, today=T, base_currency="PLN")
+        summary = budget.month_summary(
+            conn,
+            user_id,
+            2026,
+            11,
+            today=T,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert summary.totals == _expected_summary_totals(user_id)
         assert [line.category_id for line in summary.lines] == [rows.category_id]
         assert summary.lines[0].spent_minor == 1_000 * user_id
@@ -252,11 +261,25 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 5))
     _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 20))
     assert budget.month_summary(
-        conn, OWNER_ID, 2026, 11, today=T, base_currency="PLN"
+        conn,
+        OWNER_ID,
+        2026,
+        11,
+        today=T,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     ).period_start == dt.date(2026, 11, 5)
     # Zero budget: the anchor is ignored and the cycle runs to the end of the month.
     budgets_repo.clear_default(conn, OTHER_ID, world.other.category_id)
-    unbudgeted = budget.month_summary(conn, OTHER_ID, 2026, 11, today=T, base_currency="PLN")
+    unbudgeted = budget.month_summary(
+        conn,
+        OTHER_ID,
+        2026,
+        11,
+        today=T,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert unbudgeted.totals.budgeted_minor == 0
     assert unbudgeted.next_income_date == dt.date(2026, 12, 1)
     assert unbudgeted.anchor_category_name is None
@@ -283,8 +306,8 @@ def _case_resolve_budget(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("budget_batch.budget_resolver")
 def _case_budget_resolver(conn: sqlite3.Connection, world: World) -> None:
-    owner = budget_batch.budget_resolver(conn, OWNER_ID)
-    other = budget_batch.budget_resolver(conn, OTHER_ID)
+    owner = budget_batch.budget_resolver(conn, OWNER_ID, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    other = budget_batch.budget_resolver(conn, OTHER_ID, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     assert owner(world.owner.category_id, 2026, 11) == 3_000
     assert other(world.other.category_id, 2026, 11) == 6_000
     assert owner(world.other.category_id, 2026, 11) is None
@@ -334,10 +357,22 @@ def _case_month_summary_for_picker(conn: sqlite3.Connection, world: World) -> No
     for user_id in (OWNER_ID, OTHER_ID):
         current = budget.resolve_picker_month(conn, user_id, T)
         assert budget.month_summary_for_picker(
-            conn, user_id, current, T, base_currency="PLN"
+            conn,
+            user_id,
+            current,
+            T,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
         ).totals == (_expected_summary_totals(user_id))
         december = budget.resolve_picker_month(conn, user_id, T, month_raw="12")
-        summary = budget.month_summary_for_picker(conn, user_id, december, T, base_currency="PLN")
+        summary = budget.month_summary_for_picker(
+            conn,
+            user_id,
+            december,
+            T,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert [line.category_id for line in summary.lines] == [_own(world, user_id).category_id]
         assert summary.totals.budgeted_minor == 3_000 * user_id
         assert summary.totals.spent_minor == 0  # the Nov 10 expense is outside December
@@ -610,11 +645,15 @@ def _case_list_upcoming(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("today.afford")
 def _case_afford(conn: sqlite3.Connection, world: World) -> None:
-    owner = today_svc.afford(conn, OWNER_ID, T, 1_000, base_currency="PLN")
+    owner = today_svc.afford(
+        conn, OWNER_ID, T, 1_000, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert owner == today_svc.AffordResult(
         per_day_minor=0, delta_minor=-42, pace_tag="over_limit", days_left=19
     )
-    other = today_svc.afford(conn, OTHER_ID, T, 1_000, base_currency="PLN")
+    other = today_svc.afford(
+        conn, OTHER_ID, T, 1_000, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert other == today_svc.AffordResult(
         per_day_minor=32, delta_minor=-52, pace_tag="tight", days_left=19
     )
@@ -668,26 +707,41 @@ def _case_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
 @covers("categories.budget_reserver")
 def _case_budget_reserver(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
-        reserves = categories_svc.budget_reserver(conn, user_id)
+        reserves = categories_svc.budget_reserver(
+            conn, user_id, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+        )
         assert reserves(_own(world, user_id).category_id, 2099, 1) is True
     if world.tombstones is not None:
-        owner = categories_svc.budget_reserver(conn, OWNER_ID)
+        owner = categories_svc.budget_reserver(
+            conn, OWNER_ID, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+        )
         assert owner(world.tombstones.category_id, 2099, 1) is False  # archived long before
-        other = categories_svc.budget_reserver(conn, OTHER_ID)
+        other = categories_svc.budget_reserver(
+            conn, OTHER_ID, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+        )
         assert other(world.tombstones.category_id, 2099, 1) is True  # not the other user's row
 
 
 @covers("categories.budgeted_expense_categories")
 def _case_budgeted_expense_categories(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
-        found = {c.id for c in categories_svc.budgeted_expense_categories(conn, user_id, 2099, 1)}
+        found = {
+            c.id
+            for c in categories_svc.budgeted_expense_categories(
+                conn, user_id, 2099, 1, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+            )
+        }
         assert found == {_own(world, user_id).category_id}
 
 
 @covers("categories.budgeted_expense_category_ids")
 def _case_budgeted_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
-        found = set(categories_svc.budgeted_expense_category_ids(conn, user_id, 2099, 1))
+        found = set(
+            categories_svc.budgeted_expense_category_ids(
+                conn, user_id, 2099, 1, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+            )
+        )
         assert found == {_own(world, user_id).category_id}
 
 

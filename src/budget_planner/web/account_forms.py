@@ -7,12 +7,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from budget_planner.domain.accounts import Account, NewAccount, PatchAccount
+from budget_planner.domain.accounts import Account, NewAccount, PatchAccount, currency_error
 from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import parse_amount_minor
 from budget_planner.web.params import credit_limit_amount
 
-_ISO_CCY_LEN = 3
 _TRUE_FLAGS = frozenset({"on", "true", "1"})
 _SNAPSHOT_FLAGS = frozenset({"1", "on", "true", "yes"})
 
@@ -50,8 +49,8 @@ def parse_category_id(raw: str) -> int | None:
 
 
 def _currency_error(cur: str) -> dict[str, str]:
-    ok = len(cur) == _ISO_CCY_LEN and cur.isalpha()
-    return {} if ok else {"currency": "ISO 4217 code required"}
+    bad = currency_error(cur)
+    return {} if bad is None else {"currency": bad}
 
 
 def _limit_for(

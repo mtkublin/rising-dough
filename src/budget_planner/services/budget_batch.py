@@ -12,7 +12,6 @@ import sqlite3
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import categories as categories_svc, recurring as recurring_svc
@@ -25,7 +24,7 @@ def budget_resolver(
     conn: sqlite3.Connection,
     user_id: int,
     *,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> Callable[[int, int, int], int | None]:
     """Return ``resolve(category_id, year, month)`` backed by four queries in total.
 

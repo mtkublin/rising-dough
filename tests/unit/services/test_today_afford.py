@@ -7,6 +7,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
@@ -60,7 +61,14 @@ class TestAfford:
         conn: sqlite3.Connection,
         seeded: dict[str, int],
     ) -> None:
-        result = today_svc.afford(conn, USER_ID, date(2026, 1, 10), 0, base_currency="PLN")
+        result = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            0,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert result.per_day_minor >= 0
         assert result.delta_minor == 0
         assert result.pace_tag in ("on_track", "tight", "over_limit")
@@ -70,9 +78,21 @@ class TestAfford:
         conn: sqlite3.Connection,
         seeded: dict[str, int],
     ) -> None:
-        baseline = today_svc.afford(conn, USER_ID, date(2026, 1, 10), 0, base_currency="PLN")
+        baseline = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            0,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         hypothetical = today_svc.afford(
-            conn, USER_ID, date(2026, 1, 10), 5_000, base_currency="PLN"
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            5_000,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
         )
         assert hypothetical.per_day_minor <= baseline.per_day_minor
         assert hypothetical.delta_minor <= 0
@@ -82,7 +102,14 @@ class TestAfford:
         conn: sqlite3.Connection,
         seeded: dict[str, int],
     ) -> None:
-        result = today_svc.afford(conn, USER_ID, date(2026, 1, 10), 999_999, base_currency="PLN")
+        result = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            999_999,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert result.per_day_minor == 0
         assert result.pace_tag == "over_limit"
 
@@ -92,14 +119,28 @@ class TestAfford:
         seeded: dict[str, int],
     ) -> None:
         with pytest.raises(ValueError):
-            today_svc.afford(conn, USER_ID, date(2026, 1, 10), -1, base_currency="PLN")
+            today_svc.afford(
+                conn,
+                USER_ID,
+                date(2026, 1, 10),
+                -1,
+                base_currency="PLN",
+                display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+            )
 
     def test_zero_budget_month_returns_zero_per_day(
         self,
         conn: sqlite3.Connection,
     ) -> None:
         # No budgets seeded → remaining stays 0.
-        result = today_svc.afford(conn, USER_ID, date(2026, 1, 10), 0, base_currency="PLN")
+        result = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            0,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert result.per_day_minor == 0
         assert result.pace_tag == "over_limit"
 
@@ -111,7 +152,14 @@ class TestAfford:
         # Budget 30000 - 10000 spent = 20000 remaining / 22 days ≈ 909/day.
         # A hypothetical 15000 lowers remaining to 5000 / 22 ≈ 227/day,
         # which is well under half of baseline → tight.
-        tight = today_svc.afford(conn, USER_ID, date(2026, 1, 10), 15_000, base_currency="PLN")
+        tight = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 10),
+            15_000,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert tight.pace_tag in {"tight", "over_limit"}
 
     def test_days_left_floored_at_one(
@@ -120,7 +168,14 @@ class TestAfford:
         seeded: dict[str, int],
     ) -> None:
         # Any today should produce days_left >= 1 (floor).
-        result = today_svc.afford(conn, USER_ID, date(2026, 1, 31), 0, base_currency="PLN")
+        result = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 1, 31),
+            0,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         assert result.days_left >= 1
 
     def test_baseline_follows_fiscal_month_before_current_month_anchor(
@@ -167,6 +222,13 @@ class TestAfford:
             ),
         )
         # Today = Feb 2; no February anchor landed → fiscal month = January.
-        baseline = today_svc.afford(conn, USER_ID, date(2026, 2, 2), 0, base_currency="PLN")
+        baseline = today_svc.afford(
+            conn,
+            USER_ID,
+            date(2026, 2, 2),
+            0,
+            base_currency="PLN",
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+        )
         # January remaining = 30000 - 10000 = 20000 (non-zero) → per_day > 0.
         assert baseline.per_day_minor > 0

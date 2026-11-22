@@ -1127,7 +1127,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q285 [L] Real service functions own validation and the single `db_transaction`
+### ✅ T-Q285 [L] Real service functions own validation and the single `db_transaction`
 - Findings: Q-045, Q-024 (G8).
 - Epic: E02
 - Band: 2 · Size: L · Tags: none
