@@ -23,18 +23,17 @@ The plaintext password and the bcrypt hash are never logged or written to
 
 from __future__ import annotations
 
-import secrets
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final, Literal, Protocol
 
-from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
+from budget_planner.domain.ports import TokenSource
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.logging import get_logger
 from budget_planner.repositories import auth_users as auth_users_repo, users as users_repo
 from budget_planner.repositories._shared import transaction
+from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import _passwords
 
 DEV_ADMIN_EMAIL: Final = "admin@local.test"
@@ -77,7 +76,24 @@ class BootstrapOutcome:
     legacy_adopted: bool = False
 
 
-def resolve_bootstrap_credentials(settings: Settings) -> BootstrapCredentials | None:
+class _SecretValue(Protocol):
+    def get_secret_value(self) -> str: ...
+
+
+class BootstrapSettings(Protocol):
+    """The slice of ``Settings`` the admin bootstrap reads (keeps services off ``config``)."""
+
+    @property
+    def env(self) -> str: ...
+
+    @property
+    def admin_email(self) -> str | None: ...
+
+    @property
+    def admin_initial_password(self) -> _SecretValue | None: ...
+
+
+def resolve_bootstrap_credentials(settings: BootstrapSettings) -> BootstrapCredentials | None:
     """Return the credentials the bootstrap should use, or ``None``.
 
     Raises :class:`BootstrapAdminMissingEnv` when exactly one of the two
@@ -152,7 +168,7 @@ def _promote(
     )
 
 
-def bootstrap_admin(conn: sqlite3.Connection, settings: Settings) -> BootstrapOutcome:
+def bootstrap_admin(conn: sqlite3.Connection, settings: BootstrapSettings) -> BootstrapOutcome:
     """Ensure a live admin exists (ADR-0061 §3, ADR-0069). Idempotent.
 
     Never touches any row when a live admin already exists. An unmigrated
@@ -217,10 +233,10 @@ def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) ->
     return BootstrapOutcome(action="created", user_id=created.id, admin_email=creds.email)
 
 
-def bootstrap_admin_at_startup(
-    settings: Settings,
+def bootstrap_admin_at_startup[S: BootstrapSettings](
+    settings: S,
     *,
-    connect: Callable[[Settings], sqlite3.Connection] = get_connection,
+    connect: Callable[[S], sqlite3.Connection],
 ) -> BootstrapOutcome:
     """Lifespan entry point: open a connection, bootstrap, close.
 
@@ -338,9 +354,9 @@ class UserDraft:
     is_admin: bool | None  # None = field absent from the form: leave unchanged (Q-063)
 
 
-def generate_password() -> str:
+def generate_password(tokens: TokenSource) -> str:
     """Return a fresh one-shot password (ADR-0061 §8)."""
-    return secrets.token_urlsafe(GENERATED_PASSWORD_BYTES)
+    return tokens.new_token(GENERATED_PASSWORD_BYTES)
 
 
 def _valid_email(email: str) -> bool:
@@ -420,6 +436,7 @@ def create_user(
     actor_user_id: int,
     draft: UserDraft,
     *,
+    tokens: TokenSource,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> tuple[auth_users_repo.AuthUser, str]:
     """Create a user with a generated password + its system categories.
@@ -427,7 +444,7 @@ def create_user(
     Returns ``(user, plaintext)``; the plaintext is for the one-shot toast
     only. Raises :class:`UserInputError` on a duplicate live email.
     """
-    password = generate_password()
+    password = generate_password(tokens)
     password_hash = _passwords.hash_password(password)
 
     def _body() -> auth_users_repo.AuthUser:
@@ -485,6 +502,7 @@ def reset_password(
     actor_user_id: int,
     user_id: int,
     *,
+    tokens: TokenSource,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> tuple[auth_users_repo.AuthUser, str]:
     """Generate a new password, force rotation, revoke the target's sessions.
@@ -493,7 +511,7 @@ def reset_password(
     :class:`UserNotFound` for a missing / soft-deleted user.
     """
     get_live_user(conn, user_id)  # fail fast before paying for bcrypt
-    password = generate_password()
+    password = generate_password(tokens)
     password_hash = _passwords.hash_password(password)
 
     def _body() -> auth_users_repo.AuthUser:
@@ -544,6 +562,7 @@ __all__ = [
     "LAST_ADMIN_DELETE_MESSAGE",
     "LAST_ADMIN_DEMOTE_MESSAGE",
     "SELF_DELETE_MESSAGE",
+    "AuthUser",
     "BootstrapAdminMissingEnv",
     "BootstrapCredentials",
     "BootstrapOutcome",

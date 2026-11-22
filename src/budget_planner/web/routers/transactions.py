@@ -1,6 +1,6 @@
 """Transactions router (T-031).
 
-Thin HTTP surface over `repositories.transactions` + `services.export`.
+Thin HTTP surface over `services.transactions` + `services.export`.
 Parses form input, calls the service / repo, renders Jinja fragments.
 """
 
@@ -23,19 +23,16 @@ from budget_planner.domain.transactions import (
     TransactionFilter,
     signed_legs,
 )
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    transactions as transactions_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
     balance as balance_service,
+    categories as categories_service,
     export as export_service,
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
@@ -74,8 +71,8 @@ def parse_filter(request: Request) -> TransactionFilter:
 
 
 def _hydrate_rows(conn: sqlite3.Connection, user_id: int, rows: list[Any]) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_service.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for r in rows:
         cat = cats.get(r.category_id)
@@ -116,10 +113,10 @@ def _compute_limit_preview(
     Soft-failing by design: any missing/unparseable input returns ``None`` so
     the fragment stays blank and the user can keep editing (ADR-0024).
     """
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     if acc is None or not acc.is_liability or acc.credit_limit_minor is None:
         return None
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return None
     dec = parse_amount_str(amount_raw, acc.currency)
@@ -194,8 +191,8 @@ def new_form(
         action="/transactions",
         method="post",
         txn=None,
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -219,8 +216,8 @@ def create_txn(  # noqa: PLR0917
     op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -256,14 +253,14 @@ def create_txn(  # noqa: PLR0917
             action="/transactions",
             method="post",
             txn=None,
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
 
     assert op_date is not None and minor is not None
-    new_txn = transactions_repo.create(
+    new_txn = transactions_service.create(
         conn,
         user_id,
         NewTransaction(
@@ -281,7 +278,7 @@ def create_txn(  # noqa: PLR0917
         "partials/transactions/_row.html",
         txn=row,
     )
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's Add overlay, not just the ledger: no
     # row insert; the ledger refetches on `ledger-stale`, other pages reload.
     refresh_unless_on(request, html, "/ledger")
@@ -295,7 +292,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    txn = transactions_repo.find_by_id(conn, user_id, txn_id)
+    txn = transactions_service.find_by_id(conn, user_id, txn_id)
     if txn is None:
         return render(
             request,
@@ -319,8 +316,8 @@ def edit_form(
         action=f"/transactions/{txn_id}",
         method="post",
         txn=txn,
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -338,7 +335,7 @@ def update_txn(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    existing = transactions_repo.find_by_id(conn, user_id, txn_id)
+    existing = transactions_service.find_by_id(conn, user_id, txn_id)
     if existing is None:
         return render(
             request,
@@ -351,7 +348,7 @@ def update_txn(  # noqa: PLR0917
             errors={"txn": "not found"},
             status_code=404,
         )
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
     if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
         errors["description"] = too_long
@@ -360,7 +357,7 @@ def update_txn(  # noqa: PLR0917
         errors["operation_date"] = "invalid date"
     if acc is None:
         errors["account_id"] = "unknown account"
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         errors["category_id"] = "unknown category"
     # Submitted destination wins; else the stored one still applies.
@@ -394,14 +391,14 @@ def update_txn(  # noqa: PLR0917
             action=f"/transactions/{txn_id}",
             method="post",
             txn=existing,
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
     dest_id_val = parse_int(dest_account_id) if dest_account_id else None
-    transactions_repo.update(
+    transactions_service.update(
         conn,
         user_id,
         txn_id,
@@ -417,7 +414,7 @@ def update_txn(  # noqa: PLR0917
     # The edit form is hosted by every page (T-D151): no row swap; the ledger
     # refetches on `ledger-stale`, other pages reload.
     html = Response()
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -426,9 +423,9 @@ def update_txn(  # noqa: PLR0917
 def delete_txn(
     txn_id: int, conn: sqlite3.Connection = Depends(get_db), user_id: int = Depends(current_user_id)
 ) -> Response:
-    transactions_repo.soft_delete(conn, user_id, txn_id)
+    transactions_service.soft_delete(conn, user_id, txn_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -438,11 +435,11 @@ def restore_txn(
 ) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
-        transactions_repo.undelete(conn, user_id, txn_id)
+        transactions_service.undelete(conn, user_id, txn_id)
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -454,7 +451,7 @@ def export(
 ) -> Response:
     fmt = request.query_params.get("format", "csv")
     flt = parse_filter(request)
-    rows = transactions_repo.list_filtered(conn, user_id, flt)
+    rows = transactions_service.list_filtered(conn, user_id, flt)
     hydrated = _hydrate_rows(conn, user_id, rows)
     export_rows: list[dict[str, Any]] = [
         {

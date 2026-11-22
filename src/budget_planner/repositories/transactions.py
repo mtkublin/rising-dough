@@ -418,3 +418,19 @@ __all__ = [
     "undelete",
     "update",
 ]
+
+
+def latest_operation_date_by_account(
+    conn: sqlite3.Connection, user_id: int, category_id: int
+) -> dict[int, date]:
+    """Return ``{account_id: max(operation_date)}`` for live transactions in one category."""
+    rows = conn.execute(
+        """
+        SELECT account_id, MAX(operation_date) AS d
+        FROM transactions
+        WHERE user_id = ? AND category_id = ? AND deleted_at IS NULL
+        GROUP BY account_id
+        """,
+        (user_id, category_id),
+    ).fetchall()
+    return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}

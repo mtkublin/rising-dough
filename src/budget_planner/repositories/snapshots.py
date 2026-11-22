@@ -12,6 +12,7 @@ the rule.
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 
 from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
@@ -95,3 +96,26 @@ def list_for_user(conn: sqlite3.Connection, user_id: int) -> dict[int, list[Acco
 
 
 __all__ = ["create", "list_for_account", "list_for_user"]
+
+
+def latest_taken_at_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, dt.datetime]:
+    """Return ``{account_id: max(taken_at)}`` for the user's live (non-deleted) accounts.
+
+    Snapshots have no ``deleted_at`` of their own; liveness comes from the
+    owning account (soft-delete rule, ADR-0022).
+    """
+    rows = conn.execute(
+        """
+        SELECT s.account_id AS account_id, MAX(s.taken_at) AS taken_at
+        FROM account_snapshots s
+        JOIN accounts a ON a.id = s.account_id
+        WHERE a.user_id = ? AND a.deleted_at IS NULL
+        GROUP BY s.account_id
+        """,
+        (user_id,),
+    ).fetchall()
+    return {
+        row["account_id"]: dt.datetime.fromisoformat(row["taken_at"].replace("Z", "+00:00"))
+        for row in rows
+        if row["taken_at"] is not None
+    }

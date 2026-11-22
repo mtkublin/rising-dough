@@ -142,6 +142,11 @@ def _signed_events_for_direction(
             account_id,
         )
         return ()
+    if direction is Direction.TRANSIT:
+        if dest_account_id is None:
+            raise ValueError("transit event missing dest_account_id")
+        if dest_account_id == account_id:
+            raise ValueError("transit source and dest must differ")
     return tuple(
         _CashEvent(on_date=operation_date, account_id=leg.account_id, amount_minor=leg.amount_minor)
         for leg in signed_legs(direction, amount_minor, account_id, dest_account_id)
@@ -292,6 +297,7 @@ def _month_inputs(
             for sp in spans
         ],
         today=today,
+        base_currency=fx.base_currency,
     )
     return list(zip(spent, committed, strict=True))
 
@@ -535,13 +541,16 @@ def _current_month_budget_totals(
     user_id: int,
     today: dt.date,
     *,
+    base_currency: str,
     fiscal_year: int | None = None,
     fiscal_month: int | None = None,
 ) -> budget_svc.MonthTotals | None:
     """Return ``month_summary(fiscal).totals`` or ``None`` if no live categories."""
     y = fiscal_year if fiscal_year is not None else today.year
     m = fiscal_month if fiscal_month is not None else today.month
-    summary = budget_svc.month_summary(conn, user_id, y, m, today=today)
+    summary = budget_svc.month_summary(
+        conn, user_id, y, m, today=today, base_currency=base_currency
+    )
     return summary.totals
 
 
@@ -726,7 +735,12 @@ def forecast_monthly(
 
     fiscal_month_start = start_month
     current_month_totals = _current_month_budget_totals(
-        conn, user_id, today, fiscal_year=fiscal_year, fiscal_month=fiscal_month
+        conn,
+        user_id,
+        today,
+        base_currency=base_currency,
+        fiscal_year=fiscal_year,
+        fiscal_month=fiscal_month,
     )
 
     # EOM is a running chain anchored at today's net worth, so each row

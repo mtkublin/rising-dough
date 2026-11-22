@@ -142,7 +142,7 @@ def sign_challenge(
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
-    return f"{_b64e(payload)}.{_b64e(_mac(settings.cookie_secret, payload))}"
+    return f"{_b64e(payload)}.{_b64e(_mac(settings.resolve().cookie_secret, payload))}"
 
 
 def _decode_envelope(secret: str, value: str | None) -> dict[str, object] | None:
@@ -173,7 +173,7 @@ def verify_challenge(
     now: float | None = None,
 ) -> ChallengeEnvelope | None:
     """Return the envelope iff *value* is authentic, fresh, and matches purpose/user."""
-    data = _decode_envelope(settings.cookie_secret, value)
+    data = _decode_envelope(settings.resolve().cookie_secret, value)
     if data is None or data.get("p") != purpose or data.get("u") != user_id:
         return None
     try:

@@ -198,6 +198,20 @@ def check_actions_pinning(api: Api, repo: str) -> Result:
     )
 
 
+def check_allowed_actions(api: Api, repo: str) -> Result:
+    """T-Q255 (Q-068): only selected actions may run (operator-set repo setting)."""
+    perms = api(f"repos/{repo}/actions/permissions")
+    allowed = perms.get("allowed_actions")
+    if allowed is None:
+        return Result("actions: allowed_actions selected", SKIP, "setting not reported by the API")
+    ok = allowed == "selected"
+    return Result(
+        "actions: allowed_actions selected",
+        PASS if ok else FAIL,
+        "selected" if ok else str(allowed),
+    )
+
+
 def check_tailscale_acl(
     environ: Mapping[str, str] = os.environ, compare: Callable[[str, str], list[str]] = compare_live
 ) -> Result:
@@ -219,6 +233,7 @@ def run_checks(api: Api, repo: str) -> list[Result]:
         lambda: [check_repo_secrets(api, repo)],
         lambda: check_main_protection(api, repo),
         lambda: [check_actions_pinning(api, repo)],
+        lambda: [check_allowed_actions(api, repo)],
         lambda: [check_tailscale_acl()],
     )
     results: list[Result] = []

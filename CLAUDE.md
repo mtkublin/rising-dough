@@ -51,7 +51,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Ledger, recurring and planned totals | `services/ledger_totals.py` `day_nets` | exists (Q-010) | - |
 | Clock (UTC now, local today) | `budget_planner.clock`: `utc_now()`, `today_local(settings)`, `utc_now_iso()`; routers use `web.deps.get_today` / `today_for(request)` (ADR-0140) | exists (Q-031) | - |
 | Request parameter parsing | `web/params.py` `parse_date`, `parse_int`, `parse_year_month`, `positive_amount` (amount text: `domain/money.py` `parse_amount_minor`) | exists (Q-023, T-Q233) | - |
-| HTMX events and toast payloads | `web/htmx.py` `trigger` | exists-migrating (T-Q236) | - |
+| HTMX events and toast payloads | `web/htmx.py` `trigger`, `Event`, `toast_payload` | exists (Q-038, ADR-0143) | - |
 | Transit validation | `services/transactions.validate_transit_shape` | exists (Q-004) | - |
 | Balance as of a date | `services/balance.as_of_today` | exists (Q-032) | - |
 | Category selection (expense category ids) | `services/categories.expense_category_ids` (archived included, ADR-0136) | exists (Q-030) | - |

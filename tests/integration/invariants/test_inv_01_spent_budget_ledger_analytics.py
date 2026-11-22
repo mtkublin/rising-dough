@@ -27,7 +27,9 @@ GROCERIES = 7
 
 
 def figures(conn: sqlite3.Connection) -> dict[str, int]:
-    summ = budget.month_summary(conn, U, Y, M, today=END, period_window=(START, END))
+    summ = budget.month_summary(
+        conn, U, Y, M, today=END, period_window=(START, END), base_currency="PLN"
+    )
     line = next(x for x in summ.lines if x.category_id == GROCERIES)
     converter = fx_svc.converter_for(conn, get_settings(), END)
     bundle = analytics.bundle(conn, U, converter, today=END, period="month")

@@ -17,7 +17,13 @@
               hx-swap="innerHTML">+ New account</button>
     </div>
   </header>
-  <section class="rd-accounts-hero">
+  <section id="accounts-hero"
+           class="rd-accounts-hero"
+           hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+           hx-trigger="balance-stale from:body"
+           hx-select="#accounts-hero"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap">
     <div class="rd-accounts-hero__total">
       <div class="rd-accounts-hero__amount num">
         {{ fortune.net_base|money_num(base_ccy) }}<span class="cur">{{ base_ccy }}</span>

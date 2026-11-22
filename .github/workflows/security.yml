@@ -50,16 +50,31 @@ jobs:
       - name: Sync dev dependencies (frozen)
         run: uv sync --frozen --group dev
 
-      - name: Build pip-audit ignore args from .security-allowlist.yml
+      # T-Q255 (Q-068): the allowlist is read from origin/main, never from the PR
+      # head, so a PR cannot allowlist its own findings.
+      - name: Read .security-allowlist.yml from origin/main
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git show origin/main:.security-allowlist.yml > "$RUNNER_TEMP/security-allowlist.yml"
+
+      - name: Build pip-audit ignore args from the origin/main allowlist
         id: allowlist
+        env:
+          ALLOWLIST: ${{ runner.temp }}/security-allowlist.yml
         run: |
           uv run python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
           import pathlib
+          import re
+          import sys
           import yaml
-          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
-          entries = data.get("pip_audit") or []
-          args = " ".join(f"--ignore-vuln {e['cve']}" for e in entries if e.get("cve"))
-          print(f"ignore_args={args}")
+          ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{3,63}$")
+          data = yaml.safe_load(pathlib.Path(os.environ["ALLOWLIST"]).read_text()) or {}
+          ids = [str(e["cve"]) for e in (data.get("pip_audit") or []) if e.get("cve")]
+          bad = [i for i in ids if not ID_RE.fullmatch(i)]
+          if bad:
+              sys.exit(f"invalid allowlist id(s): {bad}")
+          print("ignore_args=" + " ".join(f"--ignore-vuln {i}" for i in ids))
           PY
 
       - name: Export locked requirements
@@ -69,10 +84,13 @@ jobs:
         run: uv export --frozen --no-emit-project --group dev -o requirements-audit.txt
 
       - name: Run pip-audit
+        env:
+          IGNORE_ARGS: ${{ steps.allowlist.outputs.ignore_args }}  # validated ids only
         run: |
           # --strict exits non-zero on any finding; allowlist entries become
           # --ignore-vuln args so matching CVEs are skipped with justification.
-          uv run pip-audit --strict --disable-pip -r requirements-audit.txt ${{ steps.allowlist.outputs.ignore_args }}
+          # shellcheck disable=SC2086  # intentional word splitting of validated args
+          uv run pip-audit --strict --disable-pip -r requirements-audit.txt $IGNORE_ARGS
 
   # ---------------------------------------------------------------------------
   # 2. trivy-fs — filesystem scan of the repo
@@ -91,12 +109,25 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
 
-      - name: Materialize .trivyignore from .security-allowlist.yml
+      # T-Q255 (Q-068): the allowlist is read from origin/main, never from the PR
+      # head, so a PR cannot allowlist its own findings.
+      - name: Read .security-allowlist.yml from origin/main
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git show origin/main:.security-allowlist.yml > "$RUNNER_TEMP/security-allowlist.yml"
+
+      - name: Materialize .trivyignore from the origin/main allowlist
+        env:
+          ALLOWLIST: ${{ runner.temp }}/security-allowlist.yml
         run: |
           uv run --no-project --with pyyaml python - <<'PY'
-          import pathlib, yaml
-          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
+          import os, pathlib, re, sys, yaml
+          ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{3,63}$")
+          data = yaml.safe_load(pathlib.Path(os.environ["ALLOWLIST"]).read_text()) or {}
           entries = data.get("trivy_fs") or []
+          bad = [e.get("cve") for e in entries if e.get("cve") and not ID_RE.fullmatch(str(e["cve"]))]
+          if bad:
+              sys.exit(f"invalid allowlist id(s): {bad}")
           lines = []
           for e in entries:
               cve = e.get("cve")
@@ -173,12 +204,25 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433  # v4.1.0
 
-      - name: Materialize .trivyignore from .security-allowlist.yml
+      # T-Q255 (Q-068): the allowlist is read from origin/main, never from the PR
+      # head, so a PR cannot allowlist its own findings.
+      - name: Read .security-allowlist.yml from origin/main
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git show origin/main:.security-allowlist.yml > "$RUNNER_TEMP/security-allowlist.yml"
+
+      - name: Materialize .trivyignore from the origin/main allowlist
+        env:
+          ALLOWLIST: ${{ runner.temp }}/security-allowlist.yml
         run: |
           uv run --no-project --with pyyaml python - <<'PY'
-          import pathlib, yaml
-          data = yaml.safe_load(pathlib.Path(".security-allowlist.yml").read_text()) or {}
+          import os, pathlib, re, sys, yaml
+          ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{3,63}$")
+          data = yaml.safe_load(pathlib.Path(os.environ["ALLOWLIST"]).read_text()) or {}
           entries = data.get("trivy_image") or []
+          bad = [e.get("cve") for e in entries if e.get("cve") and not ID_RE.fullmatch(str(e["cve"]))]
+          if bad:
+              sys.exit(f"invalid allowlist id(s): {bad}")
           lines = []
           for e in entries:
               cve = e.get("cve")

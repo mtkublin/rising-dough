@@ -20,18 +20,15 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import PAGE_SIZE_MAX
 from budget_planner.domain.planned import PlannedFilter
 from budget_planner.domain.transactions import TransactionFilter
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    planned as planned_repo,
-    recurring as recurring_repo,
-    transactions as transactions_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
+    categories as categories_service,
     fx as fx_service,
     ledger_totals,
     planned as planned_service,
+    recurring as recurring_service,
     recurring_formula as formula_svc,
+    transactions as transactions_service,
 )
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, coerce_view, view_kinds
@@ -67,8 +64,8 @@ def parse_filters(request: Request) -> LedgerFilters:
 def _hydrate_txn_rows(
     conn: sqlite3.Connection, user_id: int, rows: list[Any]
 ) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_service.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for r in rows:
         cat = cats.get(r.category_id)
@@ -92,8 +89,8 @@ def _hydrate_txn_rows(
 def _hydrate_planned_rows(
     conn: sqlite3.Connection, user_id: int, views: list[Any]
 ) -> list[dict[str, Any]]:
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_service.list_all(conn, user_id, include_deleted=True)}
     out: list[dict[str, Any]] = []
     for v in views:
         cat = cats.get(v.category_id)
@@ -129,11 +126,11 @@ def _hydrate_recurring_rows(
     # Ledger Recurring tab lists only live rules (ADR-0038 §Ledger-UI):
     # Delete behaviourally deactivates, which must remove the row from view.
     rules = sorted(
-        recurring_repo.list_rules(conn, user_id, active_only=True),
+        recurring_service.list_rules(conn, user_id, active_only=True),
         key=lambda r: (r.next_due, r.id),
     )
-    cats = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
-    accts = {a.id: a for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
+    cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
+    accts = {a.id: a for a in accounts_service.list_all(conn, user_id, include_deleted=True)}
     # V.34 — client-side filters (date_from / date_to / account_ids /
     # category_ids / direction / search). Date range matches against
     # `next_due`.
@@ -158,7 +155,7 @@ def _hydrate_recurring_rows(
                 continue
             if search_lc and search_lc not in (rule.default_description or "").lower():
                 continue
-        overrides = recurring_repo.list_overrides(conn, user_id, rule.id)
+        overrides = recurring_service.list_overrides(conn, user_id, rule.id)
         # T-122: locate the override (if any) on the current `next_due` so the
         # row can bold / italicise the appropriate cells.
         override_on_next_due = next(
@@ -231,7 +228,7 @@ def _actual_rows(
         order_desc=True,
     )
     return _hydrate_txn_rows(
-        conn, user_id, transactions_repo.list_filtered(conn, user_id, txn_filter)
+        conn, user_id, transactions_service.list_filtered(conn, user_id, txn_filter)
     )
 
 
@@ -291,7 +288,7 @@ def _render_table(
     else:
         rows = _hydrate_recurring_rows(conn, user_id, filters)
     categories_by_id = {
-        c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)
+        c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)
     }
     day_nets = _ledger_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
     return render(
@@ -313,9 +310,11 @@ def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
     active recurring. Keeps logic in one place so the shell + fragments
     always display the same number.
     """
-    actual_total = transactions_repo.count_filtered(conn, user_id)
-    planned_pending = len(planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False)))
-    recurring_active = len(recurring_repo.list_rules(conn, user_id, active_only=True))
+    actual_total = transactions_service.count_filtered(conn, user_id)
+    planned_pending = len(
+        planned_service.list_filtered(conn, user_id, PlannedFilter(promoted=False))
+    )
+    recurring_active = len(recurring_service.list_rules(conn, user_id, active_only=True))
     return {
         "actual": actual_total,
         "planned": planned_pending,
@@ -342,7 +341,7 @@ def index(
         ledger_totals.recurring_monthly_totals(rows, base_ccy) if view == "recurring" else None
     )
     planned_summary = ledger_totals.planned_totals(rows, base_ccy) if view == "planned" else None
-    cats_list = categories_repo.list_all(conn, user_id, include_deleted=True)
+    cats_list = categories_service.list_all(conn, user_id, include_deleted=True)
     return render(
         request,
         "ledger/index.html",
@@ -353,8 +352,8 @@ def index(
             _ledger_day_nets(conn, get_settings_dep(request), rows) if view == "actual" else {}
         ),
         filters=filters,
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         page=filters.page,
         page_size=filters.page_size,
         has_next=(view == "actual" and len(rows) == filters.page_size),
@@ -387,11 +386,11 @@ def recently_deleted(
 
     ADR-0019 (soft delete + audit); ADR-0022 (archived categories).
     """
-    txns = transactions_repo.list_recently_deleted(conn, user_id, days=90)
-    planned_items = planned_repo.list_recently_deleted(conn, user_id, days=90)
-    cats = categories_repo.list_recently_deleted(conn, user_id, days=90)
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    txns = transactions_service.list_recently_deleted(conn, user_id, days=90)
+    planned_items = planned_service.list_recently_deleted(conn, user_id, days=90)
+    cats = categories_service.list_recently_deleted(conn, user_id, days=90)
+    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     return render(
         request,
         "ledger/_recently_deleted.html",

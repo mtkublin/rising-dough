@@ -61,7 +61,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, replace
-from typing import Any, Final
+from typing import Any, Final, Protocol
 
 from webauthn import (
     generate_authentication_options,
@@ -82,7 +82,6 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from budget_planner.config import Settings, get_settings
 from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
@@ -128,11 +127,25 @@ class PasskeyRegistrationError(Exception):
         self.reason = reason
 
 
-def relying_party_from_settings(settings: Settings | None = None) -> RelyingParty:
+class WebAuthnSettings(Protocol):
+    """The ``Settings`` slice naming the WebAuthn relying party (keeps services off ``config``)."""
+
+    @property
+    def webauthn_rp_id(self) -> str: ...
+
+    @property
+    def webauthn_rp_name(self) -> str: ...
+
+    @property
+    def webauthn_origin(self) -> str: ...
+
+
+def relying_party_from_settings(settings: WebAuthnSettings) -> RelyingParty:
     """Build the :class:`RelyingParty` from ``webauthn_*`` settings."""
-    s = get_settings() if settings is None else settings
     return RelyingParty(
-        rp_id=s.webauthn_rp_id, rp_name=s.webauthn_rp_name, origin=s.webauthn_origin
+        rp_id=settings.webauthn_rp_id,
+        rp_name=settings.webauthn_rp_name,
+        origin=settings.webauthn_origin,
     )
 
 
@@ -507,15 +520,24 @@ def authenticate_passkey_finish(
         )
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+list_active_sessions = sessions_repo.list_active_sessions
+list_passkeys = webauthn_repo.list_credentials
+
+
 __all__ = [
     "AUTH_EVENT_ENTITY",
     "SESSION_ENTITY",
+    "IssuedSession",
     "PasskeyChallenge",
     "PasskeyRegistrationError",
     "RelyingParty",
     "authenticate_passkey_begin",
     "authenticate_passkey_finish",
     "authenticate_password",
+    "list_active_sessions",
+    "list_passkeys",
     "load_session_user",
     "logout",
     "register_passkey_begin",

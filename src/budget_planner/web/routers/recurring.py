@@ -22,18 +22,15 @@ from budget_planner.domain.recurring import (
     PatchRecurringRule,
     RecurringOverride,
 )
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    recurring as recurring_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
+    categories as categories_service,
     recurring as recurring_svc,
     recurring_formula as formula_svc,
 )
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web.deps import current_user_id, get_db, today_for
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 
@@ -44,7 +41,7 @@ def _formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[A
     """Return categories eligible as formula sources (user-visible income+expense)."""
     return [
         c
-        for c in categories_repo.list_all(conn, user_id)
+        for c in categories_service.list_all(conn, user_id)
         if c.direction in (Direction.INCOME, Direction.EXPENSE)
     ]
 
@@ -106,8 +103,8 @@ def new_form(
         form_include="partials/recurring/_form.html",
         rule=None,
         action="/recurring",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         source_categories=_formula_source_candidates(conn, user_id),
         amount_source="fixed",
         terms=[dict(_EMPTY_TERM_INPUT)],
@@ -144,7 +141,7 @@ def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirrorin
     parsed = parse_int(dest_account_id_raw)
     if parsed is None:
         return None, {"dest_account_id": "invalid destination"}
-    dest = accounts_repo.find_by_id(conn, user_id, parsed)
+    dest = accounts_service.find_by_id(conn, user_id, parsed)
     if dest is None:
         return None, {"dest_account_id": "unknown destination"}
     if source_account is not None and dest.currency != source_account.currency:
@@ -223,8 +220,8 @@ def _render_form_errors(
         "partials/recurring/_form.html",
         rule=rule,
         action=action,
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         source_categories=_formula_source_candidates(conn, user_id),
         amount_source=amount_source,
         terms=terms,
@@ -281,8 +278,8 @@ async def create_rule(
             amount_source=amount_source,
             terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
         )
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -323,7 +320,7 @@ async def create_rule(
     # on arrival — insert as inactive so it never shows up in Upcoming
     # or Forecast between create and the first promotion attempt.
     initial_active = not (end is not None and end < today)
-    rule = recurring_repo.create_rule(
+    rule = recurring_svc.create_rule(
         conn,
         user_id,
         recurring_svc.with_anchor_day(
@@ -351,7 +348,7 @@ async def create_rule(
         category=cat,
         effective_amount_minor=minor,
     )
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
     refresh_unless_on(request, html, "/ledger")
     return html
@@ -364,7 +361,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return render(
             request,
@@ -392,8 +389,8 @@ def edit_form(
         form_include="partials/recurring/_form.html",
         rule=rule,
         action=f"/recurring/{rule_id}",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         source_categories=_formula_source_candidates(conn, user_id),
         amount_source=amount_source,
         terms=terms,
@@ -408,7 +405,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
     form = await request.form()
@@ -427,8 +424,8 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         account_id = int(account_id_raw)
     except ValueError:
         return Response(status_code=422, content="invalid account/category")
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     c = _validate_cadence(cadence)
     start = parse_date(start_date)
     end: date | None = None
@@ -499,7 +496,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     patch_kwargs["end_date"] = end
     if deactivate_due_to_end:
         patch_kwargs["active"] = False
-    recurring_repo.update_rule(
+    recurring_svc.update_rule(
         conn,
         user_id,
         rule_id,
@@ -507,7 +504,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     )
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -527,15 +524,15 @@ def deactivate_rule(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    recurring_repo.deactivate_rule(conn, user_id, rule_id)
+    recurring_svc.deactivate_rule(conn, user_id, rule_id)
     # Empty body + ledger-stale trigger removes the row from the Ledger
     # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
     # inactive rules disappear from view. Mirrors transactions/delete.
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "ledger-stale", "forecast-stale")
+    trigger(resp, Event.LEDGER_STALE, Event.FORECAST_STALE)
     return resp
 
 
@@ -551,7 +548,7 @@ def new_override_form(
     ``services.recurring.occurrence_in_month``. Defaults year + month to the
     rule's current ``next_due``.
     """
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return render(
             request,
@@ -564,7 +561,7 @@ def new_override_form(
             errors={"rule": "not found"},
             status_code=404,
         )
-    account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     default_amount_str = format_major(rule.default_amount, account.currency) if account else ""
     return render(
         request,
@@ -588,10 +585,10 @@ def add_override(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    acc = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
 
     def _invalid(field: str, message: str) -> Response:
         # T-D151: re-render the override form with the error inside the slide-over.
@@ -617,7 +614,7 @@ def add_override(  # noqa: PLR0917
     amount_minor, amount_err = positive_amount(amount, acc.currency)
     if amount_minor is None:
         return _invalid("amount", amount_err or "invalid amount")
-    recurring_repo.upsert_override(
+    recurring_svc.upsert_override(
         conn,
         user_id,
         NewRecurringOverride(
@@ -630,7 +627,7 @@ def add_override(  # noqa: PLR0917
         ),
     )
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -643,16 +640,16 @@ def delete_override(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
     occ = parse_date(occurrence_date)
     if occ is None:
         return Response(status_code=422, content="invalid date")
-    recurring_repo.delete_override(conn, user_id, rule_id, occ)
-    overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
-    acc = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    cat = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+    recurring_svc.delete_override(conn, user_id, rule_id, occ)
+    overrides = recurring_svc.list_overrides(conn, user_id, rule_id)
+    acc = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    cat = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     html = render(
         request,
         "partials/recurring/_row.html",
@@ -662,7 +659,7 @@ def delete_override(
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return html
 
 
@@ -676,7 +673,7 @@ def _override_on_next_due(
     next_due: date,
 ) -> RecurringOverride | None:
     """Return the override whose canonical ``occurrence_date == next_due``."""
-    for override in recurring_repo.list_overrides(conn, user_id, rule_id):
+    for override in recurring_svc.list_overrides(conn, user_id, rule_id):
         if override.occurrence_date == next_due:
             return override
     return None
@@ -691,7 +688,7 @@ def _render_promote_modal(
     errors: dict[str, str] | None = None,
     status_code: int = 200,
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return render(
             request,
@@ -706,7 +703,7 @@ def _render_promote_modal(
             status_code=404,
         )
     override = _override_on_next_due(conn, user_id, rule_id, rule.next_due)
-    account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     prefill_date = rule.next_due
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
     prefill_description = rule.default_description
@@ -754,10 +751,10 @@ def promote_inline(
     Returns a <tr> fragment that replaces the current upcoming row, letting
     the user edit `date` + `amount` and Confirm without leaving the page.
     """
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     occurrence = parse_date(date) or rule.next_due
     override = _override_on_next_due(conn, user_id, rule_id, occurrence)
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence)
@@ -767,7 +764,7 @@ def promote_inline(
             prefill_amount = override.amount_override
         if override.description_override is not None:
             prefill_description = override.description_override
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     return render(
         request,
         "partials/recurring/_promote_inline_row.html",
@@ -790,10 +787,10 @@ def promote_submit(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
-    account = accounts_repo.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
+    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     errors: dict[str, str] = {}
 
     op_date: date | None = None
@@ -841,7 +838,7 @@ def promote_submit(  # noqa: PLR0917
         )
 
     html = Response()
-    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -853,25 +850,25 @@ def skip_next(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
     try:
         recurring_svc.skip_and_advance(conn, user_id, rule_id)
     except recurring_svc.InactiveRecurringError:
         return Response(status_code=422, content="rule is inactive")
-    updated = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
+    updated = recurring_svc.find_rule(conn, user_id, rule_id, include_deleted=True)
     assert updated is not None
-    acc = accounts_repo.find_by_id(conn, user_id, updated.account_id, include_deleted=True)
-    cat = categories_repo.find_by_id(conn, user_id, updated.category_id, include_deleted=True)
+    acc = accounts_service.find_by_id(conn, user_id, updated.account_id, include_deleted=True)
+    cat = categories_service.find_by_id(conn, user_id, updated.category_id, include_deleted=True)
     html = render(
         request,
         "partials/recurring/_row.html",
         rule=updated,
-        overrides=recurring_repo.list_overrides(conn, user_id, rule_id),
+        overrides=recurring_svc.list_overrides(conn, user_id, rule_id),
         account=acc,
         category=cat,
         effective_amount_minor=_effective_amount_for_render(conn, user_id, updated),
     )
-    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
     return html

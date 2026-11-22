@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from datetime import date
-from typing import Any
+from typing import Any, Final
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
@@ -15,19 +14,16 @@ from budget_planner.domain.planned import (
     PatchPlannedTransaction,
     PlannedFilter,
 )
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-    planned as planned_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
+    categories as categories_service,
     export as export_service,
     planned as planned_service,
     transactions as transactions_service,
 )
 from budget_planner.services.account_pair import validate_distinct_accounts
 from budget_planner.web.deps import current_user_id, get_db, get_today
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, toast_payload, trigger
 from budget_planner.web.params import parse_date, positive_amount
 from budget_planner.web.rendering import render
 from budget_planner.web.routers.ledger import render_table_for
@@ -48,14 +44,18 @@ def parse_filter(request: Request) -> PlannedFilter:
     )
 
 
+_PROMOTE_EVENTS: Final = (
+    Event.LEDGER_STALE,
+    Event.FORECAST_STALE,
+    Event.BALANCE_STALE,
+    Event.TODAY_STALE,
+)
+
+
 # ---------------------------------------------------------------------------
 # T-R45 — Batch promote-due (ADR-0056 §6, ADR-0012). Registered BEFORE
 # the dynamic `/{planned_id}` paths.
 # ---------------------------------------------------------------------------
-def _hx_trigger_payload(payload: dict[str, object]) -> str:
-    return json.dumps(payload)
-
-
 @router.post("/batch/promote-due", response_class=HTMLResponse)
 def planned_batch_promote_due(
     conn: sqlite3.Connection = Depends(get_db),
@@ -73,22 +73,18 @@ def planned_batch_promote_due(
     ) as exc:
         return Response(status_code=422, content=str(exc))
     resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {
-                "variant": "success",
-                "message": f"Promoted {len(result.promoted_txn_ids)} planned row(s)",
-                "undo_url": "/planned/batch/undo",
-                "undo_payload": {
-                    "promoted_txn_ids": list(result.promoted_txn_ids),
-                    "promoted_planned_ids": list(result.promoted_planned_ids),
-                },
+    trigger(
+        resp,
+        *_PROMOTE_EVENTS,
+        toast=toast_payload(
+            "success",
+            f"Promoted {len(result.promoted_txn_ids)} planned row(s)",
+            undo_url="/planned/batch/undo",
+            undo_payload={
+                "promoted_txn_ids": list(result.promoted_txn_ids),
+                "promoted_planned_ids": list(result.promoted_planned_ids),
             },
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "balance-stale": True,
-            "today-stale": True,
-        }
+        ),
     )
     return resp
 
@@ -117,15 +113,7 @@ async def planned_batch_undo(
     if result.skipped_planned_ids:
         message = f"Undone ({len(result.skipped_planned_ids)} row(s) changed since, left as is)"
     resp = Response(status_code=204)
-    resp.headers["HX-Trigger"] = _hx_trigger_payload(
-        {
-            "toast": {"variant": "info", "message": message},
-            "ledger-stale": True,
-            "forecast-stale": True,
-            "balance-stale": True,
-            "today-stale": True,
-        }
-    )
+    trigger(resp, *_PROMOTE_EVENTS, toast=toast_payload("info", message))
     return resp
 
 
@@ -156,8 +144,8 @@ def new_form(
         form_include="partials/planned/_form.html",
         planned=None,
         action="/planned",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -178,8 +166,8 @@ def create_planned(  # noqa: PLR0917
     op_date = parse_date(operation_date)
     if op_date is None:
         errors["operation_date"] = "invalid date"
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -191,7 +179,7 @@ def create_planned(  # noqa: PLR0917
         except ValueError:
             errors["dest_account_id"] = "invalid dest account"
         else:
-            if accounts_repo.find_by_id(conn, user_id, dest_id) is None:
+            if accounts_service.find_by_id(conn, user_id, dest_id) is None:
                 errors["dest_account_id"] = "unknown dest account"
             elif (same := validate_distinct_accounts(account_id, dest_id)) is not None:
                 errors["dest_account_id"] = same
@@ -222,13 +210,13 @@ def create_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=None,
             action="/planned",
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
-    pl = planned_repo.create(
+    pl = planned_service.create(
         conn,
         user_id,
         NewPlannedTransaction(
@@ -241,7 +229,7 @@ def create_planned(  # noqa: PLR0917
         ),
     )
     html = render(request, "partials/planned/_row.html", view=_from_persisted(pl, acc, cat))
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # The form is hosted by every page's overlay: no row insert; the ledger
     # refetches on `ledger-stale`, other pages reload (T-D142).
     refresh_unless_on(request, html, "/ledger")
@@ -270,7 +258,7 @@ def edit_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -290,8 +278,8 @@ def edit_form(
         form_include="partials/planned/_form.html",
         planned=pl,
         action=f"/planned/{planned_id}",
-        categories=categories_repo.list_all(conn, user_id),
-        accounts=accounts_repo.list_all(conn, user_id),
+        categories=categories_service.list_all(conn, user_id),
+        accounts=accounts_service.list_all(conn, user_id),
         errors={},
     )
 
@@ -309,10 +297,10 @@ def update_planned(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, account_id)
+    acc = accounts_service.find_by_id(conn, user_id, account_id)
     errors: dict[str, str] = {}
     op_date = parse_date(operation_date)
     if op_date is None:
@@ -327,7 +315,7 @@ def update_planned(  # noqa: PLR0917
     )
     if same is not None:
         errors["dest_account_id"] = same
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         errors["category_id"] = "unknown category"
     elif acc is not None and same is None:
@@ -354,13 +342,13 @@ def update_planned(  # noqa: PLR0917
             "partials/planned/_form.html",
             planned=pl,
             action=f"/planned/{planned_id}",
-            categories=categories_repo.list_all(conn, user_id),
-            accounts=accounts_repo.list_all(conn, user_id),
+            categories=categories_service.list_all(conn, user_id),
+            accounts=accounts_service.list_all(conn, user_id),
             errors=errors,
             status_code=422,
         )
     assert op_date is not None and minor is not None
-    planned_repo.update(
+    planned_service.update(
         conn,
         user_id,
         planned_id,
@@ -374,7 +362,7 @@ def update_planned(  # noqa: PLR0917
     )
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -385,12 +373,12 @@ def delete_planned(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    planned_repo.soft_delete(conn, user_id, planned_id)
+    planned_service.soft_delete(conn, user_id, planned_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "forecast-stale", "ledger-stale")
+    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -402,11 +390,11 @@ def restore_planned(
 ) -> Response:
     """T-R70 — undo a soft-delete (ADR-0019)."""
     try:
-        planned_repo.undelete(conn, user_id, planned_id)
+        planned_service.undelete(conn, user_id, planned_id)
     except LookupError:
         return Response(status_code=404, content="not found")
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "forecast-stale", "ledger-stale")
+    trigger(resp, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return resp
 
 
@@ -417,7 +405,7 @@ def promote_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return render(
             request,
@@ -426,7 +414,7 @@ def promote_form(
             errors={"planned": "not found"},
             status_code=404,
         )
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     return render(
         request,
         "partials/planned/_promote_modal.html",
@@ -444,11 +432,11 @@ def promote_inline(
     user_id: int = Depends(current_user_id),
 ) -> Response:
     """F-02 — Row-expand inline Promote form for Today Upcoming."""
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     return render(
         request,
         "partials/planned/_promote_inline_row.html",
@@ -468,10 +456,10 @@ def promote_submit(  # noqa: PLR0917
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    pl = planned_repo.find_by_id(conn, user_id, planned_id)
+    pl = planned_service.find_by_id(conn, user_id, planned_id)
     if pl is None:
         return Response(status_code=404, content="not found")
-    acc = accounts_repo.find_by_id(conn, user_id, pl.account_id)
+    acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
     op_date = parse_date(operation_date)
     errors: dict[str, str] = {}
     if op_date is None:
@@ -517,7 +505,7 @@ def promote_submit(  # noqa: PLR0917
             status_code=422,
         )
     html = Response()
-    trigger(html, "balance-stale", "forecast-stale", "ledger-stale")
+    trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 

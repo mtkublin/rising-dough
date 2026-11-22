@@ -31,15 +31,16 @@ from budget_planner.domain.budgets import (
 )
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import parse_amount_minor
-from budget_planner.repositories import (
-    budgets as budgets_repo,
-    categories as categories_repo,
+from budget_planner.services import (
+    budget as budget_service,
+    budget_overrides as budget_overrides_service,
+    categories as categories_service,
+    preferences as preferences_svc,
 )
-from budget_planner.services import budget as budget_service, preferences as preferences_svc
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
 from budget_planner.web.rendering import render
 
@@ -75,10 +76,12 @@ def _rules_rows(conn: sqlite3.Connection, user_id: int) -> tuple[RulesRow, ...]:
     """
     cats = [
         c
-        for c in categories_repo.list_all(conn, user_id)
+        for c in categories_service.list_all(conn, user_id)
         if not c.is_system and c.direction is Direction.EXPENSE
     ]
-    defaults = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
+    defaults = {
+        d.category_id: d.amount for d in budget_overrides_service.list_defaults(conn, user_id)
+    }
     rows = [
         RulesRow(
             category_id=cat.id,
@@ -106,7 +109,9 @@ def _render_index(
 ) -> HTMLResponse:
     year, month = _year_month(request, conn, user_id)
     today = clock.today_local(settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+    )
     rules = _rules_rows(conn, user_id)
     yearly = budget_service.yearly_grid(conn, user_id, year)
     return render(
@@ -163,7 +168,7 @@ def new_override_form(
     Optional ``month`` / ``year`` query params prefill the fields when the
     form is opened from the Year heatmap (ADR-0051 §5.3).
     """
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     tz_now = clock.today_local(settings)
     q = request.query_params
     preset_month = parse_int(q.get("month"), minimum=1, maximum=_MONTHS_IN_YEAR)
@@ -178,7 +183,7 @@ def new_override_form(
             period=period,
             status_code=404,
         )
-    default_row = budgets_repo.get_default(conn, user_id, category_id)
+    default_row = budget_overrides_service.get_default(conn, user_id, category_id)
     inline = q.get("inline") == "1"
     if inline:
         return render(
@@ -214,7 +219,7 @@ def create_override(  # noqa: PLR0911, PLR0917
     user_id: int = Depends(current_user_id),
 ) -> Response:
     """Tier-dispatcher for the Override slide-over (ADR-0031 §2)."""
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
     if tier not in {"recurring", "one-off", "default"}:
@@ -223,13 +228,13 @@ def create_override(  # noqa: PLR0911, PLR0917
     if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
     if tier == "default":
-        budgets_repo.set_default(
+        budget_overrides_service.set_default(
             conn,
             user_id,
             NewBudgetDefault(category_id=category_id, amount=minor),
         )
         resp = Response(content="ok", media_type="text/html")
-        trigger(resp, "budget-stale")
+        trigger(resp, Event.BUDGET_STALE)
         return resp
     try:
         parsed_month = int(month)
@@ -238,7 +243,7 @@ def create_override(  # noqa: PLR0911, PLR0917
     if parsed_month < 1 or parsed_month > _MONTHS_IN_YEAR:
         return Response(status_code=422, content="invalid month")
     if tier == "recurring":
-        budgets_repo.set_recurring(
+        budget_overrides_service.set_recurring(
             conn,
             user_id,
             NewBudgetRecurringOverride(category_id=category_id, month=parsed_month, amount=minor),
@@ -248,7 +253,7 @@ def create_override(  # noqa: PLR0911, PLR0917
             parsed_year = int(year)
         except ValueError:
             return Response(status_code=422, content="invalid year")
-        budgets_repo.set_one_off(
+        budget_overrides_service.set_one_off(
             conn,
             user_id,
             NewBudgetOneOffOverride(
@@ -259,7 +264,7 @@ def create_override(  # noqa: PLR0911, PLR0917
             ),
         )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -281,15 +286,17 @@ def set_default(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
     minor = parse_amount_minor(amount, settings.base_currency)
     if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
-    budgets_repo.set_default(conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor))
+    budget_overrides_service.set_default(
+        conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor)
+    )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -316,7 +323,7 @@ def set_income_anchor(
         except InvalidAnchorCategoryError as err:
             return Response(status_code=422, content=str(err))
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -330,7 +337,7 @@ def set_one_off(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    cat = categories_repo.find_by_id(conn, user_id, category_id)
+    cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
     if month < 1 or month > _MONTHS_IN_YEAR:
@@ -338,11 +345,11 @@ def set_one_off(  # noqa: PLR0917
     minor = parse_amount_minor(amount, settings.base_currency)
     if minor is None or minor < 0:
         return Response(status_code=422, content="invalid amount")
-    budgets_repo.set_one_off(
+    budget_overrides_service.set_one_off(
         conn,
         user_id,
         NewBudgetOneOffOverride(category_id=category_id, year=year, month=month, amount=minor),
     )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp

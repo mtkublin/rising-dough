@@ -59,7 +59,7 @@ def test_anchor_set_income_tomorrow(conn: sqlite3.Connection, world: dict[str, i
             amount=500_000,
         ),
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name == "Salary"
     assert s.next_income_date == date(2026, 2, 16)
     assert s.days_until_next_income == 1
@@ -78,7 +78,7 @@ def test_anchor_set_income_in_ten_days(conn: sqlite3.Connection, world: dict[str
             amount=500_000,
         ),
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name == "Salary"
     assert s.days_until_next_income == 10
     assert s.left_daily_spend_minor == 10_000
@@ -88,21 +88,21 @@ def test_anchor_set_no_upcoming_falls_back_to_next_month_start(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
     preferences_svc.set_income_anchor_category_id(conn, 1, world["salary"])
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name is None
     assert s.next_income_date == _period_end(2026, 2)
     assert s.left_daily_spend_minor is not None
 
 
 def test_anchor_unset_falls_back(conn: sqlite3.Connection, world: dict[str, int]) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name is None
     assert s.next_income_date == _period_end(2026, 2)
 
 
 def test_zero_budget_returns_none(conn: sqlite3.Connection) -> None:
     categories.create(conn, USER_ID, NewCategory(name="X", direction=Direction.EXPENSE))
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.totals.budgeted_minor == 0
     assert s.left_daily_spend_minor is None
     assert s.anchor_category_name is None
@@ -113,7 +113,7 @@ def test_zero_budget_returns_none(conn: sqlite3.Connection) -> None:
 def test_today_is_last_day_of_month_denominator_is_one(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 28))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 28), base_currency="PLN")
     assert s.days_until_next_income == 1
     assert s.left_daily_spend_minor == s.totals.remaining_minor
 
@@ -121,7 +121,7 @@ def test_today_is_last_day_of_month_denominator_is_one(
 def test_stale_anchor_falls_back(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     preferences_svc.set_income_anchor_category_id(conn, 1, world["salary"])
     categories.soft_delete(conn, USER_ID, world["salary"])
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name is None
     assert s.next_income_date == _period_end(2026, 2)
     # Stale preference row still present.
@@ -144,7 +144,7 @@ def test_rounding_half_even(conn: sqlite3.Connection, world: dict[str, int]) -> 
             amount=500_000,
         ),
     )
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.days_until_next_income == 2
     # 1001 / 2 = 500.5 → ROUND_HALF_EVEN picks the even neighbour (500).
     assert s.left_daily_spend_minor == 500
@@ -173,7 +173,7 @@ def test_recurring_next_due_hit(conn: sqlite3.Connection, world: dict[str, int])
         ),
     )
     recurring.update_rule(conn, USER_ID, rule.id, PatchRecurringRule(next_due=date(2026, 2, 20)))
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15))
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=date(2026, 2, 15), base_currency="PLN")
     assert s.anchor_category_name == "Salary"
     assert s.next_income_date == date(2026, 2, 20)
     assert s.days_until_next_income == 5

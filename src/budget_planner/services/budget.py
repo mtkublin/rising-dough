@@ -28,7 +28,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
-from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, round_div
@@ -69,7 +68,7 @@ def planned_base_amounts(
     user_id: int,
     *,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> Callable[[int, int], int]:
     """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095, ADR-0139).
 
@@ -78,7 +77,7 @@ def planned_base_amounts(
     network). Base-currency accounts are untouched. A missing rate raises
     ``FxUnavailableError``; there is no native-amount fallback.
     """
-    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
+    fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
     ccy_by_account = _currency_by_account(conn, user_id)
 
     def _base_of(account_id: int, amount_minor: int) -> int:
@@ -92,7 +91,7 @@ def txn_base_amounts(
     user_id: int,
     *,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> Callable[[Transaction], int]:
     """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095, ADR-0139).
 
@@ -100,7 +99,7 @@ def txn_base_amounts(
     the latest cached rate on or before its own ``operation_date`` (cache only,
     no network). A missing rate raises ``FxUnavailableError``.
     """
-    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
+    fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
     return fx_svc.txn_base_of(fx, _currency_by_account(conn, user_id))
 
 
@@ -231,7 +230,7 @@ def committed_by_category(
     start: dt.date | None,
     end: dt.date,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
     include_overdue: bool = False,
 ) -> dict[int, int]:
     """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
@@ -268,7 +267,7 @@ def committed_in_window(
     start: dt.date | None,
     end: dt.date,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> int:
     """Return the committed-minor sum for ``[start, end)`` over ALL expense categories.
 
@@ -292,7 +291,7 @@ def committed_split_in_window(
     end: dt.date,
     budgeted_category_ids: frozenset[int],
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> tuple[int, int]:
     """Return ``(budgeted_committed, unbudgeted_committed)`` for ``[start, end)``.
 
@@ -423,6 +422,7 @@ def month_summary(  # noqa: PLR0915
     month: int,
     *,
     today: date,
+    base_currency: str,
     period_window: tuple[date, date] | None = None,
 ) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
@@ -471,7 +471,7 @@ def month_summary(  # noqa: PLR0915
     year_txns = _expense_txns_in_range(conn, user_id, year_start, year_end)
     all_txns = _all_expense_txns(conn, user_id)
 
-    txn_base = txn_base_amounts(conn, user_id, today=today)
+    txn_base = txn_base_amounts(conn, user_id, today=today, base_currency=base_currency)
     spent_this = sum_by_category(this_txns, txn_base)
     spent_prev = sum_by_category(prev_txns, txn_base)
     year_sums = sum_by_category(year_txns, txn_base)
@@ -530,6 +530,7 @@ def month_summary(  # noqa: PLR0915
             start=None,
             end=next_income_date,
             today=today,
+            base_currency=base_currency,
             budgeted_category_ids=frozenset(
                 cat_id for cat_id, amount in budgets_by_cat.items() if amount is not None
             ),
@@ -638,6 +639,8 @@ def month_summary_for_picker(
     user_id: int,
     picked: PickerMonth,
     today: date,
+    *,
+    base_currency: str,
 ) -> MonthSummary:
     """Return the Plan · Budget summary for the picked month (ADR-0138).
 
@@ -648,11 +651,17 @@ def month_summary_for_picker(
     """
     year, month = picked.year, picked.month
     if picked.is_fiscal:
-        return month_summary(conn, user_id, year, month, today=today)
+        return month_summary(conn, user_id, year, month, today=today, base_currency=base_currency)
     month_first, month_last = month_bounds(year, month)
     ref = today.replace(year=year, month=month, day=min(today.day, month_last.day))
     summary = month_summary(
-        conn, user_id, year, month, today=ref, period_window=(month_first, month_last)
+        conn,
+        user_id,
+        year,
+        month,
+        today=ref,
+        base_currency=base_currency,
+        period_window=(month_first, month_last),
     )
     anchor_day = _anchor_day_for_picker(conn, user_id)
     window = PeriodWindow(

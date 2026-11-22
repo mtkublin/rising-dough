@@ -235,7 +235,7 @@ def _expected_summary_totals(user_id: int) -> budget.MonthTotals:
 def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         rows = _own(world, user_id)
-        summary = budget.month_summary(conn, user_id, 2026, 11, today=T)
+        summary = budget.month_summary(conn, user_id, 2026, 11, today=T, base_currency="PLN")
         assert summary.totals == _expected_summary_totals(user_id)
         assert [line.category_id for line in summary.lines] == [rows.category_id]
         assert summary.lines[0].spent_minor == 1_000 * user_id
@@ -247,12 +247,12 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
     # A future-dated paycheck does not move the period start; a landed one does.
     _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 5))
     _land_anchor_income(conn, OWNER_ID, world.owner, dt.date(2026, 11, 20))
-    assert budget.month_summary(conn, OWNER_ID, 2026, 11, today=T).period_start == dt.date(
-        2026, 11, 5
-    )
+    assert budget.month_summary(
+        conn, OWNER_ID, 2026, 11, today=T, base_currency="PLN"
+    ).period_start == dt.date(2026, 11, 5)
     # Zero budget: the anchor is ignored and the cycle runs to the end of the month.
     budgets_repo.clear_default(conn, OTHER_ID, world.other.category_id)
-    unbudgeted = budget.month_summary(conn, OTHER_ID, 2026, 11, today=T)
+    unbudgeted = budget.month_summary(conn, OTHER_ID, 2026, 11, today=T, base_currency="PLN")
     assert unbudgeted.totals.budgeted_minor == 0
     assert unbudgeted.next_income_date == dt.date(2026, 12, 1)
     assert unbudgeted.anchor_category_name is None
@@ -263,7 +263,7 @@ def _case_month_summary(conn: sqlite3.Connection, world: World) -> None:
 def _case_committed_by_category(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         by_category = budget.committed_by_category(
-            conn, user_id, start=None, end=dt.date(2026, 12, 1), today=T
+            conn, user_id, start=None, end=dt.date(2026, 12, 1), today=T, base_currency="PLN"
         )
         # planned 500u + the monthly rule's 11-15 occurrence 700u, own category only
         assert by_category == {_own(world, user_id).category_id: 1_200 * user_id}
@@ -294,7 +294,9 @@ def _case_committed_by_category_windows(conn: sqlite3.Connection, world: World) 
         budget_batch.CommitWindow(start=dt.date(2026, 12, 1), end=dt.date(2026, 12, 1)),
     ]
     for user_id in (OWNER_ID, OTHER_ID):
-        got = budget_batch.committed_by_category_windows(conn, user_id, windows=windows, today=T)
+        got = budget_batch.committed_by_category_windows(
+            conn, user_id, windows=windows, today=T, base_currency="PLN"
+        )
         # same numbers as budget.committed_by_category over the whole of November; empty window is empty
         assert got[0] == {_own(world, user_id).category_id: 1_200 * user_id}
         assert got[1] == {}
@@ -327,11 +329,11 @@ def _case_resolve_picker_month(conn: sqlite3.Connection, world: World) -> None:
 def _case_month_summary_for_picker(conn: sqlite3.Connection, world: World) -> None:
     for user_id in (OWNER_ID, OTHER_ID):
         current = budget.resolve_picker_month(conn, user_id, T)
-        assert budget.month_summary_for_picker(conn, user_id, current, T).totals == (
-            _expected_summary_totals(user_id)
-        )
+        assert budget.month_summary_for_picker(
+            conn, user_id, current, T, base_currency="PLN"
+        ).totals == (_expected_summary_totals(user_id))
         december = budget.resolve_picker_month(conn, user_id, T, month_raw="12")
-        summary = budget.month_summary_for_picker(conn, user_id, december, T)
+        summary = budget.month_summary_for_picker(conn, user_id, december, T, base_currency="PLN")
         assert [line.category_id for line in summary.lines] == [_own(world, user_id).category_id]
         assert summary.totals.budgeted_minor == 3_000 * user_id
         assert summary.totals.spent_minor == 0  # the Nov 10 expense is outside December
@@ -590,11 +592,11 @@ def _case_list_upcoming(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("today.afford")
 def _case_afford(conn: sqlite3.Connection, world: World) -> None:
-    owner = today_svc.afford(conn, OWNER_ID, T, 1_000)
+    owner = today_svc.afford(conn, OWNER_ID, T, 1_000, base_currency="PLN")
     assert owner == today_svc.AffordResult(
         per_day_minor=0, delta_minor=-42, pace_tag="over_limit", days_left=19
     )
-    other = today_svc.afford(conn, OTHER_ID, T, 1_000)
+    other = today_svc.afford(conn, OTHER_ID, T, 1_000, base_currency="PLN")
     assert other == today_svc.AffordResult(
         per_day_minor=32, delta_minor=-52, pace_tag="tight", days_left=19
     )
