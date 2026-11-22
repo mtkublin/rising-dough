@@ -154,3 +154,7 @@ The "cyclomatic-complexity gate: deferred" alternative above is superseded. `xen
 - **Fixed by code.** `recurring_formula._parse_sign` narrows to a literal (no `type: ignore`); the two mid-module imports moved to the top (no `noqa: E402`); year and month range checks in `web/routers/recurring.py` use named `range` constants (no `noqa: PLR2004`); `domain/errors.py` drops `ConflictError.__str__` (the base class already prints the message) and covers the other three `__str__` methods with `tests/unit/domain/test_errors.py` (no `pragma: no cover`).
 - **Kept, with reason.** `config.py` `type: ignore[pydantic-alias]` on the two `AliasChoices` fields (mypy plugin rejects a dynamic alias on a field that has a default; removing it fails `mypy --strict`); `web/deps.py` `noqa: B008` (FastAPI `Depends` default); `__main__` guards `pragma: no cover` in `db/migrate.py` and `db/seed.py`.
 - **Per-file-ignores.** Every `pyproject.toml` per-file-ignore already carries a reason comment; none removed.
+
+## Amendment 2026-11-22 (T-Q296): residual allowlist burn-down
+
+- `functional_first.toml` `config.py` `hidden-cache` moves to `[[permanent]]`: `get_settings` is the process-wide Settings singleton at the config edge; tests clear it via `cache_clear`. Deleted by code: `size_complexity` `web/routers/recurring.py` (7 violations, split into `web/recurring_forms.py` and `web/recurring_views.py`), `private_imports` `db/startup_migrate.py` (`resolve_db_path` made public), `hygiene` `web/routers/recurring.py` `assert-in-src` (3).

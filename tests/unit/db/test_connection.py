@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from budget_planner.config import Settings
-from budget_planner.db.connection import _resolve_db_path, get_connection
+from budget_planner.db.connection import get_connection, resolve_db_path
 
 
 def _settings(tmp_path: Path, name: str = "x.sqlite") -> Settings:
@@ -15,9 +15,9 @@ def _settings(tmp_path: Path, name: str = "x.sqlite") -> Settings:
     return Settings(_env_file=None, database_url=url)
 
 
-def test_resolve_db_path_rejects_non_sqlite() -> None:
+def testresolve_db_path_rejects_non_sqlite() -> None:
     with pytest.raises(ValueError, match="sqlite"):
-        _resolve_db_path("postgresql://localhost/x")
+        resolve_db_path("postgresql://localhost/x")
 
 
 def test_get_connection_creates_parent_dir(tmp_path: Path) -> None:
