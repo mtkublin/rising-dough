@@ -22,9 +22,10 @@ from budget_planner.services import (
     fx as fx_service,
     today as today_service,
 )
+from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
-from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, get_settings_dep
 from budget_planner.web.params import afford_amount_minor
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
@@ -44,6 +45,7 @@ def today(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> HTMLResponse:
     today_d = clock.today_local(settings)
     # Fiscal cycle anchors the landing month so the hero never pulls a
@@ -63,7 +65,7 @@ def today(
     budget = view_models.budget_view(summary, today_d)
 
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
     categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
@@ -95,6 +97,7 @@ def today_upcoming_fragment(
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_ctx),
 ) -> HTMLResponse:
     """HTMX fragment for Today's #upcoming-root.
 
@@ -104,7 +107,7 @@ def today_upcoming_fragment(
     """
     today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
-    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
+    upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days, fx)
     categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
     accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(

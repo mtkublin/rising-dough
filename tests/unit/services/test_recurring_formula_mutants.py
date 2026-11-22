@@ -45,6 +45,7 @@ from budget_planner.services.recurring_formula import (
     rt_expand,
     validate_formula_sources,
 )
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services.conftest import (
     EXPENSE_RULE_DUE,
     OTHER_ID,
@@ -148,7 +149,17 @@ class TestComputeFormulaAmount:
         # 700 (live) + 301 (second live item); the inactive 6 000 and deleted 7 000 never count.
         seed_rule(conn, OWNER_ID, owner.category_id, owner.account_id, EXPENSE_RULE_DUE, amount=301)
         formula = _f(("+", 5000, (owner.category_id,)))
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 501  # 1001 * 50% HALF_UP
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 501
+        )  # 1001 * 50% HALF_UP
 
     def test_terms_are_summed_with_signs(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -161,7 +172,17 @@ class TestComputeFormulaAmount:
             ("+", 1000, (second,)),  # 100
             ("-", 2500, (second,)),  # -250
         )
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 200
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 200
+        )
 
     def test_second_user_rules_do_not_leak(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -169,10 +190,29 @@ class TestComputeFormulaAmount:
         world = world_with_two_users
         own = _f(("+", 10_000, (world.owner.category_id,)))
         theirs = _f(("+", 10_000, (world.other.category_id,)))
-        assert compute_formula_amount(conn, OWNER_ID, own, *NOV) == expense_rule_amount(OWNER_ID)
-        assert compute_formula_amount(conn, OTHER_ID, theirs, *NOV) == expense_rule_amount(OTHER_ID)
-        assert compute_formula_amount(conn, OTHER_ID, own, *NOV) == 0
-        assert compute_formula_amount(conn, OWNER_ID, theirs, *NOV) == 0
+        assert compute_formula_amount(
+            conn, OWNER_ID, own, *NOV, fx=formula_fx_of(conn, OWNER_ID), target_ccy=TARGET_CCY
+        ) == expense_rule_amount(OWNER_ID)
+        assert compute_formula_amount(
+            conn, OTHER_ID, theirs, *NOV, fx=formula_fx_of(conn, OTHER_ID), target_ccy=TARGET_CCY
+        ) == expense_rule_amount(OTHER_ID)
+        assert (
+            compute_formula_amount(
+                conn, OTHER_ID, own, *NOV, fx=formula_fx_of(conn, OTHER_ID), target_ccy=TARGET_CCY
+            )
+            == 0
+        )
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                theirs,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 0
+        )
 
     def test_two_users_chained_formula_uses_own_data(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -186,10 +226,25 @@ class TestComputeFormulaAmount:
             )
             mids[rows.user_id] = mid
         assert (
-            compute_formula_amount(conn, OWNER_ID, _f(("+", 10_000, (mids[OWNER_ID],))), *NOV) == 70
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 10_000, (mids[OWNER_ID],))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 70
         )
         assert (
-            compute_formula_amount(conn, OTHER_ID, _f(("+", 10_000, (mids[OTHER_ID],))), *NOV)
+            compute_formula_amount(
+                conn,
+                OTHER_ID,
+                _f(("+", 10_000, (mids[OTHER_ID],))),
+                *NOV,
+                fx=formula_fx_of(conn, OTHER_ID),
+                target_ccy=TARGET_CCY,
+            )
             == 140
         )
 
@@ -200,8 +255,29 @@ class TestComputeFormulaAmount:
         late = _category(conn, OWNER_ID, "late")
         seed_rule(conn, OWNER_ID, late, owner.account_id, dt.date(2027, 3, 5), amount=900)
         formula = _f(("+", 10_000, (late,)))
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 0
-        assert compute_formula_amount(conn, OWNER_ID, formula, 2027, 3) == 900
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 0
+        )
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                2027,
+                3,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 900
+        )
 
     def test_formula_source_with_no_occurrence_is_zero(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -216,7 +292,17 @@ class TestComputeFormulaAmount:
             _f(("+", 10_000, (owner.category_id,))),
             due=dt.date(2027, 3, 5),
         )
-        assert compute_formula_amount(conn, OWNER_ID, _f(("+", 10_000, (src,))), *NOV) == 0
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 10_000, (src,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 0
+        )
 
     def test_skipped_source_item_does_not_stop_later_item(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -232,7 +318,17 @@ class TestComputeFormulaAmount:
                 rule_id=first.id, occurrence_date=EXPENSE_RULE_DUE, state=OverrideState.SKIPPED
             ),
         )
-        assert compute_formula_amount(conn, OWNER_ID, _f(("+", 10_000, (cat,))), *NOV) == 222
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 10_000, (cat,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 222
+        )
 
     def test_amount_override_on_source_wins(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -249,7 +345,17 @@ class TestComputeFormulaAmount:
             ),
         )
         formula = _f(("+", 10_000, (owner.category_id,)))
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 1234
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 1234
+        )
 
     def test_chained_formula_source_contributes_its_computed_amount(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -260,8 +366,18 @@ class TestComputeFormulaAmount:
             conn, OWNER_ID, owner.account_id, mid, _f(("+", 1000, (owner.category_id,)))
         )  # 10% of 700 = 70
         top = _f(("+", 5000, (mid,)))
-        assert compute_formula_amount(conn, OWNER_ID, top, *NOV) == 35
-        assert compute_formula_amount(conn, OWNER_ID, top, *DEC) == 35
+        assert (
+            compute_formula_amount(
+                conn, OWNER_ID, top, *NOV, fx=formula_fx_of(conn, OWNER_ID), target_ccy=TARGET_CCY
+            )
+            == 35
+        )
+        assert (
+            compute_formula_amount(
+                conn, OWNER_ID, top, *DEC, fx=formula_fx_of(conn, OWNER_ID), target_ccy=TARGET_CCY
+            )
+            == 35
+        )
 
     def test_chained_formula_source_override_replaces_computed_amount(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -281,7 +397,17 @@ class TestComputeFormulaAmount:
                 amount_override=400,
             ),
         )
-        assert compute_formula_amount(conn, OWNER_ID, _f(("+", 10_000, (mid_cat,))), *NOV) == 400
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 10_000, (mid_cat,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 400
+        )
 
     def test_cached_rule_does_not_drop_earlier_total(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -293,7 +419,17 @@ class TestComputeFormulaAmount:
         seed_rule(conn, OWNER_ID, cat_b, owner.account_id, EXPENSE_RULE_DUE, amount=30)
         # Term 1 caches rule b; term 2 sums a (computed) then b (cache hit).
         formula = _f(("+", 10_000, (cat_b,)), ("+", 10_000, (cat_a, cat_b)))
-        assert compute_formula_amount(conn, OWNER_ID, formula, *NOV) == 30 + 130
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 30 + 130
+        )
 
     def test_rule_is_not_its_own_source(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -307,15 +443,36 @@ class TestComputeFormulaAmount:
             _f(("+", 1000, (owner.category_id,))),
         )
         assert rule.amount_formula is not None
-        assert resolve_rule_amount(conn, OWNER_ID, rule, EXPENSE_RULE_DUE) == 70
+        assert (
+            resolve_rule_amount(
+                conn, OWNER_ID, rule, EXPENSE_RULE_DUE, fx=formula_fx_of(conn, OWNER_ID)
+            )
+            == 70
+        )
         assert (
             compute_formula_amount(
-                conn, OWNER_ID, rule.amount_formula, *NOV, exclude_rule_id=rule.id
+                conn,
+                OWNER_ID,
+                rule.amount_formula,
+                *NOV,
+                exclude_rule_id=rule.id,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
             )
             == 70
         )
         # Without the exclusion the rule feeds itself: (700 + 70) * 10% = 77.
-        assert compute_formula_amount(conn, OWNER_ID, rule.amount_formula, *NOV) == 77
+        assert (
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                rule.amount_formula,
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 77
+        )
 
     def test_fixed_rule_resolves_to_default_amount(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -323,7 +480,12 @@ class TestComputeFormulaAmount:
         owner = world_with_two_users.owner
         rule = recurring_repo.find_rule(conn, OWNER_ID, owner.rule_id)
         assert rule is not None
-        assert resolve_rule_amount(conn, OWNER_ID, rule, EXPENSE_RULE_DUE) == 700
+        assert (
+            resolve_rule_amount(
+                conn, OWNER_ID, rule, EXPENSE_RULE_DUE, fx=formula_fx_of(conn, OWNER_ID)
+            )
+            == 700
+        )
 
     def test_cycle_message_names_rule_and_ancestors(
         self, conn: sqlite3.Connection, world_with_two_users: World
@@ -338,7 +500,15 @@ class TestComputeFormulaAmount:
         recurring_repo.update_rule(conn, OWNER_ID, rx.id, PatchRecurringRule(amount_formula=fx))
         recurring_repo.update_rule(conn, OWNER_ID, ry.id, PatchRecurringRule(amount_formula=fy))
         with pytest.raises(FormulaCycleError) as exc:
-            compute_formula_amount(conn, OWNER_ID, fx, *NOV, exclude_rule_id=rx.id)
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                fx,
+                *NOV,
+                exclude_rule_id=rx.id,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
         assert str(exc.value) == (
             f"formula cycle detected via rule {rx.id} (ancestors: {sorted([rx.id, ry.id])})"
         )
@@ -367,6 +537,7 @@ class TestRtExpand:
             overrides=[],
             range_start=dt.date(2026, 11, 1),
             range_end=dt.date(2026, 12, 31),
+            fx=formula_fx_of(conn, OWNER_ID),
         )
         assert [(o.occurrence_date, o.amount) for o in occs] == [
             (dt.date(2026, 11, 15), 70),
@@ -396,6 +567,7 @@ class TestRtExpand:
             overrides=[],
             range_start=dt.date(2026, 11, 1),
             range_end=dt.date(2026, 11, 30),
+            fx=formula_fx_of(conn, OWNER_ID),
         )
         assert occs[0].dest_account_id == owner.account_id + 100
 
@@ -420,6 +592,7 @@ class TestRtExpand:
             overrides=[override],
             range_start=EXPENSE_RULE_DUE,
             range_end=EXPENSE_RULE_DUE,
+            fx=formula_fx_of(conn, OWNER_ID),
         )
         assert [(o.amount, o.is_overridden) for o in occs] == [(55, True)]
 
@@ -515,7 +688,15 @@ class TestPreviewAndSavable:
     WHEN = dt.date(2026, 11, 1)
 
     def test_empty_terms(self, conn: sqlite3.Connection, world_with_two_users: World) -> None:
-        assert preview(conn, OWNER_ID, self.WHEN, None, []) == PreviewError(
+        assert preview(
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            [],
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        ) == PreviewError(
             code="empty", message="formula needs at least one term", offending_term_index=None
         )
 
@@ -527,7 +708,15 @@ class TestPreviewAndSavable:
             DraftTerm("+", "10", (world.owner.category_id,)),
             DraftTerm("+", "10", (world.other.category_id,)),
         ]
-        assert preview(conn, OWNER_ID, self.WHEN, None, terms) == PreviewError(
+        assert preview(
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            terms,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        ) == PreviewError(
             code="invalid_source",
             message=f"unknown or archived source category: {world.other.category_id}",
             offending_term_index=1,
@@ -541,7 +730,15 @@ class TestPreviewAndSavable:
             DraftTerm("+", "10", (owner.category_id,)),
             DraftTerm("+", "abc", (owner.category_id,)),
         ]
-        assert preview(conn, OWNER_ID, self.WHEN, None, terms) == PreviewError(
+        assert preview(
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            terms,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        ) == PreviewError(
             code="invalid_source",
             message="coefficient must be a decimal number",
             offending_term_index=1,
@@ -552,7 +749,13 @@ class TestPreviewAndSavable:
     ) -> None:
         owner = world_with_two_users.owner
         result = preview(
-            conn, OWNER_ID, self.WHEN, owner.rule_id, [DraftTerm("+", "10", (owner.category_id,))]
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            owner.rule_id,
+            [DraftTerm("+", "10", (owner.category_id,))],
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
         )
         assert result == PreviewError(
             code="cycle",
@@ -572,7 +775,15 @@ class TestPreviewAndSavable:
         recurring_repo.update_rule(
             conn, OWNER_ID, rx.id, PatchRecurringRule(amount_formula=_f(("+", 1000, (cat_y,))))
         )
-        result = preview(conn, OWNER_ID, self.WHEN, None, [DraftTerm("+", "10", (cat_x,))])
+        result = preview(
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            [DraftTerm("+", "10", (cat_x,))],
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        )
         assert isinstance(result, PreviewError)
         assert result.code == "cycle"
         assert result.offending_term_index is None
@@ -586,7 +797,13 @@ class TestPreviewAndSavable:
         owner = world_with_two_users.owner
         # 0.15% of 700 = 1.05 -> 1 minor unit.
         result = preview(
-            conn, OWNER_ID, self.WHEN, None, [DraftTerm("+", "0.15", (owner.category_id,))]
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            [DraftTerm("+", "0.15", (owner.category_id,))],
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
         )
         assert result == PreviewOk(amount_minor=1)
 
@@ -596,7 +813,13 @@ class TestPreviewAndSavable:
         owner = world_with_two_users.owner
         # 0.01% of 700 = 0.07 -> 0.
         result = preview(
-            conn, OWNER_ID, self.WHEN, None, [DraftTerm("+", "0.01", (owner.category_id,))]
+            conn,
+            OWNER_ID,
+            self.WHEN,
+            None,
+            [DraftTerm("+", "0.01", (owner.category_id,))],
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
         )
         assert result == PreviewError(
             code="non_positive",
@@ -609,14 +832,29 @@ class TestPreviewAndSavable:
     ) -> None:
         world = world_with_two_users
         own = _f(("+", 1250, (world.owner.category_id,)))
-        assert compute_savable_amount(conn, OWNER_ID, own, *NOV) == 88  # 87.5 HALF_UP
+        assert (
+            compute_savable_amount(
+                conn, OWNER_ID, own, *NOV, fx=formula_fx_of(conn, OWNER_ID), target_ccy=TARGET_CCY
+            )
+            == 88
+        )  # 87.5 HALF_UP
         with pytest.raises(FormulaError, match="non-positive"):
             compute_savable_amount(
-                conn, OWNER_ID, _f(("-", 1000, (world.owner.category_id,))), *NOV
+                conn,
+                OWNER_ID,
+                _f(("-", 1000, (world.owner.category_id,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
             )
         with pytest.raises(FormulaError) as exc:
             compute_savable_amount(
-                conn, OWNER_ID, _f(("+", 1000, (world.other.category_id,))), *NOV
+                conn,
+                OWNER_ID,
+                _f(("+", 1000, (world.other.category_id,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
             )
         assert str(exc.value) == f"unknown or archived source category: {world.other.category_id}"
         assert formula_svc.invalid_source_ids(conn, OWNER_ID, [(world.owner.category_id,)]) is None
@@ -663,7 +901,16 @@ class TestSumSkipsDoNotStopTheScan:
         seed_rule(conn, OWNER_ID, cat_a, acct, d(2026, 11, 4), amount=100)
         # Scan order: noise (skipped), f (excluded), b (cached after term 1), a (counted).
         assert (
-            compute_formula_amount(conn, OWNER_ID, formula, *NOV, exclude_rule_id=f_rule.id) == 160
+            compute_formula_amount(
+                conn,
+                OWNER_ID,
+                formula,
+                *NOV,
+                exclude_rule_id=f_rule.id,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 160
         )
 
 
@@ -727,7 +974,13 @@ class TestSavableValidates:
         _formula_rule(conn, OWNER_ID, owner.account_id, cat_y, _f(("+", 1000, (cat_x,))))
         with pytest.raises(FormulaCycleError) as exc:
             compute_savable_amount(
-                conn, OWNER_ID, _f(("+", 1000, (cat_y,))), *NOV, exclude_rule_id=rx.id
+                conn,
+                OWNER_ID,
+                _f(("+", 1000, (cat_y,))),
+                *NOV,
+                exclude_rule_id=rx.id,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
             )
         assert str(exc.value) == f"formula would create a cycle via rule {rx.id}"
 
@@ -742,6 +995,8 @@ class TestSavableValidates:
                 _f(("+", 1000, (owner.category_id,))),
                 *NOV,
                 exclude_rule_id=owner.rule_id,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
             )
 
     def test_zero_and_one_boundaries(
@@ -749,8 +1004,23 @@ class TestSavableValidates:
     ) -> None:
         owner = world_with_two_users.owner
         with pytest.raises(FormulaError) as exc:
-            compute_savable_amount(conn, OWNER_ID, _f(("+", 1, (owner.category_id,))), *NOV)
+            compute_savable_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 1, (owner.category_id,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
         assert str(exc.value) == "formula resolved to a non-positive amount"  # 0.07 -> 0
         assert (
-            compute_savable_amount(conn, OWNER_ID, _f(("+", 15, (owner.category_id,))), *NOV) == 1
+            compute_savable_amount(
+                conn,
+                OWNER_ID,
+                _f(("+", 15, (owner.category_id,))),
+                *NOV,
+                fx=formula_fx_of(conn, OWNER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 1
         )

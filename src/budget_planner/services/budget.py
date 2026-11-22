@@ -61,6 +61,7 @@ from budget_planner.services.budget_lines import (
     CategorySums,
     build_budget_lines,
 )
+from budget_planner.services.recurring_formula import formula_ctx_for
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +240,7 @@ def committed_by_category(
     items = recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=formula_ctx_for(conn, user_id, fx_svc.BaseCurrency(base_currency), today),
         start=start,
         end=end,
         today=today,

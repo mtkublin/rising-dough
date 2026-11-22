@@ -19,6 +19,8 @@ from budget_planner.services import (
     recurring as recurring_svc,
     recurring_formula as formula_svc,
 )
+from budget_planner.services.recurring_formula import FormulaFx
+from budget_planner.web.params import parse_int
 from budget_planner.web.recurring_forms import TermInput, formula_source_candidates
 from budget_planner.web.rendering import render
 
@@ -56,9 +58,30 @@ def effective_amount_for_render(
     conn: sqlite3.Connection,
     user_id: int,
     rule: RecurringRule,
+    fx: FormulaFx,
 ) -> int:
     """Return the amount to render in the Ledger row for a rule (formula-aware)."""
-    return formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
+    return formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
+
+
+def preview_currency(
+    conn: sqlite3.Connection,
+    user_id: int,
+    posted_account_id: object,
+    draft_rule_id: int | None,
+    fx: FormulaFx,
+) -> str:
+    """Currency the draft formula is shown in: form account, else draft rule's, else base."""
+    account_id = parse_int(str(posted_account_id or ""))
+    if account_id is None and draft_rule_id is not None:
+        draft = recurring_svc.find_rule(conn, user_id, draft_rule_id)
+        account_id = draft.account_id if draft is not None else None
+    acc = (
+        accounts_service.find_by_id(conn, user_id, account_id, include_deleted=True)
+        if account_id is not None
+        else None
+    )
+    return acc.currency if acc is not None else fx.converter.base_currency
 
 
 def override_on_next_due(
@@ -79,6 +102,7 @@ def render_promote_modal(
     conn: sqlite3.Connection,
     user_id: int,
     rule_id: int,
+    fx: FormulaFx,
     *,
     errors: dict[str, str] | None = None,
     status_code: int = 200,
@@ -100,7 +124,7 @@ def render_promote_modal(
     override = override_on_next_due(conn, user_id, rule_id, rule.next_due)
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     prefill_date = rule.next_due
-    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
+    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
     prefill_description = rule.default_description
     if override is not None:
         if override.date_override is not None:

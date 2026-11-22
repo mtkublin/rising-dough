@@ -28,6 +28,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import recurring as rec_svc
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 
@@ -606,7 +607,9 @@ def test_promote_happy_path_advances_next_due(
     before = recurring_repo.find_rule(conn, USER_ID, rule_id)
     assert before is not None
     due = before.next_due
-    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert txn.promoted_from_recurring_rule_id == rule_id
     assert txn.promoted_from_recurring_date == due
     assert txn.amount == 200_000
@@ -633,7 +636,9 @@ def test_promote_overridden_amount_merges(conn: sqlite3.Connection, world: dict[
             description_override="rent + utilities",
         ),
     )
-    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert txn.amount == 250_000
     assert txn.description == "rent + utilities"
     # ADR-0046: default list hides consumed; history retains it.
@@ -657,7 +662,9 @@ def test_promote_skipped_blocks(conn: sqlite3.Connection, world: dict[str, int])
         ),
     )
     with pytest.raises(rec_svc.CannotPromoteSkippedError):
-        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
 
 def test_promote_edits_override_defaults(conn: sqlite3.Connection, world: dict[str, int]) -> None:
@@ -679,6 +686,7 @@ def test_promote_edits_override_defaults(conn: sqlite3.Connection, world: dict[s
         USER_ID,
         rule_id,
         rec_svc.PromotionEdits(amount_minor=180_000, description="edited"),
+        fx=formula_fx_of(conn, USER_ID),
     )
     assert txn.amount == 180_000
     assert txn.description == "edited"
@@ -700,7 +708,9 @@ def test_promote_end_of_rule_deactivates(conn: sqlite3.Connection, world: dict[s
             default_description="one-off",
         ),
     )
-    rec_svc.promote_recurring(conn, USER_ID, one_off.id, rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(
+        conn, USER_ID, one_off.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     after = recurring_repo.find_rule(conn, USER_ID, one_off.id, include_deleted=True)
     assert after is not None
     assert not after.active
@@ -713,6 +723,7 @@ def test_promote_zero_amount_rejected(conn: sqlite3.Connection, world: dict[str,
             USER_ID,
             world["rule"],
             rec_svc.PromotionEdits(amount_minor=0),
+            fx=formula_fx_of(conn, USER_ID),
         )
 
 
@@ -732,7 +743,13 @@ def test_promote_transit_cross_currency_rejected(
         ),
     )
     with pytest.raises(ValidationError):
-        rec_svc.promote_recurring(conn, USER_ID, transit_rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn,
+            USER_ID,
+            transit_rule.id,
+            rec_svc.PromotionEdits(),
+            fx=formula_fx_of(conn, USER_ID),
+        )
 
 
 def test_promote_adjustment_direction_unsupported(
@@ -750,24 +767,32 @@ def test_promote_adjustment_direction_unsupported(
         ),
     )
     with pytest.raises(UnsupportedDirectionError):
-        rec_svc.promote_recurring(conn, USER_ID, adj_rule.id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, adj_rule.id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
 
 def test_promote_unknown_rule(conn: sqlite3.Connection) -> None:
     with pytest.raises(rec_svc.RecurringNotFoundError):
-        rec_svc.promote_recurring(conn, USER_ID, 9999, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, 9999, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
 
 def test_promote_inactive_rule(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     recurring_repo.deactivate_rule(conn, USER_ID, world["rule"])
     with pytest.raises(rec_svc.InactiveRecurringError):
-        rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, world["rule"], rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
 
 def test_promote_writes_audit(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rule_id = world["rule"]
     entries_before = len(audit_repo.list_entries(conn, 1, "recurring_rule", rule_id))
-    rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     entries_after = audit_repo.list_entries(conn, 1, "recurring_rule", rule_id)
     # Promotion adds one audit entry on the rule mutation (update).
     assert len(entries_after) == entries_before + 1
@@ -848,7 +873,9 @@ def test_promote_date_override_shifts_operation_date(
             date_override=shifted,
         ),
     )
-    txn = rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+    txn = rec_svc.promote_recurring(
+        conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+    )
     assert txn.operation_date == shifted
     # Provenance keeps the canonical occurrence date for dedup.
     assert txn.promoted_from_recurring_date == rule.next_due
@@ -868,7 +895,9 @@ def test_promote_rollback_on_set_next_due_failure(
 
     monkeypatch.setattr("budget_planner.services.recurring.set_next_due", _boom)
     with pytest.raises(RuntimeError):
-        rec_svc.promote_recurring(conn, USER_ID, rule_id, rec_svc.PromotionEdits())
+        rec_svc.promote_recurring(
+            conn, USER_ID, rule_id, rec_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
 
     txns_after = len(transactions_repo.list_filtered(conn, USER_ID, empty))
     assert txns_after == txns_before
