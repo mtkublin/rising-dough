@@ -15,7 +15,7 @@ import sqlite3
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories import accounts as accounts_repo
+from budget_planner.repositories import accounts as accounts_repo, transactions as transactions_repo
 from budget_planner.services.account_pair import validate_distinct_accounts
 
 
@@ -90,10 +90,30 @@ def transit_shape_error(
     return None
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+find_by_id = transactions_repo.find_by_id
+list_filtered = transactions_repo.list_filtered
+count_filtered = transactions_repo.count_filtered
+list_recently_deleted = transactions_repo.list_recently_deleted
+create = transactions_repo.create
+update = transactions_repo.update
+soft_delete = transactions_repo.soft_delete
+undelete = transactions_repo.undelete
+
+
 __all__ = [
     "UnsupportedDirectionError",
     "ValidationError",
     "check_transit_shape",
+    "count_filtered",
+    "create",
+    "find_by_id",
+    "list_filtered",
+    "list_recently_deleted",
+    "soft_delete",
     "transit_shape_error",
+    "undelete",
+    "update",
     "validate_transit_shape",
 ]

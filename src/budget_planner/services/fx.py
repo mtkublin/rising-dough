@@ -33,6 +33,13 @@ class HasBaseCurrency(Protocol):
     def base_currency(self) -> str: ...
 
 
+@dataclass(frozen=True, slots=True)
+class BaseCurrency:
+    """A bare base-currency code as a :class:`HasBaseCurrency` (callers holding only the code)."""
+
+    base_currency: str
+
+
 class FxUnavailableError(RuntimeError):
     """No cached rate for a pair on or before the requested date (ADR-0139)."""
 
@@ -152,6 +159,11 @@ def refresh_rates(
     return tuple(outcomes)
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+list_recent_rates = fx_repo.list_recent
+
+
 __all__ = [
     "FxConverter",
     "FxUnavailableError",
@@ -160,6 +172,7 @@ __all__ = [
     "RefreshOutcome",
     "build_converter",
     "converter_for",
+    "list_recent_rates",
     "refresh_rates",
     "txn_base_of",
 ]

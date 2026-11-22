@@ -72,3 +72,14 @@ __all__ = [
     "login_cookie",
     "seed_login_user",
 ]
+
+
+class FakeTokenSource:
+    """Deterministic ``TokenSource`` fake: ``tok-<n>-<nbytes>`` (T-Q264)."""
+
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+
+    def new_token(self, nbytes: int) -> str:
+        self.calls.append(nbytes)
+        return f"tok-{len(self.calls)}-{nbytes}"

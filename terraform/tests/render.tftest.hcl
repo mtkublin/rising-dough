@@ -483,6 +483,39 @@ run "drill_render_is_tailnet_only" {
     condition     = strcontains(nonsensitive(output.all_rendered), "ufw allow in on tailscale0 to any port 443")
     error_message = "Drill allows 443 only on tailscale0."
   }
+
+  # T-Q255 (Q-078, ADR-0101 amendment): Caddy is host-networked, so Docker publishes
+  # nothing for it (DOCKER-USER does not see that traffic) and the host INPUT filter
+  # (ufw, tailscale0 only) is the control. The only published port is the app's
+  # loopback bind.
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "\"127.0.0.1:8000:8000\"") && !strcontains(nonsensitive(output.all_rendered), "\"0.0.0.0:") && length(regexall("- \"[0-9]+:[0-9]+\"", nonsensitive(output.all_rendered))) == 0
+    error_message = "Drill must publish no container port beyond the loopback app bind (T-Q255)."
+  }
+}
+
+run "images_and_packages_are_pinned" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  # T-Q255 (Q-067): Caddy and Litestream by digest, tailscale by exact apt version.
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "image: caddy:2.8@sha256:") && !strcontains(nonsensitive(output.all_rendered), "image: caddy:2.8\n")
+    error_message = "Caddy image must be pinned by @sha256 digest."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.all_rendered), "image: litestream/litestream:0.3.14@sha256:") && !strcontains(nonsensitive(output.all_rendered), "image: litestream/litestream:0.3.14\n")
+    error_message = "Litestream image must be pinned by @sha256 digest."
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.user_data), "apt-get install -y tailscale=")
+    error_message = "tailscale must be installed at an exact pinned version."
+  }
 }
 
 run "drill_requires_tailnet_dns_name" {

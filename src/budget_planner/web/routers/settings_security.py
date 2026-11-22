@@ -16,9 +16,8 @@ from typing import Any, Final
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
-from budget_planner.repositories.sessions import session_handle
-from budget_planner.services import password_change as password_service
+from budget_planner.services import auth as auth_service, password_change as password_service
+from budget_planner.services.auth import session_handle
 from budget_planner.web.deps import current_user, get_db
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import render
@@ -37,7 +36,7 @@ def security_context(
     """Template context shared by the GET page and password-form re-renders."""
     token = getattr(request.state, "session_id", None)
     current_handle = session_handle(token) if token else None
-    sessions = sessions_repo.list_active_sessions(conn, user.id)
+    sessions = auth_service.list_active_sessions(conn, user.id)
     absolute = timedelta(days=request.app.state.settings.session_absolute_lifetime_days)
     return {
         "active_tab": "security",
@@ -50,7 +49,7 @@ def security_context(
             }
             for s in sessions
         ],
-        "passkeys": webauthn_repo.list_credentials(conn, user.id),
+        "passkeys": auth_service.list_passkeys(conn, user.id),
         "label_max_length": LABEL_MAX_LENGTH,
         "min_length": password_service.MIN_PASSWORD_LENGTH,
         "forced": False,

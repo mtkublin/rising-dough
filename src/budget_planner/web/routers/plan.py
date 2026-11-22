@@ -45,7 +45,9 @@ def plan(
     )
     ctx: dict[str, Any] = plan_data.base_context(tab_norm, today_d, settings.base_currency, picked)
     if tab_norm == "budget":
-        summary = budget_service.month_summary_for_picker(conn, user_id, picked, today_d)
+        summary = budget_service.month_summary_for_picker(
+            conn, user_id, picked, today_d, base_currency=settings.base_currency
+        )
         ctx["budget"] = view_models.budget_view(summary, today_d)
     elif tab_norm == "year":
         ctx.update(plan_data.year_context(conn, user_id, today_d, request.query_params.get("year")))

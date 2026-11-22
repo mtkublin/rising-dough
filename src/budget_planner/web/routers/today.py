@@ -14,12 +14,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.repositories import (
-    accounts as accounts_repo,
-    categories as categories_repo,
-)
 from budget_planner.services import (
+    accounts as accounts_service,
     budget as budget_service,
+    categories as categories_service,
     fortune as fortune_service,
     fx as fx_service,
     today as today_service,
@@ -60,7 +58,9 @@ def today(
     converter = fx_service.converter_for(conn, settings, today_d)
     account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
     fortune = fortune_service.compute_fortune(conn, user_id, converter)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today_d, base_currency=base_ccy
+    )
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
@@ -68,8 +68,8 @@ def today(
 
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
 
     return render(
         request,
@@ -109,8 +109,8 @@ def today_upcoming_fragment(
     today_d = clock.today_local(settings)
     window_label, window_days = today_data.window_from(request)
     upcoming = today_data.list_upcoming(conn, user_id, today_d, window_days)
-    categories_by_id = {c.id: c for c in categories_repo.list_all(conn, user_id)}
-    accounts_by_id = {a.id: a for a in accounts_repo.list_all(conn, user_id)}
+    categories_by_id = {c.id: c for c in categories_service.list_all(conn, user_id)}
+    accounts_by_id = {a.id: a for a in accounts_service.list_all(conn, user_id)}
     return render(
         request,
         "today/_upcoming.html",
@@ -142,7 +142,9 @@ def afford(
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
     today_d = clock.today_local(settings)
-    result = today_service.afford(conn, user_id, today_d, amount_minor)
+    result = today_service.afford(
+        conn, user_id, today_d, amount_minor, base_currency=settings.base_currency
+    )
     return render(
         request,
         "today/_afford_preview.html",
@@ -178,8 +180,8 @@ def add_entry_overlay(
         "active_tab": active_tab,
         "form_include": form_include,
         "action": action,
-        "categories": categories_repo.list_all(conn, user_id),
-        "accounts": accounts_repo.list_all(conn, user_id),
+        "categories": categories_service.list_all(conn, user_id),
+        "accounts": accounts_service.list_all(conn, user_id),
         "errors": {},
         entity_name: None,
     }

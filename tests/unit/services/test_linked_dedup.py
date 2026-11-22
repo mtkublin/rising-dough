@@ -70,7 +70,9 @@ def _planned(
 
 
 def _budget(conn: sqlite3.Connection) -> int:
-    return bs.committed_in_window(conn, USER_ID, start=START, end=END, today=clock.utc_now().date())
+    return bs.committed_in_window(
+        conn, USER_ID, start=START, end=END, today=clock.utc_now().date(), base_currency="PLN"
+    )
 
 
 def _forecast(conn: sqlite3.Connection, ids: dict[str, int]) -> int:

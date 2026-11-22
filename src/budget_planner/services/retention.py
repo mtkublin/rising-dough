@@ -10,11 +10,19 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from dataclasses import dataclass
+from typing import Protocol
 
 from budget_planner import clock
-from budget_planner.config import Settings
 from budget_planner.logging import get_logger
 from budget_planner.repositories import retention as repo
+from budget_planner.services.connections import get_connection
+
+
+class RetentionSettings(Protocol):
+    """The slice of ``Settings`` the purge reads (keeps services off ``config``)."""
+
+    @property
+    def retention_personal_days(self) -> int: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +36,7 @@ def cutoff(now: dt.datetime, retention_days: int) -> dt.datetime:
     return now.astimezone(dt.UTC) - dt.timedelta(days=retention_days)
 
 
-def purge(conn: sqlite3.Connection, now: dt.datetime, settings: Settings) -> PurgeResult:
+def purge(conn: sqlite3.Connection, now: dt.datetime, settings: RetentionSettings) -> PurgeResult:
     """Run the purge once and log ``retention_purge`` with counts only."""
     cutoff_iso = clock.iso_utc(cutoff(now, settings.retention_personal_days))
     result = PurgeResult(
@@ -42,3 +50,12 @@ def purge(conn: sqlite3.Connection, now: dt.datetime, settings: Settings) -> Pur
         retention_days=settings.retention_personal_days,
     )
     return result
+
+
+def run_once(settings: Settings) -> PurgeResult:
+    """Open a connection, purge once at the current instant, close it."""
+    conn = get_connection(settings)
+    try:
+        return purge(conn, clock.utc_now(), settings)
+    finally:
+        conn.close()

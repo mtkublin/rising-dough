@@ -36,10 +36,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
-from budget_planner.db.connection import get_connection
 from budget_planner.logging import get_logger
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.services import auth as auth_service
+from budget_planner.services.connections import get_connection
 from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
     LOGIN_PATH,

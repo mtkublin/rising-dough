@@ -267,38 +267,7 @@ type = "forbidden"
 source_modules = ["budget_planner.web.routers"]
 forbidden_modules = ["budget_planner.repositories"]
 allow_indirect_imports = true
-ignore_imports = [
-  # E12 / Q-045: router reaches a repository directly; remove each line as the remediation lands.
-  "budget_planner.web.routers.accounts -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.accounts -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.accounts -> budget_planner.repositories.snapshots",
-  "budget_planner.web.routers.auth -> budget_planner.repositories.sessions",
-  "budget_planner.web.routers.auth -> budget_planner.repositories.webauthn",
-  "budget_planner.web.routers.budget -> budget_planner.repositories.budgets",
-  "budget_planner.web.routers.budget -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.categories -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.ledger -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.ledger -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.ledger -> budget_planner.repositories.planned",
-  "budget_planner.web.routers.ledger -> budget_planner.repositories.recurring",
-  "budget_planner.web.routers.ledger -> budget_planner.repositories.transactions",
-  "budget_planner.web.routers.planned -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.planned -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.planned -> budget_planner.repositories.planned",
-  "budget_planner.web.routers.recurring -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.recurring -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.recurring -> budget_planner.repositories.recurring",
-  "budget_planner.web.routers.settings -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.settings -> budget_planner.repositories.fx",
-  "budget_planner.web.routers.settings_security -> budget_planner.repositories.sessions",
-  "budget_planner.web.routers.settings_security -> budget_planner.repositories.webauthn",
-  "budget_planner.web.routers.settings_users -> budget_planner.repositories.auth_users",
-  "budget_planner.web.routers.today -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.today -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.transactions -> budget_planner.repositories.accounts",
-  "budget_planner.web.routers.transactions -> budget_planner.repositories.categories",
-  "budget_planner.web.routers.transactions -> budget_planner.repositories.transactions",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "web does not import db"
@@ -306,14 +275,7 @@ type = "forbidden"
 source_modules = ["budget_planner.web"]
 forbidden_modules = ["budget_planner.db"]
 allow_indirect_imports = true
-ignore_imports = [
-  # E12 / Q-074: web imports db directly; remove each line as the remediation lands.
-  "budget_planner.web.app -> budget_planner.db.connection",
-  "budget_planner.web.deps -> budget_planner.db.connection",
-  "budget_planner.web.middleware.auth -> budget_planner.db.connection",
-  "budget_planner.web.retention_task -> budget_planner.db.retention",
-  "budget_planner.web.routers.health -> budget_planner.db.connection",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "domain is a leaf layer"

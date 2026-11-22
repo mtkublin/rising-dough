@@ -89,10 +89,28 @@ def restore(conn: sqlite3.Connection, user_id: int, category_id: int) -> Categor
     return categories_repo.undelete(conn, user_id, category_id)
 
 
+# T-Q241: routers reach persistence only through these service entry points
+# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
+find_by_id = categories_repo.find_by_id
+find_by_name = categories_repo.find_by_name
+list_all = categories_repo.list_all
+list_recently_deleted = categories_repo.list_recently_deleted
+create = categories_repo.create
+update = categories_repo.update
+soft_delete = categories_repo.soft_delete
+
+
 __all__ = [
     "CategoryHasLiveRulesError",
     "CategoryNotFoundError",
     "SystemCategoryError",
     "archive",
+    "create",
+    "find_by_id",
+    "find_by_name",
+    "list_all",
+    "list_recently_deleted",
     "restore",
+    "soft_delete",
+    "update",
 ]

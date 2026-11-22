@@ -26,7 +26,7 @@ IMAGE_FILES = (
     CLOUD_INIT / "bin" / "restore-from-prod.tpl",
 )
 RECIPIENT_RE = re.compile(r"^age1[0-9a-z]{58}$")
-IMAGE_RE = re.compile(r"litestream/litestream:([0-9][^\s'\"]*)")
+IMAGE_RE = re.compile(r"litestream/litestream:([0-9][^\s'\"@]*)(?:@sha256:[0-9a-f]{64})?")
 
 
 def _replica(path: Path) -> dict[str, Any]:
