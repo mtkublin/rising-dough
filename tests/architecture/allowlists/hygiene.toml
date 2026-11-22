@@ -255,20 +255,6 @@ finding = "Q-073"
 epic = "E15"
 
 [[entry]]
-path = "src/budget_planner/web/routers/accounts.py"
-rule = "any-annotation"
-count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/accounts.py"
-rule = "assert-in-src"
-count = 2
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
 path = "src/budget_planner/web/routers/auth.py"
 rule = "any-annotation"
 count = 1
@@ -285,13 +271,6 @@ epic = "E15"
 [[entry]]
 path = "src/budget_planner/web/routers/categories.py"
 rule = "assert-in-src"
-count = 2
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/categories.py"
-rule = "silent-except"
 count = 1
 finding = "Q-073"
 epic = "E15"
@@ -326,22 +305,8 @@ epic = "E15"
 
 [[entry]]
 path = "src/budget_planner/web/routers/recurring.py"
-rule = "any-annotation"
-count = 8
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
 rule = "assert-in-src"
 count = 3
-finding = "Q-073"
-epic = "E15"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "silent-except"
-count = 1
 finding = "Q-073"
 epic = "E15"
 

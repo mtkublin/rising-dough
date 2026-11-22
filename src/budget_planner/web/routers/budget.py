@@ -17,28 +17,23 @@ the response.
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.budgets import (
-    NewBudgetDefault,
-    NewBudgetOneOffOverride,
-    NewBudgetRecurringOverride,
-)
-from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import parse_amount_minor
+from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride
 from budget_planner.services import (
     budget as budget_service,
     budget_overrides as budget_overrides_service,
+    budget_rules,
     categories as categories_service,
     preferences as preferences_svc,
 )
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
+from budget_planner.web.budget_forms import non_negative_amount, parse_override, valid_month
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
@@ -49,84 +44,9 @@ router = APIRouter(prefix="/budget", tags=["budget"])
 _MONTHS_IN_YEAR = 12
 
 
-@dataclass(frozen=True, slots=True)
-class RulesRow:
-    """One row of the Rules editor table (ADR-0031 §2 — category + default)."""
-
-    category_id: int
-    category_name: str
-    category_direction: Direction
-    category_color: str | None
-    default_minor: int | None
-
-
-def _year_month(request: Request, conn: sqlite3.Connection, user_id: int) -> tuple[int, int]:
-    """Default landing month = fiscal cycle (ADR-0064); overridable via query."""
-    q = request.query_params
-    today = today_for(request)
-    fiscal_year, fiscal_month = budget_service.fiscal_month_for(conn, user_id, today)
-    return parse_year_month(q.get("year"), q.get("month"), (fiscal_year, fiscal_month))
-
-
-def _rules_rows(conn: sqlite3.Connection, user_id: int) -> tuple[RulesRow, ...]:
-    """Per-expense-category rows for the Rules editor (ADR-0031 §2).
-
-    Each row carries only the default amount (nullable); recurring + one-off
-    overrides are authored on demand via the per-row Override… slide-over.
-    """
-    cats = [
-        c
-        for c in categories_service.list_all(conn, user_id)
-        if not c.is_system and c.direction is Direction.EXPENSE
-    ]
-    defaults = {
-        d.category_id: d.amount for d in budget_overrides_service.list_defaults(conn, user_id)
-    }
-    rows = [
-        RulesRow(
-            category_id=cat.id,
-            category_name=cat.name,
-            category_direction=cat.direction,
-            category_color=cat.color,
-            default_minor=defaults.get(cat.id),
-        )
-        for cat in cats
-    ]
-    rows.sort(key=lambda r: r.category_name.casefold())
-    return tuple(rows)
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
-
-def _render_index(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    settings: Settings,
-) -> HTMLResponse:
-    year, month = _year_month(request, conn, user_id)
-    today = clock.today_local(settings)
-    summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today, base_currency=settings.base_currency
-    )
-    rules = _rules_rows(conn, user_id)
-    yearly = budget_service.yearly_grid(conn, user_id, year)
-    return render(
-        request,
-        "budget/index.html",
-        year=year,
-        month=month,
-        budget=view_models.budget_view(summary, today),
-        period_label=view_models.period_label(year, month),
-        month_options=view_models.month_options(month),
-        rules=rules,
-        yearly=yearly,
-        month_labels=view_models.MONTH_SHORT,
-        base_ccy=settings.base_currency,
-    )
 
 
 @router.get("/yearly", response_class=HTMLResponse)
@@ -208,8 +128,9 @@ def new_override_form(
 
 
 @router.post("/rules/{category_id}/overrides")
-def create_override(  # noqa: PLR0911, PLR0917
+def create_override(
     category_id: int,
+    *,
     tier: str = Form(...),
     month: str = Form(""),
     year: str = Form(""),
@@ -218,51 +139,21 @@ def create_override(  # noqa: PLR0911, PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    """Tier-dispatcher for the Override slide-over (ADR-0031 §2)."""
+    """Tier-dispatcher for the Override slide-over (ADR-0031 section 2)."""
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    if tier not in {"recurring", "one-off", "default"}:
-        return Response(status_code=422, content="invalid tier")
-    minor = parse_amount_minor(amount, settings.base_currency) if amount.strip() else 0
-    if minor is None or minor < 0:
-        return Response(status_code=422, content="invalid amount")
-    if tier == "default":
-        budget_overrides_service.set_default(
-            conn,
-            user_id,
-            NewBudgetDefault(category_id=category_id, amount=minor),
-        )
-        resp = Response(content="ok", media_type="text/html")
-        trigger(resp, Event.BUDGET_STALE)
-        return resp
-    try:
-        parsed_month = int(month)
-    except ValueError:
-        return Response(status_code=422, content="invalid month")
-    if parsed_month < 1 or parsed_month > _MONTHS_IN_YEAR:
-        return Response(status_code=422, content="invalid month")
-    if tier == "recurring":
-        budget_overrides_service.set_recurring(
-            conn,
-            user_id,
-            NewBudgetRecurringOverride(category_id=category_id, month=parsed_month, amount=minor),
-        )
-    else:
-        try:
-            parsed_year = int(year)
-        except ValueError:
-            return Response(status_code=422, content="invalid year")
-        budget_overrides_service.set_one_off(
-            conn,
-            user_id,
-            NewBudgetOneOffOverride(
-                category_id=category_id,
-                year=parsed_year,
-                month=parsed_month,
-                amount=minor,
-            ),
-        )
+    parsed = parse_override(
+        category_id,
+        tier=tier,
+        month=month,
+        year=year,
+        amount=amount,
+        currency=settings.base_currency,
+    )
+    if parsed.command is None:
+        return Response(status_code=422, content=parsed.error)
+    budget_rules.apply_override(conn, user_id, parsed.command)
     resp = Response(content="ok", media_type="text/html")
     trigger(resp, Event.BUDGET_STALE)
     return resp
@@ -275,7 +166,27 @@ def index(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    return _render_index(request, conn, user_id, settings)
+    q = request.query_params
+    # Default landing month = fiscal cycle (ADR-0064); overridable via query.
+    fiscal = budget_service.fiscal_month_for(conn, user_id, today_for(request))
+    year, month = parse_year_month(q.get("year"), q.get("month"), fiscal)
+    today = clock.today_local(settings)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+    )
+    return render(
+        request,
+        "budget/index.html",
+        year=year,
+        month=month,
+        budget=view_models.budget_view(summary, today),
+        period_label=view_models.period_label(year, month),
+        month_options=view_models.month_options(month),
+        rules=budget_rules.rules_rows(conn, user_id),
+        yearly=budget_service.yearly_grid(conn, user_id, year),
+        month_labels=view_models.MONTH_SHORT,
+        base_ccy=settings.base_currency,
+    )
 
 
 @router.post("/defaults/{category_id}")
@@ -289,8 +200,8 @@ def set_default(
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    minor = parse_amount_minor(amount, settings.base_currency)
-    if minor is None or minor < 0:
+    minor = non_negative_amount(amount, settings.base_currency)
+    if minor is None:
         return Response(status_code=422, content="invalid amount")
     budget_overrides_service.set_default(
         conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor)
@@ -328,10 +239,11 @@ def set_income_anchor(
 
 
 @router.post("/one-off/{category_id}/{year}/{month}")
-def set_one_off(  # noqa: PLR0917
+def set_one_off(
     category_id: int,
     year: int,
     month: int,
+    *,
     amount: str = Form(...),
     conn: sqlite3.Connection = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
@@ -340,10 +252,10 @@ def set_one_off(  # noqa: PLR0917
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return Response(status_code=404, content="not found")
-    if month < 1 or month > _MONTHS_IN_YEAR:
+    if not valid_month(month):
         return Response(status_code=422, content="invalid month")
-    minor = parse_amount_minor(amount, settings.base_currency)
-    if minor is None or minor < 0:
+    minor = non_negative_amount(amount, settings.base_currency)
+    if minor is None:
         return Response(status_code=422, content="invalid amount")
     budget_overrides_service.set_one_off(
         conn,
