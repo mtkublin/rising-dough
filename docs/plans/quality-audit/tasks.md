@@ -1225,6 +1225,18 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: the Acceptance above holds and guards stay green.
 
+### ✅ T-Q297 [S] e2e runs on every PR to main and is a required check
+- Findings: none (operator decision 2026-11-22: "fold it into this PR, add it also to the main branch's policy").
+- Epic: E04
+- Band: 3 · Size: S · Tags: none
+- Depends on: T-Q295
+- Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) and [ADR-0097](../../adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendments 2026-11-22 (T-Q297): `e2e.yml` also runs on `pull_request` to `main` and its job `tests/e2e (Chromium, Playwright container)` joins the required checks of `protect-main`; the local pre-PR e2e run is no longer required (`just test-e2e` stays optional).
+- Acceptance: `e2e.yml` triggers on `wi/**` push, `workflow_dispatch` and `pull_request` to `main`, job name unchanged; `scripts/check_github_settings.py` `REQUIRED_CHECKS` names the e2e job and a guard keeps it equal to the workflow's job name; `test_visual_image_pin.py` covers visual.yml, e2e.yml and the justfile (one digest-pinned image, tag equals the locked playwright version); CLAUDE.md handoff item 3 and orchestrator skill section 5 step 4 state the new cadence. The orchestrator applies the ruleset change through the API after the PR exists (not part of the code change).
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: 14f.
+- Done when: the Acceptance above holds and guards stay green.
+
 ### Third round (2026-11-22, answers to deferred Q39 to Q42)
 
 Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurring undo duplicate-live-transaction case left as is) need no task; one-line amendments in ADR-0136 and ADR-0019.

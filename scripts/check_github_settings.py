@@ -36,7 +36,11 @@ from typing import Any
 from tailscale_acl_drift import OWNER_ENV, TOKEN_ENV, compare_live
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
-REQUIRED_CHECKS = ("just ci (Python 3.12, ubuntu-latest)", "drill-gate")
+REQUIRED_CHECKS = (
+    "just ci (Python 3.12, ubuntu-latest)",
+    "drill-gate",
+    "tests/e2e (Chromium, Playwright container)",
+)
 GATED_ENVS = {"prod": True}
 UNGATED_ENVS = ("prod-plan", "drill-teardown", "drill-plan")
 RELEASE_REFS = {("branch", "main"), ("tag", "v*")}

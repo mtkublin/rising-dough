@@ -55,3 +55,9 @@
 - **Hook scope.** `just test-fast` (the `pytest-fast` hook) and `just test-changed` pass `--ignore=tests/e2e`, in both the testmon-selected and the full-suite fallback modes. `tests/visual` stays excluded by the default marker expression. `just test`, `just ci` and `ci.yml` are unchanged and collect the same tests as before.
 - **Cadence.** The orchestrator runs `just test-e2e` after each wave and before every PR, alone (no agents running). On failure it dispatches fix agents, then reruns e2e alone, until green. The ADR-0097 amendment 2026-11-18 stays: GitHub `ci.yml` runners have no Playwright browser, so the local pre-PR run remains until `.github/workflows/e2e.yml` has a green run on `remediation/quality` content.
 - **Offload.** An agent that genuinely needs the full suite pushes its `wi/**` branch; `e2e.yml` (push to `wi/**` or `workflow_dispatch`, never PRs or main) runs `tests/e2e` with 2 workers in the pinned Playwright container (same image as the visual job, T-Q251).
+
+## Amendment 2026-11-22: e2e is a required PR check (T-Q297)
+
+- **Operator decision, 2026-11-22:** "fold it into this PR, add it also to the main branch's policy".
+- `.github/workflows/e2e.yml` (proven green twice on GitHub in the pinned Playwright container) now also runs on `pull_request` to `main`. Its job `tests/e2e (Chromium, Playwright container)` is added to the required status checks of the `protect-main` ruleset (with the Actions `integration_id`, ADR-0099) and to `REQUIRED_CHECKS` in `scripts/check_github_settings.py`. The job name is the check context and must not change without updating both.
+- The local pre-PR e2e run required by the amendment above ("Cadence") is dropped; the PR run replaces it. The orchestrator no longer runs `just test-e2e` before opening or updating a PR. `just test-e2e` stays available as an optional local check; the per-wave run and the `wi/**` push offload are unchanged.
