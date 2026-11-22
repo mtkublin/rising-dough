@@ -26,6 +26,7 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -239,7 +240,7 @@ def test_batch_stats_equal_per_account_stats(conn: sqlite3.Connection) -> None:
 
 def test_budget_resolver_equals_resolve_budget(conn: sqlite3.Connection) -> None:
     seed_world(conn, 2, 1)
-    resolve = budget_batch.budget_resolver(conn, _USER)
+    resolve = budget_batch.budget_resolver(conn, _USER, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     for cat in categories_repo.list_all(conn, _USER):
         for year, month in ((2026, 11), (2026, 12), (2027, 1)):
             assert resolve(cat.id, year, month) == budget_svc.resolve_budget(
@@ -268,7 +269,12 @@ def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection) -> Non
         ("Oct 2027", -30809.51),
     ]
     series = forecast_svc.forecast(
-        conn, _USER, fx_svc.converter_for(conn, settings, TODAY), TODAY, 400
+        conn,
+        _USER,
+        fx_svc.converter_for(conn, settings, TODAY),
+        TODAY,
+        400,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     totals = [d.totals_base_minor for d in series.days]
     assert (totals[0], totals[30], totals[-1]) == (53390, -344413, -3611310)

@@ -59,6 +59,7 @@ id (ADR-0067 §4).
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 from dataclasses import dataclass, replace
 from typing import Any, Final, Protocol
@@ -83,6 +84,7 @@ from webauthn.helpers.structs import (
     ResidentKeyRequirement,
     UserVerificationRequirement,
 )
+from webauthn.registration.verify_registration_response import VerifiedRegistration
 
 from budget_planner.domain.client_ip import EMAIL_MAX_LENGTH
 from budget_planner.domain.request_ctx import RequestCtx
@@ -384,8 +386,28 @@ def register_passkey_finish(
         )
     except WebAuthnException as exc:
         raise PasskeyRegistrationError("invalid_response") from exc
-    transports = tuple(t.value for t in (parsed.response.transports or ()))
-    ctx = request_ctx or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None)
+    return _store_credential(
+        conn,
+        user_id,
+        verified=verified,
+        transports=tuple(t.value for t in (parsed.response.transports or ())),
+        label=label.strip(),
+        request_ctx=request_ctx
+        or RequestCtx(ip=None, user_id=user_id, session_id=None, user_agent=None),
+    )
+
+
+def _store_credential(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    verified: VerifiedRegistration,
+    transports: tuple[str, ...],
+    label: str,
+    request_ctx: RequestCtx,
+) -> WebAuthnCredential:
+    """Persist the verified passkey. Separate from the challenge consume on purpose: a spent
+    challenge stays spent when the insert fails (no replay), so these are not one transaction."""
     try:
         return webauthn_repo.create_credential(
             conn,
@@ -394,8 +416,8 @@ def register_passkey_finish(
             public_key=verified.credential_public_key,
             sign_count=verified.sign_count,
             transports=transports,
-            label=label.strip(),
-            request_ctx=ctx,
+            label=label,
+            request_ctx=request_ctx,
         )
     except sqlite3.IntegrityError as exc:
         raise PasskeyRegistrationError("duplicate_credential") from exc
@@ -581,10 +603,18 @@ def is_session_handle(handle: str) -> bool:
     return len(handle) == _HANDLE_LENGTH and all(c in _HEX_DIGITS for c in handle)
 
 
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-list_active_sessions = sessions_repo.list_active_sessions
-list_passkeys = webauthn_repo.list_credentials
+def list_active_sessions(
+    conn: sqlite3.Connection, user_id: int, *, now: dt.datetime | None = None
+) -> tuple[Session, ...]:
+    """The user's live sessions."""
+    return sessions_repo.list_active_sessions(conn, user_id, now=now)
+
+
+def list_passkeys(
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
+) -> tuple[WebAuthnCredential, ...]:
+    """The user's passkeys (revoked ones only with ``include_deleted``)."""
+    return webauthn_repo.list_credentials(conn, user_id, include_deleted=include_deleted)
 
 
 __all__ = [

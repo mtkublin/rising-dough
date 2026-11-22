@@ -8,6 +8,7 @@ from decimal import Decimal
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
@@ -127,7 +128,15 @@ def test_month_summary_split_and_remaining_converted(
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 20))  # budgeted
     _plan(conn, world["rent"], world["eur"], 5_000, date(2026, 2, 21))  # unbudgeted
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert s.totals.committed_minor == 40_000
     assert s.totals.unbudgeted_committed_minor == 20_000
     assert s.totals.remaining_minor == 100_000 - 40_000
@@ -170,7 +179,15 @@ def _spend(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) 
 
 
 def _groceries_line(conn: sqlite3.Connection, world: dict[str, int]) -> bs.CategoryBudgetLine:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY, base_currency="PLN")
+    s = bs.month_summary(
+        conn,
+        USER_ID,
+        2026,
+        2,
+        today=TODAY,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     return next(ln for ln in s.lines if ln.category_id == world["groceries"])
 
 

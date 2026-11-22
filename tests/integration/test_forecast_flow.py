@@ -14,6 +14,7 @@ from decimal import Decimal
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.enums import Cadence
 from budget_planner.domain.fx import NewFxRate
@@ -54,10 +55,20 @@ def test_forecast_is_deterministic_same_inputs_same_output(
     )
 
     first = forecast_service.forecast(
-        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
+        conn,
+        USER_ID,
+        _fx(conn, date(2026, 1, 1)),
+        today=date(2026, 1, 1),
+        horizon_days=30,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     second = forecast_service.forecast(
-        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
+        conn,
+        USER_ID,
+        _fx(conn, date(2026, 1, 1)),
+        today=date(2026, 1, 1),
+        horizon_days=30,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     assert first == second
 
@@ -84,6 +95,7 @@ def test_forecast_converts_cross_currency_to_base(
         _fx(conn, date(2026, 1, 1)),
         today=date(2026, 1, 1),
         horizon_days=0,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
 
     # 100.00 EUR @ 4.30 → 430.00 PLN = 43000 minor.
@@ -106,12 +118,22 @@ def test_editing_a_planned_row_changes_forecast_output(
         operation_date=date(2026, 1, 20),
     )
     before = forecast_service.forecast(
-        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
+        conn,
+        USER_ID,
+        _fx(conn, date(2026, 1, 1)),
+        today=date(2026, 1, 1),
+        horizon_days=30,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
 
     planned_repo.update(conn, USER_ID, planned_id, PatchPlannedTransaction(amount=9000))
 
     after = forecast_service.forecast(
-        conn, USER_ID, _fx(conn, date(2026, 1, 1)), today=date(2026, 1, 1), horizon_days=30
+        conn,
+        USER_ID,
+        _fx(conn, date(2026, 1, 1)),
+        today=date(2026, 1, 1),
+        horizon_days=30,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     assert before != after

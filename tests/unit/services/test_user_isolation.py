@@ -16,6 +16,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.errors import ConflictError
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
@@ -31,6 +32,8 @@ from tests.architecture._ratchet import REPO_ROOT, Violation, assert_ratchet, re
 from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services import (  # noqa: F401 - importing registers the cases
     _isolation_account_cases,
+    _isolation_crud_cases,
+    _isolation_ledger_cases,
     _isolation_read_cases,
     _isolation_t266_cases,
     _isolation_t267_cases,
@@ -90,7 +93,8 @@ def _analytics_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
 
 def _grid_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
     return {
-        r.category_id for r in budget.yearly_grid(conn, user_id, 2099)
+        r.category_id
+        for r in budget.yearly_grid(conn, user_id, 2099, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
     }  # far after the tombstone archive month (ADR-0136)
 
 

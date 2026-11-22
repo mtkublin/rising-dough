@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride
+from budget_planner.domain.budgets import NewBudgetDefault, NewBudgetOneOffOverride, valid_month
 from budget_planner.services import (
     budget as budget_service,
     budget_overrides as budget_overrides_service,
@@ -33,11 +33,11 @@ from budget_planner.services import (
 )
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
-from budget_planner.web.budget_forms import non_negative_amount, parse_override, valid_month
+from budget_planner.web.budget_forms import non_negative_amount, parse_override
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
-from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
+from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month, query_int
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
 router = APIRouter(prefix="/budget", tags=["budget"])
@@ -94,8 +94,8 @@ def new_override_form(
     cat = categories_service.find_by_id(conn, user_id, category_id)
     tz_now = clock.today_local(settings)
     q = request.query_params
-    preset_month = parse_int(q.get("month"), minimum=1, maximum=_MONTHS_IN_YEAR)
-    preset_year = parse_int(q.get("year"), minimum=MIN_YEAR, maximum=MAX_YEAR)
+    preset_month = query_int("month", q.get("month"), minimum=1, maximum=_MONTHS_IN_YEAR)
+    preset_year = query_int("year", q.get("year"), minimum=MIN_YEAR, maximum=MAX_YEAR)
     period = view_models.override_period(preset_month or tz_now.month, preset_year or tz_now.year)
     if cat is None:
         return render(

@@ -8,6 +8,7 @@ import sqlite3
 from collections.abc import Callable
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
@@ -29,7 +30,13 @@ def test_missing_rate_degrades_consistently(seeded: sqlite3.Connection) -> None:
         ),
         "today": lambda: today_data.collect_account_rows(seeded, U, converter),
         "forecast": lambda: forecast.forecast(
-            seeded, U, converter, today, 0, include_budget_overlay=False
+            seeded,
+            U,
+            converter,
+            today,
+            0,
+            include_budget_overlay=False,
+            display_timezone=DEFAULT_DISPLAY_TIMEZONE,
         ),
     }
     outcomes: dict[str, str] = {}

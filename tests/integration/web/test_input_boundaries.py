@@ -21,6 +21,11 @@ BAD_GETS = [
     "/budget?month=0",
     "/budget?year=0",
     "/budget/yearly?year=abc",
+    "/plan?year=99999",
+    "/plan?year=abc",
+    "/forecast?horizon_months=abc",
+    "/ledger?account_id=99999999999999999999999",
+    "/ledger?date_from=2026-02-30",
     "/today/afford?amount=nan",
     "/today/afford?amount=inf",
     "/today/afford?amount=1e999",
@@ -38,17 +43,12 @@ def test_bad_query_is_422_with_message(client: TestClient, url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "/plan?year=99999",
-        "/plan?year=abc",
         "/forecast?horizon_months=100000",
-        "/forecast?horizon_months=abc",
         "/ledger?page_size=1000000",
         "/ledger?page=-1",
-        "/ledger?account_id=99999999999999999999999",
-        "/ledger?date_from=2026-02-30",
     ],
 )
-def test_lenient_query_degrades_without_crash(client: TestClient, url: str) -> None:
+def test_out_of_range_but_well_formed_query_is_clamped(client: TestClient, url: str) -> None:
     assert client.get(url).status_code == 200
 
 

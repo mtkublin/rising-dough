@@ -18,6 +18,7 @@ from budget_planner.config import Settings
 from budget_planner.db import retention as retention_cli
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
+from budget_planner.repositories import retention as retention_repo
 from budget_planner.services import retention
 from budget_planner.web import retention_task
 
@@ -247,3 +248,20 @@ def test_mixed_timestamp_formats_near_boundary(
         session = conn.execute("SELECT 1 FROM sessions WHERE id = ?", (f"s-{stamp}",)).fetchone()
         assert (ip is None) is purged, stamp
         assert (session is None) is purged, stamp
+
+
+def test_purge_rolls_back_the_scrub_when_the_session_delete_fails(
+    conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T-Q285 (G8): both purge mutators share one transaction; a late failure undoes the first."""
+    old = _audit(conn, age_days=400)
+    cfg = Settings(_env_file=None, retention_personal_days=30)
+
+    def boom(_conn: sqlite3.Connection, _cutoff: str) -> int:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(retention_repo, "delete_ended_sessions", boom)
+    with pytest.raises(RuntimeError, match=r"^disk full$"):
+        retention.purge(conn, NOW, cfg)
+    row = conn.execute("SELECT ip, user_agent FROM audit_log WHERE id = ?", (old,)).fetchone()
+    assert (row["ip"], row["user_agent"]) == ("1.2.3.4", "UA")

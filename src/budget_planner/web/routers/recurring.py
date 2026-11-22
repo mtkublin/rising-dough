@@ -15,6 +15,7 @@ from budget_planner.domain.recurring import (
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
+    end_date_error,
 )
 from budget_planner.services import (
     accounts as accounts_service,
@@ -28,7 +29,7 @@ from budget_planner.web import recurring_forms as forms, recurring_views as view
 from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, today_for
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
-from budget_planner.web.params import parse_date, parse_int, positive_amount
+from budget_planner.web.params import parse_date, parse_int, positive_amount, query_date
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
@@ -90,8 +91,8 @@ async def create_rule(
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     try:
         category_id = int(category_id_raw)
         account_id = int(account_id_raw)
@@ -301,8 +302,8 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         end = parse_date(end_date_raw)
         if end is None:
             errors["end_date"] = "invalid date"
-        elif start is not None and end < start:
-            errors["end_date"] = "must be on or after start"
+        elif (end_err := end_date_error(start, end)) is not None:
+            errors["end_date"] = end_err
     if acc is None:
         errors["account_id"] = "unknown account"
     if cat is None:
@@ -556,7 +557,7 @@ def promote_inline(
     if rule is None:
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    occurrence = parse_date(date) or rule.next_due
+    occurrence = query_date("date", date) or rule.next_due
     override = views.override_on_next_due(conn, user_id, rule_id, occurrence)
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx)
     prefill_description = rule.default_description

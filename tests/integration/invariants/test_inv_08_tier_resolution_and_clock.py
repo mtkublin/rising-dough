@@ -9,6 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.budgets import NewBudgetOneOffOverride
 from budget_planner.repositories import budgets as budgets_repo
@@ -22,7 +23,10 @@ def test_8a_resolve_budget_equals_yearly_grid_on_every_cell(seeded: sqlite3.Conn
     budgets_repo.set_one_off(
         seeded, U, NewBudgetOneOffOverride(category_id=7, year=2026, month=11, amount=0)
     )
-    grid = {r.category_id: r for r in budget.yearly_grid(seeded, U, 2026)}
+    grid = {
+        r.category_id: r
+        for r in budget.yearly_grid(seeded, U, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    }
     bad = [
         (cat_id, m)
         for cat_id, row in grid.items()

@@ -29,7 +29,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import round_div
@@ -418,7 +417,7 @@ def month_summary(
     today: date,
     base_currency: str,
     period_window: tuple[date, date] | None = None,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
 
@@ -576,11 +575,11 @@ class PickerMonth:
 def _parse_picker_month(
     year_raw: str | None, month_raw: str | None, fallback: tuple[int, int]
 ) -> tuple[int, int]:
-    if year_raw is None and month_raw is None:
+    if not year_raw and not month_raw:
         return fallback
     try:
-        year = int(year_raw) if year_raw is not None else fallback[0]
-        month = int(month_raw) if month_raw is not None else fallback[1]
+        year = int(year_raw) if year_raw else fallback[0]
+        month = int(month_raw) if month_raw else fallback[1]
     except ValueError:
         return fallback
     if not 1 <= month <= MONTHS_IN_YEAR or not date.min.year <= year <= date.max.year:
@@ -631,7 +630,7 @@ def month_summary_for_picker(
     today: date,
     *,
     base_currency: str,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> MonthSummary:
     """Return the Plan · Budget summary for the picked month (ADR-0138).
 
@@ -722,7 +721,7 @@ def yearly_grid(
     user_id: int,
     year: int,
     *,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> tuple[YearlyRow, ...]:
     """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets.
 

@@ -6,6 +6,10 @@ from dataclasses import dataclass, fields
 from datetime import datetime
 from typing import Any
 
+from budget_planner.domain.limits import name_error
+
+ISO_CURRENCY_LENGTH = 3
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Account:
@@ -93,3 +97,41 @@ class AccountStats:
     last_txn_date: str | None
     avg_inflow_minor: int = 0
     avg_outflow_minor: int = 0
+
+
+def currency_error(currency: str) -> str | None:
+    """Form error for a currency that is not a three-letter ISO 4217 code (or None)."""
+    ok = len(currency) == ISO_CURRENCY_LENGTH and currency.isalpha()
+    return None if ok else "ISO 4217 code required"
+
+
+def credit_limit_error(limit_minor: int | None) -> str | None:
+    """A stored credit limit is positive; ``None`` (no limit) is valid."""
+    if limit_minor is not None and limit_minor <= 0:
+        return "positive credit limit required"
+    return None
+
+
+def _non_empty(errors: dict[str, str | None]) -> dict[str, str]:
+    return {k: v for k, v in errors.items() if v is not None}
+
+
+def new_account_errors(data: NewAccount) -> dict[str, str]:
+    """Field errors for a new account command (empty when valid)."""
+    return _non_empty(
+        {
+            "name": name_error(data.name),
+            "currency": currency_error(data.currency),
+            "credit_limit": credit_limit_error(data.credit_limit_minor),
+        }
+    )
+
+
+def patch_account_errors(patch: PatchAccount) -> dict[str, str]:
+    """Field errors for an account patch (empty when valid)."""
+    return _non_empty(
+        {
+            "name": None if patch.name is None else name_error(patch.name),
+            "credit_limit": credit_limit_error(patch.credit_limit_minor),
+        }
+    )
