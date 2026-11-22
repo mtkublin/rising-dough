@@ -103,8 +103,8 @@ visual-reference *surface:
     uv run python -m tests.visual.handoff {{surface}}
 
 # Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
-# (paths, -k, later --target=...). Local only: GitHub runners have no
-# Playwright browser (ADR-0097).
+# (paths, -k, later --target=...). Optional locally: e2e runs on GitHub
+# (e2e.yml, pinned Playwright container) on every PR, T-Q297.
 test-e2e *ARGS:
     uv run pytest tests/e2e --no-cov --override-ini="addopts=-ra --strict-config --strict-markers" {{ARGS}}
 
@@ -166,6 +166,11 @@ mutate-report *args:
 # Drop the mutmut workspace and results.
 mutate-clean:
     rm -rf mutants .mutmut-cache
+
+# Gated merge of a finished item into the current work branch (T-Q304, ADR-0066):
+# merge --no-ff, guards + lint-imports + ruff + mypy, push, then prune.
+merge-item ID MSG:
+    bash scripts/ci/merge_item.sh "{{ID}}" "{{MSG}}"
 
 # Architecture guards (tests/architecture). Run in the pytest suite and CI.
 guards:

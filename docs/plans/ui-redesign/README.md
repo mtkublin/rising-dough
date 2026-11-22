@@ -42,7 +42,7 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 - axe: 0 serious or critical (handoff's two decorative exclusions only).
 - No inline `style=""`; no stand-in attributes; no old CSS or old template included.
 - The surface's old files and the Python they alone used are deleted, and their `removal.md` rows say `deleted` (T-UR15 sweeps what shared surfaces still needed).
-- Scoped tests green in the item worktree; the orchestrator runs `just ci` per merge batch (ADR-0097).
+- Scoped tests green in the item worktree; PR CI runs the full suite (ADR-0120).
 
 ## Guardrails
 

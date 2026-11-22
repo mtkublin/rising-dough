@@ -92,7 +92,8 @@ just lint-changed main   # pre-commit over files changed since merge-base (inner
 just test-changed main   # testmon-selected tests; full suite on non-Python changes (inner loop)
 just worktree-init       # seed a new worktree's .testmondata from the main checkout
 just test-fast    # testmon-selected tests, e2e excluded (what the pre-commit hook runs)
-just test-e2e     # full e2e suite; the orchestrator runs it alone after each wave and before a PR
+just test-e2e     # optional locally; e2e runs on GitHub (e2e.yml) on every PR, T-Q297
+just merge-item <ID> "<msg>"   # orchestrator: gated merge of wi/<work>/<ID> (guards, lint-imports, ruff, mypy, push, prune; T-Q304)
 just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
@@ -107,7 +108,7 @@ The pre-commit hooks are the local gate and `*-changed` run the same selection o
 
 ## Multi-agent work
 
-For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066): main agent orchestrates only, each work item runs in its own worktree + branch, conflicts are resolved by merging the main work branch into the item branch (no rebase).
+For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066): main agent orchestrates only, each work item runs in its own worktree + branch, conflicts are resolved by merging the main work branch into the item branch (no rebase). Heavy runs go to GitHub where a workflow exists; agents are sized to under 1 h (details in the skill).
 
 ## Frontend validation (MANDATORY)
 
@@ -179,7 +180,7 @@ Before marking a task done:
 1. **Docs updated first** (see "Change policy" above). `docs/requirements.md`, the active plan's `tasks.md`, and/or a new ADR reflect the change *before* code lands. ADRs the change touches are re-read and still true (status or amendment updated).
 2. **Reuse check.** Searched the Canonical modules table and the tree before writing a helper; reused the canonical function, or registered the new one in `canonical_modules.toml` (why none fit is in the report).
 3. Code + tests committed with the pre-commit hooks green: they lint, type-check and run the tests affected by the change across the whole suite (the full suite for migrations, SQL, dependencies, `conftest.py` and other non-Python changes). No local full `just ci` is required, single-agent or orchestrator; the full suite with the 90% coverage gate runs in PR CI and the gate drill's `ci / just ci` job ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md)). The hook excludes `tests/e2e`: item agents run no manual suites beyond special cases (the `frontend-visual-audit` skill, a migration rehearsal); an agent that truly needs the full e2e pushes its `wi/**` branch and reads the `e2e.yml` run. `tests/e2e` runs on GitHub (`e2e.yml`, pinned Playwright container) on every PR to `main` and is a required check, so no local pre-PR e2e run is needed; `just test-e2e` stays optional, and the orchestrator may still run it alone after a wave ([ADR-0120](docs/adr/0120-pre-commit-is-the-local-gate.md) and [ADR-0097](docs/adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md) amendments 2026-11-22, T-Q297). **No writes to `data/budget.sqlite`** during the task (prod DB — see "Databases"); any DB work ran against `--db=<scratch path>` or `data/demo.sqlite`.
-4. **Architecture guards green; allowlist counts only went down.** Entries for violations you fixed are deleted; no new allowlist entry or suppression without a reason and an ADR-0130 amendment; any new dependency is justified in the commit.
+4. **Architecture guards green; allowlist counts only went down.** Entries for violations you fixed are deleted; no new allowlist entry or suppression without a reason and an ADR-0130 amendment; any new dependency is justified in the commit. Fixes remove the cause; never satisfy a guard by syntax only.
 5. **Frontend-touching tasks**: `frontend-visual-audit` skill run against the affected routes at desktop/tablet/mobile viewports; findings resolved or triaged (see "Frontend validation" above).
 6. The task line in `docs/plans/<plan>/tasks.md` prefixed with `✅`.
 7. Relevant ADR(s) referenced in the commit; a new ADR added if the task introduced an architectural decision not already recorded.

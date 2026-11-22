@@ -1263,6 +1263,29 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14f (docs only).
 - Done when: the Acceptance above holds.
 
+
+### ✅ T-Q303 [S] Orchestrator ways of working from the remediation run (docs and skill only)
+- Findings: 2026-11-22 remediation run lessons (heavy runs on the shared laptop, agents running 3-6 h, guard-gaming fixes, unhooked merges).
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs, ops
+- Depends on: T-Q298
+- Docs-first step: [ADR-0066](../../adr/0066-orchestrator-mode-skill.md) amendment 2026-11-22.
+- Goal: fold the lessons into `.claude/skills/orchestrator-mode/SKILL.md`, the shared `brief-common.md`, and CLAUDE.md.
+- Acceptance: the skill covers hook-only testing in the brief, delegating heavy work to GitHub, per-plan heavy locks, the agent runtime budget, guard-gaming rejection, gated merges and prune extras, operator-step and question rules; `brief-common.md` exists; no code change.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q304 [S] `just merge-item <ID> "<msg>"` recipe for the gated merge chain
+- Findings: merges skip the hooks, so the orchestrator ran guards, lint-imports, ruff and mypy by hand (T-Q303).
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q303
+- Docs-first step: ADR-0066 amendment 2026-11-22; skill section 5.
+- Goal: `scripts/ci/merge_item.sh` and the `merge-item` recipe: refuse on `main`, a dirty tree or an unfinished merge; merge `wi/<work>/<ID>` with `--no-ff`; on conflict abort and exit non-zero; run the four checks; push; prune worktree, local and origin branch and empty `worktree-agent-*` branches, only after every step returned 0.
+- Acceptance: a failed check leaves the merge commit in place, unpushed and unpruned. Not run against the real work branch in this task.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
 ### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
