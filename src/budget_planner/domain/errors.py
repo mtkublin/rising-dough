@@ -21,7 +21,7 @@ class ValidationError(Exception):
 
     fields: dict[str, str] = field(default_factory=dict)
 
-    def __str__(self) -> str:  # pragma: no cover - repr helper
+    def __str__(self) -> str:
         return "; ".join(f"{k}: {v}" for k, v in self.fields.items()) or "validation error"
 
 
@@ -32,7 +32,7 @@ class NotFoundError(Exception):
     entity: str
     entity_id: int | str
 
-    def __str__(self) -> str:  # pragma: no cover
+    def __str__(self) -> str:
         return f"{self.entity} {self.entity_id} not found"
 
 
@@ -49,9 +49,6 @@ class ConflictError(Exception):
         super().__init__(message)
         self.message = message
 
-    def __str__(self) -> str:  # pragma: no cover
-        return self.message
-
 
 @dataclass(frozen=True)
 class ServiceError(Exception):
@@ -59,5 +56,5 @@ class ServiceError(Exception):
 
     message: str = "something went wrong"
 
-    def __str__(self) -> str:  # pragma: no cover
+    def __str__(self) -> str:
         return self.message

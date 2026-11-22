@@ -137,11 +137,11 @@ class Settings(BaseSettings):
     # ``pydantic-alias`` ignore: AliasChoices is a dynamic alias by design
     # (env name + field name); both fields have defaults, so the plugin's
     # "required dynamic alias" concern does not apply.
-    admin_email: str | None = Field(  # type: ignore[pydantic-alias]
+    admin_email: str | None = Field(  # type: ignore[pydantic-alias]  # AliasChoices is a dynamic alias by design; field has a default
         default=None,
         validation_alias=AliasChoices("BUDGET_PLANNER_ADMIN_EMAIL", "admin_email"),
     )
-    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]
+    admin_initial_password: SecretStr | None = Field(  # type: ignore[pydantic-alias]  # AliasChoices is a dynamic alias by design; field has a default
         default=None,
         validation_alias=AliasChoices(
             "BUDGET_PLANNER_ADMIN_INITIAL_PASSWORD", "admin_initial_password"
