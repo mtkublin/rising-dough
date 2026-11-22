@@ -2,9 +2,9 @@
 
 Opt-in suites (not part of `just ci`). ADR-0027 section 4, amended by ADR-0106.
 
-## Old-app snapshots (`test_snapshots.py`)
+## Route snapshots (`test_snapshots.py`, T-Q251)
 
-`just test-visual` / `just test-visual-update`. Five routes x three viewports, byte-equal, baselines in `baselines/`. Deleted per surface as it migrates (ADR-0107).
+Eight routes x 375/1024/1440, light theme, baselines in `__snapshots__/` (Linux only). Run with `just visual` (docker, pinned Playwright container) or via `.github/workflows/visual.yml`; regenerate with `just visual-update` or the `update_baselines` dispatch (artifact, then commit). Never generate baselines on macOS. Tolerance `MAX_DIFF_PIXEL_RATIO = 0.001`. Missing baseline: fails in CI, skips locally.
 
 ## Handoff references (`handoff.py`, `test_reference.py`, T-UT10)
 
@@ -30,3 +30,7 @@ References come from the designer handoff (`docs/design/rising-dough-frontend/`,
 | overlays | 3% |
 
 Different image sizes always fail (ratio 1.0). Values live in `handoff.SURFACE_TOLERANCE`; tighten as surfaces migrate.
+
+### Bootstrap (before baselines exist)
+
+`workflow_dispatch` only works once `visual.yml` is on `main`. Until baselines are committed, a PR run fails on every missing baseline, but each failing test still writes its actual screenshot to `__snapshots__/<route>.<width>.png`, and the workflow uploads that directory as the `visual-baselines` artifact (also on failure). Download it from the PR run and commit it. Later regenerations use the `update_baselines` dispatch or `just visual-update`.

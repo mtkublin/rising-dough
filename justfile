@@ -86,6 +86,18 @@ test-visual *args:
     done
     uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
 
+# Visual regression in the pinned Playwright container (ADR-0027 amendment 2026-11-22, T-Q251).
+# Needs docker (macOS devs: Docker Desktop). Baselines are Linux-only; never generate them on the host.
+# Keep the image in step with .github/workflows/visual.yml (tests/architecture/test_visual_image_pin.py).
+visual_image := "mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031"
+
+visual:
+    docker run --rm --ipc=host -e CI=1 -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh
+
+# Regenerate tests/visual/__snapshots__/ inside the container after an intentional UI change.
+visual-update:
+    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh update
+
 # Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
 visual-reference *surface:
     uv run python -m tests.visual.handoff {{surface}}
@@ -107,9 +119,6 @@ test-e2e-browsers *ARGS:
     done
     exit "$rc"
 
-# Refresh visual-regression baselines after an intentional design change.
-test-visual-update:
-    VISUAL_UPDATE=1 uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov
 
 # --- quality gates ---------------------------------------------------------
 
