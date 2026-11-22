@@ -20,3 +20,7 @@ Seven hand-rolled amount parsers disagreed (`1e3`, `1_000`, non-ASCII digits, `1
 
 - No input listed in the Q-023 repros returns 500. INV-5 is a plain passing test.
 - Amount text over `MAX_MINOR` is rejected where it was previously stored.
+
+## Amendment 2026-11-22 (operator decision; T-Q282)
+
+Decision 3 is replaced for typed query parameters: every malformed `year`, `month`, date or integer query parameter returns 422 with a visible message on every route (`/plan`, `/ledger`, `/forecast`, `/budget`, `/today`, ...). There is no silent fallback to the current period and no "no filter" degradation. A missing parameter still takes its default. HTMX fragment routes answer with the error partial.

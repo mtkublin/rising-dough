@@ -30,3 +30,7 @@ The defect was masked because:
 - Dev is protected by the same double-submit check. Only the browser-side prefix hardening is absent, which is acceptable for a `127.0.0.1`-bound dev server.
 - Prod and test behaviour is unchanged. Existing integration tests keep using `__Host-csrf`.
 - A regression test pins that `env=dev` mints a cookie whose name does not start with `__Host-` and that carries no `Secure` attribute.
+
+## Amendment 2026-11-22 (operator decision; T-Q289)
+
+The CSRF token is bound to the session: an HMAC of the session id keyed by the cookie secret, rotated on login and logout. The double-submit check compares the `X-CSRF-Token` header (read from the meta tag) with the value recomputed for the current session, so a token from one session fails on another and a request without a session is refused on state-changing routes. The dev cookie-name rule above is unchanged.

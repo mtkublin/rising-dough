@@ -57,3 +57,7 @@ The user operates accounts in different currencies and wants a unified fortune /
 
   Unifying to a single mode is an operator question: **OQ-ROUND** (single rounding mode? default kept per-site 2026-11-21, pending operator confirmation).
 - Stored timestamps are UTC text `YYYY-MM-DDTHH:MM:SS.mmmZ` (millisecond precision, equal to SQLite's `strftime('%Y-%m-%dT%H:%M:%fZ','now')`), produced in Python by `clock.utc_now_iso()` / `clock.iso_utc()`. Retention and undo-window cutoffs are computed in Python in the same format; nothing compares a stored timestamp with `datetime('now', ...)`.
+
+## Amendment 2026-11-22 (operator decision; T-Q281)
+
+- **One rounding mode: HALF_EVEN at every `round_div` / `round_scaled` call site**, replacing the per-site mode table of the 2026-11-21 amendment (OQ-ROUND answered). The former HALF_UP sites (`to_minor_units`, `percent_to_bps`, display rounding, `recurring_formula._apply_coefficient`) move to HALF_EVEN; a displayed amount at an exact tie may shift by 0.01. The `mode` argument is removed or fixed; no HALF_UP constant remains. Tie tests pinned by T-Q222 are updated.

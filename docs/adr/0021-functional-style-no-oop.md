@@ -34,3 +34,7 @@ Pure services and `domain/` take every effect and every setting as an argument:
 - **Settings slices.** Services never import `budget_planner.config` and never call `get_settings()`. Each takes the slice it reads as a read-only `Protocol` (`RateLimitSettings`, `RetentionSettings`, `BootstrapSettings`, `WebAuthnSettings`, `fx.HasBaseCurrency`) or a plain value (`budget.*` take `base_currency: str`, required; `fx.BaseCurrency` wraps a bare code). `users.bootstrap_admin_at_startup` takes the `connect` factory explicitly.
 - **`ResolvedSettings`.** Values derived from `Settings` (production DB path default, dev cookie-secret fallback) live in the frozen `config.ResolvedSettings`, returned by `Settings.resolve()`; `Settings._finalise` only validates (no `object.__setattr__`). Edge readers (`db.connection`, `db.startup_migrate`, `web.auth_cookies`) use `settings.resolve()`.
 - Logging inside services stays permitted through `budget_planner.logging.get_logger` (operator ruling, ADR-0130). The `get_settings` `lru_cache` (functional_first `hidden-cache`) is unchanged here; `get_settings()` is read only at edges.
+
+## Amendment 2026-11-22 (operator decision; T-Q291)
+
+Reverses the "Hashing" note of the T-Q264 amendment (bcrypt stays in `services/_passwords`): password hashing becomes a port. `domain/ports.PasswordHasher` is a `Protocol` (`hash`, `verify`); the bcrypt adapter lives in `adapters/` and is injected from the web edge like `TokenSource`; tests inject a fake. Rounds and constant-time comparison are unchanged.

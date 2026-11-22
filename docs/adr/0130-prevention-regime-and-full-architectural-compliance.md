@@ -134,3 +134,12 @@ Written into `CLAUDE.md`, the orchestrator skill and the brief template by T-Q15
 
 - **Entries.** `tests/architecture/allowlists/thin_router.toml` `helper-in-router` counts rise for `accounts.py` (3 to 5), `auth.py` (22 to 23), `ledger.py` (2 to 6), `recurring.py` (3 to 6), `transactions.py` (1 to 2). Matching `logic-in-router` counts fall by more (accounts 8 to 0, auth 2 to 0, ledger 11 to 5, recurring 17 to 3, transactions 9 to 2, budget 5 to 1, planned 9 to 1, categories 4 to 0, today 3 to 0).
 - **Reason.** The scanner tags a router function `logic-in-router` when it calls a repository (signal `R`). Moving those calls behind services (ADR-0142) removes the signal, so private helpers that only did repository reads are now plain `helper-in-router`. No code was added: per file, logic plus helper strictly shrinks. T-Q265 to T-Q267 move the helpers out.
+
+## Amendment 2026-11-22 (operator decision; T-Q283, T-Q284)
+
+- **T-Q283, permanent `money_scope` entries.** The three false positives of the money-scope scanner (G27) become `[[permanent]]` entries with written reasons; the scanner is unchanged: `web/charts.py` (chart geometry in pixels, not money), the rate-limit `Retry-After` seconds, and `services/balance.sparkline_points` scaling (plot coordinates, not amounts). They replace three burn-down entries, so the total only shrinks. The implementation task edits `money_scope.toml`.
+- **T-Q284, user-scoping guard extension.** `tests/architecture/_user_scoping.py` resolves `repositories/_shared.OwnedTable` specs and checks every generated statement per table; no dynamic-table SQL is skipped.
+
+## Amendment 2026-11-22 (operator decision; T-Q232 redesign carve-out)
+
+The closing gate (T-Q232) passes with one carve-out: `tests/architecture/allowlists/template_logic.toml` keeps the 83 D3 entries (T-Q273, templates the redesign replaces), each tagged with its T-UR owner task. Every other allowlist is empty and every other guard strict. The redesign's last task burns the 83 entries to zero. The gate fails on an untagged or additional `template_logic.toml` entry.
