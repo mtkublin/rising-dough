@@ -724,13 +724,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:29 (19 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q270 [S] Decompose oversized functions in web routers
+### ✅ T-Q270 [S] Decompose oversized functions in web routers
 - Findings: Q-046 (B-09 router rows); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
 - Depends on: T-Q242, T-Q262, T-Q265, T-Q266, T-Q267
 - Docs-first step: None; CHANGELOG line.
 - Acceptance: Failing guard first: `size_complexity.toml` entries under `web/routers/` except `recurring.py` (16 entries, 26 violations). Most disappear when T-Q265 to T-Q267 land; this task removes what remains (`plan()`, `budget.py`, `accounts.py`, `planned.py`, `transactions.py`, `settings.py`, `today.py`). Visual audit on affected routes.
+- Outcome (2026-11-22): most entries had already gone with T-Q265 to T-Q267; the last 6 violations (accounts 1, planned 3, transactions 2) are fixed by `web/form_responses.py` and deleted. `recurring.py` stays with its owner (T-Q288). `xenon --max-absolute C src` is wired (pre-commit hook, `just lint`, CI through pre-commit; ADR-0130 amendment 2026-11-22) and the whole tree passes. No template touched, no visual audit needed.
 - Operator question blocking it: none.
 - Removes allowlist entries: `size_complexity`:26 (16 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
