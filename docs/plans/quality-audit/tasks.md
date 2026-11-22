@@ -654,7 +654,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:18 (6 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q260 [S] Generic CRUD helpers in `repositories/_shared` (clone groups and same-name helpers)
+### ✅ T-Q260 [S] Generic CRUD helpers in `repositories/_shared` (clone groups and same-name helpers)
 - Findings: inventory P1 (compliance-inventory 2.2, 2.6; 9 clone groups, 36 repository functions, 7 pylint blocks); epic E02.
 - Epic: E02
 - Band: 4 · Size: L · Tags: `[pre-v4-P3-rec]` (decision D2)
