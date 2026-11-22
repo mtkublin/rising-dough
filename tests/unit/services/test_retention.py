@@ -190,14 +190,14 @@ def test_background_loop_runs_and_survives_errors(
     calls: list[int] = []
     done = threading.Event()
 
-    def fake_run(cfg: Settings, open_connection: object) -> None:
+    def fake_run(cfg: Settings) -> None:
         calls.append(1)
         if len(calls) >= 2:
             done.set()
         if len(calls) == 1:
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(retention, "run_once", fake_run)
+    monkeypatch.setattr(retention_task, "run_once", fake_run)
 
     async def scenario() -> None:
         task = asyncio.create_task(retention_task.run_forever(settings, 0.01))

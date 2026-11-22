@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -50,14 +49,3 @@ def purge(conn: sqlite3.Connection, now: dt.datetime, settings: RetentionSetting
         retention_days=settings.retention_personal_days,
     )
     return result
-
-
-def run_once(
-    settings: RetentionSettings, open_connection: Callable[[], sqlite3.Connection]
-) -> PurgeResult:
-    """Open a connection, purge once at the current instant, close it."""
-    conn = open_connection()
-    try:
-        return purge(conn, clock.utc_now(), settings)
-    finally:
-        conn.close()

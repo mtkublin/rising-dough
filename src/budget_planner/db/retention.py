@@ -7,14 +7,19 @@ ignores it so the app still starts).
 
 from __future__ import annotations
 
-from budget_planner import logging as bp_logging
+from budget_planner import clock, logging as bp_logging
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.services import retention
 
 
 def run(settings: Settings) -> retention.PurgeResult:
-    return retention.run_once(settings, lambda: get_connection(settings))
+    """Open a connection, purge once at the current instant, close it."""
+    conn = get_connection(settings)
+    try:
+        return retention.purge(conn, clock.utc_now(), settings)
+    finally:
+        conn.close()
 
 
 def main(settings: Settings | None = None) -> int:
