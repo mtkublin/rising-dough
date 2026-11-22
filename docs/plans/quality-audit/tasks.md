@@ -736,7 +736,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:26 (16 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q271 [S] Hygiene sweep: `Any` in signatures, asserts in `src`, broad and silent excepts, prints
+### ✅ T-Q271 [S] Hygiene sweep: `Any` in signatures, asserts in `src`, broad and silent excepts, prints
 - Findings: Q-073 (hygiene half; C-20), inventory P13 rows `any-annotation`, `assert-in-src`, `broad-except`, `silent-except`, `print-call` (compliance-inventory 14.2, 14.3); epic E15.
 - Epic: E15
 - Band: 4 · Size: L · Tags: none

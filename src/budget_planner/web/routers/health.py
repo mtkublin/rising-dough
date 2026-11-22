@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 
 from budget_planner import clock
 from budget_planner.services import replication_health
-from budget_planner.services.connections import get_connection, ping
+from budget_planner.services.connections import DB_ERRORS, get_connection, ping
 from budget_planner.web.paths import GET_HEAD_METHODS
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ def ready(request: Request) -> JSONResponse:
             ping(conn)
         finally:
             conn.close()
-    except Exception as exc:
+    except DB_ERRORS as exc:
         _logger.warning("ready_probe_failed", exc_info=exc)
         return JSONResponse(
             status_code=503,

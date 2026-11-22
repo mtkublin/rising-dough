@@ -20,6 +20,7 @@ import sqlite3
 from collections.abc import Iterable, Mapping, Sequence
 from decimal import Decimal
 
+from budget_planner.domain.errors import require_present
 from budget_planner.domain.money import (
     bps_to_percent,
     format_bps_percent,
@@ -421,7 +422,7 @@ def _with_formula_amount(
     fx: FormulaFx | DatesOnly,
 ) -> Iterable[Occurrence]:
     """Yield occurrences with ``amount`` replaced by per-month formula result."""
-    assert rule.amount_formula is not None
+    formula = require_present(rule.amount_formula, "formula of a formula rule")
     month_cache: dict[tuple[int, int], int] = {}
     for occ in occurrences:
         key = (occ.occurrence_date.year, occ.occurrence_date.month)
@@ -432,7 +433,7 @@ def _with_formula_amount(
                 else compute_formula_amount(
                     conn,
                     user_id,
-                    rule.amount_formula,
+                    formula,
                     key[0],
                     key[1],
                     fx=fx,

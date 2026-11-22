@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.enums import OverrideState
+from budget_planner.domain.errors import require_present
 from budget_planner.domain.money import format_major
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
@@ -145,7 +146,11 @@ async def create_rule(
             amount_source=amount_source,
             terms=term_inputs or [dict(forms.EMPTY_TERM_INPUT)],
         )
-    assert c is not None and start is not None and minor is not None
+    c, start, minor = (
+        require_present(c, "validated cadence"),
+        require_present(start, "validated start date"),
+        require_present(minor, "validated amount"),
+    )
     today = today_for(request)
     # ADR-0063: a stop date already in the past means the schedule is dead
     # on arrival — insert as inactive so it never shows up in Upcoming
@@ -339,7 +344,11 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
             amount_source=amount_source,
             terms=term_inputs or [dict(forms.EMPTY_TERM_INPUT)],
         )
-    assert c is not None and start is not None and minor is not None
+    c, start, minor = (
+        require_present(c, "validated cadence"),
+        require_present(start, "validated start date"),
+        require_present(minor, "validated amount"),
+    )
     # ADR-0063: if the user shortens the stop date so that the next pending
     # occurrence falls past it, deactivate the rule in the same patch so
     # Upcoming + Forecast stop surfacing it before the next promotion.
@@ -663,8 +672,9 @@ def skip_next(
         recurring_svc.skip_and_advance(conn, user_id, rule_id)
     except recurring_svc.InactiveRecurringError:
         return Response(status_code=422, content="rule is inactive")
-    updated = recurring_svc.find_rule(conn, user_id, rule_id, include_deleted=True)
-    assert updated is not None
+    updated = require_present(
+        recurring_svc.find_rule(conn, user_id, rule_id, include_deleted=True), "skipped rule"
+    )
     acc = accounts_service.find_by_id(conn, user_id, updated.account_id, include_deleted=True)
     cat = categories_service.find_by_id(conn, user_id, updated.category_id, include_deleted=True)
     html = render(

@@ -26,9 +26,9 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timedelta
-from typing import Any
 
 from budget_planner import clock
+from budget_planner.domain.audit import AuditPayload
 from budget_planner.domain.request_ctx import RequestCtx
 
 # Module-level singleton for the default empty request context —
@@ -38,7 +38,7 @@ _EMPTY_REQUEST_CTX: RequestCtx = RequestCtx.empty()
 _SAVEPOINT = "bp_nested"
 
 
-def _dumps(value: Any) -> str | None:
+def _dumps(value: AuditPayload | None) -> str | None:
     """Serialise a dataclass or dict to JSON TEXT for the audit log."""
     if value is None:
         return None
@@ -58,8 +58,8 @@ def write_audit(
     entity_type: str,
     entity_id: int,
     operation: str,
-    prev: Any | None,
-    new: Any | None,
+    prev: AuditPayload | None,
+    new: AuditPayload | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
     actor_user_id: int | None = None,
 ) -> None:
@@ -119,28 +119,29 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
         conn.execute("BEGIN IMMEDIATE")
     else:
         conn.execute(f"SAVEPOINT {_SAVEPOINT}")
+    completed = False
     try:
         yield conn
-    except Exception:
-        if is_outermost:
-            conn.execute("ROLLBACK")
-        else:
-            conn.execute(f"ROLLBACK TO {_SAVEPOINT}")
-            conn.execute(f"RELEASE {_SAVEPOINT}")
-        raise
+        completed = True
+    finally:
+        if not completed:
+            if is_outermost:
+                conn.execute("ROLLBACK")
+            else:
+                conn.execute(f"ROLLBACK TO {_SAVEPOINT}")
+                conn.execute(f"RELEASE {_SAVEPOINT}")
+    if is_outermost:
+        conn.execute("COMMIT")
     else:
-        if is_outermost:
-            conn.execute("COMMIT")
-        else:
-            conn.execute(f"RELEASE {_SAVEPOINT}")
+        conn.execute(f"RELEASE {_SAVEPOINT}")
 
 
-def mutate[T](
+def mutate[T: AuditPayload | None](
     conn: sqlite3.Connection,
     *,
     entity_type: str,
     operation: str,
-    prev: Any | None,
+    prev: AuditPayload | None,
     action: Callable[[sqlite3.Connection], tuple[int, T]],
     user_id: int | None,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
@@ -259,7 +260,7 @@ _OWNED_TABLES = frozenset(
 
 
 @dataclass(frozen=True, slots=True)
-class OwnedTable[R]:
+class OwnedTable[R: AuditPayload]:
     """Static description of one soft-deleting, user-owned table.
 
     ``table`` must be one of the allowlisted literals; ``columns`` and
@@ -357,7 +358,7 @@ def undelete_sql(table: str) -> str:
     )
 
 
-def find_owned[R](
+def find_owned[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -371,7 +372,7 @@ def find_owned[R](
     return spec.hydrate(row) if row is not None else None
 
 
-def list_owned[R](
+def list_owned[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -386,7 +387,7 @@ def list_owned[R](
     return [spec.hydrate(r) for r in rows]
 
 
-def list_recently_deleted_owned[R](
+def list_recently_deleted_owned[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -401,7 +402,7 @@ def list_recently_deleted_owned[R](
     return [spec.hydrate(r) for r in rows]
 
 
-def insert_owned[R](
+def insert_owned[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -428,7 +429,7 @@ def insert_owned[R](
     )
 
 
-def update_owned[R](
+def update_owned[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -469,7 +470,7 @@ def update_owned[R](
     )
 
 
-def soft_delete_found[R](
+def soft_delete_found[R: AuditPayload](
     conn: sqlite3.Connection,
     spec: OwnedTable[R],
     user_id: int,
@@ -492,7 +493,7 @@ def soft_delete_found[R](
     )
 
 
-def soft_delete_owned[R](
+def soft_delete_owned[R: AuditPayload](
     conn: sqlite3.Connection, spec: OwnedTable[R], user_id: int, row_id: int
 ) -> None:
     """Soft-delete the caller's live row; a silent no-op when missing or already deleted."""
@@ -502,7 +503,7 @@ def soft_delete_owned[R](
     soft_delete_found(conn, spec, user_id, row_id, prev)
 
 
-def undelete_owned[R](
+def undelete_owned[R: AuditPayload](
     conn: sqlite3.Connection, spec: OwnedTable[R], user_id: int, row_id: int
 ) -> R:
     """Restore a soft-deleted row of the caller and write the ``undelete`` audit row."""

@@ -14,7 +14,7 @@ import hashlib
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Final
+from typing import Final
 
 from webauthn.helpers import bytes_to_base64url
 
@@ -53,7 +53,7 @@ class WebAuthnCredential:
     deleted_at: datetime | None
 
 
-def audit_view(cred: WebAuthnCredential) -> dict[str, Any]:
+def audit_view(cred: WebAuthnCredential) -> dict[str, object]:
     """Return the audit-safe projection of ``cred`` (no public key)."""
     return {
         "id": cred.id,

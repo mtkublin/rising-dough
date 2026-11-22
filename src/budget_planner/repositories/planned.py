@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date
-from typing import Any
 
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
@@ -96,7 +95,7 @@ _LIVE_ACCOUNT = (
 def _planned_filter_clauses(
     filters: PlannedFilter,
     include_deleted: bool,
-) -> tuple[list[str], list[Any]]:
+) -> tuple[list[str], list[object]]:
     return join_filter_parts(
         [
             *_planned_date_parts(filters),
@@ -187,10 +186,10 @@ def create(
     )
 
 
-def _normalise_planned_patch(changes: dict[str, Any]) -> dict[str, Any]:
-    norm: dict[str, Any] = {}
+def _normalise_planned_patch(changes: dict[str, object]) -> dict[str, object]:
+    norm: dict[str, object] = {}
     for key, value in changes.items():
-        if key in {"operation_date", "occurrence_date"} and value is not None:
+        if key in {"operation_date", "occurrence_date"} and isinstance(value, date):
             norm[key] = value.isoformat()
         else:
             norm[key] = value

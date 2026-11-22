@@ -7,6 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
+from budget_planner.domain.errors import require_present
 from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.deps import current_user_id, get_db
@@ -124,8 +125,9 @@ def update_category(
             status_code=422,
         )
     categories_service.update(conn, user_id, category_id, parsed.patch)
-    updated = categories_service.find_by_id(conn, user_id, category_id)
-    assert updated is not None
+    updated = require_present(
+        categories_service.find_by_id(conn, user_id, category_id), "updated category"
+    )
     html = render(request, "partials/categories/_row.html", category=updated)
     trigger(html, Event.BUDGET_STALE)
     return html

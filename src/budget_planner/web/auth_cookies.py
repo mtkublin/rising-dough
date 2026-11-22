@@ -17,6 +17,7 @@ import binascii
 import hashlib
 import hmac
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Final, Literal
@@ -26,6 +27,8 @@ from starlette.responses import Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
+
+_logger = logging.getLogger(__name__)
 
 SESSION_COOKIE_NAME: Final = "__Host-session"
 SESSION_DEV_COOKIE_NAME: Final = "session"
@@ -145,12 +148,14 @@ def _decode_envelope(secret: str, value: str | None) -> dict[str, object] | None
         payload = _b64d(body)
         signature = _b64d(sig)
     except (binascii.Error, ValueError):
+        _logger.debug("auth envelope is not valid base64")
         return None
     if not hmac.compare_digest(signature, _mac(secret, payload)):
         return None
     try:
         data = json.loads(payload)
     except ValueError:
+        _logger.debug("auth envelope payload is not valid JSON")
         return None
     return data if isinstance(data, dict) else None
 
@@ -171,6 +176,7 @@ def verify_challenge(
         challenge = _b64d(str(data["c"]))
         issued = int(str(data["t"]))
     except (KeyError, ValueError, binascii.Error):
+        _logger.debug("challenge envelope is missing or has malformed fields")
         return None
     current = clock.utc_now().timestamp() if now is None else now
     if not issued <= current < issued + CHALLENGE_TTL_SECONDS:

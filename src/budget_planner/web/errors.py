@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.domain.errors import (
     ConflictError,
+    InvariantError,
     NotFoundError,
     ServiceError,
     ValidationError,
@@ -154,7 +155,8 @@ async def handle_missing_quote(request: Request, exc: Exception) -> HTMLResponse
 
 def handle_reauth_required(_request: Request, exc: Exception) -> Response:
     """Return the stale-session response built by ``require_recent_auth``."""
-    assert isinstance(exc, ReauthRequired)  # narrowing for the type checker
+    if not isinstance(exc, ReauthRequired):  # registered for ReauthRequired only
+        raise InvariantError(f"unexpected exception type {type(exc).__name__}")
     return exc.response
 
 

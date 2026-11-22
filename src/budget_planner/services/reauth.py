@@ -12,9 +12,10 @@ Every outcome is audited as an ``auth_event`` row (``reauth`` /
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, Final
+from typing import Final
 
 from webauthn import (
     generate_authentication_options,
@@ -50,7 +51,7 @@ def _audit(
     conn: sqlite3.Connection,
     ctx: RequestCtx,
     user_id: int,
-    payload: dict[str, Any],
+    payload: Mapping[str, object],
 ) -> None:
     with transaction(conn):
         write_audit(

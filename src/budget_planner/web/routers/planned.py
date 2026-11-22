@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.errors import require_present
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
@@ -167,15 +168,15 @@ def create_planned(
         return form_responses.planned_form_errors(
             request, conn, user_id, planned=None, errors=check.errors
         )
-    assert check.op_date is not None and check.minor is not None
+    op_date, amount_minor = check.valid_values()
     pl = planned_service.create(
         conn,
         user_id,
         NewPlannedTransaction(
-            operation_date=check.op_date,
+            operation_date=op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=check.minor,
+            amount=amount_minor,
             description=description,
             dest_account_id=check.dest_id,
         ),
@@ -253,16 +254,16 @@ def update_planned(
         return form_responses.planned_form_errors(
             request, conn, user_id, planned=pl, errors=check.errors
         )
-    assert check.op_date is not None and check.minor is not None
+    op_date, amount_minor = check.valid_values()
     planned_service.update(
         conn,
         user_id,
         planned_id,
         PatchPlannedTransaction(
-            operation_date=check.op_date,
+            operation_date=op_date,
             category_id=category_id,
             account_id=account_id,
-            amount=check.minor,
+            amount=amount_minor,
             description=description,
         ),
     )
@@ -375,7 +376,8 @@ def promote_submit(
             errors["amount"] = err
     if errors:
         return form_responses.promote_modal_errors(request, pl, acc, errors)
-    assert op_date is not None and minor is not None
+    op_date = require_present(op_date, "validated operation date")
+    minor = require_present(minor, "validated amount")
     try:
         planned_service.promote_to_actual(
             conn,
