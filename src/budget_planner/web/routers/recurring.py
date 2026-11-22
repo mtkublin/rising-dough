@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
-import re
 import sqlite3
-from collections.abc import Mapping
 from datetime import date
-from types import MappingProxyType
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response
-from starlette.datastructures import FormData
 
-from budget_planner.domain.enums import Cadence, Direction, OverrideState
+from budget_planner.domain.enums import OverrideState
 from budget_planner.domain.money import format_major
 from budget_planner.domain.recurring import (
-    AmountFormula,
     NewRecurringOverride,
     NewRecurringRule,
     PatchRecurringRule,
-    RecurringOverride,
 )
 from budget_planner.services import (
     accounts as accounts_service,
@@ -29,64 +23,13 @@ from budget_planner.services import (
     recurring_formula as formula_svc,
 )
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
+from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, today_for
 from budget_planner.web.htmx import refresh_unless_on, trigger
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
-
-
-def _formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Any]:
-    """Return categories eligible as formula sources (user-visible income+expense)."""
-    return [
-        c
-        for c in categories_service.list_all(conn, user_id)
-        if c.direction in (Direction.INCOME, Direction.EXPENSE)
-    ]
-
-
-_EMPTY_TERM_INPUT: Mapping[str, Any] = MappingProxyType(
-    {
-        "sign": "+",
-        "coefficient_percent": "",
-        "source_category_ids": (),
-    }
-)
-
-_TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
-
-
-def _parse_terms_from_form(form: FormData) -> list[dict[str, Any]]:
-    """Group `terms[i][field]` form entries into a dense indexed list.
-
-    Returns a list of ``{"sign", "coefficient_percent", "source_category_ids"}``
-    dicts in ascending index order. Holes (removed row 1 in a form that
-    posted rows 0 and 2) collapse to a contiguous list. Values are left as
-    strings / tuples so :func:`formula_svc.build_term` is the single
-    validation boundary.
-    """
-    by_index: dict[int, dict[str, Any]] = {}
-    for key, raw in form.multi_items():
-        m = _TERM_FIELD_RE.match(key)
-        if m is None:
-            continue
-        idx = int(m.group(1))
-        field = m.group(2)
-        bucket = by_index.setdefault(
-            idx,
-            {"sign": "+", "coefficient_percent": "", "source_category_ids": []},
-        )
-        if field == "source_category_ids":
-            bucket["source_category_ids"].append(raw)
-        else:
-            bucket[field] = raw
-    out: list[dict[str, Any]] = []
-    for idx in sorted(by_index):
-        row = by_index[idx]
-        row["source_category_ids"] = tuple(row["source_category_ids"])
-        out.append(row)
-    return out
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -105,128 +48,10 @@ def new_form(
         action="/recurring",
         categories=categories_service.list_all(conn, user_id),
         accounts=accounts_service.list_all(conn, user_id),
-        source_categories=_formula_source_candidates(conn, user_id),
+        source_categories=forms.formula_source_candidates(conn, user_id),
         amount_source="fixed",
-        terms=[dict(_EMPTY_TERM_INPUT)],
+        terms=[dict(forms.EMPTY_TERM_INPUT)],
         errors={},
-    )
-
-
-def _validate_cadence(value: str) -> Cadence | None:
-    try:
-        return Cadence(value)
-    except ValueError:
-        return None
-
-
-def _resolve_dest_account(  # noqa: PLR0911 — flat validation surface mirroring transactions router
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    dest_account_id_raw: str,
-    category: Any,
-    source_account: Any,
-) -> tuple[int | None, dict[str, str]]:
-    """Validate the destination account input (mirrors transactions router).
-
-    Transits (``direction=transit``) require a destination with matching
-    currency; non-transit categories ignore any posted value.
-    """
-    if not dest_account_id_raw:
-        if category is not None and category.direction == Direction.TRANSIT:
-            return None, {"dest_account_id": "transit requires destination account"}
-        return None, {}
-    if category is None or category.direction != Direction.TRANSIT:
-        return None, {}
-    parsed = parse_int(dest_account_id_raw)
-    if parsed is None:
-        return None, {"dest_account_id": "invalid destination"}
-    dest = accounts_service.find_by_id(conn, user_id, parsed)
-    if dest is None:
-        return None, {"dest_account_id": "unknown destination"}
-    if source_account is not None and dest.currency != source_account.currency:
-        return None, {"dest_account_id": "cross-currency transit not supported"}
-    if source_account is not None and dest.id == source_account.id:
-        return None, {"dest_account_id": "destination must differ from source"}
-    return parsed, {}
-
-
-def _resolve_amount_inputs(
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    amount_source: str,
-    default_amount: str,
-    term_inputs: list[dict[str, Any]],
-    account_currency: str | None,
-    exclude_rule_id: int | None,
-    today: date,
-) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
-    """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
-    errors: dict[str, str] = {}
-    if amount_source == "formula":
-        if account_currency is None:
-            errors["amount_source"] = "unknown account currency"
-            return None, None, errors
-        try:
-            terms = [
-                formula_svc.build_term(
-                    sign=t.get("sign", "+"),
-                    coefficient_percent=t.get("coefficient_percent", ""),
-                    source_category_ids=[int(v) for v in t.get("source_category_ids", ())],
-                )
-                for t in term_inputs
-            ]
-            formula = formula_svc.build_formula(terms)
-        except formula_svc.FormulaError as exc:
-            errors["formula"] = str(exc)
-            return None, None, errors
-        try:
-            snapshot = formula_svc.compute_savable_amount(
-                conn,
-                user_id,
-                formula,
-                today.year,
-                today.month,
-                exclude_rule_id=exclude_rule_id,
-            )
-        except formula_svc.FormulaError as exc:
-            errors["formula"] = str(exc)
-            return None, None, errors
-        return snapshot, formula, errors
-    # fixed branch
-    if account_currency is None:
-        errors["default_amount"] = "unknown account currency"
-        return None, None, errors
-    minor, amount_err = positive_amount(default_amount, account_currency)
-    if amount_err is not None:
-        errors["default_amount"] = amount_err
-    return minor, None, errors
-
-
-def _render_form_errors(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    *,
-    rule: Any,
-    action: str,
-    errors: Mapping[str, str],
-    amount_source: str,
-    terms: list[dict[str, Any]],
-) -> Response:
-    return render(
-        request,
-        "partials/recurring/_form.html",
-        rule=rule,
-        action=action,
-        categories=categories_service.list_all(conn, user_id),
-        accounts=accounts_service.list_all(conn, user_id),
-        source_categories=_formula_source_candidates(conn, user_id),
-        amount_source=amount_source,
-        terms=terms,
-        errors=errors,
-        status_code=422,
     )
 
 
@@ -247,10 +72,10 @@ async def create_rule(
     default_description = str(form.get("default_description", ""))
     day_of_month = str(form.get("day_of_month", ""))
     amount_source = str(form.get("amount_source", "fixed"))
-    term_inputs = _parse_terms_from_form(form)
+    term_inputs = forms.parse_terms_from_form(form)
 
     errors: dict[str, str] = {}
-    c = _validate_cadence(cadence)
+    c = forms.validate_cadence(cadence)
     if c is None:
         errors["cadence"] = "invalid cadence"
     start = parse_date(start_date)
@@ -268,7 +93,7 @@ async def create_rule(
         account_id = int(account_id_raw)
     except ValueError:
         errors["account_id"] = "invalid account/category"
-        return _render_form_errors(
+        return views.render_form_errors(
             request,
             conn,
             user_id,
@@ -276,7 +101,7 @@ async def create_rule(
             action="/recurring",
             errors=errors,
             amount_source=amount_source,
-            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
+            terms=term_inputs or [dict(forms.EMPTY_TERM_INPUT)],
         )
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     cat = categories_service.find_by_id(conn, user_id, category_id)
@@ -284,7 +109,7 @@ async def create_rule(
         errors["account_id"] = "unknown account"
     if cat is None:
         errors["category_id"] = "unknown category"
-    dest_id, dest_errors = _resolve_dest_account(
+    dest_id, dest_errors = forms.resolve_dest_account(
         conn,
         user_id,
         dest_account_id_raw=dest_account_id_raw,
@@ -292,7 +117,7 @@ async def create_rule(
         source_account=acc,
     )
     errors.update(dest_errors)
-    minor, formula, amount_errors = _resolve_amount_inputs(
+    minor, formula, amount_errors = forms.resolve_amount_inputs(
         conn,
         user_id,
         amount_source=amount_source,
@@ -304,7 +129,7 @@ async def create_rule(
     )
     errors.update(amount_errors)
     if errors:
-        return _render_form_errors(
+        return views.render_form_errors(
             request,
             conn,
             user_id,
@@ -312,7 +137,7 @@ async def create_rule(
             action="/recurring",
             errors=errors,
             amount_source=amount_source,
-            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
+            terms=term_inputs or [dict(forms.EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
     today = today_for(request)
@@ -372,12 +197,12 @@ def edit_form(
             accounts=[],
             source_categories=[],
             amount_source="fixed",
-            terms=[dict(_EMPTY_TERM_INPUT)],
+            terms=[dict(forms.EMPTY_TERM_INPUT)],
             errors={"rule": "not found"},
             status_code=404,
         )
     amount_source, terms = (
-        ("fixed", [dict(_EMPTY_TERM_INPUT)])
+        ("fixed", [dict(forms.EMPTY_TERM_INPUT)])
         if rule is None or rule.amount_formula is None
         else ("formula", formula_svc.term_input_rows(rule.amount_formula))
     )
@@ -391,7 +216,7 @@ def edit_form(
         action=f"/recurring/{rule_id}",
         categories=categories_service.list_all(conn, user_id),
         accounts=accounts_service.list_all(conn, user_id),
-        source_categories=_formula_source_candidates(conn, user_id),
+        source_categories=forms.formula_source_candidates(conn, user_id),
         amount_source=amount_source,
         terms=terms,
         errors={},
@@ -418,7 +243,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     default_amount = str(form.get("default_amount", ""))
     default_description = str(form.get("default_description", ""))
     amount_source = str(form.get("amount_source", "fixed"))
-    term_inputs = _parse_terms_from_form(form)
+    term_inputs = forms.parse_terms_from_form(form)
     try:
         category_id = int(category_id_raw)
         account_id = int(account_id_raw)
@@ -426,7 +251,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         return Response(status_code=422, content="invalid account/category")
     acc = accounts_service.find_by_id(conn, user_id, account_id)
     cat = categories_service.find_by_id(conn, user_id, category_id)
-    c = _validate_cadence(cadence)
+    c = forms.validate_cadence(cadence)
     start = parse_date(start_date)
     end: date | None = None
     errors: dict[str, str] = {}
@@ -444,7 +269,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         errors["account_id"] = "unknown account"
     if cat is None:
         errors["category_id"] = "unknown category"
-    dest_id, dest_errors = _resolve_dest_account(
+    dest_id, dest_errors = forms.resolve_dest_account(
         conn,
         user_id,
         dest_account_id_raw=dest_account_id_raw,
@@ -452,7 +277,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
         source_account=acc,
     )
     errors.update(dest_errors)
-    minor, formula, amount_errors = _resolve_amount_inputs(
+    minor, formula, amount_errors = forms.resolve_amount_inputs(
         conn,
         user_id,
         amount_source=amount_source,
@@ -464,7 +289,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     )
     errors.update(amount_errors)
     if errors:
-        return _render_form_errors(
+        return views.render_form_errors(
             request,
             conn,
             user_id,
@@ -472,7 +297,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
             action=f"/recurring/{rule_id}",
             errors=errors,
             amount_source=amount_source,
-            terms=term_inputs or [dict(_EMPTY_TERM_INPUT)],
+            terms=term_inputs or [dict(forms.EMPTY_TERM_INPUT)],
         )
     assert c is not None and start is not None and minor is not None
     # ADR-0063: if the user shortens the stop date so that the next pending
@@ -507,15 +332,6 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     trigger(html, "forecast-stale", "ledger-stale")
     refresh_unless_on(request, html, "/ledger")
     return html
-
-
-def _effective_amount_for_render(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule: Any,
-) -> int:
-    """Return the amount to render in the Ledger row for a rule (formula-aware)."""
-    return formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
 
 
 @router.post("/{rule_id}/deactivate")
@@ -576,9 +392,10 @@ def new_override_form(
 
 
 @router.post("/{rule_id}/overrides")
-def add_override(  # noqa: PLR0917
+def add_override(
     rule_id: int,
     request: Request,
+    *,
     year: int = Form(...),
     month: int = Form(...),
     amount: str = Form(...),
@@ -654,7 +471,7 @@ def delete_override(
         request,
         "partials/recurring/_row.html",
         rule=rule,
-        effective_amount_minor=_effective_amount_for_render(conn, user_id, rule),
+        effective_amount_minor=views.effective_amount_for_render(conn, user_id, rule),
         overrides=overrides,
         account=acc,
         category=cat,
@@ -666,66 +483,6 @@ def delete_override(
 # ---------------------------------------------------------------------------
 # T-118 — Promote / Skip-next (ADR-0038)
 # ---------------------------------------------------------------------------
-def _override_on_next_due(
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule_id: int,
-    next_due: date,
-) -> RecurringOverride | None:
-    """Return the override whose canonical ``occurrence_date == next_due``."""
-    for override in recurring_svc.list_overrides(conn, user_id, rule_id):
-        if override.occurrence_date == next_due:
-            return override
-    return None
-
-
-def _render_promote_modal(
-    request: Request,
-    conn: sqlite3.Connection,
-    user_id: int,
-    rule_id: int,
-    *,
-    errors: dict[str, str] | None = None,
-    status_code: int = 200,
-) -> Response:
-    rule = recurring_svc.find_rule(conn, user_id, rule_id)
-    if rule is None:
-        return render(
-            request,
-            "partials/recurring/_promote_modal.html",
-            rule=None,
-            account=None,
-            override=None,
-            prefill_date=None,
-            prefill_amount_minor=None,
-            prefill_description="",
-            errors={"rule": "not found"},
-            status_code=404,
-        )
-    override = _override_on_next_due(conn, user_id, rule_id, rule.next_due)
-    account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    prefill_date = rule.next_due
-    prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due)
-    prefill_description = rule.default_description
-    if override is not None:
-        if override.date_override is not None:
-            prefill_date = override.date_override
-        if override.amount_override is not None:
-            prefill_amount = override.amount_override
-        if override.description_override is not None:
-            prefill_description = override.description_override
-    return render(
-        request,
-        "partials/recurring/_promote_modal.html",
-        rule=rule,
-        account=account,
-        override=override,
-        prefill_date=prefill_date,
-        prefill_amount_minor=prefill_amount,
-        prefill_description=prefill_description,
-        errors=errors or {},
-        status_code=status_code,
-    )
 
 
 @router.get("/{rule_id}/promote", response_class=HTMLResponse)
@@ -735,7 +492,7 @@ def promote_form(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    return _render_promote_modal(request, conn, user_id, rule_id)
+    return views.render_promote_modal(request, conn, user_id, rule_id)
 
 
 @router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
@@ -756,7 +513,7 @@ def promote_inline(
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     occurrence = parse_date(date) or rule.next_due
-    override = _override_on_next_due(conn, user_id, rule_id, occurrence)
+    override = views.override_on_next_due(conn, user_id, rule_id, occurrence)
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence)
     prefill_description = rule.default_description
     if override is not None:
@@ -778,9 +535,10 @@ def promote_inline(
 
 
 @router.post("/{rule_id}/promote")
-def promote_submit(  # noqa: PLR0917
+def promote_submit(
     rule_id: int,
     request: Request,
+    *,
     operation_date: str = Form(""),
     amount: str = Form(""),
     description: str = Form(""),
@@ -809,7 +567,7 @@ def promote_submit(  # noqa: PLR0917
                 errors["amount"] = amount_err
 
     if errors:
-        return _render_promote_modal(
+        return views.render_promote_modal(
             request, conn, user_id, rule_id, errors=errors, status_code=422
         )
 
@@ -828,7 +586,7 @@ def promote_submit(  # noqa: PLR0917
         UnsupportedDirectionError,
         ValidationError,
     ) as exc:
-        return _render_promote_modal(
+        return views.render_promote_modal(
             request,
             conn,
             user_id,
@@ -868,7 +626,7 @@ def skip_next(
         overrides=recurring_svc.list_overrides(conn, user_id, rule_id),
         account=acc,
         category=cat,
-        effective_amount_minor=_effective_amount_for_render(conn, user_id, updated),
+        effective_amount_minor=views.effective_amount_for_render(conn, user_id, updated),
     )
     trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
     return html

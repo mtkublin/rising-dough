@@ -7,8 +7,7 @@ import pytest
 from budget_planner.db import migrate
 from budget_planner.domain import money
 from budget_planner.services import audit
-from budget_planner.web import templating, today_data
-from budget_planner.web.routers import recurring as recurring_router
+from budget_planner.web import recurring_forms, templating, today_data
 
 
 @pytest.mark.parametrize(
@@ -21,7 +20,7 @@ from budget_planner.web.routers import recurring as recurring_router
         templating._DIRECTION_CSS_VARS,
         today_data._PACE_LABELS,
         today_data._WINDOWS,
-        recurring_router._EMPTY_TERM_INPUT,
+        recurring_forms.EMPTY_TERM_INPUT,
     ],
 )
 def test_lookup_table_is_a_read_only_mapping(table: object) -> None:
