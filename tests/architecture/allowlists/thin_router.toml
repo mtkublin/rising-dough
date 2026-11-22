@@ -4,13 +4,6 @@
 guard = "thin_router"
 
 [[entry]]
-path = "src/budget_planner/web/routers/auth.py"
-rule = "helper-in-router"
-count = 23
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
 path = "src/budget_planner/web/routers/forecast.py"
 rule = "helper-in-router"
 count = 1
@@ -58,41 +51,6 @@ rule = "logic-in-router"
 count = 1
 finding = "B-01"
 epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings.py"
-rule = "helper-in-router"
-count = 1
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings.py"
-rule = "logic-in-router"
-count = 1
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings_password.py"
-rule = "helper-in-router"
-count = 4
-finding = "B-02"
-epic = "E08"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings_security.py"
-rule = "logic-in-router"
-count = 1
-finding = "B-01"
-epic = "E09"
-
-[[entry]]
-path = "src/budget_planner/web/routers/settings_users.py"
-rule = "helper-in-router"
-count = 11
-finding = "B-02"
-epic = "E08"
 
 [[entry]]
 path = "src/budget_planner/web/routers/transactions.py"

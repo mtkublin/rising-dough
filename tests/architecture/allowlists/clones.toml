@@ -45,13 +45,6 @@ finding = "P1"
 epic = "E03"
 
 [[entry]]
-path = "src/budget_planner/web/routers/auth.py"
-rule = "same-name"
-count = 1
-finding = "P1"
-epic = "E03"
-
-[[entry]]
 path = "src/budget_planner/web/routers/ledger.py"
 rule = "clone-group"
 count = 1
