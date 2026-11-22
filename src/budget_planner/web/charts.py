@@ -21,7 +21,7 @@ raise ``FrozenInstanceError``.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -147,7 +147,40 @@ _LINE_AREA_PAD_TOP = 16.0
 _LINE_AREA_PAD_BOTTOM = 32.0
 
 
-def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for cohesion
+@dataclass(frozen=True, slots=True)
+class _Plot:
+    """Inner plot box plus the nice y-axis scale shared by the chart builders."""
+
+    left: float
+    bottom: float
+    width: float
+    height: float
+    y_min: float
+    y_max: float
+    y_step: float
+
+    @property
+    def y_span(self) -> float:
+        """Axis range (never zero)."""
+        return self.y_max - self.y_min or 1.0
+
+    def bar_height(self, value: float) -> float:
+        """Pixel height of ``value`` above the axis minimum."""
+        return ((value - self.y_min) / self.y_span) * self.height
+
+    def y(self, value: float) -> float:
+        """SVG y coordinate of ``value``."""
+        return self.bottom - self.bar_height(value)
+
+    def y_ticks(self) -> tuple[AxisTick, ...]:
+        """Y-axis ticks from the nice step."""
+        return tuple(
+            AxisTick(position=self.y(value), label=format_axis_number(value))
+            for value in _axis_ticks(self.y_min, self.y_max, self.y_step)
+        )
+
+
+def line_area(
     points: Sequence[tuple[float, float]],
     *,
     width: float = _LINE_AREA_WIDTH,
@@ -156,13 +189,9 @@ def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for c
 ) -> LineAreaChart:
     """Compute SVG geometry for a line + area chart.
 
-    Args:
-        points: Sequence of ``(x, y)`` tuples in data space. Empty input
-            returns an empty chart with a valid view-box.
-        width: SVG width in pixels. Default 600.
-        height: SVG height in pixels. Default 240.
-        x_labels: Optional explicit labels (one per point); when provided,
-            replaces numeric x-axis labels. Length must match ``points``.
+    ``points`` are ``(x, y)`` data-space tuples (empty input gives an empty chart
+    with a valid view-box); ``x_labels`` optionally replaces numeric x-axis labels
+    and must match ``points`` in length.
     """
     view_box = f"0 0 {_fmt(width)} {_fmt(height)}"
     if not points:
@@ -176,78 +205,75 @@ def line_area(  # noqa: PLR0915 — flat SVG geometry builder, kept inline for c
             height=height,
         )
 
-    inner_left = _LINE_AREA_PAD_LEFT
-    inner_right = width - _LINE_AREA_PAD_RIGHT
-    inner_top = _LINE_AREA_PAD_TOP
-    inner_bottom = height - _LINE_AREA_PAD_BOTTOM
-    inner_width = inner_right - inner_left
-    inner_height = inner_bottom - inner_top
-
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    x_min, x_max = min(xs), max(xs)
-    y_min, y_max = min(ys), max(ys)
-    nice_y_min, nice_y_max, y_step = _nice_axis(y_min, y_max)
-    y_span = nice_y_max - nice_y_min or 1.0
-
-    rendered_points: list[LinePoint] = []
-    if len(points) == 1:
-        # Single-point: anchor at the middle of the inner box.
-        sx = inner_left + inner_width * 0.5
-        sy = inner_bottom - ((ys[0] - nice_y_min) / y_span) * inner_height
-        line_d = f"M{_fmt(sx)} {_fmt(sy)}"
-        area_d = f"M{_fmt(sx)} {_fmt(sy)} L{_fmt(sx)} {_fmt(inner_bottom)} Z"
-        rendered_points.append(LinePoint(x=sx, y=sy))
-    else:
-        x_span = (x_max - x_min) or 1.0
-        line_segments: list[str] = []
-        area_segments: list[str] = []
-        for i, (dx, dy) in enumerate(points):
-            sx = inner_left + ((dx - x_min) / x_span) * inner_width
-            sy = inner_bottom - ((dy - nice_y_min) / y_span) * inner_height
-            marker = "M" if i == 0 else "L"
-            line_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
-            area_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
-            rendered_points.append(LinePoint(x=sx, y=sy))
-        last_x = inner_left + ((xs[-1] - x_min) / x_span) * inner_width
-        first_x = inner_left
-        area_segments.append(f"L{_fmt(last_x)} {_fmt(inner_bottom)}")
-        area_segments.append(f"L{_fmt(first_x)} {_fmt(inner_bottom)} Z")
-        line_d = " ".join(line_segments)
-        area_d = " ".join(area_segments)
-
-    # X-axis ticks: use explicit labels if given, otherwise skip every nth.
-    x_axis: list[AxisTick] = []
-    if x_labels is not None:
-        if len(x_labels) != len(points):
-            raise ValueError(
-                f"x_labels length {len(x_labels)} must match points length {len(points)}"
-            )
-        step = max(1, len(points) // 6)
-        x_span_axis = (x_max - x_min) or 1.0
-        for i, label in enumerate(x_labels):
-            if i % step != 0 and i != len(points) - 1:
-                continue
-            sx = inner_left + ((xs[i] - x_min) / x_span_axis) * inner_width
-            if len(points) == 1:
-                sx = inner_left + inner_width * 0.5
-            x_axis.append(AxisTick(position=sx, label=label))
-
-    # Y-axis ticks from the nice step.
-    y_axis: list[AxisTick] = []
-    for value in _axis_ticks(nice_y_min, nice_y_max, y_step):
-        sy = inner_bottom - ((value - nice_y_min) / y_span) * inner_height
-        y_axis.append(AxisTick(position=sy, label=format_axis_number(value)))
-
+    nice_min, nice_max, y_step = _nice_axis(min(p[1] for p in points), max(p[1] for p in points))
+    plot = _Plot(
+        left=_LINE_AREA_PAD_LEFT,
+        bottom=height - _LINE_AREA_PAD_BOTTOM,
+        width=(width - _LINE_AREA_PAD_RIGHT) - _LINE_AREA_PAD_LEFT,
+        height=(height - _LINE_AREA_PAD_BOTTOM) - _LINE_AREA_PAD_TOP,
+        y_min=nice_min,
+        y_max=nice_max,
+        y_step=y_step,
+    )
+    rendered = _line_points(points, plot)
+    line_d, area_d = _line_area_paths(rendered, plot)
     return LineAreaChart(
         line_d=line_d,
         area_d=area_d,
-        x_axis=tuple(x_axis),
-        y_axis=tuple(y_axis),
+        x_axis=_line_x_ticks(rendered, x_labels),
+        y_axis=plot.y_ticks(),
         view_box=view_box,
         width=width,
         height=height,
-        points=tuple(rendered_points),
+        points=tuple(rendered),
+    )
+
+
+def _line_points(points: Sequence[tuple[float, float]], plot: _Plot) -> list[LinePoint]:
+    """Map data points to SVG coordinates (a single point sits mid-box)."""
+    if len(points) == 1:
+        return [LinePoint(x=plot.left + plot.width * 0.5, y=plot.y(points[0][1]))]
+    xs = [p[0] for p in points]
+    x_min = min(xs)
+    x_span = (max(xs) - x_min) or 1.0
+    return [
+        LinePoint(x=plot.left + ((dx - x_min) / x_span) * plot.width, y=plot.y(dy))
+        for dx, dy in points
+    ]
+
+
+def _line_area_paths(rendered: Sequence[LinePoint], plot: _Plot) -> tuple[str, str]:
+    """SVG ``d`` strings for the line and its closed area."""
+    if len(rendered) == 1:
+        only = rendered[0]
+        head = f"M{_fmt(only.x)} {_fmt(only.y)}"
+        return head, f"{head} L{_fmt(only.x)} {_fmt(plot.bottom)} Z"
+    segments = [
+        f"{'M' if i == 0 else 'L'}{_fmt(pt.x)} {_fmt(pt.y)}" for i, pt in enumerate(rendered)
+    ]
+    area = [
+        *segments,
+        f"L{_fmt(rendered[-1].x)} {_fmt(plot.bottom)}",
+        f"L{_fmt(plot.left)} {_fmt(plot.bottom)} Z",
+    ]
+    return " ".join(segments), " ".join(area)
+
+
+def _line_x_ticks(
+    rendered: Sequence[LinePoint], x_labels: Sequence[str] | None
+) -> tuple[AxisTick, ...]:
+    """X-axis ticks: explicit labels only, skipping every nth to stay legible."""
+    if x_labels is None:
+        return ()
+    if len(x_labels) != len(rendered):
+        raise ValueError(
+            f"x_labels length {len(x_labels)} must match points length {len(rendered)}"
+        )
+    step = max(1, len(rendered) // 6)
+    return tuple(
+        AxisTick(position=rendered[i].x, label=label)
+        for i, label in enumerate(x_labels)
+        if i % step == 0 or i == len(rendered) - 1
     )
 
 
@@ -331,7 +357,38 @@ def grouped_bars(
             height=height,
         )
 
-    normalized: list[tuple[str, tuple[tuple[BarKind, float], ...]]] = []
+    normalized = _normalize_groups(groups)
+    max_value = max((val for _, bars in normalized for _, val in bars), default=0.0)
+    nice_min, nice_max, y_step = _grouped_axis(max_value)
+    inner_left = _GROUPED_PAD_LEFT
+    plot = _Plot(
+        left=inner_left,
+        bottom=height - _GROUPED_PAD_BOTTOM,
+        width=(width - _GROUPED_PAD_RIGHT) - inner_left,
+        height=(height - _GROUPED_PAD_BOTTOM) - _GROUPED_PAD_TOP,
+        y_min=nice_min,
+        y_max=nice_max,
+        y_step=y_step,
+    )
+    group_slot = plot.width / len(normalized)
+    return GroupedBarsChart(
+        groups=tuple(
+            _bar_group(label, bars, plot, g_idx, group_slot)
+            for g_idx, (label, bars) in enumerate(normalized)
+        ),
+        y_axis=plot.y_ticks(),
+        view_box=view_box,
+        width=width,
+        height=height,
+    )
+
+
+_NormalizedGroup = tuple[str, tuple[tuple[BarKind, float], ...]]
+
+
+def _normalize_groups(groups: Sequence[Mapping[str, object]]) -> list[_NormalizedGroup]:
+    """Validate the raw group mappings into ``(label, ((kind, value), ...))`` tuples."""
+    normalized: list[_NormalizedGroup] = []
     for raw in groups:
         label = str(raw.get("label", ""))
         raw_bars = cast(Iterable[tuple[str, float]], raw.get("bars", ()))
@@ -343,73 +400,49 @@ def grouped_bars(
                 raise ValueError("grouped_bars values must be >= 0")
             bar_entries.append((cast(BarKind, kind), float(value)))
         normalized.append((label, tuple(bar_entries)))
+    return normalized
 
-    inner_left = _GROUPED_PAD_LEFT
-    inner_right = width - _GROUPED_PAD_RIGHT
-    inner_top = _GROUPED_PAD_TOP
-    inner_bottom = height - _GROUPED_PAD_BOTTOM
-    inner_width = inner_right - inner_left
-    inner_height = inner_bottom - inner_top
 
-    max_value = max(
-        (val for _, bars in normalized for _, val in bars),
-        default=0.0,
-    )
+def _grouped_axis(max_value: float) -> tuple[float, float, float]:
+    """Nice (min, max, step) for the grouped-bars axis; min is pinned to zero."""
     if max_value <= 0:
-        nice_min, nice_max, y_step = 0.0, 1.0, 1.0
-    else:
-        nice_min, nice_max, y_step = _nice_axis(0.0, max_value)
-        if nice_min > 0:
-            nice_min = 0.0
-    y_span = (nice_max - nice_min) or 1.0
+        return 0.0, 1.0, 1.0
+    nice_min, nice_max, y_step = _nice_axis(0.0, max_value)
+    return min(nice_min, 0.0), nice_max, y_step
 
-    group_slot = inner_width / len(normalized)
+
+def _bar_group(
+    label: str,
+    bars: Sequence[tuple[BarKind, float]],
+    plot: _Plot,
+    g_idx: int,
+    group_slot: float,
+) -> GroupedBarGroup:
+    """Geometry of one labelled group of bars inside its slot."""
     group_padding = group_slot * _GROUPED_GROUP_GAP_RATIO * 0.5
     bar_area = group_slot - 2 * group_padding
-    out_groups: list[GroupedBarGroup] = []
-    for g_idx, (label, bars) in enumerate(normalized):
-        slot_start = inner_left + g_idx * group_slot
-        center_x = slot_start + group_slot * 0.5
-        bar_count = len(bars) or 1
-        total_gap = _GROUPED_INNER_GAP * (bar_count - 1)
-        bar_width = max((bar_area - total_gap) / bar_count, 1.0)
-        rendered: list[Bar] = []
-        for b_idx, (kind, value) in enumerate(bars):
-            bx = slot_start + group_padding + b_idx * (bar_width + _GROUPED_INNER_GAP)
-            bh = ((value - nice_min) / y_span) * inner_height if value > 0 else 0.0
-            by = inner_bottom - bh
-            rendered.append(
-                Bar(
-                    kind=kind,
-                    x=bx,
-                    y=by,
-                    width=bar_width,
-                    height=bh,
-                    value=value,
-                )
-            )
-        out_groups.append(
-            GroupedBarGroup(
-                label=label,
-                center_x=center_x,
-                bars=tuple(rendered),
-            )
+    slot_start = plot.left + g_idx * group_slot
+    bar_count = len(bars) or 1
+    total_gap = _GROUPED_INNER_GAP * (bar_count - 1)
+    bar_width = max((bar_area - total_gap) / bar_count, 1.0)
+    rendered = tuple(
+        _bar(
+            kind,
+            value,
+            plot,
+            x=slot_start + group_padding + b_idx * (bar_width + _GROUPED_INNER_GAP),
+            width=bar_width,
         )
-
-    y_axis = tuple(
-        AxisTick(
-            position=inner_bottom - ((value - nice_min) / y_span) * inner_height,
-            label=format_axis_number(value),
-        )
-        for value in _axis_ticks(nice_min, nice_max, y_step)
+        for b_idx, (kind, value) in enumerate(bars)
     )
+    return GroupedBarGroup(label=label, center_x=slot_start + group_slot * 0.5, bars=rendered)
 
-    return GroupedBarsChart(
-        groups=tuple(out_groups),
-        y_axis=y_axis,
-        view_box=view_box,
-        width=width,
-        height=height,
+
+def _bar(kind: BarKind, value: float, plot: _Plot, *, x: float, width: float) -> Bar:
+    """One bar rising from the plot baseline (zero values get zero height)."""
+    bar_height = plot.bar_height(value) if value > 0 else 0.0
+    return Bar(
+        kind=kind, x=x, y=plot.bottom - bar_height, width=width, height=bar_height, value=value
     )
 
 
@@ -473,44 +506,52 @@ def horizontal_bars(
         )
 
     height = row_height * len(items)
-    view_box = f"0 0 {_fmt(width)} {_fmt(height)}"
     max_value = max((v for _, v in items), default=0.0)
-
     label_col = width * _HORIZONTAL_LABEL_RATIO
-    value_col = width * _HORIZONTAL_VALUE_RATIO
-    bar_track = width - label_col - value_col
-    bar_track = max(bar_track, 1.0)
-    bar_x = label_col
-
-    max_label_width = max(
-        (len(label) * _HORIZONTAL_LABEL_CHAR_WIDTH for label, _ in items),
-        default=0.0,
-    )
-
-    rendered: list[HorizontalBar] = []
-    for i, (label, value) in enumerate(items):
-        y = i * row_height
-        clamped = max(value, 0.0)
-        bar_width = (clamped / max_value) * bar_track if max_value > 0 else 0.0
-        bar_y_offset = (row_height - _HORIZONTAL_BAR_HEIGHT) * 0.5
-        rendered.append(
-            HorizontalBar(
-                label=label,
-                value=value,
-                y=y + bar_y_offset,
-                bar_x=bar_x,
-                bar_width=bar_width,
-                bar_height=_HORIZONTAL_BAR_HEIGHT,
-                value_label=format_axis_number(value),
-            )
+    bar_track = max(width - label_col - width * _HORIZONTAL_VALUE_RATIO, 1.0)
+    rendered = tuple(
+        _horizontal_row(
+            i,
+            label,
+            value,
+            row_height=row_height,
+            bar_x=label_col,
+            bar_track=bar_track,
+            max_value=max_value,
         )
-
+        for i, (label, value) in enumerate(items)
+    )
     return HorizontalBarsChart(
-        bars=tuple(rendered),
-        max_label_width=max_label_width,
-        view_box=view_box,
+        bars=rendered,
+        max_label_width=max(len(label) * _HORIZONTAL_LABEL_CHAR_WIDTH for label, _ in items),
+        view_box=f"0 0 {_fmt(width)} {_fmt(height)}",
         width=width,
         height=height,
+    )
+
+
+def _horizontal_row(
+    index: int,
+    label: str,
+    value: float,
+    *,
+    row_height: float,
+    bar_x: float,
+    bar_track: float,
+    max_value: float,
+) -> HorizontalBar:
+    """Geometry of one row; negatives clamp to a zero-width bar."""
+    clamped = max(value, 0.0)
+    bar_width = (clamped / max_value) * bar_track if max_value > 0 else 0.0
+    bar_y_offset = (row_height - _HORIZONTAL_BAR_HEIGHT) * 0.5
+    return HorizontalBar(
+        label=label,
+        value=value,
+        y=index * row_height + bar_y_offset,
+        bar_x=bar_x,
+        bar_width=bar_width,
+        bar_height=_HORIZONTAL_BAR_HEIGHT,
+        value_label=format_axis_number(value),
     )
 
 
@@ -571,34 +612,34 @@ def sparkline(
             flat=True,
         )
 
-    y_min = min(points)
-    y_max = max(points)
-    y_span = (y_max - y_min) or 1.0
-    flat = y_max == y_min
-    step_x = width / (len(points) - 1)
-    margin = 1.0
-    inner_height = height - 2 * margin
-
-    line_segments: list[str] = []
-    area_segments: list[str] = []
-    for i, value in enumerate(points):
-        sx = i * step_x
-        sy = height - margin - ((value - y_min) / y_span) * inner_height
-        marker = "M" if i == 0 else "L"
-        line_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
-        area_segments.append(f"{marker}{_fmt(sx)} {_fmt(sy)}")
-    area_segments.append(f"L{_fmt(width)} {_fmt(height)}")
-    area_segments.append(f"L0 {_fmt(height)} Z")
-
+    line_d, area_d = _sparkline_paths(points, width, height)
     return Sparkline(
-        line_d=" ".join(line_segments),
-        area_d=" ".join(area_segments),
+        line_d=line_d,
+        area_d=area_d,
         view_box=view_box,
         width=width,
         height=height,
         rising=points[-1] > points[0],
-        flat=flat,
+        flat=max(points) == min(points),
     )
+
+
+_SPARKLINE_MARGIN = 1.0
+
+
+def _sparkline_paths(points: Sequence[float], width: float, height: float) -> tuple[str, str]:
+    """Line and area ``d`` strings normalised into the box with a 1 px margin."""
+    y_min = min(points)
+    y_span = (max(points) - y_min) or 1.0
+    step_x = width / (len(points) - 1)
+    inner_height = height - 2 * _SPARKLINE_MARGIN
+    segments = [
+        f"{'M' if i == 0 else 'L'}{_fmt(i * step_x)} "
+        f"{_fmt(height - _SPARKLINE_MARGIN - ((value - y_min) / y_span) * inner_height)}"
+        for i, value in enumerate(points)
+    ]
+    area = [*segments, f"L{_fmt(width)} {_fmt(height)}", f"L0 {_fmt(height)} Z"]
+    return " ".join(segments), " ".join(area)
 
 
 __all__ = [

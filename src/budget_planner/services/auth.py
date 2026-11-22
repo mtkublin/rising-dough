@@ -70,12 +70,14 @@ from webauthn import (
     verify_authentication_response,
     verify_registration_response,
 )
+from webauthn.authentication.verify_authentication_response import VerifiedAuthentication
 from webauthn.helpers import (
     parse_authentication_credential_json,
     parse_registration_credential_json,
 )
 from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import (
+    AuthenticationCredential,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
@@ -468,6 +470,41 @@ def authenticate_passkey_finish(
     except WebAuthnException:
         _audit_login_failure(conn, ctx, method="passkey", reason="malformed", user_id=None)
         return None
+    subject = _load_passkey_subject(conn, ctx, parsed, challenge)
+    if subject is None:
+        return None
+    stored, user = subject
+    verified = _verify_assertion(
+        conn, ctx, parsed, challenge=challenge, rp=rp, stored=stored, user=user
+    )
+    if verified is None:
+        return None
+    if sign_count_regressed(stored.sign_count, verified.new_sign_count):
+        _reject_sign_count_regression(conn, ctx, stored, user)
+        return None
+    with transaction(conn):
+        webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
+        return _issue_session(
+            conn,
+            user,
+            ctx,
+            method="passkey",
+            ip=ip,
+            user_agent=user_agent,
+            credential_id=stored.id,
+        )
+
+
+def _load_passkey_subject(
+    conn: sqlite3.Connection,
+    ctx: RequestCtx,
+    parsed: AuthenticationCredential,
+    challenge: bytes,
+) -> tuple[WebAuthnCredential, AuthUser] | None:
+    """Resolve the stored credential and its live user, consuming the challenge.
+
+    Audits and returns ``None`` for an unknown credential or a replayed challenge.
+    """
     stored = webauthn_repo.get_by_credential_id(conn, parsed.raw_id)
     user = None if stored is None else users_repo.get_live_by_id(conn, stored.user_id)
     if stored is None or user is None:
@@ -478,8 +515,22 @@ def authenticate_passkey_finish(
             conn, ctx, method="passkey", reason="challenge_replayed", user_id=user.id
         )
         return None
+    return stored, user
+
+
+def _verify_assertion(
+    conn: sqlite3.Connection,
+    ctx: RequestCtx,
+    parsed: AuthenticationCredential,
+    *,
+    challenge: bytes,
+    rp: RelyingParty,
+    stored: WebAuthnCredential,
+    user: AuthUser,
+) -> VerifiedAuthentication | None:
+    """Verify the signed assertion; audit and return ``None`` on failure."""
     try:
-        verified = verify_authentication_response(
+        return verify_authentication_response(
             credential=parsed,
             expected_challenge=challenge,
             expected_rp_id=rp.rp_id,
@@ -495,29 +546,22 @@ def authenticate_passkey_finish(
             conn, ctx, method="passkey", reason="verification_failed", user_id=user.id
         )
         return None
-    if sign_count_regressed(stored.sign_count, verified.new_sign_count):
-        webauthn_repo.revoke_credential(
-            conn,
-            stored.user_id,
-            stored.id,
-            reason="sign_count_regression",
-            request_ctx=replace(ctx, user_id=user.id),
-        )
-        _audit_login_failure(
-            conn, ctx, method="passkey", reason="sign_count_regression", user_id=user.id
-        )
-        return None
-    with transaction(conn):
-        webauthn_repo.update_sign_count(conn, stored.user_id, stored.id, verified.new_sign_count)
-        return _issue_session(
-            conn,
-            user,
-            ctx,
-            method="passkey",
-            ip=ip,
-            user_agent=user_agent,
-            credential_id=stored.id,
-        )
+
+
+def _reject_sign_count_regression(
+    conn: sqlite3.Connection, ctx: RequestCtx, stored: WebAuthnCredential, user: AuthUser
+) -> None:
+    """Revoke a cloned-looking credential and audit the failed login."""
+    webauthn_repo.revoke_credential(
+        conn,
+        stored.user_id,
+        stored.id,
+        reason="sign_count_regression",
+        request_ctx=replace(ctx, user_id=user.id),
+    )
+    _audit_login_failure(
+        conn, ctx, method="passkey", reason="sign_count_regression", user_id=user.id
+    )
 
 
 # T-Q241: routers reach persistence only through these service entry points

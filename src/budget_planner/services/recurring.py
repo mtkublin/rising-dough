@@ -143,107 +143,171 @@ def promote_recurring(
     4. Overlay explicit ``edits``.
     5. Validate direction via shared validator (currency match for transit,
        zero-amount guard, adjustment-direction rejection).
-    6. Single DB transaction:
-       - Insert ``transactions`` row with recurring provenance stamped.
-       - Advance ``next_due`` (or deactivate rule when ``end_date`` passed).
-       - Delete the matching override row (its purpose is served).
-       - Audit entry on the rule mutation.
+    6. Single DB transaction: insert the txn (recurring provenance stamped), advance
+       ``next_due`` (or deactivate past ``end_date``), consume the override, audit the rule.
     7. Return the new ``Transaction``.
     """
     # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
-        rule = recurring_repo.find_rule(conn, user_id, rule_id)
-        if rule is None:
-            raise RecurringNotFoundError(rule_id)
-        if not rule.active:
-            raise InactiveRecurringError(rule_id)
-
+        rule = _load_active_rule(conn, user_id, rule_id)
         due_date = rule.next_due
         overrides = recurring_repo.list_overrides(conn, user_id, rule_id)
         match = _resolve_override_for_next_due(overrides, due_date)
+        amount, description, operation_date = _promotion_values(
+            conn, user_id, rule, due_date, match=match, edits=edits
+        )
 
-        # Defaults start from the rule. Formula rules recompute from the
-        # live source-rule state for the next_due month (ADR-0045).
-        default_amount = resolve_rule_amount(conn, user_id, rule, due_date)
-        default_description = rule.default_description
-        effective_date = due_date
-        if match is not None:
-            if match.state is OverrideState.SKIPPED:
-                raise CannotPromoteSkippedError(rule_id)
-            if match.amount_override is not None:
-                default_amount = match.amount_override
-            if match.description_override is not None:
-                default_description = match.description_override
-            if match.date_override is not None:
-                effective_date = match.date_override
-
-        # Explicit edits overlay the override-derived defaults.
-        operation_date = edits.operation_date or effective_date
-        amount = edits.amount_minor if edits.amount_minor is not None else default_amount
-        description = edits.description if edits.description is not None else default_description
-
-        # ADR-0047: formulas may resolve to zero or negative when term sums
-        # cancel. User-explicit edits (``edits.amount_minor``) take precedence,
-        # so the guard only trips on live-formula resolution.
-        if rule.amount_formula is not None and edits.amount_minor is None and amount <= 0:
-            raise ValidationError(
-                "formula resolved to a non-positive amount — "
-                "edit the formula or override this occurrence"
-            )
-
-        category = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
-        if category is None:  # pragma: no cover - FK guarantees existence
-            raise ValidationError(f"category {rule.category_id} not found")
-
-        validate_promotion(
+        new_txn = _validated_promotion_txn(
             conn,
             user_id,
-            direction=category.direction,
-            account_id=rule.account_id,
-            dest_account_id=rule.dest_account_id,
-            amount=amount,
-        )
-
-        new_txn = NewTransaction(
-            operation_date=operation_date,
-            category_id=rule.category_id,
-            account_id=rule.account_id,
-            dest_account_id=rule.dest_account_id,
+            rule,
+            due_date,
             amount=amount,
             description=description,
-            promoted_from_recurring_rule_id=rule_id,
-            promoted_from_recurring_date=due_date,
+            operation_date=operation_date,
         )
-
-        new_next_due = advance_next_due(rule, due_date)
-
         txn = transactions_repo.create(conn, user_id, new_txn)
-        if new_next_due is None:
-            set_inactive(conn, user_id, rule_id)
-        else:
-            set_next_due(
-                conn,
-                user_id,
-                rule_id,
-                next_due=new_next_due,
-                last_promoted_date=due_date,
-            )
+        _advance_rule(conn, user_id, rule, due_date, last_promoted_date=due_date)
         if match is not None:
-            # ADR-0046: soft-consume the override by stamping the new txn id
-            # instead of deleting the row. Keeps the override visible to
-            # historical reads (formula compute per ADR-0045).
+            # ADR-0046: soft-consume (stamp the txn id) so formula history keeps seeing it.
             mark_override_promoted(conn, user_id, match.id, txn_id=txn.id)
-        updated_rule = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
-        audit_svc.write_audit(
-            conn,
-            entity_type="recurring_rule",
-            entity_id=rule_id,
-            operation="update",
-            prev=rule,
-            new=updated_rule,
-            user_id=user_id,
-        )
+        _audit_rule_update(conn, user_id, rule)
     return txn
+
+
+def _validated_promotion_txn(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    due_date: dt.date,
+    *,
+    amount: int,
+    description: str,
+    operation_date: dt.date,
+) -> NewTransaction:
+    """Validate the promotion (direction, currency, amount) and build the new transaction."""
+    category = categories_repo.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
+    if category is None:  # pragma: no cover - FK guarantees existence
+        raise ValidationError(f"category {rule.category_id} not found")
+    validate_promotion(
+        conn,
+        user_id,
+        direction=category.direction,
+        account_id=rule.account_id,
+        dest_account_id=rule.dest_account_id,
+        amount=amount,
+    )
+    return NewTransaction(
+        operation_date=operation_date,
+        category_id=rule.category_id,
+        account_id=rule.account_id,
+        dest_account_id=rule.dest_account_id,
+        amount=amount,
+        description=description,
+        promoted_from_recurring_rule_id=rule.id,
+        promoted_from_recurring_date=due_date,
+    )
+
+
+def _load_active_rule(conn: sqlite3.Connection, user_id: int, rule_id: int) -> RecurringRule:
+    """Load a live, active rule or raise the matching not-found / inactive error."""
+    rule = recurring_repo.find_rule(conn, user_id, rule_id)
+    if rule is None:
+        raise RecurringNotFoundError(rule_id)
+    if not rule.active:
+        raise InactiveRecurringError(rule_id)
+    return rule
+
+
+def _apply_override(
+    match: RecurringOverride | None,
+    rule: RecurringRule,
+    *,
+    amount: int,
+    description: str,
+    due_date: dt.date,
+) -> tuple[int, str, dt.date]:
+    """Merge an ``overridden`` row over the rule defaults; a ``skipped`` one cannot promote."""
+    if match is None:
+        return amount, description, due_date
+    if match.state is OverrideState.SKIPPED:
+        raise CannotPromoteSkippedError(rule.id)
+    return (
+        amount if match.amount_override is None else match.amount_override,
+        description if match.description_override is None else match.description_override,
+        due_date if match.date_override is None else match.date_override,
+    )
+
+
+def _promotion_values(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    due_date: dt.date,
+    *,
+    match: RecurringOverride | None,
+    edits: PromotionEdits,
+) -> tuple[int, str, dt.date]:
+    """Resolve (amount, description, operation date): rule -> override -> explicit edits."""
+    # Defaults start from the rule. Formula rules recompute from the
+    # live source-rule state for the next_due month (ADR-0045).
+    default_amount, default_description, effective_date = _apply_override(
+        match,
+        rule,
+        amount=resolve_rule_amount(conn, user_id, rule, due_date),
+        description=rule.default_description,
+        due_date=due_date,
+    )
+
+    operation_date = edits.operation_date or effective_date
+    amount = edits.amount_minor if edits.amount_minor is not None else default_amount
+    description = edits.description if edits.description is not None else default_description
+
+    # ADR-0047: formulas may resolve to zero or negative when term sums
+    # cancel. User-explicit edits (``edits.amount_minor``) take precedence,
+    # so the guard only trips on live-formula resolution.
+    if rule.amount_formula is not None and edits.amount_minor is None and amount <= 0:
+        raise ValidationError(
+            "formula resolved to a non-positive amount — "
+            "edit the formula or override this occurrence"
+        )
+    return amount, description, operation_date
+
+
+def _advance_rule(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rule: RecurringRule,
+    due_date: dt.date,
+    *,
+    last_promoted_date: dt.date | None,
+) -> None:
+    """Move ``next_due`` past ``due_date`` or deactivate the rule when it ended."""
+    new_next_due = advance_next_due(rule, due_date)
+    if new_next_due is None:
+        set_inactive(conn, user_id, rule.id)
+    else:
+        set_next_due(
+            conn,
+            user_id,
+            rule.id,
+            next_due=new_next_due,
+            last_promoted_date=last_promoted_date,
+        )
+
+
+def _audit_rule_update(conn: sqlite3.Connection, user_id: int, prev: RecurringRule) -> None:
+    """Audit the rule mutation against its re-read post-state."""
+    updated_rule = recurring_repo.find_rule(conn, user_id, prev.id, include_deleted=True)
+    audit_svc.write_audit(
+        conn,
+        entity_type="recurring_rule",
+        entity_id=prev.id,
+        operation="update",
+        prev=prev,
+        new=updated_rule,
+        user_id=user_id,
+    )
 
 
 def skip_and_advance(
@@ -262,12 +326,7 @@ def skip_and_advance(
     """
     # ADR-0137: guard reads and writes share one write-locked transaction.
     with db_transaction(conn):
-        rule = recurring_repo.find_rule(conn, user_id, rule_id)
-        if rule is None:
-            raise RecurringNotFoundError(rule_id)
-        if not rule.active:
-            raise InactiveRecurringError(rule_id)
-
+        rule = _load_active_rule(conn, user_id, rule_id)
         due_date = rule.next_due
         new_next_due = advance_next_due(rule, due_date)
 
@@ -281,29 +340,11 @@ def skip_and_advance(
                 state=OverrideState.SKIPPED,
             ),
         )
-        if new_next_due is None:
-            set_inactive(conn, user_id, rule_id)
-        else:
-            set_next_due(
-                conn,
-                user_id,
-                rule_id,
-                next_due=new_next_due,
-                last_promoted_date=rule.last_promoted_date,
-            )
+        _advance_rule(conn, user_id, rule, due_date, last_promoted_date=rule.last_promoted_date)
         # The skip override has served its purpose — remove it so the next
         # occurrence isn't re-skipped if ``next_due`` ever cycles back.
         recurring_repo.delete_override(conn, user_id, rule_id, due_date)
-        updated_rule = recurring_repo.find_rule(conn, user_id, rule_id, include_deleted=True)
-        audit_svc.write_audit(
-            conn,
-            entity_type="recurring_rule",
-            entity_id=rule_id,
-            operation="update",
-            prev=rule,
-            new=updated_rule,
-            user_id=user_id,
-        )
+        _audit_rule_update(conn, user_id, rule)
     return new_next_due
 
 
