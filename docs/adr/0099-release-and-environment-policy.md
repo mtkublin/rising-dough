@@ -108,3 +108,17 @@ Decisions:
 4. **Operator-only settings** (not code): Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected` (read back by `scripts/check_github_settings.py`).
 
 Relates to ADR-0100, ADR-0111, ADR-0120.
+
+## Amendment 2026-11-22 (T-Q298): required status contexts on `main`
+
+Decision 2 above does not list contexts; the list is in the 2026-11-21 amendment (T-Q239, item 2) and in ADR-0121, and both are now stale. The current required contexts of `protect-main`, each bound to `integration_id` 15368 (GitHub Actions), are:
+
+1. `drill-gate`
+2. `just ci (Python 3.12, ubuntu-latest)`
+3. `uv lock --check`
+4. `pip-audit (uv.lock)`
+5. `trivy fs (repo)`
+6. `trivy image (rising-dough:scan)`
+7. `tests/e2e (Chromium, Playwright container)` (added by T-Q297, ADR-0120 amendment 2026-11-22; the job name is the context)
+
+This list supersedes the ADR-0121 list for required contexts. Not yet required: `visual-gate` (T-Q251, ADR-0027). It becomes required when the visual baselines are committed; that is an operator repository setting, not part of this amendment. Adding a context needs an entry here and in `scripts/check_github_settings.py` `REQUIRED_CHECKS`.

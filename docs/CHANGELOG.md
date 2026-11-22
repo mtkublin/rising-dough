@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q298: testing coverage review and follow-ups)
+- **Docs(T-Q298): testing coverage review recorded in `docs/plans/quality-audit/tasks.md`; follow-ups T-Q299 (Firefox/WebKit e2e), T-Q300 (axe-core and Lighthouse/CWV budgets), T-Q301 (crawl at 1024) and T-Q302 (drill DB seeded from an anonymized snapshot) filed, not started. ADR-0099 amendment 2026-11-22 lists the current required status contexts, including the e2e check (T-Q297).** No code or test change.
+
 ## 2026-11-22 (T-Q296: residual allowlist burn-down)
 - **Refactor(T-Q296): recurring router split into form and view helpers; `resolve_db_path` public; `get_settings` cache made `[[permanent]]` (ADR-0130 amendment 2026-11-22).** Deleted: `size_complexity` recurring router (cc>=11 x3, func>50 x4), `private_imports` `startup_migrate` (1), `hygiene` recurring `assert-in-src` (3). Behaviour unchanged.
 
