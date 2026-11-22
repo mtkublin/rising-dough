@@ -65,7 +65,9 @@ def yearly_fragment(
     q = request.query_params
     today = clock.today_local(settings)
     year, _ = parse_year_month(q.get("year"), None, (today.year, 1))
-    yearly = budget_service.yearly_grid(conn, user_id, year)
+    yearly = budget_service.yearly_grid(
+        conn, user_id, year, display_timezone=settings.display_timezone
+    )
     return render(
         request,
         "budget/_yearly.html",
@@ -173,7 +175,13 @@ def index(
     year, month = parse_year_month(q.get("year"), q.get("month"), fiscal)
     today = clock.today_local(settings)
     summary = budget_service.month_summary(
-        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+        conn,
+        user_id,
+        year,
+        month,
+        today=today,
+        base_currency=settings.base_currency,
+        display_timezone=settings.display_timezone,
     )
     return render(
         request,
@@ -184,7 +192,9 @@ def index(
         period_label=view_models.period_label(year, month),
         month_options=view_models.month_options(month),
         rules=budget_rules.rules_rows(conn, user_id),
-        yearly=budget_service.yearly_grid(conn, user_id, year),
+        yearly=budget_service.yearly_grid(
+            conn, user_id, year, display_timezone=settings.display_timezone
+        ),
         month_labels=view_models.MONTH_SHORT,
         base_ccy=settings.base_currency,
     )

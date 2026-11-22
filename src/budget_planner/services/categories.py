@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Callable
+from zoneinfo import ZoneInfo
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.repositories import (
@@ -37,11 +40,10 @@ class CategoryHasLiveRulesError(RuntimeError):
 def expense_categories(
     conn: sqlite3.Connection, user_id: int, *, include_archived: bool = True
 ) -> list[Category]:
-    """Expense-direction categories; archived ones count by default (ADR-0136, OQ-15).
+    """Expense-direction categories; archived ones are included by default (actuals selector).
 
-    Archiving only hides a category from pickers; its budget and spending still count in the
-    budget-driven money paths (forecast overlay and monthly plan). Row-listing views that
-    render a line per category pass ``include_archived=False``.
+    Archived categories keep their booked transactions in spent, analytics and forecast
+    actuals (ADR-0136). Budgets use :func:`budgeted_expense_categories` instead.
     """
     return [
         c
@@ -51,8 +53,73 @@ def expense_categories(
 
 
 def expense_category_ids(conn: sqlite3.Connection, user_id: int) -> list[int]:
-    """Ids of every expense category, archived included; the one category-selection policy."""
+    """Ids of every expense category, archived included: the actuals selector (ADR-0136)."""
     return [c.id for c in expense_categories(conn, user_id)]
+
+
+def reserves_budget(
+    category: Category, year: int, month: int, *, display_timezone: str = DEFAULT_DISPLAY_TIMEZONE
+) -> bool:
+    """The one budget predicate: does ``category`` reserve budget in ``year``/``month``?
+
+    A live category always does. An archived one (``deleted_at`` set) reserves nothing from
+    its archive month onward; earlier months keep it (ADR-0136, T-Q279). The archive month
+    is the month of ``deleted_at`` (stored UTC) in ``display_timezone`` (ADR-0007).
+    """
+    if category.deleted_at is None:
+        return True
+    archived = category.deleted_at.astimezone(ZoneInfo(display_timezone))
+    return (year, month) < (archived.year, archived.month)
+
+
+def budget_reserver(
+    conn: sqlite3.Connection, user_id: int, *, display_timezone: str = DEFAULT_DISPLAY_TIMEZONE
+) -> Callable[[int, int, int], bool]:
+    """Return ``reserves(category_id, year, month)`` over every category, one read.
+
+    For the month loops of the forecast and the batch resolver; an id the user does not own
+    is not archived here, so it keeps whatever the caller resolves for it.
+    """
+    by_id = {c.id: c for c in categories_repo.list_all(conn, user_id, include_deleted=True)}
+
+    def reserves(category_id: int, year: int, month: int) -> bool:
+        cat = by_id.get(category_id)
+        return cat is None or reserves_budget(cat, year, month, display_timezone=display_timezone)
+
+    return reserves
+
+
+def budgeted_expense_categories(
+    conn: sqlite3.Connection,
+    user_id: int,
+    year: int,
+    month: int,
+    *,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+) -> list[Category]:
+    """Expense categories that reserve budget in ``year``/``month`` (:func:`reserves_budget`)."""
+    return [
+        c
+        for c in expense_categories(conn, user_id)
+        if reserves_budget(c, year, month, display_timezone=display_timezone)
+    ]
+
+
+def budgeted_expense_category_ids(
+    conn: sqlite3.Connection,
+    user_id: int,
+    year: int,
+    month: int,
+    *,
+    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+) -> list[int]:
+    """Ids of :func:`budgeted_expense_categories`."""
+    return [
+        c.id
+        for c in budgeted_expense_categories(
+            conn, user_id, year, month, display_timezone=display_timezone
+        )
+    ]
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
@@ -127,11 +194,17 @@ __all__ = [
     "CategoryNotFoundError",
     "SystemCategoryError",
     "archive",
+    "budget_reserver",
+    "budgeted_expense_categories",
+    "budgeted_expense_category_ids",
     "create",
+    "expense_categories",
+    "expense_category_ids",
     "find_by_id",
     "find_by_name",
     "list_all",
     "list_recently_deleted",
+    "reserves_budget",
     "restore",
     "soft_delete",
     "update",

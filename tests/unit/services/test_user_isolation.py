@@ -88,7 +88,9 @@ def _analytics_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
 
 
 def _grid_categories(conn: sqlite3.Connection, user_id: int) -> set[int]:
-    return {r.category_id for r in budget.yearly_grid(conn, user_id, 2026)}
+    return {
+        r.category_id for r in budget.yearly_grid(conn, user_id, 2099)
+    }  # far after the tombstone archive month (ADR-0136)
 
 
 @covers("fortune.compute_fortune")
