@@ -1175,7 +1175,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q289 [M] CSRF token bound to the session
+### ✅ T-Q289 [M] CSRF token bound to the session
 - Findings: Q-066 (security hardening).
 - Epic: E06
 - Band: 3 · Size: M · Tags: none
