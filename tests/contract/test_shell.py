@@ -117,6 +117,18 @@ def test_replication_health_status_codes(tmp_path: Path, _migrated: Settings) ->
     assert probe(str(tmp_path)) == (503, "unreadable")
 
 
+@covers("GET /health/fx")
+def test_fx_health_is_public_head_capable_and_read_only(
+    anon_client: TestClient, db: sqlite3.Connection
+) -> None:
+    before = audit_count(db, "fx_rate")
+    r = anon_client.get("/health/fx", follow_redirects=False)
+    assert r.status_code == 200
+    assert r.json()["status"] == "disabled"
+    assert anon_client.head("/health/fx").status_code == 200
+    assert audit_count(db, "fx_rate") == before
+
+
 @covers("GET /health/replication")
 def test_replication_health_is_public_and_head_capable(anon_client: TestClient) -> None:
     r = anon_client.get("/health/replication", follow_redirects=False)

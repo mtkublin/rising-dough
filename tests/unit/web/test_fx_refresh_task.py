@@ -6,7 +6,8 @@ import asyncio
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ SETTINGS = Settings(_env_file=None, env="test")
 
 
 def _drive(
-    start: datetime, *, missing: bool, sleeps_before_stop: int
+    start: datetime, *, missing: bool, sleeps_before_stop: int, results: list[bool] | None = None
 ) -> tuple[list[datetime], list[float]]:
     """Run the loop on a fake clock; returns (refresh instants, sleep seconds)."""
     current = [start]
@@ -30,7 +31,7 @@ def _drive(
 
     def refresh(_cfg: Settings) -> bool:
         ran.append(current[0])
-        return True
+        return results[len(ran) - 1] if results and len(ran) <= len(results) else True
 
     async def sleep(seconds: float) -> None:
         slept.append(seconds)
@@ -134,3 +135,35 @@ def test_enabled_toggle_non_production(flag: bool | None, expected: bool) -> Non
 
 def test_disabled_task_is_not_started() -> None:
     assert fx_refresh_task.start(SETTINGS) is None
+
+
+def test_failed_runs_retry_hourly_until_1800_then_wait_for_next_day() -> None:
+    start = _utc(2026, 1, 15, 11, 0)  # 12:00 Warsaw
+    ran, slept = _drive(start, missing=False, sleeps_before_stop=8, results=[False] * 20)
+    assert ran == [
+        _utc(2026, 1, 15, 11, 30),  # 12:30 local
+        _utc(2026, 1, 15, 12, 30),
+        _utc(2026, 1, 15, 13, 30),
+        _utc(2026, 1, 15, 14, 30),
+        _utc(2026, 1, 15, 15, 30),
+        _utc(2026, 1, 15, 16, 30),  # 17:30 local, last allowed run of the day
+        _utc(2026, 1, 16, 11, 30),
+    ]
+    assert slept[0] == 0.5 * 3600
+    assert slept[6] == 19 * 3600  # from 17:30 local to 12:30 next day
+
+
+def test_success_after_a_failure_ends_the_days_attempts() -> None:
+    start = _utc(2026, 1, 15, 11, 0)
+    ran, _ = _drive(start, missing=False, sleeps_before_stop=4, results=[False, True])
+    assert ran == [
+        _utc(2026, 1, 15, 11, 30),
+        _utc(2026, 1, 15, 12, 30),
+        _utc(2026, 1, 16, 11, 30),
+    ]
+
+
+def test_run_once_stale_table_returns_false_and_writes_nothing(db_settings: Settings) -> None:
+    stale = RateTable(effective_date=date(2026, 1, 1), rates=(("EUR", Decimal("4.2")),))
+    assert fx_refresh_task.run_once(db_settings, _opener(_Source(stale))) is False
+    assert fx_refresh_task.cache_empty_today(db_settings)

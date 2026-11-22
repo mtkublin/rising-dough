@@ -1228,7 +1228,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 
 Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurring undo duplicate-live-transaction case left as is) need no task; one-line amendments in ADR-0136 and ADR-0019.
 
-### T-Q292 [M] NBP refresh hardening and `/health/fx`
+### ✅ T-Q292 [M] NBP refresh hardening and `/health/fx`
 - Findings: Q39.
 - Epic: E01
 - Band: 3 · Size: M · Tags: ops

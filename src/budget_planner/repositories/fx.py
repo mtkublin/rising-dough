@@ -122,4 +122,11 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     )
 
 
-__all__ = ["any_rate_on", "find_rate", "latest_rate", "list_rates_to", "list_recent", "upsert_rate"]
+__all__ = [
+    "any_rate_on",
+    "find_rate",
+    "latest_rate",
+    "list_rates_to",
+    "list_recent",
+    "upsert_rate",
+]

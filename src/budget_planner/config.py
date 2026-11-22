@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     fx_api_url: str = Field(default="https://api.nbp.pl")
     # ADR-0145: in-app daily FX refresh. ``None`` = on in production, off in dev/test.
     fx_refresh_enabled: bool | None = Field(default=None)
+    # ADR-0145 amendment: a table dated more than this many days before today is rejected whole.
+    fx_max_table_age_days: int = Field(default=7, ge=1, le=60)
+    # ADR-0146: ``/health/fx`` is 503 when a used currency's newest rate is older than this.
+    fx_max_rate_age_days: int = Field(default=4, ge=1, le=60)
     # ADR-0078 §4 / T-D57: ceiling (days) on the age of any copy of user data
     # outside the live DB. Pre-migration backups are pruned once older than
     # ``backup_max_age_days - 7``. The Terraform twin

@@ -11,7 +11,7 @@ import pytest
 
 from budget_planner.adapters.fx import nbp
 from budget_planner.config import Settings
-from budget_planner.domain.fx import FxFetchError, NewFxRate, RateTable
+from budget_planner.domain.fx import FxFetchError, NewFxRate, RateTable, StaleRateTableError
 from budget_planner.repositories import fx as fx_repo
 from budget_planner.services import fx as fx_service
 
@@ -201,3 +201,30 @@ def test_has_rate_on(conn: sqlite3.Connection) -> None:
 def test_fx_api_url_is_validated(url: str) -> None:
     with pytest.raises(ValueError, match="fx_api_url"):
         Settings(_env_file=None, fx_api_url=url)
+
+
+def test_stale_table_is_rejected_whole_without_rows_or_audit(conn: sqlite3.Connection) -> None:
+    fx_service.refresh_from_source(conn, _Fake(_table(EUR="4.2655")), DAY, "PLN")
+    audit_sql = "SELECT COUNT(*) FROM audit_log WHERE entity_type = 'fx_rate'"
+    before_audit = conn.execute(audit_sql).fetchone()[0]
+    stale = _Fake(_table(DAY, EUR="4.9999", USD="3.6941"))
+    with pytest.raises(StaleRateTableError, match="more than 7 days"):
+        fx_service.refresh_from_source(conn, stale, date(2026, 11, 28), "PLN")
+    assert _stored(conn) == [("2026-11-20", "EUR", "4.2655")]
+    assert conn.execute(audit_sql).fetchone()[0] == before_audit
+
+
+def test_table_exactly_at_the_age_limit_is_accepted(conn: sqlite3.Connection) -> None:
+    result = fx_service.refresh_from_source(
+        conn, _Fake(_table(DAY, EUR="4.2")), date(2026, 11, 27), "PLN"
+    )
+    assert result is not None
+    assert result.inserted == ("EUR",)
+
+
+def test_max_table_age_is_configurable(conn: sqlite3.Connection) -> None:
+    with pytest.raises(StaleRateTableError):
+        fx_service.refresh_from_source(
+            conn, _Fake(_table(DAY, EUR="4.2")), date(2026, 11, 23), "PLN", max_table_age_days=2
+        )
+    assert StaleRateTableError.reason == "stale_table"

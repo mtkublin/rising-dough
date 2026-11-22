@@ -20,6 +20,13 @@ ADR-0139 made page renders cache-only, so rates only change when something refre
 6. **Toggle**: `BUDGET_FX_REFRESH_ENABLED` (`Settings.fx_refresh_enabled`, tri-state). Unset means on in `production` and off in `dev` and `test`; an explicit value wins.
 7. **Host**: no host timer and no Terraform change. The instance security group has `outbound_default_policy = "accept"` and `DOCKER-USER` only drops the metadata address (ADR-0111 section 6), so `api.nbp.pl:443` is already reachable. Agents never `terraform apply` prod (ADR-0099).
 
+## Amendment 2026-11-22 (T-Q292): same-day retry and stale tables
+
+Operator decision Q39; see [ADR-0146](0146-fx-freshness-health-path.md) for the health path.
+
+- **Same-day retry** (replaces "failures are logged and never stop the loop" as the only reaction): a failed run (exception, provider unreachable, rejected payload, stale table) is retried **hourly until 18:00 Europe/Warsaw**, then the task waits for the next day's 12:30 run. A successful run, or a "no data" answer (HTTP 404, a holiday), ends the day's attempts. A failed startup run before 12:30 is not retried hourly; the 12:30 run takes over. The arithmetic stays pure in `domain/fx_schedule.py` (`next_run_at(now, tz, last_attempt, last_outcome)`, `is_due(...)`, `retry_at`) and is exact across DST.
+- **Stale tables**: a table whose effective date is more than `fx_max_table_age_days` (`BUDGET_FX_MAX_TABLE_AGE_DAYS`, default 7, range 1 to 60) before today is rejected whole in `refresh_from_source` (`StaleRateTableError`, a `FxFetchError`): no row is written or updated, no audit row is added, and the task logs `fx_refresh_failed` with `reason=stale_table`. This complements the existing rejection of a table dated after today. The operator CLI applies the same limit.
+
 ## Consequences
 
 - The cache refreshes itself on business days; weekends and holidays keep the last table (the converter already uses the latest rate on or before a date).
@@ -32,7 +39,3 @@ ADR-0139 made page renders cache-only, so rates only change when something refre
 - Host systemd timer calling the CLI: needs a Terraform and host-agent change and an operator apply (rejected, no-host-change decision).
 - Keep ECB/frankfurter: not the official PLN rate and per-pair requests.
 - Fetch on page render: violates ADR-0139.
-
-## Amendment 2026-11-22 (operator decision; T-Q292)
-
-A failed daily run is retried the same day (hourly until 18:00 Europe/Warsaw). A table whose effective date is older than N days (setting, default 7) is rejected so a backdated payload cannot rewrite history. Freshness is exposed to the external monitor by [ADR-0146](0146-fx-freshness-health-path.md).
