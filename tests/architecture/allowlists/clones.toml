@@ -10,20 +10,6 @@ finding = "P1"
 epic = "E02"
 
 [[entry]]
-path = "src/budget_planner/repositories/budgets.py"
-rule = "clone-group"
-count = 2
-finding = "P1"
-epic = "E02"
-
-[[entry]]
-path = "src/budget_planner/repositories/budgets.py"
-rule = "same-name"
-count = 6
-finding = "P1"
-epic = "E02"
-
-[[entry]]
 path = "src/budget_planner/repositories/fx.py"
 rule = "same-name"
 count = 1
