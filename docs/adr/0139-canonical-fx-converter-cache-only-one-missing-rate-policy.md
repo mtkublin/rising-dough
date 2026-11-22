@@ -31,3 +31,7 @@ Four converter copies (`web/today_data.py`, `web/routers/forecast.py`, the budge
 - Degrade to rate 1 or the native amount: rejected, silently wrong money (Q-007).
 - Keep fetch-on-miss in the render path with a fixed client: rejected, blocks renders on a third party and breaks purity (ADR-0021).
 - Stale-fallback persisted under the requested date: rejected, pollutes the cache (already refused in the original design).
+
+## Amendment 2026-11-22 (T-Q290)
+
+The refresh path and provider are replaced by [ADR-0145](0145-nbp-table-a-daily-fx-refresh-in-app-task.md): NBP table A through the `RateSource` port, refreshed by an in-app daily task and the CLI via `services/fx.refresh_from_source`. `refresh_rates`, `RateFetcher` and the frankfurter adapter are gone. The cache-only converter and the missing-rate policy are unchanged.
