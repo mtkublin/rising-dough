@@ -4,13 +4,6 @@
 
 guard = "functional_first"
 
-[[entry]]
-path = "src/budget_planner/config.py"
-rule = "hidden-cache"
-count = 1
-finding = "B-13"
-epic = "E05"
-
 [[framework]]
 path = "src/budget_planner/web/htmx.py"
 rule = "param-mutation:framework"
@@ -162,6 +155,14 @@ count = 1
 finding = "framework"
 epic = "E04"
 reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
+
+[[permanent]]
+path = "src/budget_planner/config.py"
+rule = "hidden-cache"
+count = 1
+finding = "B-13"
+epic = "E05"
+reason = "process-wide Settings singleton at the config edge; tests clear it via cache_clear (ADR-0130 amendment 2026-11-22, T-Q296)"
 
 [[permanent]]
 path = "src/budget_planner/clock.py"

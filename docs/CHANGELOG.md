@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-22 (T-Q296: residual allowlist burn-down)
+- **Refactor(T-Q296): recurring router split into form and view helpers; `resolve_db_path` public; `get_settings` cache made `[[permanent]]` (ADR-0130 amendment 2026-11-22).** Deleted: `size_complexity` recurring router (cc>=11 x3, func>50 x4), `private_imports` `startup_migrate` (1), `hygiene` recurring `assert-in-src` (3). Behaviour unchanged.
+
 ## 2026-11-22 (T-Q272: every inline suppression carries a reason)
 - **Refactor(T-Q272): `suppressions.toml` entries deleted (8 entries), ceilings stay zero (Q-048; ADR-0130 amendment 2026-11-22).** Typed fix in `recurring_formula._parse_sign`, imports hoisted, named year/month ranges in the recurring router, `ConflictError.__str__` removed and the other error `__str__` methods tested (`tests/unit/domain/test_errors.py`); remaining suppressions got same-line reasons.
 
