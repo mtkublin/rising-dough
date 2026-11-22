@@ -28,7 +28,7 @@ from budget_planner.domain.recurring import (
     RecurringOverride,
     RecurringRule,
 )
-from budget_planner.domain.transactions import NewTransaction
+from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -450,14 +450,16 @@ def test_explicit_amount_edit_bypasses_formula_guard(
 # ---------------------------------------------------------------------------
 # promotion field plumbing
 # ---------------------------------------------------------------------------
-def test_promote_with_soft_deleted_category_still_succeeds(
+def test_promote_with_soft_deleted_category_is_refused(
     conn: sqlite3.Connection, world: dict[str, int]
 ) -> None:
-    """Kills category lookup `include_deleted` True -> None/False/omitted."""
+    """T-Q287: a soft-deleted parent refuses the promotion; no txn, rule unchanged."""
     categories_repo.soft_delete(conn, USER_ID, world["rent"])
-    txn = rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
-    assert txn.category_id == world["rent"]
-    assert txn.amount == 200_000
+    rule_before = recurring_repo.find_rule(conn, USER_ID, world["rule"])
+    with pytest.raises(ValidationError, match=f"category {world['rent']} not found"):
+        rec_svc.promote_recurring(conn, USER_ID, world["rule"], rec_svc.PromotionEdits())
+    assert recurring_repo.find_rule(conn, USER_ID, world["rule"]) == rule_before
+    assert transactions_repo.list_filtered(conn, USER_ID, TransactionFilter()) == []
 
 
 def test_promote_transit_rule_persists_both_accounts(

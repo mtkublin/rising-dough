@@ -12,8 +12,6 @@ import sqlite3
 from datetime import date
 
 from budget_planner.config import get_settings
-from budget_planner.domain.budgets import NewBudgetDefault
-from budget_planner.repositories import budgets as budgets_repo
 from budget_planner.services import forecast, forecast_overlay, fx as fx_svc
 
 U = 1
@@ -24,7 +22,10 @@ ARCHIVED = 25  # "Bank Fees #17", archived in the demo data
 def test_archived_category_budget_affects_both_forecast_paths_equally(
     seeded: sqlite3.Connection,
 ) -> None:
-    budgets_repo.set_default(seeded, U, NewBudgetDefault(category_id=ARCHIVED, amount=100_000))
+    seeded.execute(
+        "INSERT INTO budget_defaults(user_id, category_id, amount) VALUES (?, ?, ?)",
+        (U, ARCHIVED, 100_000),
+    )
     end = date(2026, 11, 30)
     month = date(2026, 11, 1)
 
