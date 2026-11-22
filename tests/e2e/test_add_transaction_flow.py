@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.conftest import strip_id_prefix
+from tests.e2e import db_probe
 from tests.e2e.forms import add_happened
+from tests.ui_map import accounts
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -17,7 +19,7 @@ def test_add_transaction_updates_account_balance(
     live_server: tuple[str, Path],
     page: Page,
 ) -> None:
-    base_url, _db_path = live_server
+    base_url, db_path = live_server
 
     # 1. Create a Checking account with opening_balance 100.00 PLN.
     create_resp = page.request.post(
@@ -37,15 +39,13 @@ def test_add_transaction_updates_account_balance(
     )
     assert cat_resp.ok, cat_resp.text()
 
-    # 3. Discover the created ids by scraping the accounts/categories pages.
+    # 3. Look the created ids up in the scratch DB.
+    account_id = db_probe.account_id(db_path, "Checking")
     page.goto(f"{base_url}/accounts")
-    expect(page.locator("text=Checking")).to_be_visible()
+    checking = to_playwright(page, accounts.row(account_id))
+    expect(checking).to_contain_text("Checking")
     # Opening balance renders as "100.00 zł".
-    expect(page.get_by_text("100.00").first).to_be_visible()
-
-    # Find the account_id by inspecting the row wrapper.
-    account_el = page.locator("tr[id^='account-']").first
-    account_id = strip_id_prefix(account_el.get_attribute("id"), "account-")
+    expect(checking).to_contain_text("100.00")
 
     # 4. Add a 20.00 expense through the real overlay form.
     page.goto(f"{base_url}/ledger?view=actual")
@@ -57,9 +57,10 @@ def test_add_transaction_updates_account_balance(
         day="2026-01-15",
         note="milk",
     )
+    assert db_probe.txn_amounts(db_path, "milk") == [2000]
 
     # 5. Confirm balance on /accounts flipped to 80.00.
     page.goto(f"{base_url}/accounts")
-    checking_card = page.locator(f"#account-{account_id}")
+    checking_card = to_playwright(page, accounts.row(account_id))
     expect(checking_card).to_contain_text("Checking")
     expect(checking_card).to_contain_text("80.00")

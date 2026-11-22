@@ -14,6 +14,38 @@ screen has **one markup**; both themes come from tokens.
 
 ---
 
+## What changed in this update (design change T-UT06)
+The canvas gained and changed boards; this package follows them:
+
+- **Ledger › actual and planned:** `export ▾` to the right of the tabs, a menu with *export as csv* and
+  *export as parquet* (fragment `ledger/export-menu`). The phone ledger board has no export; here it wraps onto
+  its own line under the tabs rather than being dropped (deviation 16).
+- **Credit-limit line** under account / date in New entry › happened, the phone sheet and Edit transaction
+  (fragment `fields/credit-line`, shown only while a credit account is picked via `data-show-when`). New state
+  `overlays/new-entry--over-limit.html` (▲ over-limit line, `role="alert"`, saving still allowed).
+- **Settings › Users** rebuilt: `+ add user` and `+ invite by email` next to the tabs, one Users table with a
+  row menu (member: reset password, delete user · invite: copy link, resend invite, revoke invite). The old
+  *Invite someone* card is gone. New overlays: `add-user` (+ `--error`),
+  `one-time-password`, `reset-password`, `delete-user`, `invite-user` (+ `--error`), `revoke-invite`. These
+  dialogs use the new 460px size (`rd-dialog--md`, token `--size-dialog-md`).
+- **Edit user** (follow-up ST17): *edit user* is the first item in a member's row menu and opens
+  `overlays/edit-user.html` (email fixed and read-only, name, member/admin, `[ save ]`). The owner's own row has
+  no menu, so an admin can't demote or delete themselves.
+- **Delete account:** new copy; the blocked state links to what still points at the account. New state
+  `overlays/delete-account--blocked-planned.html` (blocked only by recurring rules). In the accounts menu,
+  Investments D opens that state and accounts with transactions open the blocked one.
+- **Auth:** sign in, invite and the new screens follow the new desktop and phone boards: `register` (+ `--error`),
+  `force-password` (+ `--error`), `invite--used`, `invite--invalid`, the invite's name field and new expired copy.
+  Phone auth screens use the rounded band; the large headline appears on phone for sign in only.
+- **Dev notes wired:** promote shows a "Promoted · undo" toast; Analytics category rows open the ledger filtered
+  to that category (`?category=`), which `filters.js` preselects in the static files.
+
+**Not in this package:** the separate *Feedback* handoff (feedback dialog, `f` shortcut, removal of the command
+palette). The redesign canvas still has the palette boards, so the palette stays here; apply that handoff on
+top of this base.
+
+---
+
 ## 1. Structure
 
 ```
@@ -25,12 +57,12 @@ rising-dough-frontend/
 ├── pages/
 │   ├── today.html  today--empty  --loading  --afford-over  --afford-invalid  --flash
 │   ├── accounts.html  accounts--empty
-│   ├── auth/        login, login--error, reauth, reauth--error, register (first run), invite, invite--expired
+│   ├── auth/        login, reauth, register (first run), invite (+ --expired, --used, --invalid), force-password; each with --error where drawn
 │   ├── ledger/      actual (+ --empty, --no-matches, --long), planned (+ --empty), recurring (+ --empty), recently-deleted
 │   ├── plan/        budget, year, forecast, analytics
 │   ├── settings/    categories, currency-fx, preferences, security (+ --error), users
 │   ├── errors/      404, 409, 422, 500, offline
-│   └── overlays/    each overlay open on top of its page (49 files, see index.html)
+│   └── overlays/    each overlay open on top of its page (62 files, see index.html)
 ├── static/
 │   ├── css/main.css               @layer order + @import list only
 │   ├── css/tokens.css             every colour, size, space, radius, z-index, duration; themes; breakpoints
@@ -160,6 +192,10 @@ Every control leads somewhere, so you can click through the whole app from `inde
 | Pagination, error-page buttons, clear filters, show all | links | links |
 | Sign in / out, re-authenticate | `data-demo-next` on the form takes you to the next page | form POST + redirect |
 | Settings forms, promote all due | `data-demo-flash` shows the success flash | form POST |
+| Add user, reset password | `data-demo-next` on the dialog form goes on to the one-time password dialog | POST, response = the one-time password dialog |
+| Invite, delete user, revoke invite, promote, delete account | `data-demo-toast` (+ `data-demo-undo`) on the dialog form shows the toast on the page you return to | POST, response = row swap + `toast` out of band |
+| Export csv / parquet, copy link, resend invite, copy password | `data-js="demo-action"` toasts | a download link / `hx-post` + `toast` |
+| Analytics category rows, "view 84 transactions", "view recurring rules" | links with `?category=` / `?account=`; `filters.js` preselects the filter | the server renders the filtered ledger |
 | Upcoming range (7 days · 30 days · all), forecast horizon, analytics range | toggle their pressed state only: the new numbers have to come from the server | `hx-get` of the list / chart fragment |
 
 `stand-in.js` only touches `action="#"` forms and `data-demo*` / `data-js="demo-action"` controls, so you can
@@ -206,11 +242,14 @@ delete it (and those attributes) view by view as you wire each one.
 14. **Chart tooltips** appear on hover and keyboard focus only. The boards show one tooltip open to illustrate it.
 15. **Phone category picker.** Below 768px the open picker is its own bottom sheet with a scrim, as on the
     "Phone action sheets · category picker sheet" board. On desktop it stays the anchored dropdown.
+16. **Export on phone.** The phone ledger board has no `export ▾`; it is kept on phone, wrapping onto its own
+    line under the tabs. Hide it below 768px (`.rd-ledger-head__export`) if export should be desktop only.
+17. **Delete account · confirm** shows *Investments E* as on its board, but the demo account list has no
+    Investments E, so that state opens from `index.html` only.
 
 ### Items in the spec's inventory with no board (derived from the design system)
-- **First-run registration** (`auth/register.html`): the invite layout with an editable email.
 - **Errors 409 and 422**: same card as 404/500; 422 includes the form error summary fragment.
-- **Edit user** (`overlays/edit-user.html`), **edit planned entry**, **repeats · fixed amount** in New entry,
+- **Edit planned entry**, **repeats · fixed amount** in New entry,
   **inline year-grid cell editor**, **flash success**, **form error summary**, **validation states** for
   Settings › Security and New category (duplicate name, using the message from the dev note).
 - **Promote inline row variant**: not drawn; the row's `promote` button opens the promote dialog
@@ -230,7 +269,7 @@ delete it (and those attributes) view by view as you wire each one.
 - **Visual comparison with every board**, light and dark: each page and overlay was screenshotted at the
   board's width (1440, 560-wide dialogs, 390 and 320 for the phone boards) in both themes and compared with
   the board. Phone layouts of screens that only have a desktop board were checked at 390 and 320 too.
-- W3C Nu validator (`vnu.jar --errors-only`) on all 99 HTML files: **0 errors**, no duplicate ids.
+- W3C Nu validator (`vnu.jar --errors-only`) on all 114 HTML files: **0 errors**, no duplicate ids.
 - `stylelint` with `.stylelintrc.json` (standard + BEM pattern): **0 problems**.
 - **Wiring:** a script clicked every distinct link, button, menu item and option on every page and in every
   dialog and checked that each one navigates, opens or closes something, or changes state. The only controls

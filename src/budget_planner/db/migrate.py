@@ -96,33 +96,46 @@ def _split_sql_statements(sql: str) -> list[str]:
     out: list[str] = []
     buf: list[str] = []
     i = 0
-    length = len(sql)
     in_single = False
     in_double = False
-    while i < length:
+    while i < len(sql):
         char = sql[i]
         # Line comments only when not inside a string literal.
-        if not in_single and not in_double and char == "-" and i + 1 < length and sql[i + 1] == "-":
-            while i < length and sql[i] != "\n":
-                i += 1
+        comment_end = None if in_single or in_double else _comment_end(sql, i)
+        if comment_end is not None:
+            i = comment_end
             continue
-        if char == "'" and not in_double:
-            in_single = not in_single
-        elif char == '"' and not in_single:
-            in_double = not in_double
+        in_single, in_double = _toggle_quotes(char, in_single, in_double)
+        i += 1
         if char == ";" and not in_single and not in_double:
-            statement = "".join(buf).strip()
-            if statement:
-                out.append(statement)
+            out = _with_statement(out, buf)
             buf = []
-            i += 1
             continue
         buf.append(char)
-        i += 1
-    trailing = "".join(buf).strip()
-    if trailing:
-        out.append(trailing)
-    return out
+    return _with_statement(out, buf)
+
+
+def _comment_end(sql: str, i: int) -> int | None:
+    """Index of the newline ending a ``--`` comment that starts at ``i`` (else ``None``)."""
+    if not sql.startswith("--", i):
+        return None
+    end = sql.find("\n", i)
+    return len(sql) if end == -1 else end
+
+
+def _toggle_quotes(char: str, in_single: bool, in_double: bool) -> tuple[bool, bool]:
+    """Return the (in_single, in_double) quote state after consuming ``char``."""
+    if char == "'" and not in_double:
+        return not in_single, in_double
+    if char == '"' and not in_single:
+        return in_single, not in_double
+    return in_single, in_double
+
+
+def _with_statement(out: list[str], buf: list[str]) -> list[str]:
+    """``out`` plus the buffered characters as one stripped statement (if non-empty)."""
+    statement = "".join(buf).strip()
+    return [*out, statement] if statement else out
 
 
 def applied_versions(conn: sqlite3.Connection) -> dict[int, str]:
@@ -156,63 +169,70 @@ def _backfill_recurring_next_due(conn: sqlite3.Connection) -> None:
         return
 
     today = clock.utc_now().date()  # UTC vs local is irrelevant for a date-only anchor
-    # 400 days covers monthly / quarterly / yearly in one shot — the first
-    # canonical occurrence on-or-after `range_start` is at most one cadence
-    # period away, and 400d > 366d.
-    horizon_days = 400
-
     conn.execute("BEGIN")
     try:
         for row in rows:
-            start_date = dt.date.fromisoformat(row["start_date"])
-            end_date = (
-                dt.date.fromisoformat(row["end_date"]) if row["end_date"] is not None else None
-            )
-            # Hydrate a minimal RecurringRule for the generator; the stub
-            # satisfies the frozen dataclass but we force `active=True` so
-            # the generator does not short-circuit for inactive rows — we
-            # deactivate explicitly below when there is no occurrence left.
-            rule = RecurringRule(
-                id=row["id"],
-                user_id=row["user_id"],
-                cadence=Cadence(row["cadence"]),
-                start_date=start_date,
-                end_date=end_date,
-                category_id=row["category_id"],
-                account_id=row["account_id"],
-                dest_account_id=row["dest_account_id"],
-                default_amount=row["default_amount"],
-                default_description=row["default_description"],
-                day_of_month=row["day_of_month"],
-                month_of_year=row["month_of_year"],
-                active=True,
-                next_due=start_date,  # placeholder; generator does not read it
-                last_promoted_date=None,
-                created_at=clock.utc_now(),
-                updated_at=clock.utc_now(),
-                deleted_at=None,
-            )
-            range_start = max(start_date, today)
-            range_end = range_start + dt.timedelta(days=horizon_days)
-            occurrences = generate_occurrences(rule, range_start, range_end)
-            if occurrences:
-                next_due = occurrences[0].occurrence_date
-                conn.execute(
-                    "UPDATE recurring_rules SET next_due = ? WHERE id = ?",
-                    (next_due.isoformat(), row["id"]),
-                )
-            else:
-                # Rule end has passed (or something equally terminal).
-                # Sentinel + deactivation keeps the NOT NULL promise and
-                # keeps the service layer honest.
-                conn.execute(
-                    "UPDATE recurring_rules SET next_due = ?, active = 0 WHERE id = ?",
-                    (start_date.isoformat(), row["id"]),
-                )
+            _backfill_one_rule(conn, row, today)
         conn.execute("COMMIT")
     except Exception:
         conn.execute("ROLLBACK")
         raise
+
+
+# 400 days covers monthly / quarterly / yearly in one shot: the first
+# canonical occurrence on-or-after `range_start` is at most one cadence
+# period away, and 400d > 366d.
+_BACKFILL_HORIZON_DAYS = 400
+
+
+def _stub_rule(row: sqlite3.Row, start_date: dt.date) -> RecurringRule:
+    """Hydrate a minimal RecurringRule for the generator.
+
+    ``active`` is forced to True so the generator does not short-circuit for
+    inactive rows; the caller deactivates explicitly when no occurrence is left.
+    """
+    end_date = dt.date.fromisoformat(row["end_date"]) if row["end_date"] is not None else None
+    return RecurringRule(
+        id=row["id"],
+        user_id=row["user_id"],
+        cadence=Cadence(row["cadence"]),
+        start_date=start_date,
+        end_date=end_date,
+        category_id=row["category_id"],
+        account_id=row["account_id"],
+        dest_account_id=row["dest_account_id"],
+        default_amount=row["default_amount"],
+        default_description=row["default_description"],
+        day_of_month=row["day_of_month"],
+        month_of_year=row["month_of_year"],
+        active=True,
+        next_due=start_date,  # placeholder; generator does not read it
+        last_promoted_date=None,
+        created_at=clock.utc_now(),
+        updated_at=clock.utc_now(),
+        deleted_at=None,
+    )
+
+
+def _backfill_one_rule(conn: sqlite3.Connection, row: sqlite3.Row, today: dt.date) -> None:
+    """Write ``next_due`` (or the sentinel + deactivation) for one rule row."""
+    start_date = dt.date.fromisoformat(row["start_date"])
+    rule = _stub_rule(row, start_date)
+    range_start = max(start_date, today)
+    range_end = range_start + dt.timedelta(days=_BACKFILL_HORIZON_DAYS)
+    occurrences = generate_occurrences(rule, range_start, range_end)
+    if occurrences:
+        conn.execute(
+            "UPDATE recurring_rules SET next_due = ? WHERE id = ?",
+            (occurrences[0].occurrence_date.isoformat(), row["id"]),
+        )
+        return
+    # Rule end has passed (or something equally terminal). Sentinel +
+    # deactivation keeps the NOT NULL promise and the service layer honest.
+    conn.execute(
+        "UPDATE recurring_rules SET next_due = ?, active = 0 WHERE id = ?",
+        (start_date.isoformat(), row["id"]),
+    )
 
 
 def _upgrade_formula_schema_v1_to_v2(conn: sqlite3.Connection) -> None:
@@ -307,51 +327,70 @@ def apply_migrations(
     newly_applied: list[Migration] = []
     for mig in all_migrations:
         if mig.version in applied:
-            if applied[mig.version] != mig.checksum:
-                raise RuntimeError(
-                    f"Checksum mismatch for migration {mig.filename}: "
-                    "already-applied migrations must not be edited."
-                )
+            _require_same_checksum(mig, applied[mig.version])
             continue
-        fk_off = mig.version in FK_OFF_MIGRATIONS
-        if fk_off:
-            # Must be flipped outside any transaction; the runner has none
-            # open at this point (prior migration committed).
-            conn.execute("PRAGMA foreign_keys = OFF")
-        # SQLite DDL is transactional. We avoid ``executescript`` (which
-        # auto-commits any open transaction) by splitting the file into
-        # individual statements and running each inside a single explicit
-        # BEGIN/COMMIT so a failure anywhere rolls the whole thing back,
-        # including the ``schema_migrations`` INSERT.
-        conn.execute("BEGIN")
-        try:
-            for statement in _split_sql_statements(mig.sql):
-                conn.execute(statement)
-            conn.execute(
-                "INSERT INTO schema_migrations(version, filename, checksum) VALUES (?, ?, ?)",
-                (mig.version, mig.filename, mig.checksum),
-            )
-            conn.execute("COMMIT")
-        except Exception:
-            conn.execute("ROLLBACK")
-            if fk_off:
-                conn.execute("PRAGMA foreign_keys = ON")
-            raise
-        if fk_off:
-            # Validate that the rebuild left no dangling foreign keys.
-            offending = conn.execute("PRAGMA foreign_key_check").fetchall()
-            if offending:
-                conn.execute("PRAGMA foreign_keys = ON")
-                raise RuntimeError(
-                    f"Foreign-key check failed after migration {mig.filename}: "
-                    f"{len(offending)} violation(s)."
-                )
-            conn.execute("PRAGMA foreign_keys = ON")
+        _apply_one(conn, mig)
         newly_applied.append(mig)
         hook = _POST_APPLY_HOOKS.get(mig.version)
         if hook is not None:
             hook(conn)
     return newly_applied
+
+
+def _require_same_checksum(mig: Migration, applied_checksum: str) -> None:
+    """Raise if an already-applied migration was edited on disk."""
+    if applied_checksum != mig.checksum:
+        raise RuntimeError(
+            f"Checksum mismatch for migration {mig.filename}: "
+            "already-applied migrations must not be edited."
+        )
+
+
+def _apply_one(conn: sqlite3.Connection, mig: Migration) -> None:
+    """Run one pending migration, toggling the FK pragma when it requires it."""
+    fk_off = mig.version in FK_OFF_MIGRATIONS
+    if fk_off:
+        # Must be flipped outside any transaction; the runner has none
+        # open at this point (prior migration committed).
+        conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        _run_migration_sql(conn, mig)
+        if fk_off:
+            _require_clean_foreign_keys(conn, mig)
+    finally:
+        if fk_off:
+            conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _run_migration_sql(conn: sqlite3.Connection, mig: Migration) -> None:
+    """Execute the migration's statements and record it in one BEGIN/COMMIT.
+
+    SQLite DDL is transactional. ``executescript`` is avoided (it auto-commits
+    any open transaction); a failure anywhere rolls the whole thing back,
+    including the ``schema_migrations`` INSERT.
+    """
+    conn.execute("BEGIN")
+    try:
+        for statement in _split_sql_statements(mig.sql):
+            conn.execute(statement)
+        conn.execute(
+            "INSERT INTO schema_migrations(version, filename, checksum) VALUES (?, ?, ?)",
+            (mig.version, mig.filename, mig.checksum),
+        )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def _require_clean_foreign_keys(conn: sqlite3.Connection, mig: Migration) -> None:
+    """Validate that a table rebuild left no dangling foreign keys."""
+    offending = conn.execute("PRAGMA foreign_key_check").fetchall()
+    if offending:
+        raise RuntimeError(
+            f"Foreign-key check failed after migration {mig.filename}: "
+            f"{len(offending)} violation(s)."
+        )
 
 
 def main() -> None:  # pragma: no cover - CLI shim exercised via `just migrate`

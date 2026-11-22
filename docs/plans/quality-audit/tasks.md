@@ -699,7 +699,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `thin_router`:43 (7 entries); `suppressions` ceiling `PLR0917`:8
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
+### ✅ T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
 - Findings: Q-046 (B-09 complexity and length rows outside the router modules); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
@@ -859,7 +859,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q247 [P] Kill survivors in the non-priority modules
+### ✅ T-Q247 [P] Kill survivors in the non-priority modules
 - Findings: Q-055 (F-11).
 - Epic: none (test-gap)
 - Band: 5 · Size: L · Tags: none

@@ -11,6 +11,17 @@ from __future__ import annotations
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
+from tests.ui_map import _html, shell
+
+HX = {"HX-Request": "true"}
+
+
+def _slideover(html: str) -> Tag:
+    """The single slide-over dialog in a fragment (the shell's own dialogs excluded)."""
+    found = [d for d in _html.resolve(html, shell.dialog) if d.has_attr("data-slideover")]
+    assert len(found) == 1
+    return found[0]
+
 
 def _assert_no_fab(client: TestClient, path: str) -> None:
     response = client.get(path)
@@ -37,29 +48,27 @@ def test_no_fab_on_any_route(client: TestClient) -> None:
 
 
 def test_new_transaction_returns_slideover(client: TestClient) -> None:
-    response = client.get("/transactions/new")
+    response = client.get("/transactions/new", headers=HX)
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-    container = soup.find("div", attrs={"data-slideover": True})
-    assert isinstance(container, Tag)
+    container = _slideover(response.text)
     assert container.get("role") == "dialog"
     assert container.get("aria-modal") == "true"
-    assert 'hx-post="/transactions"' in response.text
+    form = _slideover(response.text).find("form")
+    assert isinstance(form, Tag)
+    assert form.get("hx-post") == "/transactions"
 
 
 def test_new_planned_returns_slideover(client: TestClient) -> None:
-    response = client.get("/planned/new")
+    response = client.get("/planned/new", headers=HX)
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-    container = soup.find("div", attrs={"data-slideover": True})
-    assert isinstance(container, Tag)
-    assert 'hx-post="/planned"' in response.text
+    form = _slideover(response.text).find("form")
+    assert isinstance(form, Tag)
+    assert form.get("hx-post") == "/planned"
 
 
 def test_new_recurring_returns_slideover(client: TestClient) -> None:
-    response = client.get("/recurring/new")
+    response = client.get("/recurring/new", headers=HX)
     assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-    container = soup.find("div", attrs={"data-slideover": True})
-    assert isinstance(container, Tag)
-    assert 'hx-post="/recurring"' in response.text
+    form = _slideover(response.text).find("form")
+    assert isinstance(form, Tag)
+    assert form.get("hx-post") == "/recurring"

@@ -27,6 +27,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as transactions_repo,
 )
+from tests.ui_map import _html, plan
 
 USER_ID = 1
 
@@ -638,3 +639,74 @@ def test_budget_hero_unbudgeted_info_line_not_counted(
     committed = hero.select_one(".budget-lds__committed")
     assert isinstance(committed, Tag)
     assert committed.get("data-committed") == "0"
+
+
+def _texts(html: str, loc: object) -> list[str]:
+    return [t.get_text(" ", strip=True) for t in _html.resolve(html, loc)]  # type: ignore[arg-type]
+
+
+def _hero_text(html: str) -> str:
+    return _html.text_of(html, plan.budget_hero)
+
+
+def _selected_month(html: str) -> list[str]:
+    options = _html.resolve(html, plan.option_in(plan.budget_month_select))
+    return [str(o.get("value")) for o in options if o.has_attr("selected")]
+
+
+def _cells(html: str, name: str) -> list[str]:
+    return _texts(html, plan.summary_cells(name))
+
+
+def _month_page(client: TestClient, settings: Settings) -> str:
+    _seed_three_cats_with_history(settings)
+    html: str = client.get("/budget?year=2026&month=10").text
+    return html
+
+
+def test_budget_breakdown_points_to_plan_analytics(client: TestClient, cat_id: int) -> None:
+    """T-R50 (ADR-0054): Breakdown moved to /plan?tab=analytics; /budget keeps a
+    pointer section, no chart images."""
+    r = client.get("/budget")
+    link = _html.resolve_one(r.text, plan.breakdown_link)
+    assert link.get("href") == "/plan?tab=analytics"
+    assert not _html.exists(r.text, plan.chart_image.inside(plan.budget_breakdown))
+
+
+def test_inline_override_form_prefills_month_and_year(client: TestClient, cat_id: int) -> None:
+    r = client.get(f"/budget/rules/{cat_id}/overrides/new?inline=1&month=3&year=2027")
+    soup = BeautifulSoup(r.text, "html.parser")
+    month = soup.find("input", {"name": "month"})
+    year = soup.find("input", {"name": "year"})
+    assert isinstance(month, Tag)
+    assert isinstance(year, Tag)
+    assert (month.get("value"), year.get("value")) == ("3", "2027")
+
+
+def test_monthly_summary_delta_down_renders_sign(client: TestClient, _migrated: Settings) -> None:
+    cells = _cells(_month_page(client, _migrated), "Fun")
+    assert "-100.00" in cells[5]
+    assert "+" not in cells[5]
+
+
+def test_monthly_summary_delta_up_renders_sign(client: TestClient, _migrated: Settings) -> None:
+    # Column order (post-ADR-0049): Category, Planned, Actual, Avg/mo, YTD avg,
+    # Δ prev, Remainder-bar, Remainder.
+    cells = _cells(_month_page(client, _migrated), "Food")
+    assert "500.00" in cells[2]
+    assert "400.00" in cells[3]  # (500 + 300) / 2 months
+    assert "80.00" in cells[4]  # (500 + 300) / 10 elapsed months
+    assert "+200.00" in cells[5]
+
+
+def test_monthly_summary_delta_zero_has_no_sign(client: TestClient, _migrated: Settings) -> None:
+    cells = _cells(_month_page(client, _migrated), "Rent")
+    assert "0.00" in cells[5]
+    assert "+" not in cells[5]
+    assert "-" not in cells[5]
+
+
+def test_yearly_fragment_lists_the_category(client: TestClient, cat_id: int) -> None:
+    r = client.get("/budget/yearly?year=2026")
+    assert _html.exists(r.text, plan.yearly_section)
+    assert _html.exists(r.text, plan.yearly_row("Groceries"))

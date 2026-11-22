@@ -207,6 +207,24 @@ def require_owned(
             raise LookupError(f"category {category_id} not found")
 
 
+FilterPart = tuple[str, list[object]]
+"""One WHERE clause (``?`` placeholders) with its bound parameters."""
+
+
+def in_parts(column: str, values: Iterable[object]) -> list[FilterPart]:
+    """``column IN (?, ...)`` as a one-element part list; empty when ``values`` is empty."""
+    bound = list(values)
+    if not bound:
+        return []
+    return [(f"{column} IN ({','.join('?' for _ in bound)})", bound)]
+
+
+def join_filter_parts(parts: Iterable[FilterPart]) -> tuple[list[str], list[object]]:
+    """Split filter parts into the clause list and the flat parameter list."""
+    pairs = list(parts)
+    return [clause for clause, _ in pairs], [value for _, bound in pairs for value in bound]
+
+
 def parse_dt(value: str | None) -> datetime | None:
     """Parse a UTC-ISO timestamp from the DB (``...Z`` suffix) to ``datetime``."""
     if value is None:
