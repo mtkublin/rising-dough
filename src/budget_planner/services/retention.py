@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
 from budget_planner import clock
 from budget_planner.logging import get_logger
 from budget_planner.repositories import retention as repo
-from budget_planner.services.connections import get_connection
 
 
 class RetentionSettings(Protocol):
@@ -52,9 +52,11 @@ def purge(conn: sqlite3.Connection, now: dt.datetime, settings: RetentionSetting
     return result
 
 
-def run_once(settings: Settings) -> PurgeResult:
+def run_once(
+    settings: RetentionSettings, open_connection: Callable[[], sqlite3.Connection]
+) -> PurgeResult:
     """Open a connection, purge once at the current instant, close it."""
-    conn = get_connection(settings)
+    conn = open_connection()
     try:
         return purge(conn, clock.utc_now(), settings)
     finally:

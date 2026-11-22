@@ -15,6 +15,7 @@ from typing import Final
 from budget_planner.config import Settings
 from budget_planner.logging import get_logger
 from budget_planner.services import retention
+from budget_planner.services.connections import get_connection
 
 PURGE_INTERVAL_SECONDS: Final = 24 * 60 * 60
 
@@ -24,7 +25,7 @@ async def run_forever(cfg: Settings, interval_seconds: float = PURGE_INTERVAL_SE
     while True:
         await asyncio.sleep(interval_seconds)
         try:
-            await asyncio.to_thread(retention.run_once, cfg)
+            await asyncio.to_thread(retention.run_once, cfg, lambda: get_connection(cfg))
         except Exception as exc:
             log.error("retention_purge_failed", error=str(exc), error_type=type(exc).__name__)
 

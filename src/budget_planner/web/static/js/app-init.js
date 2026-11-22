@@ -1,7 +1,7 @@
 /* App bootstrap (was inline in base.html; moved for the strict prod CSP, ADR-0113). */
 (function () {
         window.__TODAY_LOCAL__ = document.body.dataset.todayLocal || "";
-        /* Error contract (ADR-0142): every 4xx/5xx shows a visible flash. */
+        /* Error contract (ADR-0143): every 4xx/5xx shows a visible flash. */
         var FLASH_ONLY = /^\s*<div\s+id="flash-region(-assertive)?"/;
         var STATUS_TEXT = {
           400: "The request was not accepted. Check the form and try again.",
@@ -100,7 +100,7 @@
               Object.keys(payload).forEach(function (k) {
                 values[k] = Array.isArray(payload[k]) ? payload[k].join(",") : payload[k];
               });
-              /* Reload only once the undo succeeded (ADR-0142). */
+              /* Reload only once the undo succeeded (ADR-0143). */
               var undone = false;
               function onUndo(e) {
                 var cfg = e.detail && e.detail.requestConfig;

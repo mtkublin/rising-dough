@@ -1,4 +1,4 @@
-"""E2E: a failing HTMX save shows a visible flash, target kept (T-Q236, ADR-0142)."""
+"""E2E: a failing HTMX save shows a visible flash, target kept (T-Q236, ADR-0143)."""
 
 from __future__ import annotations
 

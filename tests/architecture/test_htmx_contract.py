@@ -1,6 +1,6 @@
 # Guard docstrings and teaching messages are prose; long lines are intentional.
 # ruff: noqa: E501
-"""G12: HTMX emitter/listener contract (Q-038, Q-037; ADR-0130, ADR-0142). Strict: zero allowlist entries.
+"""G12: HTMX emitter/listener contract (Q-038, Q-037; ADR-0130, ADR-0143). Strict: zero allowlist entries.
 
 ``web/htmx.py`` defines ``Event`` (the wire names). Emitters are ``Event.<NAME>`` references and ``toast=`` keyword
 arguments in ``web/**/*.py`` outside ``htmx.py``; listeners are ``hx-trigger="<event> from:body"`` in templates and
@@ -24,7 +24,7 @@ from collections import Counter
 from tests.architecture._ratchet import REPO_ROOT, SRC_ROOT, Violation, assert_ratchet, parse_file
 
 GUARD = "htmx_events"
-HEADER = "G12 htmx_events: strict, no entries (ADR-0142)."
+HEADER = "G12 htmx_events: strict, no entries (ADR-0143)."
 WEB = SRC_ROOT / "web"
 HTMX_MODULE = "src/budget_planner/web/htmx.py"
 STALE = re.compile(r"^[a-z]+(?:-[a-z]+)*-stale$")
@@ -53,7 +53,7 @@ DOM_EVENTS = frozenset(
 TEACH = (
     'G12 HTMX contract: every emitted event needs a listener (`hx-trigger="<event> from:body"` or JS) and vice versa; '
     "every static hx-target needs an element with that id. Emit only through web/htmx.py (`trigger`, `Event`, "
-    "`toast_payload`); never write the HX-Trigger header or a `*-stale` literal in a router (Q-038, ADR-0142)."
+    "`toast_payload`); never write the HX-Trigger header or a `*-stale` literal in a router (Q-038, ADR-0143)."
 )
 
 

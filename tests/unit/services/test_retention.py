@@ -190,7 +190,7 @@ def test_background_loop_runs_and_survives_errors(
     calls: list[int] = []
     done = threading.Event()
 
-    def fake_run(cfg: Settings) -> None:
+    def fake_run(cfg: Settings, open_connection: object) -> None:
         calls.append(1)
         if len(calls) >= 2:
             done.set()

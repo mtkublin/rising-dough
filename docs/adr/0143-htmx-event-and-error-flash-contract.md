@@ -1,4 +1,4 @@
-# ADR-0142: One HTMX Event and Toast Contract; Error Flashes Always Swap
+# ADR-0143: One HTMX Event and Toast Contract; Error Flashes Always Swap
 
 - **Status**: Accepted
 - **Date**: 2026-11-21

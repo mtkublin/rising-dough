@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from budget_planner import logging as bp_logging
 from budget_planner.config import Settings, get_settings
+from budget_planner.db.connection import get_connection
 from budget_planner.services import retention
 
 
 def run(settings: Settings) -> retention.PurgeResult:
-    return retention.run_once(settings)
+    return retention.run_once(settings, lambda: get_connection(settings))
 
 
 def main(settings: Settings | None = None) -> int:

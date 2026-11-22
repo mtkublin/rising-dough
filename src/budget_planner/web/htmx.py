@@ -13,7 +13,7 @@ from fastapi.responses import Response
 
 
 class Event(StrEnum):
-    """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0142)."""
+    """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0143)."""
 
     BALANCE_STALE = "balance-stale"
     BUDGET_STALE = "budget-stale"

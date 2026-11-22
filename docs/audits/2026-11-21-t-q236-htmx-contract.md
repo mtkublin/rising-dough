@@ -1,6 +1,6 @@
 # Frontend audit: T-Q236 HTMX error flashes and event contract
 
-Change: T-Q236 (Q-037, Q-038; ADR-0142). Templates touched: `today/index.html` (hero and upcoming regions),
+Change: T-Q236 (Q-037, Q-038; ADR-0143). Templates touched: `today/index.html` (hero and upcoming regions),
 `accounts/index.html` (hero), `budget/index.html` (pace and summary sections), `settings/_categories.html`
 (category list wrapper); each gains `id` + `hx-get`/`hx-trigger="<event> from:body"`/`hx-select`/`hx-swap`/
 `hx-disinherit` so the four formerly orphan `*-stale` events re-fetch their panel. JS: `static/js/app-init.js`
