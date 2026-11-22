@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+from budget_planner.web.auth_deps import current_admin
 from budget_planner.web.middleware.admin import is_admin_path, is_admin_user
 from budget_planner.web.middleware.auth import CurrentUser
-from budget_planner.web.routers.settings_users import current_admin
 
 
 @pytest.mark.parametrize(

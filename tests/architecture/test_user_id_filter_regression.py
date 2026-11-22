@@ -7,12 +7,20 @@ finding SQL) fails here instead of quietly passing the real sweep.
 
 from __future__ import annotations
 
+import importlib
 import textwrap
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from tests.architecture._user_scoping import check_paths, check_source
+from tests.architecture._user_scoping import (
+    check_builders_covered,
+    check_owned_tables,
+    check_paths,
+    check_source,
+    default_renderers,
+)
 
 
 def _write(tmp_path: Path, body: str) -> Path:
@@ -142,3 +150,81 @@ def test_unparseable_sql_is_reported() -> None:
     violations = check_source('def f(c):\n    c.execute("SELEC id FROM accounts")\n', "mod.py")
     assert violations
     assert "unparseable SQL" in violations[0].message
+
+
+_SPEC_MODULE = """
+_COLS = "id, name"
+
+ACCT = OwnedTable[int](
+    table="accounts", entity_type="account", columns=_COLS, hydrate=int, order_by="id ASC"
+)
+"""
+
+
+def _shared_with(**overrides: object) -> object:
+    real = importlib.import_module("budget_planner.repositories._shared")
+    return SimpleNamespace(**{**vars(real), **overrides})
+
+
+def test_owned_spec_resolves_and_real_builders_pass(tmp_path: Path) -> None:
+    module = _write(tmp_path, _SPEC_MODULE)
+    assert check_owned_tables([module], tmp_path) == []
+
+
+def test_owned_builder_dropping_user_id_fails_naming_table(tmp_path: Path) -> None:
+    def leaky(table: str, columns: str, keys: object, *, include_deleted: bool) -> str:
+        return "SELECT id FROM TABLE WHERE id = ?".replace("TABLE", table)
+
+    module = _write(tmp_path, _SPEC_MODULE)
+    renderers = default_renderers(_shared_with(find_sql=leaky))
+    violations = check_owned_tables([module], tmp_path, renderers)
+    assert violations
+    assert all(v.function == "find_sql" for v in violations)
+    assert "table 'accounts'" in violations[0].message
+    assert "lacks user_id" in violations[0].message
+
+
+def test_owned_insert_builder_without_user_id_fails(tmp_path: Path) -> None:
+    module = _write(tmp_path, _SPEC_MODULE)
+    renderers = default_renderers(
+        _shared_with(
+            insert_sql=lambda table, _keys: "INSERT INTO TABLE(name) VALUES (?)".replace(
+                "TABLE", table
+            )
+        )
+    )
+    violations = check_owned_tables([module], tmp_path, renderers)
+    assert [v.function for v in violations] == ["insert_sql"]
+    assert "without user_id column" in violations[0].message
+
+
+def test_owned_spec_with_unknown_table_fails(tmp_path: Path) -> None:
+    module = _write(tmp_path, _SPEC_MODULE.replace('"accounts"', '"fx_rates"'))
+    violations = check_owned_tables([module], tmp_path)
+    assert len(violations) == 1
+    assert "unknown table 'fx_rates'" in violations[0].message
+
+
+def test_owned_spec_with_unresolvable_table_fails(tmp_path: Path) -> None:
+    module = _write(tmp_path, _SPEC_MODULE.replace('"accounts"', "make_table()"))
+    violations = check_owned_tables([module], tmp_path)
+    assert [v.message for v in violations] == ["spec is not statically resolvable"]
+
+
+def test_dynamic_table_statement_is_not_silently_skipped(tmp_path: Path) -> None:
+    module = _write(
+        tmp_path,
+        """
+        def raw(conn, spec, user_id):
+            return conn.execute(f"SELECT id FROM {spec.table} WHERE id = ?", (1,))
+        """,
+    )
+    violations = check_paths([module], tmp_path)
+    assert len(violations) == 1
+    assert "dynamic table name is not resolvable" in violations[0].message
+
+
+def test_builder_without_renderer_is_reported() -> None:
+    source = "def new_sql(table):\n    return ''\n"
+    problems = check_builders_covered(source, default_renderers())
+    assert "SQL builder 'new_sql' has no guard renderer" in problems

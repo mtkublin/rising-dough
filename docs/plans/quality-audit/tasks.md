@@ -700,7 +700,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `clones`:24 (15 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/clones.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q267 [P] Thin routers, group 3: auth and settings routers
+### ✅ T-Q267 [P] Thin routers, group 3: auth and settings routers
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 4 · Size: L · Tags: none
@@ -709,6 +709,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Acceptance: Failing guard first: `thin_router.toml` entries for `auth.py`, `settings.py`, the password-settings router, `settings_security.py`, `settings_users.py` (7 entries, 43 violations; `auth.py` has 23 helpers in the router module, `settings_users.py` 11). Helpers move to `services/auth.py`, `services/users.py` or `web/auth_cookies.py`; form models retire 8 `PLR0917` noqa (ceiling slice owned here). Security-sensitive: run the auth integration and e2e suites, then `security-reviewer`.
 - Operator question blocking it: none.
 - Removes allowlist entries: `thin_router`:43 (7 entries); `suppressions` ceiling `PLR0917`:8
+- Outcome (2026-11-22): the five routers hold route handlers only. Helpers and rate-limit dependencies moved to `web/auth_deps.py` (also `current_admin`), `web/auth_flow.py`, `web/security_context.py`, `web/users_admin.py` and the password-change response helpers; view models to `services/settings_drawer.py`, `services/security_settings.py`; `services/auth.py` gained `clean_passkey_label` and `is_session_handle`; `web/rendering.render_context` takes a ready context mapping. Keyword-only route params retire the 8 `PLR0917` noqa (ceiling 14 -> 6). The 6 `thin_router` entries (auth, settings x2, settings_password, settings_security, settings_users) plus the now-stale clones, hygiene, functional_first, literals, size_complexity, suppressions and private_imports entries for these routers deleted. No template change.
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q269 [S] Decompose oversized functions in services, repositories, db, logging and charts
@@ -1053,7 +1054,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 
 The operator answered the deferred questions on 2026-11-22. Each decision below is a task recorded docs first (CLAUDE.md "Change policy"); the ADR amendments named here are written in the DECISIONS-1122 change, the code lands with the task. All run before T-Q232 (waves 14b to 14d below). None of these tasks adds an allowlist entry; T-Q283 records three permanent `money_scope` entries (its implementation task edits the TOML, the DECISIONS-1122 change edits no allowlist).
 
-### T-Q279 [S] Archived categories reserve no budget; their actuals still count
+### ✅ T-Q279 [S] Archived categories reserve no budget; their actuals still count
 - Findings: Q-030, Q-015 (OQ-15 refined 2026-11-22); reverses the T-Q227 reading of OQ-15.
 - Epic: E01
 - Band: 2 · Size: M · Tags: none
@@ -1101,7 +1102,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q283 [S] Three permanent `money_scope` entries with written reasons
+### ✅ T-Q283 [S] Three permanent `money_scope` entries with written reasons
 - Findings: Q-076 (G27).
 - Epic: E05
 - Band: 3 · Size: S · Tags: none
@@ -1113,7 +1114,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (owns `money_scope.toml`).
 - Done when: the three entries are permanent with reasons; guards stay green; the CLAUDE.md handoff checklist is complete.
 
-### T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
+### ✅ T-Q284 [M] User-scoping guard resolves `OwnedTable` specs
 - Findings: Q-025 (ADR-0130 G7).
 - Epic: E02
 - Band: 3 · Size: M · Tags: none

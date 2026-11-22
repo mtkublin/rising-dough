@@ -665,6 +665,32 @@ def _case_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
         assert found == _expected_expense_ids(world, user_id)
 
 
+@covers("categories.budget_reserver")
+def _case_budget_reserver(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        reserves = categories_svc.budget_reserver(conn, user_id)
+        assert reserves(_own(world, user_id).category_id, 2099, 1) is True
+    if world.tombstones is not None:
+        owner = categories_svc.budget_reserver(conn, OWNER_ID)
+        assert owner(world.tombstones.category_id, 2099, 1) is False  # archived long before
+        other = categories_svc.budget_reserver(conn, OTHER_ID)
+        assert other(world.tombstones.category_id, 2099, 1) is True  # not the other user's row
+
+
+@covers("categories.budgeted_expense_categories")
+def _case_budgeted_expense_categories(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = {c.id for c in categories_svc.budgeted_expense_categories(conn, user_id, 2099, 1)}
+        assert found == {_own(world, user_id).category_id}
+
+
+@covers("categories.budgeted_expense_category_ids")
+def _case_budgeted_expense_category_ids(conn: sqlite3.Connection, world: World) -> None:
+    for user_id in (OWNER_ID, OTHER_ID):
+        found = set(categories_svc.budgeted_expense_category_ids(conn, user_id, 2099, 1))
+        assert found == {_own(world, user_id).category_id}
+
+
 # --- limit_preview -----------------------------------------------------------------------------------------------
 
 

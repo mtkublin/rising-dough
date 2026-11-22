@@ -564,6 +564,23 @@ def _reject_sign_count_regression(
     )
 
 
+LABEL_MAX_LENGTH: Final = 64
+DEFAULT_PASSKEY_LABEL: Final = "Passkey"
+_HANDLE_LENGTH: Final = 16
+_HEX_DIGITS: Final = frozenset("0123456789abcdef")
+
+
+def clean_passkey_label(raw: object) -> str:
+    """Trimmed passkey label from a request body value; blank or non-text becomes the default."""
+    label = raw.strip() if isinstance(raw, str) else ""
+    return (label or DEFAULT_PASSKEY_LABEL)[:LABEL_MAX_LENGTH]
+
+
+def is_session_handle(handle: str) -> bool:
+    """True for the non-secret 16-hex session handle shape."""
+    return len(handle) == _HANDLE_LENGTH and all(c in _HEX_DIGITS for c in handle)
+
+
 # T-Q241: routers reach persistence only through these service entry points
 # (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
 list_active_sessions = sessions_repo.list_active_sessions
@@ -572,6 +589,8 @@ list_passkeys = webauthn_repo.list_credentials
 
 __all__ = [
     "AUTH_EVENT_ENTITY",
+    "DEFAULT_PASSKEY_LABEL",
+    "LABEL_MAX_LENGTH",
     "SESSION_ENTITY",
     "IssuedSession",
     "PasskeyChallenge",
@@ -580,6 +599,8 @@ __all__ = [
     "authenticate_passkey_begin",
     "authenticate_passkey_finish",
     "authenticate_password",
+    "clean_passkey_label",
+    "is_session_handle",
     "list_active_sessions",
     "list_passkeys",
     "load_session_user",
