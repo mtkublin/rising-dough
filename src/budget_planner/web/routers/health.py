@@ -22,8 +22,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from budget_planner import clock
-from budget_planner.db.connection import get_connection
 from budget_planner.services import replication_health
+from budget_planner.services.connections import get_connection
 
 if TYPE_CHECKING:
     from budget_planner.config import Settings

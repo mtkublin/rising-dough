@@ -58,7 +58,9 @@ def today(
     converter = fx_service.converter_for(conn, settings, today_d)
     account_rows, totals_by_ccy = today_data.collect_account_rows(conn, user_id, converter)
     fortune = fortune_service.compute_fortune(conn, user_id, converter)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today_d)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today_d, base_currency=base_ccy
+    )
     pace = today_data.pace_tag(
         summary.totals.spent_minor, summary.totals.budgeted_minor, today_d, year, month
     )
@@ -140,7 +142,9 @@ def afford(
     if amount_minor is None or amount_minor < 0:
         return Response(status_code=422, content="invalid amount")
     today_d = clock.today_local(settings)
-    result = today_service.afford(conn, user_id, today_d, amount_minor)
+    result = today_service.afford(
+        conn, user_id, today_d, amount_minor, base_currency=settings.base_currency
+    )
     return render(
         request,
         "today/_afford_preview.html",

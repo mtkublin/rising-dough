@@ -69,14 +69,4 @@
       if (toast) toast.remove();
     }
   });
-
-  document.addEventListener("htmx:beforeSwap", function (evt) {
-    var detail = evt.detail || {};
-    var xhr = detail.xhr;
-    var elt = detail.elt;
-    if (!xhr || xhr.status !== 409 || !(elt instanceof Element)) return;
-    if (!elt.closest("[data-users-admin]")) return;
-    detail.shouldSwap = true;
-    detail.isError = false;
-  });
 })();

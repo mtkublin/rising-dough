@@ -83,7 +83,9 @@ def _plan(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) -
 
 
 def _committed(conn: sqlite3.Connection) -> int:
-    return bs.committed_in_window(conn, USER_ID, start=START, end=END, today=TODAY)
+    return bs.committed_in_window(
+        conn, USER_ID, start=START, end=END, today=TODAY, base_currency="PLN"
+    )
 
 
 def test_planned_eur_converted_with_latest_rate_before_today(
@@ -125,7 +127,7 @@ def test_month_summary_split_and_remaining_converted(
     _rate(conn, TODAY, "4.00")
     _plan(conn, world["groceries"], world["eur"], 10_000, date(2026, 2, 20))  # budgeted
     _plan(conn, world["rent"], world["eur"], 5_000, date(2026, 2, 21))  # unbudgeted
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY, base_currency="PLN")
     assert s.totals.committed_minor == 40_000
     assert s.totals.unbudgeted_committed_minor == 20_000
     assert s.totals.remaining_minor == 100_000 - 40_000
@@ -164,7 +166,7 @@ def _spend(conn: sqlite3.Connection, cat: int, acc: int, amount: int, on: date) 
 
 
 def _groceries_line(conn: sqlite3.Connection, world: dict[str, int]) -> bs.CategoryBudgetLine:
-    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY)
+    s = bs.month_summary(conn, USER_ID, 2026, 2, today=TODAY, base_currency="PLN")
     return next(ln for ln in s.lines if ln.category_id == world["groceries"])
 
 

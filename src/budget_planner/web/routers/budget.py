@@ -40,7 +40,7 @@ from budget_planner.services import (
 from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
 from budget_planner.web.rendering import render
 
@@ -109,7 +109,9 @@ def _render_index(
 ) -> HTMLResponse:
     year, month = _year_month(request, conn, user_id)
     today = clock.today_local(settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+    )
     rules = _rules_rows(conn, user_id)
     yearly = budget_service.yearly_grid(conn, user_id, year)
     return render(
@@ -232,7 +234,7 @@ def create_override(  # noqa: PLR0911, PLR0917
             NewBudgetDefault(category_id=category_id, amount=minor),
         )
         resp = Response(content="ok", media_type="text/html")
-        trigger(resp, "budget-stale")
+        trigger(resp, Event.BUDGET_STALE)
         return resp
     try:
         parsed_month = int(month)
@@ -262,7 +264,7 @@ def create_override(  # noqa: PLR0911, PLR0917
             ),
         )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -294,7 +296,7 @@ def set_default(
         conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor)
     )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -321,7 +323,7 @@ def set_income_anchor(
         except InvalidAnchorCategoryError as err:
             return Response(status_code=422, content=str(err))
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -349,5 +351,5 @@ def set_one_off(  # noqa: PLR0917
         NewBudgetOneOffOverride(category_id=category_id, year=year, month=month, amount=minor),
     )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp

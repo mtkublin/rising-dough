@@ -195,7 +195,9 @@ def test_budget_month_committed_zero_and_period_dates(
     picked = budget_service.resolve_picker_month(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
-    summary = budget_service.month_summary_for_picker(db, USER_ID, picked=picked, today=today)
+    summary = budget_service.month_summary_for_picker(
+        db, USER_ID, picked=picked, today=today, base_currency="PLN"
+    )
     assert summary.totals.committed_minor == 0
     assert summary.period_start == start
     assert summary.next_income_date == nxt
@@ -216,7 +218,9 @@ def test_budget_month_future_has_no_days_elapsed_pressure(
     picked = budget_service.resolve_picker_month(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
-    summary = budget_service.month_summary_for_picker(db, USER_ID, picked=picked, today=today)
+    summary = budget_service.month_summary_for_picker(
+        db, USER_ID, picked=picked, today=today, base_currency="PLN"
+    )
 
     r = client.get(f"/plan?tab=budget&year={start.year}&month={start.month}")
 

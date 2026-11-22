@@ -62,7 +62,7 @@ def get_connection(settings: Settings) -> sqlite3.Connection:
 
     Creates the parent directory for the database file if missing.
     """
-    db_path = _resolve_db_path(settings.database_url)
+    db_path = _resolve_db_path(settings.resolve().database_url)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     # NOTE: we intentionally do NOT pass `detect_types`. All our TIMESTAMP
     # / DATE columns are stored as ISO-8601 strings and parsed manually in

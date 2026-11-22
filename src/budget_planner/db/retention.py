@@ -14,6 +14,7 @@ from budget_planner.services import retention
 
 
 def run(settings: Settings) -> retention.PurgeResult:
+    """Open a connection, purge once at the current instant, close it."""
     conn = get_connection(settings)
     try:
         return retention.purge(conn, clock.utc_now(), settings)

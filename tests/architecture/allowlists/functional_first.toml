@@ -11,13 +11,6 @@ count = 1
 finding = "B-13"
 epic = "E05"
 
-[[entry]]
-path = "src/budget_planner/config.py"
-rule = "setattr-bypass"
-count = 2
-finding = "B-13"
-epic = "E07"
-
 [[framework]]
 path = "src/budget_planner/web/htmx.py"
 rule = "param-mutation:framework"
@@ -129,14 +122,6 @@ count = 1
 finding = "framework"
 epic = "E04"
 reason = "FastAPI APIRouter module singleton (framework idiom, operator decision 2026-11-20)"
-
-[[framework]]
-path = "src/budget_planner/web/routers/categories.py"
-rule = "param-mutation:framework"
-count = 1
-finding = "framework"
-epic = "E04"
-reason = "request.state / response.headers mutation is the Starlette contract"
 
 [[framework]]
 path = "src/budget_planner/web/routers/debug.py"

@@ -76,6 +76,9 @@ jobs:
 
   ci:
     needs: guard
+    # T-Q255 (Q-068): the called workflow must not inherit packages/id-token/pull-requests write.
+    permissions:
+      contents: read
     uses: ./.github/workflows/ci.yml
     secrets: inherit  # pragma: allowlist secret
 

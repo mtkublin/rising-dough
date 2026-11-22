@@ -20,7 +20,14 @@
   </header>
   <div class="rd-hero-grid">
     {# Hero: left-per-day + segmented spent | committed | left progress bar. #}
-    <section class="rd-hero" aria-labelledby="hero-left">
+    <section id="today-hero"
+             class="rd-hero"
+             aria-labelledby="hero-left"
+             hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+             hx-trigger="today-stale from:body"
+             hx-select="#today-hero"
+             hx-swap="outerHTML"
+             hx-disinherit="hx-select hx-swap">
       <div class="rd-hero__head">
         <span class="rd-eyebrow" id="hero-left">Left to spend per day</span>
         {{ pace_tag(pace.kind) }}
@@ -124,6 +131,11 @@
                 hx-swap="innerHTML">+ Recurring</button>
       </div>
     </header>
-    <div id="upcoming-root">{% include "today/_upcoming.html" %}</div>
+    <div id="upcoming-root"
+         hx-get="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+         hx-trigger="today-stale from:body"
+         hx-select="#upcoming-root"
+         hx-swap="outerHTML"
+         hx-disinherit="hx-select hx-swap">{% include "today/_upcoming.html" %}</div>
   </section>
 {% endblock %}

@@ -90,7 +90,9 @@ def test_today_hero_shows_view_model_values(
     world: None,
 ) -> None:
     year, month = budget_service.fiscal_month_for(db, USER_ID, today)
-    summary = budget_service.month_summary(db, USER_ID, year, month, today=today)
+    summary = budget_service.month_summary(
+        db, USER_ID, year, month, today=today, base_currency="PLN"
+    )
     view = view_models.budget_view(summary, today)
     expected_per_day = _money_num(client, view_models.left_per_day(summary))
 
@@ -113,7 +115,9 @@ def test_plan_budget_tab_shows_view_model_values(
     world: None,
 ) -> None:
     picked = budget_service.resolve_picker_month(db, USER_ID, today)
-    summary = budget_service.month_summary_for_picker(db, USER_ID, picked, today)
+    summary = budget_service.month_summary_for_picker(
+        db, USER_ID, picked, today, base_currency="PLN"
+    )
     view = view_models.budget_view(summary, today)
 
     soup = _soup(client.get("/plan?tab=budget").text)
