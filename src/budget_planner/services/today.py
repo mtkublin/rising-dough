@@ -14,7 +14,6 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.money import round_div
 from budget_planner.services import budget as budget_service
 
@@ -86,7 +85,7 @@ def afford(
     amount_minor: int,
     *,
     base_currency: str,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> AffordResult:
     """Return the recomputed per-day figure for a hypothetical spend.
 

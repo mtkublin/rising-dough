@@ -15,7 +15,19 @@ import sqlite3
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.enums import Direction
-from budget_planner.repositories import accounts as accounts_repo, transactions as transactions_repo
+from budget_planner.domain.limits import DESCRIPTION_MAX_LENGTH, length_error
+from budget_planner.domain.planned import PatchPlannedTransaction, PlannedTransaction
+from budget_planner.domain.transactions import (
+    NewTransaction,
+    PatchTransaction,
+    Transaction,
+    TransactionFilter,
+)
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+    transactions as transactions_repo,
+)
 from budget_planner.services.account_pair import validate_distinct_accounts
 
 
@@ -90,16 +102,129 @@ def transit_shape_error(
     return None
 
 
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-find_by_id = transactions_repo.find_by_id
-list_filtered = transactions_repo.list_filtered
-count_filtered = transactions_repo.count_filtered
-list_recently_deleted = transactions_repo.list_recently_deleted
-create = transactions_repo.create
-update = transactions_repo.update
-soft_delete = transactions_repo.soft_delete
-undelete = transactions_repo.undelete
+def validate_entry(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    category_id: int,
+    account_id: int,
+    dest_account_id: int | None,
+    amount: int,
+    description: str,
+) -> None:
+    """Domain rules shared by transaction and planned writes (raises :class:`ValidationError`).
+
+    Description length, a positive amount (adjustments are stored signed), and the transit shape.
+    A category that is not the caller's is left to the repository's ownership check.
+    """
+    if (too_long := length_error(description, maximum=DESCRIPTION_MAX_LENGTH)) is not None:
+        raise ValidationError(f"description {too_long}")
+    category = categories_repo.find_by_id(conn, user_id, category_id, include_deleted=True)
+    if category is None:
+        return
+    if category.direction is not Direction.ADJUSTMENT and amount <= 0:
+        raise ValidationError("amount must be positive")
+    check_transit_shape(
+        conn,
+        user_id,
+        direction=category.direction,
+        account_id=account_id,
+        dest_account_id=dest_account_id,
+    )
+
+
+def validate_patched_entry(
+    conn: sqlite3.Connection,
+    user_id: int,
+    existing: Transaction | PlannedTransaction | None,
+    patch: PatchTransaction | PatchPlannedTransaction,
+) -> None:
+    """:func:`validate_entry` on a stored row with ``patch`` applied (unset fields keep the row).
+
+    A missing row is left to the repository's own not-found error.
+    """
+    if existing is None:
+        return
+    validate_entry(
+        conn,
+        user_id,
+        category_id=existing.category_id if patch.category_id is None else patch.category_id,
+        account_id=existing.account_id if patch.account_id is None else patch.account_id,
+        dest_account_id=(
+            existing.dest_account_id if patch.dest_account_id is None else patch.dest_account_id
+        ),
+        amount=existing.amount if patch.amount is None else patch.amount,
+        description=existing.description if patch.description is None else patch.description,
+    )
+
+
+def find_by_id(
+    conn: sqlite3.Connection, user_id: int, txn_id: int, *, include_deleted: bool = False
+) -> Transaction | None:
+    """The caller's transaction, or ``None`` (soft-deleted rows only with ``include_deleted``)."""
+    return transactions_repo.find_by_id(conn, user_id, txn_id, include_deleted=include_deleted)
+
+
+def list_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: TransactionFilter,
+    *,
+    include_deleted: bool = False,
+) -> list[Transaction]:
+    """Transactions matching ``filters`` for the caller."""
+    return transactions_repo.list_filtered(conn, user_id, filters, include_deleted=include_deleted)
+
+
+def count_filtered(
+    conn: sqlite3.Connection,
+    user_id: int,
+    filters: TransactionFilter | None = None,
+    *,
+    include_deleted: bool = False,
+) -> int:
+    """Number of the caller's transactions matching ``filters``."""
+    return transactions_repo.count_filtered(conn, user_id, filters, include_deleted=include_deleted)
+
+
+def list_recently_deleted(
+    conn: sqlite3.Connection, user_id: int, *, days: int = 90, limit: int = 500
+) -> list[Transaction]:
+    """Transactions soft-deleted within ``days``, newest first."""
+    return transactions_repo.list_recently_deleted(conn, user_id, days=days, limit=limit)
+
+
+def create(conn: sqlite3.Connection, user_id: int, data: NewTransaction) -> Transaction:
+    """Create a transaction after :func:`validate_entry` (one mutation: row and audit atomic)."""
+    validate_entry(
+        conn,
+        user_id,
+        category_id=data.category_id,
+        account_id=data.account_id,
+        dest_account_id=data.dest_account_id,
+        amount=data.amount,
+        description=data.description,
+    )
+    return transactions_repo.create(conn, user_id, data)
+
+
+def update(
+    conn: sqlite3.Connection, user_id: int, txn_id: int, data: PatchTransaction
+) -> Transaction:
+    """Patch a transaction; the merged result must satisfy :func:`validate_entry`."""
+    stored = transactions_repo.find_by_id(conn, user_id, txn_id, include_deleted=True)
+    validate_patched_entry(conn, user_id, stored, data)
+    return transactions_repo.update(conn, user_id, txn_id, data)
+
+
+def soft_delete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> None:
+    """Soft-delete one transaction."""
+    transactions_repo.soft_delete(conn, user_id, txn_id)
+
+
+def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction:
+    """Restore a soft-deleted transaction."""
+    return transactions_repo.undelete(conn, user_id, txn_id)
 
 
 __all__ = [
@@ -115,5 +240,7 @@ __all__ = [
     "transit_shape_error",
     "undelete",
     "update",
+    "validate_entry",
+    "validate_patched_entry",
     "validate_transit_shape",
 ]

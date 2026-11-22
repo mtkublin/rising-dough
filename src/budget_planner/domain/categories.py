@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.limits import name_error
 
 HEX_COLOR_RE = re.compile(r"^#[0-9a-f]{6}$")
 
@@ -81,3 +82,29 @@ class PatchCategory:
         elif self.color is not None:
             out["color"] = self.color
         return out
+
+
+def color_error(color: str | None) -> str | None:
+    """Field error for a stored colour: ``None`` or a lowercase 6-digit hex."""
+    if color is None or HEX_COLOR_RE.match(color):
+        return None
+    return f"invalid color {color!r}; expected 6-digit hex like #a3c2ff"
+
+
+def _category_errors(name: str | None, color: str | None) -> dict[str, str]:
+    errors: dict[str, str] = {}
+    if name is not None and (bad := name_error(name)) is not None:
+        errors["name"] = bad
+    if (bad_color := color_error(color)) is not None:
+        errors["color"] = bad_color
+    return errors
+
+
+def new_category_errors(data: NewCategory) -> dict[str, str]:
+    """Field errors for a new category command (empty when valid)."""
+    return _category_errors(data.name, data.color)
+
+
+def patch_category_errors(patch: PatchCategory) -> dict[str, str]:
+    """Field errors for a category patch (empty when valid)."""
+    return _category_errors(patch.name, patch.color)

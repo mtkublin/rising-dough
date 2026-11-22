@@ -7,7 +7,6 @@ import sqlite3
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import month_bounds
@@ -185,7 +184,7 @@ def collect_budget_overlay(
     end_date: dt.date,
     primary_account_id: int,
     fx: fx_svc.FxConverter,
-    display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
+    display_timezone: str,
 ) -> list[CashEvent]:
     """Return synthetic expense events for per-category per-month unaccounted budget.
 

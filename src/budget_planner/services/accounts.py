@@ -13,8 +13,16 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from budget_planner.domain.errors import ConflictError
+from budget_planner.domain.accounts import (
+    Account,
+    NewAccount,
+    PatchAccount,
+    new_account_errors,
+    patch_account_errors,
+)
+from budget_planner.domain.errors import ConflictError, ValidationError
 from budget_planner.domain.planned import PlannedFilter
+from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import (
     accounts as accounts_repo,
@@ -142,16 +150,78 @@ def archive_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> 
         accounts_repo.soft_delete(conn, user_id, account_id)
 
 
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-find_by_id = accounts_repo.find_by_id
-find_by_name = accounts_repo.find_by_name
-list_all = accounts_repo.list_all
-create = accounts_repo.create
-update = accounts_repo.update
-list_snapshots_for_account = snapshots_repo.list_for_account
-list_snapshots_for_user = snapshots_repo.list_for_user
-create_snapshot = snapshots_repo.create
+def find_by_id(
+    conn: sqlite3.Connection, user_id: int, account_id: int, *, include_deleted: bool = False
+) -> Account | None:
+    """The caller's account, or ``None`` (soft-deleted rows only with ``include_deleted``)."""
+    return accounts_repo.find_by_id(conn, user_id, account_id, include_deleted=include_deleted)
 
 
-__all__ = ["LastCheckedRow", "archive_account", "last_checked"]
+def find_by_name(
+    conn: sqlite3.Connection, user_id: int, name: str, *, include_deleted: bool = False
+) -> Account | None:
+    """The caller's account with this exact name, or ``None``."""
+    return accounts_repo.find_by_name(conn, user_id, name, include_deleted=include_deleted)
+
+
+def list_all(
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
+) -> list[Account]:
+    """The caller's accounts ordered by name."""
+    return accounts_repo.list_all(conn, user_id, include_deleted=include_deleted)
+
+
+def _raise_if_invalid(errors: dict[str, str]) -> None:
+    if errors:
+        raise ValidationError(fields=errors)
+
+
+def create(conn: sqlite3.Connection, user_id: int, data: NewAccount) -> Account:
+    """Create an account (one repository mutation: row and audit are atomic).
+
+    Raises :class:`ValidationError` naming each invalid field; writes nothing then.
+    """
+    _raise_if_invalid(new_account_errors(data))
+    return accounts_repo.create(conn, user_id, data)
+
+
+def update(conn: sqlite3.Connection, user_id: int, account_id: int, data: PatchAccount) -> Account:
+    """Patch an account. Raises :class:`ValidationError` for an invalid name or credit limit."""
+    _raise_if_invalid(patch_account_errors(data))
+    return accounts_repo.update(conn, user_id, account_id, data)
+
+
+def list_snapshots_for_account(
+    conn: sqlite3.Connection, user_id: int, account_id: int
+) -> list[AccountSnapshot]:
+    """Snapshots of one account, as stored."""
+    return snapshots_repo.list_for_account(conn, user_id, account_id)
+
+
+def list_snapshots_for_user(
+    conn: sqlite3.Connection, user_id: int
+) -> dict[int, list[AccountSnapshot]]:
+    """Snapshots of every account of the user, keyed by account id."""
+    return snapshots_repo.list_for_user(conn, user_id)
+
+
+def create_snapshot(
+    conn: sqlite3.Connection, user_id: int, data: NewAccountSnapshot
+) -> AccountSnapshot:
+    """Record a balance snapshot (one repository mutation)."""
+    return snapshots_repo.create(conn, user_id, data)
+
+
+__all__ = [
+    "LastCheckedRow",
+    "archive_account",
+    "create",
+    "create_snapshot",
+    "find_by_id",
+    "find_by_name",
+    "last_checked",
+    "list_all",
+    "list_snapshots_for_account",
+    "list_snapshots_for_user",
+    "update",
+]

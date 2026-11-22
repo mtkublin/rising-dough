@@ -8,6 +8,7 @@ from datetime import date
 from decimal import Decimal
 
 from budget_planner import clock
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings, get_settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.fx import NewFxRate
@@ -46,7 +47,15 @@ def totals(conn: sqlite3.Connection, today: date) -> dict[str, int]:
     fortune_result = fortune.compute_fortune(conn, U, converter)
     rows, _ = today_data.collect_account_rows(conn, U, converter)
     fortune_base = sum(r.balance_base_minor for r in rows)
-    series = forecast.forecast(conn, U, converter, today, 0, include_budget_overlay=False)
+    series = forecast.forecast(
+        conn,
+        U,
+        converter,
+        today,
+        0,
+        include_budget_overlay=False,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     return {
         "fortune.net_base": fortune_result.net_base,
         "today_data.fortune_base": fortune_base,

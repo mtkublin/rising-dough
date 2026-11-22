@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Protocol
 
-from budget_planner.domain.fx import FxFetchError, NewFxRate, validate_rate
+from budget_planner.domain.fx import FxFetchError, FxRate, NewFxRate, validate_rate
 from budget_planner.domain.money import rescale_minor
 from budget_planner.domain.ports import RateSource
 from budget_planner.domain.transactions import Transaction
@@ -207,9 +207,9 @@ def has_rate_on(conn: sqlite3.Connection, base_currency: str, on_date: dt.date) 
     return fx_repo.any_rate_on(conn, on_date, base_currency)
 
 
-# T-Q241: routers reach persistence only through these service entry points
-# (ADR-0142). Plain bindings: behaviour, audit and soft-delete stay in the repository.
-list_recent_rates = fx_repo.list_recent
+def list_recent_rates(conn: sqlite3.Connection, *, limit: int = 50) -> list[FxRate]:
+    """Most recent cached rates, newest first."""
+    return fx_repo.list_recent(conn, limit=limit)
 
 
 __all__ = [

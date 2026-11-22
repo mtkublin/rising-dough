@@ -11,6 +11,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
@@ -106,7 +107,9 @@ def _plan_remaining(conn: sqlite3.Connection, world: dict[str, int], cat: str) -
 
 
 def _monthly(conn: sqlite3.Connection, months: int = 3) -> forecast_svc.MonthlySeries:
-    return forecast_svc.forecast_monthly(conn, USER_ID, _fx(conn), TODAY, months)
+    return forecast_svc.forecast_monthly(
+        conn, USER_ID, _fx(conn), TODAY, months, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
 
 
 def _row(series: forecast_svc.MonthlySeries, month: date) -> forecast_svc.MonthlyPoint:
@@ -227,7 +230,9 @@ def test_daily_eom_balance_counts_early_promoted_once(
 ) -> None:
     rid = _rule(conn, world, cat="salary", day=7, amount=SALARY)
     _promote_early(conn, rid)
-    daily = forecast_svc.forecast(conn, USER_ID, _fx(conn), TODAY, 30)
+    daily = forecast_svc.forecast(
+        conn, USER_ID, _fx(conn), TODAY, 30, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     by_date = {d.on_date: d.totals_base_minor for d in daily.days}
     # Promoted salary is already in the balance; 11-07 adds nothing.
     assert by_date[date(2026, 11, 8)] == by_date[TODAY] == SALARY

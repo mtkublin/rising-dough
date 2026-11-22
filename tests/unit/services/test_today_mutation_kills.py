@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.services import budget as budget_service, today as today_svc
 
 USER_ID = 7
@@ -56,7 +57,9 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
 
 
 def _afford(conn: sqlite3.Connection, amount: int) -> today_svc.AffordResult:
-    return today_svc.afford(conn, USER_ID, TODAY, amount, base_currency="PLN")
+    return today_svc.afford(
+        conn, USER_ID, TODAY, amount, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
 
 
 @pytest.mark.parametrize(

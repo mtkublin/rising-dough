@@ -11,6 +11,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
@@ -75,7 +76,13 @@ def _summary(
     conn: sqlite3.Connection, ym: tuple[int, int], user_id: int = OWNER
 ) -> budget.MonthSummary:
     return budget.month_summary(
-        conn, user_id, *ym, today=TODAY, base_currency="PLN", period_window=(date(*ym, 1), TODAY)
+        conn,
+        user_id,
+        *ym,
+        today=TODAY,
+        base_currency="PLN",
+        period_window=(date(*ym, 1), TODAY),
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
 
 
@@ -84,7 +91,11 @@ def test_past_month_keeps_the_budget_and_the_actual(conn: sqlite3.Connection) ->
     summary = _summary(conn, OCT)
     line = next(ln for ln in summary.lines if ln.category_id == cat)
     assert (line.budgeted_minor, summary.totals.budgeted_minor) == (BUDGET, BUDGET)
-    row = next(r for r in budget.yearly_grid(conn, OWNER, 2026) if r.category_id == cat)
+    row = next(
+        r
+        for r in budget.yearly_grid(conn, OWNER, 2026, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+        if r.category_id == cat
+    )
     assert [c.amount_minor for c in row.cells] == [BUDGET] * 10 + [None, None]
     assert row.total_minor == 10 * BUDGET
 
@@ -97,17 +108,34 @@ def test_archive_month_and_later_reserve_nothing(
     summary = _summary(conn, ym)
     assert cat not in {ln.category_id for ln in summary.lines}
     assert summary.totals.budgeted_minor == 0
-    assert budget_batch.budget_resolver(conn, OWNER)(cat, *ym) is None
-    assert budget_batch.budget_resolver(conn, OWNER)(cat, *OCT) == BUDGET
-    assert cat not in categories_svc.budgeted_expense_category_ids(conn, OWNER, *ym)
-    assert cat in categories_svc.budgeted_expense_category_ids(conn, OWNER, *OCT)
+    assert (
+        budget_batch.budget_resolver(conn, OWNER, display_timezone=DEFAULT_DISPLAY_TIMEZONE)(
+            cat, *ym
+        )
+        is None
+    )
+    assert (
+        budget_batch.budget_resolver(conn, OWNER, display_timezone=DEFAULT_DISPLAY_TIMEZONE)(
+            cat, *OCT
+        )
+        == BUDGET
+    )
+    assert cat not in categories_svc.budgeted_expense_category_ids(
+        conn, OWNER, *ym, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
+    assert cat in categories_svc.budgeted_expense_category_ids(
+        conn, OWNER, *OCT, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     # the actuals selector still lists it
     assert cat in categories_svc.expense_category_ids(conn, OWNER)
 
 
 def test_yearly_grid_drops_the_row_in_a_later_year(conn: sqlite3.Connection) -> None:
     _, cat = _seed(conn, OWNER)
-    assert cat not in {r.category_id for r in budget.yearly_grid(conn, OWNER, 2027)}
+    assert cat not in {
+        r.category_id
+        for r in budget.yearly_grid(conn, OWNER, 2027, display_timezone=DEFAULT_DISPLAY_TIMEZONE)
+    }
 
 
 def test_forecast_overlay_and_monthly_budget_add_zero_from_the_archive_month(
@@ -116,14 +144,28 @@ def test_forecast_overlay_and_monthly_budget_add_zero_from_the_archive_month(
     acct, _ = _seed(conn, OWNER)
     fx = _fx()
     events = forecast_overlay.collect_budget_overlay(
-        conn, OWNER, today=TODAY, end_date=date(2026, 12, 31), primary_account_id=acct, fx=fx
+        conn,
+        OWNER,
+        today=TODAY,
+        end_date=date(2026, 12, 31),
+        primary_account_id=acct,
+        fx=fx,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     assert events == []
-    planned = fc._planned_budget_per_month(conn, OWNER, TODAY, 2, fx=fx)
+    planned = fc._planned_budget_per_month(
+        conn, OWNER, TODAY, 2, fx=fx, display_timezone=DEFAULT_DISPLAY_TIMEZONE
+    )
     assert planned == {date(2026, 11, 1): 0, date(2026, 12, 1): 0}
     # the previous month (an anchor in the past) would still reserve it
     before = fc._planned_budget_per_month(
-        conn, OWNER, TODAY, 1, fx=fx, start_month=date(2026, 10, 1)
+        conn,
+        OWNER,
+        TODAY,
+        1,
+        fx=fx,
+        start_month=date(2026, 10, 1),
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
     )
     assert before == {date(2026, 10, 1): BUDGET - SPENT}
 
@@ -158,7 +200,15 @@ def test_actuals_still_count(conn: sqlite3.Connection) -> None:
     assert analytics.spend_total_minor(october) == SPENT
     november = analytics.bundle(conn, OWNER, fx, today=TODAY, period="month")
     assert analytics.spend_total_minor(november) == 700
-    series = fc.forecast(conn, OWNER, fx, TODAY, 0, include_budget_overlay=False)
+    series = fc.forecast(
+        conn,
+        OWNER,
+        fx,
+        TODAY,
+        0,
+        include_budget_overlay=False,
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
     assert series.days[0].totals_base_minor == 100_000 - SPENT - 700
 
 

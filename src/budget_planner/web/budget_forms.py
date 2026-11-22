@@ -8,12 +8,12 @@ from budget_planner.domain.budgets import (
     NewBudgetDefault,
     NewBudgetOneOffOverride,
     NewBudgetRecurringOverride,
+    valid_month,
 )
 from budget_planner.domain.money import parse_amount_minor
 from budget_planner.services.budget_rules import OverrideCommand
 from budget_planner.web.params import parse_int
 
-_MONTHS_IN_YEAR = 12
 _TIERS = frozenset({"recurring", "one-off", "default"})
 
 
@@ -29,10 +29,6 @@ def non_negative_amount(raw: str, currency: str) -> int | None:
     """Amount text to minor units; ``None`` when invalid or negative."""
     minor = parse_amount_minor(raw, currency)
     return None if minor is None or minor < 0 else minor
-
-
-def valid_month(month: int) -> bool:
-    return 1 <= month <= _MONTHS_IN_YEAR
 
 
 def parse_override(
