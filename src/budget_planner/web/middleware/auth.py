@@ -31,9 +31,9 @@ from typing import Final
 from urllib.parse import quote, urlsplit
 
 from starlette.concurrency import run_in_threadpool
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from budget_planner.config import Settings
 from budget_planner.logging import get_logger
@@ -44,10 +44,16 @@ from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
     LOGIN_PATH,
     clear_session_cookie,
-    response_sets_cookie,
     safe_next,
     session_cookie_name,
     set_session_cookie,
+)
+from budget_planner.web.middleware.asgi import (
+    RESPONSE_START,
+    add_cookie,
+    http_only,
+    set_state,
+    sets_cookie,
 )
 
 #: Paths reachable without a session (exact match).
@@ -156,54 +162,66 @@ def unauthenticated_response(request: Request) -> Response:
 
 
 async def _refresh_cookie(
-    response: Response, settings: Settings, session_id: str, expires_at: datetime | None
+    message: Message, settings: Settings, session_id: str, expires_at: datetime | None
 ) -> None:
-    """Slide or clear the session cookie after the handler ran.
+    """Slide or clear the session cookie on the response-start *message*.
 
     Sends nothing when the token was rotated or revoked while the request was in
     flight: the browser already holds the newer cookie (T-Q253, Q-062 H3-04).
     """
     if expires_at is None:
-        clear_session_cookie(response, settings)
+        add_cookie(message, lambda r: clear_session_cookie(r, settings))
     elif await run_in_threadpool(_is_live, settings, session_id):
-        set_session_cookie(response, settings, session_id, expires_at=expires_at)
+        add_cookie(
+            message,
+            lambda r: set_session_cookie(r, settings, session_id, expires_at=expires_at),
+        )
 
 
-class AuthRequiredMiddleware(BaseHTTPMiddleware):
+async def _authenticate(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
+    request = Request(scope, receive)
+    path = request.url.path
+    set_state(scope, user=None, session_id=None)
+    if path.startswith(STATIC_PREFIX):
+        await app(scope, receive, send)
+        return
+
+    settings: Settings = request.app.state.settings
+    cookie_name = session_cookie_name(settings)
+    session_id = request.cookies.get(cookie_name)
+    resolved = await run_in_threadpool(_resolve, settings, session_id) if session_id else None
+    user, expires_at = resolved if resolved is not None else (None, None)
+
+    if user is not None:
+        set_state(scope, user=user, session_id=session_id)
+    elif not is_exempt(path):
+        response = unauthenticated_response(request)
+        if session_id:
+            clear_session_cookie(response, settings)
+        await response(scope, receive, send)
+        return
+
+    if not session_id:
+        await app(scope, receive, send)
+        return
+
+    async def send_wrapper(message: Message) -> None:
+        if message["type"] == RESPONSE_START and not sets_cookie(message, cookie_name):
+            await _refresh_cookie(message, settings, session_id, expires_at)
+        await send(message)
+
+    await app(scope, receive, send_wrapper)
+
+
+def auth_required_middleware(app: ASGIApp) -> ASGIApp:
     """Hydrate ``request.state.user`` and gate protected routes."""
-
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        path = request.url.path
-        request.state.user = None
-        request.state.session_id = None
-        if path.startswith(STATIC_PREFIX):
-            return await call_next(request)
-
-        settings: Settings = request.app.state.settings
-        cookie_name = session_cookie_name(settings)
-        session_id = request.cookies.get(cookie_name)
-        resolved = await run_in_threadpool(_resolve, settings, session_id) if session_id else None
-        user, expires_at = resolved if resolved is not None else (None, None)
-
-        if user is not None:
-            request.state.user = user
-            request.state.session_id = session_id
-        elif not is_exempt(path):
-            response = unauthenticated_response(request)
-            if session_id:
-                clear_session_cookie(response, settings)
-            return response
-
-        response = await call_next(request)
-        if session_id and not response_sets_cookie(response, cookie_name):
-            await _refresh_cookie(response, settings, session_id, expires_at)
-        return response
+    return http_only(app, _authenticate)
 
 
 __all__ = [
     "EXEMPT_PATHS",
-    "AuthRequiredMiddleware",
     "CurrentUser",
+    "auth_required_middleware",
     "is_exempt",
     "unauthenticated_response",
 ]
