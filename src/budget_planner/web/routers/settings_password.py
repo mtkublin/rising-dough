@@ -18,12 +18,19 @@ from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.ports import PasswordHasher
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import password_change as password_service
 from budget_planner.services.rate_limit import RateDecision
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.auth_deps import password_change_rate_limit, throttled_json
-from budget_planner.web.deps import current_user, get_db, get_request_ctx, get_settings_dep
+from budget_planner.web.deps import (
+    current_user,
+    get_db,
+    get_password_hasher,
+    get_request_ctx,
+    get_settings_dep,
+)
 from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.password_flow import (
@@ -64,6 +71,7 @@ def change_password(
     settings: Settings = Depends(get_settings_dep),
     ctx: RequestCtx = Depends(get_request_ctx),
     user: CurrentUser = Depends(current_user),
+    hasher: PasswordHasher = Depends(get_password_hasher),
     limit: RateDecision = Depends(password_change_rate_limit),
 ) -> Response:
     """Rotate the signed-in user's password; other sessions are signed out."""
@@ -82,6 +90,7 @@ def change_password(
             new_password=new_password,
             confirm_password=confirm_password,
         ),
+        hasher=hasher,
         current_session_id=getattr(request.state, "session_id", None),
         request_ctx=ctx,
     )

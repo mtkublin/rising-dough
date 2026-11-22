@@ -23,7 +23,7 @@ from budget_planner.services import (
     balance as balance_service,
     reconciliation as reconciliation_service,
 )
-from budget_planner.web import accounts_data
+from budget_planner.web import accounts_data, form_responses
 from budget_planner.web.account_forms import (
     parse_account_patch,
     parse_category_id,
@@ -269,18 +269,11 @@ def reconcile_submit(
         return Response(status_code=404, content="not found")
     derived = balance_service.derive_balance(conn, user_id, account_id)
 
-    def reject_modal(message: str) -> Response:
-        return render(
-            request,
-            "partials/accounts/_reconcile_modal.html",
-            errors={"actual_balance": message},
-            status_code=422,
-            **accounts_data.reconcile_modal_context(conn, user_id, acc, derived),
-        )
-
     entered = parse_amount_minor(actual_balance, acc.currency)
     if entered is None:
-        return reject_modal("invalid number")
+        return form_responses.reconcile_modal_error(
+            request, conn, user_id, acc=acc, derived=derived, message="invalid number"
+        )
     try:
         reconcile_service.reconcile_account(
             conn,
@@ -295,7 +288,9 @@ def reconcile_submit(
         reconciliation_service.InvalidAvailableError,
         reconciliation_service.ValidationError,
     ) as exc:
-        return reject_modal(str(exc))
+        return form_responses.reconcile_modal_error(
+            request, conn, user_id, acc=acc, derived=derived, message=str(exc)
+        )
     html = render(
         request,
         "partials/accounts/_row.html",

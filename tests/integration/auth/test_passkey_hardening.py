@@ -13,6 +13,7 @@ from webauthn.helpers import bytes_to_base64url
 
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
 from budget_planner.services import auth
+from tests.auth_support import FAKE_HASHER
 from tests.integration.auth.conftest import PASSWORD
 
 pytestmark = pytest.mark.integration
@@ -141,7 +142,7 @@ def test_revoking_a_passkey_ends_only_its_sessions(
     via_revoked = _finish(conn, challenge=b"a1")
     via_other = _finish(conn, challenge=b"a2", raw_id=OTHER_ID)
     by_password = auth.authenticate_password(
-        conn, "alice@example.test", PASSWORD, ip=None, user_agent=None
+        conn, "alice@example.test", PASSWORD, ip=None, user_agent=None, hasher=FAKE_HASHER
     )
     bob_session = _finish(conn, challenge=b"b1", raw_id=BOB_ID)
     assert via_revoked and via_other and by_password and bob_session

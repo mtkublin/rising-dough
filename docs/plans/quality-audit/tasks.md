@@ -724,13 +724,14 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `size_complexity`:29 (19 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q270 [S] Decompose oversized functions in web routers
+### ✅ T-Q270 [S] Decompose oversized functions in web routers
 - Findings: Q-046 (B-09 router rows); epic E13.
 - Epic: E13
 - Band: 4 · Size: L · Tags: none
 - Depends on: T-Q242, T-Q262, T-Q265, T-Q266, T-Q267
 - Docs-first step: None; CHANGELOG line.
 - Acceptance: Failing guard first: `size_complexity.toml` entries under `web/routers/` except `recurring.py` (16 entries, 26 violations). Most disappear when T-Q265 to T-Q267 land; this task removes what remains (`plan()`, `budget.py`, `accounts.py`, `planned.py`, `transactions.py`, `settings.py`, `today.py`). Visual audit on affected routes.
+- Outcome (2026-11-22): most entries had already gone with T-Q265 to T-Q267; the last 6 violations (accounts 1, planned 3, transactions 2) are fixed by `web/form_responses.py` and deleted. `recurring.py` stays with its owner (T-Q288). `xenon --max-absolute C src` is wired (pre-commit hook, `just lint`, CI through pre-commit; ADR-0130 amendment 2026-11-22) and the whole tree passes. No template touched, no visual audit needed.
 - Operator question blocking it: none.
 - Removes allowlist entries: `size_complexity`:26 (16 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/size_complexity.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
@@ -918,7 +919,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q251 [P] Visual suite becomes a trustworthy check
+### ✅ T-Q251 [P] Visual suite becomes a trustworthy check
 - Findings: Q-061 (F-22).
 - Epic: none (test-gap)
 - Band: 5 · Size: M · Tags: none
@@ -1163,7 +1164,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q288 [S] Recurring undo is scoped to its own batch and clears the override link
+### ✅ T-Q288 [S] Recurring undo is scoped to its own batch and clears the override link
 - Findings: Q-024.
 - Epic: E02
 - Band: 3 · Size: S · Tags: none
@@ -1175,7 +1176,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14c.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q289 [M] CSRF token bound to the session
+### ✅ T-Q289 [M] CSRF token bound to the session
 - Findings: Q-066 (security hardening).
 - Epic: E06
 - Band: 3 · Size: M · Tags: none
@@ -1199,7 +1200,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b (new module and ops files; no allowlist TOML).
 - Done when: ADR written and indexed; guards stay green; the Acceptance above holds; any terraform/host change is a PR for the operator's approved apply; the CLAUDE.md handoff checklist is complete.
 
-### T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
+### ✅ T-Q291 [M] `PasswordHasher` port with a bcrypt adapter
 - Findings: Q-074.
 - Epic: E04
 - Band: 3 · Size: M · Tags: none
@@ -1210,6 +1211,18 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Removes allowlist entries: none (deletes any `_passwords` purity exception if one exists).
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+
+### ✅ T-Q295 [S] Pre-commit hook skips e2e; e2e runs once per wave, alone
+- Findings: none (operator decision 2026-11-22 18:00 and 18:05).
+- Epic: E04
+- Band: 3 · Size: S · Tags: none
+- Depends on: none
+- Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment 2026-11-22 and a cross-reference in [ADR-0097](../../adr/0097-per-batch-ci-policy-and-fast-precommit-pytest.md): the hook scope excludes `tests/e2e`; e2e runs after each orchestrator wave and before every PR, by the orchestrator alone; an agent that genuinely needs it pushes its `wi/**` branch and reads the `e2e.yml` run.
+- Acceptance: `just test-fast` and `just test-changed` pass `--ignore=tests/e2e` in testmon and full-suite modes; `just test`, `just ci` and `ci.yml` collect what they did before; `.github/workflows/e2e.yml` runs `tests/e2e` on `wi/**` pushes and `workflow_dispatch` in the pinned Playwright container; CLAUDE.md and the orchestrator skill state the cadence.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: 14b.
+- Done when: the Acceptance above holds and guards stay green.
 
 ### Third round (2026-11-22, answers to deferred Q39 to Q42)
 

@@ -1,9 +1,10 @@
 """Shared fixtures for visual-regression tests (ADR-0027 §4).
 
-The suite is opt-in: it is excluded from the default `pytest` run via the
-`-m "not visual"` default marker expression and from CI unless
-`CI_VISUAL=1`. The `just test-visual` recipe runs it; `just test-visual-update`
-regenerates baselines after an intentional design change.
+The suite is excluded from the default `pytest` run via the `-m "not visual"`
+default marker expression, so laptop runs never compare macOS rendering. It runs
+in `.github/workflows/visual.yml` and, locally, through `just visual` (pinned
+Playwright container, ADR-0027 amendment 2026-11-22, T-Q251). `just visual-update`
+regenerates the baselines inside the same container.
 """
 
 from __future__ import annotations
@@ -28,7 +29,8 @@ from tests.auth_support import issue_session, seed_login_user
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 
 VISUAL_ROOT = Path(__file__).parent
-BASELINES = VISUAL_ROOT / "baselines"
+# Linux baselines, generated only in the pinned Playwright container (ADR-0027, T-Q251).
+BASELINES = VISUAL_ROOT / "__snapshots__"
 REPO_ROOT = VISUAL_ROOT.parents[1]
 DEMO_DB = REPO_ROOT / "data" / "demo.sqlite"
 # demo.sqlite's newest transaction is 2026-10-31; pin the server clock there so
@@ -98,6 +100,24 @@ def scratch_db(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
     return path, session_id
 
 
+SERVER_READY_TIMEOUT_S = float(os.environ.get("VISUAL_SERVER_READY_TIMEOUT_S", "120"))
+
+
+def _wait_until_ready(url: str, proc: subprocess.Popen[bytes]) -> None:
+    """Poll ``url`` until it answers 200; fail fast if the server process died (T-Q248 pattern)."""
+    deadline = time.monotonic() + SERVER_READY_TIMEOUT_S
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(f"uvicorn exited with code {proc.returncode} before {url} was ready")
+        try:
+            if httpx.get(url, timeout=2).status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(0.2)
+    raise RuntimeError(f"uvicorn did not become ready at {url} within {SERVER_READY_TIMEOUT_S}s")
+
+
 @pytest.fixture(scope="session")
 def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
     """Boot uvicorn against a scratch copy of the demo DB for the session.
@@ -120,15 +140,7 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
     cmd = ["uv", "run", "python", "-m", "tests.visual.frozen_server", str(port)]
     with subprocess.Popen(cmd, env=env) as proc:  # noqa: S603 — fixed args, local loopback port
         try:
-            deadline = time.monotonic() + 45
-            while time.monotonic() < deadline:
-                try:
-                    if httpx.get(f"{base}/health", timeout=1).status_code == 200:
-                        break
-                except httpx.HTTPError:
-                    time.sleep(0.2)
-            else:
-                raise RuntimeError(f"uvicorn did not come up on {base}")
+            _wait_until_ready(f"{base}/health", proc)
             yield base
         finally:
             proc.terminate()

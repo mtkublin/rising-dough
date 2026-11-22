@@ -148,7 +148,7 @@ The principles below are **enforceable rules**, not guidance. Each has an automa
 
 ### 3.4 Pre-commit
 
-Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), `architecture-guards` (only if the always-on experiment shows a selection gap, ADR-0130; `lint-imports` and `architecture-guards` must be fast: T-Q15 measures local `pre-commit run` wall time before and after on a docs-only and a src-only change, and a guard with a meaningful regression runs in CI only), `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
+Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), `architecture-guards` (only if the always-on experiment shows a selection gap, ADR-0130; `lint-imports` and `architecture-guards` must be fast: T-Q15 measures local `pre-commit run` wall time before and after on a docs-only and a src-only change, and a guard with a meaningful regression runs in CI only), `pytest` (fast subset, testmon-selected, xdist; ADR-0108), `sqlfluff`, `djlint`, `stylelint`, `tailwind-check` (fails if `static/tailwind.css` is stale vs. content globs), `bandit`, `xenon` (`--max-absolute C`, ADR-0130 amendment 2026-11-22), `detect-secrets`, and the standard pre-commit stdlib hooks (trailing whitespace, EOF newline, large file check, yaml/toml validate). See [ADR-0027](adr/0027-frontend-toolchain-hardening.md) for the three new hooks.
 
 ### 3.5 Developer Experience
 
@@ -157,7 +157,7 @@ Hooks: `ruff`, `ruff-format`, `mypy`, `lint-imports` (import-linter contracts), 
 - `just css-watch` — watch mode for Tailwind, run alongside `just dev`.
 - `just test` — run the test suite with coverage.
 - `just test-visual` — run Playwright visual-regression snapshot tests (opt-in; not part of `just ci` by default).
-- `just test-visual-update` — regenerate visual-regression baselines after an intentional design change.
+- `just visual` / `just visual-update` — run / regenerate the visual-regression suite inside the pinned Playwright container (docker required; ADR-0027 amendment 2026-11-22).
 - `just lint` — run all linters.
 - `just format` — autofix formatting.
 - `just typecheck` — mypy strict.
@@ -180,7 +180,7 @@ Local setup runs both `uv sync` (Python) and `npm ci` (Node dev toolchain) throu
 - Setup steps: `actions/setup-python@v5` + `actions/setup-node@v4` + `npm ci`.
 - Runs `just ci` on push/PR.
 - Coverage uploaded as artifact.
-- Visual-regression suite (`just test-visual`) is **not** run in default CI; it is opt-in via `CI_VISUAL=1` on manual workflow dispatch. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
+- Visual-regression suite: `.github/workflows/visual.yml` runs it in a pinned Playwright container on PRs that change templates/CSS/static JS (required `visual-gate`, auto-satisfied otherwise), weekly and on `workflow_dispatch`; it is not part of `just ci` or default `pytest`. See [ADR-0027](adr/0027-frontend-toolchain-hardening.md).
 
 ### 3.7 Data Semantics
 

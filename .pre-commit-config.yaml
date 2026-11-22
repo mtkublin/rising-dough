@@ -76,6 +76,13 @@ repos:
         pass_filenames: false
         files: ^(src/.*\.py|pyproject\.toml)$
 
+      - id: xenon
+        name: xenon (cyclomatic complexity ceiling C, ADR-0130 amendment 2026-11-22)
+        entry: uv run --quiet xenon --max-absolute C src
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml|uv\.lock)$
+
       - id: detect-secrets
         name: Detect secrets
         entry: uv run --quiet detect-secrets-hook --baseline .secrets.baseline

@@ -24,7 +24,6 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories.users import UserNotFoundError
 from budget_planner.services import (
-    _passwords,
     audit,
     auth,
     password_change,
@@ -32,7 +31,7 @@ from budget_planner.services import (
     reauth,
     users,
 )
-from tests.auth_support import FakeTokenSource, issue_session, seed_login_user
+from tests.auth_support import FAKE_HASHER, FakeTokenSource, issue_session, seed_login_user
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import OTHER_ID, OWNER_ID, World
 
@@ -51,8 +50,20 @@ def _b64(raw: bytes) -> str:
 
 
 def _login_users(conn: sqlite3.Connection) -> None:
-    seed_login_user(conn, user_id=OWNER_ID, email="owner@example.test", password=OWNER_PASSWORD)
-    seed_login_user(conn, user_id=OTHER_ID, email="other@example.test", password=OTHER_PASSWORD)
+    seed_login_user(
+        conn,
+        user_id=OWNER_ID,
+        email="owner@example.test",
+        password=OWNER_PASSWORD,
+        hasher=FAKE_HASHER,
+    )
+    seed_login_user(
+        conn,
+        user_id=OTHER_ID,
+        email="other@example.test",
+        password=OTHER_PASSWORD,
+        hasher=FAKE_HASHER,
+    )
 
 
 def _credential(
@@ -201,14 +212,22 @@ def _case_register_passkey_finish(conn: sqlite3.Connection, world: World) -> Non
 @covers("reauth.verify_password_reauth")
 def _case_verify_password_reauth(conn: sqlite3.Connection, world: World) -> None:
     _login_users(conn)
-    assert reauth.verify_password_reauth(conn, OWNER_ID, OWNER_PASSWORD, ctx=CTX) is True
-    assert reauth.verify_password_reauth(conn, OTHER_ID, OTHER_PASSWORD, ctx=CTX) is True
     assert (
-        reauth.verify_password_reauth(conn, OTHER_ID, OWNER_PASSWORD, ctx=CTX) is False
+        reauth.verify_password_reauth(conn, OWNER_ID, OWNER_PASSWORD, ctx=CTX, hasher=FAKE_HASHER)
+        is True
+    )
+    assert (
+        reauth.verify_password_reauth(conn, OTHER_ID, OTHER_PASSWORD, ctx=CTX, hasher=FAKE_HASHER)
+        is True
+    )
+    assert (
+        reauth.verify_password_reauth(conn, OTHER_ID, OWNER_PASSWORD, ctx=CTX, hasher=FAKE_HASHER)
+        is False
     )  # the other account's password
     users.soft_delete_user(conn, OWNER_ID, OTHER_ID)
     assert (
-        reauth.verify_password_reauth(conn, OTHER_ID, OTHER_PASSWORD, ctx=CTX) is False
+        reauth.verify_password_reauth(conn, OTHER_ID, OTHER_PASSWORD, ctx=CTX, hasher=FAKE_HASHER)
+        is False
     )  # tombstoned user
     failures = _audit_events(conn, auth.AUTH_EVENT_ENTITY)
     assert failures == [
@@ -317,23 +336,38 @@ def _case_change_own_password(conn: sqlite3.Connection, world: World) -> None:
     # User 2 cannot rotate with user 1's password: failure, nothing written, user 1's hash untouched.
     owner_hash = _hash(conn, OWNER_ID)
     wrong = password_change.change_own_password(
-        conn, OTHER_ID, req, current_session_id=other_token, request_ctx=CTX
+        conn,
+        OTHER_ID,
+        req,
+        current_session_id=other_token,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert [e.field for e in wrong.errors] == ["current_password"]
     assert (_hash(conn, OWNER_ID), _hash(conn, OTHER_ID)) == (owner_hash, other_hash)
     outcome = password_change.change_own_password(
-        conn, OWNER_ID, req, current_session_id=owner_current, request_ctx=CTX
+        conn,
+        OWNER_ID,
+        req,
+        current_session_id=owner_current,
+        request_ctx=CTX,
+        hasher=FAKE_HASHER,
     )
     assert outcome.errors == ()
     assert outcome.revoked_sessions == 1  # only user 1's other session
     assert _hash(conn, OWNER_ID) != owner_hash
-    assert _passwords.verify_password(NEW_PASSWORD, _hash(conn, OWNER_ID))
+    assert FAKE_HASHER.verify(NEW_PASSWORD, _hash(conn, OWNER_ID))
     assert _hash(conn, OTHER_ID) == other_hash
     assert sessions_repo.get_session(conn, owner_old) is None
     assert sessions_repo.get_session(conn, other_token) is not None
     with pytest.raises(UserNotFoundError):
         password_change.change_own_password(
-            conn, 999, req, current_session_id=None, request_ctx=CTX
+            conn,
+            999,
+            req,
+            current_session_id=None,
+            request_ctx=CTX,
+            hasher=FAKE_HASHER,
         )
 
 
@@ -374,14 +408,16 @@ def _case_reset_password(conn: sqlite3.Connection, world: World) -> None:
     owner_hash = _hash(conn, OWNER_ID)
     other_token = issue_session(conn, user_id=OTHER_ID)
     owner_token = issue_session(conn, user_id=OWNER_ID)
-    user, plaintext = users.reset_password(conn, OWNER_ID, OTHER_ID, tokens=FakeTokenSource())
+    user, plaintext = users.reset_password(
+        conn, OWNER_ID, OTHER_ID, tokens=FakeTokenSource(), hasher=FAKE_HASHER
+    )
     assert user.id == OTHER_ID
-    assert _passwords.verify_password(plaintext, _hash(conn, OTHER_ID))
+    assert FAKE_HASHER.verify(plaintext, _hash(conn, OTHER_ID))
     assert _hash(conn, OWNER_ID) == owner_hash
     assert sessions_repo.get_session(conn, other_token) is None  # target's sessions revoked
     assert sessions_repo.get_session(conn, owner_token) is not None
     with pytest.raises(users.UserNotFound):
-        users.reset_password(conn, OWNER_ID, 999, tokens=FakeTokenSource())
+        users.reset_password(conn, OWNER_ID, 999, tokens=FakeTokenSource(), hasher=FAKE_HASHER)
 
 
 @covers("users.set_user_password")
@@ -392,15 +428,17 @@ def _case_set_user_password(conn: sqlite3.Connection, world: World) -> None:
         conn,
         OTHER_ID,
         change=users.PasswordChange(password=OPERATOR_PASSWORD, must_change_password=True),
+        hasher=FAKE_HASHER,
     )
     assert (user.id, user.must_change_password) == (OTHER_ID, True)
-    assert _passwords.verify_password(OPERATOR_PASSWORD, _hash(conn, OTHER_ID))
+    assert FAKE_HASHER.verify(OPERATOR_PASSWORD, _hash(conn, OTHER_ID))
     assert _hash(conn, OWNER_ID) == owner_hash
     with pytest.raises(UserNotFoundError):
         users.set_user_password(
             conn,
             999,
             change=users.PasswordChange(password=OPERATOR_PASSWORD, must_change_password=True),
+            hasher=FAKE_HASHER,
         )
 
 

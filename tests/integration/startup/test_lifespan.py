@@ -18,8 +18,10 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
-from budget_planner.services import _passwords, users as users_service
+from budget_planner.domain.ports import PasswordHasher
+from budget_planner.services import users as users_service
 from budget_planner.web.app import create_app
+from tests.auth_support import FAST_HASHER
 
 ADMIN_EMAIL = "ops@example.test"
 ADMIN_PASSWORD = "lifespan-Init1al!"  # noqa: S105  # pragma: allowlist secret
@@ -83,10 +85,13 @@ def test_lifespan_calls_bootstrap_exactly_once(
     real = users_service.bootstrap_admin_at_startup
 
     def _spy(
-        cfg: Settings, *, connect: Callable[[Settings], sqlite3.Connection]
+        cfg: Settings,
+        *,
+        connect: Callable[[Settings], sqlite3.Connection],
+        hasher: PasswordHasher,
     ) -> users_service.BootstrapOutcome:
         calls.append(cfg)
-        return real(cfg, connect=connect)
+        return real(cfg, connect=connect, hasher=hasher)
 
     monkeypatch.setattr(users_service, "bootstrap_admin_at_startup", _spy)
     cfg = _settings(_migrated_url(tmp_path), "test")
@@ -106,7 +111,7 @@ def test_lifespan_bootstraps_admin_from_env(tmp_path: Path) -> None:
 
     admins = _admins(url)
     assert [(r["email"], r["must_change_password"]) for r in admins] == [(ADMIN_EMAIL, 1)]
-    assert _passwords.verify_password(ADMIN_PASSWORD, admins[0]["password_hash"])
+    assert FAST_HASHER.verify(ADMIN_PASSWORD, admins[0]["password_hash"])
 
 
 def test_lifespan_exits_when_no_admin_and_env_missing(tmp_path: Path) -> None:
@@ -147,7 +152,8 @@ def test_uvicorn_process_exits_non_zero_without_admin_env(tmp_path: Path) -> Non
     env = {
         k: v
         for k, v in os.environ.items()
-        if not k.startswith("BUDGET_PLANNER_ADMIN_") and k != "BUDGET_DATABASE_URL"
+        if not k.startswith("BUDGET_PLANNER_ADMIN_")
+        and k not in {"BUDGET_DATABASE_URL", "BUDGET_BCRYPT_ROUNDS"}
     }
     env.update(
         {

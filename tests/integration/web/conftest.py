@@ -63,6 +63,9 @@ class _CSRFAwareTestClient(TestClient):
 
     def request(self, method: str, url: Any, *args: Any, **kwargs: Any) -> Any:
         if method.upper() in _UNSAFE_METHODS:
+            # The token is session-bound (T-Q289): re-prime so it matches the
+            # cookies the jar holds now (a session cookie set after the first prime).
+            super().request("GET", "/health")
             token = self.cookies.get(CSRF_COOKIE_NAME)
             if token:
                 headers = dict(kwargs.get("headers") or {})
