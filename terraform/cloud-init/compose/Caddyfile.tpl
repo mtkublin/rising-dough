@@ -52,8 +52,8 @@ ${hostname} {
             @html header Content-Type text/html*
             handle_response @html {
                 # T-Q254 / ADR-0036 addendum: second layer, non-fetch directives only. The app
-                # sends the full nonce CSP; two CSP headers intersect, so no default-src /
-                # script-src here (a different nonce would block the app's inline scripts).
+                # sends the full nonce CSP; two CSP headers intersect, so no fetch directives
+                # (default or script sources) here (a different nonce would block the app's inline scripts).
                 header Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
                 copy_response
             }

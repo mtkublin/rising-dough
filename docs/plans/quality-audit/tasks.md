@@ -976,6 +976,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Docs-first step: ADR amendment (ADR-0036/0072): CSP emitted by `SecurityHeadersMiddleware` with an app-generated nonce and Caddy as second layer; `BUDGET_TRUSTED_HOSTS` enforced; `/docs`, `/openapi.json`, `/dev/components` off in production (OQ-20).
 - Acceptance: failing tests first (forced 500 asserts all headers and no-store; client-supplied nonce ignored; non-allowed Host rejected; `/docs` returns 404 in production); then an outermost pure-ASGI middleware, nonce generation, `TrustedHostMiddleware`, `docs_url=None`, conditional `dev_components`, and removal of the dead `csrf_token` and `csp_nonce` stubs; log redaction covers exception text.
 - Operator question blocking it: OQ-20.
+- Outcome 2026-11-22: fixup T-Q254b: template comment tripped the terraform test; caught by drill gate because the terraform PR workflow sits in action_required.
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
