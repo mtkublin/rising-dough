@@ -34,6 +34,7 @@ from budget_planner.services import (
     upcoming as upcoming_svc,
 )
 from budget_planner.services._promotion import ValidationError
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.ui_map import _html, ledger
 
 USER_ID = 1
@@ -105,7 +106,18 @@ class TestComputeFormulaAmount:
         )
         formula = _formula(("+", 1200, (income_a, income_b)))  # 12 % of total income
         # 12 % of 15 000.00 = 1 800.00 → 180_000 minor
-        assert formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 1) == 180_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn,
+                USER_ID,
+                formula,
+                2026,
+                1,
+                fx=formula_fx_of(conn, USER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 180_000
+        )
 
     def test_multi_term_mixed_sign(
         self,
@@ -132,7 +144,18 @@ class TestComputeFormulaAmount:
             ("-", 4000, (expense_deductible,)),  # -40% x 1 000.00 = -400.00
         )
         # 120 000 - 40 000 = 80 000 minor
-        assert formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 1) == 80_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn,
+                USER_ID,
+                formula,
+                2026,
+                1,
+                fx=formula_fx_of(conn, USER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 80_000
+        )
 
 
 class TestRepositoryRoundTrip:
@@ -194,7 +217,16 @@ class TestChaining:
         # Tax resolves to 12% x 10 000.00 = 1 200.00 → 120 000 minor.
         # Surcharge = 10% x 1 200.00 = 120.00 → 12 000 minor.
         assert (
-            formula_svc.compute_formula_amount(conn, USER_ID, surcharge_formula, 2026, 1) == 12_000
+            formula_svc.compute_formula_amount(
+                conn,
+                USER_ID,
+                surcharge_formula,
+                2026,
+                1,
+                fx=formula_fx_of(conn, USER_ID),
+                target_ccy=TARGET_CCY,
+            )
+            == 12_000
         )
 
     def test_diamond_dependency_memoised(  # noqa: PLR0917
@@ -234,7 +266,12 @@ class TestChaining:
         )
         # F3 = tax + surcharge → 1 200.00 + 500.00 = 1 700.00 → 170 000 minor
         f3 = _formula(("+", 10_000, (expense_tax, expense_surcharge)))
-        assert formula_svc.compute_formula_amount(conn, USER_ID, f3, 2026, 1) == 170_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn, USER_ID, f3, 2026, 1, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+            )
+            == 170_000
+        )
 
     def test_yearly_formula_source_contributes_only_in_payout_month(
         self,
@@ -275,12 +312,27 @@ class TestChaining:
         tax = _formula(("+", 1200, (income_a,)))
 
         # January: only salary → 12 % x 10 000.00 = 1 200.00 → 120 000 minor.
-        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 1) == 120_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn, USER_ID, tax, 2026, 1, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+            )
+            == 120_000
+        )
         # February: still only salary.
-        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 2) == 120_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn, USER_ID, tax, 2026, 2, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+            )
+            == 120_000
+        )
         # March: salary + bonus (bonus = 5 % x 10 000.00 = 500.00 → 50 000
         # minor). Tax = 12 % x (10 000.00 + 500.00) = 1 260.00 → 126 000.
-        assert formula_svc.compute_formula_amount(conn, USER_ID, tax, 2026, 3) == 126_000
+        assert (
+            formula_svc.compute_formula_amount(
+                conn, USER_ID, tax, 2026, 3, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+            )
+            == 126_000
+        )
 
 
 class TestValidateFormulaSourcesCycle:
@@ -362,19 +414,27 @@ class TestOverrideSoftConsume:
         )
         formula = _formula(("+", 1200, (income_a,)))
 
-        pre = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 5)
+        pre = formula_svc.compute_formula_amount(
+            conn, USER_ID, formula, 2026, 5, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+        )
         assert pre == 144_000  # 12 % x 12 000.00
 
-        b_txn = recurring_svc.promote_recurring(conn, USER_ID, b_id, recurring_svc.PromotionEdits())
+        b_txn = recurring_svc.promote_recurring(
+            conn, USER_ID, b_id, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
         assert b_txn.amount == 12_000_00
         assert recurring_repo.list_overrides(conn, USER_ID, b_id) == []
         historical = recurring_repo.list_overrides_all(conn, USER_ID, b_id)
         assert len(historical) == 1
         assert historical[0].promoted_to_txn_id == b_txn.id
 
-        post = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 5)
+        post = formula_svc.compute_formula_amount(
+            conn, USER_ID, formula, 2026, 5, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+        )
         assert post == 144_000
-        june = formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 6)
+        june = formula_svc.compute_formula_amount(
+            conn, USER_ID, formula, 2026, 6, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+        )
         assert june == 120_000  # back to default
 
 
@@ -400,7 +460,9 @@ class TestPromoteRecurring:
             start_date=date(2026, 2, 15),
             amount_formula=_formula(("+", 1200, (income_a,))),
         )
-        txn = recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
+        txn = recurring_svc.promote_recurring(
+            conn, USER_ID, tax_id, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
         assert txn.amount == 120_000  # 12 % x 10 000.00
 
     def test_non_positive_formula_rejected_at_promote(  # noqa: PLR0917
@@ -436,7 +498,13 @@ class TestPromoteRecurring:
             ),
         )
         with pytest.raises(ValidationError):
-            recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
+            recurring_svc.promote_recurring(
+                conn,
+                USER_ID,
+                tax_id,
+                recurring_svc.PromotionEdits(),
+                fx=formula_fx_of(conn, USER_ID),
+            )
 
     def test_explicit_amount_bypasses_non_positive_guard(  # noqa: PLR0917
         self,
@@ -471,7 +539,11 @@ class TestPromoteRecurring:
         )
         # Explicit edit overrides the guard — user accepts responsibility.
         txn = recurring_svc.promote_recurring(
-            conn, USER_ID, tax_id, recurring_svc.PromotionEdits(amount_minor=100_00)
+            conn,
+            USER_ID,
+            tax_id,
+            recurring_svc.PromotionEdits(amount_minor=100_00),
+            fx=formula_fx_of(conn, USER_ID),
         )
         assert txn.amount == 100_00
 
@@ -581,7 +653,9 @@ class TestFormulaSourceOverrides:
 
     @staticmethod
     def _compute(conn: sqlite3.Connection, formula: AmountFormula) -> int:
-        return formula_svc.compute_formula_amount(conn, USER_ID, formula, 2026, 11)
+        return formula_svc.compute_formula_amount(
+            conn, USER_ID, formula, 2026, 11, fx=formula_fx_of(conn, USER_ID), target_ccy=TARGET_CCY
+        )
 
     def _setup(
         self,
@@ -624,7 +698,9 @@ class TestFormulaSourceOverrides:
         tax_id = self._setup(make_rule, account_id, income_a, expense_tax)
         parent = _formula(("+", 10_000, (expense_tax,)))
         self._override(conn, tax_id, 700_00)
-        recurring_svc.promote_recurring(conn, USER_ID, tax_id, recurring_svc.PromotionEdits())
+        recurring_svc.promote_recurring(
+            conn, USER_ID, tax_id, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+        )
         assert self._compute(conn, parent) == 700_00
 
     def test_skipped_formula_source_contributes_zero(
@@ -749,14 +825,21 @@ class TestFormulaSourceOverrides:
         for rid, amt in ((w, 12_000_00), (wv, 6_000_00), (p1, 700_00), (p2, 300_00)):
             self._override(conn, rid, amt)
         for rid in (w, wv):
-            recurring_svc.promote_recurring(conn, USER_ID, rid, recurring_svc.PromotionEdits())
+            recurring_svc.promote_recurring(
+                conn, USER_ID, rid, recurring_svc.PromotionEdits(), fx=formula_fx_of(conn, USER_ID)
+            )
 
         expected = (12_000 + 6_000 - 700 - 300) * 100
         assert self._compute(conn, parent_formula) == expected
 
         rule = recurring_repo.find_rule(conn, USER_ID, parent)
         assert rule is not None
-        assert formula_svc.resolve_rule_amount(conn, USER_ID, rule, NOV) == expected
+        assert (
+            formula_svc.resolve_rule_amount(
+                conn, USER_ID, rule, NOV, fx=formula_fx_of(conn, USER_ID)
+            )
+            == expected
+        )
         occs = formula_svc.rt_expand(
             conn,
             USER_ID,
@@ -764,14 +847,17 @@ class TestFormulaSourceOverrides:
             overrides=recurring_repo.list_overrides_all(conn, USER_ID, parent),
             range_start=NOV,
             range_end=date(2026, 11, 30),
+            fx=formula_fx_of(conn, USER_ID),
         )
         assert [o.amount for o in occs] == [expected]
         # Upcoming resolves the amount through the same entry point.
         item = next(
             i
-            for i in upcoming_svc.list_upcoming(conn, USER_ID, today=NOV, window_days=None)
+            for i in upcoming_svc.list_upcoming(
+                conn, USER_ID, today=NOV, window_days=None, fx=formula_fx_of(conn, USER_ID)
+            )
             if i.rule_id == parent
         )
         assert item.amount_minor == formula_svc.resolve_rule_amount(
-            conn, USER_ID, rule, item.effective_date
+            conn, USER_ID, rule, item.effective_date, fx=formula_fx_of(conn, USER_ID)
         )

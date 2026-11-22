@@ -26,6 +26,7 @@ from budget_planner.repositories import accounts, categories, planned, recurring
 from budget_planner.repositories._unaudited import set_next_due
 from budget_planner.services import forecast as forecast_svc, fx as fx_svc
 from budget_planner.services.recurring import PromotionEdits, promote_recurring
+from tests.formula_fx_support import formula_fx_of
 
 USER_ID = 1
 TODAY = date(2026, 11, 6)
@@ -81,7 +82,13 @@ def _rule(
 
 
 def _promote_early(conn: sqlite3.Connection, rule_id: int) -> None:
-    promote_recurring(conn, USER_ID, rule_id, PromotionEdits(operation_date=TODAY))
+    promote_recurring(
+        conn,
+        USER_ID,
+        rule_id,
+        PromotionEdits(operation_date=TODAY),
+        fx=formula_fx_of(conn, USER_ID),
+    )
 
 
 def _plan_remaining(conn: sqlite3.Connection, world: dict[str, int], cat: str) -> None:
@@ -150,7 +157,13 @@ def test_unpromoted_rule_still_projected(conn: sqlite3.Connection, world: dict[s
 
 def test_on_time_promotion_matches_early(conn: sqlite3.Connection, world: dict[str, int]) -> None:
     rid = _rule(conn, world, cat="salary", day=5, amount=SALARY)
-    promote_recurring(conn, USER_ID, rid, PromotionEdits(operation_date=date(2026, 11, 5)))
+    promote_recurring(
+        conn,
+        USER_ID,
+        rid,
+        PromotionEdits(operation_date=date(2026, 11, 5)),
+        fx=formula_fx_of(conn, USER_ID),
+    )
     series = _monthly(conn)
     assert _row(series, NOV).income_base_minor == 0
     assert _row(series, DEC).income_base_minor == SALARY

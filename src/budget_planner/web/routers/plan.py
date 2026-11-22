@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from budget_planner.web import charts, plan_data, view_models
+from budget_planner.web import charts, plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.rendering import render
 
@@ -45,12 +45,10 @@ def plan(
     )
     ctx: dict[str, Any] = plan_data.base_context(tab_norm, today_d, settings.base_currency, picked)
     if tab_norm == "budget":
-        summary = budget_service.month_summary_for_picker(
-            conn, user_id, picked, today_d, base_currency=settings.base_currency
-        )
-        ctx["budget"] = view_models.budget_view(summary, today_d)
+        ctx["budget"] = plan_data.budget_view_for(conn, user_id, picked, today_d, settings)
     elif tab_norm == "year":
-        ctx.update(plan_data.year_context(conn, user_id, today_d, request.query_params.get("year")))
+        year_raw = request.query_params.get("year")
+        ctx.update(plan_data.year_context(conn, user_id, today_d, year_raw, settings=settings))
     elif tab_norm == "forecast":
         horizon = forecast_service.normalize_horizon(
             request.query_params.get("horizon"), _FORECAST_HORIZON_CHOICES

@@ -77,7 +77,7 @@ def export_csv(
     writer.writerow(col.header for col in columns)
     for row in rows:
         writer.writerow(_format_csv_cell(_lookup(row, col), col) for col in columns)
-    return buf.getvalue().encode("utf-8")
+    return buf.getvalue().encode()
 
 
 _DTYPES: Mapping[ColumnKind, Any] = MappingProxyType(

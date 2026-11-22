@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from budget_planner.config import get_settings
+from budget_planner.config import DEFAULT_BASE_CURRENCY, get_settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.domain.accounts import NewAccount
@@ -30,7 +30,7 @@ def _seed_demo_accounts(conn: sqlite3.Connection) -> None:
             user_id,
             NewAccount(
                 name="Bank (PLN)",
-                currency="PLN",
+                currency=DEFAULT_BASE_CURRENCY,
                 opening_balance=5_000_000,
                 type="bank",
             ),
@@ -41,7 +41,7 @@ def _seed_demo_accounts(conn: sqlite3.Connection) -> None:
             user_id,
             NewAccount(
                 name="Visa (PLN)",
-                currency="PLN",
+                currency=DEFAULT_BASE_CURRENCY,
                 opening_balance=0,
                 type="credit_card",
                 is_liability=True,

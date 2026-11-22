@@ -357,7 +357,7 @@ def test_yearly_grid_unset_cells_do_not_add_to_total(
 def test_yearly_grid_omits_soft_deleted_category(
     conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
-    names = [r.category_name for r in budget.yearly_grid(conn, OWNER_ID, 2026)]
+    names = [r.category_name for r in budget.yearly_grid(conn, OWNER_ID, 2099)]
     assert "dead-category" not in names
     assert "cat-1" in names
 

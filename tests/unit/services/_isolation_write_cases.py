@@ -39,6 +39,7 @@ from budget_planner.services import (
     recurring_undo,
     transactions as transactions_service,
 )
+from tests.formula_fx_support import TARGET_CCY, formula_fx_of
 from tests.unit.services._isolation_registry import covers
 from tests.unit.services.conftest import (
     EXPENSE_RULE_DUE,
@@ -191,6 +192,7 @@ def _case_pending_occurrences(conn: sqlite3.Connection, world: World) -> None:
             today=T,
             include_overdue=False,
             category_ids=(rows.category_id,),
+            fx=formula_fx_of(conn, user_id),
         )
         rule_items = [i for i in items if i.kind == "recurring"]
         assert [(i.occurrence_date, i.amount, i.account_id) for i in rule_items] == [
@@ -202,7 +204,13 @@ def _case_pending_occurrences(conn: sqlite3.Connection, world: World) -> None:
     assert not [
         i
         for i in recurring.pending_occurrences(
-            conn, OWNER_ID, start=window[0], end=window[1], today=T, include_overdue=False
+            conn,
+            OWNER_ID,
+            start=window[0],
+            end=window[1],
+            today=T,
+            include_overdue=False,
+            fx=formula_fx_of(conn, OWNER_ID),
         )
         if i.rule_id == inactive.id
     ]  # inactive rules expand to nothing
@@ -251,13 +259,29 @@ def _case_promote_recurring(conn: sqlite3.Connection, world: World) -> None:
     assert world.tombstones is not None
     edits = recurring.PromotionEdits()
     with pytest.raises(recurring.RecurringNotFoundError):
-        recurring.promote_recurring(conn, OTHER_ID, world.owner.rule_id, edits)
+        recurring.promote_recurring(
+            conn, OTHER_ID, world.owner.rule_id, edits, fx=formula_fx_of(conn, OTHER_ID)
+        )
     with pytest.raises(recurring.RecurringNotFoundError):  # soft-deleted rule
-        recurring.promote_recurring(conn, OWNER_ID, world.tombstones.deleted_rule_id, edits)
+        recurring.promote_recurring(
+            conn,
+            OWNER_ID,
+            world.tombstones.deleted_rule_id,
+            edits,
+            fx=formula_fx_of(conn, OWNER_ID),
+        )
     with pytest.raises(recurring.InactiveRecurringError):
-        recurring.promote_recurring(conn, OWNER_ID, world.tombstones.inactive_rule_id, edits)
+        recurring.promote_recurring(
+            conn,
+            OWNER_ID,
+            world.tombstones.inactive_rule_id,
+            edits,
+            fx=formula_fx_of(conn, OWNER_ID),
+        )
     assert _rule(conn, OWNER_ID, world.owner.rule_id).next_due == EXPENSE_RULE_DUE  # nothing moved
-    txn = recurring.promote_recurring(conn, OWNER_ID, world.owner.rule_id, edits)
+    txn = recurring.promote_recurring(
+        conn, OWNER_ID, world.owner.rule_id, edits, fx=formula_fx_of(conn, OWNER_ID)
+    )
     assert (txn.amount, txn.operation_date, txn.account_id) == (
         700,
         EXPENSE_RULE_DUE,
@@ -281,7 +305,9 @@ def _case_skip_and_advance(conn: sqlite3.Connection, world: World) -> None:
 @covers("recurring.batch_promote_due")
 def _case_recurring_batch_promote_due(conn: sqlite3.Connection, world: World) -> None:
     before_other = _count_txns(conn, OTHER_ID)
-    result = recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
+    result = recurring.batch_promote_due(
+        conn, OWNER_ID, PROMOTE_DAY, fx=formula_fx_of(conn, OWNER_ID)
+    )
     # Only the owner's live, active, due rule: not the income rule (due 12-01), the inactive or deleted rules, or user 2's.
     assert result.advanced_rule_ids == (world.owner.rule_id,)
     assert len(result.promoted_txn_ids) == 1
@@ -295,8 +321,12 @@ def _case_recurring_batch_promote_due(conn: sqlite3.Connection, world: World) ->
 
 @covers("recurring_undo.undo_batch")
 def _case_recurring_undo_batch(conn: sqlite3.Connection, world: World) -> None:
-    mine = recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
-    theirs = recurring.batch_promote_due(conn, OTHER_ID, PROMOTE_DAY)
+    mine = recurring.batch_promote_due(
+        conn, OWNER_ID, PROMOTE_DAY, fx=formula_fx_of(conn, OWNER_ID)
+    )
+    theirs = recurring.batch_promote_due(
+        conn, OTHER_ID, PROMOTE_DAY, fx=formula_fx_of(conn, OTHER_ID)
+    )
     advanced_other = _rule(conn, OTHER_ID, world.other.rule_id).next_due
     other_txns = _count_txns(conn, OTHER_ID)
     assert advanced_other != EXPENSE_RULE_DUE
@@ -318,7 +348,7 @@ def _case_recurring_undo_batch(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("recurring.restore_progress")
 def _case_recurring_restore_progress(conn: sqlite3.Connection, world: World) -> None:
-    recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY)
+    recurring.batch_promote_due(conn, OWNER_ID, PROMOTE_DAY, fx=formula_fx_of(conn, OWNER_ID))
     advanced = _rule(conn, OWNER_ID, world.owner.rule_id).next_due
     prev = {"next_due": EXPENSE_RULE_DUE.isoformat(), "last_promoted_date": None, "active": True}
     recurring.restore_progress(conn, OTHER_ID, world.owner.rule_id, prev)  # not user 2's rule
@@ -413,27 +443,81 @@ _DEC = dt.date(2026, 12, 10)
 @covers("recurring_formula.compute_formula_amount")
 def _case_compute_formula_amount(conn: sqlite3.Connection, world: World) -> None:
     formula = _income_formula(world.owner.income_category_id)
-    assert formula_svc.compute_formula_amount(conn, OWNER_ID, formula, 2026, 12) == 5_000
     assert (
-        formula_svc.compute_formula_amount(conn, OWNER_ID, formula, 2026, 11) == 0
+        formula_svc.compute_formula_amount(
+            conn,
+            OWNER_ID,
+            formula,
+            2026,
+            12,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        )
+        == 5_000
+    )
+    assert (
+        formula_svc.compute_formula_amount(
+            conn,
+            OWNER_ID,
+            formula,
+            2026,
+            11,
+            fx=formula_fx_of(conn, OWNER_ID),
+            target_ccy=TARGET_CCY,
+        )
+        == 0
     )  # no occurrence yet
     assert (
-        formula_svc.compute_formula_amount(conn, OTHER_ID, formula, 2026, 12) == 0
+        formula_svc.compute_formula_amount(
+            conn,
+            OTHER_ID,
+            formula,
+            2026,
+            12,
+            fx=formula_fx_of(conn, OTHER_ID),
+            target_ccy=TARGET_CCY,
+        )
+        == 0
     )  # not user 2's category
     other = _income_formula(world.other.income_category_id)
-    assert formula_svc.compute_formula_amount(conn, OTHER_ID, other, 2026, 12) == 10_000
-    assert formula_svc.compute_formula_amount(conn, OWNER_ID, other, 2026, 12) == 0
+    assert (
+        formula_svc.compute_formula_amount(
+            conn, OTHER_ID, other, 2026, 12, fx=formula_fx_of(conn, OTHER_ID), target_ccy=TARGET_CCY
+        )
+        == 10_000
+    )
+    assert (
+        formula_svc.compute_formula_amount(
+            conn, OWNER_ID, other, 2026, 12, fx=formula_fx_of(conn, OWNER_ID), target_ccy=TARGET_CCY
+        )
+        == 0
+    )
 
 
 @covers("recurring_formula.resolve_rule_amount")
 def _case_resolve_rule_amount(conn: sqlite3.Connection, world: World) -> None:
     fixed = _rule(conn, OWNER_ID, world.owner.rule_id)
-    assert formula_svc.resolve_rule_amount(conn, OWNER_ID, fixed, _DEC) == 700
+    assert (
+        formula_svc.resolve_rule_amount(
+            conn, OWNER_ID, fixed, _DEC, fx=formula_fx_of(conn, OWNER_ID)
+        )
+        == 700
+    )
     with_formula = dataclasses.replace(
         fixed, amount_formula=_income_formula(world.owner.income_category_id)
     )
-    assert formula_svc.resolve_rule_amount(conn, OWNER_ID, with_formula, _DEC) == 5_000
-    assert formula_svc.resolve_rule_amount(conn, OTHER_ID, with_formula, _DEC) == 0
+    assert (
+        formula_svc.resolve_rule_amount(
+            conn, OWNER_ID, with_formula, _DEC, fx=formula_fx_of(conn, OWNER_ID)
+        )
+        == 5_000
+    )
+    assert (
+        formula_svc.resolve_rule_amount(
+            conn, OTHER_ID, with_formula, _DEC, fx=formula_fx_of(conn, OTHER_ID)
+        )
+        == 0
+    )
 
 
 @covers("recurring_formula.rt_expand")
@@ -444,17 +528,35 @@ def _case_rt_expand(conn: sqlite3.Connection, world: World) -> None:
     )
     window = (dt.date(2026, 12, 1), dt.date(2026, 12, 31))
     owner = formula_svc.rt_expand(
-        conn, OWNER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+        conn,
+        OWNER_ID,
+        rule=with_formula,
+        overrides=[],
+        range_start=window[0],
+        range_end=window[1],
+        fx=formula_fx_of(conn, OWNER_ID),
     )
     assert [(o.occurrence_date, o.amount) for o in owner] == [(dt.date(2026, 12, 15), 5_000)]
     other = formula_svc.rt_expand(
-        conn, OTHER_ID, rule=with_formula, overrides=[], range_start=window[0], range_end=window[1]
+        conn,
+        OTHER_ID,
+        rule=with_formula,
+        overrides=[],
+        range_start=window[0],
+        range_end=window[1],
+        fx=formula_fx_of(conn, OTHER_ID),
     )
     assert [(o.occurrence_date, o.amount) for o in other] == [(dt.date(2026, 12, 15), 0)]
     assert [
         o.amount
         for o in formula_svc.rt_expand(
-            conn, OWNER_ID, rule=fixed, overrides=[], range_start=window[0], range_end=window[1]
+            conn,
+            OWNER_ID,
+            rule=fixed,
+            overrides=[],
+            range_start=window[0],
+            range_end=window[1],
+            fx=formula_fx_of(conn, OWNER_ID),
         )
     ] == [700]
 
@@ -483,10 +585,24 @@ def _case_validate_formula_sources(conn: sqlite3.Connection, world: World) -> No
 @covers("recurring_formula.preview")
 def _case_preview(conn: sqlite3.Connection, world: World) -> None:
     owner_terms = [formula_svc.DraftTerm("+", "100", (world.owner.income_category_id,))]
-    assert formula_svc.preview(conn, OWNER_ID, _DEC, None, owner_terms) == formula_svc.PreviewOk(
-        amount_minor=5_000
+    assert formula_svc.preview(
+        conn,
+        OWNER_ID,
+        _DEC,
+        None,
+        owner_terms,
+        fx=formula_fx_of(conn, OWNER_ID),
+        target_ccy=TARGET_CCY,
+    ) == formula_svc.PreviewOk(amount_minor=5_000)
+    foreign = formula_svc.preview(
+        conn,
+        OTHER_ID,
+        _DEC,
+        None,
+        owner_terms,
+        fx=formula_fx_of(conn, OTHER_ID),
+        target_ccy=TARGET_CCY,
     )
-    foreign = formula_svc.preview(conn, OTHER_ID, _DEC, None, owner_terms)
     assert isinstance(foreign, formula_svc.PreviewError)
     assert (foreign.code, foreign.offending_term_index) == ("invalid_source", 0)
     assert world.tombstones is not None
@@ -496,6 +612,8 @@ def _case_preview(conn: sqlite3.Connection, world: World) -> None:
         _DEC,
         None,
         [formula_svc.DraftTerm("+", "100", (world.tombstones.category_id,))],
+        fx=formula_fx_of(conn, OWNER_ID),
+        target_ccy=TARGET_CCY,
     )
     assert isinstance(dead, formula_svc.PreviewError)
     assert dead.code == "invalid_source"

@@ -15,8 +15,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from budget_planner.services import users as users_service
 from budget_planner.services.users import AuthUser, UserConflict
+from budget_planner.web.http_headers import HX_RESWAP, HX_RETARGET
 from budget_planner.web.middleware.auth import CurrentUser
-from budget_planner.web.rendering import is_hx_request, render, render_context
+from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, is_hx_request, render, render_context
 
 LIST_PATH: Final = "/settings/users"
 LIST_TEMPLATE: Final = "settings/users/list.html"
@@ -24,7 +25,6 @@ TABLE_TEMPLATE: Final = "settings/users/_table.html"
 TOAST_TEMPLATE: Final = "settings/users/_password-toast.html"
 ADD_ERRORS_TEMPLATE: Final = "settings/users/_add-errors.html"
 EDIT_TEMPLATE: Final = "settings/users/edit.html"
-SLIDEOVER_TEMPLATE: Final = "partials/_slideover.html"
 FLASH_TEMPLATE: Final = "partials/_flash.html"
 NOT_FOUND_TEMPLATE: Final = "errors/404.html"
 CONFLICT_TEMPLATE: Final = "errors/409.html"
@@ -90,7 +90,7 @@ def conflict(request: Request, exc: UserConflict) -> HTMLResponse:
     response = render(
         request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, level="error", message=exc.message
     )
-    response.headers["HX-Reswap"] = "none"
+    response.headers[HX_RESWAP] = "none"
     return response
 
 
@@ -131,8 +131,8 @@ def edit_response(
     }
     if is_hx_request(request) and errors:
         response = render(request, EDIT_TEMPLATE, status, **context)
-        response.headers["HX-Retarget"] = "#user-edit-form"
-        response.headers["HX-Reswap"] = "outerHTML"
+        response.headers[HX_RETARGET] = "#user-edit-form"
+        response.headers[HX_RESWAP] = "outerHTML"
         return response
     return render(
         request,

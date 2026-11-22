@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from budget_planner import clock
 from budget_planner.services import replication_health
 from budget_planner.services.connections import get_connection, ping
+from budget_planner.web.paths import GET_HEAD_METHODS
 
 if TYPE_CHECKING:
     from budget_planner.config import Settings
@@ -32,13 +33,13 @@ router = APIRouter(tags=["health"])
 _logger = logging.getLogger(__name__)
 
 
-@router.api_route("/health", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/health", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def health(request: Request) -> dict[str, str]:
     """Process liveness. Deliberately cheap — no DB, no logging."""
     return {"status": "ok", "version": request.app.version}
 
 
-@router.api_route("/ready", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/ready", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def ready(request: Request) -> JSONResponse:
     """Readiness probe. 200 iff the DB opens and the schema answers a trivial read.
 
@@ -61,7 +62,7 @@ def ready(request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content={"status": "ready", "db": "ok"})
 
 
-@router.api_route("/health/replication", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/health/replication", methods=list(GET_HEAD_METHODS), include_in_schema=False)
 def replication(request: Request) -> JSONResponse:
     """Replication freshness for the external monitor (ADR-0119). No secrets in the body."""
     cfg: Settings = request.app.state.settings

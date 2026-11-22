@@ -32,7 +32,7 @@ class TestParsePercentToBps:
             ("0.01", 1),
             ("0,01", 1),
             ("100", 10_000),
-            ("12.345", 1235),  # ROUND_HALF_UP on sub-bps
+            ("12.345", 1234),  # sub-bps tie -> even (T-Q281; was 1235)
         ],
     )
     def test_valid_inputs(self, percent_str: str, expected_bps: int) -> None:
@@ -94,7 +94,7 @@ class TestApplyCoefficient:
             (0, 1200, 0),
             (100, 1, 0),  # 0.01% of 1.00 = 0.0001 → 0
             (10_001_00, 1, 100),  # 0.01% of 10 001.00 = 1.0001 → 100 minor
-            (12_34, 1050, 130),  # ROUND_HALF_UP: 12.34 * 10.5% = 1.2957 → 1.30
+            (12_34, 1050, 130),  # 12.34 * 10.5% = 1.2957 (no tie) → 1.30
         ],
     )
     def test_rounding(self, sum_minor: int, bps: int, expected: int) -> None:

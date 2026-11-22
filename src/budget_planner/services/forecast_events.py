@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.transactions import signed_legs
 from budget_planner.services import recurring as recurring_svc
+from budget_planner.services.recurring_formula import FormulaFx
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ def collect_events(
     user_id: int,
     today: dt.date,
     end_date: dt.date,
+    fx: FormulaFx,
 ) -> dict[dt.date, list[CashEvent]]:
     """Return per-date cash events sourced from planned rows + virtual occurrences.
 
@@ -90,6 +92,7 @@ def collect_events(
     for item in recurring_svc.pending_occurrences(
         conn,
         user_id,
+        fx=fx,
         start=event_start,
         end=end_date + dt.timedelta(days=1),
         today=today,

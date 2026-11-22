@@ -33,6 +33,8 @@ from budget_planner.services.aggregates import mean_minor, sum_by_category
 Period = Literal["month", "year", "trailing-12"]
 
 _TRAILING_MONTHS = 12
+_INCOME = Direction.INCOME.value
+_EXPENSE = Direction.EXPENSE.value
 _DEFAULT_LARGEST_LIMIT = 3  # manual-audit #48 — mockup caps the box at 3 rows.
 
 
@@ -191,9 +193,7 @@ def _income_vs_expense_monthly(
         user_id,
         TransactionFilter(live_accounts_only=True, date_from=start, date_to=end),
     )
-    monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(
-        lambda: {"income": 0, "expense": 0}
-    )
+    monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(lambda: {_INCOME: 0, _EXPENSE: 0})
     base_of = _base_of(conn, user_id, converter)
     for t in txns:
         cat = cats.get(t.category_id)
@@ -201,15 +201,15 @@ def _income_vs_expense_monthly(
             continue
         key = (t.operation_date.year, t.operation_date.month)
         if cat.direction is Direction.INCOME:
-            monthly[key]["income"] += base_of(t)
+            monthly[key][_INCOME] += base_of(t)
         elif cat.direction is Direction.EXPENSE:
-            monthly[key]["expense"] += base_of(t)
+            monthly[key][_EXPENSE] += base_of(t)
     out = [
         MonthlyFlow(
             year=year,
             month=month,
-            income_minor=values["income"],
-            expense_minor=values["expense"],
+            income_minor=values[_INCOME],
+            expense_minor=values[_EXPENSE],
         )
         for (year, month), values in monthly.items()
     ]

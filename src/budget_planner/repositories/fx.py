@@ -36,6 +36,15 @@ def find_rate(
     return _row_to_rate(row) if row is not None else None
 
 
+def any_rate_on(conn: sqlite3.Connection, rate_date: date, to_ccy: str) -> bool:
+    """True when at least one rate into ``to_ccy`` is dated exactly ``rate_date``."""
+    row = conn.execute(
+        "SELECT 1 FROM fx_rates WHERE date = ? AND to_ccy = ? LIMIT 1",
+        (rate_date.isoformat(), to_ccy),
+    ).fetchone()
+    return row is not None
+
+
 def latest_rate(
     conn: sqlite3.Connection,
     from_ccy: str,
@@ -113,4 +122,4 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
     )
 
 
-__all__ = ["find_rate", "latest_rate", "list_rates_to", "list_recent", "upsert_rate"]
+__all__ = ["any_rate_on", "find_rate", "latest_rate", "list_rates_to", "list_recent", "upsert_rate"]
