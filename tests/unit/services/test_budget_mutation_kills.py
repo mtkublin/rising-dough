@@ -626,7 +626,9 @@ def test_base_amounts_honour_base_currency_and_soft_deleted_accounts(
     txn = _new_txn(conn, eur_world, date(2026, 11, 10), key="pln")
     accounts_repo.soft_delete(conn, 1, eur_world["pln"])
     planned_after = budget.planned_base_amounts(conn, 1, today=today, base_currency="EUR")
-    assert planned_after(eur_world["pln"], 10_000) == 2_500  # tombstone keeps its currency
+    # ADR-0136 (T-Q280): the planned converter map is live-only too; rows of a deleted account
+    # never reach it, so the tombstone is no longer converted at its own currency.
+    assert planned_after(eur_world["pln"], 10_000) == 10_000
     txn_of = budget.txn_base_amounts(conn, 1, today=today, base_currency="EUR")
     assert txn_of(txn) == 10_000  # ADR-0136: deleted accounts leave the txn converter map
 

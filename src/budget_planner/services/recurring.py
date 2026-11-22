@@ -521,6 +521,7 @@ def _planned_items(
             date_from=None if win.include_overdue else win.start,
             date_to=win.end - dt.timedelta(days=1) if win.end is not None else None,
             promoted=False,
+            live_accounts_only=True,
         ),
     )
     return [

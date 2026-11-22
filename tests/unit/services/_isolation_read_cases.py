@@ -440,8 +440,8 @@ def _case_planned_base_amounts(conn: sqlite3.Connection, world: World) -> None:
     owner = budget.planned_base_amounts(conn, OWNER_ID, today=T, base_currency=BASE)
     other = budget.planned_base_amounts(conn, OTHER_ID, today=T, base_currency=BASE)
     assert owner(eur, 1_000) == 4_000
-    # OQ-15 current behaviour: archived accounts keep converting (their currency is still resolved).
-    assert owner(gone, 1_000) == 4_000
+    # ADR-0136 (T-Q280): a soft-deleted account leaves the converter map (its planned rows are hidden).
+    assert owner(gone, 1_000) == 1_000
     assert owner(world.owner.account_id, 1_000) == 1_000
     # The other user cannot see the owner's EUR currency: the account id degrades to the base-currency default.
     assert other(eur, 1_000) == 1_000

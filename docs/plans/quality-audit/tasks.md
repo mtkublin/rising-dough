@@ -1067,7 +1067,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: 14b.
 - Done when: no allowlist entry to delete; guards stay green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q280 [S] Planned rows on soft-deleted accounts are hidden from planned totals
+### ✅ T-Q280 [S] Planned rows on soft-deleted accounts are hidden from planned totals
 - Findings: Q-026, Q-030 (ADR-0136 decision 1).
 - Epic: E01
 - Band: 2 · Size: S · Tags: none

@@ -81,8 +81,8 @@ def planned_base_amounts(
     ``FxUnavailableError``; there is no native-amount fallback.
     """
     fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
-    # Planned rows may outlive their account: convert with its own currency (ADR-0136).
-    ccy_by_account = fx_svc.currency_by_account(conn, user_id, include_deleted=True)
+    # Planned rows on soft-deleted accounts are filtered at the source (ADR-0136).
+    ccy_by_account = fx_svc.currency_by_account(conn, user_id)
 
     def base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
