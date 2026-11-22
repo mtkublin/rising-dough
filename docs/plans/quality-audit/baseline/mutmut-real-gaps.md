@@ -601,14 +601,16 @@ Real bugs found: none confirmed.
 
 | Module | Mutants | Survivors | Score |
 |---|---|---|---|
-| analytics | 352 | 62 to 4 (+1 timeout, killed) | 82.4% to 98.9% |
-| today | 107 | 27 to 7 | 74.8% to 93.5% |
-| users | 526 | 75 to 13 | 85.7% to 97.5% |
+| analytics | 352 to 360 | 62 to 4 (+1 timeout, killed) | 82.4% to 98.9% |
+| today | 107 to 109 | 27 to 7 | 74.8% to 93.6% |
+| users | 526 to 528 | 75 to 13 | 85.7% to 97.5% |
 | planned | 237 | 35 to 3 | 85.2% to 98.7% |
 | upcoming | 74 | 12 to 9 | 83.8% to 87.8% |
 | export | 99 | 21 to 10 | 78.8% to 89.9% |
 | replication_health | 121 | 28 to 3 | 76.9% to 97.5% |
 | preferences | 76 | 22 to 0 | 71.1% to 100% |
+
+The mutant counts after the arrow are from a re-run of `analytics`, `today` and `users` on the base merged at the end of the task (T-Q213 follow-ups: `aggregates.sum_by_category`, `live_accounts_only`, `afford(..., base_currency=)`, `tokens` on `create_user` / `reset_password`); the survivor sets are identical (`analytics` #42/#44/#50/#41 renumber to #45/#47/#53/#44). 49 survivors of 1,604 mutants (96.9%) in total.
 
 Every remaining survivor is equivalent:
 

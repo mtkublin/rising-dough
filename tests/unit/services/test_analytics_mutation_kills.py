@@ -397,7 +397,7 @@ def test_missing_rate_for_an_account_currency_raises(
         analytics_svc.bundle(conn, OWNER_ID, _conv(), today=WORLD_TODAY, period="month")
 
 
-def test_soft_deleted_account_currency_still_converts(
+def test_transactions_of_a_soft_deleted_account_are_excluded_from_every_panel(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:
     owner = world_with_two_users.owner
@@ -406,9 +406,13 @@ def test_soft_deleted_account_currency_still_converts(
     ).id
     _txn(conn, OWNER_ID, on=WORLD_DAY, category_id=owner.category_id, account_id=eur, amount=100)
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
-    conv = _conv(("EUR", date(2026, 11, 1), "4.00"))
-    data = analytics_svc.bundle(conn, OWNER_ID, conv, today=WORLD_TODAY, period="month")
-    assert analytics_svc.spend_total_minor(data) == 1_000 + 400
+    data = analytics_svc.bundle(
+        conn, OWNER_ID, _conv(), today=WORLD_TODAY, period="month"
+    )  # no EUR rate
+    assert analytics_svc.spend_total_minor(data) == 1_000
+    assert [i.amount_minor for i in data.largest_items] == [1_000]
+    assert analytics_svc.twelve_month_avg_by_category(data) == {owner.category_id: 83}
+    assert [m.expense_minor for m in data.income_vs_expense_monthly] == [1_000]
 
 
 # --- helpers --------------------------------------------------------------------------------

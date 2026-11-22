@@ -24,7 +24,7 @@ TODAY = date(2026, 11, 12)
 @dataclass
 class _Calls:
     fiscal: list[tuple[int, date]]
-    summary: list[tuple[int, int, int, date]]
+    summary: list[tuple[int, int, int, date, str]]
 
 
 def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left: int) -> _Calls:
@@ -35,9 +35,9 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
         return 2026, 10
 
     def month_summary(
-        _conn: object, user_id: int, year: int, month: int, *, today: date
+        _conn: object, user_id: int, year: int, month: int, *, today: date, base_currency: str
     ) -> SimpleNamespace:
-        calls.summary.append((user_id, year, month, today))
+        calls.summary.append((user_id, year, month, today, base_currency))
         return SimpleNamespace(
             days_until_next_income=days_left, totals=SimpleNamespace(remaining_minor=remaining)
         )
@@ -48,7 +48,7 @@ def _stub_summary(monkeypatch: pytest.MonkeyPatch, *, remaining: int, days_left:
 
 
 def _afford(conn: sqlite3.Connection, amount: int) -> today_svc.AffordResult:
-    return today_svc.afford(conn, USER_ID, TODAY, amount)
+    return today_svc.afford(conn, USER_ID, TODAY, amount, base_currency="PLN")
 
 
 @pytest.mark.parametrize(
@@ -76,7 +76,7 @@ def test_afford_forwards_user_and_today_to_the_budget_service(
     calls = _stub_summary(monkeypatch, remaining=10_000, days_left=10)
     _afford(conn, 0)
     assert calls.fiscal == [(USER_ID, TODAY)]
-    assert calls.summary == [(USER_ID, 2026, 10, TODAY)]
+    assert calls.summary == [(USER_ID, 2026, 10, TODAY, "PLN")]
 
 
 def test_afford_exact_values(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:

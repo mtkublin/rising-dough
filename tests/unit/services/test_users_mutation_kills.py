@@ -32,6 +32,7 @@ from budget_planner.services.users import (
     UserInputError,
     UserNotFound,
 )
+from tests.auth_support import FakeTokenSource
 
 ADMIN_ID = 1
 CTX = RequestCtx(ip="10.1.2.3", user_id=ADMIN_ID, session_id="sess-9", user_agent="pytest-ua")
@@ -276,10 +277,10 @@ def test_build_draft_keeps_the_admin_flag_tristate() -> None:
 def test_duplicate_email_race_maps_to_a_field_error(
     admin_conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"))
+    users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource())
     monkeypatch.setattr(users_repo, "get_by_email_live", lambda *_a, **_k: None)  # lose the race
     with pytest.raises(UserInputError) as err:
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"))
+        users_svc.create_user(admin_conn, ADMIN_ID, _draft("dup@x.test"), tokens=FakeTokenSource())
     assert err.value.fields == {"email": DUPLICATE_EMAIL_MESSAGE}
 
 
@@ -292,7 +293,7 @@ def test_writer_lock_wait_maps_to_a_conflict(
 
     monkeypatch.setattr(users_repo, "create_user", boom)
     with pytest.raises(UserConflict) as err:
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"))
+        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource())
     assert err.value.message == CONCURRENT_CHANGE_MESSAGE
 
 
@@ -304,19 +305,21 @@ def test_other_operational_errors_propagate(
 
     monkeypatch.setattr(users_repo, "create_user", boom)
     with pytest.raises(sqlite3.OperationalError, match="no such table"):
-        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"))
+        users_svc.create_user(admin_conn, ADMIN_ID, _draft("new@x.test"), tokens=FakeTokenSource())
 
 
 # --- roster operations ---------------------------------------------------------------------------
 
 
 def test_missing_targets_carry_the_requested_id(admin_conn: sqlite3.Connection) -> None:
-    user, _ = users_svc.create_user(admin_conn, ADMIN_ID, _draft("gone@x.test"))
+    user, _ = users_svc.create_user(
+        admin_conn, ADMIN_ID, _draft("gone@x.test"), tokens=FakeTokenSource()
+    )
     users_svc.soft_delete_user(admin_conn, ADMIN_ID, user.id)
     for call in (
         lambda uid: users_svc.get_live_user(admin_conn, uid),
         lambda uid: users_svc.edit_user(admin_conn, ADMIN_ID, uid, _draft("z@x.test")),
-        lambda uid: users_svc.reset_password(admin_conn, ADMIN_ID, uid),
+        lambda uid: users_svc.reset_password(admin_conn, ADMIN_ID, uid, tokens=FakeTokenSource()),
         lambda uid: users_svc.soft_delete_user(admin_conn, ADMIN_ID, uid),
     ):
         for missing in (user.id, 9_999):
@@ -326,13 +329,17 @@ def test_missing_targets_carry_the_requested_id(admin_conn: sqlite3.Connection) 
 
 
 def test_request_context_reaches_every_audit_row(admin_conn: sqlite3.Connection) -> None:
-    user, _ = users_svc.create_user(admin_conn, ADMIN_ID, _draft("ctx@x.test"), request_ctx=CTX)
+    user, _ = users_svc.create_user(
+        admin_conn, ADMIN_ID, _draft("ctx@x.test"), tokens=FakeTokenSource(), request_ctx=CTX
+    )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.edit_user(
         admin_conn, ADMIN_ID, user.id, _draft("ctx2@x.test", name="Cee"), request_ctx=CTX
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
-    users_svc.reset_password(admin_conn, ADMIN_ID, user.id, request_ctx=CTX)
+    users_svc.reset_password(
+        admin_conn, ADMIN_ID, user.id, request_ctx=CTX, tokens=FakeTokenSource()
+    )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.soft_delete_user(admin_conn, ADMIN_ID, user.id, request_ctx=CTX)
     _assert_ctx(_audit(admin_conn, user.id)[-1])
