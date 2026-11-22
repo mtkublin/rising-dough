@@ -83,12 +83,14 @@ jobs:
         run: bash scripts/ci/visual_in_container.sh ${{ inputs.update_baselines && 'update' || '' }}
 
       - name: Upload regenerated baselines
-        if: ${{ always() && inputs.update_baselines }}
+        # Also on failure: a PR run with missing baselines writes the actual shots there
+        # (bootstrap before the workflow exists on main); download the artifact and commit it.
+        if: ${{ always() }}
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: visual-baselines
           path: tests/visual/__snapshots__/
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       - name: Upload actual images of failing screenshots
         if: ${{ failure() }}

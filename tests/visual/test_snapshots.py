@@ -104,21 +104,25 @@ def test_route_snapshot(
     update_baseline: bool,
 ) -> None:
     baseline = baselines_dir / f"{route_name}.{viewport_name}.png"
-    if not update_baseline and not baseline.exists():
-        message = f"missing baseline {baseline.name}. {UPDATE_HINT}"
-        if os.environ.get("CI"):
-            pytest.fail(message)
-        pytest.skip(message)
+    missing = not update_baseline and not baseline.exists()
+    if missing and not os.environ.get("CI"):
+        pytest.skip(f"missing baseline {baseline.name}. {UPDATE_HINT}")
     cookies = [] if route_name in SIGNED_OUT else session_cookies
     with tempfile.TemporaryDirectory() as tmp:
         shot = Path(tmp) / baseline.name
         _shoot(
             browser, f"{live_server}{ROUTES[route_name]}", VIEWPORTS[viewport_name], cookies, shot
         )
-        if update_baseline:
+        if update_baseline or missing:
+            # Bootstrap: in CI a missing baseline still writes the actual shot to the baseline path
+            # (the workflow uploads it as the visual-baselines artifact on failure), then fails.
             baselines_dir.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(shot, baseline)
-            return
+            if update_baseline:
+                return
+            pytest.fail(
+                f"missing baseline {baseline.name} (actual written for the artifact). {UPDATE_HINT}"
+            )
         ratio = diff_ratio(baseline, shot)
         if ratio > MAX_DIFF_PIXEL_RATIO:
             keep = Path(os.environ.get("VISUAL_KEEP_DIR", "visual-actual"))
