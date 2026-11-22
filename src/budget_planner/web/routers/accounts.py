@@ -7,9 +7,7 @@ router parses + renders.
 
 from __future__ import annotations
 
-import contextlib
 import sqlite3
-from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -17,129 +15,26 @@ from fastapi.responses import HTMLResponse, Response
 
 from budget_planner import clock
 from budget_planner.config import Settings
-from budget_planner.domain.accounts import Account, AccountStats, NewAccount, PatchAccount
-from budget_planner.domain.limits import name_error
 from budget_planner.domain.money import parse_amount_minor
-from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
+from budget_planner.domain.snapshots import NewAccountSnapshot
 from budget_planner.services import (
-    account_planned as planned_service,
+    account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
-    categories as categories_service,
-    fortune as fortune_service,
-    fx as fx_service,
     reconciliation as reconciliation_service,
 )
-from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
+from budget_planner.web import accounts_data
+from budget_planner.web.account_forms import (
+    parse_account_patch,
+    parse_category_id,
+    parse_new_account,
+    parse_save_snapshot,
+)
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.htmx import Event, toast_payload, trigger
-from budget_planner.web.params import credit_limit_amount
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
-
-_ISO_CCY_LEN = 3
-
-
-def _planned_now(
-    conn: sqlite3.Connection, user_id: int, settings: Settings
-) -> planned_service.AccountsPlanned:
-    return planned_service.compute_accounts_planned(
-        conn, user_id, clock.today_local(settings), settings
-    )
-
-
-def _card_context(
-    conn: sqlite3.Connection,
-    user_id: int,
-    account_id: int,
-    planned: planned_service.AccountsPlanned,
-    today: date,
-    *,
-    acc: Account | None = None,
-    bal: int | None = None,
-    stats: AccountStats | None = None,
-    series: list[tuple[date, int]] | None = None,
-    snapshots: list[AccountSnapshot] | None = None,
-) -> dict[str, Any]:
-    """Build the full context dict a single `_card.html` / `_row.html` needs.
-
-    A value left as ``None`` is loaded for this one account (HTMX single-card
-    responses); the list page passes every value, loaded once for all accounts (T-Q234).
-    """
-    if acc is None:
-        acc = accounts_service.find_by_id(conn, user_id, account_id)
-    assert acc is not None
-    if bal is None:
-        bal = balance_service.derive_balance(conn, user_id, account_id)
-    if stats is None:
-        stats = balance_service.account_stats(conn, user_id, account_id)
-    if series is None:
-        series = balance_service.balance_series(conn, user_id, account_id, today=today)
-    if snapshots is None:
-        snapshots = accounts_service.list_snapshots_for_account(conn, user_id, account_id)
-    return {
-        "account": acc,
-        "balance": bal,
-        "stats": stats,
-        "series": series,
-        **sparkline_fields(series),
-        "snapshots": snapshots,
-        "planned": planned.by_account.get(account_id),
-        "utilisation": credit_utilisation(acc, bal),
-    }
-
-
-def _hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, Any]:
-    accs = accounts_service.list_all(conn, user_id)
-    planned = planned_service.compute_accounts_planned(
-        conn, user_id, clock.today_local(settings), settings
-    )
-    # T-Q234: every per-account input is loaded once for all accounts (O(1) queries).
-    balances = balance_service.derive_balances(conn, user_id, accs)
-    stats = balance_service.account_stats_many(conn, user_id, accs)
-    series = balance_service.balance_series_many(
-        conn, user_id, accs, today=clock.today_local(settings)
-    )
-    snapshots = accounts_service.list_snapshots_for_user(conn, user_id)
-    today = clock.today_local(settings)
-    cards: list[dict[str, Any]] = [
-        _card_context(
-            conn,
-            user_id,
-            a.id,
-            planned,
-            today,
-            acc=a,
-            bal=balances[a.id],
-            stats=stats[a.id],
-            series=series[a.id],
-            snapshots=snapshots.get(a.id, []),
-        )
-        for a in accs
-    ]
-    # ADR-0056 §7 — sort by balance desc; liabilities (negative balance) move
-    # to the bottom. Assets land first, biggest first; liabilities land last,
-    # smallest-liability-first so the credit card with the largest balance
-    # sits closer to the assets block visually.
-    cards.sort(
-        key=lambda card: (
-            0 if card["balance"] >= 0 else 1,
-            -(card["balance"] if card["balance"] >= 0 else -card["balance"]),
-        )
-    )
-    fortune = fortune_service.compute_fortune(
-        conn, user_id, fx_service.converter_for(conn, settings, clock.today_local(settings))
-    )
-    return {
-        "cards": cards,
-        "fortune": fortune,
-        "base_ccy": settings.base_currency,
-        "totals_by_ccy": fortune.net_by_ccy,
-        "fortune_base": fortune.net_base,
-        "today_date": clock.today_local(settings),
-        "planned_base": planned.base_net_minor,
-    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -149,7 +44,7 @@ def index(
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
-    data = _hydrate(conn, user_id, settings)
+    data: dict[str, Any] = accounts_data.hydrate(conn, user_id, settings)
     return render(request, "accounts/index.html", **data)
 
 
@@ -168,13 +63,10 @@ def new_form(request: Request) -> HTMLResponse:
     )
 
 
-def _parse_liability(raw: str) -> bool:
-    return raw.strip().lower() in {"on", "true", "1"}
-
-
 @router.post("")
-def create_account(  # noqa: PLR0917
+def create_account(
     request: Request,
+    *,
     name: str = Form(...),
     currency: str = Form(...),
     opening_balance: str = Form("0"),
@@ -185,53 +77,28 @@ def create_account(  # noqa: PLR0917
     settings: Settings = Depends(get_settings_dep),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    errors: dict[str, str] = {}
-    cur = currency.upper().strip()
-    if len(cur) != _ISO_CCY_LEN or not cur.isalpha():
-        errors["currency"] = "ISO 4217 code required"
-    opening = parse_amount_minor(opening_balance or "0", cur)
-    if opening is None:
-        errors["opening_balance"] = "invalid number"
-        opening = 0
-    if (bad_name := name_error(name)) is not None:
-        errors["name"] = bad_name
-    liability = _parse_liability(is_liability)
-    credit_limit_minor: int | None = None
-    if liability and not errors.get("currency"):
-        credit_limit_minor, limit_err = credit_limit_amount(credit_limit, cur)
-        if limit_err is not None:
-            errors["credit_limit"] = limit_err
-    if errors:
+    parsed = parse_new_account(
+        name=name,
+        currency=currency,
+        opening_balance=opening_balance,
+        account_type=type,
+        is_liability=is_liability,
+        credit_limit=credit_limit,
+    )
+    if parsed.command is None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=None,
             action="/accounts",
-            errors=errors,
+            errors=parsed.errors,
             status_code=422,
         )
-    acc = accounts_service.create(
-        conn,
-        user_id,
-        NewAccount(
-            name=name.strip(),
-            currency=cur,
-            opening_balance=opening,
-            type=type or None,
-            is_liability=liability,
-            credit_limit_minor=credit_limit_minor,
-        ),
-    )
+    acc = accounts_service.create(conn, user_id, parsed.command)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(
-            conn,
-            user_id,
-            acc.id,
-            _planned_now(conn, user_id, settings),
-            clock.today_local(settings),
-        ),
+        card=accounts_data.single_card(conn, user_id, acc.id, settings),
     )
     trigger(html, Event.BALANCE_STALE)
     # T-D150: the form targets itself and the accounts list has no region that
@@ -270,9 +137,10 @@ def edit_form(
 
 
 @router.post("/{account_id}")
-def update_account(  # noqa: PLR0917
+def update_account(
     account_id: int,
     request: Request,
+    *,
     name: str = Form(...),
     type: str = Form(""),
     is_liability: str = Form(""),
@@ -291,55 +159,23 @@ def update_account(  # noqa: PLR0917
             errors={"account": "not found"},
             status_code=404,
         )
-    if (bad_name := name_error(name)) is not None:
+    parsed = parse_account_patch(
+        acc, name=name, account_type=type, is_liability=is_liability, credit_limit=credit_limit
+    )
+    if parsed.patch is None:
         return render(
             request,
             "partials/accounts/_form.html",
             account=acc,
             action=f"/accounts/{account_id}",
-            errors={"name": bad_name},
+            errors=parsed.errors,
             status_code=422,
         )
-    liability = _parse_liability(is_liability)
-    patch_limit: int | None = None
-    clear_limit = False
-    if liability:
-        patch_limit, limit_err = credit_limit_amount(credit_limit, acc.currency)
-        if limit_err is not None:
-            return render(
-                request,
-                "partials/accounts/_form.html",
-                account=acc,
-                action=f"/accounts/{account_id}",
-                errors={"credit_limit": limit_err},
-                status_code=422,
-            )
-    else:
-        clear_limit = True
-    accounts_service.update(
-        conn,
-        user_id,
-        account_id,
-        PatchAccount(
-            name=name.strip(),
-            type=type or None,
-            is_liability=liability,
-            credit_limit_minor=patch_limit,
-            clear_credit_limit=clear_limit,
-        ),
-    )
-    updated = accounts_service.find_by_id(conn, user_id, account_id)
-    assert updated is not None
+    accounts_service.update(conn, user_id, account_id, parsed.patch)
     html = render(
         request,
         "partials/accounts/_card.html",
-        card=_card_context(
-            conn,
-            user_id,
-            account_id,
-            _planned_now(conn, user_id, settings),
-            clock.today_local(settings),
-        ),
+        card=accounts_data.single_card(conn, user_id, account_id, settings),
     )
     trigger(html, Event.BALANCE_STALE)
     return html
@@ -386,19 +222,6 @@ def take_snapshot(
     return resp
 
 
-def _available_mode_context(acc: Account, derived: int) -> dict[str, Any]:
-    """T-D52 — liability with a credit limit reconciles by available credit."""
-    util = credit_utilisation(acc, derived)
-    if util is None:
-        return {"by_available": False}
-    return {
-        "by_available": True,
-        "credit_limit_minor": util.limit_minor,
-        "used_minor": util.used_minor,
-        "available_minor": util.available_minor,
-    }
-
-
 @router.get("/{account_id}/reconcile", response_class=HTMLResponse)
 def reconcile_form(
     account_id: int,
@@ -417,26 +240,21 @@ def reconcile_form(
             status_code=404,
         )
     derived = balance_service.derive_balance(conn, user_id, account_id)
-    snapshots = accounts_service.list_snapshots_for_account(conn, user_id, account_id)
-    categories = [c for c in categories_service.list_all(conn, user_id) if not c.is_system]
-    reconciliation_cat = categories_service.find_by_name(conn, user_id, "Reconciliation")
+    modal: dict[str, Any] = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
-        account=acc,
-        derived=derived,
-        snapshots=snapshots[:5],
-        categories=categories,
-        reconciliation_cat=reconciliation_cat,
+        snapshots=accounts_data.recent_snapshots(conn, user_id, account_id),
         errors={},
-        **_available_mode_context(acc, derived),
+        **modal,
     )
 
 
 @router.post("/{account_id}/reconcile")
-def reconcile_submit(  # noqa: PLR0917
+def reconcile_submit(
     account_id: int,
     request: Request,
+    *,
     actual_balance: str = Form(...),
     category_id: str = Form(""),
     save_snapshot: str = Form(""),
@@ -453,55 +271,33 @@ def reconcile_submit(  # noqa: PLR0917
         return render(
             request,
             "partials/accounts/_reconcile_modal.html",
-            account=acc,
-            derived=derived,
-            categories=[c for c in categories_service.list_all(conn, user_id) if not c.is_system],
-            reconciliation_cat=categories_service.find_by_name(conn, user_id, "Reconciliation"),
             errors={"actual_balance": message},
             status_code=422,
-            **_available_mode_context(acc, derived),
+            **accounts_data.reconcile_modal_context(conn, user_id, acc, derived),
         )
 
-    actual_minor = parse_amount_minor(actual_balance, acc.currency)
-    if actual_minor is None:
+    entered = parse_amount_minor(actual_balance, acc.currency)
+    if entered is None:
         return _reject("invalid number")
-    if credit_utilisation(acc, derived) is not None:
-        try:
-            actual_minor = reconciliation_service.available_to_target_balance(
-                acc.credit_limit_minor or 0, actual_minor
-            )
-        except reconciliation_service.InvalidAvailableError as exc:
-            return _reject(str(exc))
-    chosen_cat_id = int(category_id) if category_id.strip().isdigit() else None
-    with contextlib.suppress(reconciliation_service.NoAdjustmentNeededError):
-        try:
-            reconciliation_service.reconcile(
-                conn,
-                user_id,
-                account_id=account_id,
-                actual_balance_minor=actual_minor,
-                today=clock.today_local(settings),
-                category_id=chosen_cat_id,
-            )
-        except reconciliation_service.ValidationError as exc:
-            return _reject(str(exc))
-    if save_snapshot.strip().lower() in ("1", "on", "true", "yes"):
-        bal = balance_service.derive_balance(conn, user_id, account_id)
-        accounts_service.create_snapshot(
+    try:
+        reconcile_service.reconcile_account(
             conn,
             user_id,
-            NewAccountSnapshot(account_id=account_id, balance=bal, note="reconcile snapshot"),
+            account_id=account_id,
+            actual_balance_minor=reconcile_service.target_balance_minor(acc, entered),
+            today=clock.today_local(settings),
+            category_id=parse_category_id(category_id),
+            save_snapshot=parse_save_snapshot(save_snapshot),
         )
+    except (
+        reconciliation_service.InvalidAvailableError,
+        reconciliation_service.ValidationError,
+    ) as exc:
+        return _reject(str(exc))
     html = render(
         request,
         "partials/accounts/_row.html",
-        card=_card_context(
-            conn,
-            user_id,
-            account_id,
-            _planned_now(conn, user_id, settings),
-            clock.today_local(settings),
-        ),
+        card=accounts_data.single_card(conn, user_id, account_id, settings),
         today_date=clock.today_local(settings),
     )
     trigger(html, Event.BALANCE_STALE, Event.FORECAST_STALE)

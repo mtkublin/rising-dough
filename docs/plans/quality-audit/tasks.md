@@ -523,7 +523,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `thin_router`:53 (10 entries); `suppressions` ceiling `PLR0917`:6
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/suppressions.toml`, `allowlists/thin_router.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
+### ✅ T-Q266 [P] Thin routers, group 2: recurring, budget, accounts, categories
 - Findings: B-01, B-02 (inventory P5), Q-045 (routing half), Q-048 (route handlers with more than 5 positional parameters); epics E08, E09, E13.
 - Epic: E08, E09, E13
 - Band: 2 · Size: L · Tags: `[pre-v4-P3-rec]`

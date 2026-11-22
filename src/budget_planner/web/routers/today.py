@@ -26,11 +26,8 @@ from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.params import afford_amount_minor
+from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
-from budget_planner.web.routers.recurring import (
-    _EMPTY_TERM_INPUT,
-    _formula_source_candidates,
-)
 
 router = APIRouter(tags=["today"])
 
@@ -186,7 +183,7 @@ def add_entry_overlay(
         entity_name: None,
     }
     if active_tab == "repeats":
-        ctx["source_categories"] = _formula_source_candidates(conn, user_id)
+        ctx["source_categories"] = formula_source_candidates(conn, user_id)
         ctx["amount_source"] = "fixed"
-        ctx["terms"] = [dict(_EMPTY_TERM_INPUT)]
+        ctx["terms"] = [dict(EMPTY_TERM_INPUT)]
     return render(request, "partials/_add_entry_overlay.html", **ctx)
