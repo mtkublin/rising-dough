@@ -83,3 +83,16 @@ TRIAGE (947 survivors)
   per plan 5.1, others Medium (money-adjacent: fortune, ledger_totals, analytics, planned, upcoming, today, income, accounts, auth-adjacent
   scoping) or Low (export, replication_health, preferences, categories); (3) mutmut 3.7 does not mutate dataclass methods/properties, so
   domain dataclasses are invisible to this score.
+
+T-Q247 FOLLOW-UP (2026-11-22): non-priority modules after the new kill tests (mutmut 3.7.0, --max-children 2; details in mutmut-real-gaps.md "T-Q247 re-run")
+  module               mutants  survivors before -> after   score before -> after
+  analytics                352            62 -> 4                 82.4% -> 98.9%   (+1 timeout, killed)
+  today                    107            27 -> 7                 74.8% -> 93.5%
+  users                    526            75 -> 13                85.7% -> 97.5%
+  planned                  237            35 -> 3                 85.2% -> 98.7%
+  upcoming                  74            12 -> 9                 83.8% -> 87.8%
+  export                    99            21 -> 10                78.8% -> 89.9%
+  replication_health       121            28 -> 3                 76.9% -> 97.5%
+  preferences               76            22 -> 0                 71.1% -> 100.0%
+  total                   1592           282 -> 49                82.3% -> 96.9%
+  All remaining survivors are equivalent (one-line reasons in mutmut-real-gaps.md).

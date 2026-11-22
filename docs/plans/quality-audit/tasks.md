@@ -859,7 +859,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q247 [P] Kill survivors in the non-priority modules
+### ✅ T-Q247 [P] Kill survivors in the non-priority modules
 - Findings: Q-055 (F-11).
 - Epic: none (test-gap)
 - Band: 5 · Size: L · Tags: none
