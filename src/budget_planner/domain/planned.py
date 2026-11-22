@@ -71,5 +71,6 @@ class PlannedFilter:
     directions: tuple[Direction, ...] = ()
     recurring_rule_id: int | None = None
     promoted: bool | None = None
+    live_accounts_only: bool = False  # ADR-0136: derived reads skip soft-deleted accounts
     limit: int | None = None
     offset: int = 0

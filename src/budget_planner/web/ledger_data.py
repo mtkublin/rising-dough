@@ -188,6 +188,12 @@ def _hydrate_planned_rows(
     return out
 
 
+def _on_live_account(row: dict[str, object]) -> bool:
+    """Planned totals skip rows of soft-deleted accounts; the list keeps them (ADR-0136)."""
+    acc = row.get("account")
+    return isinstance(acc, Account) and acc.deleted_at is None
+
+
 def _in_date_range(day: date, filters: LedgerFilters) -> bool:
     return not (filters.date_from and day < filters.date_from) and not (
         filters.date_to and day > filters.date_to
@@ -436,7 +442,9 @@ def index_context(
     elif view == "planned":
         planned = _planned_rows(conn, user_id, filters, today)
         planned_summary = ledger_totals.planned_totals(
-            planned, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
+            [r for r in planned if _on_live_account(r)],
+            base_ccy,
+            lambda amount, day, ccy: fx.to_base(amount, ccy, day),
         )
         rows = planned
     else:
