@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner.config import Settings
 from budget_planner.web import forecast_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, get_today
-from budget_planner.web.params import parse_int
+from budget_planner.web.params import query_int
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/forecast", tags=["forecast"])
@@ -31,7 +31,7 @@ def index(
     user_id: int = Depends(current_user_id),
     today: date = Depends(get_today),
 ) -> HTMLResponse:
-    horizon = parse_int(request.query_params.get("horizon_months"))
+    horizon = query_int("horizon_months", request.query_params.get("horizon_months"))
     v = forecast_data.build_view(conn, user_id, settings, today, horizon)
     return render(
         request,
@@ -50,7 +50,7 @@ def view_fragment(
     user_id: int = Depends(current_user_id),
     today: date = Depends(get_today),
 ) -> HTMLResponse:
-    horizon = parse_int(request.query_params.get("horizon_months"))
+    horizon = query_int("horizon_months", request.query_params.get("horizon_months"))
     v = forecast_data.build_view(conn, user_id, settings, today, horizon)
     return render(
         request,

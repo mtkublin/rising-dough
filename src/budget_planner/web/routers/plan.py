@@ -18,6 +18,7 @@ from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
 from budget_planner.web import charts, plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
+from budget_planner.web.params import query_int, require_year_month
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["plan"])
@@ -40,6 +41,7 @@ def plan(
     today_d = clock.today_local(settings)
     month_scoped = tab_norm in {"budget", "analytics"}
     query = request.query_params if month_scoped else {}
+    require_year_month(request.query_params.get("year"), query.get("month"))
     picked = budget_service.resolve_picker_month(
         conn, user_id, today_d, year_raw=query.get("year"), month_raw=query.get("month")
     )
@@ -50,8 +52,11 @@ def plan(
         year_raw = request.query_params.get("year")
         ctx.update(plan_data.year_context(conn, user_id, today_d, year_raw, settings=settings))
     elif tab_norm == "forecast":
+        requested = query_int(
+            "horizon", request.query_params.get("horizon"), choices=_FORECAST_HORIZON_CHOICES
+        )
         horizon = forecast_service.normalize_horizon(
-            request.query_params.get("horizon"), _FORECAST_HORIZON_CHOICES
+            None if requested is None else str(requested), _FORECAST_HORIZON_CHOICES
         )
         projection = forecast_service.monthly_projection(
             conn, user_id, settings, today_d, horizon=horizon

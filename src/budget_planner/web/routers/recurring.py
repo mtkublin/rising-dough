@@ -28,7 +28,7 @@ from budget_planner.web import recurring_forms as forms, recurring_views as view
 from budget_planner.web.deps import current_user_id, get_db, get_formula_ctx, today_for
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
-from budget_planner.web.params import parse_date, parse_int, positive_amount
+from budget_planner.web.params import parse_date, parse_int, positive_amount, query_date
 from budget_planner.web.paths import LEDGER_PATH, NEW_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
 
@@ -556,7 +556,7 @@ def promote_inline(
     if rule is None:
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    occurrence = parse_date(date) or rule.next_due
+    occurrence = query_date("date", date) or rule.next_due
     override = views.override_on_next_due(conn, user_id, rule_id, occurrence)
     prefill_amount = formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx)
     prefill_description = rule.default_description
