@@ -83,6 +83,25 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     ]
 
 
+def parse_draft_terms(form: FormData) -> list[formula_svc.DraftTerm] | None:
+    """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
+    drafts: list[formula_svc.DraftTerm] = []
+    for row in parse_terms_from_form(form):
+        raw_ids = row.get("source_category_ids")
+        cat_ids = [parse_int(str(v)) for v in raw_ids] if isinstance(raw_ids, tuple) else []
+        valid_ids = tuple(c for c in cat_ids if c is not None)
+        if len(valid_ids) != len(cat_ids):
+            return None
+        drafts.append(
+            formula_svc.DraftTerm(
+                sign=_text(row.get("sign"), "+"),
+                coefficient_percent=_text(row.get("coefficient_percent"), ""),
+                source_category_ids=valid_ids,
+            )
+        )
+    return drafts
+
+
 def validate_cadence(value: str) -> Cadence | None:
     return _CADENCES.get(value)
 

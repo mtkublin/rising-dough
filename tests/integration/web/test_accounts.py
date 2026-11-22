@@ -23,6 +23,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
+from tests.ui_map import _html, accounts
 
 USER_ID = 1
 
@@ -138,7 +139,7 @@ def test_delete(client: TestClient, acc_id: int, _migrated: Settings) -> None:
     assert hx == {
         "balance-stale": True,
         "forecast-stale": True,
-        "toast": {"kind": "success", "message": "Account deleted"},
+        "toast": {"variant": "success", "message": "Account deleted"},
     }
 
 
@@ -465,3 +466,69 @@ def test_delete_refused_when_balance_not_zero(
     assert "Cannot archive account: Balance is not zero" in r.text
     assert accounts_repo.find_by_id(db, USER_ID, acc.id) is not None
     assert _count(db, "audit_log") == audit_before
+
+
+def _create(settings: Settings, **kwargs: object) -> int:
+    conn = get_connection(settings)
+    try:
+        return accounts_repo.create(conn, USER_ID, NewAccount(**kwargs)).id  # type: ignore[arg-type]
+    finally:
+        conn.close()
+
+
+def _latest_id(settings: Settings) -> int:
+    conn = get_connection(settings)
+    try:
+        return max(a.id for a in accounts_repo.list_all(conn, USER_ID))
+    finally:
+        conn.close()
+
+
+def test_index_shows_each_account_row_with_its_name(
+    client: TestClient, _migrated: Settings
+) -> None:
+    acc = _create(_migrated, name="Main", currency="PLN", opening_balance=12_345)
+    html = client.get("/accounts").text
+    text = _html.text_of(html, accounts.row(acc))
+    assert "Main" in text
+    assert "123.45" in text
+
+
+def test_create_credit_card_round_trips_limit(client: TestClient, _migrated: Settings) -> None:
+    r = client.post(
+        "/accounts",
+        data={
+            "name": "Visa",
+            "currency": "PLN",
+            "opening_balance": "0",
+            "is_liability": "on",
+            "credit_limit": "10000.00",
+        },
+    )
+    assert r.status_code == 200
+    text = _html.text_of(r.text, accounts.row(_latest_id(_migrated)))
+    assert "credit card" in text.lower()
+    assert "10,000.00" in text
+
+
+def test_create_returns_the_new_row(client: TestClient, _migrated: Settings) -> None:
+    r = client.post(
+        "/accounts", data={"name": "Travel", "currency": "EUR", "opening_balance": "100.00"}
+    )
+    assert "Travel" in _html.text_of(r.text, accounts.row(_latest_id(_migrated)))
+
+
+def test_update_credit_card_limit_is_shown_in_the_row(
+    client: TestClient, _migrated: Settings
+) -> None:
+    acc = _create(_migrated, name="Main", currency="PLN")
+    r = client.post(
+        f"/accounts/{acc}",
+        data={
+            "name": "Visa",
+            "type": "credit_card",
+            "is_liability": "on",
+            "credit_limit": "5000.00",
+        },
+    )
+    assert "5,000.00" in _html.text_of(r.text, accounts.row(acc))

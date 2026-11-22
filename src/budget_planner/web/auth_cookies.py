@@ -142,7 +142,7 @@ def sign_challenge(
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
-    return f"{_b64e(payload)}.{_b64e(_mac(settings.cookie_secret, payload))}"
+    return f"{_b64e(payload)}.{_b64e(_mac(settings.resolve().cookie_secret, payload))}"
 
 
 def _decode_envelope(secret: str, value: str | None) -> dict[str, object] | None:
@@ -173,7 +173,7 @@ def verify_challenge(
     now: float | None = None,
 ) -> ChallengeEnvelope | None:
     """Return the envelope iff *value* is authentic, fresh, and matches purpose/user."""
-    data = _decode_envelope(settings.cookie_secret, value)
+    data = _decode_envelope(settings.resolve().cookie_secret, value)
     if data is None or data.get("p") != purpose or data.get("u") != user_id:
         return None
     try:
@@ -216,16 +216,31 @@ def clear_challenge_cookie(response: Response, settings: Settings) -> None:
 # ---------------------------------------------------------------------------
 
 
-def safe_next(value: str | None) -> str:
-    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0077)."""
-    if not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\")):
-        return DEFAULT_LANDING
-    if "\\" in value or any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value):
-        return DEFAULT_LANDING
+def _is_unsafe_shape(value: str) -> bool:
+    """True for empty, root, non-absolute or protocol-relative paths."""
+    return not value or value == "/" or not value.startswith("/") or value.startswith(("//", "/\\"))
+
+
+def _has_forbidden_chars(value: str) -> bool:
+    """True when the path holds a backslash or any control character."""
+    if "\\" in value:
+        return True
+    return any(ord(ch) < _FIRST_PRINTABLE or ord(ch) == _DEL for ch in value)
+
+
+def _is_external_or_login(value: str) -> bool:
+    """True for a URL carrying a scheme/host, or one pointing back at the login page."""
     parts = urlsplit(value)
     if parts.scheme or parts.netloc:
+        return True
+    return parts.path == LOGIN_PATH or parts.path.startswith(f"{LOGIN_PATH}/")
+
+
+def safe_next(value: str | None) -> str:
+    """Return *value* iff it is a same-site path, else ``DEFAULT_LANDING`` (``/`` too; ADR-0077)."""
+    if value is None or _is_unsafe_shape(value):
         return DEFAULT_LANDING
-    if parts.path == LOGIN_PATH or parts.path.startswith(f"{LOGIN_PATH}/"):
+    if _has_forbidden_chars(value) or _is_external_or_login(value):
         return DEFAULT_LANDING
     return value
 

@@ -1,9 +1,3 @@
 # G7 invariants: strict xfails of the differential invariants, one entry per (file, open Q-id) (Q-013).
 
 guard = "invariants"
-
-[[entry]]
-path = "tests/integration/invariants/test_inv_09_archived_category_scope.py"
-rule = "Q-030"
-count = 1
-finding = "Q-030"

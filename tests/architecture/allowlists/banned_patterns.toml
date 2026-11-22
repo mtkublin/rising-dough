@@ -1,24 +1,3 @@
 # G6 banned_patterns: copies of canonical-module functions and money rounding primitives outside domain/money.py.
 
 guard = "banned_patterns"
-
-[[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "banned-name"
-count = 2
-finding = "Q-007"
-epic = "E01"
-
-[[entry]]
-path = "src/budget_planner/web/routers/ledger.py"
-rule = "banned-name"
-count = 1
-finding = "Q-007"
-epic = "E01"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
-rule = "banned-name"
-count = 1
-finding = "Q-038"
-epic = "E03"

@@ -3,42 +3,57 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
+from enum import StrEnum
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import Request
 from fastapi.responses import Response
 
-_TRIGGER_HEADER = "HX-Trigger"
-_BUDGET_STALE = "budget-stale"
-_CATEGORIES_STALE = "settings-categories-stale"
+
+class Event(StrEnum):
+    """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0143)."""
+
+    BALANCE_STALE = "balance-stale"
+    BUDGET_STALE = "budget-stale"
+    FORECAST_STALE = "forecast-stale"
+    LEDGER_STALE = "ledger-stale"
+    TODAY_STALE = "today-stale"
+    SETTINGS_CATEGORIES_STALE = "settings-categories-stale"
+    TOAST = "toast"
 
 
-def trigger(response: Response, *events: str) -> None:
-    """Set an HX-Trigger header carrying one or more event names.
-
-    HTMX accepts either a bare event name or a JSON object mapping event
-    names to payloads. We always emit the JSON form so stacked events
-    survive the HTMX parser.
-    """
-    if not events:
-        return
-    payload = dict.fromkeys(events, True)
-    response.headers["HX-Trigger"] = json.dumps(payload)
+ToastVariant = Literal["info", "success", "warning", "error"]
 
 
-def toast_headers(
-    *,
+def toast_payload(
+    variant: ToastVariant,
     message: str,
-    variant: str,
+    *,
     undo_url: str | None = None,
-    stale_event: str = _CATEGORIES_STALE,
-) -> dict[str, str]:
-    """Response headers: an HX-Trigger carrying a toast plus the stale events a mutation raises."""
-    toast: dict[str, str] = {"variant": variant, "message": message}
+    undo_payload: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Build the one toast payload shape the client (``app-init.js``) reads."""
+    payload: dict[str, object] = {"variant": variant, "message": message}
     if undo_url is not None:
-        toast["undo_url"] = undo_url
-    payload = {"toast": toast, stale_event: True, _BUDGET_STALE: True}
-    return {_TRIGGER_HEADER: json.dumps(payload)}
+        payload["undo_url"] = undo_url
+    if undo_payload is not None:
+        payload["undo_payload"] = dict(undo_payload)
+    return payload
+
+
+def trigger(response: Response, *events: Event, toast: Mapping[str, object] | None = None) -> None:
+    """Set the HX-Trigger header: stale events plus an optional toast.
+
+    Always the JSON object form so stacked events survive the HTMX parser.
+    """
+    payload: dict[str, object] = dict.fromkeys((str(e) for e in events), True)
+    if toast is not None:
+        payload[str(Event.TOAST)] = dict(toast)
+    if not payload:
+        return
+    response.headers["HX-Trigger"] = json.dumps(payload)
 
 
 def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:

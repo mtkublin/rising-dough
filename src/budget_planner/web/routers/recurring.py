@@ -25,7 +25,7 @@ from budget_planner.services import (
 from budget_planner.services._promotion import UnsupportedDirectionError, ValidationError
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, today_for
-from budget_planner.web.htmx import refresh_unless_on, trigger
+from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.params import parse_date, parse_int, positive_amount
 from budget_planner.web.rendering import render
 
@@ -173,10 +173,38 @@ async def create_rule(
         category=cat,
         effective_amount_minor=minor,
     )
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     # See create_planned: no row insert; refetch on the ledger, reload elsewhere.
     refresh_unless_on(request, html, "/ledger")
     return html
+
+
+# ADR-0056 §4 live formula preview. Registered BEFORE `/{rule_id}` so FastAPI's
+# int-path validator does not swallow the literal `formula` segment.
+@router.post("/formula/preview", response_class=HTMLResponse)
+async def formula_preview(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    user_id: int = Depends(current_user_id),
+) -> Response:
+    """Live-preview chip or inline error for a draft formula (no DB write)."""
+    form = await request.form()
+    draft_rule_id_raw = str(form.get("draft_rule_id", ""))
+    draft_rule_id = parse_int(draft_rule_id_raw)
+    if draft_rule_id_raw and draft_rule_id is None:
+        return Response(status_code=422, content="invalid draft_rule_id")
+    drafts = forms.parse_draft_terms(form)
+    if drafts is None:
+        return Response(status_code=422, content="invalid source_category_ids")
+    result = formula_svc.preview(conn, user_id, today_for(request), draft_rule_id, drafts)
+    is_ok = isinstance(result, formula_svc.PreviewOk)
+    return render(
+        request,
+        "partials/recurring/_formula_preview.html",
+        result=result,
+        is_ok=is_ok,
+        status_code=200 if is_ok else 422,
+    )
 
 
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
@@ -329,7 +357,7 @@ async def update_rule_handler(  # noqa: PLR0915 — flat validation surface
     )
     # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -348,7 +376,7 @@ def deactivate_rule(
     # Recurring tab (hx-swap="outerHTML") and re-fetches the table so
     # inactive rules disappear from view. Mirrors transactions/delete.
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "ledger-stale", "forecast-stale")
+    trigger(resp, Event.LEDGER_STALE, Event.FORECAST_STALE)
     return resp
 
 
@@ -444,7 +472,7 @@ def add_override(
         ),
     )
     html = Response()
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -476,7 +504,7 @@ def delete_override(
         account=acc,
         category=cat,
     )
-    trigger(html, "forecast-stale", "ledger-stale")
+    trigger(html, Event.FORECAST_STALE, Event.LEDGER_STALE)
     return html
 
 
@@ -596,7 +624,7 @@ def promote_submit(
         )
 
     html = Response()
-    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
     refresh_unless_on(request, html, "/ledger")
     return html
 
@@ -628,5 +656,5 @@ def skip_next(
         category=cat,
         effective_amount_minor=views.effective_amount_for_render(conn, user_id, updated),
     )
-    trigger(html, "ledger-stale", "forecast-stale", "budget-stale")
+    trigger(html, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE)
     return html

@@ -37,13 +37,6 @@ finding = "Q-048"
 epic = "E14"
 
 [[entry]]
-path = "src/budget_planner/services/budget.py"
-rule = "suppress:noqa"
-count = 1
-finding = "Q-048"
-epic = "E14"
-
-[[entry]]
 path = "src/budget_planner/services/recurring_formula.py"
 rule = "suppress:noqa"
 count = 2

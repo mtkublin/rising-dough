@@ -35,7 +35,7 @@ from budget_planner.services.preferences import InvalidAnchorCategoryError
 from budget_planner.web import view_models
 from budget_planner.web.budget_forms import non_negative_amount, parse_override, valid_month
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep, today_for
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.params import MAX_YEAR, MIN_YEAR, parse_int, parse_year_month
 from budget_planner.web.rendering import render
 
@@ -155,7 +155,7 @@ def create_override(
         return Response(status_code=422, content=parsed.error)
     budget_rules.apply_override(conn, user_id, parsed.command)
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -171,7 +171,9 @@ def index(
     fiscal = budget_service.fiscal_month_for(conn, user_id, today_for(request))
     year, month = parse_year_month(q.get("year"), q.get("month"), fiscal)
     today = clock.today_local(settings)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=settings.base_currency
+    )
     return render(
         request,
         "budget/index.html",
@@ -205,7 +207,7 @@ def set_default(
         conn, user_id, NewBudgetDefault(category_id=category_id, amount=minor)
     )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -232,7 +234,7 @@ def set_income_anchor(
         except InvalidAnchorCategoryError as err:
             return Response(status_code=422, content=str(err))
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -261,5 +263,5 @@ def set_one_off(
         NewBudgetOneOffOverride(category_id=category_id, year=year, month=month, amount=minor),
     )
     resp = Response(content="ok", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp

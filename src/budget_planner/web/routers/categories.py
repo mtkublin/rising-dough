@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, Response
 from budget_planner.services import categories as categories_service
 from budget_planner.services.category_forms import parse_category_patch, parse_new_category
 from budget_planner.web.deps import current_user_id, get_db
-from budget_planner.web.htmx import toast_headers, trigger
+from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -54,7 +54,7 @@ def create_category(
         )
     cat = categories_service.create(conn, user_id, parsed.command)
     html = render(request, "partials/categories/_row.html", category=cat)
-    trigger(html, "budget-stale")
+    trigger(html, Event.BUDGET_STALE)
     # T-D150: the form targets itself and the categories list has no region that
     # refetches on a trigger, so skip the swap and reload to show the new item.
     html.headers["HX-Reswap"] = "none"
@@ -125,7 +125,7 @@ def update_category(
     updated = categories_service.find_by_id(conn, user_id, category_id)
     assert updated is not None
     html = render(request, "partials/categories/_row.html", category=updated)
-    trigger(html, "budget-stale")
+    trigger(html, Event.BUDGET_STALE)
     return html
 
 
@@ -142,7 +142,7 @@ def delete_category(
         return Response(status_code=409, content="system categories cannot be deleted")
     categories_service.soft_delete(conn, user_id, category_id)
     resp = Response(content="", media_type="text/html")
-    trigger(resp, "budget-stale")
+    trigger(resp, Event.BUDGET_STALE)
     return resp
 
 
@@ -163,14 +163,16 @@ def archive_category(
         return Response(status_code=403, content="system categories cannot be archived")
     except categories_service.CategoryHasLiveRulesError as exc:
         return Response(status_code=422, content=str(exc))
-    return Response(
-        status_code=204,
-        headers=toast_headers(
-            message="Category archived",
-            variant="success",
-            undo_url=f"/categories/{category_id}/restore",
+    resp = Response(status_code=204)
+    trigger(
+        resp,
+        Event.SETTINGS_CATEGORIES_STALE,
+        Event.BUDGET_STALE,
+        toast=toast_payload(
+            "success", "Category archived", undo_url=f"/categories/{category_id}/restore"
         ),
     )
+    return resp
 
 
 @router.post("/{category_id}/restore")
@@ -183,7 +185,11 @@ def restore_category(
         categories_service.restore(conn, user_id, category_id)
     except categories_service.CategoryNotFoundError:
         return Response(status_code=404, content="not found")
-    return Response(
-        status_code=204,
-        headers=toast_headers(message="Category restored", variant="success"),
+    resp = Response(status_code=204)
+    trigger(
+        resp,
+        Event.SETTINGS_CATEGORIES_STALE,
+        Event.BUDGET_STALE,
+        toast=toast_payload("success", "Category restored"),
     )
+    return resp

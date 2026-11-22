@@ -19,12 +19,13 @@ verify).
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final
 
 import bcrypt
+
+from budget_planner.domain.ports import TokenSource
 
 DEFAULT_ROUNDS: int = 12
 MIN_ROUNDS: Final = 4
@@ -79,12 +80,18 @@ _DUMMY_HASHES: Final[Mapping[int, str]] = MappingProxyType(
 )
 
 
-def dummy_hash() -> str:
-    """Return a throwaway hash at the current :data:`DEFAULT_ROUNDS` cost."""
+def dummy_hash(tokens: TokenSource | None = None) -> str:
+    """Return a throwaway hash at the current :data:`DEFAULT_ROUNDS` cost.
+
+    Costs outside the precomputed table need a ``tokens`` port to draw the
+    discarded secret from (entropy is injected, never read here).
+    """
     known = _DUMMY_HASHES.get(DEFAULT_ROUNDS)
     if known is not None:
         return known
-    return hash_password(secrets.token_urlsafe(16), rounds=DEFAULT_ROUNDS)
+    if tokens is None:
+        raise ValueError(f"no precomputed dummy hash for cost {DEFAULT_ROUNDS}; pass a TokenSource")
+    return hash_password(tokens.new_token(16), rounds=DEFAULT_ROUNDS)
 
 
 __all__ = [

@@ -574,3 +574,52 @@ Targeted `mutmut run` on 28 mutants (the rows 5, 7, 22, 30, 43, 51, 60, 78, 101 
 - `month_summary` #164, #166, #167, #172 (defaults of `overall_sum.get` / `overall_mo.get`): a category missing from one dict is missing from the other, and `_mean_minor` returns 0 for a zero count.
 
 Real bugs found: none.
+
+## T-Q223 re-run (2026-11-22)
+
+`mutmut run "budget_planner.services.forecast.*" --max-children 2` (mutmut 3.7.0, `mutants/` deleted first) over `services/forecast.py` as it stands after T-Q207 (`recurring.pending_occurrences`, overdue on `today + 1`), T-Q212/T-Q213 (`FxConverter`, `_base_of_txn`), T-Q229 (`today` required) and T-Q234 (batched `_month_inputs`, `_MonthSpan`, `budget_batch`). Before the new tests (existing `test_forecast*.py`): 135 survivors + 4 timeouts + 22 no-tests (`projection_summary`) = 161 of the current function set. After `tests/unit/services/test_forecast_mutation_kills.py` (49 tests: horizon-end boundary on the last day and the day after, horizon 0 and 1, due-today and overdue placement, income/expense/transit legs on one day with exact per-account and total balances, skipped and overridden occurrences followed by valid ones, inactive rules, EUR rates on and before `today` and `FxUnavailableError`, the overlay (HALF_EVEN spread, last-day residual, year-end crossing, spend on `today`, foreign spend on a deleted account, overdue only in the first window, unbudgeted category before a budgeted one, remaining of exactly 1), monthly flows, `_planned_budget_per_month`, a fiscal month that differs from the calendar month, `projection_summary`, `normalize_horizon`, `monthly_projection` fields; every case runs beside a second user's rows, one with the tombstone world): 40 survivors + 4 timeouts, 0 no-tests. The 4 timeouts (`_iter_months` #6, #7, #12, #13: `month = 1` / `month -= 1` / `year = 1` / `year -= 1`) never terminate, so they are killed. Every survivor is equivalent:
+
+- `zip(..., strict=...)` (`_spent_per_span` #10, #13, #14, #35, #39, #40; `_month_inputs` #40, #43, #44; `_collect_budget_overlay` #33, #36, #37; `_planned_budget_per_month` #62, #65, #66): both sides are always the same length, so strictness never fires.
+- `_spent_per_span` #24-#29 (`date_from` / `date_to` / `directions` dropped or the call reshaped): the bucketing loop re-filters every row by `[month_start, cutoff]`, and income/transit rows only land in categories the overlay never reads.
+- `_collect_events` #9 (`start=None`) and #23 (`end + 2 days`): events on or before `today` and after the horizon end are never read by the day loop (`range(1, horizon + 1)`).
+- `_distribute_overlay` #8 (`mode=None`): `round_div` defaults to HALF_EVEN.
+- `_collect_budget_overlay` #60 (`unaccounted >= 0`): a zero amount distributes to zero-amount events, which are skipped.
+- `forecast` #115 (`running_native.get(..., 1)`): the entry only exists for an inactive account and is never read.
+- `_planned_budget_per_month` #4, #7 (`include_deleted` None / omitted): the default is False. #13 (`day=2`): `_month_offset` normalizes to the first of the month. #91 (`remaining >= 0`): adds zero.
+- `forecast_monthly` #35 (`max(..., 1)`): only `series.days[0]` is read. #53, #59 (`start_month` dropped): the fiscal row takes `month_summary` totals, and in the fixture the other rows get the same budget either way.
+- `_current_month_budget_totals` #2 and `forecast_monthly` #124, #129 (`fiscal_year` default `today.year`): differ only when the fiscal cycle crosses a year boundary; the fiscal-month test covers November vs December of one year.
+- `forecast` #40, #43, #44 (`categories_repo.list_all(include_deleted=...)` in the direction map): see the finding below; no assertion pins either choice.
+- `monthly_projection` #28: formatting-only mutant (a moved closing parenthesis).
+
+Finding (no src change, for triage): the budget overlay reads categories with `include_deleted=True`, so a soft-deleted expense category that still has a budget default keeps reserving forecast spend (a 50 default became -50 on the next day in a probe), while `_planned_budget_per_month` uses `include_deleted=False` and ignores it. Whether that is intended is undecided, so the tests do not pin it.
+
+Real bugs found: none confirmed.
+
+## T-Q247 re-run (2026-11-22)
+
+`mutmut run "budget_planner.services.<module>.*" --max-children 2` (mutmut 3.7.0, `mutants/` deleted first; one run over the eight modules) over `analytics`, `today`, `users`, `planned`, `upcoming`, `export`, `replication_health` and `preferences` as they stand after T-Q207 (`recurring.pending_occurrences`), T-Q213 (`analytics.bundle(..., converter, ...)`), T-Q229 and T-Q237 (`today` / `afford`). The sampled rows 310-516 were re-triaged against the current code: the FX rows (`analytics`) and the `planned` / `upcoming` rows are replaced by the current function set below; `users` was not mid-change on the base (T-Q264 not merged), so it is included. Before the new tests (existing `test_analytics_bundle.py`, `test_today_afford.py`, `test_users*.py`, `test_planned.py`, `test_upcoming.py`, `test_export.py`, `test_replication_health.py`, `test_preferences.py`): 282 survivors + 1 timeout (analytics) of 1,592 mutants (82.3%). After the eight new files (`test_<module>_mutation_kills.py`, 120+ tests: period bounds on the last/first day and the day outside, every panel beside a second user and the tombstone world, soft-deleted categories and accounts, EUR rate on the transaction's own date, `afford` with a stubbed summary for exact HALF_EVEN, the 50% tight threshold and floors, window `<=` boundaries, planned-before-recurring ties, planned filter pass-through and default window ends, `undo_batch` skip/continue and cross-user ids, exact `InvalidAnchorCategoryError` and log texts, CSV dialect and Parquet schema/zstd/exact int64, every replication verdict whole with the `>` probe boundary, bootstrap outcome and structured log event, `_atomically` mapping, request context on every audit row): 49 survivors (96.9%). Per module (survivors before to after, score before to after):
+
+| Module | Mutants | Survivors | Score |
+|---|---|---|---|
+| analytics | 352 to 360 | 62 to 4 (+1 timeout, killed) | 82.4% to 98.9% |
+| today | 107 to 109 | 27 to 7 | 74.8% to 93.6% |
+| users | 526 to 528 | 75 to 13 | 85.7% to 97.5% |
+| planned | 237 | 35 to 3 | 85.2% to 98.7% |
+| upcoming | 74 | 12 to 9 | 83.8% to 87.8% |
+| export | 99 | 21 to 10 | 78.8% to 89.9% |
+| replication_health | 121 | 28 to 3 | 76.9% to 97.5% |
+| preferences | 76 | 22 to 0 | 71.1% to 100% |
+
+The mutant counts after the arrow are from a re-run of `analytics`, `today` and `users` on the base merged at the end of the task (T-Q213 follow-ups: `aggregates.sum_by_category`, `live_accounts_only`, `afford(..., base_currency=)`, `tokens` on `create_user` / `reset_password`); the survivor sets are identical (`analytics` #42/#44/#50/#41 renumber to #45/#47/#53/#44). 49 survivors of 1,604 mutants (96.9%) in total.
+
+Every remaining survivor is equivalent:
+
+- `analytics` `_spend_by_category` #42, `_twelve_month_averages` #44, `_largest_items` #50 (`"?"` placeholder name) and `_income_vs_expense_monthly` #41 (`continue` to `break` on an unknown category): `transactions.list_filtered` inner-joins `categories`, so a row whose category is missing is never returned; the `cat_id in cats` miss and the `cat is None` branch are unreachable. `_trailing_12_months` #15 (`start_month -= 12`) is the timeout: the loop never ends.
+- `today` `_div_round_half_even` #1, #3 (`denominator < 0`, `return 1`): the only callers pass `max(days_left, 1)`, so the denominator is at least 1. #6 (`mode=None`): `round_div` defaults to HALF_EVEN. `_pace_tag_for` #5, #6, #7, #8 (`baseline <= 0` guard and its value): `per_day <= baseline` always (the amount is non-negative), so `per_day > 0` implies `baseline > 0`; the branch is unreachable.
+- `upcoming` `list_upcoming` #9, #12, #13 (`list_rules(active_only=...)`): `pending_occurrences` already drops inactive rules, so extra inactive ids in `formula_ids` are never looked up. #19, #28 (`include_overdue`): with `start=None` the window is open, so overdue and non-overdue select the same items. #41, #43, #44, #45 (sort tie key): `pending_occurrences` already yields planned rows before rules, and the sort is stable, so the tie order is unchanged.
+- `planned` `list_planned` #38, #39 (`persisted_id or 0`): `persisted_id` is always a positive int and the repository already orders by date then id. `promote_to_actual` #29 (`ValidationError(None)`): `# pragma: no cover` FK guard, unreachable.
+- `export` `export_csv` #4, #7 (`dialect=None` / omitted): the default `csv.writer` dialect is `excel`. #24 and `export_parquet` #31 (`"UTF-8"`, `"ZSTD"`): codec names are case-insensitive. `_column_series` #9, #10, #11: `_DTYPES["date"]` is `"object"`, the same value the branch picks. `export_parquet` #18, #21, #22 (`preserve_index`): the explicit schema has no index field, so the index never becomes a column.
+- `replication_health` `read_status_text` #1, #4 (`encoding=None`, `"UTF-8"`): the locale and alias are UTF-8. `evaluate` #15 (`doc = ""` instead of `None`): both fail the `isinstance(doc, dict)` check.
+- `users` `_assert_schema` #3, #6, #7: `sqlite3.Row` keys and SQL keywords are case-insensitive. `_emit` #10 (`get_logger(None)`): the logger name is not visible to `capture_logs`. `_apply_credentials` #11 (`set_email=None`): both falsy, the email is not written. #87, #88, #90 and `build_draft` #27, #28, #30 (`split("@", 1)` variants): a validated email holds exactly one `@`. `_valid_email` #21 (`strip("XX.XX")`): `build_draft` lower-cases first, so `X` never occurs. `_ensure_email_free` #1 (`holder = None`): the `ux_users_email_live` index then raises `IntegrityError`, which `_atomically` maps to the same `UserInputError`.
+
+Real bugs found: none.

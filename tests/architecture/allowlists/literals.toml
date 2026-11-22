@@ -61,7 +61,7 @@ epic = "E03"
 [[entry]]
 path = "src/budget_planner/web/htmx.py"
 rule = "repeated-literal"
-count = 3
+count = 2
 finding = "Q-038"
 epic = "E03"
 
@@ -74,15 +74,8 @@ epic = "E03"
 
 [[entry]]
 path = "src/budget_planner/web/routers/accounts.py"
-rule = "domain-literal"
-count = 6
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/accounts.py"
 rule = "repeated-literal"
-count = 3
+count = 1
 finding = "Q-038"
 epic = "E03"
 
@@ -90,27 +83,6 @@ epic = "E03"
 path = "src/budget_planner/web/routers/auth.py"
 rule = "repeated-literal"
 count = 1
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
-rule = "domain-literal"
-count = 4
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/budget.py"
-rule = "repeated-literal"
-count = 1
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/categories.py"
-rule = "domain-literal"
-count = 3
 finding = "Q-038"
 epic = "E03"
 
@@ -130,22 +102,8 @@ epic = "E03"
 
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
-rule = "domain-literal"
-count = 19
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/planned.py"
 rule = "repeated-literal"
-count = 2
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/recurring.py"
-rule = "domain-literal"
-count = 16
+count = 1
 finding = "Q-038"
 epic = "E03"
 
@@ -153,12 +111,5 @@ epic = "E03"
 path = "src/budget_planner/web/routers/settings.py"
 rule = "repeated-literal"
 count = 1
-finding = "Q-038"
-epic = "E03"
-
-[[entry]]
-path = "src/budget_planner/web/routers/transactions.py"
-rule = "domain-literal"
-count = 12
 finding = "Q-038"
 epic = "E03"

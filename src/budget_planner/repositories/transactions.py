@@ -19,7 +19,15 @@ from budget_planner.domain.transactions import (
     Transaction,
     TransactionFilter,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
+from budget_planner.repositories._shared import (
+    FilterPart,
+    in_parts,
+    join_filter_parts,
+    mutate,
+    parse_dt,
+    parse_dt_required,
+    require_owned,
+)
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -66,49 +74,65 @@ def find_by_id(
     return _row_to_txn(row) if row is not None else None
 
 
+# ADR-0136: the one predicate that hides soft-deleted accounts from derived reads.
+_LIVE_ACCOUNT = (
+    "t.account_id IN (SELECT a.id FROM accounts a "
+    "WHERE a.user_id = t.user_id AND a.deleted_at IS NULL)"
+)
+
+
 def _append_filter_clauses(
     filters: TransactionFilter,
     include_deleted: bool,
 ) -> tuple[list[str], list[Any]]:
-    clauses: list[str] = []
-    params: list[Any] = []
+    return join_filter_parts(
+        [
+            *_txn_date_parts(filters),
+            *in_parts("t.account_id", filters.account_ids),
+            *in_parts("t.category_id", filters.category_ids),
+            *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_txn_amount_text_parts(filters),
+            *_txn_scope_parts(filters, include_deleted),
+        ]
+    )
 
+
+def _txn_date_parts(filters: TransactionFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.date_from is not None:
-        clauses.append("t.operation_date >= ?")
-        params.append(filters.date_from.isoformat())
+        parts.append(("t.operation_date >= ?", [filters.date_from.isoformat()]))
     if filters.date_to is not None:
-        clauses.append("t.operation_date <= ?")
-        params.append(filters.date_to.isoformat())
+        parts.append(("t.operation_date <= ?", [filters.date_to.isoformat()]))
     if filters.up_to_date is not None:
-        clauses.append("t.operation_date <= ?")
-        params.append(filters.up_to_date.isoformat())
-    if filters.account_ids:
-        placeholders = ",".join("?" for _ in filters.account_ids)
-        clauses.append(f"t.account_id IN ({placeholders})")
-        params.extend(filters.account_ids)
-    if filters.category_ids:
-        placeholders = ",".join("?" for _ in filters.category_ids)
-        clauses.append(f"t.category_id IN ({placeholders})")
-        params.extend(filters.category_ids)
-    if filters.directions:
-        placeholders = ",".join("?" for _ in filters.directions)
-        clauses.append(f"c.direction IN ({placeholders})")
-        params.extend(d.value for d in filters.directions)
+        parts.append(("t.operation_date <= ?", [filters.up_to_date.isoformat()]))
+    return parts
+
+
+def _txn_amount_text_parts(filters: TransactionFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.amount_min is not None:
-        clauses.append("t.amount >= ?")
-        params.append(filters.amount_min)
+        parts.append(("t.amount >= ?", [filters.amount_min]))
     if filters.amount_max is not None:
-        clauses.append("t.amount <= ?")
-        params.append(filters.amount_max)
+        parts.append(("t.amount <= ?", [filters.amount_max]))
     if filters.description_contains is not None:
-        clauses.append("t.description LIKE ?")
-        params.append(f"%{filters.description_contains}%")
+        parts.append(("t.description LIKE ?", [f"%{filters.description_contains}%"]))
+    return parts
+
+
+def _txn_scope_parts(filters: TransactionFilter, include_deleted: bool) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.account_or_dest is not None:
-        clauses.append("(t.account_id = ? OR t.dest_account_id = ?)")
-        params.extend([filters.account_or_dest, filters.account_or_dest])
+        parts.append(
+            (
+                "(t.account_id = ? OR t.dest_account_id = ?)",
+                [filters.account_or_dest, filters.account_or_dest],
+            )
+        )
+    if filters.live_accounts_only:
+        parts.append((_LIVE_ACCOUNT, []))
     if not include_deleted:
-        clauses.append("t.deleted_at IS NULL")
-    return clauses, params
+        parts.append(("t.deleted_at IS NULL", []))
+    return parts
 
 
 def list_filtered(
@@ -418,3 +442,19 @@ __all__ = [
     "undelete",
     "update",
 ]
+
+
+def latest_operation_date_by_account(
+    conn: sqlite3.Connection, user_id: int, category_id: int
+) -> dict[int, date]:
+    """Return ``{account_id: max(operation_date)}`` for live transactions in one category."""
+    rows = conn.execute(
+        """
+        SELECT account_id, MAX(operation_date) AS d
+        FROM transactions
+        WHERE user_id = ? AND category_id = ? AND deleted_at IS NULL
+        GROUP BY account_id
+        """,
+        (user_id, category_id),
+    ).fetchall()
+    return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}

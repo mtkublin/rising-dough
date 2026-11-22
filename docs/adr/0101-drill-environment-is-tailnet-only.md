@@ -56,3 +56,7 @@ SSH is already tailnet-only (ADR-0094); the web UI should follow.
 ## Amendment 2026-11-07 (T-D98)
 
 The drill now starts only from `workflow_dispatch` (ADR-0099 amendment, T-D98), which is a human action, so the required reviewer on `drill` is optional; for a single-maintainer repository it is recommended to leave it off (the approval would be redundant). The ungated `drill-teardown` and `drill-plan` environments are unchanged.
+
+## Amendment 2026-11-22 (T-Q255, Q-078): where the drill port control sits
+
+Caddy runs with `network_mode: host` (ADR-0133), so Docker publishes no port for it and `DOCKER-USER` never sees that traffic; the control for 443 on the drill is the host INPUT filter: `ufw allow in on tailscale0 to any port 443` with default deny, plus no public security-group rule. The app is the only published port and is bound to `127.0.0.1:8000`. `render.tftest.hcl` now asserts that the drill renders no published port other than that loopback bind. Binding Caddy to the tailnet address is not done: the address is assigned at join time, after the template is rendered.

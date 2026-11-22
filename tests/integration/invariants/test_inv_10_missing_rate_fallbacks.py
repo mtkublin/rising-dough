@@ -24,7 +24,9 @@ def test_missing_rate_degrades_consistently(seeded: sqlite3.Connection) -> None:
     ).id
     converter = fx.converter_for(seeded, get_settings(), today)
     surfaces: dict[str, Callable[[], object]] = {
-        "budget": lambda: budget.planned_base_amounts(seeded, U, today=today)(eur, 100_000),
+        "budget": lambda: budget.planned_base_amounts(seeded, U, today=today, base_currency="PLN")(
+            eur, 100_000
+        ),
         "today": lambda: today_data.collect_account_rows(seeded, U, converter),
         "forecast": lambda: forecast.forecast(
             seeded, U, converter, today, 0, include_budget_overlay=False

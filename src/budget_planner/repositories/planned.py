@@ -20,7 +20,15 @@ from budget_planner.domain.planned import (
     PlannedFilter,
     PlannedTransaction,
 )
-from budget_planner.repositories._shared import mutate, parse_dt, parse_dt_required, require_owned
+from budget_planner.repositories._shared import (
+    FilterPart,
+    in_parts,
+    join_filter_parts,
+    mutate,
+    parse_dt,
+    parse_dt_required,
+    require_owned,
+)
 
 _COLUMNS = (
     "id, user_id, operation_date, category_id, account_id, dest_account_id, "
@@ -70,38 +78,42 @@ def _append_filter_clauses(
     filters: PlannedFilter,
     include_deleted: bool,
 ) -> tuple[list[str], list[Any]]:
-    clauses: list[str] = []
-    params: list[Any] = []
+    return join_filter_parts(
+        [
+            *_planned_date_parts(filters),
+            *in_parts("p.account_id", filters.account_ids),
+            *in_parts("p.category_id", filters.category_ids),
+            *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_planned_rule_parts(filters, include_deleted),
+        ]
+    )
+
+
+def _planned_date_parts(filters: PlannedFilter) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.date_from is not None:
-        clauses.append("p.operation_date >= ?")
-        params.append(filters.date_from.isoformat())
+        parts.append(("p.operation_date >= ?", [filters.date_from.isoformat()]))
     if filters.date_to is not None:
-        clauses.append("p.operation_date <= ?")
-        params.append(filters.date_to.isoformat())
-    if filters.account_ids:
-        placeholders = ",".join("?" for _ in filters.account_ids)
-        clauses.append(f"p.account_id IN ({placeholders})")
-        params.extend(filters.account_ids)
-    if filters.category_ids:
-        placeholders = ",".join("?" for _ in filters.category_ids)
-        clauses.append(f"p.category_id IN ({placeholders})")
-        params.extend(filters.category_ids)
-    if filters.directions:
-        placeholders = ",".join("?" for _ in filters.directions)
-        clauses.append(f"c.direction IN ({placeholders})")
-        params.extend(d.value for d in filters.directions)
+        parts.append(("p.operation_date <= ?", [filters.date_to.isoformat()]))
+    return parts
+
+
+def _planned_rule_parts(filters: PlannedFilter, include_deleted: bool) -> list[FilterPart]:
+    parts: list[FilterPart] = []
     if filters.recurring_rule_id is not None:
-        clauses.append("p.recurring_rule_id = ?")
-        params.append(filters.recurring_rule_id)
+        parts.append(("p.recurring_rule_id = ?", [filters.recurring_rule_id]))
     if filters.promoted is not None:
-        clauses.append(
-            "p.promoted_to_txn_id IS NOT NULL"
-            if filters.promoted
-            else "p.promoted_to_txn_id IS NULL"
+        parts.append(
+            (
+                "p.promoted_to_txn_id IS NOT NULL"
+                if filters.promoted
+                else "p.promoted_to_txn_id IS NULL",
+                [],
+            )
         )
     if not include_deleted:
-        clauses.append("p.deleted_at IS NULL")
-    return clauses, params
+        parts.append(("p.deleted_at IS NULL", []))
+    return parts
 
 
 def list_filtered(

@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 from budget_planner.domain.enums import Cadence, Direction, months_per_cadence
 from budget_planner.domain.money import divide_minor_units, format_money
+from budget_planner.domain.transactions import signed_legs
+from budget_planner.services.fx import FxUnavailableError
 
 # (amount_minor, operation_date, from_ccy) -> base-currency minor units
 Converter = Callable[[int, dt.date, str], int]
@@ -23,13 +25,9 @@ Converter = Callable[[int, dt.date, str], int]
 
 def signed_effect(amount_minor: int, direction: Direction) -> int:
     """Signed contribution of one transaction to a day's net (0 for transit)."""
-    if direction is Direction.INCOME:
-        return amount_minor
-    if direction is Direction.EXPENSE:
-        return -amount_minor
-    if direction is Direction.ADJUSTMENT:
-        return amount_minor  # pre-signed (ADR-0008)
-    return 0
+    if direction is Direction.TRANSIT:
+        return 0
+    return signed_legs(direction, amount_minor, 0, None)[0].amount_minor
 
 
 def day_nets(
@@ -50,6 +48,24 @@ def day_nets(
             out.setdefault(day, 0)
             continue
         out[day] = out.get(day, 0) + base_of(effect, day, ccy)
+    return out
+
+
+def actual_day_nets(
+    rows: Iterable[tuple[dt.date, int, Direction | None, str]],
+    base_of: Converter,
+) -> dict[str, int | None]:
+    """Per-day net with ISO-date keys for the Ledger Actual view (T-D48).
+
+    A day whose FX rate is unavailable maps to ``None`` so the header omits a wrong figure.
+    """
+    items = list(rows)
+    out: dict[str, int | None] = {}
+    for day in {i[0] for i in items}:
+        try:
+            out[day.isoformat()] = day_nets([i for i in items if i[0] == day], base_of)[day]
+        except FxUnavailableError:
+            out[day.isoformat()] = None
     return out
 
 
@@ -135,6 +151,7 @@ __all__ = [
     "Converter",
     "PlannedTotals",
     "RecurringTotals",
+    "actual_day_nets",
     "day_nets",
     "planned_totals",
     "recurring_monthly_totals",

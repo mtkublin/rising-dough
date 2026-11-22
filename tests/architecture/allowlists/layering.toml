@@ -2,38 +2,3 @@
 # ignore_imports list (T-Q15b) mirrors these pairs.
 
 guard = "layering"
-
-[[entry]]
-path = "src/budget_planner/web/app.py"
-rule = "contract:web-not-db"
-count = 1
-finding = "Q-074"
-epic = "E12"
-
-[[entry]]
-path = "src/budget_planner/web/deps.py"
-rule = "contract:web-not-db"
-count = 1
-finding = "Q-074"
-epic = "E12"
-
-[[entry]]
-path = "src/budget_planner/web/middleware/auth.py"
-rule = "contract:web-not-db"
-count = 1
-finding = "Q-074"
-epic = "E12"
-
-[[entry]]
-path = "src/budget_planner/web/retention_task.py"
-rule = "contract:web-not-db"
-count = 1
-finding = "Q-074"
-epic = "E12"
-
-[[entry]]
-path = "src/budget_planner/web/routers/health.py"
-rule = "contract:web-not-db"
-count = 1
-finding = "Q-074"
-epic = "E12"

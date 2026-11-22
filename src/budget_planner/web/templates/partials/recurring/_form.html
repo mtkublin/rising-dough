@@ -155,6 +155,10 @@
       </ul>
       <div class="rd-formula__foot">
         <button type="button" data-term-add class="rd-btn rd-btn--ghost rd-btn--sm">+ Add term</button>
+        <output id="formula-preview"
+                class="rd-formula__preview"
+                aria-live="polite"
+                data-formula-preview-slot></output>
         <p class="rd-formula__note text-muted">
           Sources are other recurring rules; coefficient is a percent of their amount. Cycles and non-positive results are blocked on save.
         </p>
@@ -216,6 +220,19 @@
     <button type="submit" class="rd-btn rd-btn--primary">{% if rule %}Save rule{% else %}Add rule{% endif %}</button>
   </footer>
 </form>
+{# ADR-0056 §4 — live formula preview. The request issuer lives OUTSIDE the
+   form on purpose: overlay-actions.js closes the overlay on any successful
+   htmx request inside [data-close-overlay-on-success], and a preview must
+   never do that. recurring-form.js fires `rd-formula-change` on term edits;
+   htmx debounces it and includes the form's fields. #}
+<div hidden
+     data-formula-preview-trigger
+     hx-post="/recurring/formula/preview"
+     hx-trigger="rd-formula-change delay:300ms"
+     hx-include="#recurring-form"
+     hx-target="#formula-preview"
+     hx-swap="innerHTML"
+     {% if rule %}hx-vals='{"draft_rule_id": "{{ rule.id }}"}'{% endif %}></div>
 <template data-term-template>
   <li class="rd-formula__term" data-term-row>
     <div class="rd-formula__term-grid">

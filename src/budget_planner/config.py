@@ -8,6 +8,7 @@ Access via `get_settings()`; the result is cached process-wide.
 from __future__ import annotations
 
 import warnings
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Final, Literal
@@ -28,6 +29,21 @@ _DEV_COOKIE_SECRET: Final = "dev-only-cookie-secret-change-in-prod"  # noqa: S10
 
 
 Env = Literal["dev", "test", "production"]
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class ResolvedSettings:
+    """Values derived from :class:`Settings` (ADR-0021 amendment, ADR-0130 section 5).
+
+    Built by :meth:`Settings.resolve`; never mutated. ``cookie_secret`` is
+    secret, so it is left out of ``repr``.
+    """
+
+    database_url: str
+    cookie_secret: str
+
+    def __repr__(self) -> str:
+        return f"ResolvedSettings(database_url={self.database_url!r}, cookie_secret='***')"
 
 
 class Settings(BaseSettings):
@@ -182,16 +198,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "session_absolute_lifetime_days must be >= session_lifetime_days (ADR-0076 §1)."
             )
-        # T-D04: default the DB path to ``/data/budget.db`` in production
-        # when the operator has not overridden it. Dev / test keep the
-        # repo-local default so `just dev` works without env plumbing.
-        if self.env == "production" and self.database_url == _DEFAULT_DATABASE_URL:
-            object.__setattr__(self, "database_url", _PROD_DATABASE_URL)
-
         # T-D03: cookie_secret policy. Production without a secret is a
-        # hard failure; dev falls back to the known-dev value and emits a
-        # one-shot warning so the fallback is observable; test env also
-        # falls back but stays silent (test runs would otherwise be swamped).
+        # hard failure; dev falls back to the known-dev value (see
+        # :meth:`resolve`) and emits a one-shot warning so the fallback is
+        # observable; test env also falls back but stays silent.
         if not self.cookie_secret:
             if self.env == "production":
                 raise ValueError(
@@ -204,7 +214,6 @@ class Settings(BaseSettings):
                     "Set BUDGET_COOKIE_SECRET to silence this warning.",
                     stacklevel=2,
                 )
-            object.__setattr__(self, "cookie_secret", _DEV_COOKIE_SECRET)
 
         # T-D135: WebAuthn relying-party policy. The localhost defaults make
         # passkeys fail in the browser on the real hostname, so production
@@ -222,6 +231,23 @@ class Settings(BaseSettings):
                     "BUDGET_WEBAUTHN_ORIGIN to https://<BUDGET_WEBAUTHN_RP_ID> (ADR-0067 §1)."
                 )
         return self
+
+    def resolve(self) -> ResolvedSettings:
+        """Return the derived values: prod DB default and dev cookie-secret fallback.
+
+        T-D04: production defaults the DB path to ``/data/budget.db`` when the
+        operator has not overridden it; dev / test keep the repo-local default.
+        T-D03: an empty ``cookie_secret`` falls back to the known dev value
+        (production already refused it in validation).
+        """
+        database_url = (
+            _PROD_DATABASE_URL
+            if self.env == "production" and self.database_url == _DEFAULT_DATABASE_URL
+            else self.database_url
+        )
+        return ResolvedSettings(
+            database_url=database_url, cookie_secret=self.cookie_secret or _DEV_COOKIE_SECRET
+        )
 
 
 @lru_cache(maxsize=1)

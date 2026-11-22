@@ -100,3 +100,7 @@ Multiple overlays can co-exist (promote-in-place row + popover + modal). The Esc
 ## Amendment 2026-11-21 (T-Q244, Q-050)
 
 The section 4 live formula preview endpoint `POST /recurring/formula/preview` (and its partial) had no caller since the unified entry form (ADR-0060) and was deleted, with `GET /accounts/last-checked`, `GET /plan/analytics`, `POST /budget/recurring/{category_id}/{month}`, `POST /recurring/batch/promote-due` and `POST /recurring/batch/undo`. `services/recurring_formula.preview` remains for a future re-wire in the ADR-0107 redesign.
+
+### Amendment 2026-11-22 (SYNC-MAIN): formula preview route restored
+
+The ui-test-harness work (T-UT12-3) wired the recurring form to `POST /recurring/formula/preview` again (`rd-formula-change` trigger in `partials/recurring/_form.html`), so the route deleted by T-Q244 has a caller. It is restored with its partial `partials/recurring/_formula_preview.html` and integration test; the other five T-Q244 deletions stand.

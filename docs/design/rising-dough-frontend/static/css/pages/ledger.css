@@ -417,3 +417,16 @@
     min-height: 0;
   }
 }
+
+/* Tabs + export ▾ (actual and planned) */
+.rd-ledger-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.rd-ledger-head > .rd-tabs {
+  min-width: 0;
+}

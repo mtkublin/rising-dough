@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from budget_planner.web import routers as routers_pkg
 from budget_planner.web.app import create_app
-from budget_planner.web.htmx import trigger
+from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.templating import build_jinja_env
 
 
@@ -49,7 +49,7 @@ def test_static_css_is_served(client: TestClient) -> None:
     r = client.get("/static/app.css")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/css")
-    assert "--surface" in r.text
+    assert "--surface" in r.content.decode()  # CSS asset body, not markup
 
 
 def test_jinja_filters_registered() -> None:
@@ -82,7 +82,7 @@ def test_jinja_autoescape_prevents_xss() -> None:
 
 def test_trigger_sets_hx_trigger_header() -> None:
     resp = Response()
-    trigger(resp, "balance-stale", "forecast-stale")
+    trigger(resp, Event.BALANCE_STALE, Event.FORECAST_STALE)
     hx = resp.headers["HX-Trigger"]
     data = json.loads(hx)
     assert data == {"balance-stale": True, "forecast-stale": True}

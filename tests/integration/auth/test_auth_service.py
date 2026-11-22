@@ -478,4 +478,4 @@ def test_relying_party_from_settings() -> None:
     assert auth.relying_party_from_settings(settings) == auth.RelyingParty(
         rp_id="budget.example.com", rp_name="RD", origin="https://budget.example.com"
     )
-    assert auth.relying_party_from_settings().rp_id == "localhost"
+    assert auth.relying_party_from_settings(Settings(_env_file=None)).rp_id == "localhost"

@@ -24,11 +24,10 @@ import datetime as dt
 import logging
 import sqlite3
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from budget_planner.config import get_settings
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import HALF_EVEN, round_div
@@ -43,24 +42,25 @@ from budget_planner.domain.periods import (
 )
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
-    accounts as accounts_repo,
     budgets as budgets_repo,
-    categories as categories_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
 from budget_planner.services import (
+    categories as categories_svc,
     fx as fx_svc,
     income as income_svc,
     preferences as preferences_svc,
     recurring as recurring_svc,
 )
+from budget_planner.services.aggregates import sum_by_category
+from budget_planner.services.budget_lines import (
+    CategoryBudgetLine,
+    CategorySums,
+    build_budget_lines,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _currency_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, str]:
-    return {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
 
 
 def planned_base_amounts(
@@ -68,7 +68,7 @@ def planned_base_amounts(
     user_id: int,
     *,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> Callable[[int, int], int]:
     """Return ``(account_id, amount_minor) -> base-currency minor`` (ADR-0095, ADR-0139).
 
@@ -77,8 +77,9 @@ def planned_base_amounts(
     network). Base-currency accounts are untouched. A missing rate raises
     ``FxUnavailableError``; there is no native-amount fallback.
     """
-    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
-    ccy_by_account = _currency_by_account(conn, user_id)
+    fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
+    # Planned rows may outlive their account: convert with its own currency (ADR-0136).
+    ccy_by_account = fx_svc.currency_by_account(conn, user_id, include_deleted=True)
 
     def _base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
@@ -91,7 +92,7 @@ def txn_base_amounts(
     user_id: int,
     *,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> Callable[[Transaction], int]:
     """Return ``txn -> base-currency minor`` for posted transactions (ADR-0095, ADR-0139).
 
@@ -99,22 +100,8 @@ def txn_base_amounts(
     the latest cached rate on or before its own ``operation_date`` (cache only,
     no network). A missing rate raises ``FxUnavailableError``.
     """
-    fx = fx_svc.converter_for(conn, get_settings(), today, base_currency=base_currency)
-    return fx_svc.txn_base_of(fx, _currency_by_account(conn, user_id))
-
-
-@dataclass(frozen=True, slots=True)
-class CategoryBudgetLine:
-    category_id: int
-    category_name: str
-    category_direction: Direction
-    category_color: str | None
-    budgeted_minor: int | None
-    spent_minor: int
-    remaining_minor: int | None
-    avg_monthly_overall_minor: int
-    avg_this_year_minor: int
-    delta_vs_prev_month_minor: int
+    fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
+    return fx_svc.txn_base_of(fx, fx_svc.currency_by_account(conn, user_id))
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +147,22 @@ class YearlyRow:
     total_minor: int
 
 
+def pick_tier(
+    one_off: int | None, recurring: int | None, default: int | None
+) -> tuple[int | None, str]:
+    """The one budget-tier rule: one-off, then recurring, then default; zero is a value.
+
+    Returns ``(amount, origin)`` with origin ``"one_off" | "recurring" | "default" | "unset"``.
+    """
+    if one_off is not None:
+        return one_off, "one_off"
+    if recurring is not None:
+        return recurring, "recurring"
+    if default is not None:
+        return default, "default"
+    return None, "unset"
+
+
 def resolve_budget(
     conn: sqlite3.Connection,
     user_id: int,
@@ -169,15 +172,13 @@ def resolve_budget(
 ) -> int | None:
     """Null-coalesce: one-off → recurring → default. Zero is a valid value."""
     one_off = budgets_repo.get_one_off(conn, user_id, category_id, year, month)
-    if one_off is not None:
-        return one_off.amount
     recurring = budgets_repo.get_recurring(conn, user_id, category_id, month)
-    if recurring is not None:
-        return recurring.amount
     default = budgets_repo.get_default(conn, user_id, category_id)
-    if default is not None:
-        return default.amount
-    return None
+    return pick_tier(
+        one_off.amount if one_off is not None else None,
+        recurring.amount if recurring is not None else None,
+        default.amount if default is not None else None,
+    )[0]
 
 
 def _expense_txns_in_range(
@@ -187,20 +188,12 @@ def _expense_txns_in_range(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=start,
             date_to=end,
             directions=(Direction.EXPENSE,),
         ),
     )
-
-
-def _sum_by_category(
-    txns: list[Transaction], base_of: Callable[[Transaction], int]
-) -> dict[int, int]:
-    out: dict[int, int] = defaultdict(int)
-    for t in txns:
-        out[t.category_id] += base_of(t)
-    return dict(out)
 
 
 def _active_month_counts(txns: list[Transaction]) -> dict[int, int]:
@@ -212,15 +205,9 @@ def _active_month_counts(txns: list[Transaction]) -> dict[int, int]:
     return {cat_id: len(months) for cat_id, months in seen.items()}
 
 
-def _mean_minor(total: int, count: int) -> int:
-    if count <= 0:
-        return 0
-    return round_div(total, count, mode=HALF_EVEN)
-
-
 def _all_expense_txns(conn: sqlite3.Connection, user_id: int) -> list[Transaction]:
     return transactions_repo.list_filtered(
-        conn, user_id, TransactionFilter(directions=(Direction.EXPENSE,))
+        conn, user_id, TransactionFilter(live_accounts_only=True, directions=(Direction.EXPENSE,))
     )
 
 
@@ -231,7 +218,7 @@ def committed_by_category(
     start: dt.date | None,
     end: dt.date,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
     include_overdue: bool = False,
 ) -> dict[int, int]:
     """Return ``{category_id: committed_minor}`` for ``[start, end)`` in base currency.
@@ -268,7 +255,7 @@ def committed_in_window(
     start: dt.date | None,
     end: dt.date,
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> int:
     """Return the committed-minor sum for ``[start, end)`` over ALL expense categories.
 
@@ -292,7 +279,7 @@ def committed_split_in_window(
     end: dt.date,
     budgeted_category_ids: frozenset[int],
     today: dt.date,
-    base_currency: str | None = None,
+    base_currency: str,
 ) -> tuple[int, int]:
     """Return ``(budgeted_committed, unbudgeted_committed)`` for ``[start, end)``.
 
@@ -345,6 +332,7 @@ def fiscal_month_for(conn: sqlite3.Connection, user_id: int, today: date) -> tup
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_to=today,
             category_ids=(anchor_category.id,),
             directions=(Direction.INCOME,),
@@ -392,6 +380,7 @@ def _resolve_period_start(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_to=today,
             category_ids=(anchor_category.id,),
             directions=(Direction.INCOME,),
@@ -416,150 +405,145 @@ def resolve_period_start(conn: sqlite3.Connection, user_id: int, today: date) ->
     )
 
 
-def month_summary(  # noqa: PLR0915
+def month_summary(
     conn: sqlite3.Connection,
     user_id: int,
     year: int,
     month: int,
     *,
     today: date,
+    base_currency: str,
     period_window: tuple[date, date] | None = None,
 ) -> MonthSummary:
     """Build the per-category spent / budgeted / remaining view + analytics.
 
-    Lines include every live expense-direction category. Totals exclude
-    unbudgeted lines (``remaining_minor is None``). ``today`` is injected
-    (ADR-0007) so left-daily-spend math stays deterministic in tests.
-
-    ``period_window`` optionally caps the ``spent_minor`` lookup to an
-    explicit ``(start, end)`` range. Used by Plan · Budget when the user
-    picks a non-current month, so the "Actual" column reflects what
-    actually landed inside that calendar month instead of inheriting the
-    anchor-window Y-axis of the real today (V.32).
+    Lines include every live expense-direction category; totals exclude unbudgeted
+    lines. ``today`` is injected (ADR-0007). ``period_window`` optionally caps the
+    ``spent_minor`` lookup to an explicit ``(start, end)`` range (Plan · Budget for a
+    non-current month, so "Actual" reflects that calendar month; V.32).
     """
-    cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
-
-    prev_start, prev_end = month_bounds(*shift_month(year, month, -1))
-    year_start = date(year, 1, 1)
-    year_end = month_bounds(year, 12)[1]
-
-    # Resolve budgets up front so zero-budget months can short-circuit the
-    # paycheck-window shift (ADR-0041 keeps those on month-start to preserve
-    # the pre-ADR-0041 per-category view).
+    ctx = _SummaryCtx(conn, user_id, year, month, today, base_currency)
+    cats = categories_svc.expense_categories(conn, user_id, include_archived=False)
+    # Budgets first: zero-budget months skip the paycheck-window shift (ADR-0041).
     budgets_by_cat: dict[int, int | None] = {
         cat.id: resolve_budget(conn, user_id, cat.id, year, month) for cat in cats
     }
     budgeted_total = sum(amount or 0 for amount in budgets_by_cat.values())
 
-    # ADR-0041: per-category ``spent_minor`` sums over the paycheck window
-    # ``[last_anchor_date, today]``; analytics windows (prev / year / all)
-    # stay on calendar-month windows as backward-looking references.
-    month_start = date(year, month, 1)
-    if period_window is not None:
-        period_start, period_end = period_window
-    elif budgeted_total == 0:
-        period_start = month_start
-        period_end = today
-    else:
-        anchor_category = preferences_svc.resolve_income_anchor_category(conn, user_id)
-        period_start = _resolve_period_start(
-            conn, user_id, today=today, year=year, month=month, anchor_category=anchor_category
-        )
-        period_end = today
-    this_txns = _expense_txns_in_range(conn, user_id, period_start, period_end)
-    prev_txns = _expense_txns_in_range(conn, user_id, prev_start, prev_end)
-    year_txns = _expense_txns_in_range(conn, user_id, year_start, year_end)
-    all_txns = _all_expense_txns(conn, user_id)
-
-    txn_base = txn_base_amounts(conn, user_id, today=today)
-    spent_this = _sum_by_category(this_txns, txn_base)
-    spent_prev = _sum_by_category(prev_txns, txn_base)
-    year_sums = _sum_by_category(year_txns, txn_base)
-    overall_sum = _sum_by_category(all_txns, txn_base)
-    overall_mo = _active_month_counts(all_txns)
-
-    elapsed_in_year = month if year_txns else max(month, 1)
-
-    lines: list[CategoryBudgetLine] = []
-    for cat in cats:
-        budgeted = budgets_by_cat[cat.id]
-        spent = spent_this.get(cat.id, 0)
-        remaining = (budgeted - spent) if budgeted is not None else None
-        avg_overall = _mean_minor(overall_sum.get(cat.id, 0), overall_mo.get(cat.id, 0))
-        avg_year = _mean_minor(year_sums.get(cat.id, 0), elapsed_in_year)
-        delta_prev = spent - spent_prev.get(cat.id, 0)
-        lines.append(
-            CategoryBudgetLine(
-                category_id=cat.id,
-                category_name=cat.name,
-                category_direction=cat.direction,
-                category_color=cat.color,
-                budgeted_minor=budgeted,
-                spent_minor=spent,
-                remaining_minor=remaining,
-                avg_monthly_overall_minor=avg_overall,
-                avg_this_year_minor=avg_year,
-                delta_vs_prev_month_minor=delta_prev,
-            )
-        )
-
-    # Budgeted first (False sorts before True), then alphabetical.
-    lines.sort(key=lambda line: (line.budgeted_minor is None, line.category_name))
-
-    spent_total = sum(line.spent_minor for line in lines if line.budgeted_minor is not None)
-    pre_commit_remaining = sum(line.remaining_minor or 0 for line in lines)
-
+    period = _summary_period(ctx, budgeted_total, period_window)
+    lines = build_budget_lines(cats, budgets_by_cat, _category_sums(ctx, period))
     anchor_category_name, next_income_date = _resolve_anchor(
         conn, user_id, today, budgeted_total, next_month_start(year, month)
     )
-    left_daily_spend_minor: int | None = None
     days_until_next_income = max((next_income_date - today).days, 1)
-
-    # ADR-0039/0085/0105: committed = unpromoted planned + active-recurring expense
-    # amounts due before next_income_date (no lower bound: every overdue item
-    # counts) in BUDGETED categories only. Zero-budget months keep
-    # committed_minor=0 so the dim sub-line renders a flat zero (clearer
-    # than hiding).
-    if budgeted_total == 0:
-        committed_total = 0
-        unbudgeted_committed = 0
-    else:
-        committed_total, unbudgeted_committed = committed_split_in_window(
-            conn,
-            user_id,
-            start=None,
-            end=next_income_date,
-            today=today,
-            budgeted_category_ids=frozenset(
-                cat_id for cat_id, amount in budgets_by_cat.items() if amount is not None
-            ),
-        )
-
-    remaining_total = pre_commit_remaining - committed_total
-
-    totals = MonthTotals(
-        budgeted_minor=budgeted_total,
-        spent_minor=spent_total,
-        committed_minor=committed_total,
-        remaining_minor=remaining_total,
-        unbudgeted_committed_minor=unbudgeted_committed,
-    )
-
-    if budgeted_total != 0:
-        left_daily_spend_minor = round_div(
-            totals.remaining_minor, days_until_next_income, mode=HALF_EVEN
-        )
-
+    totals = _month_totals(ctx, lines, budgets_by_cat, budgeted_total, next_income_date)
     return MonthSummary(
         year=year,
         month=month,
         lines=tuple(lines),
         totals=totals,
-        left_daily_spend_minor=left_daily_spend_minor,
+        left_daily_spend_minor=(
+            round_div(totals.remaining_minor, days_until_next_income, mode=HALF_EVEN)
+            if budgeted_total != 0
+            else None
+        ),
         next_income_date=next_income_date,
         days_until_next_income=days_until_next_income,
         anchor_category_name=anchor_category_name,
-        period_start=period_start,
+        period_start=period[0],
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _SummaryCtx:
+    """The read context shared by the ``month_summary`` steps."""
+
+    conn: sqlite3.Connection
+    user_id: int
+    year: int
+    month: int
+    today: date
+    base_currency: str
+
+
+def _summary_period(
+    ctx: _SummaryCtx, budgeted_total: int, period_window: tuple[date, date] | None
+) -> tuple[date, date]:
+    """The ``spent_minor`` window (ADR-0041): explicit, month-start, or paycheck window."""
+    if period_window is not None:
+        return period_window
+    if budgeted_total == 0:
+        return date(ctx.year, ctx.month, 1), ctx.today
+    anchor_category = preferences_svc.resolve_income_anchor_category(ctx.conn, ctx.user_id)
+    start = _resolve_period_start(
+        ctx.conn,
+        ctx.user_id,
+        today=ctx.today,
+        year=ctx.year,
+        month=ctx.month,
+        anchor_category=anchor_category,
+    )
+    return start, ctx.today
+
+
+def _category_sums(ctx: _SummaryCtx, period: tuple[date, date]) -> CategorySums:
+    """Sum expenses per category over the period, previous month, year and all time.
+
+    Analytics windows (prev / year / all) stay on calendar months as
+    backward-looking references (ADR-0041).
+    """
+    conn, user_id = ctx.conn, ctx.user_id
+    prev_start, prev_end = month_bounds(*shift_month(ctx.year, ctx.month, -1))
+    year_end = month_bounds(ctx.year, 12)[1]
+    this_txns = _expense_txns_in_range(conn, user_id, *period)
+    prev_txns = _expense_txns_in_range(conn, user_id, prev_start, prev_end)
+    year_txns = _expense_txns_in_range(conn, user_id, date(ctx.year, 1, 1), year_end)
+    all_txns = _all_expense_txns(conn, user_id)
+
+    txn_base = txn_base_amounts(conn, user_id, today=ctx.today, base_currency=ctx.base_currency)
+    return CategorySums(
+        spent_this=sum_by_category(this_txns, txn_base),
+        spent_prev=sum_by_category(prev_txns, txn_base),
+        year_sums=sum_by_category(year_txns, txn_base),
+        overall_sum=sum_by_category(all_txns, txn_base),
+        overall_months=_active_month_counts(all_txns),
+        elapsed_in_year=ctx.month if year_txns else max(ctx.month, 1),
+    )
+
+
+def _month_totals(
+    ctx: _SummaryCtx,
+    lines: Sequence[CategoryBudgetLine],
+    budgets_by_cat: Mapping[int, int | None],
+    budgeted_total: int,
+    next_income_date: date,
+) -> MonthTotals:
+    """Totals over the lines, net of what is committed before ``next_income_date``.
+
+    ADR-0039/0085/0105: committed = unpromoted planned + active-recurring
+    expense amounts (no lower bound: every overdue item counts) in BUDGETED
+    categories only. Zero-budget months keep committed_minor=0 so the dim
+    sub-line renders a flat zero (clearer than hiding).
+    """
+    committed, unbudgeted_committed = 0, 0
+    if budgeted_total != 0:
+        committed, unbudgeted_committed = committed_split_in_window(
+            ctx.conn,
+            ctx.user_id,
+            start=None,
+            end=next_income_date,
+            today=ctx.today,
+            base_currency=ctx.base_currency,
+            budgeted_category_ids=frozenset(
+                cat_id for cat_id, amount in budgets_by_cat.items() if amount is not None
+            ),
+        )
+    return MonthTotals(
+        budgeted_minor=budgeted_total,
+        spent_minor=sum(line.spent_minor for line in lines if line.budgeted_minor is not None),
+        committed_minor=committed,
+        remaining_minor=sum(line.remaining_minor or 0 for line in lines) - committed,
+        unbudgeted_committed_minor=unbudgeted_committed,
     )
 
 
@@ -638,6 +622,8 @@ def month_summary_for_picker(
     user_id: int,
     picked: PickerMonth,
     today: date,
+    *,
+    base_currency: str,
 ) -> MonthSummary:
     """Return the Plan · Budget summary for the picked month (ADR-0138).
 
@@ -648,11 +634,17 @@ def month_summary_for_picker(
     """
     year, month = picked.year, picked.month
     if picked.is_fiscal:
-        return month_summary(conn, user_id, year, month, today=today)
+        return month_summary(conn, user_id, year, month, today=today, base_currency=base_currency)
     month_first, month_last = month_bounds(year, month)
     ref = today.replace(year=year, month=month, day=min(today.day, month_last.day))
     summary = month_summary(
-        conn, user_id, year, month, today=ref, period_window=(month_first, month_last)
+        conn,
+        user_id,
+        year,
+        month,
+        today=ref,
+        base_currency=base_currency,
+        period_window=(month_first, month_last),
     )
     anchor_day = _anchor_day_for_picker(conn, user_id)
     window = PeriodWindow(
@@ -685,7 +677,7 @@ def yearly_grid_totals(rows: tuple[YearlyRow, ...]) -> tuple[tuple[int, ...], in
 
 def yearly_grid(conn: sqlite3.Connection, user_id: int, year: int) -> tuple[YearlyRow, ...]:
     """Return per-category (rows) by Jan..Dec (12 cells) resolved budgets."""
-    cats = [c for c in categories_repo.list_all(conn, user_id) if c.direction is Direction.EXPENSE]
+    cats = categories_svc.expense_categories(conn, user_id, include_archived=False)
     defaults_by_cat = {d.category_id: d.amount for d in budgets_repo.list_defaults(conn, user_id)}
     recurring_by_key: dict[tuple[int, int], int] = {
         (r.category_id, r.month): r.amount for r in budgets_repo.list_recurring(conn, user_id)
@@ -700,22 +692,13 @@ def yearly_grid(conn: sqlite3.Connection, user_id: int, year: int) -> tuple[Year
         cells: list[YearlyCell] = []
         total = 0
         for month in range(1, 13):
-            one_off = one_off_by_key.get((cat.id, month))
-            if one_off is not None:
-                cells.append(YearlyCell(amount_minor=one_off, origin="one_off"))
-                total += one_off
-                continue
-            recurring = recurring_by_key.get((cat.id, month))
-            if recurring is not None:
-                cells.append(YearlyCell(amount_minor=recurring, origin="recurring"))
-                total += recurring
-                continue
-            default = defaults_by_cat.get(cat.id)
-            if default is not None:
-                cells.append(YearlyCell(amount_minor=default, origin="default"))
-                total += default
-                continue
-            cells.append(YearlyCell(amount_minor=None, origin="unset"))
+            amount, origin = pick_tier(
+                one_off_by_key.get((cat.id, month)),
+                recurring_by_key.get((cat.id, month)),
+                defaults_by_cat.get(cat.id),
+            )
+            cells.append(YearlyCell(amount_minor=amount, origin=origin))
+            total += amount or 0
         rows.append(
             YearlyRow(
                 category_id=cat.id,
@@ -742,6 +725,7 @@ __all__ = [
     "fiscal_month_for",
     "month_summary",
     "month_summary_for_picker",
+    "pick_tier",
     "resolve_budget",
     "resolve_period_start",
     "resolve_picker_month",

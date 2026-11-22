@@ -63,9 +63,16 @@
     </section>
   {% endif %}
 {% endmacro %}
-{{ group("Expense", expense_categories) }}
-{{ group("Income", income_categories) }}
-{{ group("System (read-only)", system_categories) }}
+<div id="settings-categories"
+     hx-get="/settings?tab=categories"
+     hx-trigger="settings-categories-stale from:body"
+     hx-select="#settings-categories"
+     hx-swap="outerHTML"
+     hx-disinherit="hx-select hx-swap">
+  {{ group("Expense", expense_categories) }}
+  {{ group("Income", income_categories) }}
+  {{ group("System (read-only)", system_categories) }}
+</div>
 <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
   "Archive" hides a category but keeps its history; archived categories are restorable from
   <a href="/ledger/recently-deleted" style="color: var(--accent);">Recently deleted</a>.

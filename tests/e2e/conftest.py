@@ -9,6 +9,7 @@ whole suite is skipped with a clear message instead of crashing.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -29,6 +30,11 @@ from budget_planner.web.middleware.csrf import (
     CSRF_HEADER_NAME,
 )
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, seed_login_user
+from tests.e2e.mockup_target import journey, mockup_base_url, target  # noqa: F401
+
+# Loaded machines can take well over 15s to boot uvicorn. Override with
+# E2E_SERVER_READY_TIMEOUT_S; a server that exits early fails at once anyway.
+SERVER_READY_TIMEOUT_S = float(os.environ.get("E2E_SERVER_READY_TIMEOUT_S", "60"))
 
 try:
     from playwright.sync_api import Browser, Page, Playwright, sync_playwright
@@ -52,12 +58,55 @@ def _playwright() -> Iterator[Playwright]:
         yield pw
 
 
+E2E_BROWSERS = ("chromium", "firefox", "webkit")
+
+# T-UT11 (ADR-0106 §4): known per-browser failures on the old UI. Keys are
+# ``(browser, test nodeid suffix)``; values are the xfail reason. Chromium is
+# never listed here. Applied as ``xfail(strict=True)`` so a fix flips to XPASS
+# and fails loudly, forcing the entry's removal.
+_CDP_ONLY = "journey drives a CDP virtual WebAuthn authenticator (Chromium-only API)"
+BROWSER_XFAILS: dict[tuple[str, str], str] = {
+    (browser, f"test_passkey_journey.py::{name}"): _CDP_ONLY
+    for browser in ("firefox", "webkit")
+    for name in (
+        "test_register_then_sign_in_with_passkey",
+        "test_stale_session_adds_passkey_after_password_reauth",
+        "test_stale_session_reauths_with_passkey",
+    )
+}
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--e2e-browser",
+        action="store",
+        default="chromium",
+        choices=E2E_BROWSERS,
+        help="Playwright browser engine for tests/e2e (default: chromium).",
+    )
+
+
+def _selected_browser(config: pytest.Config) -> str:
+    return str(config.getoption("--e2e-browser"))
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    browser = _selected_browser(config)
+    if browser == "chromium":
+        return
+    for item in items:
+        for (name, suffix), reason in BROWSER_XFAILS.items():
+            if name == browser and item.nodeid.endswith(suffix):
+                item.add_marker(pytest.mark.xfail(strict=True, reason=f"{browser}: {reason}"))
+
+
 @pytest.fixture(scope="session")
-def _browser(_playwright: Playwright) -> Iterator[Browser]:
+def _browser(_playwright: Playwright, request: pytest.FixtureRequest) -> Iterator[Browser]:
+    name = _selected_browser(request.config)
     try:
-        browser = _playwright.chromium.launch()
+        browser = getattr(_playwright, name).launch()
     except Exception as exc:
-        pytest.skip(f"Chromium browser is not installed: {exc}")
+        pytest.skip(f"{name} browser is not installed: {exc}")
     try:
         yield browser
     finally:
@@ -72,15 +121,16 @@ def _free_port() -> int:
     return int(port)
 
 
-_READY_DEADLINE_S = 60.0
-
-
-def _wait_until_ready(url: str, proc: subprocess.Popen[bytes], deadline_s: float) -> None:
+def _wait_until_ready(
+    url: str, proc: subprocess.Popen[bytes], deadline_s: float = SERVER_READY_TIMEOUT_S
+) -> None:
     """Poll ``url`` until it answers 200; fail fast if the server process died."""
     start = time.monotonic()
     while time.monotonic() - start < deadline_s:
         if proc.poll() is not None:
-            raise RuntimeError(f"uvicorn exited with code {proc.returncode} before becoming ready")
+            raise RuntimeError(
+                f"uvicorn exited with code {proc.returncode} before becoming ready at {url}"
+            )
         try:
             with urlopen(Request(url), timeout=2.0) as resp:  # noqa: S310
                 if resp.status == 200:
@@ -139,7 +189,7 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_until_ready(f"{base_url}/health", proc, _READY_DEADLINE_S)
+        _wait_until_ready(f"{base_url}/health", proc)
         yield base_url, db_path
     finally:
         proc.terminate()
@@ -148,6 +198,8 @@ def live_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
         except subprocess.TimeoutExpired:
             proc.kill()
 
+
+_CSP_CONSOLE = re.compile(r"Content Security Policy")
 
 _CSP_LISTENER_JS = """
 document.addEventListener('securitypolicyviolation', (e) => {
@@ -239,7 +291,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
         "console",
         lambda m: (
             violations.append(f"console: {m.text}")
-            if m.type == "error" and "Content Security Policy" in m.text
+            if m.type == "error" and _CSP_CONSOLE.search(m.text)
             else None
         ),
     )
