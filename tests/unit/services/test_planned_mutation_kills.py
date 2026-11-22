@@ -19,7 +19,7 @@ from budget_planner.domain.planned import (
     PatchPlannedTransaction,
     PlannedFilter,
 )
-from budget_planner.domain.transactions import NewTransaction
+from budget_planner.domain.transactions import NewTransaction, TransactionFilter
 from budget_planner.repositories import (
     accounts as accounts_repo,
     categories as categories_repo,
@@ -414,7 +414,7 @@ def test_not_found_error_names_the_requested_id(
     assert err.value.args == (424_242,)
 
 
-def test_promote_works_when_the_category_was_soft_deleted_afterwards(
+def test_promote_is_refused_when_the_category_was_soft_deleted_afterwards(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:
     owner = world_with_two_users.owner
@@ -429,8 +429,14 @@ def test_promote_works_when_the_category_was_soft_deleted_afterwards(
         ),
     )
     categories_repo.soft_delete(conn, OWNER_ID, gone)
-    txn = pl_svc.promote_to_actual(conn, OWNER_ID, row.id, pl_svc.PromotionEdits())
-    assert (txn.category_id, txn.amount) == (gone, 55)
+    before = len(transactions_repo.list_filtered(conn, OWNER_ID, TransactionFilter()))
+    with pytest.raises(pl_svc.ValidationError, match=f"category {gone} not found"):
+        pl_svc.promote_to_actual(conn, OWNER_ID, row.id, pl_svc.PromotionEdits())
+    # T-Q287: a soft-deleted parent refuses the write; nothing is booked or stamped.
+    assert len(transactions_repo.list_filtered(conn, OWNER_ID, TransactionFilter())) == before
+    stored = planned_repo.find_by_id(conn, OWNER_ID, row.id)
+    assert stored is not None
+    assert stored.promoted_to_txn_id is None
 
 
 def test_undo_batch_skips_unknown_transaction_ids_and_keeps_going(

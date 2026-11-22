@@ -41,7 +41,6 @@ from budget_planner.repositories import (
     categories as categories_repo,
     planned as planned_repo,
     recurring as recurring_repo,
-    transactions as transactions_repo,
 )
 from budget_planner.repositories._shared import transaction as db_transaction
 from budget_planner.repositories._unaudited import (
@@ -51,7 +50,11 @@ from budget_planner.repositories._unaudited import (
     set_next_due,
 )
 from budget_planner.services import audit as audit_svc
-from budget_planner.services._promotion import ValidationError, validate_promotion
+from budget_planner.services._promotion import (
+    ValidationError,
+    create_promoted_transaction,
+    validate_promotion,
+)
 from budget_planner.services.recurring_formula import (
     DatesOnly,
     FormulaFx,
@@ -173,7 +176,7 @@ def promote_recurring(
             description=description,
             operation_date=operation_date,
         )
-        txn = transactions_repo.create(conn, user_id, new_txn)
+        txn = create_promoted_transaction(conn, user_id, new_txn)
         _advance_rule(conn, user_id, rule, due_date, last_promoted_date=due_date)
         if match is not None:
             # ADR-0046: soft-consume (stamp the txn id) so formula history keeps seeing it.
@@ -518,6 +521,7 @@ def _planned_items(
             date_from=None if win.include_overdue else win.start,
             date_to=win.end - dt.timedelta(days=1) if win.end is not None else None,
             promoted=False,
+            live_accounts_only=True,
         ),
     )
     return [

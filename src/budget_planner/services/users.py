@@ -204,7 +204,9 @@ def _apply_credentials(conn: sqlite3.Connection, creds: BootstrapCredentials) ->
 
     legacy = users_repo.find_legacy_owner(conn)
     if legacy is not None:
-        if creds.source == "dev_default" and users_repo.owns_accounts(conn, legacy.id):
+        if creds.source == "dev_default" and users_repo.owns_accounts(
+            conn, legacy.id, include_deleted=True
+        ):
             # ADR-0069 §3: never write a dev credential onto real data.
             return BootstrapOutcome(
                 action="noop",

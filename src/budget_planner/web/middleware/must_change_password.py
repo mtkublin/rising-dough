@@ -24,12 +24,11 @@ from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
+from budget_planner.web.htmx import wants_json
 from budget_planner.web.http_headers import (
-    HTML_MEDIA_TYPE,
     HX_CURRENT_URL,
     HX_REDIRECT,
     HX_REQUEST,
-    JSON_MEDIA_TYPE,
 )
 from budget_planner.web.middleware.asgi import http_only
 
@@ -71,11 +70,6 @@ def _hx_target(request: Request) -> str:
     return f"{parts.path}?{parts.query}" if parts.query else parts.path
 
 
-def _wants_json(request: Request) -> bool:
-    accept = request.headers.get("accept", "").lower()
-    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept
-
-
 def rotation_required_response(request: Request) -> Response:
     """Build the ADR-0074 §3 response for a gated request."""
     if request.headers.get(HX_REQUEST, "").lower() == "true":
@@ -84,7 +78,7 @@ def rotation_required_response(request: Request) -> Response:
             status_code=HTTPStatus.FORBIDDEN,
             headers={HX_REDIRECT: password_url(_hx_target(request))},
         )
-    if _wants_json(request):
+    if wants_json(request):
         return JSONResponse(dict(_BODY), status_code=HTTPStatus.FORBIDDEN)
     return RedirectResponse(password_url(_request_target(request)), status_code=HTTPStatus.FOUND)
 

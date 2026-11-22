@@ -85,6 +85,14 @@ def find_by_id(
     return find_owned(conn, _PLANNED, user_id, {"id": planned_id}, include_deleted=include_deleted)
 
 
+# ADR-0136: the one predicate that hides planned rows on soft-deleted accounts
+# from derived reads (mirrors ``transactions._LIVE_ACCOUNT``).
+_LIVE_ACCOUNT = (
+    "p.account_id IN (SELECT a.id FROM accounts a "
+    "WHERE a.user_id = p.user_id AND a.deleted_at IS NULL)"
+)
+
+
 def _planned_filter_clauses(
     filters: PlannedFilter,
     include_deleted: bool,
@@ -122,6 +130,8 @@ def _planned_rule_parts(filters: PlannedFilter, include_deleted: bool) -> list[F
                 [],
             )
         )
+    if filters.live_accounts_only:
+        parts.append((_LIVE_ACCOUNT, []))
     if not include_deleted:
         parts.append(("p.deleted_at IS NULL", []))
     return parts

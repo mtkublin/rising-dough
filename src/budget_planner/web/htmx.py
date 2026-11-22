@@ -11,7 +11,13 @@ from urllib.parse import urlparse
 from fastapi import Request
 from fastapi.responses import Response
 
-from budget_planner.web.http_headers import HX_CURRENT_URL, HX_REFRESH, HX_RESWAP
+from budget_planner.web.http_headers import (
+    HTML_MEDIA_TYPE,
+    HX_CURRENT_URL,
+    HX_REFRESH,
+    HX_RESWAP,
+    JSON_MEDIA_TYPE,
+)
 
 
 class Event(StrEnum):
@@ -69,3 +75,9 @@ def refresh_unless_on(request: Request, response: Response, path_prefix: str) ->
     current = urlparse(request.headers.get(HX_CURRENT_URL, "")).path
     if not current.startswith(path_prefix):
         response.headers[HX_REFRESH] = "true"
+
+
+def wants_json(request: Request) -> bool:
+    """True when the client asked for JSON and not HTML (single owner, T-Q262)."""
+    accept = request.headers.get("accept", "").lower()
+    return JSON_MEDIA_TYPE in accept and HTML_MEDIA_TYPE not in accept
