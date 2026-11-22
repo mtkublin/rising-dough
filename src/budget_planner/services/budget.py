@@ -42,7 +42,6 @@ from budget_planner.domain.periods import (
 )
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
-    accounts as accounts_repo,
     budgets as budgets_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
@@ -57,10 +56,6 @@ from budget_planner.services import (
 from budget_planner.services.aggregates import mean_minor, sum_by_category
 
 logger = logging.getLogger(__name__)
-
-
-def _currency_by_account(conn: sqlite3.Connection, user_id: int) -> dict[int, str]:
-    return {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
 
 
 def planned_base_amounts(
@@ -78,7 +73,8 @@ def planned_base_amounts(
     ``FxUnavailableError``; there is no native-amount fallback.
     """
     fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
-    ccy_by_account = _currency_by_account(conn, user_id)
+    # Planned rows may outlive their account: convert with its own currency (ADR-0136).
+    ccy_by_account = fx_svc.currency_by_account(conn, user_id, include_deleted=True)
 
     def _base_of(account_id: int, amount_minor: int) -> int:
         return fx.to_base(amount_minor, ccy_by_account.get(account_id, fx.base_currency))
@@ -100,7 +96,7 @@ def txn_base_amounts(
     no network). A missing rate raises ``FxUnavailableError``.
     """
     fx = fx_svc.converter_for(conn, fx_svc.BaseCurrency(base_currency), today)
-    return fx_svc.txn_base_of(fx, _currency_by_account(conn, user_id))
+    return fx_svc.txn_base_of(fx, fx_svc.currency_by_account(conn, user_id))
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +197,7 @@ def _expense_txns_in_range(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=start,
             date_to=end,
             directions=(Direction.EXPENSE,),
@@ -219,7 +216,7 @@ def _active_month_counts(txns: list[Transaction]) -> dict[int, int]:
 
 def _all_expense_txns(conn: sqlite3.Connection, user_id: int) -> list[Transaction]:
     return transactions_repo.list_filtered(
-        conn, user_id, TransactionFilter(directions=(Direction.EXPENSE,))
+        conn, user_id, TransactionFilter(live_accounts_only=True, directions=(Direction.EXPENSE,))
     )
 
 
@@ -344,6 +341,7 @@ def fiscal_month_for(conn: sqlite3.Connection, user_id: int, today: date) -> tup
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_to=today,
             category_ids=(anchor_category.id,),
             directions=(Direction.INCOME,),
@@ -391,6 +389,7 @@ def _resolve_period_start(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_to=today,
             category_ids=(anchor_category.id,),
             directions=(Direction.INCOME,),

@@ -229,8 +229,7 @@ class _MonthSpan:
 def _base_of_txn(
     conn: sqlite3.Connection, user_id: int, fx: fx_svc.FxConverter
 ) -> Callable[[Transaction], int]:
-    ccy = {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
-    return fx_svc.txn_base_of(fx, ccy)
+    return fx_svc.txn_base_of(fx, fx_svc.currency_by_account(conn, user_id))
 
 
 def _spent_per_span(
@@ -254,6 +253,7 @@ def _spent_per_span(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=min(sp.month_start for sp, _ in live),
             date_to=max(c for _, c in live),
             directions=(Direction.EXPENSE,),

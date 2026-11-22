@@ -88,6 +88,7 @@ class TransactionFilter:
     amount_max: int | None = None
     description_contains: str | None = None
     account_or_dest: int | None = None
+    live_accounts_only: bool = False  # ADR-0136: derived reads skip soft-deleted accounts
     limit: int | None = None
     offset: int = 0
     order_desc: bool = False

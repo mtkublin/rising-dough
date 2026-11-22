@@ -628,7 +628,7 @@ def test_base_amounts_honour_base_currency_and_soft_deleted_accounts(
     planned_after = budget.planned_base_amounts(conn, 1, today=today, base_currency="EUR")
     assert planned_after(eur_world["pln"], 10_000) == 2_500  # tombstone keeps its currency
     txn_of = budget.txn_base_amounts(conn, 1, today=today, base_currency="EUR")
-    assert txn_of(txn) == 2_500
+    assert txn_of(txn) == 10_000  # ADR-0136: deleted accounts leave the txn converter map
 
 
 def test_committed_converts_foreign_planned_and_raises_when_rate_missing(

@@ -24,7 +24,6 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import (
-    accounts as accounts_repo,
     categories as categories_repo,
     transactions as transactions_repo,
 )
@@ -106,8 +105,7 @@ def _base_of(
     conn: sqlite3.Connection, user_id: int, converter: fx_svc.FxConverter
 ) -> Callable[[Transaction], int]:
     """``txn -> base minor`` at the txn's own date (ADR-0006, ADR-0139; Q-008)."""
-    ccy = {a.id: a.currency for a in accounts_repo.list_all(conn, user_id, include_deleted=True)}
-    return fx_svc.txn_base_of(converter, ccy)
+    return fx_svc.txn_base_of(converter, fx_svc.currency_by_account(conn, user_id))
 
 
 def _spend_by_category(
@@ -122,6 +120,7 @@ def _spend_by_category(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=start,
             date_to=end,
             directions=(Direction.EXPENSE,),
@@ -158,6 +157,7 @@ def _twelve_month_averages(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=start,
             date_to=end,
             directions=(Direction.EXPENSE,),
@@ -189,7 +189,7 @@ def _income_vs_expense_monthly(
     txns = transactions_repo.list_filtered(
         conn,
         user_id,
-        TransactionFilter(date_from=start, date_to=end),
+        TransactionFilter(live_accounts_only=True, date_from=start, date_to=end),
     )
     monthly: dict[tuple[int, int], dict[str, int]] = defaultdict(
         lambda: {"income": 0, "expense": 0}
@@ -231,6 +231,7 @@ def _largest_items(
         conn,
         user_id,
         TransactionFilter(
+            live_accounts_only=True,
             date_from=start,
             date_to=end,
             directions=(Direction.EXPENSE,),
