@@ -88,15 +88,6 @@ def clear_session_cookie(response: Response, settings: Settings) -> None:
     )
 
 
-def response_sets_cookie(response: Response, name: str) -> bool:
-    """True when *response* already carries a ``Set-Cookie`` for *name*."""
-    prefix = f"{name}=".encode("latin-1")
-    return any(
-        key.lower() == b"set-cookie" and value.startswith(prefix)
-        for key, value in response.raw_headers
-    )
-
-
 # ---------------------------------------------------------------------------
 # Passkey challenge cookie
 # ---------------------------------------------------------------------------
@@ -257,7 +248,6 @@ __all__ = [
     "challenge_cookie_name",
     "clear_challenge_cookie",
     "clear_session_cookie",
-    "response_sets_cookie",
     "safe_next",
     "session_cookie_name",
     "set_challenge_cookie",

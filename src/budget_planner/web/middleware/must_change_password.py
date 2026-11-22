@@ -1,6 +1,6 @@
 """Forced password rotation gate (T-D18, ADR-0061 §4, ADR-0074 §3).
 
-Runs directly inside :class:`~budget_planner.web.middleware.auth.AuthRequiredMiddleware`
+Runs directly inside :func:`~budget_planner.web.middleware.auth.auth_required_middleware`
 (ADR-0070 §6), which has already put the session user on
 ``request.state.user``. While that user's ``must_change_password`` flag is
 set, every path except :data:`EXEMPT_PATHS` / ``/static/*`` is answered with:
@@ -19,11 +19,12 @@ from types import MappingProxyType
 from typing import Final
 from urllib.parse import quote, urlsplit
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from budget_planner.web.auth_cookies import DEFAULT_LANDING, safe_next
+from budget_planner.web.middleware.asgi import http_only
 
 PASSWORD_PATH: Final = "/settings/password"  # noqa: S105 — a URL path, not a secret
 LOGOUT_PATH: Final = "/auth/logout"
@@ -81,21 +82,25 @@ def rotation_required_response(request: Request) -> Response:
     return RedirectResponse(password_url(_request_target(request)), status_code=HTTPStatus.FOUND)
 
 
-class MustChangePasswordMiddleware(BaseHTTPMiddleware):
-    """Send a user flagged ``must_change_password`` to ``/settings/password``."""
+async def _rotation_gate(app: ASGIApp, scope: Scope, receive: Receive, send: Send) -> None:
+    request = Request(scope, receive)
+    user = getattr(request.state, "user", None)
+    if user is not None and user.must_change_password and not is_exempt(request.url.path):
+        await rotation_required_response(request)(scope, receive, send)
+        return
+    await app(scope, receive, send)
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        user = getattr(request.state, "user", None)
-        if user is not None and user.must_change_password and not is_exempt(request.url.path):
-            return rotation_required_response(request)
-        return await call_next(request)
+
+def must_change_password_middleware(app: ASGIApp) -> ASGIApp:
+    """Send a user flagged ``must_change_password`` to ``/settings/password``."""
+    return http_only(app, _rotation_gate)
 
 
 __all__ = [
     "EXEMPT_PATHS",
     "PASSWORD_PATH",
-    "MustChangePasswordMiddleware",
     "is_exempt",
+    "must_change_password_middleware",
     "password_url",
     "rotation_required_response",
 ]

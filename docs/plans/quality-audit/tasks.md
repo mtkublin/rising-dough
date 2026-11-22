@@ -768,7 +768,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `template_logic`:106 (106 entries, upper bound)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/template_logic.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q274 [S] ASGI middleware and framework-class decision (E04)
+### ✅ T-Q274 [S] ASGI middleware and framework-class decision (E04)
 - Findings: B-13 (framework rows: 6 `BaseHTTPMiddleware` classes, `CacheControlMiddleware`, logging filter), compliance-inventory section 16 E04 and section 17 question 2; epic E04.
 - Epic: E04
 - Band: 4 · Size: S · Tags: none
