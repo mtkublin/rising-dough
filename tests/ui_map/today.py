@@ -28,3 +28,6 @@ add_planned = role("button", "+ Planned")
 add_recurring = role("button", "+ Recurring")
 promote_all_due = role("button", "Promote all due")
 confirm_promote = role("button", "Confirm")
+
+hero_per_day = by_testid("hero-per-day")  # T-Q278: the hero "left per day" figure
+spent_bar = role("progressbar", "Spent")

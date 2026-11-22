@@ -63,7 +63,7 @@ def test_create_bad_direction(client: TestClient, db: sqlite3.Connection) -> Non
     before = _names(db)
     r = client.post("/categories", data={"name": "X", "direction": "bogus"})
     assert r.status_code == 422
-    assert "<strong>direction:</strong> invalid direction" in r.text
+    assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 
@@ -73,7 +73,7 @@ def test_create_rejects_transit_direction(client: TestClient, db: sqlite3.Connec
     for direction in ("transit", "adjustment"):
         r = client.post("/categories", data={"name": "Nope", "direction": direction})
         assert r.status_code == 422, direction
-        assert "<strong>direction:</strong> invalid direction" in r.text, direction
+        assert "direction: invalid direction" in _html.all_text(r.text, ui.form_errors), direction
     assert _names(db) == before
 
 
@@ -81,27 +81,28 @@ def test_create_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories", data={"name": "   ", "direction": "expense"})
     assert r.status_code == 422
-    assert "<strong>name:</strong> name required" in r.text
+    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 
 def test_edit(client: TestClient, cat_id: int) -> None:
     r = client.get(f"/categories/{cat_id}/edit")
     assert r.status_code == 200
-    assert f'hx-post="/categories/{cat_id}"' in r.text
-    assert 'value="Groceries"' in r.text
+    form = _html.form_of(r.text, ui.category_name)
+    assert form["hx-post"] == f"/categories/{cat_id}"
+    assert ("name", "Groceries") in _html.submitted_fields(form)
 
 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/categories/9999/edit")
     assert r.status_code == 404
-    assert "<strong>category:</strong> not found" in r.text
+    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
 
 
 def test_update(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "Food"})
     assert r.status_code == 200
-    assert "Food" in r.text
+    assert "Food" in _html.text_of(r.text, ui.any_category_row)
     stored = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert stored is not None
     assert stored.name == "Food"
@@ -113,14 +114,14 @@ def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _names(db)
     r = client.post("/categories/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert "<strong>category:</strong> not found" in r.text
+    assert "category: not found" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 
 def test_update_blank(client: TestClient, cat_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/categories/{cat_id}", data={"name": "  "})
     assert r.status_code == 422
-    assert "<strong>name:</strong> name required" in r.text
+    assert "name: name required" in _html.all_text(r.text, ui.form_errors)
     stored = categories_repo.find_by_id(db, USER_ID, cat_id)
     assert stored is not None
     assert stored.name == "Groceries"
@@ -204,7 +205,7 @@ def test_create_invalid_hex_422(client: TestClient, db: sqlite3.Connection) -> N
         data={"name": "Bad", "direction": "expense", "color": "not-hex"},
     )
     assert r.status_code == 422
-    assert "invalid color &#39;not-hex&#39;; expected 6-digit hex" in r.text
+    assert "invalid color 'not-hex'; expected 6-digit hex" in _html.all_text(r.text, ui.form_errors)
     assert _names(db) == before
 
 

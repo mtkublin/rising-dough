@@ -40,6 +40,7 @@ from budget_planner.domain.recurring import (
 )
 from budget_planner.domain.recurring_schedule import generate_occurrences
 from budget_planner.repositories import categories as categories_repo, recurring as recurring_repo
+from budget_planner.services.fx import FxConverter
 from budget_planner.services.recurring_overrides import apply_overrides
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,31 @@ def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
 _Memo = Mapping[tuple[int, int, int], int]
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class FormulaFx:
+    """Cache-only FX context so formula source sums convert across currencies (T-Q215).
+
+    A formula's value is in its own rule's account currency; each source rule's
+    monthly value is converted from the source account's currency at the rate
+    on the first day of the month. Omit it (``None``) for single-currency math.
+    """
+
+    converter: FxConverter
+    currency_by_account: Mapping[int, str]
+
+    def currency_of(self, account_id: int) -> str:
+        return self.currency_by_account.get(account_id, self.converter.base_currency)
+
+
+def _into_target(
+    value: int, account_id: int, fx: FormulaFx | None, target_ccy: str | None, on: dt.date
+) -> int:
+    """``value`` (in the source account's currency) in ``target_ccy``; unchanged without FX."""
+    if fx is None or target_ccy is None:
+        return value
+    return fx.converter.to_currency(value, fx.currency_of(account_id), target_ccy, on)
+
+
 def _source_rule_month_value(
     conn: sqlite3.Connection,
     user_id: int,
@@ -168,6 +194,7 @@ def _source_rule_month_value(
     *,
     in_progress: frozenset[int],
     cache: _Memo,
+    fx: FormulaFx | None = None,
 ) -> tuple[int, _Memo]:
     """Sum the effective amounts of ``rule``'s occurrences in ``[start, end]``.
 
@@ -192,6 +219,8 @@ def _source_rule_month_value(
             exclude_rule_id=rule.id,
             in_progress=in_progress | {rule.id},
             cache=cache,
+            fx=fx,
+            target_ccy=fx.currency_of(rule.account_id) if fx is not None else None,
         )
         occs = tuple(dataclasses.replace(occ, amount=per_occurrence) for occ in occs)
     overrides = recurring_repo.list_overrides_all(conn, user_id, rule.id)
@@ -208,6 +237,8 @@ def _sum_category_in_month(
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
     cache: _Memo,
+    fx: FormulaFx | None = None,
+    target_ccy: str | None = None,
 ) -> tuple[int, _Memo]:
     """Sum monthly occurrence amounts across rules in ``category_ids``.
 
@@ -234,14 +265,12 @@ def _sum_category_in_month(
                 f"formula cycle detected via rule {rule.id} (ancestors: {sorted(in_progress)})"
             )
         key = (rule.id, year, month)
-        if key in cache:
-            total += cache[key]
-            continue
-        value, cache = _source_rule_month_value(
-            conn, user_id, rule, start, end, in_progress=in_progress, cache=cache
-        )
-        cache = {**cache, key: value}
-        total += value
+        if key not in cache:
+            value, cache = _source_rule_month_value(
+                conn, user_id, rule, start, end, in_progress=in_progress, cache=cache, fx=fx
+            )
+            cache = {**cache, key: value}
+        total += _into_target(cache[key], rule.account_id, fx, target_ccy, start)
     return total, cache
 
 
@@ -255,6 +284,8 @@ def _evaluate(
     exclude_rule_id: int | None,
     in_progress: frozenset[int],
     cache: _Memo,
+    fx: FormulaFx | None = None,
+    target_ccy: str | None = None,
 ) -> tuple[int, _Memo]:
     """Evaluate the linear-combination formula for ``(year, month)``."""
     total = 0
@@ -268,6 +299,8 @@ def _evaluate(
             exclude_rule_id=exclude_rule_id,
             in_progress=in_progress,
             cache=cache,
+            fx=fx,
+            target_ccy=target_ccy,
         )
         magnitude = _apply_coefficient(term_sum, term.coefficient_bps)
         total += magnitude if term.sign == "+" else -magnitude
@@ -285,8 +318,14 @@ def compute_formula_amount(
     month: int,
     *,
     exclude_rule_id: int | None = None,
+    fx: FormulaFx | None = None,
+    target_ccy: str | None = None,
 ) -> int:
-    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``."""
+    """Return the computed amount (minor units) for ``formula`` in ``(year, month)``.
+
+    With ``fx`` and ``target_ccy`` (the owning rule's account currency) every
+    source rule is converted into ``target_ccy`` before summing (T-Q215).
+    """
     in_progress: frozenset[int] = (
         frozenset({exclude_rule_id}) if exclude_rule_id is not None else frozenset()
     )
@@ -299,6 +338,8 @@ def compute_formula_amount(
         exclude_rule_id=exclude_rule_id,
         in_progress=in_progress,
         cache={},
+        fx=fx,
+        target_ccy=target_ccy,
     )
     return total
 
@@ -308,8 +349,13 @@ def resolve_rule_amount(
     user_id: int,
     rule: RecurringRule,
     occurrence_date: dt.date,
+    *,
+    fx: FormulaFx | None = None,
 ) -> int:
-    """Return the amount to use for an occurrence of ``rule``."""
+    """Return the amount to use for an occurrence of ``rule``.
+
+    ``fx`` converts formula sources into the rule's account currency (T-Q215).
+    """
     if rule.amount_formula is None:
         return rule.default_amount
     return compute_formula_amount(
@@ -319,6 +365,8 @@ def resolve_rule_amount(
         occurrence_date.year,
         occurrence_date.month,
         exclude_rule_id=rule.id,
+        fx=fx,
+        target_ccy=fx.currency_of(rule.account_id) if fx is not None else None,
     )
 
 
@@ -604,6 +652,7 @@ __all__ = [
     "DraftTerm",
     "FormulaCycleError",
     "FormulaError",
+    "FormulaFx",
     "PreviewError",
     "PreviewErrorCode",
     "PreviewOk",

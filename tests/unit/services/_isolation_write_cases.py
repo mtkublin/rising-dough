@@ -104,6 +104,10 @@ _OVERLAY_TOTALS = {
 }
 
 
+# The split forecast modules (T-Q242) are exercised through ``forecast.forecast`` (events + overlay).
+@covers("forecast_events.collect_events")
+@covers("forecast_overlay.collect_budget_overlay")
+@covers("forecast_overlay.month_inputs")
 @covers("forecast.forecast")
 def _case_forecast(conn: sqlite3.Connection, world: World) -> None:
     fx_conv = fx.converter_for(conn, Settings(_env_file=None), T)

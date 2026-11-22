@@ -14,7 +14,7 @@ import pytest
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import currency_decimals
 from budget_planner.domain.transactions import Transaction
-from budget_planner.services import account_planned, balance, forecast, fx, ledger_totals
+from budget_planner.services import account_planned, balance, forecast_events, fx, ledger_totals
 
 
 def _transit_txn() -> Transaction:
@@ -43,7 +43,9 @@ def test_4a_source_leg_is_identical_across_implementations(direction: Direction)
     legs_balance = {leg.account_id: leg.amount_minor for leg in balance.signed_legs(txn, direction)}
     legs_forecast = {
         e.account_id: e.amount_minor
-        for e in forecast._signed_events_for_direction(direction, date(2026, 11, 1), 1, 2, 1000)
+        for e in forecast_events.signed_events_for_direction(
+            direction, date(2026, 11, 1), 1, 2, 1000
+        )
     }
     legs_planned = dict(account_planned._legs(direction, 1, 2, 1000))
     assert ledger_totals.signed_effect(1000, direction) is not None
@@ -53,7 +55,7 @@ def test_4a_source_leg_is_identical_across_implementations(direction: Direction)
 def test_4a_adjustment_is_counted_by_balance_and_skipped_by_forecast() -> None:
     """Documented asymmetry (ADR-0011): balance counts adjustments, forecast and planned skip them."""
     legs_balance = balance.signed_legs(_transit_txn(), Direction.ADJUSTMENT)
-    events = forecast._signed_events_for_direction(
+    events = forecast_events.signed_events_for_direction(
         Direction.ADJUSTMENT, date(2026, 11, 1), 1, 2, 1000
     )
     assert (

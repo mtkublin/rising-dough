@@ -5,6 +5,7 @@ Keeping this out of `templating.py` so filters remain pure and testable.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import Request
@@ -22,7 +23,20 @@ def render(
     status_code: int = 200,
     **context: Any,
 ) -> HTMLResponse:
+    """Render a Jinja template with keyword context; see :func:`render_context`."""
+    return render_context(request, template_name, context, status_code=status_code)
+
+
+def render_context(
+    request: Request,
+    template_name: str,
+    context: Mapping[str, object],
+    *,
+    status_code: int = 200,
+) -> HTMLResponse:
     """Render a Jinja template, injecting `request` + `url_for` + settings.
+
+    Takes the template keys as one mapping (view-model builders return one).
 
     B-03 — When a non-HTMX client requests a route whose template is the
     bare slide-over fragment (``partials/_slideover.html``), transparently
@@ -32,7 +46,7 @@ def render(
     """
     env = request.app.state.jinja_env
     settings = request.app.state.settings
-    base_ctx: dict[str, Any] = {
+    base_ctx: dict[str, object] = {
         "request": request,
         "settings": settings,
         "url_for": request.url_for,

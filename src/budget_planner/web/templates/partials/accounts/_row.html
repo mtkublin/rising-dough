@@ -15,6 +15,7 @@
     {%- if a.is_liability %}<span class="rd-pill rd-pill--expense">credit card · liability</span>{%- endif %}
     {%- if card.utilisation %}
       <div class="rd-credit-bar"
+           data-testid="credit-utilisation"
            style="--used-pct: {{ card.utilisation.bar_pct }}%">
         <span class="rd-credit-bar__track" aria-hidden="true"></span>
         <small class="rd-credit-bar__meta">

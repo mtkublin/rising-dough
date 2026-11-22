@@ -33,6 +33,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import balance as balance_service
 from budget_planner.web.app import create_app
+from tests.ui_map import _html, errors
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -79,7 +80,7 @@ def test_page_size_maximum_is_500() -> None:
 def test_page_size_request_is_clamped(client: TestClient, seeded: dict[str, int]) -> None:
     from starlette.requests import Request  # noqa: PLC0415
 
-    from budget_planner.web.routers.ledger import parse_filters  # noqa: PLC0415
+    from budget_planner.web.ledger_data import parse_filters  # noqa: PLC0415
 
     scope = {
         "type": "http",
@@ -97,7 +98,7 @@ def test_overlong_transaction_description_is_rejected_and_not_stored(
 ) -> None:
     r = client.post("/transactions", data=_txn_form(seeded, "x" * (DESCRIPTION_MAX_LENGTH + 1)))
     assert r.status_code == 422
-    assert f"at most {DESCRIPTION_MAX_LENGTH} characters" in r.text
+    assert f"at most {DESCRIPTION_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
     assert _count(_migrated, "transactions") == 0
 
 
@@ -115,7 +116,7 @@ def test_overlong_account_name_is_rejected_and_not_stored(
     before = _count(_migrated, "accounts")
     r = client.post("/accounts", data={"name": "n" * (NAME_MAX_LENGTH + 1), "currency": "PLN"})
     assert r.status_code == 422
-    assert f"at most {NAME_MAX_LENGTH} characters" in r.text
+    assert f"at most {NAME_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
     assert _count(_migrated, "accounts") == before
 
 
@@ -127,7 +128,7 @@ def test_overlong_category_name_is_rejected_and_not_stored(
         "/categories", data={"name": "n" * (NAME_MAX_LENGTH + 1), "direction": "expense"}
     )
     assert r.status_code == 422
-    assert f"at most {NAME_MAX_LENGTH} characters" in r.text
+    assert f"at most {NAME_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
     assert _count(_migrated, "categories") == before
 
 

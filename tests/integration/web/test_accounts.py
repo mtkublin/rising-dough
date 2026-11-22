@@ -23,7 +23,7 @@ from budget_planner.repositories import (
     transactions as transactions_repo,
 )
 from budget_planner.services import balance as balance_service
-from tests.ui_map import _html, accounts
+from tests.ui_map import _html, accounts, errors, shell
 
 USER_ID = 1
 
@@ -56,7 +56,7 @@ def acc_id(_migrated: Settings) -> int:
 def test_new_form_fragment(client: TestClient) -> None:
     r = client.get("/accounts/new")
     assert r.status_code == 200
-    assert 'name="currency"' in r.text
+    assert _html.exists(r.text, accounts.form_currency)
 
 
 def test_create_account(client: TestClient) -> None:
@@ -65,7 +65,7 @@ def test_create_account(client: TestClient) -> None:
         data={"name": "Travel", "currency": "EUR", "opening_balance": "100.00"},
     )
     assert r.status_code == 200
-    assert "Travel" in r.text
+    assert "Travel" in _html.all_text(r.text, accounts.any_row)
     assert "balance-stale" in r.headers["HX-Trigger"]
 
 
@@ -75,7 +75,7 @@ def test_create_rejects_bad_currency(client: TestClient) -> None:
         data={"name": "X", "currency": "EURO", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "currency" in r.text
+    assert "currency" in _html.all_text(r.text, accounts.form_errors)
 
 
 def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -> None:
@@ -85,7 +85,7 @@ def test_create_rejects_blank_name(client: TestClient, db: sqlite3.Connection) -
         data={"name": "   ", "currency": "PLN", "opening_balance": "0"},
     )
     assert r.status_code == 422
-    assert "<strong>name:</strong> name required" in r.text
+    assert "name: name required" in _html.all_text(r.text, errors.alert)
     assert _count(db, "accounts") == before
 
 
@@ -96,7 +96,7 @@ def test_create_rejects_bad_opening(client: TestClient, db: sqlite3.Connection) 
         data={"name": "A", "currency": "PLN", "opening_balance": "nan!"},
     )
     assert r.status_code == 422
-    assert "<strong>opening_balance:</strong> invalid number" in r.text
+    assert "opening_balance: invalid number" in _html.all_text(r.text, errors.alert)
     assert _count(db, "accounts") == before
 
 
@@ -105,27 +105,27 @@ def test_edit_and_update(client: TestClient, acc_id: int) -> None:
     assert r.status_code == 200
     r2 = client.post(f"/accounts/{acc_id}", data={"name": "Renamed", "type": "checking"})
     assert r2.status_code == 200
-    assert "Renamed" in r2.text
+    assert "Renamed" in _html.all_text(r2.text, accounts.any_row)
 
 
 def test_edit_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/edit")
     assert r.status_code == 404
-    assert "<strong>account:</strong> not found" in r.text
+    assert "account: not found" in _html.all_text(r.text, errors.alert)
 
 
 def test_update_404(client: TestClient, db: sqlite3.Connection) -> None:
     before = _count(db, "accounts")
     r = client.post("/accounts/9999", data={"name": "X"})
     assert r.status_code == 404
-    assert "<strong>account:</strong> not found" in r.text
+    assert "account: not found" in _html.all_text(r.text, errors.alert)
     assert _count(db, "accounts") == before
 
 
 def test_update_blank_name(client: TestClient, acc_id: int, db: sqlite3.Connection) -> None:
     r = client.post(f"/accounts/{acc_id}", data={"name": "   "})
     assert r.status_code == 422
-    assert "<strong>name:</strong> name required" in r.text
+    assert "name: name required" in _html.all_text(r.text, errors.alert)
     stored = accounts_repo.find_by_id(db, USER_ID, acc_id)
     assert stored is not None
     assert stored.name == "Main"
@@ -163,7 +163,7 @@ def test_snapshot(client: TestClient, acc_id: int, _migrated: Settings) -> None:
         conn.close()
     r = client.post(f"/accounts/{acc_id}/snapshot")
     assert r.status_code == 200
-    assert "<li>" in r.text
+    assert _html.exists(r.text, accounts.snapshot_item)
 
 
 def test_snapshot_404(client: TestClient, db: sqlite3.Connection) -> None:
@@ -177,13 +177,13 @@ def test_snapshot_404(client: TestClient, db: sqlite3.Connection) -> None:
 def test_reconcile_form_renders(client: TestClient, acc_id: int) -> None:
     r = client.get(f"/accounts/{acc_id}/reconcile")
     assert r.status_code == 200
-    assert "actual_balance" in r.text
+    assert _html.exists(r.text, accounts.reconcile_actual)
 
 
 def test_reconcile_form_404(client: TestClient) -> None:
     r = client.get("/accounts/9999/reconcile")
     assert r.status_code == 404
-    assert "<strong>account:</strong> not found" in r.text or "not found" in r.text
+    assert "Account not found." in _html.text_of(r.text, accounts.reconcile_dialog)
 
 
 def test_reconcile_submit(client: TestClient, acc_id: int) -> None:
@@ -199,7 +199,7 @@ def test_reconcile_submit_bad_number(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "notnum"})
     assert r.status_code == 422
-    assert "<strong>actual_balance:</strong> invalid number" in r.text
+    assert "actual_balance: invalid number" in _html.all_text(r.text, errors.alert)
     assert _count(db, "transactions") == before
 
 
@@ -219,7 +219,7 @@ def test_reconcile_zero_delta_still_200(
     before = _count(db, "transactions")
     r = client.post(f"/accounts/{acc_id}/reconcile", data={"actual_balance": "0"})
     assert r.status_code == 200
-    assert f'id="account-{acc_id}"' in r.text
+    assert _html.exists(r.text, accounts.row(acc_id))
     assert _count(db, "transactions") == before
     assert balance_service.derive_balance(db, USER_ID, acc_id) == 0
 
@@ -253,8 +253,9 @@ def test_create_credit_card_account_round_trips_limit(client: TestClient) -> Non
         },
     )
     assert r.status_code == 200
-    assert "Credit card" in r.text
-    assert "10,000.00" in r.text
+    card = _html.all_text(r.text, accounts.any_row)
+    assert "Credit card" in card
+    assert "10,000.00" in card
 
 
 def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
@@ -269,7 +270,7 @@ def test_create_liability_without_limit_returns_422(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
-    assert "credit_limit" in r.text
+    assert "credit_limit" in _html.all_text(r.text, accounts.form_errors)
 
 
 def test_create_liability_with_zero_limit_rejected(
@@ -287,7 +288,7 @@ def test_create_liability_with_zero_limit_rejected(
         },
     )
     assert r.status_code == 422
-    assert "<strong>credit_limit:</strong> positive credit limit required" in r.text
+    assert "credit_limit: positive credit limit required" in _html.all_text(r.text, errors.alert)
     assert _count(db, "accounts") == before
 
 
@@ -302,7 +303,7 @@ def test_update_asset_to_credit_card_sets_limit(client: TestClient, acc_id: int)
         },
     )
     assert r.status_code == 200
-    assert "5,000.00" in r.text
+    assert "5,000.00" in _html.all_text(r.text, accounts.any_row)
 
 
 def test_update_credit_card_to_asset_clears_limit(client: TestClient, _migrated: Settings) -> None:
@@ -428,8 +429,9 @@ def test_liability_available_shows_two_decimals(client: TestClient, _migrated: S
         conn.close()
     r = client.get("/accounts")
     assert r.status_code == 200
-    assert "Available 3,765.44 ·" in r.text
-    assert "Available 3,765 ·" not in r.text
+    cards = _html.all_text(r.text, accounts.any_row)
+    assert "Available 3,765.44 ·" in cards
+    assert "Available 3,765 ·" not in cards
 
 
 def test_create_reloads_page_without_swap(client: TestClient) -> None:
@@ -447,9 +449,9 @@ def test_create_reloads_page_without_swap(client: TestClient) -> None:
 
 def test_new_form_targets_itself_not_accounts_grid(client: TestClient) -> None:
     r = client.get("/accounts/new")
-    assert 'id="account-form"' in r.text
-    assert 'hx-target="#account-form"' in r.text
-    assert "#accounts-grid" not in r.text
+    form = _html.resolve_one(r.text, accounts.account_form)
+    assert form["hx-target"] == "#account-form"
+    assert "#accounts-grid" not in str(form)
 
 
 def test_delete_refused_when_balance_not_zero(
@@ -463,7 +465,9 @@ def test_delete_refused_when_balance_not_zero(
     r = client.post(f"/accounts/{acc.id}/delete", headers={"HX-Request": "true"})
 
     assert r.status_code == 409
-    assert "Cannot archive account: Balance is not zero" in r.text
+    assert "Cannot archive account: Balance is not zero" in _html.all_text(
+        r.text, shell.flash_region
+    )
     assert accounts_repo.find_by_id(db, USER_ID, acc.id) is not None
     assert _count(db, "audit_log") == audit_before
 
