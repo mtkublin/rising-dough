@@ -1024,7 +1024,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
+### ✅ T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
 - Findings: Q-030, Q-015 (OQ-15, answered 2026-11-21).
 - Epic: E01
 - Band: 2 · Size: M · Tags: none

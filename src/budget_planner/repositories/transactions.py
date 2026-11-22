@@ -66,6 +66,13 @@ def find_by_id(
     return _row_to_txn(row) if row is not None else None
 
 
+# ADR-0136: the one predicate that hides soft-deleted accounts from derived reads.
+_LIVE_ACCOUNT = (
+    "t.account_id IN (SELECT a.id FROM accounts a "
+    "WHERE a.user_id = t.user_id AND a.deleted_at IS NULL)"
+)
+
+
 def _append_filter_clauses(
     filters: TransactionFilter,
     include_deleted: bool,
@@ -106,6 +113,8 @@ def _append_filter_clauses(
     if filters.account_or_dest is not None:
         clauses.append("(t.account_id = ? OR t.dest_account_id = ?)")
         params.extend([filters.account_or_dest, filters.account_or_dest])
+    if filters.live_accounts_only:
+        clauses.append(_LIVE_ACCOUNT)
     if not include_deleted:
         clauses.append("t.deleted_at IS NULL")
     return clauses, params

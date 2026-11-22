@@ -29,6 +29,7 @@ A web application for personal budget planning and fortune (net-worth) tracking 
 - **F2.1a** Liability accounts carry an `is_liability` boolean (default `false`) and an optional `credit_limit_minor` positive integer; see [ADR-0024](adr/0024-liability-accounts-and-credit-limit.md). The user-facing label for the liability toggle is **"Credit (liability)"** (ADR-0030) — the data contract is unchanged.
 - **F2.2** Transactions must reference an existing (non-deleted) account.
 - **F2.2a** (T-Q230, ADR-0019) An account can be archived only with a zero balance and no live active recurring rules or unpromoted planned rows using it; otherwise the archive is refused with 409 and a message naming each blocker. No silent cascade.
+- **F2.2b** (T-Q276, [ADR-0136](adr/0136-soft-deleted-accounts-excluded-from-balances-stats-converters.md)) A soft-deleted account is excluded from every derived number (net worth and fortune, account balances, stats, analytics, budget spent, forecast, converter account maps); undo restores them. Archived categories still count everywhere.
 - **F2.3** View current state per account:
     - Current balance (derived from `opening_balance + Σ signed transactions`).
     - Transaction count, average inflow/outflow, last activity date.
