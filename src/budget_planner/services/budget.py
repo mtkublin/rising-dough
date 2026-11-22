@@ -32,7 +32,7 @@ from datetime import date
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import (
     MONTHS_IN_YEAR,
     PeriodWindow,
@@ -450,7 +450,7 @@ def month_summary(
         lines=tuple(lines),
         totals=totals,
         left_daily_spend_minor=(
-            round_div(totals.remaining_minor, days_until_next_income, mode=HALF_EVEN)
+            round_div(totals.remaining_minor, days_until_next_income)
             if budgeted_total != 0
             else None
         ),

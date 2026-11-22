@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import HALF_EVEN, round_div
+from budget_planner.domain.money import round_div
 from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.repositories import transactions as transactions_repo
@@ -132,13 +132,13 @@ def distribute_overlay(
 ) -> list[CashEvent]:
     """Spread ``unaccounted_minor`` evenly as expense events, residual on last day.
 
-    Per-day amount via ``HALF_EVEN`` (``round_div``); the final day absorbs any
+    Per-day amount via ``round_div`` (ties to even); the final day absorbs any
     rounding delta so the window sum equals ``unaccounted_minor`` exactly.
     Zero-amount days are omitted. Caller guarantees ``unaccounted_minor > 0``
     and ``window_end_inclusive >= window_start``.
     """
     day_count = (window_end_inclusive - window_start).days + 1
-    per_day_minor = round_div(unaccounted_minor, day_count, mode=HALF_EVEN)
+    per_day_minor = round_div(unaccounted_minor, day_count)
     distributed_before_last = per_day_minor * (day_count - 1)
     last_day_minor = unaccounted_minor - distributed_before_last
 

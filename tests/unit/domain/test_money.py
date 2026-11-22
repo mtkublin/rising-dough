@@ -29,7 +29,7 @@ def test_currency_decimals_defaults_to_two() -> None:
         (Decimal("0.01"), "EUR", 1),
         (Decimal("-0.01"), "EUR", -1),
         (Decimal("1234"), "JPY", 1234),
-        (Decimal("1234.5"), "JPY", 1235),  # rounds half-up
+        (Decimal("1234.5"), "JPY", 1234),  # tie -> even neighbour (T-Q281; was half-up 1235)
         (Decimal("0"), "USD", 0),
     ],
 )
@@ -75,8 +75,9 @@ def test_format_whole_rounds_to_zero_without_sign(amount_minor: int) -> None:
 
 
 def test_format_whole_keeps_sign_when_nonzero() -> None:
-    assert format_whole(-50, "PLN") == "-1"
-    assert format_whole(-150, "PLN") == "-2"
+    assert format_whole(-150, "PLN") == "-2"  # 1.5 -> 2
+    assert format_whole(-250, "PLN") == "-2"  # 2.5 -> even 2 (T-Q281; was -3)
+    assert format_whole(-51, "PLN") == "-1"
 
 
 def test_format_money_uppercases_currency() -> None:

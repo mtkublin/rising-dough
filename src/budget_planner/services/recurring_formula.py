@@ -21,7 +21,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from decimal import Decimal
 
 from budget_planner.domain.money import (
-    HALF_UP,
     bps_to_percent,
     format_bps_percent,
     parse_percent_str,
@@ -145,9 +144,9 @@ def build_formula(terms: Sequence[FormulaTerm]) -> AmountFormula:
 # Pure compute primitives (future tier B / C leaf operators)
 # ---------------------------------------------------------------------------
 def _apply_coefficient(sum_minor: int, coefficient_bps: int) -> int:
-    """Return ``round_half_up(sum_minor * coefficient_bps / 10 000)`` as int."""
+    """Return ``round_half_even(sum_minor * coefficient_bps / 10 000)`` as int."""
     dec = Decimal(sum_minor) * Decimal(coefficient_bps) / Decimal(10_000)
-    return round_scaled(dec, mode=HALF_UP)
+    return round_scaled(dec)
 
 
 def _collect_referenced_category_ids(formula: AmountFormula) -> set[int]:
