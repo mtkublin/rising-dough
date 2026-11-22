@@ -1239,7 +1239,7 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Wave: 14e (after T-Q292).
 - Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
-### T-Q294 [S] Enum-like query parameters are a 422 on unknown values
+### ✅ T-Q294 [S] Enum-like query parameters are a 422 on unknown values
 - Findings: Q-023, Q-033 (extends T-Q282).
 - Epic: E03
 - Band: 4 · Size: S · Tags: none

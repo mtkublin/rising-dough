@@ -99,6 +99,19 @@ def _int_message(
     return f"{name} must be a whole number"
 
 
+EXPORT_FORMATS: Final = ("csv", "parquet")
+
+
+def query_choice[T: str](name: str, value: str | None, choices: tuple[T, ...]) -> T | None:
+    """Query choice: absent or empty is ``None``; a value outside ``choices`` raises."""
+    if value is None or value == "":
+        return None
+    for choice in choices:
+        if choice == value:
+            return choice
+    raise ParamError({name: f"{name} must be one of {', '.join(choices)}"})
+
+
 def require_year_month(year_raw: str | None, month_raw: str | None) -> None:
     """Raise ``ParamError`` when a present ``year`` or ``month`` text is malformed."""
     parse_year_month(year_raw, month_raw, (MIN_YEAR, 1))

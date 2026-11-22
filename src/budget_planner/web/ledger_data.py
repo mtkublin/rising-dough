@@ -36,10 +36,12 @@ from budget_planner.services import (
     transactions as transactions_service,
 )
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind, view_kinds
-from budget_planner.web.params import query_date, query_int
+from budget_planner.web.params import query_choice, query_date, query_int
 from budget_planner.web.rendering import render_context
 
 _PAGE_SIZE_DEFAULT: Final = 50
+_DIRECTIONS: Final = tuple(d.value for d in Direction)
+_SCOPES: Final = ("all", "unpromoted")
 _PLANNED_LOOKBACK: Final = timedelta(days=30)
 _PLANNED_LOOKAHEAD: Final = timedelta(days=180)
 
@@ -73,7 +75,7 @@ def parse_filters(request: Request) -> LedgerFilters:
         date_to=query_date("date_to", q.get("date_to")),
         account_ids=(account_id,) if account_id is not None else (),
         category_ids=(category_id,) if category_id is not None else (),
-        direction=q.get("direction") or None,
+        direction=query_choice("direction", q.get("direction"), _DIRECTIONS),
         search=q.get("q") or None,
         page=page,
         page_size=size,
@@ -102,7 +104,7 @@ def parse_planned_filter(request: Request) -> PlannedFilter:
     return PlannedFilter(
         date_from=query_date("date_from", q.get("date_from")),
         date_to=query_date("date_to", q.get("date_to")),
-        promoted=False if q.get("scope", "all") == "unpromoted" else None,
+        promoted=False if query_choice("scope", q.get("scope"), _SCOPES) == "unpromoted" else None,
     )
 
 

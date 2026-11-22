@@ -22,8 +22,11 @@ def test_ledger_page_renders_each_view(client: TestClient, seeded: Ids) -> None:
 
 
 @covers("GET /ledger")
-def test_ledger_unknown_view_falls_back_to_actual(client: TestClient, seeded: Ids) -> None:
-    r = client.get("/ledger", params={"view": "bogus"})
+def test_ledger_unknown_view_is_422_and_empty_view_is_actual(
+    client: TestClient, seeded: Ids
+) -> None:
+    assert client.get("/ledger", params={"view": "bogus"}).status_code == 422
+    r = client.get("/ledger", params={"view": ""})
     assert r.status_code == 200
     assert _html.exists(r.text, ledger.row(seeded["txn"]))
 
