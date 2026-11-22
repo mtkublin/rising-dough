@@ -34,7 +34,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/categories.py"
 rule = "helper-in-router"
-count = 3
+count = 2
 finding = "B-02"
 epic = "E08"
 
@@ -76,7 +76,7 @@ epic = "E09"
 [[entry]]
 path = "src/budget_planner/web/routers/planned.py"
 rule = "helper-in-router"
-count = 3
+count = 2
 finding = "B-02"
 epic = "E08"
 

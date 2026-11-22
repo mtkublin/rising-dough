@@ -11,6 +11,7 @@ from budget_planner.services._passwords import (
     hash_password,
     verify_password,
 )
+from tests.auth_support import FakeTokenSource
 
 pytestmark = pytest.mark.unit
 
@@ -90,4 +91,14 @@ def test_dummy_hash_table_entries_match_their_cost() -> None:
 
 def test_dummy_hash_computes_for_cost_outside_table(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 5)
-    assert dummy_hash().startswith("$2b$05$")
+    tokens = FakeTokenSource()
+    assert dummy_hash(tokens).startswith("$2b$05$")
+    assert tokens.calls == [16]
+
+
+def test_dummy_hash_outside_table_without_token_source_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(_passwords, "DEFAULT_ROUNDS", 5)
+    with pytest.raises(ValueError, match="TokenSource"):
+        dummy_hash()

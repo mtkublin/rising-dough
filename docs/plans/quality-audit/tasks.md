@@ -367,7 +367,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `literal_user_id`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/literal_user_id.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q227 [S] Residual `duplicate-logic`: categories policy, direction sign, balance rule, aggregates and tier
+### ✅ T-Q227 [S] Residual `duplicate-logic`: categories policy, direction sign, balance rule, aggregates and tier
 - Findings: Q-030 (A-11, A-12), Q-032 (C-14), Q-036 (A-10), Q-075 (A-20, A-22).
 - Epic: E01
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -415,7 +415,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `banned_patterns`:2 (1 entry); `invariants`:1 (1 entry); `money_scope`:17 (10 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/banned_patterns.toml`, `allowlists/invariants.toml`, `allowlists/money_scope.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the strict `xfail` for INV-5 (Q-023) flips to a plain passing test and its `invariants.toml` entry is deleted; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q236 [P] HTMX error flashes swap; one event and toast contract
+### ✅ T-Q236 [P] HTMX error flashes swap; one event and toast contract
 - Findings: Q-037 (E-01), Q-038 (A-18, E-02, E-07).
 - Epic: E03
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -478,7 +478,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `adr_index`:1 (1 entry); `guidance_paths`:11 (2 entries)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/adr_index.toml`, `allowlists/guidance_paths.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q258 [P] Small layering and functional-first deviations
+### ✅ T-Q258 [P] Small layering and functional-first deviations
 - Findings: Q-074 (B-13, B-14, B-15, B-16).
 - Epic: E05, E10, E12
 - Band: 2 · Size: S · Tags: `[pre-v4-P3-rec]`
@@ -501,7 +501,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: `functional_first`:21 (18 entries) Done 2026-11-21: 16 of the 18 entries deleted; the two `config.py` entries (`hidden-cache`, `setattr-bypass`) stay with T-Q264 (settings caching and the frozen `ResolvedSettings`).
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/functional_first.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings
+### ✅ T-Q264 [S] Pure services: settings as inputs, entropy and password ports, frozen resolved settings
 - Findings: Q-074, B-13 (setattr bypass); epic E07; open item from T-Q15b (Settings derived values).
 - Epic: E07
 - Band: 2 · Size: M · Tags: `[pre-v4-P3-rec]`
@@ -1024,7 +1024,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
+### ✅ T-Q276 [S] Soft-deleted accounts are excluded from balances, stats and converters
 - Findings: Q-030, Q-015 (OQ-15, answered 2026-11-21).
 - Epic: E01
 - Band: 2 · Size: M · Tags: none

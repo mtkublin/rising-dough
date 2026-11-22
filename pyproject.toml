@@ -275,14 +275,7 @@ type = "forbidden"
 source_modules = ["budget_planner.web"]
 forbidden_modules = ["budget_planner.db"]
 allow_indirect_imports = true
-ignore_imports = [
-  # E12 / Q-074: web imports db directly; remove each line as the remediation lands.
-  "budget_planner.web.app -> budget_planner.db.connection",
-  "budget_planner.web.deps -> budget_planner.db.connection",
-  "budget_planner.web.middleware.auth -> budget_planner.db.connection",
-  "budget_planner.web.retention_task -> budget_planner.db.retention",
-  "budget_planner.web.routers.health -> budget_planner.db.connection",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "domain is a leaf layer"

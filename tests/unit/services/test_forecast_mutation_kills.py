@@ -751,7 +751,7 @@ def test_overlay_skips_unbudgeted_category_then_applies_later_one(
     assert _native(s, env.a1) == [OPENING, OPENING - 1]  # unaccounted == 1 is applied
 
 
-def test_foreign_spend_on_deleted_account_converts_at_its_rate(conn: sqlite3.Connection) -> None:
+def test_foreign_spend_on_deleted_account_is_not_counted(conn: sqlite3.Connection) -> None:
     env = _env(conn)
     eur = accounts_repo.create(conn, OWNER_ID, NewAccount(name="eur", currency="EUR")).id
     _budget(conn, env, 1_000)
@@ -765,7 +765,10 @@ def test_foreign_spend_on_deleted_account_converts_at_its_rate(conn: sqlite3.Con
     accounts_repo.soft_delete(conn, OWNER_ID, eur)
     fx = _conv(conn, rates={TODAY: "3.00"})
     s = fc.forecast(conn, OWNER_ID, fx, TODAY, 1)
-    assert _native(s, env.a1) == [OPENING, OPENING - 700]  # 1000 - 100 EUR * 3.00
+    assert _native(s, env.a1) == [
+        OPENING,
+        OPENING - 1_000,
+    ]  # ADR-0136: the deleted EUR spend is hidden
 
 
 def test_committed_window_excludes_first_day_of_next_month(conn: sqlite3.Connection) -> None:
@@ -790,7 +793,9 @@ def test_planned_budget_defaults_and_boundaries(conn: sqlite3.Connection) -> Non
     _plan(conn, OWNER_ID, TODAY, env.expense_cat, env.a1, amount=200)  # due today: not committed
     _plan(conn, OWNER_ID, TODAY + timedelta(days=1), later, env.a1, amount=999)  # remaining == 1
     out = fc._planned_budget_per_month(conn, OWNER_ID, TODAY, 1, fx=_conv(conn))
-    assert out == {date(2026, 10, 1): 1}  # start_month defaults to today's month, day 1
+    # start_month defaults to today's month, day 1. The archived "dead" category still
+    # counts, in full, like the daily overlay does (ADR-0136, T-Q227): 1 + 50.
+    assert out == {date(2026, 10, 1): 51}
 
 
 def test_month_flow_window_start_and_overdue_placement(conn: sqlite3.Connection) -> None:

@@ -13,6 +13,7 @@ import logging
 import sqlite3
 
 from budget_planner.domain.categories import Category
+from budget_planner.domain.enums import Direction
 from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
@@ -31,6 +32,27 @@ class SystemCategoryError(RuntimeError):
 
 class CategoryHasLiveRulesError(RuntimeError):
     """Raised in block-mode when live recurring rules reference the category."""
+
+
+def expense_categories(
+    conn: sqlite3.Connection, user_id: int, *, include_archived: bool = True
+) -> list[Category]:
+    """Expense-direction categories; archived ones count by default (ADR-0136, OQ-15).
+
+    Archiving only hides a category from pickers; its budget and spending still count in the
+    budget-driven money paths (forecast overlay and monthly plan). Row-listing views that
+    render a line per category pass ``include_archived=False``.
+    """
+    return [
+        c
+        for c in categories_repo.list_all(conn, user_id, include_deleted=include_archived)
+        if c.direction is Direction.EXPENSE
+    ]
+
+
+def expense_category_ids(conn: sqlite3.Connection, user_id: int) -> list[int]:
+    """Ids of every expense category, archived included; the one category-selection policy."""
+    return [c.id for c in expense_categories(conn, user_id)]
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:

@@ -21,7 +21,7 @@ from typing import Protocol
 from budget_planner.domain.fx import FxFetchError, NewFxRate, RateFetcher
 from budget_planner.domain.money import rescale_minor
 from budget_planner.domain.transactions import Transaction
-from budget_planner.repositories import fx as fx_repo
+from budget_planner.repositories import accounts as accounts_repo, fx as fx_repo
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,13 @@ class HasBaseCurrency(Protocol):
 
     @property
     def base_currency(self) -> str: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BaseCurrency:
+    """A bare base-currency code as a :class:`HasBaseCurrency` (callers holding only the code)."""
+
+    base_currency: str
 
 
 class FxUnavailableError(RuntimeError):
@@ -103,6 +110,14 @@ def converter_for(
     return build_converter(base, today, ((r.from_ccy, r.date, r.rate) for r in cached))
 
 
+def currency_by_account(
+    conn: sqlite3.Connection, user_id: int, *, include_deleted: bool = False
+) -> dict[int, str]:
+    """``account_id -> currency``; live accounts only unless ``include_deleted`` (ADR-0136)."""
+    accounts = accounts_repo.list_all(conn, user_id, include_deleted=include_deleted)
+    return {a.id: a.currency for a in accounts}
+
+
 def txn_base_of(
     converter: FxConverter, currency_by_account: Mapping[int, str]
 ) -> Callable[[Transaction], int]:
@@ -165,6 +180,7 @@ __all__ = [
     "RefreshOutcome",
     "build_converter",
     "converter_for",
+    "currency_by_account",
     "list_recent_rates",
     "refresh_rates",
     "txn_base_of",

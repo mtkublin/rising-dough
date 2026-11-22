@@ -12,9 +12,9 @@ import datetime as dt
 import sqlite3
 from dataclasses import dataclass
 
-from budget_planner.config import Settings
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.periods import PeriodWindow, fiscal_window
+from budget_planner.domain.transactions import signed_legs
 from budget_planner.repositories import (
     accounts as accounts_repo,
 )
@@ -25,6 +25,7 @@ from budget_planner.services import (
     preferences as preferences_svc,
     recurring as recurring_svc,
 )
+from budget_planner.services.fx import HasBaseCurrency
 
 PlannedWindow = PeriodWindow  # half-open fiscal window ``[start, end)`` (ADR-0138)
 
@@ -64,13 +65,14 @@ def _legs(
     direction: Direction, account_id: int, dest_account_id: int | None, amount: int
 ) -> tuple[tuple[int, int], ...]:
     """Return ``(account_id, signed_minor)`` legs; adjustments contribute nothing."""
-    if direction is Direction.INCOME:
-        return ((account_id, amount),)
-    if direction is Direction.EXPENSE:
-        return ((account_id, -amount),)
-    if direction is Direction.TRANSIT and dest_account_id is not None:
-        return ((account_id, -amount), (dest_account_id, amount))
-    return ()
+    if direction is Direction.ADJUSTMENT or (
+        direction is Direction.TRANSIT and dest_account_id is None
+    ):
+        return ()
+    return tuple(
+        (leg.account_id, leg.amount_minor)
+        for leg in signed_legs(direction, amount, account_id, dest_account_id)
+    )
 
 
 def _collect_legs(
@@ -103,7 +105,7 @@ def planned_net_by_account(
 
 
 def compute_accounts_planned(
-    conn: sqlite3.Connection, user_id: int, today: dt.date, settings: Settings
+    conn: sqlite3.Connection, user_id: int, today: dt.date, settings: HasBaseCurrency
 ) -> AccountsPlanned:
     """Compose per-account planned net, projected balance and the base-ccy hero total."""
     window = resolve_window(conn, user_id, today)

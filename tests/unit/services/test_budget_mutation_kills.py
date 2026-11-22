@@ -98,7 +98,7 @@ def test_month_summary_exact_totals_per_user(
 ) -> None:
     w = world_with_tombstones
     row = w.owner if user_id == OWNER_ID else w.other
-    s = budget.month_summary(conn, user_id, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, user_id, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     budgeted = budget_amount(user_id)
     spent = txn_amount(user_id)
     committed = _committed(user_id)
@@ -130,10 +130,12 @@ def test_month_summary_exact_totals_per_user(
 def test_month_summary_days_until_next_income_floor_is_one(
     conn: sqlite3.Connection, world_with_two_users: World
 ) -> None:
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=NEXT_INCOME - timedelta(days=1))
+    s = budget.month_summary(
+        conn, OWNER_ID, 2026, 11, today=NEXT_INCOME - timedelta(days=1), base_currency="PLN"
+    )
     assert s.days_until_next_income == 1
     # payday today: the next anchor is a month away; period opens today (ADR-0138).
-    s2 = budget.month_summary(conn, OWNER_ID, 2026, 12, today=NEXT_INCOME)
+    s2 = budget.month_summary(conn, OWNER_ID, 2026, 12, today=NEXT_INCOME, base_currency="PLN")
     assert s2.period_start == NEXT_INCOME
 
 
@@ -142,7 +144,7 @@ def test_month_summary_without_budget_has_no_daily_spend_and_zero_commitments(
 ) -> None:
     # Clearing the only default leaves a month with no budget at all.
     budgets_repo.clear_default(conn, OWNER_ID, world_with_two_users.owner.category_id)
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert s.left_daily_spend_minor is None
     assert s.totals.committed_minor == 0
     assert s.totals.unbudgeted_committed_minor == 0
@@ -162,7 +164,7 @@ def test_averages_empty_category_and_single_item(
     empty = categories_repo.create(
         conn, OWNER_ID, NewCategory(name="empty", direction=Direction.EXPENSE)
     )
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     e = _line(s, empty.id)
     assert (e.avg_monthly_overall_minor, e.avg_this_year_minor, e.delta_vs_prev_month_minor) == (
         0,
@@ -181,17 +183,17 @@ def test_averages_half_even_ties_and_prev_month_delta(
 ) -> None:
     w = world_with_two_users
     _txn(conn, OWNER_ID, w.owner, date(2026, 10, 5), 1_501)
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     line = _line(s, w.owner.category_id)
     assert line.avg_monthly_overall_minor == 1_250  # 2501 / 2 = 1250.5 -> even
     assert line.avg_this_year_minor == 227  # 2501 / 11
     assert line.delta_vs_prev_month_minor == 1_000 - 1_501
-    feb = budget.month_summary(conn, OWNER_ID, 2026, 2, today=WORLD_TODAY)
+    feb = budget.month_summary(conn, OWNER_ID, 2026, 2, today=WORLD_TODAY, base_currency="PLN")
     assert _line(feb, w.owner.category_id).avg_this_year_minor == 1_250  # 2501 / 2 tie -> even
     _txn(conn, OWNER_ID, w.owner, date(2026, 10, 6), 2)
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert _line(s, w.owner.category_id).avg_monthly_overall_minor == 1_252  # 2503 / 2 = 1251.5
-    feb = budget.month_summary(conn, OWNER_ID, 2026, 2, today=WORLD_TODAY)
+    feb = budget.month_summary(conn, OWNER_ID, 2026, 2, today=WORLD_TODAY, base_currency="PLN")
     assert _line(feb, w.owner.category_id).avg_this_year_minor == 1_252
 
 
@@ -201,7 +203,9 @@ def test_overall_average_counts_distinct_months_not_transactions(
     w = world_with_two_users
     _txn(conn, OWNER_ID, w.owner, date(2026, 11, 20), 500)  # same month as the world txn
     _txn(conn, OWNER_ID, w.owner, date(2025, 11, 20), 100)  # same month number, other year
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=date(2026, 11, 25))
+    s = budget.month_summary(
+        conn, OWNER_ID, 2026, 11, today=date(2026, 11, 25), base_currency="PLN"
+    )
     line = _line(s, w.owner.category_id)
     assert line.avg_monthly_overall_minor == 800  # 1600 / 2 buckets (2025-11, 2026-11), not 3 txns
 
@@ -236,7 +240,9 @@ def test_committed_in_window_boundaries(
     end: date,
     expected: int,
 ) -> None:
-    got = budget.committed_in_window(conn, OWNER_ID, start=start, end=end, today=WORLD_TODAY)
+    got = budget.committed_in_window(
+        conn, OWNER_ID, start=start, end=end, today=WORLD_TODAY, base_currency="PLN"
+    )
     assert got == expected  # tombstones (planned 8000, inactive/deleted rules) never counted
 
 
@@ -244,7 +250,7 @@ def test_committed_other_user_has_own_numbers(
     conn: sqlite3.Connection, world_with_tombstones: World
 ) -> None:
     got = budget.committed_by_category(
-        conn, OTHER_ID, start=None, end=NEXT_INCOME, today=WORLD_TODAY
+        conn, OTHER_ID, start=None, end=NEXT_INCOME, today=WORLD_TODAY, base_currency="PLN"
     )
     assert got == {world_with_tombstones.other.category_id: _committed(OTHER_ID)}
 
@@ -254,12 +260,17 @@ def test_committed_by_category_excludes_income_and_moves_start_not_cadence(
 ) -> None:
     w = world_with_two_users
     got = budget.committed_by_category(
-        conn, OWNER_ID, start=None, end=date(2027, 1, 1), today=WORLD_TODAY
+        conn, OWNER_ID, start=None, end=date(2027, 1, 1), today=WORLD_TODAY, base_currency="PLN"
     )
     # The income rule (5000 on Dec 1) is never committed; expense rule Nov 15 + Dec 15.
     assert got == {w.owner.category_id: 500 + 700 * 2}
     got2 = budget.committed_by_category(
-        conn, OWNER_ID, start=date(2026, 11, 16), end=date(2027, 1, 1), today=WORLD_TODAY
+        conn,
+        OWNER_ID,
+        start=date(2026, 11, 16),
+        end=date(2027, 1, 1),
+        today=WORLD_TODAY,
+        base_currency="PLN",
     )
     assert got2 == {w.owner.category_id: 700}
 
@@ -276,8 +287,11 @@ def test_committed_split_by_budgeted_ids(
         end=NEXT_INCOME,
         today=WORLD_TODAY,
     )
-    assert split(budgeted_category_ids=frozenset({w.owner.category_id})) == (1_200, 0)
-    assert split(budgeted_category_ids=frozenset()) == (0, 1_200)
+    assert split(budgeted_category_ids=frozenset({w.owner.category_id}), base_currency="PLN") == (
+        1_200,
+        0,
+    )
+    assert split(budgeted_category_ids=frozenset(), base_currency="PLN") == (0, 1_200)
 
 
 def test_unbudgeted_committed_reported_separately(
@@ -297,7 +311,7 @@ def test_unbudgeted_committed_reported_separately(
             amount=333,
         ),
     )
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert s.totals.unbudgeted_committed_minor == 333
     assert s.totals.committed_minor == 1_200
     assert s.totals.remaining_minor == 3_000 - 1_000 - 1_200
@@ -384,13 +398,13 @@ def test_spent_resets_at_last_landed_anchor(
 ) -> None:
     w = world_with_two_users
     _income(conn, w, date(2026, 11, 11))  # after the Nov 10 expense
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert s.period_start == date(2026, 11, 11)
     assert _line(s, w.owner.category_id).spent_minor == 0
     _txn(conn, OWNER_ID, w.owner, date(2026, 11, 11), 40)  # on the period start: counted
     _txn(conn, OWNER_ID, w.owner, WORLD_TODAY, 2)  # on today: counted
     _txn(conn, OWNER_ID, w.owner, WORLD_TODAY + timedelta(days=1), 900)  # after today: not
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert _line(s, w.owner.category_id).spent_minor == 42
 
 
@@ -405,11 +419,18 @@ def test_month_summary_period_window_overrides_anchor_window(
         11,
         today=WORLD_TODAY,
         period_window=(WORLD_DAY + timedelta(days=1), date(2026, 11, 30)),
+        base_currency="PLN",
     )
     assert _line(s, w.owner.category_id).spent_minor == 0
     assert s.period_start == WORLD_DAY + timedelta(days=1)
     s = budget.month_summary(
-        conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, period_window=(WORLD_DAY, WORLD_DAY)
+        conn,
+        OWNER_ID,
+        2026,
+        11,
+        today=WORLD_TODAY,
+        period_window=(WORLD_DAY, WORLD_DAY),
+        base_currency="PLN",
     )
     assert _line(s, w.owner.category_id).spent_minor == 1_000
 
@@ -473,8 +494,8 @@ def test_picker_summary_fiscal_equals_live_summary(
 ) -> None:
     picked = budget.resolve_picker_month(conn, OWNER_ID, WORLD_TODAY)
     assert budget.month_summary_for_picker(
-        conn, OWNER_ID, picked, WORLD_TODAY
-    ) == budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+        conn, OWNER_ID, picked, WORLD_TODAY, base_currency="PLN"
+    ) == budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
 
 
 def test_picker_summary_future_month(conn: sqlite3.Connection, world_with_two_users: World) -> None:
@@ -482,7 +503,7 @@ def test_picker_summary_future_month(conn: sqlite3.Connection, world_with_two_us
     picked = budget.resolve_picker_month(
         conn, OWNER_ID, WORLD_TODAY, year_raw="2026", month_raw="12"
     )
-    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY, base_currency="PLN")
     assert s.period_start == date(2026, 12, 1)
     assert s.next_income_date == date(2027, 1, 1)
     assert s.days_until_next_income == 31
@@ -506,7 +527,7 @@ def test_picker_summary_past_month_spent_clamped_to_month(
     picked = budget.resolve_picker_month(
         conn, OWNER_ID, WORLD_TODAY, year_raw="2026", month_raw="10"
     )
-    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY, base_currency="PLN")
     assert s.totals.spent_minor == 100
     assert s.totals.remaining_minor == 2_900
     assert s.totals.committed_minor == 0
@@ -552,7 +573,7 @@ def test_txn_base_uses_rate_on_or_before_operation_date(
     _rate(conn, date(2026, 11, 9), "4.00")
     _rate(conn, date(2026, 11, 10), "4.50")
     _rate(conn, date(2026, 11, 11), "5.00")
-    base_of = budget.txn_base_amounts(conn, 1, today=date(2026, 11, 12))
+    base_of = budget.txn_base_amounts(conn, 1, today=date(2026, 11, 12), base_currency="PLN")
     assert base_of(_new_txn(conn, eur_world, date(2026, 11, 10))) == 45_000
     assert base_of(_new_txn(conn, eur_world, date(2026, 11, 12))) == 50_000
     assert base_of(_new_txn(conn, eur_world, date(2026, 11, 10), key="pln", amount=777)) == 777
@@ -561,7 +582,7 @@ def test_txn_base_uses_rate_on_or_before_operation_date(
 def test_txn_base_missing_rate_raises(conn: sqlite3.Connection, eur_world: dict[str, int]) -> None:
     _rate(conn, date(2026, 11, 11), "5.00")
     t = _new_txn(conn, eur_world, date(2026, 11, 10))  # only a LATER rate is cached
-    base_of = budget.txn_base_amounts(conn, 1, today=date(2026, 11, 12))
+    base_of = budget.txn_base_amounts(conn, 1, today=date(2026, 11, 12), base_currency="PLN")
     with pytest.raises(FxUnavailableError):
         base_of(t)
 
@@ -572,7 +593,7 @@ def test_planned_base_uses_latest_rate_on_or_before_today(
     _rate(conn, date(2026, 11, 10), "4.50")
     _rate(conn, date(2026, 11, 11), "5.00")
     _rate(conn, date(2026, 11, 13), "9.00")  # after today: ignored
-    base_of = budget.planned_base_amounts(conn, 1, today=date(2026, 11, 12))
+    base_of = budget.planned_base_amounts(conn, 1, today=date(2026, 11, 12), base_currency="PLN")
     assert base_of(eur_world["eur"], 10_000) == 50_000
     assert base_of(eur_world["pln"], 10_000) == 10_000
     assert base_of(987_654, 123) == 123  # unknown account: treated as base currency
@@ -581,7 +602,7 @@ def test_planned_base_uses_latest_rate_on_or_before_today(
 def test_planned_base_missing_rate_raises_without_native_fallback(
     conn: sqlite3.Connection, eur_world: dict[str, int]
 ) -> None:
-    base_of = budget.planned_base_amounts(conn, 1, today=date(2026, 11, 12))
+    base_of = budget.planned_base_amounts(conn, 1, today=date(2026, 11, 12), base_currency="PLN")
     with pytest.raises(FxUnavailableError):
         base_of(eur_world["eur"], 10_000)
     assert base_of(eur_world["pln"], 10_000) == 10_000  # base currency needs no rate
@@ -607,7 +628,7 @@ def test_base_amounts_honour_base_currency_and_soft_deleted_accounts(
     planned_after = budget.planned_base_amounts(conn, 1, today=today, base_currency="EUR")
     assert planned_after(eur_world["pln"], 10_000) == 2_500  # tombstone keeps its currency
     txn_of = budget.txn_base_amounts(conn, 1, today=today, base_currency="EUR")
-    assert txn_of(txn) == 2_500
+    assert txn_of(txn) == 10_000  # ADR-0136: deleted accounts leave the txn converter map
 
 
 def test_committed_converts_foreign_planned_and_raises_when_rate_missing(
@@ -625,10 +646,14 @@ def test_committed_converts_foreign_planned_and_raises_when_rate_missing(
     )
     today = date(2026, 11, 12)
     with pytest.raises(FxUnavailableError):
-        budget.committed_in_window(conn, 1, start=None, end=date(2026, 11, 20), today=today)
+        budget.committed_in_window(
+            conn, 1, start=None, end=date(2026, 11, 20), today=today, base_currency="PLN"
+        )
     _rate(conn, date(2026, 11, 11), "5.00")
     assert (
-        budget.committed_in_window(conn, 1, start=None, end=date(2026, 11, 20), today=today)
+        budget.committed_in_window(
+            conn, 1, start=None, end=date(2026, 11, 20), today=today, base_currency="PLN"
+        )
         == 50_000
     )
 
@@ -641,10 +666,11 @@ def test_month_summary_spent_uses_historical_rate_and_raises_when_missing(
     )
     _new_txn(conn, eur_world, date(2026, 11, 10))
     with pytest.raises(FxUnavailableError):
-        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12))
+        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12), base_currency="PLN")
     _rate(conn, date(2026, 11, 10), "4.50")
     line = _line(
-        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12)), eur_world["cat"]
+        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12), base_currency="PLN"),
+        eur_world["cat"],
     )
     assert line.spent_minor == 45_000
     assert line.remaining_minor == 55_000
@@ -704,7 +730,7 @@ def test_committed_skips_non_expense_and_out_of_window_rules_without_stopping(
         amount=8_000,
     )
     got = budget.committed_by_category(
-        conn, OWNER_ID, start=None, end=date(2026, 11, 20), today=WORLD_TODAY
+        conn, OWNER_ID, start=None, end=date(2026, 11, 20), today=WORLD_TODAY, base_currency="PLN"
     )
     assert got == {w.owner.category_id: 500 + 700}
 
@@ -726,7 +752,7 @@ def test_committed_counts_rule_of_archived_expense_category(
     )
     categories_repo.soft_delete(conn, OWNER_ID, old.id)
     got = budget.committed_by_category(
-        conn, OWNER_ID, start=None, end=date(2026, 11, 20), today=WORLD_TODAY
+        conn, OWNER_ID, start=None, end=date(2026, 11, 20), today=WORLD_TODAY, base_currency="PLN"
     )
     assert got == {w.owner.category_id: 1_200, old.id: 250}
 
@@ -813,8 +839,8 @@ def test_month_summary_passes_today_to_planned_converter(
     )
     _rate(conn, date(2026, 11, 20), "5.00")  # after the injected today
     with pytest.raises(FxUnavailableError):
-        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12))
-    s = budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 25))
+        budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 12), base_currency="PLN")
+    s = budget.month_summary(conn, 1, 2026, 11, today=date(2026, 11, 25), base_currency="PLN")
     assert s.totals.committed_minor == 500  # 100 EUR minor * 5.00; overdue items count (ADR-0105)
 
 
@@ -872,7 +898,7 @@ def test_year_window_includes_jan_first_and_excludes_next_year(
     _txn(conn, OWNER_ID, w.owner, date(2026, 1, 1), 110)
     _txn(conn, OWNER_ID, w.owner, date(2026, 12, 31), 220)
     _txn(conn, OWNER_ID, w.owner, date(2027, 1, 1), 5_000)
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     # year sum = 1000 + 110 + 220 over 11 elapsed months; overall counts every active month
     assert _line(s, w.owner.category_id).avg_this_year_minor == 121  # 1330 / 11 = 120.9
     assert _line(s, w.owner.category_id).avg_monthly_overall_minor == 1_582  # 6330 / 4 buckets
@@ -885,7 +911,7 @@ def test_zero_budget_month_spent_stops_at_today(
     budgets_repo.clear_default(conn, OWNER_ID, w.owner.category_id)
     _txn(conn, OWNER_ID, w.owner, WORLD_TODAY, 5)
     _txn(conn, OWNER_ID, w.owner, WORLD_TODAY + timedelta(days=1), 900)
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     assert _line(s, w.owner.category_id).spent_minor == 1_005
 
 
@@ -895,7 +921,7 @@ def test_january_average_of_idle_category_is_zero(
     idle = categories_repo.create(
         conn, OWNER_ID, NewCategory(name="idle", direction=Direction.EXPENSE)
     )
-    s = budget.month_summary(conn, OWNER_ID, 2026, 1, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 1, today=WORLD_TODAY, base_currency="PLN")
     assert _line(s, idle.id).avg_this_year_minor == 0
     assert _line(s, idle.id).avg_monthly_overall_minor == 0
 
@@ -906,7 +932,7 @@ def test_line_carries_category_direction_and_color(
     painted = categories_repo.create(
         conn, OWNER_ID, NewCategory(name="painted", direction=Direction.EXPENSE, color="#aa00bb")
     )
-    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY)
+    s = budget.month_summary(conn, OWNER_ID, 2026, 11, today=WORLD_TODAY, base_currency="PLN")
     line = _line(s, painted.id)
     assert line.category_direction is Direction.EXPENSE
     assert line.category_color == painted.color == "#aa00bb"
@@ -920,7 +946,7 @@ def test_line_carries_category_direction_and_color(
 # ---------------------------------------------------------------------------
 def test_picker_window_without_anchor_starts_on_the_first(conn: sqlite3.Connection) -> None:
     picked = budget.resolve_picker_month(conn, 1, date(2026, 3, 17), year_raw="2026", month_raw="5")
-    s = budget.month_summary_for_picker(conn, 1, picked, date(2026, 3, 17))
+    s = budget.month_summary_for_picker(conn, 1, picked, date(2026, 3, 17), base_currency="PLN")
     assert (s.period_start, s.next_income_date) == (date(2026, 5, 1), date(2026, 6, 1))
     assert s.days_until_next_income == 31
 
@@ -952,7 +978,7 @@ def test_picker_window_uses_active_anchor_rule_day_of_month_clamped(
     picked = budget.resolve_picker_month(
         conn, OWNER_ID, WORLD_TODAY, year_raw="2027", month_raw="2"
     )
-    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY, base_currency="PLN")
     # day 31 clamped per month: Feb 28 -> Mar 31
     assert (s.period_start, s.next_income_date) == (date(2027, 2, 28), date(2027, 3, 31))
     assert s.days_until_next_income == 31
@@ -974,7 +1000,7 @@ def test_picker_window_day_one_rule_keeps_the_first(
     picked = budget.resolve_picker_month(
         conn, OWNER_ID, WORLD_TODAY, year_raw="2027", month_raw="2"
     )
-    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, WORLD_TODAY, base_currency="PLN")
     assert (s.period_start, s.next_income_date) == (date(2027, 2, 1), date(2027, 3, 1))
 
 
@@ -984,7 +1010,7 @@ def test_picker_window_closed_exactly_today_has_no_days_left(
     today = date(2026, 11, 1)
     picked = budget.resolve_picker_month(conn, OWNER_ID, today, year_raw="2026", month_raw="10")
     assert picked.is_fiscal is False
-    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, today)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, picked, today, base_currency="PLN")
     assert s.next_income_date == today
     assert s.days_until_next_income == 0
 
@@ -1007,14 +1033,14 @@ def test_picker_summary_zeroes_unbudgeted_commitments_and_derives_daily_spend_fr
         ),
     )
     dec = budget.resolve_picker_month(conn, OWNER_ID, WORLD_TODAY, year_raw="2026", month_raw="12")
-    s = budget.month_summary_for_picker(conn, OWNER_ID, dec, WORLD_TODAY)
+    s = budget.month_summary_for_picker(conn, OWNER_ID, dec, WORLD_TODAY, base_currency="PLN")
     assert s.totals.unbudgeted_committed_minor == 0
     assert s.totals.committed_minor == 0
     # reference day is Dec 12: no anchor after it, so the inner window ends Jan 1 (20 days);
     # committed (planned 500 + rules Nov 15 and Dec 15, 700 each) reduces the inner "left".
     assert s.left_daily_spend_minor == round(Decimal(3_000 - 1_900) / 20)
     feb = budget.resolve_picker_month(conn, OWNER_ID, WORLD_TODAY, year_raw="2027", month_raw="2")
-    s2 = budget.month_summary_for_picker(conn, OWNER_ID, feb, WORLD_TODAY)
+    s2 = budget.month_summary_for_picker(conn, OWNER_ID, feb, WORLD_TODAY, base_currency="PLN")
     # reference day Feb 12, 2027: window ends Mar 1 (17 days); 500 + 4 rule occurrences x 700
     assert s2.left_daily_spend_minor == round(Decimal(3_000 - 3_300) / 17)
 

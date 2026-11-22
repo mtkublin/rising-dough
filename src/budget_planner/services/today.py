@@ -83,6 +83,8 @@ def afford(
     user_id: int,
     today: date,
     amount_minor: int,
+    *,
+    base_currency: str,
 ) -> AffordResult:
     """Return the recomputed per-day figure for a hypothetical spend.
 
@@ -96,7 +98,9 @@ def afford(
     # left-per-day. Using today.year/today.month pulls the wrong cycle when
     # today falls before the current calendar month's anchor paycheck.
     year, month = budget_service.fiscal_month_for(conn, user_id, today)
-    summary = budget_service.month_summary(conn, user_id, year, month, today=today)
+    summary = budget_service.month_summary(
+        conn, user_id, year, month, today=today, base_currency=base_currency
+    )
     days_left = max(summary.days_until_next_income, 1)
     remaining_minor = max(summary.totals.remaining_minor, 0)
     baseline_per_day = _div_round_half_even(remaining_minor, days_left)
