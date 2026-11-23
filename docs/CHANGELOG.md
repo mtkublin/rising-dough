@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q306a: prod baseline resolver)
+- **Feat(T-Q306a): `scripts/ci/prod_baseline.py` resolves the version prod serves (newest `prod` deployment whose latest status is `success`, tag ancestor of `origin/main`, digest via `host_release.resolve_ref`) and prints `tag=`, `sha=`, `image_ref=`; fails closed.** ADR-0149 Decision 2. Not yet wired into `drill.yml` (T-Q306d/e). No allowlist change.
+
 ## 2026-11-23 (T-Q315: housekeeping, task statuses, recurring test clock, break-glass log entry)
 - **Docs(T-Q315): T-Q305/T-Q307/T-Q309/T-Q311 marked done; T-Q218/T-Q255 marked done after operator steps; `tests/contract/ledger/test_recurring.py` reads `clock.today_local(settings)` instead of `date.today()`; `docs/plans/v3/runbooks/break-glass.md` gains a break-glass log entry for the 2026-11-22 compose network recreate outage (20:39 to 20:56 UTC).** No code or allowlist change.
 
