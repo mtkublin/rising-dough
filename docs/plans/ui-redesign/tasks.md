@@ -28,7 +28,7 @@
 - Tests assert the stored row, the audit row and that a second user's rows are untouched; HTTP tests on the existing edit route assert the flashed refusal and unchanged DB state.
 - ADR-0134 §11, ADR-0073, requirements §10.1 (user admin line), §6.2.
 
-### ◻ T-UR30 [P] Invite data layer (data part of T-UR20)
+### ✅ T-UR30 [P] Invite data layer (data part of T-UR20)
 - Migration `0019_invites.sql` (+ `down/`): invites (email, role, inviting admin, token hash, created / expires / used / revoked timestamps, soft delete + audit via repository helpers). Repository, user-scoped where it applies.
 - Lifetime 7 days from create or resend (named constant). Service: create (refuses an email that already has a live user or a pending invite), resend (new token and new expiry, old token dead; refused on a revoked or used invite), revoke (final: a revoked invite cannot be resent, the admin creates a new one), accept (creates the user with the invite's email and role, marks the invite used, one `db_transaction`), link state (`pending`, `expired`, `used`, `invalid`). Token stored hashed, compared in constant time, never logged.
 - No routes, no templates. Migration rehearsal on a scratch copy (never `data/budget.sqlite`).
@@ -75,6 +75,8 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR34b ✅ | S | 2 | G1 export filters: `web/ledger_data.py` (parsers), `web/ledger_export.py` (new), export handlers, `PlannedFilter.description_contains` + planned repository | — |
 | T-UR34e ✅ | S | 2 | `services/today.py` (`AffordResult.unclamped_per_day_minor`, `over_minor`, `AFFORD_INVALID_MESSAGE`), `web/routers/today.py` pass-through; "over" = max(amount - max(remaining, 0), 0); handoff "114.20 over" does not reproduce (board: left 1,399.93 over 7 days, 1,800.00 gives -57.15 per day and 400.07 over); blank/zero now 422 | — |
 | T-UR34d ✅ | S | 2 | G3 credit-limit preview: `services/limit_preview.py` (`LimitPreview.available_before`, `account_name`; `exclude_txn_id`), `web/routers/transactions.py` `limit_preview` handler (`txn_id` query param, pass-through); edit mode leaves the edited transaction's own effect out of the "before" balance (orchestrator decision, designer to confirm: the edit board repeats the new-entry figures; foreign or unknown id ignored); no template change (ADR-0134 §2, ADR-0148) | — |
+| T-UR34f ✅ | S | 2 | `services/account_reconcile.py` (`ReconcilePreview`, `preview_difference`: signed typed - current, available credit for a limited liability, adjustment direction), `web/accounts_data.reconcile_modal_context` (`preview` value), `web/routers/accounts.py` reconcile GET (optional `actual_balance` query); data only, no template; frontend phase needs an HTMX preview endpoint rendering `preview` | — |
+| T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR34c.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
 

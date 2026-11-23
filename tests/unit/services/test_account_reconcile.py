@@ -8,6 +8,7 @@ from datetime import date
 import pytest
 
 from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.money import parse_amount_minor
 from budget_planner.repositories import accounts, audit as audit_repo
 from budget_planner.services import account_reconcile, balance, reconciliation
 from budget_planner.services.accounts import list_snapshots_for_account
@@ -145,3 +146,65 @@ def test_target_balance_converts_available_credit_for_a_limited_liability(
     assert account_reconcile.target_balance_minor(card, 350_000) == -150_000
     with pytest.raises(reconciliation.InvalidAvailableError):
         account_reconcile.target_balance_minor(card, 500_001)
+
+
+def _live(conn: sqlite3.Connection, *, currency: str = "PLN", opening: int = 120_000) -> int:
+    new = NewAccount(name="Prev", currency=currency, opening_balance=opening)
+    return accounts.create(conn, USER_ID, new).id
+
+
+@pytest.mark.parametrize(
+    ("actual", "difference", "adjustment"),
+    [(125_050, 5_050, "increase"), (120_000, 0, "none"), (118_000, -2_000, "decrease")],
+)
+def test_preview_difference_is_signed_actual_minus_derived(
+    conn: sqlite3.Connection, actual: int, difference: int, adjustment: account_reconcile.Adjustment
+) -> None:
+    account_id = _live(conn)
+    acc = accounts.find_by_id(conn, USER_ID, account_id)
+    assert acc is not None
+    derived = balance.derive_balance(conn, USER_ID, account_id)
+
+    preview = account_reconcile.preview_difference(acc, actual, derived)
+
+    assert derived == 120_000
+    assert preview == account_reconcile.ReconcilePreview(
+        entered_minor=actual,
+        current_minor=120_000,
+        difference_minor=difference,
+        target_balance_minor=actual,
+        adjustment=adjustment,
+    )
+
+
+def test_preview_difference_for_limited_liability_compares_available_credit(
+    conn: sqlite3.Connection,
+) -> None:
+    new = NewAccount(
+        name="Visa",
+        currency="PLN",
+        is_liability=True,
+        credit_limit_minor=500_000,
+        opening_balance=-123_456,
+    )
+    acc = accounts.create(conn, USER_ID, new)
+
+    preview = account_reconcile.preview_difference(acc, 400_000, -123_456)
+
+    assert (preview.current_minor, preview.difference_minor) == (376_544, 23_456)
+    assert preview.target_balance_minor == -100_000
+    assert preview.adjustment == "increase"
+    with pytest.raises(reconciliation.InvalidAvailableError):
+        account_reconcile.preview_difference(acc, 500_001, -123_456)
+
+
+def test_preview_uses_the_account_currency_exponent(conn: sqlite3.Connection) -> None:
+    account_id = _live(conn, currency="JPY", opening=120_000)
+    acc = accounts.find_by_id(conn, USER_ID, account_id)
+    assert acc is not None
+    entered = parse_amount_minor("125050", "JPY")
+    assert entered == 125_050
+
+    preview = account_reconcile.preview_difference(acc, entered, 120_000)
+
+    assert preview.difference_minor == 5_050
