@@ -94,6 +94,9 @@ def test_second_run_is_a_noop(tmp_path: Path) -> None:
     assert _versions(db) == before
 
 
+# real_clock: pruning compares the backup file's real mtime with the clock, so a
+# frozen "now" later than the host date would age the fresh backup out (ADR-0140).
+@pytest.mark.real_clock
 def test_upgrade_takes_pre_migration_backup(tmp_path: Path, latest_version: int) -> None:
     db = tmp_path / "budget.db"
     older = latest_version - 1
