@@ -25,6 +25,7 @@ from budget_planner.services import (
     accounts,
     analytics,
     budget,
+    categories,
     fortune,
     fx,
     recurring_formula,
@@ -199,6 +200,31 @@ def test_soft_deleted_rows_stay_out_of_the_owners_results(
     assert _fortune(conn, OWNER_ID) == OWNER_BALANCE - 1_000
     assert _checked_accounts(conn, OWNER_ID) == {world_with_tombstones.owner.account_id}
     assert _grid_categories(conn, OWNER_ID) == {world_with_tombstones.owner.category_id}
+
+
+@covers("categories.usage_by_category")
+def _case_usage_by_category(conn: sqlite3.Connection, world: World) -> None:
+    mine = categories.usage_by_category(conn, OWNER_ID)
+    theirs = categories.usage_by_category(conn, OTHER_ID)
+    assert world.owner.category_id in mine
+    assert world.other.category_id not in mine
+    assert world.other.category_id in theirs
+    assert world.owner.category_id not in theirs
+
+
+@covers("categories.entry_count")
+def _case_entry_count(conn: sqlite3.Connection, world: World) -> None:
+    assert categories.entry_count(conn, OWNER_ID, world.owner.category_id) == 1
+    assert categories.entry_count(conn, OWNER_ID, world.other.category_id) == 0
+    assert categories.entry_count(conn, OTHER_ID, world.owner.category_id) == 0
+
+
+@covers("categories.picker_summary")
+def _case_picker_summary(conn: sqlite3.Connection, world: World) -> None:
+    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID).recent}
+    assert world.owner.category_id in recent
+    assert world.other.category_id not in recent
+    assert all(c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID).recent)
 
 
 def collect() -> list[Violation]:
