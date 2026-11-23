@@ -8,11 +8,12 @@ client) so contract tests never touch the production database.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -64,7 +65,7 @@ def seeded(_migrated: Settings) -> dict[str, int]:
         move = categories_repo.create(
             conn, USER_ID, NewCategory(name="Move", direction=Direction.TRANSIT)
         )
-        today = date.today()  # noqa: DTZ011
+        today = clock.today_local(_migrated)
         txn = transactions_repo.create(
             conn,
             USER_ID,

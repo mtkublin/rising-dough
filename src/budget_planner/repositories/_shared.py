@@ -7,9 +7,8 @@ Policy (see ADR-0022):
   entry in the same transaction. On failure the whole thing rolls back.
 - ``_dumps`` serialises frozen dataclasses and plain mappings for the
   ``prev_json`` / ``new_json`` columns.
-- ``_utc_now_iso`` matches the ISO format used by the SQL
-  ``strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`` default so timestamps stored
-  by Python and by SQLite are visually comparable.
+- ``clock.utc_now_iso`` writes the same ISO format as the schema default
+  (``strftime('%Y-%m-%dT%H:%M:%fZ', ...)``), so stored timestamps compare as text.
 - The ``*_owned`` helpers (:class:`OwnedTable`) are the one implementation of
   user-scoped, soft-deleting, audited CRUD for the user-owned tables
   (ADR-0022 amendment 2026-11-22, T-Q260). Table and column names only ever
@@ -241,7 +240,8 @@ def parse_dt_required(value: str) -> datetime:
 # ---------------------------------------------------------------------------
 # Generic user-owned CRUD (T-Q260, ADR-0022 amendment 2026-11-22).
 # ---------------------------------------------------------------------------
-_NOW_SQL = "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+# T-Q311: stamps are bound parameters (``clock.utc_now_iso()``), never SQLite's own clock.
+_NOW_SQL = "?"
 _IDENT = re.compile(r"[a-z][a-z0-9_]*")
 _COLUMN_LIST = re.compile(r"[a-z][a-z0-9_]*(, [a-z][a-z0-9_]*)*")
 _ORDER_BY = re.compile(r"[a-z][a-z0-9_]*( (ASC|DESC))?(, [a-z][a-z0-9_]*( (ASC|DESC))?)*")
@@ -327,8 +327,8 @@ def recently_deleted_sql(table: str, columns: str) -> str:
 
 
 def insert_sql(table: str, keys: Iterable[str]) -> str:
-    """``INSERT`` one row; ``user_id`` is always the first column."""
-    columns = ["user_id", *_identifiers(keys)]
+    """``INSERT`` one row; ``user_id`` is first, ``created_at`` / ``updated_at`` (bound) last."""
+    columns = ["user_id", *_identifiers(keys), "created_at", "updated_at"]
     marks = ", ".join("?" for _ in columns)
     return f"INSERT INTO {table}({', '.join(columns)}) VALUES ({marks})"
 
@@ -412,7 +412,8 @@ def insert_owned[R: AuditPayload](
     sql = insert_sql(spec.table, values)
 
     def _insert_row(c: sqlite3.Connection) -> tuple[int, R]:
-        cursor = c.execute(sql, (user_id, *values.values()))
+        stamp = clock.utc_now_iso()
+        cursor = c.execute(sql, (user_id, *values.values(), stamp, stamp))
         new_id = int(cursor.lastrowid or 0)
         created = find_owned(c, spec, user_id, {"id": new_id})
         if created is None:
@@ -454,7 +455,7 @@ def update_owned[R: AuditPayload](
 
     def _update_row(c: sqlite3.Connection) -> tuple[int, R]:
         if sql is not None:
-            c.execute(sql, (*changes.values(), row_id, user_id))
+            c.execute(sql, (*changes.values(), clock.utc_now_iso(), row_id, user_id))
         updated = find_owned(c, spec, user_id, {"id": row_id}, include_deleted=True)
         if updated is None:
             raise LookupError(f"{spec.entity_type} {row_id} vanished mid-mutation")
@@ -480,7 +481,8 @@ def soft_delete_found[R: AuditPayload](
     """Soft-delete the live row ``row_id`` whose current state is ``prev`` and audit it."""
 
     def _soft_delete_row(c: sqlite3.Connection) -> tuple[int, None]:
-        c.execute(soft_delete_sql(spec.table), (row_id, user_id))
+        stamp = clock.utc_now_iso()
+        c.execute(soft_delete_sql(spec.table), (stamp, stamp, row_id, user_id))
         return row_id, None
 
     mutate(
@@ -512,7 +514,7 @@ def undelete_owned[R: AuditPayload](
         raise LookupError(f"{spec.entity_type} {row_id} not found")
 
     def _undelete_row(c: sqlite3.Connection) -> tuple[int, R]:
-        c.execute(undelete_sql(spec.table), (row_id, user_id))
+        c.execute(undelete_sql(spec.table), (clock.utc_now_iso(), row_id, user_id))
         restored = find_owned(c, spec, user_id, {"id": row_id})
         if restored is None:
             raise LookupError(f"{spec.entity_type} {row_id} vanished mid-mutation")

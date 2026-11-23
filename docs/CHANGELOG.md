@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q311: frozen test clock by default, CI date matrix, no SQLite clock)
+- **Test(T-Q311): every test runs under `clock.frozen(BUDGET_TEST_NOW, default 2026-11-21T12:00:00Z)`; marker `real_clock` opts out; CI job `pytest (shifted clock)` runs the suite on four dangerous dates; guard G32 bans `'now'`/`CURRENT_*` in runtime SQL and six update sites now bind `clock.utc_now_iso()`.** ADR-0140 amendment 2026-11-23. No allowlist change.
+
 ## 2026-11-23 (T-Q310: forecast batching test independent of the wall clock)
 - **Fix(T-Q310): `seed_world` in `tests/integration/web/test_query_budget.py` creates recurring rules under `clock.frozen(today)`; `create_rule` derives `next_due` from the clock, so seeding on a later real date shifted every forecast month by 500 (release CI 2026-11-23). The forecast test now runs seeded under three wall dates.** Test-only; no production change, no allowlist change.
 

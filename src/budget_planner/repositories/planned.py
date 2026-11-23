@@ -12,6 +12,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
+from budget_planner import clock
 from budget_planner.domain.planned import (
     NewPlannedTransaction,
     PatchPlannedTransaction,
@@ -254,9 +255,9 @@ def clear_promotion(
     def _clear_action(c: sqlite3.Connection) -> tuple[int, PlannedTransaction]:
         c.execute(
             "UPDATE planned_transactions SET promoted_to_txn_id = NULL, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+            "updated_at = ? "
             "WHERE id = ? AND user_id = ? AND promoted_to_txn_id = ?",
-            (planned_id, user_id, prev.promoted_to_txn_id),
+            (clock.utc_now_iso(), planned_id, user_id, prev.promoted_to_txn_id),
         )
         updated = find_by_id(c, user_id, planned_id, include_deleted=True)
         if updated is None:

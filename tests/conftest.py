@@ -25,13 +25,14 @@ os.environ["BUDGET_BCRYPT_ROUNDS"] = "4"
 import functools
 import sqlite3
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
 
-from budget_planner import config as config_module
+from budget_planner import clock, config as config_module
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
 from tests.auth_support import FAST_ROUNDS
@@ -106,6 +107,35 @@ def _session_db_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
             )
         yield
         get_settings.cache_clear()
+
+
+# T-Q311 (ADR-0140 amendment 2026-11-23): every test runs under a frozen app clock.
+DEFAULT_TEST_NOW = "2026-11-21T12:00:00Z"
+TEST_NOW_ENV = "BUDGET_TEST_NOW"
+
+
+def suite_now() -> datetime:
+    """The suite-wide frozen instant: ``BUDGET_TEST_NOW`` (ISO, UTC) or the stable default."""
+    raw = os.environ.get(TEST_NOW_ENV) or DEFAULT_TEST_NOW
+    instant = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    if instant.tzinfo is None:
+        instant = instant.replace(tzinfo=UTC)
+    return instant.astimezone(UTC)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Fail fast on an unparseable ``BUDGET_TEST_NOW`` instead of per test."""
+    suite_now()
+
+
+@pytest.fixture(autouse=True)
+def _frozen_clock(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Run each test with ``clock.frozen(suite_now())`` unless it is marked ``real_clock``."""
+    if request.node.get_closest_marker("real_clock") is not None:
+        yield
+        return
+    with clock.frozen(suite_now()):
+        yield
 
 
 @pytest.fixture(scope="session")

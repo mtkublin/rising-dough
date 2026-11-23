@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -19,6 +19,7 @@ from fastapi import Request
 from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
+from budget_planner.clock import utc_now
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.request_ctx import RequestCtx
@@ -53,7 +54,7 @@ def settings(migrated_db: Path) -> Settings:
 
 class _Clock:
     def __init__(self) -> None:
-        self.now = datetime.now(UTC)
+        self.now = utc_now()
 
     def __call__(self) -> datetime:
         return self.now
@@ -69,7 +70,7 @@ def _go_stale(client: TestClient) -> _Clock:
 def _freeze_rate_limit_window(client: TestClient) -> None:
     """Pin the limiter clock mid-minute: the windows are fixed, so a wall-clock
     minute rollover between attempts would reset the counter and flake (T-Q248)."""
-    now = datetime.now(UTC)
+    now = utc_now()
     clock = _Clock()
     clock.now = now.replace(second=30, microsecond=0)
     client.app.state.rate_limit_clock = clock  # type: ignore[attr-defined]

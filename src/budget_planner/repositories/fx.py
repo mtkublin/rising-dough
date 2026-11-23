@@ -6,6 +6,7 @@ import sqlite3
 from datetime import date
 from decimal import Decimal
 
+from budget_planner import clock
 from budget_planner.domain.fx import FxRate, NewFxRate
 from budget_planner.repositories._shared import mutate, parse_dt_required
 
@@ -103,10 +104,8 @@ def upsert_rate(conn: sqlite3.Connection, data: NewFxRate) -> FxRate:
             new_id = int(cursor.lastrowid or 0)
         else:
             c.execute(
-                "UPDATE fx_rates SET rate = ?, "
-                "fetched_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-                "WHERE id = ?",
-                (str(data.rate), existing.id),
+                "UPDATE fx_rates SET rate = ?, fetched_at = ? WHERE id = ?",
+                (str(data.rate), clock.utc_now_iso(), existing.id),
             )
             new_id = existing.id
         row = c.execute(f"SELECT {_COLUMNS} FROM fx_rates WHERE id = ?", (new_id,)).fetchone()

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
@@ -26,7 +27,7 @@ def _client(tmp_path: Path, status_file: str) -> TestClient:
 
 
 def _write(path: Path, *, newest_age: timedelta, error: str | None = None) -> None:
-    now = datetime.now(UTC)
+    now = clock.utc_now()
     path.write_text(
         json.dumps(
             {

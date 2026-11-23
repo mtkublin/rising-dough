@@ -6,6 +6,7 @@ import datetime as dt
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.enums import Cadence
 from budget_planner.domain.recurring import (
     FORMULA_SCHEMA_VERSION,
@@ -122,7 +123,7 @@ def _mk_rule(
     next_due: dt.date = dt.date(2026, 1, 1),
     formula: AmountFormula | None = None,
 ) -> object:
-    now = dt.datetime.now(dt.UTC)
+    now = clock.utc_now()
     return RecurringRule(
         id=rule_id,
         user_id=1,
