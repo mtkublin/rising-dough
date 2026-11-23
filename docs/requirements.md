@@ -266,7 +266,7 @@ v2 keeps v1's functional surface and data model unchanged and layers a full UI/U
 
 | Endpoint | Purpose | Notes |
 |---|---|---|
-| `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. |
+| `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. The result carries the clamped and the unclamped per-day figure and `over_minor` (amount minus what is left, floor 0). An empty, zero, negative or unparseable amount returns 422 with the text "Enter an amount, like 250.00" (T-UR34e, ADR-0148). |
 | `POST /recurring/formula/preview` | Returns computed value for a draft formula term list | Re-wired by T-UT12-3 (recurring form fires `rd-formula-change`); validates cycles / non-positive before save. |
 | `POST /categories/{id}/archive` + `POST /categories/{id}/restore` | Archive / restore category | Soft-delete via existing repository helper. |
 

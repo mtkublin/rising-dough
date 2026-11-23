@@ -649,13 +649,23 @@ def _case_afford(conn: sqlite3.Connection, world: World) -> None:
         conn, OWNER_ID, T, 1_000, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
     )
     assert owner == today_svc.AffordResult(
-        per_day_minor=0, delta_minor=-42, pace_tag="over_limit", days_left=19
+        per_day_minor=0,
+        delta_minor=-42,
+        pace_tag="over_limit",
+        days_left=19,
+        unclamped_per_day_minor=-11,
+        over_minor=200,
     )
     other = today_svc.afford(
         conn, OTHER_ID, T, 1_000, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
     )
     assert other == today_svc.AffordResult(
-        per_day_minor=32, delta_minor=-52, pace_tag="tight", days_left=19
+        per_day_minor=32,
+        delta_minor=-52,
+        pace_tag="tight",
+        days_left=19,
+        unclamped_per_day_minor=32,
+        over_minor=0,
     )
 
 
