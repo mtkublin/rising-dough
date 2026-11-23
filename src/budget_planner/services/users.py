@@ -317,6 +317,7 @@ SELF_DELETE_MESSAGE: Final = "You can't remove your own account. Ask another adm
 DUPLICATE_EMAIL_MESSAGE: Final = "Another user already has this email."
 INVALID_EMAIL_MESSAGE: Final = "Enter a valid email address."
 NAME_TOO_LONG_MESSAGE: Final = f"Name must be at most {NAME_MAX_LENGTH} characters."
+CREDENTIAL_REQUIRED_MESSAGE: Final = "Enter a value for this field."
 
 _EMPTY_REQUEST_CTX: Final = RequestCtx.empty()
 
@@ -475,6 +476,41 @@ def create_user(
     return _atomically(conn, _body), password
 
 
+def create_invited_user(
+    conn: sqlite3.Connection,
+    draft: UserDraft,
+    *,
+    password: str,
+    hasher: PasswordHasher,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+) -> auth_users_repo.AuthUser:
+    """Create a user who chose their own password (invite accept, T-UR30); no actor.
+
+    Joins an enclosing transaction (savepoint). Raises :class:`UserInputError`
+    on an empty password or a duplicate live email.
+    """
+    if not password:
+        raise UserInputError({"password": CREDENTIAL_REQUIRED_MESSAGE})
+    password_hash = hasher.hash(password)
+
+    def _body() -> auth_users_repo.AuthUser:
+        _ensure_email_free(conn, draft.email, own_id=None)
+        return users_repo.create_user(
+            conn,
+            data=users_repo.NewUser(
+                name=draft.name,
+                email=draft.email,
+                password_hash=password_hash,
+                is_admin=bool(draft.is_admin),
+                must_change_password=False,
+            ),
+            request_ctx=request_ctx,
+            actor_user_id=None,
+        )
+
+    return _atomically(conn, _body)
+
+
 def edit_user(
     conn: sqlite3.Connection,
     actor_user_id: int,
@@ -571,6 +607,7 @@ def soft_delete_user(
 
 __all__ = [
     "CONCURRENT_CHANGE_MESSAGE",
+    "CREDENTIAL_REQUIRED_MESSAGE",
     "DEV_ADMIN_EMAIL",
     "DEV_ADMIN_PASSWORD",
     "DUPLICATE_EMAIL_MESSAGE",
@@ -592,6 +629,7 @@ __all__ = [
     "bootstrap_admin",
     "bootstrap_admin_at_startup",
     "build_draft",
+    "create_invited_user",
     "create_user",
     "edit_user",
     "generate_password",
