@@ -34,8 +34,10 @@
 - No routes, no templates. Migration rehearsal on a scratch copy (never `data/budget.sqlite`).
 - ADR-0134 §1, §10, ADR-0019, ADR-0022.
 
-### ◻ T-UR31 [P] Invite email port behind a switch (was T-UR19) → T-UR30
+### ✅ T-UR31 [P] Invite email port behind a switch (was T-UR19) → T-UR30
 - Injected mail port (ADR-0021) with a no-op adapter and a fake for tests; the invite service calls it on create and resend only when the config switch is on (default off). No secret committed; Terraform and secret only after T-UR18 is go. Code kept on no-go.
+- Done (2026-11-23): port `MailSender` + frozen `MailMessage` + `MailSendError` in `domain/ports.py`; `adapters/mail/noop.py` `NoopMailSender` (logs one fixed line, no recipient or token); fake `FakeMailSender` in `tests/auth_support.py`; switch `Settings.invite_email_enabled` (env `BUDGET_INVITE_EMAIL_ENABLED`, default off). `create_invite` / `resend_invite` take optional `mail`, `email_enabled`, `base_url`; the send runs after the transaction commits, a `MailSendError` is logged (no token) and reported as `IssuedInvite.mail_sent = False` (invite stays valid, no half-state). Link `<base_url>/invite/<token>`, path only without base URL (route is T-UR20). Enabled without a sender raises `ValueError` before any write.
+- Done (2026-11-23): port `MailSender` + frozen `MailMessage` + `MailSendError` in `domain/ports.py`; `adapters/mail/noop.py` `NoopMailSender` (logs one fixed line, no recipient or token); fake `FakeMailSender` in `tests/auth_support.py`; switch `Settings.invite_email_enabled` (env `BUDGET_INVITE_EMAIL_ENABLED`, default off). `create_invite` / `resend_invite` take optional `mail`, `email_enabled`, `base_url`; the send runs after the transaction commits, a `MailSendError` is logged (no token) and reported as `IssuedInvite.mail_sent = False` (invite stays valid, no half-state). Link `<base_url>/invite/<token>`, path only without base URL (route is T-UR20). Enabled without a sender raises `ValueError` before any write.
 - ADR-0134 §1, ADR-0099.
 
 ### ✅ T-UR32 [P] Setup-token service (service part of T-UR21)

@@ -3,7 +3,17 @@
 An admin invites a person by email and role. The plain token is returned to the
 caller once (``IssuedInvite.token``; the mail port of T-UR31 and the copy-link
 UI use it) and only ``sha256(token)`` is stored. The token and its hash are
-never logged. Clock, entropy and hashing come in as arguments (ADR-0021).
+never logged. Clock, entropy, hashing and mail come in as arguments (ADR-0021).
+
+Mail (T-UR31): ``create_invite`` and ``resend_invite`` send the invite email through
+the injected :class:`~budget_planner.domain.ports.MailSender` only when the caller
+passes ``email_enabled=True`` (``Settings.invite_email_enabled``, default off). The
+send runs AFTER the transaction commits: a mail failure (``MailSendError``) is
+logged without the token and reported as ``IssuedInvite.mail_sent = False``; the
+invite stays valid, so the admin can resend or copy the link. No half-state.
+The link is ``<base_url>/invite/<token>``; the caller passes ``base_url`` (the
+public origin, e.g. ``Settings.webauthn_origin``); empty gives the path only. The
+route is T-UR20's; ``INVITE_LINK_PATH`` is the one place that names it.
 
 Lifecycle: ``pending`` -> ``used`` (accepted) | revoked (final, reads as
 ``invalid``) | ``expired`` (resend revives it with a new token and expiry).
@@ -12,12 +22,19 @@ Lifecycle: ``pending`` -> ``used`` (accepted) | revoked (final, reads as
 from __future__ import annotations
 
 import hmac
+import logging
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Final, Literal
 
-from budget_planner.domain.ports import PasswordHasher, TokenSource
+from budget_planner.domain.ports import (
+    MailMessage,
+    MailSender,
+    MailSendError,
+    PasswordHasher,
+    TokenSource,
+)
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     invites as invites_repo,
@@ -32,6 +49,10 @@ from budget_planner.services import users as users_service
 #: An invite link works for 7 days from create or resend (ADR-0134 section 1).
 INVITE_LIFETIME: Final = timedelta(days=7)
 INVITE_TOKEN_BYTES: Final = 32
+INVITE_LINK_PATH: Final = "/invite/"
+INVITE_MAIL_SUBJECT: Final = "You are invited to Rising Dough"
+
+logger = logging.getLogger(__name__)
 
 PENDING_INVITE_MESSAGE: Final = "This email already has a pending invite."
 INVITE_NOT_FOUND_MESSAGE: Final = "Invite not found."
@@ -69,6 +90,7 @@ class IssuedInvite:
 
     invite: Invite
     token: str
+    mail_sent: bool = False
 
     def __repr__(self) -> str:
         return f"IssuedInvite(invite_id={self.invite.id})"
@@ -76,6 +98,36 @@ class IssuedInvite:
 
 def _hash(token: str) -> str:
     return sessions_repo.hash_token(token)
+
+
+def invite_link(base_url: str, token: str) -> str:
+    """``<base_url>/invite/<token>``; the path alone when ``base_url`` is empty."""
+    return f"{base_url.rstrip('/')}{INVITE_LINK_PATH}{token}"
+
+
+def _require_mail(mail: MailSender | None, email_enabled: bool) -> None:
+    if email_enabled and mail is None:
+        raise ValueError("invite email is enabled but no mail sender was injected")
+
+
+def _deliver(
+    issued: IssuedInvite, *, mail: MailSender | None, email_enabled: bool, base_url: str
+) -> IssuedInvite:
+    """Send the invite mail after commit; never raises, never logs the token."""
+    if not email_enabled or mail is None:
+        return issued
+    body = (
+        "You have been invited to Rising Dough.\n\n"
+        f"Open this link to set up your account:\n{invite_link(base_url, issued.token)}\n\n"
+        "The link works for 7 days."
+    )
+    message = MailMessage(to=issued.invite.email, subject=INVITE_MAIL_SUBJECT, body=body)
+    try:
+        mail.send(message)
+    except MailSendError:
+        logger.warning("invite mail failed for invite %s", issued.invite.id)
+        return issued
+    return replace(issued, mail_sent=True)
 
 
 def invite_state(invite: Invite, *, now: datetime) -> InviteLinkState:
@@ -110,11 +162,15 @@ def create_invite(
     tokens: TokenSource,
     now: datetime,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+    mail: MailSender | None = None,
+    email_enabled: bool = False,
+    base_url: str = "",
 ) -> IssuedInvite:
     """Invite ``email`` with a role. Refuses a live user's or a pending invite's email.
 
     Raises :class:`~budget_planner.services.users.UserInputError` (keyed ``email``).
     """
+    _require_mail(mail, email_enabled)
     draft = users_service.build_draft(email=email, name="", is_admin=is_admin)
     token = tokens.new_token(INVITE_TOKEN_BYTES)
     with transaction(conn):
@@ -132,7 +188,12 @@ def create_invite(
             expires_at=now + INVITE_LIFETIME,
             request_ctx=request_ctx,
         )
-    return IssuedInvite(invite=invite, token=token)
+    return _deliver(
+        IssuedInvite(invite=invite, token=token),
+        mail=mail,
+        email_enabled=email_enabled,
+        base_url=base_url,
+    )
 
 
 def resend_invite(
@@ -143,8 +204,12 @@ def resend_invite(
     tokens: TokenSource,
     now: datetime,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+    mail: MailSender | None = None,
+    email_enabled: bool = False,
+    base_url: str = "",
 ) -> IssuedInvite:
     """New token and a fresh 7 days; the old token stops working. Refused if used or revoked."""
+    _require_mail(mail, email_enabled)
     token = tokens.new_token(INVITE_TOKEN_BYTES)
     with transaction(conn):
         current = _live_invite_or_404(conn, invite_id)
@@ -159,7 +224,12 @@ def resend_invite(
             actor_user_id=actor_user_id,
             request_ctx=request_ctx,
         )
-    return IssuedInvite(invite=invite, token=token)
+    return _deliver(
+        IssuedInvite(invite=invite, token=token),
+        mail=mail,
+        email_enabled=email_enabled,
+        base_url=base_url,
+    )
 
 
 def revoke_invite(

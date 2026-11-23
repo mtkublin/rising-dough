@@ -59,6 +59,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | exists (Q-039) | - |
 | Invites (create, resend, revoke, accept, link state) | `services/invites.py` `create_invite`, `resend_invite`, `revoke_invite`, `accept_invite`, `link_state` (7-day `INVITE_LIFETIME`; token stored hashed; ADR-0134 §1, §10) | exists (T-UR30) | - |
 | First-run setup (open predicate, token check, consume) | `services/setup.py` `is_open`, `check_token`, `complete_setup` (hash from `BUDGET_PLANNER_SETUP_TOKEN_HASH`, ADR-0134 §9) | exists (T-UR32) | - |
+| Outbound mail (send one message) | port `domain/ports.py` `MailSender`, `MailMessage`; adapter `adapters/mail/` (`NoopMailSender`, default; `BUDGET_INVITE_EMAIL_ENABLED` switch, ADR-0134 §1) | exists (T-UR31) | - |
 
 **Target** rows are not yet extracted. Either call the row's **Interim** copy (public, named in the table), or, when it says "none", do the extraction as the registered migration task (`migration_task` in the registry), migrating **all** copies in the same change. Never import another module's private `_name` (G30, `test_private_imports.py`). Never create the canonical module without migrating the copies: a row may be `exists` only at zero copies, otherwise `exists-migrating` (`test_canonical_modules.py`). `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
 
