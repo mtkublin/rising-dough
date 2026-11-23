@@ -103,6 +103,7 @@ def _planned_filter_clauses(
             *in_parts("p.account_id", filters.account_ids),
             *in_parts("p.category_id", filters.category_ids),
             *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_planned_text_parts(filters),
             *_planned_rule_parts(filters, include_deleted),
         ]
     )
@@ -115,6 +116,12 @@ def _planned_date_parts(filters: PlannedFilter) -> list[FilterPart]:
     if filters.date_to is not None:
         parts.append(("p.operation_date <= ?", [filters.date_to.isoformat()]))
     return parts
+
+
+def _planned_text_parts(filters: PlannedFilter) -> list[FilterPart]:
+    if filters.description_contains is None:
+        return []
+    return [("p.description LIKE ?", [f"%{filters.description_contains}%"])]
 
 
 def _planned_rule_parts(filters: PlannedFilter, include_deleted: bool) -> list[FilterPart]:
