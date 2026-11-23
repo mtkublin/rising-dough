@@ -89,6 +89,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR34c.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
+| T-UR34n ✅ | S | docs | `docs/plans/ui-redesign/designer-change-request.md` (follow-up section 2026-11-23, seven items); docs only, no code | — |
 
 - **Migration numbers are fixed here** (0019 invites, 0020 setup marker) so parallel items cannot collide; a later item needing a migration takes 0021 and updates this table.
 - **Canonical modules**: register in `tests/architecture/canonical_modules.toml` and the CLAUDE.md table in the same change: "Invites (create, resend, revoke, accept, link state)" → `services/invites.py` (T-UR30); "First-run setup (open predicate, token check, consume)" → `services/setup.py` (T-UR32); "Outbound mail" → the port and `adapters/mail/` (T-UR31). Search terms in each row; reuse report in each handoff.
