@@ -39,6 +39,10 @@ class PasswordHasher(Protocol):
         """Return ``True`` iff ``password`` matches ``hashed``; never raises on bad input."""
         ...
 
+    def needs_rehash(self, hashed: str | None) -> bool:
+        """``True`` iff ``hashed`` was made at a cost other than the configured one (T-Q313)."""
+        ...
+
     def verify_dummy(self, password: str) -> None:
         """Burn one verify's worth of CPU (unknown user / no hash) to equalize timing."""
         ...

@@ -83,6 +83,13 @@ def unavailable(*, max_age_days: int, now: datetime) -> FxHealth:
     return _verdict(ok=False, status="error", currencies=(), max_age_days=max_age_days, now=now)
 
 
+def crashed(*, max_age_days: int, now: datetime) -> FxHealth:
+    """The refresh task died of an unexpected error (T-Q314): 503 until the operator restarts."""
+    return _verdict(
+        ok=False, status="refresh_crashed", currencies=(), max_age_days=max_age_days, now=now
+    )
+
+
 def evaluate(
     used: Iterable[tuple[str, date | None]],
     *,

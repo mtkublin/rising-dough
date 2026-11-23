@@ -26,7 +26,9 @@ from budget_planner.domain.ports import RateSource
 from budget_planner.logging import get_logger
 from budget_planner.services import fx as fx_service
 from budget_planner.services.connections import get_connection
+from budget_planner.web import background_tasks
 
+TASK_NAME: Final = "fx-refresh"
 MIN_SLEEP_SECONDS: Final = 1.0
 
 SourceOpener = Callable[[Settings], AbstractContextManager[RateSource]]
@@ -105,15 +107,18 @@ async def run_forever(
         await sleep(max(wait, MIN_SLEEP_SECONDS))
 
 
-def start(cfg: Settings) -> asyncio.Task[None] | None:
+def start(
+    cfg: Settings, on_crash: background_tasks.CrashReporter | None = None
+) -> asyncio.Task[None] | None:
     """Start the task when enabled (production by default, ``BUDGET_FX_REFRESH_ENABLED``)."""
     if not cfg.daily_refresh_active():
         return None
-    return asyncio.create_task(run_forever(cfg), name="fx-refresh")
+    task = asyncio.create_task(run_forever(cfg), name=TASK_NAME)
+    return background_tasks.watch(task, on_crash)
 
 
 async def stop(task: asyncio.Task[None] | None) -> None:
-    if task is None:
+    if task is None or task.done():  # a crashed task was logged by the done-callback
         return
     task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
