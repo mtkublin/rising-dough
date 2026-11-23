@@ -360,6 +360,7 @@ def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id
 
 
 __all__ = [
+    "category_usage",
     "count_filtered",
     "count_referencing_account",
     "create",
@@ -389,3 +390,21 @@ def latest_operation_date_by_account(
         (user_id, category_id),
     ).fetchall()
     return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}
+
+
+def category_usage(conn: sqlite3.Connection, user_id: int) -> list[tuple[int, int, date]]:
+    """Return ``(category_id, live entry count, latest operation_date)`` per used category.
+
+    One grouped read over live transactions (T-UR34g); categories with no live
+    transaction are absent.
+    """
+    rows = conn.execute(
+        """
+        SELECT category_id, COUNT(*) AS n, MAX(operation_date) AS d
+        FROM transactions
+        WHERE user_id = ? AND deleted_at IS NULL
+        GROUP BY category_id
+        """,
+        (user_id,),
+    ).fetchall()
+    return [(row["category_id"], row["n"], date.fromisoformat(row["d"])) for row in rows]
