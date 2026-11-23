@@ -2,23 +2,24 @@
 
 > **What**: replace the whole presentation layer with the designer's handoff "Rising Dough · Sourdough redesign" (`docs/design/rising-dough-frontend/`), test-first, with no reuse of existing templates, CSS or presentational JS.
 > **Decision**: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Precondition: [ADR-0106](../../adr/0106-ui-behaviour-test-harness.md) and [`../ui-test-harness/`](../ui-test-harness/README.md). Requirements: [`docs/requirements.md` §10](../../requirements.md#10-sourdough-redesign-added-2026-11-16).
-> **Tasks**: [`tasks.md`](tasks.md) (T-UR00…T-UR17, plus T-UR00b). Derived screens and deviations: [`derived.md`](derived.md). Old-file removal ledger: `removal.md` (generated at T-UR00).
+> **Tasks**: [`tasks.md`](tasks.md) (Phase P T-UR29…T-UR35, then T-UR00…T-UR28, plus T-UR00b). Backend preconditions: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Visual parity method: [ADR-0147](../../adr/0147-handoff-parity-ci-rendered-references-and-data-overlay.md). Derived screens and deviations: [`derived.md`](derived.md). Old-file removal ledger: `removal.md` (generated at T-UR00).
 
 ## Sequencing
 
 ```
 v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3] remediation ─┐
-                      └─ UI test harness (T-UT01..T-UT12) ────────────────────────┴─ redesign (T-UR00..T-UR17) ─ v4 Phase 2
+                      └─ UI test harness (T-UT01..T-UT12) ────────────────────────┴─ preconditions release (T-UR29..T-UR35) ─ redesign (T-UR00..T-UR28) ─ v4 Phase 2
                                                     v4 Phase 1 (crypto core, no UI) may run alongside the redesign ─┘
 ```
 
-- Starts when the harness exit gate (T-UT12) and the `[pre-v4-P3]` quality-audit remediation are ✅ (ADR-0107 §9).
+- Starts when the harness exit gate (T-UT12) and the `[pre-v4-P3]` quality-audit remediation are ✅ (ADR-0107 §9), and after the backend precondition release (Phase P) is live in prod (ADR-0148). The migration itself is frontend work only.
 - Must be released before v4 Phase 2 starts, because v4 Phase 2 is the first v4 phase that adds screens.
 
 ## Phases
 
 | Phase | Tasks | What | Gate |
 |---|---|---|---|
+| P — Preconditions | T-UR29..T-UR35 | backend only: user edit guards, invite data layer and email port, setup-token service, account delete rule, value inventory and data gaps; own PR and release | released to prod; smoke green |
 | 0 — Entry | T-UR00, T-UR00b | preconditions, open design questions, work branch | operator sign-off |
 | 1 — Foundation | T-UR01..T-UR04 | assets and toolchain, base layout and shell, server-side value helpers, shared fragments and dialog plumbing | shell UI map on new markup; crawler green on migrated + unmigrated pages |
 | 2 — Surfaces | T-UR05..T-UR14 | one item per surface, in parallel | per-surface definition of done (below) |
@@ -27,17 +28,17 @@ v3 ships ─ faster CI ─┬─ quality audit (T-Q01..T-Q18) ── [pre-v4-P3]
 ## Per-surface loop (test-first)
 
 1. **Point the UI map at the handoff.** Rewrite `tests/ui_map/<surface>.py` against the handoff's markup. Confirm it with `--target=mockup` (T-UT09): the journeys pass on the static handoff.
-2. **Red.** Run contract, journey, crawler and visual tests against the app. The surface's tests fail; nothing else does. The visual tests fail against the handoff references (generated in the pinned Playwright container, fixture seeded with the handoff's own data, T-UR00b); that red run is the starting point.
+2. **Red.** Run contract, journey, crawler and visual tests against the app. The surface's tests fail; nothing else does. The visual tests fail against the handoff references (rendered in CI in the pinned Playwright container from the vendored handoff plus the data overlay; app seeded with the handoff's data, T-UR00b, ADR-0147); that red run is the starting point.
 3. **Green.** Build `pages/<surface>/…` and `fragments/…` from the handoff's markup, wire HTMX per ADR-0107 §6, adapt the router context. Contract tests stay green unchanged throughout.
 4. **Delete the stand-ins** for that surface: no `stand-in.js`, `data-demo*`, `action="#"`. **Delete the surface's old files** listed in `removal.md`.
-5. **Verify.** Pixel parity: visual diff against the handoff references at 1440 / 1024 / 375, light and dark, at the strict default tolerance (0.1%). A looser tolerance needs a `derived.md` "Tolerance exceptions" row with the reason and operator sign-off; `frontend-visual-audit` on the surface's routes; axe at 375 and 1440 in both themes.
+5. **Verify.** Pixel parity: visual diff against the handoff references at 1440 / 1024 / 375, light and dark, at the strict default tolerance (0.1% of pixels and the cluster cap `MAX_DIFF_CLUSTER_PX`, ADR-0147 §2). A looser tolerance needs a `derived.md` "Tolerance exceptions" row with the reason and operator sign-off; `frontend-visual-audit` on the surface's routes; axe at 375 and 1440 in both themes.
 6. **Record** any deviation or derived screen in `derived.md`.
 
 ## Per-surface definition of done
 
 - UI-map module points only at new markup; no old-markup names left for the surface.
 - Contract tests unchanged and green; journeys and crawler green for the surface at 375 and 1440.
-- Visual diff within the strict default tolerance (0.1%), or within the surface's `derived.md` tolerance exception (reason + operator sign-off), both themes. References come from the pinned container and the fixture data equals the handoff data (ADR-0106 amendment 2026-11-22).
+- Visual diff within the strict default tolerance (0.1% and the cluster cap), or within the surface's `derived.md` tolerance exception (reason + operator sign-off), both themes, at 1440 / 1024 / 375, pages and overlays. References are rendered in the CI job from the overlaid handoff and the seed equals the handoff data (ADR-0106 amendment 2026-11-22, ADR-0147). Data mismatches are fixed by overlay rows (text and value attributes only), never by app logic or a looser tolerance.
 - `frontend-visual-audit` clean (no `horizontalScroll`, `overflowingElements`, `duplicateIds`, `consoleErrors`, `requestFailures`) at 1440 / 1024 / 375.
 - axe: 0 serious or critical (handoff's two decorative exclusions only).
 - No inline `style=""`; no stand-in attributes; no old CSS or old template included.

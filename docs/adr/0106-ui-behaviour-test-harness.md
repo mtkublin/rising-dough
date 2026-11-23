@@ -86,3 +86,7 @@ Operator decision (2026-11-22; task T-UR00b). Redesign surfaces must match the d
 3. **Strict tolerance.** The default per-surface tolerance is the strict suite default, `MAX_DIFF_PIXEL_RATIO = 0.001` (0.1 percent of pixels, `tests/visual/test_snapshots.py`). A looser tolerance for a surface needs a row in `docs/plans/ui-redesign/derived.md` ("Tolerance exceptions") with the reason, plus operator sign-off. The current per-surface values in `handoff.SURFACE_TOLERANCE` (1 to 4 percent) are removed by T-UR00b. The `CI_VISUAL=1` opt-in wording no longer applies: the suite runs in CI via `visual.yml` on template and CSS PRs.
 
 Visual parity complements the behaviour harness (sections 1 to 4) and does not replace it: a surface is done only when both the contract, journey and crawler tests and the visual diff are green. The rejected alternative "Only visual regression against the mockups" stays rejected.
+
+## Amendment 2026-11-22 (b): CI-rendered references, cluster cap, data overlay
+
+[ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md) amends the amendment above: references are rendered in the CI job that compares them (none committed; replaces the provenance manifest of §2); the 0.1 % ratio of §3 gains a cluster cap; data the seed cannot reproduce is corrected on the handoff side by a text-and-value-attribute overlay, never by masking or a looser tolerance (§1).

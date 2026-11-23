@@ -1,6 +1,6 @@
 # ADR-0134: Redesign scope decisions from the T-UT06 designer change request
 
-- **Status**: Accepted
+- **Status**: Accepted (amended by ADR-0148)
 - **Date**: 2026-11-21
 - **Relates to**: [ADR-0061](0061-v3-multi-user-admin-bootstrap-and-data-isolation.md) (admin bootstrap, users), [ADR-0099](0099-release-and-environment-policy.md) (drills), [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) (redesign), [ADR-0113](0113-csp-compatible-frontend.md) and [ADR-0123](0123-frontend-stays-server-rendered-no-spa-framework.md) (no SPA, CSP, service worker deferral), [ADR-0106](0106-ui-behaviour-test-harness.md) (parity inventory)
 
@@ -82,3 +82,7 @@
 - Requirements amended: F1.4 (export control), F2.1a (credit-limit hint), account delete rule (new F2.8), §6.2 users and bootstrap (invites, email switch, first-run page), §6.2 admin bootstrap (drill default, setup token), §5.1 promote-in-place, §10.1 (offline, theme, users).
 - New redesign tasks T-UR18..T-UR28 in [tasks.md](../plans/ui-redesign/tasks.md). They land in the redesign release; none is implemented by this ADR.
 - Quality-audit allowlists, canonical modules and guards are unaffected until those tasks land.
+
+## Amendments
+
+- 2026-11-22: [ADR-0148](0148-redesign-backend-preconditions-released-first.md): the server-side parts of §1, §3, §9, §10 and §11 (invite data layer and email port, setup-token service, account delete rule, user edit guards) and the fields the handoff needs ship in a precondition release before the migration (T-UR29..T-UR35). Pages, dialogs and the routes rendering them stay in the redesign release.

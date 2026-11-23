@@ -6,9 +6,9 @@
 
 | # | Question | Source | Decision | Date |
 |---|---|---|---|---|
-| 1 | Visible entry point for bulk selection, or keep the hidden checkbox column (Tab / `x`)? | handoff README §6.7 | _tbd_ | |
+| 1 | Visible entry point for bulk selection, or keep the hidden checkbox column (Tab / `x`)? | handoff README §6.7 | As delivered: hidden checkbox column (Tab / `x`), no visible entry point (operator) | 2026-11-22 |
 | 2 | Inline promote row variant, or the promote dialog only? | handoff README §6 "no board" | Dialog only; inline routes removed (ADR-0134 §5) | 2026-11-21 |
-| 3 | `g o` (board) or `g t` for Today? | handoff README §5 | _tbd_ | |
+| 3 | `g o` (board) or `g t` for Today? | handoff README §5 | `g t`; handoff corrected by overlay rows, app templates use `g t` (operator; ADR-0147 §5) | 2026-11-22 |
 
 ## Parity gaps (from `../ui-test-harness/parity.md`, T-UT06)
 
@@ -43,8 +43,17 @@
 
 ## Tolerance exceptions
 
-> Default is the strict visual tolerance, 0.1% differing pixels (ADR-0106 amendment 2026-11-22). A surface may use a looser value only with a row here: reason plus operator sign-off.
+> Default is the strict visual tolerance: 0.1% differing pixels and the cluster cap `MAX_DIFF_CLUSTER_PX` (ADR-0106 amendment 2026-11-22, ADR-0147 §2). A surface may use a looser value only with a row here: reason plus operator sign-off, naming which limit is loosened. Data mismatches never justify an exception; they are overlay rows (below).
 
-| Surface | Tolerance | Reason | Operator sign-off | Task |
+| Surface | Ratio / cluster cap | Reason | Operator sign-off | Task |
 |---|---|---|---|---|
 | _…_ | | | | |
+
+## Handoff data overlay
+
+> ADR-0147 §3–§4. Rows live in `tests/visual/handoff_overlay.toml` (T-UR00b); this section summarises why each group of rows exists. Text and value attributes only; the vendored handoff is never edited.
+
+| Pages | What is corrected | Reason | Task |
+|---|---|---|---|
+| all pages with the nav and shortcuts dialog | `g o` → `g t` (`aria-keyshortcuts`, key labels) | operator decision, question 3 | T-UR00b |
+| `overlays/delete-account*` | "Investments E" → an account in the seed | not in the handoff's account list (handoff README §6 item 17) | T-UR00b |
