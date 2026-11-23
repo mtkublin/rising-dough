@@ -47,3 +47,7 @@
 - **Baseline = latest `v*` tag:** a tag that never deployed (v3.1.1) would hide the real step.
 - **A separate `mode=upgrade`, opt-in or only for `terraform/` PRs:** a compose or agent change can arrive through `deploy/` or `scripts/`. A path rule would be a second, weaker classifier next to ADR-0121.
 - **Upgrade drill on the release candidate instead of per PR:** catches the bundle, but only after merge, and it adds a drill to every release. Rejected for now (accepted risk above).
+
+## Implementation note 2026-11-23 (T-Q306b)
+
+`terraform.yml` gains the optional `workflow_call` input `terraform_ref` (string, default empty = unchanged behaviour). When set, the `apply` job checks out `refs/tags/<terraform_ref>` into `terraform-baseline/` and replaces `terraform/` with the tag's copy, keeping `terraform/scripts/` (the CI helpers `check_tf_vars.py`, `mask_plan.py`) at the workflow ref; `scripts/ci/*` and the composite actions are untouched. It is drill-only and fails closed: a guard step before any checkout refuses `env=prod` and any value that is not a `vMAJOR.MINOR.PATCH` tag. The workflow passes every Terraform input as `TF_VAR_*` env, never as a `-var` flag (a unit test asserts it), so inputs the tag's Terraform does not declare are ignored rather than rejected. `drill.yml` does not use the input yet.

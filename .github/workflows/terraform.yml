@@ -77,6 +77,15 @@ on:
         type: string
         required: false
         default: "true"
+      terraform_ref:
+        description: >-
+          Drill only (T-Q306b, ADR-0149 section 2) - a `vX.Y.Z` tag whose `terraform/` replaces the
+          checked-out one for plan and apply (the baseline). Tooling (`scripts/`, `.github/`,
+          `terraform/scripts/`) stays at the workflow ref. Empty keeps the workflow ref's `terraform/`.
+          Fails closed for prod (prod releases only from main, ADR-0099).
+        type: string
+        required: false
+        default: ""
     outputs:
       host_config_generation:
         description: ADR-0111 - generation the host agent reports once converged (empty for destroy).
@@ -369,6 +378,7 @@ jobs:
       # ADR-0127 §7: rehearsal knobs, forced to their defaults otherwise (prod ignores them).
       TF_VAR_drill_root_volume_type: ${{ inputs.env == 'drill' && inputs.drill_root_volume_type || 'l_ssd' }}
       TF_VAR_drill_allow_empty_db: ${{ inputs.env == 'drill' && inputs.drill_allow_empty_db || 'true' }}
+      TERRAFORM_REF: ${{ inputs.terraform_ref }}
 
     outputs:
       host_config_generation: ${{ steps.host.outputs.generation }}
@@ -381,6 +391,45 @@ jobs:
         with:
           # T-D134: the prod ref guard tests "tag commit is on main"; that needs history.
           fetch-depth: ${{ inputs.env != 'prod' && 1 || 0 }}
+
+      # T-Q306b / ADR-0149 section 2: validate before the baseline ref is fetched. The
+      # ref comes in as env (never interpolated into the script).
+      - name: Guard terraform_ref (drill only, vX.Y.Z tag)
+        if: ${{ inputs.terraform_ref != '' }}
+        run: |
+          set -euo pipefail
+          if [ "${TARGET_ENV}" != "drill" ]; then
+            echo "::error::terraform_ref is drill-only; prod releases only from main (ADR-0099)" >&2
+            exit 1
+          fi
+          if ! printf '%s' "${TERRAFORM_REF}" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+            echo "::error::terraform_ref must be a vMAJOR.MINOR.PATCH tag" >&2
+            exit 1
+          fi
+        working-directory: ${{ github.workspace }}
+
+      - name: Checkout terraform_ref (baseline Terraform)
+        if: ${{ inputs.terraform_ref != '' && inputs.env == 'drill' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: refs/tags/${{ inputs.terraform_ref }}
+          path: terraform-baseline
+          persist-credentials: false
+          fetch-depth: 1
+
+      # The tag's `terraform/` (cloud-init, compose template, host agent) is what
+      # gets planned and applied; the CI helper scripts stay at the workflow ref.
+      - name: Use terraform/ from terraform_ref
+        if: ${{ inputs.terraform_ref != '' && inputs.env == 'drill' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          mv terraform/scripts "${RUNNER_TEMP}/tf-tooling"
+          rm -rf terraform
+          cp -a terraform-baseline/terraform terraform
+          rm -rf terraform/scripts
+          mv "${RUNNER_TEMP}/tf-tooling" terraform/scripts
+          rm -rf terraform-baseline
 
       - name: Terraform inputs (TF_VAR_*, T-D133)
         uses: ./.github/actions/terraform-env
@@ -473,6 +522,9 @@ jobs:
           args=(-no-color -out=plan.bin)
           if [ "${TF_DESTROY}" = "true" ]; then args+=(-destroy); fi
           for addr in ${TF_REPLACE}; do args+=("-replace=${addr}"); done
+          # T-Q306b: inputs are TF_VAR_* env only, never -var flags. With terraform_ref
+          # the tag's Terraform may not declare a newer variable: TF_VAR_* for an
+          # undeclared variable is ignored, `-var` for it is an error.
           terraform plan -input=false "${args[@]}" | python3 scripts/mask_plan.py
 
       # T-D156 / ADR-0127: a replaced server is a fresh host that restores the
