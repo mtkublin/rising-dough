@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q300: axe-core sweep and Lighthouse budgets, advisory)
+- **CI(T-Q300): `a11y-perf.yml` adds two advisory jobs, `a11y (axe-core, advisory)` (vendored axe-core 4.10.3, fails on serious/critical, all crawl routes at 1440) and `perf (Lighthouse budgets, advisory)` (`@lhci/cli` 0.15.1, budgets in `tests/perf/lighthouserc.json`: LCP 2.5 s, CLS 0.1, TBT 200 ms, JS 300 kB, CSS 50 kB).** ADR-0027 and ADR-0120 amendments 2026-11-23. First runs red on real findings, triaged as T-Q319 to T-Q322. Not required checks; no allowlist change.
+
 ## 2026-11-23 (T-Q306a: prod baseline resolver)
 - **Feat(T-Q306a): `scripts/ci/prod_baseline.py` resolves the version prod serves (newest `prod` deployment whose latest status is `success`, tag ancestor of `origin/main`, digest via `host_release.resolve_ref`) and prints `tag=`, `sha=`, `image_ref=`; fails closed.** ADR-0149 Decision 2. Not yet wired into `drill.yml` (T-Q306d/e). No allowlist change.
 
