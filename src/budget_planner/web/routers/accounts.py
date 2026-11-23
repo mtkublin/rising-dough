@@ -228,6 +228,7 @@ def take_snapshot(
 def reconcile_form(
     account_id: int,
     request: Request,
+    actual_balance: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
@@ -242,12 +243,22 @@ def reconcile_form(
             status_code=404,
         )
     derived = balance_service.derive_balance(conn, user_id, account_id)
-    modal: dict[str, Any] = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
+    errors: dict[str, str] = {}
+    entered = parse_amount_minor(actual_balance, acc.currency) if actual_balance.strip() else None
+    if actual_balance.strip() and entered is None:
+        errors["actual_balance"] = "invalid number"
+    try:
+        modal: dict[str, Any] = accounts_data.reconcile_modal_context(
+            conn, user_id, acc, derived, entered
+        )
+    except reconciliation_service.InvalidAvailableError as exc:
+        errors["actual_balance"] = str(exc)
+        modal = accounts_data.reconcile_modal_context(conn, user_id, acc, derived)
     return render(
         request,
         "partials/accounts/_reconcile_modal.html",
         snapshots=accounts_data.recent_snapshots(conn, user_id, account_id),
-        errors={},
+        errors=errors,
         **modal,
     )
 

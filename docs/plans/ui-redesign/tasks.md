@@ -38,10 +38,11 @@
 - Injected mail port (ADR-0021) with a no-op adapter and a fake for tests; the invite service calls it on create and resend only when the config switch is on (default off). No secret committed; Terraform and secret only after T-UR18 is go. Code kept on no-go.
 - ADR-0134 §1, ADR-0099.
 
-### ◻ T-UR32 [P] Setup-token service (service part of T-UR21)
+### ✅ T-UR32 [P] Setup-token service (service part of T-UR21)
 - Source (operator 2026-11-22): the drill workflow generates the token and passes only its hash to the app as config (`BUDGET_PLANNER_SETUP_TOKEN_HASH`, unset = setup closed); the plain token appears only in the workflow output. The app stores no token, only a consumed marker: migration `0020_setup_token_consumed.sql` (+ `down/`).
 - Predicate "setup open": hash configured, no consumed marker, no users exist and no bootstrap admin configured. Token check: constant-time compare against the configured hash; the consumed marker is written in the same `db_transaction` that creates the first admin; invalid once any user exists. Never committed, never logged (log redaction test).
 - No route, no template; `/setup` stays T-UR21.
+- Done (2026-11-23): env name is `BUDGET_PLANNER_SETUP_TOKEN_HASH` (field `planner_setup_token_hash`: `BUDGET_` env prefix plus field name, no dynamic alias). Hash scheme: lowercase hex sha256 of the token (`services/setup.hash_token`; config validation rejects anything else). Marker table `setup_token_consumed` (single row, `id = 1`, `consumed_at`; the created admin is in the audit row `setup_token`). "No users" = no live user with an email (the pre-v3 legacy owner row does not count). Dev env counts as bootstrap-configured (dev default admin), so setup is closed there. `services/setup.py`: `is_open`, `check_token`, `complete_setup` (wrong token and closed setup raise the same `SetupClosedError`).
 - ADR-0134 §9.
 
 ### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
@@ -75,6 +76,8 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR34b ✅ | S | 2 | G1 export filters: `web/ledger_data.py` (parsers), `web/ledger_export.py` (new), export handlers, `PlannedFilter.description_contains` + planned repository | — |
 | T-UR34e ✅ | S | 2 | `services/today.py` (`AffordResult.unclamped_per_day_minor`, `over_minor`, `AFFORD_INVALID_MESSAGE`), `web/routers/today.py` pass-through; "over" = max(amount - max(remaining, 0), 0); handoff "114.20 over" does not reproduce (board: left 1,399.93 over 7 days, 1,800.00 gives -57.15 per day and 400.07 over); blank/zero now 422 | — |
 | T-UR34g ✅ | S | 2 | `services/categories.py` (`entry_count`, `usage_by_category`, `picker_summary`, `RECENT_CATEGORY_LIMIT = 4`), `repositories/transactions.category_usage`, `web/routers/categories.py` edit context `entry_count`; entries = live transactions only (planned and recurring not counted: designer question); recent = latest live txn date desc, id asc, system Reconciliation excluded; total = live categories | — |
+| T-UR34f ✅ | S | 2 | `services/account_reconcile.py` (`ReconcilePreview`, `preview_difference`: signed typed - current, available credit for a limited liability, adjustment direction), `web/accounts_data.reconcile_modal_context` (`preview` value), `web/routers/accounts.py` reconcile GET (optional `actual_balance` query); data only, no template; frontend phase needs an HTMX preview endpoint rendering `preview` | — |
+| T-UR34h ✅ | S | 2 | G7 session device label: new pure `domain/user_agent.py` (`device_label`, board format "Firefox · macOS", fallback "Unknown device"), `services/security_settings.py` (`SessionRow.device_label`); backend only, no template | — |
 | T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR34c.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
