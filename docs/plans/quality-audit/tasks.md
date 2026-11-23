@@ -1328,6 +1328,16 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: the forecast test is parametrized over three wall dates (seeded under `clock.frozen`) and fails on the old fixture (2 of 3 dates), passes now.
 - Removes allowlist entries: none.
 
+### T-Q311 [M] Frozen test clock by default and a CI date matrix
+- Findings: release CI 2026-11-23 (T-Q310): date-dependent tests pass on the authoring day and fail later.
+- Epic: E04
+- Band: incident follow-up · Size: M · Tags: tests, clock, ci
+- Depends on: T-Q310
+- Docs-first step: ADR-0140 amendment 2026-11-23; prevention.md G32.
+- Goal: autouse `clock.frozen(BUDGET_TEST_NOW or 2026-11-21T12:00:00Z)` for every test (`real_clock` marker opts out); CI job `pytest (shifted clock)` over month end, leap day, year end and the Warsaw DST switch; guard G32 bans the SQLite clock in runtime SQL.
+- Acceptance: suite green under the default and under all four matrix instants; a route run through `TestClient` sees the frozen date; G32 fails on a fixture `datetime('now')`.
+- Removes allowlist entries: none (adds none).
+
 ### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04

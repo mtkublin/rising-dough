@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import warnings
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -14,6 +14,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
@@ -157,7 +158,7 @@ def test_revoked_session_is_rejected(
 def test_expired_session_is_rejected(
     client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection
 ) -> None:
-    past = (datetime.now(UTC) - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    past = (clock.utc_now() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     conn.execute(
         "UPDATE sessions SET expires_at = ? WHERE id = ?",
         (past, session_handle_full(session_cookie[1])),
@@ -288,7 +289,7 @@ def test_cookie_max_age_is_clamped_to_absolute_cap(
     client: TestClient, session_cookie: tuple[str, str], conn: sqlite3.Connection
 ) -> None:
     """A 29-day-old session gets ~1 day of Max-Age, not the sliding 14 days (ADR-0076 §1)."""
-    created = (datetime.now(UTC) - timedelta(days=29)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    created = (clock.utc_now() - timedelta(days=29)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     conn.execute(
         "UPDATE sessions SET created_at = ? WHERE id = ?",
         (created, session_handle_full(session_cookie[1])),

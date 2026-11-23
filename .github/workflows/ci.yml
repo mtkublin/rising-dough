@@ -105,3 +105,40 @@ jobs:
           path: coverage.xml
           if-no-files-found: ignore
           retention-days: 30
+
+  # T-Q311 (ADR-0140 amendment 2026-11-23): the suite runs on dangerous dates, so a
+  # date-dependent test fails on the PR instead of "after midnight". Not a required
+  # check by itself; `just ci` above runs the default frozen instant.
+  pytest-shifted-clock:
+    name: pytest (shifted clock)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        now:
+          - "2027-01-31T23:30:00Z" # month end
+          - "2028-02-29T12:00:00Z" # leap day
+          - "2026-12-31T23:30:00Z" # year end
+          - "2027-03-28T01:30:00Z" # Europe/Warsaw DST switch day
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433 # v4.1.0
+        with:
+          version: "0.11.2"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync Python dependencies
+        run: uv sync --group dev --frozen
+
+      - name: Run the suite with the clock frozen at ${{ matrix.now }}
+        env:
+          BUDGET_TEST_NOW: ${{ matrix.now }}
+        run: uv run pytest -q --no-cov -n auto --dist loadgroup -m "not e2e and not visual and not smoke" --ignore=tests/e2e

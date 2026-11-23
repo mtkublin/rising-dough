@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.services.audit_tail import REDACTED
 from budget_planner.web.app import create_app
@@ -83,7 +84,7 @@ def _replication_client(tmp_path: Path, settings: Settings, status_file: str) ->
 
 
 def _status_file(path: Path, *, newest_age: timedelta, error: str | None = None) -> str:
-    now = datetime.now(UTC)
+    now = clock.utc_now()
     path.write_text(
         json.dumps(
             {

@@ -183,6 +183,7 @@ markers = [
   "e2e: full-stack smoke tests",
   "visual: Playwright visual-regression snapshots (ADR-0027 §4)",
   "smoke: post-deploy production smoke journey (T-D43); run manually with -m smoke, never in CI",
+  "real_clock: opt out of the suite-wide frozen clock (T-Q311, ADR-0140); needs a reason in the test",
 ]
 asyncio_mode = "auto"
 filterwarnings = [

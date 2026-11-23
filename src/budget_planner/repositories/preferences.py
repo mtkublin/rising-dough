@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from budget_planner import clock
 from budget_planner.domain.preferences import UserPreference
 from budget_planner.repositories._shared import mutate, parse_dt_required
 
@@ -43,12 +44,14 @@ def upsert(conn: sqlite3.Connection, user_id: int, key: str, value: str) -> User
     prev = get(conn, user_id, key)
 
     def _upsert_action(c: sqlite3.Connection) -> tuple[int, UserPreference]:
+        stamp = clock.utc_now_iso()
         c.execute(
-            "INSERT INTO user_preferences(user_id, key, value) VALUES (?, ?, ?) "
+            "INSERT INTO user_preferences(user_id, key, value, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT(user_id, key) DO UPDATE SET "
             "value = excluded.value, "
-            "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
-            (user_id, key, value),
+            "updated_at = ?",
+            (user_id, key, value, stamp, stamp, stamp),
         )
         row = c.execute(
             f"SELECT {_COLS} FROM user_preferences WHERE user_id = ? AND key = ?",

@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
 from budget_planner.web.auth_cookies import CHALLENGE_COOKIE_NAME, SESSION_COOKIE_NAME
@@ -60,7 +61,7 @@ class _Clock:
 
 def _go_stale(client: TestClient) -> None:
     """Move the re-auth clock past the window so the login counts as stale."""
-    later = datetime.now(UTC) + timedelta(minutes=WINDOW_MINUTES + 1)
+    later = clock.utc_now() + timedelta(minutes=WINDOW_MINUTES + 1)
     client.app.state.reauth_clock = _Clock(later)  # type: ignore[attr-defined]
 
 

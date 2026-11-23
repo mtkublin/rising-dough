@@ -6,6 +6,7 @@ from datetime import date
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.enums import Cadence, OverrideState
 from budget_planner.domain.recurring import (
     NewRecurringOverride,
@@ -98,7 +99,7 @@ def test_create_rule_populates_next_due_from_generator(
     one calendar month away.
     """
 
-    today = dt.datetime.now(tz=dt.UTC).date()
+    today = clock.today("Europe/Warsaw")
     past_start = today - dt.timedelta(days=120)
     rule = recurring.create_rule(
         conn,
@@ -122,7 +123,7 @@ def test_create_rule_future_start_sets_next_due_to_start(
 ) -> None:
     """Future-start rule: `next_due` is the start_date itself."""
 
-    today = dt.datetime.now(tz=dt.UTC).date()
+    today = clock.today("Europe/Warsaw")
     future_start = today + dt.timedelta(days=60)
     rule = recurring.create_rule(
         conn,
@@ -149,7 +150,7 @@ def test_create_rule_terminal_end_date_falls_back_to_start_sentinel(
     service's job going forward. Here we assert the sentinel contract.
     """
 
-    today = dt.datetime.now(tz=dt.UTC).date()
+    today = clock.today("Europe/Warsaw")
     rule = recurring.create_rule(
         conn,
         USER_ID,

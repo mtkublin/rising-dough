@@ -12,6 +12,8 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
+from budget_planner import clock
+
 
 def set_next_due(
     conn: sqlite3.Connection,
@@ -27,11 +29,12 @@ def set_next_due(
     """
     conn.execute(
         "UPDATE recurring_rules SET next_due = ?, last_promoted_date = ?, "
-        "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+        "updated_at = ? "
         "WHERE id = ? AND user_id = ?",
         (
             next_due.isoformat(),
             last_promoted_date.isoformat() if last_promoted_date is not None else None,
+            clock.utc_now_iso(),
             rule_id,
             user_id,
         ),
@@ -41,10 +44,8 @@ def set_next_due(
 def set_inactive(conn: sqlite3.Connection, user_id: int, rule_id: int) -> None:
     """Thin helper for the T-118 promotion service — mark a rule inactive."""
     conn.execute(
-        "UPDATE recurring_rules SET active = 0, "
-        "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
-        "WHERE id = ? AND user_id = ?",
-        (rule_id, user_id),
+        "UPDATE recurring_rules SET active = 0, updated_at = ? WHERE id = ? AND user_id = ?",
+        (clock.utc_now_iso(), rule_id, user_id),
     )
 
 
@@ -105,12 +106,13 @@ def restore_rule_progress(
     """Restore a rule's promotion progress (undo of a batch promote)."""
     conn.execute(
         "UPDATE recurring_rules SET next_due = ?, last_promoted_date = ?, active = ?, "
-        "updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) "
+        "updated_at = ? "
         "WHERE id = ? AND user_id = ?",
         (
             next_due.isoformat(),
             last_promoted_date.isoformat() if last_promoted_date is not None else None,
             1 if active else 0,
+            clock.utc_now_iso(),
             rule_id,
             user_id,
         ),

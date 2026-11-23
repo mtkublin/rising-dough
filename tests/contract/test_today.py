@@ -6,11 +6,12 @@ status comes from the row's ``data-status`` hook, not from class names.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -46,7 +47,7 @@ def _seed_planned(settings: Settings, user_id: int, offsets: dict[str, int]) -> 
         cat = categories_repo.create(
             conn, user_id, NewCategory(name="Rent", direction=Direction.EXPENSE)
         ).id
-        base = date.today()  # noqa: DTZ011
+        base = clock.today("Europe/Warsaw")
         return {
             desc: planned_repo.create(
                 conn,

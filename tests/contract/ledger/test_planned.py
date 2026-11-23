@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import io
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pyarrow.parquet as pq
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.planned import NewPlannedTransaction
@@ -39,7 +40,7 @@ def _add_due_planned(settings: Settings, seeded: Ids) -> int:
             conn,
             USER_ID,
             NewPlannedTransaction(
-                operation_date=date.today() - timedelta(days=1),  # noqa: DTZ011
+                operation_date=clock.today("Europe/Warsaw") - timedelta(days=1),
                 category_id=seeded["exp"],
                 account_id=seeded["acc"],
                 amount=999,
