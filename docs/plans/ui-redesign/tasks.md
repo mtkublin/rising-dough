@@ -75,6 +75,8 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR32 | S | 2 | new `services/setup.py`, settings field, small repository for the marker | 0020 |
 | T-UR34b ✅ | S | 2 | G1 export filters: `web/ledger_data.py` (parsers), `web/ledger_export.py` (new), export handlers, `PlannedFilter.description_contains` + planned repository | — |
 | T-UR34e ✅ | S | 2 | `services/today.py` (`AffordResult.unclamped_per_day_minor`, `over_minor`, `AFFORD_INVALID_MESSAGE`), `web/routers/today.py` pass-through; "over" = max(amount - max(remaining, 0), 0); handoff "114.20 over" does not reproduce (board: left 1,399.93 over 7 days, 1,800.00 gives -57.15 per day and 400.07 over); blank/zero now 422 | — |
+| T-UR34f ✅ | S | 2 | `services/account_reconcile.py` (`ReconcilePreview`, `preview_difference`: signed typed - current, available credit for a limited liability, adjustment direction), `web/accounts_data.reconcile_modal_context` (`preview` value), `web/routers/accounts.py` reconcile GET (optional `actual_balance` query); data only, no template; frontend phase needs an HTMX preview endpoint rendering `preview` | — |
+| T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR34c.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
 
