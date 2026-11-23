@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -28,9 +29,14 @@ pytestmark = pytest.mark.integration
 
 USER_ID = 1
 OTHER_ID = 2
-# The suite clock is frozen at 2026-11-21: the Planned window is 2026-10-22..2027-05-20.
-INSIDE = date(2026, 12, 1)
-OUTSIDE = date(2027, 9, 1)
+# The Planned export window is [today-30d, today+180d] on the frozen app clock (ADR-0140),
+# so every date is derived from it; nothing here depends on the wall or the shifted clock.
+INSIDE_DAYS = 10
+OUTSIDE_DAYS = 300
+
+
+def _on(settings: Settings, days: int) -> date:
+    return clock.today_local(settings) + timedelta(days=days)
 
 
 @pytest.fixture
@@ -73,7 +79,7 @@ def _txn(
 
 
 def _planned(
-    db: sqlite3.Connection, acc: int, cat: int, amount: int, desc: str, *, day: date = INSIDE
+    db: sqlite3.Connection, acc: int, cat: int, amount: int, desc: str, *, day: date
 ) -> None:
     planned_repo.create(
         db,
@@ -116,14 +122,16 @@ def test_transactions_export_hides_other_users_rows(
 
 
 def test_planned_export_maps_account_category_search(
-    client: TestClient, db: sqlite3.Connection, ids: dict[str, int]
+    client: TestClient, db: sqlite3.Connection, ids: dict[str, int], _migrated: Settings
 ) -> None:
-    _planned(db, ids["main"], ids["rent"], 200000, "Rent October")
-    _planned(db, ids["main"], ids["rent"], 300000, "Garage")
-    _planned(db, ids["sav"], ids["rent"], 400000, "Rent savings")
-    _planned(db, ids["main"], ids["food"], 5000, "Rent food")
-    _planned(db, ids["main"], ids["pay"], 700000, "Rent income")
-    _planned(db, ids["main"], ids["rent"], 600000, "Rent far away", day=OUTSIDE)
+    inside = _on(_migrated, INSIDE_DAYS)
+    outside = _on(_migrated, OUTSIDE_DAYS)
+    _planned(db, ids["main"], ids["rent"], 200000, "Rent October", day=inside)
+    _planned(db, ids["main"], ids["rent"], 300000, "Garage", day=inside)
+    _planned(db, ids["sav"], ids["rent"], 400000, "Rent savings", day=inside)
+    _planned(db, ids["main"], ids["food"], 5000, "Rent food", day=inside)
+    _planned(db, ids["main"], ids["pay"], 700000, "Rent income", day=inside)
+    _planned(db, ids["main"], ids["rent"], 600000, "Rent far away", day=outside)
     seed_login_user(db, user_id=OTHER_ID, email="two@example.test")
     acc = accounts_repo.create(db, OTHER_ID, NewAccount(name="Theirs", currency="PLN"))
     cat = categories_repo.create(
@@ -133,7 +141,7 @@ def test_planned_export_maps_account_category_search(
         db,
         OTHER_ID,
         NewPlannedTransaction(
-            operation_date=INSIDE,
+            operation_date=inside,
             category_id=cat.id,
             account_id=acc.id,
             amount=1,
@@ -144,11 +152,12 @@ def test_planned_export_maps_account_category_search(
     r = client.get(f"/planned/export?format=csv&{q}")
     assert r.status_code == 200
     assert [ln.split(",")[1:4] for ln in _rows(r.text)] == [
-        ["2026-12-01", "200000", "Rent October"]
+        [inside.isoformat(), "200000", "Rent October"]
     ]
     r = client.get("/planned/export?format=csv&direction=income")
     assert [ln.split(",")[2:4] for ln in _rows(r.text)] == [["700000", "Rent income"]]
-    # default window is the Ledger planned window, so the 2027-09 row is out unless asked for
+    # default window is the Ledger planned window, so the far row is out unless asked for
     assert _rows(client.get("/planned/export?format=csv&q=far").text) == []
-    r = client.get("/planned/export?format=csv&q=far&date_from=2027-08-01&date_to=2027-12-31")
+    span = f"date_from={outside - timedelta(days=30)}&date_to={outside + timedelta(days=30)}"
+    r = client.get(f"/planned/export?format=csv&q=far&{span}")
     assert [ln.split(",")[2:4] for ln in _rows(r.text)] == [["600000", "Rent far away"]]
