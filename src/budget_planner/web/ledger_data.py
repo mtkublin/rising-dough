@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Final
 
@@ -82,29 +82,53 @@ def parse_filters(request: Request) -> LedgerFilters:
     )
 
 
-def parse_txn_filter(request: Request) -> TransactionFilter:
-    """Parse the transaction export/list filter query params."""
-    q = request.query_params
-    account_id = query_int("account_id", q.get("account_id"))
-    category_id = query_int("category_id", q.get("category_id"))
+def txn_filter(filters: LedgerFilters) -> TransactionFilter:
+    """The one mapping from the shared ledger filter to a transaction filter (list and export)."""
     return TransactionFilter(
-        date_from=query_date("date_from", q.get("date_from")),
-        date_to=query_date("date_to", q.get("date_to")),
-        account_ids=(account_id,) if account_id is not None else (),
-        category_ids=(category_id,) if category_id is not None else (),
-        amount_min=query_int("min_amount", q.get("min_amount")),
-        amount_max=query_int("max_amount", q.get("max_amount")),
-        description_contains=q.get("q") or None,
+        date_from=filters.date_from,
+        date_to=filters.date_to,
+        account_ids=filters.account_ids,
+        category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
+        description_contains=filters.search,
     )
 
 
-def parse_planned_filter(request: Request) -> PlannedFilter:
-    """Parse the planned export filter query params (``scope=unpromoted`` narrows)."""
-    q = request.query_params
+def planned_filter(
+    filters: LedgerFilters, today: date, *, promoted: bool | None = None
+) -> PlannedFilter:
+    """The one mapping from the shared ledger filter to the Planned tab's filter.
+
+    Without dates the window is the pending backlog plus the forward window
+    ``[today-30d, today+180d]`` (not the service's calendar-month default), for
+    both the list and the export.
+    """
     return PlannedFilter(
-        date_from=query_date("date_from", q.get("date_from")),
-        date_to=query_date("date_to", q.get("date_to")),
-        promoted=False if query_choice("scope", q.get("scope"), _SCOPES) == "unpromoted" else None,
+        date_from=filters.date_from or (today - _PLANNED_LOOKBACK),
+        date_to=filters.date_to or (today + _PLANNED_LOOKAHEAD),
+        account_ids=filters.account_ids,
+        category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
+        description_contains=filters.search,
+        promoted=promoted,
+    )
+
+
+def parse_txn_filter(request: Request) -> TransactionFilter:
+    """Parse the transaction export filter: the ledger filter plus the amount bounds."""
+    q = request.query_params
+    return replace(
+        txn_filter(parse_filters(request)),
+        amount_min=query_int("min_amount", q.get("min_amount")),
+        amount_max=query_int("max_amount", q.get("max_amount")),
+    )
+
+
+def parse_planned_filter(request: Request, today: date) -> PlannedFilter:
+    """Parse the planned export filter (``scope=unpromoted`` narrows), as the Planned tab does."""
+    scope = query_choice("scope", request.query_params.get("scope"), _SCOPES)
+    return planned_filter(
+        parse_filters(request), today, promoted=False if scope == "unpromoted" else None
     )
 
 
@@ -300,19 +324,14 @@ def _direction_tuple(raw: str | None) -> tuple[Direction, ...]:
 
 
 def _actual_rows(conn: sqlite3.Connection, user_id: int, filters: LedgerFilters) -> list[TxnRow]:
-    txn_filter = TransactionFilter(
-        date_from=filters.date_from,
-        date_to=filters.date_to,
-        account_ids=filters.account_ids,
-        category_ids=filters.category_ids,
-        directions=_direction_tuple(filters.direction),
-        description_contains=filters.search,
+    txn_filter_ = replace(
+        txn_filter(filters),
         limit=filters.page_size,
         offset=(filters.page - 1) * filters.page_size,
         order_desc=True,
     )
     return hydrate_txn_rows(
-        conn, user_id, transactions_service.list_filtered(conn, user_id, txn_filter)
+        conn, user_id, transactions_service.list_filtered(conn, user_id, txn_filter_)
     )
 
 
@@ -335,19 +354,7 @@ def _ledger_day_nets(
 def _planned_rows(
     conn: sqlite3.Connection, user_id: int, filters: LedgerFilters, today: date
 ) -> list[dict[str, object]]:
-    # Ledger · Planned surfaces the pending backlog + the forward window, not the
-    # current calendar month (the service default): [today-30d, today+180d] unless filtered.
-    pl_filter = PlannedFilter(
-        date_from=filters.date_from or (today - _PLANNED_LOOKBACK),
-        date_to=filters.date_to or (today + _PLANNED_LOOKAHEAD),
-        account_ids=filters.account_ids,
-        category_ids=filters.category_ids,
-        directions=_direction_tuple(filters.direction),
-    )
-    views = planned_service.list_planned(conn, user_id, pl_filter, today=today)
-    if filters.search:
-        needle = filters.search.lower()
-        views = tuple(v for v in views if needle in (v.description or "").lower())
+    views = planned_service.list_planned(conn, user_id, planned_filter(filters, today), today=today)
     return _hydrate_planned_rows(conn, user_id, views)
 
 
