@@ -49,8 +49,16 @@ def _lhci(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[s
     )
 
 
+def _sandbox_free_chrome(real: str, directory: Path) -> str:
+    """Wrapper: LHCI launches Chrome itself; root in the container needs --no-sandbox."""
+    wrapper = directory / "chrome-no-sandbox.sh"
+    wrapper.write_text(f'#!/bin/sh\nexec "{real}" --no-sandbox --disable-dev-shm-usage "$@"\n')
+    wrapper.chmod(0o755)
+    return str(wrapper)
+
+
 def test_lighthouse_budgets(
-    page: Page, live_server: tuple[str, Path], _playwright: Playwright
+    page: Page, live_server: tuple[str, Path], _playwright: Playwright, tmp_path: Path
 ) -> None:
     base_url, db_path = live_server
     seed_world(page.request, base_url, db_path)
@@ -58,7 +66,8 @@ def test_lighthouse_budgets(
         c["value"] for c in page.context.cookies() if c["name"] == SESSION_DEV_COOKIE_NAME
     )
     headers = json.dumps({"Cookie": f"{SESSION_DEV_COOKIE_NAME}={cookie}"})
-    env = {**os.environ, "CHROME_PATH": _playwright.chromium.executable_path}
+    chrome = _sandbox_free_chrome(_playwright.chromium.executable_path, tmp_path)
+    env = {**os.environ, "CHROME_PATH": chrome}
     urls = [f"{base_url}{route}" for route in (*PAGES, *VIEWS)]
     collect_args = [
         "collect",
