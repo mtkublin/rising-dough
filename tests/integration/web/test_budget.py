@@ -549,6 +549,10 @@ def test_budget_hero_unbudgeted_info_line_not_counted(
     client: TestClient, _migrated: Settings, cat_id: int
 ) -> None:
     client.post(f"/budget/defaults/{cat_id}", data={"amount": "100"})
+    # Tomorrow, unless that is next month's day 1 (month-end clock): then today (ADR-0140).
+    today = clock.today_local(Settings())
+    tomorrow = today + timedelta(days=1)
+    planned_day = tomorrow if tomorrow.month == today.month else today
     conn = get_connection(_migrated)
     try:
         acc = accounts_repo.create(conn, USER_ID, NewAccount(name="Chk", currency="PLN")).id
@@ -559,7 +563,7 @@ def test_budget_hero_unbudgeted_info_line_not_counted(
             conn,
             USER_ID,
             NewPlannedTransaction(
-                operation_date=clock.today_local(Settings()) + timedelta(days=1),
+                operation_date=planned_day,
                 category_id=rent,
                 account_id=acc,
                 amount=35_000,

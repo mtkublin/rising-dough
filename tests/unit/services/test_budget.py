@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -1447,20 +1447,23 @@ def test_picker_non_current_month_clamps_anchor_day_and_zeroes_committed(
     conn: sqlite3.Connection, seed: dict[str, int]
 ) -> None:
     _bind_anchor(conn, seed["salary"])
-    recurring.create_rule(
-        conn,
-        USER_ID,
-        NewRecurringRule(
-            category_id=seed["salary"],
-            account_id=seed["checking"],
-            default_amount=500_000,
-            cadence=Cadence.MONTHLY,
-            start_date=date(2026, 1, 30),
-            day_of_month=30,
-            default_description="pay",
-        ),
-    )
     today = date(2026, 1, 31)
+    # create_rule derives the first next_due from the clock; pin it to the suite's default
+    # instant so the rule's schedule does not depend on the CI date (ADR-0140).
+    with clock.frozen(datetime(2026, 11, 21, 12, tzinfo=UTC)):
+        recurring.create_rule(
+            conn,
+            USER_ID,
+            NewRecurringRule(
+                category_id=seed["salary"],
+                account_id=seed["checking"],
+                default_amount=500_000,
+                cadence=Cadence.MONTHLY,
+                start_date=date(2026, 1, 30),
+                day_of_month=30,
+                default_description="pay",
+            ),
+        )
     picked = bs.resolve_picker_month(conn, USER_ID, today, year_raw="2026", month_raw="2")
     s = bs.month_summary_for_picker(
         conn, USER_ID, picked, today, base_currency="PLN", display_timezone=DEFAULT_DISPLAY_TIMEZONE
