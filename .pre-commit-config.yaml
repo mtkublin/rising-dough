@@ -7,17 +7,18 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: end-of-file-fixer
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|package-lock\.json|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
         args: [--maxkb=500]
+        exclude: ^tests/e2e/vendor/axe\.min\.js$ # vendored axe-core (T-Q300), 540 kB
       - id: check-merge-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^(src/budget_planner/web/static/tailwind\.css|docs/design/.*|docs/application_redesign_handoff/.*)$
+        exclude: ^(src/budget_planner/web/static/tailwind\.css|tests/e2e/vendor/.*|docs/design/.*|docs/application_redesign_handoff/.*)$
 
   # ADR-0120 amendment (2026-11-21, T-Q240): Python tool hooks run the versions
   # locked in uv.lock (`uv run <tool>`), so local, CI and `just` agree.
@@ -88,7 +89,8 @@ repos:
         entry: uv run --quiet detect-secrets-hook --baseline .secrets.baseline
         language: system
         # Vendored designer output (ADR-0129): public SRI hashes, not secrets.
-        exclude: ^docs/application_redesign_handoff/
+        # Vendored axe-core (T-Q300) is minified third-party code, not secrets.
+        exclude: ^(docs/application_redesign_handoff/|tests/e2e/vendor/)
 
       - id: pytest-fast
         name: pytest (affected tests, testmon)
