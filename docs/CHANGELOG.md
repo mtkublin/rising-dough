@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-UR34h: session device label)
+- **Feat(T-UR34h): `SessionRow.device_label` ("Firefox · macOS", "Safari · iPhone", "Unknown device") parsed from the stored user agent by the pure `domain/user_agent.device_label`; backend only (ADR-0147 section 3, ADR-0148). No allowlist change.**
+
 ## 2026-11-23 (T-Q311: frozen test clock by default, CI date matrix, no SQLite clock)
 - **Test(T-Q311): every test runs under `clock.frozen(BUDGET_TEST_NOW, default 2026-11-21T12:00:00Z)`; marker `real_clock` opts out; CI job `pytest (shifted clock)` runs the suite on four dangerous dates; guard G32 bans `'now'`/`CURRENT_*` in runtime SQL and six update sites now bind `clock.utc_now_iso()`.** ADR-0140 amendment 2026-11-23. No allowlist change.
 
