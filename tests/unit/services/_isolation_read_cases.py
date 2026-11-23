@@ -788,11 +788,13 @@ def _case_compute_limit_preview(conn: sqlite3.Connection, world: World) -> None:
     # Balance -1_000 (one expense), a further 2_500 expense projects -3_500 against a 10_000 limit.
     assert preview == limit_preview.LimitPreview(
         projected_balance=-3_500,
+        available_before=9_000,
         available_after=6_500,
         used_after=3_500,
         limit=10_000,
         over_by=0,
         currency=BASE,
+        account_name="owner-card",
     )
     other_cat = world.other.category_id
     assert (
