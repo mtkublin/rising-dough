@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from budget_planner import clock as _clock
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
@@ -298,7 +299,9 @@ def world_with_tombstones(conn: sqlite3.Connection, world_with_two_users: World)
     _recurring_repo.soft_delete_rule(conn, OWNER_ID, deleted_rule.id)
     _planned_repo.soft_delete(conn, OWNER_ID, dead_planned.id)
     _transactions_repo.soft_delete(conn, OWNER_ID, dead_txn.id)
-    _categories_repo.soft_delete(conn, OWNER_ID, dead_category.id)
+    # The archive month is the world's month, whatever the suite clock says (ADR-0140, ADR-0136).
+    with _clock.frozen(_dt.datetime(2026, 11, 11, 12, tzinfo=_dt.UTC)):
+        _categories_repo.soft_delete(conn, OWNER_ID, dead_category.id)
     _accounts_repo.soft_delete(conn, OWNER_ID, dead_account.id)
     return World(
         owner,

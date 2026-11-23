@@ -7,10 +7,12 @@ rejected write leaves no row and no audit row.
 
 from __future__ import annotations
 
+import datetime as dt
 import sqlite3
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.domain.accounts import NewAccount, PatchAccount
 from budget_planner.domain.budgets import (
     NewBudgetDefault,
@@ -161,8 +163,12 @@ def _case_categories_list_all(conn: sqlite3.Connection, world: World) -> None:
 
 @covers("categories.list_recently_deleted")
 def _case_categories_list_recently_deleted(conn: sqlite3.Connection, world: World) -> None:
-    assert [c.name for c in categories.list_recently_deleted(conn, OWNER_ID)] == ["dead-category"]
-    assert categories.list_recently_deleted(conn, OTHER_ID) == []
+    # The fixture archived the category on 2026-11-11; judge "recently" from the world's day.
+    with clock.frozen(dt.datetime(2026, 11, 12, 12, tzinfo=dt.UTC)):
+        assert [c.name for c in categories.list_recently_deleted(conn, OWNER_ID)] == [
+            "dead-category"
+        ]
+        assert categories.list_recently_deleted(conn, OTHER_ID) == []
 
 
 @covers("categories.create")

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -79,8 +80,10 @@ def _hero(html: str) -> str:
 def test_left_daily_spend_card_renders_number_and_caption(
     client: TestClient, _migrated: Settings, world: dict[str, int]
 ) -> None:
-    # Within horizon_days=400 so the anchor name resolves on the hero caption.
-    _seed_anchor_and_income(_migrated, world["salary"], world["checking"], date(2027, 1, 15))
+    # Within horizon_days=400 so the anchor name resolves on the hero caption; relative to
+    # the frozen clock so the test holds on any date (ADR-0140).
+    income_date = clock.today_local(_migrated) + timedelta(days=30)
+    _seed_anchor_and_income(_migrated, world["salary"], world["checking"], income_date)
     r = client.get("/budget")
     assert r.status_code == 200
     assert _html.exists(r.text, plan.budget_hero_heading)
