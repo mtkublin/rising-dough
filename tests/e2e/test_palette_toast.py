@@ -82,7 +82,10 @@ def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: 
     expect(to_playwright(page, planned_row)).to_have_count(0)
     assert db_probe.txn_amounts(db_path, DESC) == [4200]
 
-    toast_undo.click()
+    # A successful undo reloads the page once its region refreshes finish (T-Q317): wait for that
+    # reload so it cannot interrupt the navigation below.
+    with page.expect_event("load"):
+        toast_undo.click()
     expect(to_playwright(page, planned_row)).to_be_visible()
     assert db_probe.txn_amounts(db_path, DESC) == []
     page.goto(f"{base_url}/ledger?view=actual")
