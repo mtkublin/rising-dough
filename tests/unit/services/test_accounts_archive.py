@@ -81,14 +81,17 @@ def test_archive_refused_by_live_transactions_with_exact_counts(
     acc = _account(conn, opening=1_000)
     other = _account(conn, name="Other")
     cat = _category(conn)
-    for kwargs in (
-        {"account_id": acc, "amount": 1_000},
-        {"account_id": other, "dest_account_id": acc, "amount": 1},
-    ):
+    for src, dst, amount in ((acc, None, 1_000), (other, acc, 1)):
         transactions_repo.create(
             conn,
             USER_ID,
-            NewTransaction(operation_date=DAY, category_id=cat, **kwargs),  # type: ignore[arg-type]  # test-only kwargs
+            NewTransaction(
+                operation_date=DAY,
+                category_id=cat,
+                account_id=src,
+                dest_account_id=dst,
+                amount=amount,
+            ),
         )
     planned_repo.create(
         conn,
