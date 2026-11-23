@@ -57,6 +57,10 @@ The T-D18 task file asks for a shared rate-limit counter with `/auth/login`. No 
 
 > **Amended by T-D18a**: rate limiting is now applied. `POST /settings/password` uses the ADR-0072 fixed-window limiter, scope `password_change`, keyed per user id: 5 / min and 20 / hour (`BUDGET_RATE_LIMIT_PASSWORD_CHANGE_PER_MINUTE` / `_PER_HOUR`; `BUDGET_RATE_LIMIT_ENABLED=false` disables it). Throttled requests get `429` + `Retry-After` before any bcrypt work, the form shows a generic "Too many attempts" message (HTMX swaps it; JSON gets `{"error":"rate_limited"}`), and each throttled attempt writes an `auth_event` `rate_limited` audit row.
 
+## Amendment 2026-11-23 (operator decision; T-Q313)
+
+Rehash on login. After a successful password verification, if `PasswordHasher.needs_rehash(stored)` (the `$2b$NN$` cost differs from `Settings.bcrypt_rounds`), `services.auth.authenticate_password` stores a new hash at the configured cost via `repositories.users.rehash_password`, which writes an audit row (`operation='update'`, `action='password_rehash'`, no hash in the payload). A rehash is **not** a password change: `must_change_password` is untouched, no session is revoked, and the rotation policy above does not apply. Failed verification and passkey logins never rehash. A rehash failure (DB error) is logged as a warning and the login proceeds. This closes the timing gap between old-cost users and the configured-cost dummy verify (T-Q291, ADR-0021 amendment). `users` has no `password_changed_at` column; only `updated_at` moves.
+
 ## Consequences
 
 - Dev bootstrap password `admin` (ADR-0069) cannot be reused: the first rotation must pick a 12+ character password.

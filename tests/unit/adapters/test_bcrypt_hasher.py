@@ -100,3 +100,11 @@ def test_verify_dummy_pays_one_bcrypt_check_at_the_same_cost(
 
 def test_verify_dummy_computes_for_cost_outside_table() -> None:
     BcryptHasher(rounds=5).verify_dummy("whatever")  # must not raise
+
+
+def test_needs_rehash_compares_stored_cost_with_configured_cost() -> None:
+    cost5 = BcryptHasher(rounds=5)
+    assert cost5.needs_rehash(FAST.hash(SECRET)) is True
+    assert cost5.needs_rehash(cost5.hash(SECRET)) is False
+    assert cost5.needs_rehash(None) is False
+    assert cost5.needs_rehash("not-a-bcrypt-hash") is False
