@@ -739,6 +739,23 @@ jobs:
           ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
 
+      # T-Q306g: the status `ok` alone cannot show that compose really recreated a network
+      # whose ipam changed under the same name; compare the host's networks with the template.
+      - name: Host compose networks match the template (upgrade)
+        run: |
+          set -euo pipefail
+          expected="$(python3 scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl)"
+          test -n "${expected}"
+          while read -r name subnet gateway; do
+            actual="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+              "sudo docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}}{{end}}' ${name}")"
+            echo "${name}: expected ${subnet} ${gateway}, host has ${actual}"
+            if [ "${actual}" != "${subnet} ${gateway}" ]; then
+              echo "::error::upgrade: network ${name} on the host has ${actual}, the template declares ${subnet} ${gateway}" >&2
+              exit 1
+            fi
+          done <<<"${expected}"
+
       - name: Restore report names the seeded generation (replacement)
         if: ${{ needs.apply-upgrade.outputs.server_replaced == 'true' }}
         timeout-minutes: 15
@@ -849,6 +866,23 @@ jobs:
           target-url: ${{ env.TARGET_URL }}
           generation: ${{ needs.apply-rollback.outputs.host_config_generation }}
           image-ref: ${{ needs.apply-rollback.outputs.host_image_ref }}
+
+      # T-Q306g: the status `ok` alone cannot show that compose really recreated a network
+      # whose ipam changed under the same name; compare the host's networks with the template.
+      - name: Host compose networks match the PR template (rollback keeps it)
+        run: |
+          set -euo pipefail
+          expected="$(python3 scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl)"
+          test -n "${expected}"
+          while read -r name subnet gateway; do
+            actual="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+              "sudo docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}}{{end}}' ${name}")"
+            echo "${name}: expected ${subnet} ${gateway}, host has ${actual}"
+            if [ "${actual}" != "${subnet} ${gateway}" ]; then
+              echo "::error::rollback: network ${name} on the host has ${actual}, the template declares ${subnet} ${gateway}" >&2
+              exit 1
+            fi
+          done <<<"${expected}"
 
       - name: Marker rows still present and seeded tables non-empty
         run: |

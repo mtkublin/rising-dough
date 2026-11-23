@@ -63,3 +63,7 @@
 - **TTL** for the gate is 240 minutes (was 90): three gated applies plus the longer run; the real run time is not measured yet and is to be tightened after the first runs (T-Q306).
 - The gate now needs up to three approvals of the gated `drill` environment (baseline, upgrade, rollback applies), plus the SSH jobs if `drill` is gated for them as well.
 - **Amendment 2026-11-23 (T-Q306f).** The last bullet is stale: the `drill` environment has no required reviewers today, so the gate needs no approvals. First measured run: 22 min 24 s (run 45247014045, in-place path); the 240 min TTL stays a generous backstop. `detect` names its secrets explicitly (`toJSON(secrets)` in a dispatched workflow's own job aborts the dispatch with `action_required`). Runbook: `docs/plans/v3/runbooks/deploy.md`, "What the drill gate proves".
+
+## Implementation note 2026-11-23 (T-Q306g)
+
+`verify` and `verify-rollback` assert the host's compose networks against the PR head's `docker-compose.yml.tpl`: `scripts/ci/compose_networks.py` prints `<project>_<network> subnet gateway` for every network with `ipam` (today `budget-planner_edge_v2 172.30.0.0/24 172.30.0.1`), and each step runs `sudo docker network inspect` for it over the drill ssh and fails with `::error::` on any mismatch (the verdict names `upgrade` or `rollback`). Reason: run 45262019613 passed with a same-name subnet change and `ok` status, so a silently kept old network (or one healed by the T-Q305 retry) was indistinguishable. The rollback keeps the PR's templates, so it is checked against the same file.

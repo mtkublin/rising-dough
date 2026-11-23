@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q306g: gate asserts host compose networks)
+- **Ci(T-Q306g): `drill.yml` `verify` and `verify-rollback` compare `docker network inspect` subnet and gateway on the drill host with the PR template's ipam networks (`scripts/ci/compose_networks.py`); a mismatch fails the `upgrade` / `rollback` phase.** ADR-0149 implementation note. No allowlist change.
+
 ## 2026-11-23 (T-Q300: axe-core sweep and Lighthouse budgets, advisory)
 - **CI(T-Q300): `a11y-perf.yml` adds two advisory jobs, `a11y (axe-core, advisory)` (vendored axe-core 4.10.3, fails on serious/critical, all crawl routes at 1440) and `perf (Lighthouse budgets, advisory)` (`@lhci/cli` 0.15.1, budgets in `tests/perf/lighthouserc.json`: LCP 2.5 s, CLS 0.1, TBT 200 ms, JS 300 kB, CSS 50 kB).** ADR-0027 and ADR-0120 amendments 2026-11-23. First runs red on real findings, triaged as T-Q319 to T-Q322. Not required checks; no allowlist change.
 ## 2026-11-23 (T-Q306d/e: drill gate is the upgrade drill)
