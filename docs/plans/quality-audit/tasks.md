@@ -1417,7 +1417,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment naming the browser matrix, written at implementation start.
 - Goal: run `tests/e2e` on Firefox and WebKit as well as Chromium. The pinned Playwright container already ships both, so the cost is runner minutes only.
 - Acceptance: `e2e.yml` runs a browser matrix (chromium, firefox, webkit) in the same pinned image; the existing job name `tests/e2e (Chromium, Playwright container)` is unchanged; the new contexts are not added to `protect-main` until an operator decision records it.
-- Operator question blocking it: should the Firefox and WebKit contexts become required checks, or stay advisory until they are green?
+- Operator decision (2026-11-23): the Firefox and WebKit checks are advisory (not required) until they are green on 3 consecutive PRs; then the operator adds them to `protect-main`. Operator question blocking it: none.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds and the new jobs are green on a `wi/**` push.
@@ -1435,7 +1435,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds on a `wi/**` push.
 
-### T-Q301 [S] Crawl diagnostics at 1024 (follow-up, not blocking)
+### T-Q301 ✅ [S] Crawl diagnostics at 1024 (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: e2e

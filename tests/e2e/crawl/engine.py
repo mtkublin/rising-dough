@@ -26,6 +26,7 @@ SETTLE_MS = 150
 BUSY_TIMEOUT_MS = 4000
 CLICK_TIMEOUT_MS = 3000
 DESKTOP = {"width": 1440, "height": 900}
+TABLET = {"width": 1024, "height": 768}
 MOBILE = {"width": 375, "height": 800}
 
 # Controls the crawler must not drive, with the reason (recorded in the
