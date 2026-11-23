@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import json
 import sqlite3
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -144,6 +145,12 @@ def _case_audit_throttled(conn: sqlite3.Connection, world: World) -> None:
     assert all(uid != OTHER_ID for uid, _ in events)
 
 
+@covers("rate_limit.user_identity")
+def _case_user_identity(conn: sqlite3.Connection, world: World) -> None:
+    assert rate_limit.user_identity(OWNER_ID) == f"user={OWNER_ID}"
+    assert rate_limit.user_identity(OWNER_ID) != rate_limit.user_identity(OTHER_ID)
+
+
 # --- auth: passkeys and sessions ---------------------------------------------------------------------------------
 
 
@@ -234,6 +241,17 @@ def _case_verify_password_reauth(conn: sqlite3.Connection, world: World) -> None
         (OTHER_ID, {"event": "reauth_failed", "method": "password", "reason": "bad_password"}),
         (OTHER_ID, {"event": "reauth_failed", "method": "password", "reason": "no_password"}),
     ]
+
+
+@covers("reauth.attempts_left")
+def _case_reauth_attempts_left(conn: sqlite3.Connection, world: World) -> None:
+    now = datetime(2026, 11, 15, 12, 0, 10, tzinfo=UTC)
+    rules = (rate_limit.RateRule(limit=5, window_seconds=60),)
+    identity = rate_limit.user_identity(OWNER_ID)
+    for _ in range(2):
+        rate_limit.consume(conn, rate_limit.SCOPE_REAUTH, identity, rules, now=now)
+    assert reauth.attempts_left(conn, OWNER_ID, rules, now=now) == 3
+    assert reauth.attempts_left(conn, OTHER_ID, rules, now=now) == 5  # owner's failures not shared
 
 
 @covers("reauth.passkey_reauth_begin")

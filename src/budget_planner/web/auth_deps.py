@@ -111,7 +111,7 @@ def _user_scoped_limit(
     rules: Sequence[rate_limit.RateRule],
 ) -> RateDecision:
     decision = rate_limit.consume(
-        conn, scope, f"user={user.id}", rules, now=rate_limit_now(request)
+        conn, scope, rate_limit.user_identity(user.id), rules, now=rate_limit_now(request)
     )
     if not decision.allowed:
         rate_limit.audit_throttled(conn, ctx, scope=decision.scope, user_id=user.id)

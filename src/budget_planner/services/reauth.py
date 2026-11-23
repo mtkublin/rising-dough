@@ -12,7 +12,7 @@ Every outcome is audited as an ``auth_event`` row (``reauth`` /
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime
 from typing import Final
@@ -35,6 +35,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.sessions import IssuedSession
+from budget_planner.services import rate_limit
 from budget_planner.services.auth import (
     AUTH_EVENT_ENTITY,
     CredentialPayload,
@@ -89,6 +90,23 @@ def verify_password_reauth(
         _fail(conn, ctx, user_id, METHOD_PASSWORD, "bad_password")
         return False
     return True
+
+
+def attempts_left(
+    conn: sqlite3.Connection,
+    user_id: int,
+    rules: Sequence[rate_limit.RateRule],
+    *,
+    now: datetime,
+) -> int | None:
+    """Re-auth attempts the user has left in the current windows (G8, ADR-0148).
+
+    Only for the signed-in re-auth flow, never the anonymous sign-in path.
+    ``None`` when the limiter is disabled.
+    """
+    return rate_limit.attempts_left(
+        conn, rate_limit.SCOPE_REAUTH, rate_limit.user_identity(user_id), rules, now=now
+    )
 
 
 def passkey_reauth_begin(
@@ -190,6 +208,7 @@ def complete_reauth(
 __all__ = [
     "METHOD_PASSKEY",
     "METHOD_PASSWORD",
+    "attempts_left",
     "complete_reauth",
     "passkey_reauth_begin",
     "verify_passkey_reauth",
