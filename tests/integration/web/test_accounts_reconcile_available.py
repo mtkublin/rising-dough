@@ -10,6 +10,8 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import balance as balance_service
+from budget_planner.services.account_reconcile import ReconcilePreview
+from budget_planner.web import accounts_data
 from tests.ui_map import _html, accounts
 
 USER_ID = 1
@@ -104,3 +106,26 @@ def test_accounts_index_renders_service_utilisation(
     assert "Used 24%" in _html.text_of(r.text, accounts.credit_utilisation)
     assert "Available 3,765.44" in _html.text_of(r.text, accounts.credit_utilisation)
     assert "--used-pct: 24%" in str(bar["style"])
+
+
+def test_modal_context_carries_preview_for_entered_amount(_migrated: Settings) -> None:
+    card = _make_card(_migrated, limit=None, liability=False)
+    conn = get_connection(_migrated)
+    try:
+        acc = accounts_repo.find_by_id(conn, USER_ID, card)
+        assert acc is not None
+        derived = balance_service.derive_balance(conn, USER_ID, card)
+        ctx = accounts_data.reconcile_modal_context(conn, USER_ID, acc, derived, -120_000)
+        none_ctx = accounts_data.reconcile_modal_context(conn, USER_ID, acc, derived)
+        other_user_view = accounts_repo.find_by_id(conn, USER_ID + 1, card)
+    finally:
+        conn.close()
+    preview = ctx["preview"]
+    assert isinstance(preview, ReconcilePreview)
+    assert (preview.difference_minor, preview.adjustment) == (3_456, "increase")
+    assert none_ctx["preview"] is None
+    assert other_user_view is None
+
+
+def test_form_unknown_account_is_not_found(client: TestClient) -> None:
+    assert client.get("/accounts/987654/reconcile?actual_balance=10").status_code == 404

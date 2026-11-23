@@ -23,6 +23,7 @@ import datetime as dt
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol
 
 from budget_planner.clock import HasDisplayTimezone
@@ -683,6 +684,7 @@ __all__ = [
     "MonthlyProjectionPoint",
     "MonthlySeries",
     "ProjectionSummary",
+    "TrendDirection",
     "forecast",
     "forecast_monthly",
     "horizon_days_for_months",
@@ -693,23 +695,53 @@ __all__ = [
 ]
 
 
+class TrendDirection(StrEnum):
+    """Direction of the projected change over the horizon (ADR-0147 §3, G9)."""
+
+    UP = "up"
+    DOWN = "down"
+    FLAT = "flat"
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectionSummary:
-    """NOW / END / PEAK strip of the forecast tab."""
+    """NOW / END / PEAK strip of the forecast tab.
+
+    ``delta_minor`` is the non-negative magnitude of ``end - now`` in base
+    currency minor units and ``delta_direction`` carries the sign (ADR-0147
+    §3, ADR-0148); ``months`` is the horizon length shown as "over N months".
+    The balances themselves stay signed, as in the rest of this module.
+    """
 
     now_value: int
     end_point: MonthlyProjectionPoint
     peak_point: MonthlyProjectionPoint
+    delta_minor: int
+    delta_direction: TrendDirection
+    months: int
+
+
+def _trend_direction(change: int) -> TrendDirection:
+    if change > 0:
+        return TrendDirection.UP
+    if change < 0:
+        return TrendDirection.DOWN
+    return TrendDirection.FLAT
 
 
 def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> ProjectionSummary | None:
     """Return the summary strip for a projection, or ``None`` when it is empty."""
     if not projection:
         return None
+    now_value = projection[0].end_balance_minor
+    change = projection[-1].end_balance_minor - now_value
     return ProjectionSummary(
-        now_value=projection[0].end_balance_minor,
+        now_value=now_value,
         end_point=projection[-1],
         peak_point=max(projection, key=lambda p: p.end_balance_minor),
+        delta_minor=abs(change),
+        delta_direction=_trend_direction(change),
+        months=len(projection),
     )
 
 

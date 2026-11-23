@@ -18,6 +18,9 @@ from budget_planner.services import budget as budget_service
 
 PaceTag = Literal["on_track", "tight", "over_limit"]
 
+# Shown for an empty, zero, negative or unparseable amount (handoff afford-invalid).
+AFFORD_INVALID_MESSAGE = "Enter an amount, like 250.00"
+
 
 @dataclass(frozen=True, slots=True)
 class AffordResult:
@@ -27,13 +30,19 @@ class AffordResult:
     (negative = user would spend less per day after the proposed amount,
     positive = would end up with more headroom). ``days_left`` surfaces
     the days-until-next-income used for the division so the UI can show
-    the window verbatim.
+    the window verbatim. ``unclamped_per_day_minor`` is the same per-day
+    figure without the zero floor (negative when the entry exceeds what is
+    left; the value the handoff "per day becomes -x" line shows).
+    ``over_minor`` is how much the entry exceeds what is left, in positive
+    minor units (0 when it fits).
     """
 
     per_day_minor: int
     delta_minor: int
     pace_tag: PaceTag
     days_left: int
+    unclamped_per_day_minor: int = 0
+    over_minor: int = 0
 
 
 # Boundary at which the recomputed per-day drops below a "tight" threshold.
@@ -108,7 +117,8 @@ def afford(
         display_timezone=display_timezone,
     )
     days_left = max(summary.days_until_next_income, 1)
-    remaining_minor = max(summary.totals.remaining_minor, 0)
+    raw_remaining_minor = summary.totals.remaining_minor
+    remaining_minor = max(raw_remaining_minor, 0)
     baseline_per_day = _div_round_half_even(remaining_minor, days_left)
 
     new_remaining = remaining_minor - amount_minor
@@ -121,7 +131,15 @@ def afford(
         delta_minor=delta,
         pace_tag=tag,
         days_left=days_left,
+        unclamped_per_day_minor=daily_share_minor(raw_remaining_minor - amount_minor, days_left),
+        over_minor=max(amount_minor - remaining_minor, 0),
     )
 
 
-__all__ = ["AffordResult", "PaceTag", "afford", "daily_share_minor"]
+__all__ = [
+    "AFFORD_INVALID_MESSAGE",
+    "AffordResult",
+    "PaceTag",
+    "afford",
+    "daily_share_minor",
+]

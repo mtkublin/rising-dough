@@ -15,13 +15,13 @@ from dataclasses import dataclass
 
 from budget_planner.domain.accounts import (
     Account,
+    AccountReferences,
     NewAccount,
     PatchAccount,
     new_account_errors,
     patch_account_errors,
 )
-from budget_planner.domain.errors import ConflictError, ValidationError
-from budget_planner.domain.planned import PlannedFilter
+from budget_planner.domain.errors import AccountInUseError, ValidationError
 from budget_planner.domain.snapshots import AccountSnapshot, NewAccountSnapshot
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
 from budget_planner.repositories import (
@@ -109,44 +109,56 @@ def _plural(count: int, singular: str, plural: str) -> str:
     return f"{count} {singular if count == 1 else plural}"
 
 
-def _archive_blockers(conn: sqlite3.Connection, user_id: int, account_id: int) -> list[str]:
-    """Return one message per reason the account cannot be archived (T-Q230)."""
+def account_references(
+    conn: sqlite3.Connection, user_id: int, account_id: int
+) -> AccountReferences:
+    """Live transactions (transit legs too), planned rows and recurring rules using the account.
+
+    Soft-deleted rows do not count (T-UR33, F2.8).
+    """
+    return AccountReferences(
+        transactions=transactions_repo.count_referencing_account(conn, user_id, account_id),
+        planned=planned_repo.count_referencing_account(conn, user_id, account_id),
+        recurring=recurring_repo.count_referencing_account(conn, user_id, account_id),
+    )
+
+
+def _archive_blockers(
+    conn: sqlite3.Connection, user_id: int, account_id: int, refs: AccountReferences
+) -> list[str]:
+    """Return one message per reason the account cannot be archived (T-Q230, T-UR33)."""
     blockers: list[str] = []
     if balance_service.derive_balance(conn, user_id, account_id) != 0:
         blockers.append("Balance is not zero")
-    rules = [
-        r
-        for r in recurring_repo.list_rules(conn, user_id, active_only=True)
-        if account_id in (r.account_id, r.dest_account_id)
-    ]
-    if rules:
-        blockers.append(
-            f"{_plural(len(rules), 'recurring rule uses', 'recurring rules use')} this account"
-        )
-    planned = [
-        p
-        for p in planned_repo.list_filtered(conn, user_id, PlannedFilter(promoted=False))
-        if account_id in (p.account_id, p.dest_account_id)
-    ]
-    if planned:
-        noun = _plural(len(planned), "planned transaction uses", "planned transactions use")
+    if refs.transactions:
+        noun = _plural(refs.transactions, "transaction uses", "transactions use")
+        blockers.append(f"{noun} this account")
+    if refs.planned:
+        noun = _plural(refs.planned, "planned transaction uses", "planned transactions use")
+        blockers.append(f"{noun} this account")
+    if refs.recurring:
+        noun = _plural(refs.recurring, "recurring rule uses", "recurring rules use")
         blockers.append(f"{noun} this account")
     return blockers
 
 
 def archive_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> None:
-    """Soft-delete an account unless balance, rules or planned rows still use it.
+    """Soft-delete an account unless balance or live rows still use it.
 
     Guard reads and the soft delete share one transaction (ADR-0137). Refusal
-    raises :class:`ConflictError` (409) naming every blocker and writes nothing.
-    A missing or already-archived account is a no-op.
+    raises :class:`AccountInUseError` (a 409 ``ConflictError``) naming every
+    blocker and carrying the :class:`AccountReferences` counts; nothing is
+    written. A missing or already-archived account is a no-op.
     """
     with db_transaction(conn):
         if accounts_repo.find_by_id(conn, user_id, account_id) is None:
             return
-        blockers = _archive_blockers(conn, user_id, account_id)
+        refs = account_references(conn, user_id, account_id)
+        blockers = _archive_blockers(conn, user_id, account_id, refs)
         if blockers:
-            raise ConflictError(message="Cannot archive account: " + "; ".join(blockers))
+            raise AccountInUseError(
+                "Cannot archive account: " + "; ".join(blockers), references=refs
+            )
         accounts_repo.soft_delete(conn, user_id, account_id)
 
 

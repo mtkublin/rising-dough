@@ -7,10 +7,10 @@ from datetime import date
 
 import pytest
 
-from budget_planner.domain.accounts import NewAccount
+from budget_planner.domain.accounts import AccountReferences, NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Cadence, Direction
-from budget_planner.domain.errors import ConflictError
+from budget_planner.domain.errors import AccountInUseError, ConflictError
 from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.recurring import NewRecurringRule
 from budget_planner.domain.transactions import NewTransaction
@@ -75,19 +75,70 @@ def test_archive_refused_when_balance_not_zero(conn: sqlite3.Connection) -> None
     assert _audit_count(conn) == before
 
 
-def test_archive_allowed_when_transactions_bring_balance_to_zero(
+def test_archive_refused_by_live_transactions_with_exact_counts(
     conn: sqlite3.Connection,
 ) -> None:
     acc = _account(conn, opening=1_000)
+    other = _account(conn, name="Other")
     cat = _category(conn)
-    transactions_repo.create(
+    for src, dst, amount in ((acc, None, 1_000), (other, acc, 1)):
+        transactions_repo.create(
+            conn,
+            USER_ID,
+            NewTransaction(
+                operation_date=DAY,
+                category_id=cat,
+                account_id=src,
+                dest_account_id=dst,
+                amount=amount,
+            ),
+        )
+    planned_repo.create(
         conn,
         USER_ID,
-        NewTransaction(operation_date=DAY, category_id=cat, account_id=acc, amount=1_000),
+        NewPlannedTransaction(operation_date=DAY, category_id=cat, account_id=acc, amount=700),
     )
+    before = _audit_count(conn)
+
+    with pytest.raises(AccountInUseError) as err:
+        accounts_svc.archive_account(conn, USER_ID, acc)
+
+    assert err.value.references == AccountReferences(transactions=2, planned=1, recurring=0)
+    assert err.value.message.startswith("Cannot archive account: 2 transactions use this account")
+    assert _live(conn, acc)
+    assert _audit_count(conn) == before
+
+
+def test_soft_deleted_transactions_do_not_block(conn: sqlite3.Connection) -> None:
+    acc = _account(conn)
+    cat = _category(conn)
+    txn = transactions_repo.create(
+        conn,
+        USER_ID,
+        NewTransaction(operation_date=DAY, category_id=cat, account_id=acc, amount=1),
+    )
+    transactions_repo.soft_delete(conn, USER_ID, txn.id)
 
     accounts_svc.archive_account(conn, USER_ID, acc)
 
+    assert not _live(conn, acc)
+
+
+def test_second_users_references_do_not_count(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO users(id, name) VALUES (2, 'other')")
+    acc = _account(conn)
+    theirs = _account(conn, user_id=2, name="Theirs")
+    their_cat = categories_repo.create(
+        conn, 2, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    transactions_repo.create(
+        conn,
+        2,
+        NewTransaction(operation_date=DAY, category_id=their_cat, account_id=theirs, amount=5),
+    )
+
+    assert accounts_svc.account_references(conn, USER_ID, acc) == AccountReferences(0, 0, 0)
+    accounts_svc.archive_account(conn, USER_ID, acc)
     assert not _live(conn, acc)
 
 
@@ -110,9 +161,10 @@ def test_archive_refused_by_live_recurring_rules(conn: sqlite3.Connection) -> No
         )
     before = _audit_count(conn)
 
-    with pytest.raises(ConflictError) as err:
+    with pytest.raises(AccountInUseError) as err:
         accounts_svc.archive_account(conn, USER_ID, acc)
 
+    assert err.value.references == AccountReferences(transactions=0, planned=0, recurring=2)
     assert err.value.message == "Cannot archive account: 2 recurring rules use this account"
     assert _live(conn, acc)
     assert _audit_count(conn) == before
@@ -153,7 +205,7 @@ def test_archive_refusal_names_every_blocker(conn: sqlite3.Connection) -> None:
     )
 
 
-def test_archive_ignores_inactive_rules_and_deleted_planned_rows(
+def test_inactive_rule_blocks_but_deleted_planned_row_does_not(
     conn: sqlite3.Connection,
 ) -> None:
     acc = _account(conn)
@@ -177,9 +229,11 @@ def test_archive_ignores_inactive_rules_and_deleted_planned_rows(
     )
     planned_repo.soft_delete(conn, USER_ID, planned.id)
 
-    accounts_svc.archive_account(conn, USER_ID, acc)
+    with pytest.raises(AccountInUseError) as err:
+        accounts_svc.archive_account(conn, USER_ID, acc)
 
-    assert not _live(conn, acc)
+    assert err.value.references == AccountReferences(transactions=0, planned=0, recurring=1)
+    assert _live(conn, acc)
 
 
 def test_archive_other_users_account_is_untouched(conn: sqlite3.Connection) -> None:

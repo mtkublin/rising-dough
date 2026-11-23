@@ -109,6 +109,41 @@ def consume(
     return ALLOWED
 
 
+def user_identity(user_id: int) -> str:
+    """Counter identity for the per-signed-in-user scopes (re-auth, register, password change)."""
+    return f"user={user_id}"
+
+
+def attempts_left(
+    conn: sqlite3.Connection,
+    scope: str,
+    identity: str,
+    rules: Sequence[RateRule],
+    *,
+    now: datetime,
+) -> int | None:
+    """Attempts remaining in the current windows: the tightest ``limit - count``, floored at 0.
+
+    Read-only (never counts a hit). ``consume`` counts every attempt, so after a
+    failed attempt this already excludes it. ``None`` when ``rules`` is empty
+    (limiter disabled, nothing to report).
+    """
+    if not rules:
+        return None
+    return min(
+        max(
+            0,
+            rule.limit
+            - rate_limit_repo.get_count(
+                conn,
+                counter_key(scope, rule.window_seconds, identity),
+                bucket_start(now, rule.window_seconds),
+            ),
+        )
+        for rule in rules
+    )
+
+
 def combine(*decisions: RateDecision) -> RateDecision:
     """Merge decisions: denied if any is denied, with the longest ``Retry-After``."""
     denied = [d for d in decisions if not d.allowed]

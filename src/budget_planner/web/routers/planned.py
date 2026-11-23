@@ -410,7 +410,7 @@ def export(
     today: date = Depends(get_today),
 ) -> Response:
     fmt = query_choice("format", request.query_params.get("format"), EXPORT_FORMATS) or "csv"
-    flt = ledger_data.parse_planned_filter(request)
+    flt = ledger_data.parse_planned_filter(request, today)
     views = list(planned_service.list_planned(conn, user_id, flt, today=today))
     rows = [
         {

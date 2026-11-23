@@ -358,7 +358,7 @@ def test_request_context_reaches_every_audit_row(admin_conn: sqlite3.Connection)
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.edit_user(
-        admin_conn, ADMIN_ID, user.id, _draft("ctx2@x.test", name="Cee"), request_ctx=CTX
+        admin_conn, ADMIN_ID, user.id, _draft("ctx@x.test", name="Cee"), request_ctx=CTX
     )
     _assert_ctx(_audit(admin_conn, user.id)[-1])
     users_svc.reset_password(
