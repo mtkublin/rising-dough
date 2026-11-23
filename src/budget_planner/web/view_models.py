@@ -22,6 +22,7 @@ from budget_planner.domain.money import format_money, percent_of
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
+    ledger_totals,
     today as today_service,
 )
 from budget_planner.web.today_data import UpcomingRow
@@ -286,6 +287,7 @@ def _upcoming_item(
     )
     category = categories_by_id.get(row.category_id)
     direction = (category.direction if category else Direction.EXPENSE).value
+    status = ledger_totals.planned_status(row.operation_date, today).kind
     return UpcomingItem(
         row=row,
         row_id=row_id,
@@ -294,8 +296,8 @@ def _upcoming_item(
         direction=direction,
         is_income=direction == Direction.INCOME.value,
         is_planned=is_planned,
-        is_overdue=row.operation_date < today,
-        is_due_today=row.operation_date == today,
+        is_overdue=status is ledger_totals.PlannedStatusKind.OVERDUE,
+        is_due_today=status is ledger_totals.PlannedStatusKind.DUE_TODAY,
     )
 
 
