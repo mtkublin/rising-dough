@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-22 (T-Q308: merge-item skips checked-out worktree-agent branches)
+- **Fix(T-Q308): `scripts/ci/merge_item.sh` prune loop skips `worktree-agent-*` branches still checked out in a live worktree; `git branch -D` on them failed under `set -e` after a successful merge, push and prune.** Names come from `git worktree list --porcelain`.
+## 2026-11-22 (T-Q307: FX refresh on in prod, /health/fx 503 when disabled in prod)
+- **Feat(T-Q307): compose sets `BUDGET_FX_REFRESH_ENABLED=true`; `GET /health/fx` is 503 `disabled` when the refresh is off in production (200 elsewhere), and 200 `ok` (not `disabled`) when the refresh is on but no foreign account exists (ADR-0146 amendment). Operator: add the UptimeRobot monitor after deploy. No allowlist change.
+
 ## 2026-11-22 (T-Q254b: Caddyfile comment vs CSP render test)
 - **Fix(T-Q254): the Caddyfile template comment contained the literal `script-src`, tripping the `terraform test` assertion that the rendered Caddy CSP has no script-src; comment reworded, assertion untouched.** Caught by the drill gate (terraform PR workflow sits in action_required).
 
@@ -1390,3 +1395,5 @@
 - 2026-11-22 T-Q271: hygiene sweep; `hygiene.toml` is empty (36 entries deleted). No `Any` in signatures (`AuditPayload`, `object`, `Mapping`), no `assert` in `src` (`require_present` / `InvariantError`), no broad or silent except (`DB_ERRORS` / `JOB_ERRORS`, debug-logged parse sentinels, `_begin_commit`), no `print` (ADR-0130 amendment 2026-11-22).
 - 2026-11-22 T-Q232: closing gate G32 (`test_closing_gate.py`): no burn-down rows or ceilings outside `template_logic.toml`; kept rows need reason + ADR-0130 naming; carve-out capped at 83 entries, all tagged with a T-UR owner; ADR-0130 closing amendment with final inventory; quality-audit plan marked complete.
 - 2026-11-22 T-Q303/T-Q304: orchestrator-mode skill folds in the remediation-run lessons (hook-only testing in the brief, heavy work on GitHub, per-plan locks, 1 h agent budget, guard-gaming rejection, gated merge, prune extras); shared `brief-common.md`; `just merge-item` (`scripts/ci/merge_item.sh`); CLAUDE.md, ui-redesign README and justfile comment aligned (ADR-0066 amendment). No allowlist change.
+- 2026-11-22 T-Q305: v3.1.0 prod release failed (compose cannot change an existing network's ipam; rollback failed the same way). Network renamed `edge` -> `edge_v2`, agent removes the legacy network after `up` and publishes a scrubbed `error_detail` in `status.json`, new unit guard against same-name network changes vs the latest `v*` tag; upgrade-in-place drill recorded as T-Q306 (ADR-0133, ADR-0111, ADR-0099 amendments). No allowlist change.
+- 2026-11-22 T-Q309: prod PR plan failed after `TS_OAUTH_*` left `prod-plan`. The plan job now exports placeholder Tailscale credentials for prod (`tf_env.py --plan-only`) and runs `terraform plan -refresh=false` there; apply and drill unchanged (ADR-0132 amendment). No allowlist change.

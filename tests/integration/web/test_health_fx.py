@@ -80,9 +80,9 @@ def test_never_is_503(cfg: Settings) -> None:
     assert body["currencies"] == [{"code": "CHF", "newest_date": None, "age_days": None}]
 
 
-def test_disabled_without_foreign_account_or_when_refresh_inactive(cfg: Settings) -> None:
+def test_enabled_without_foreign_account_is_ok_and_inactive_is_disabled(cfg: Settings) -> None:
     code, body = _get(cfg)
-    assert (code, body["status"], body["currencies"]) == (200, "disabled", [])
+    assert (code, body["status"], body["currencies"]) == (200, "ok", [])
     _seed(cfg, user_id=1, ccy="EUR", rate_age_days=None)
     inactive = cfg.model_copy(update={"fx_refresh_enabled": False})
     assert _get(inactive)[0] == 200
@@ -99,3 +99,35 @@ def test_head_has_no_body_and_same_status(cfg: Settings) -> None:
     _seed(cfg, user_id=1, ccy="EUR", rate_age_days=9)
     r = TestClient(create_app(settings=cfg)).head("/health/fx")
     assert (r.status_code, r.content) == (503, b"")
+
+
+def _prod(cfg: Settings, **update: object) -> Settings:
+    return cfg.model_copy(
+        update={
+            "env": "production",
+            "cookie_secret": "x" * 32,
+            "trusted_hosts": ("testserver",),
+            "webauthn_rp_id": "budget.example.test",
+            "webauthn_origin": "https://budget.example.test",
+            **update,
+        }
+    )
+
+
+def test_production_with_refresh_disabled_is_503_disabled(cfg: Settings) -> None:
+    code, body = _get(_prod(cfg, fx_refresh_enabled=False))
+    assert (code, body["status"], body["currencies"]) == (503, "disabled", [])
+
+
+def test_non_production_with_refresh_disabled_is_200_disabled(cfg: Settings) -> None:
+    code, body = _get(cfg.model_copy(update={"fx_refresh_enabled": False}))
+    assert (code, body["status"], body["currencies"]) == (200, "disabled", [])
+
+
+def test_production_enabled_fresh_is_200_and_stale_is_503(cfg: Settings) -> None:
+    _seed(cfg, user_id=1, ccy="EUR", rate_age_days=1)
+    code, body = _get(_prod(cfg))
+    assert (code, body["status"]) == (200, "ok")
+    _seed(cfg, user_id=1, ccy="USD", rate_age_days=9)
+    code, body = _get(_prod(cfg))
+    assert (code, body["status"]) == (503, "stale")

@@ -13,12 +13,14 @@ Each `Entry(var, source, name, default, only_env)`:
   only_env   the value is emitted only for that env, otherwise it is empty
              (replaces `env == 'drill' && vars.X || ''`; keeps drill-only inputs
              out of prod, T-D137)
+  plan_placeholder  with `--plan-only` on prod the value is this placeholder, never
+             the secret (T-Q309); empty means no placeholder
   restore_only  the value is emitted only with `--restore-source` (ADR-0132): the
              prod replica read key reaches a drill only from the restore drill's
              apply, which runs in the gated `prod-restore-read` environment
 
-Usage: python3 tf_env.py --env drill|prod [--restore-source]. Reads SECRETS_JSON, VARS_JSON,
-GITHUB_REPOSITORY_OWNER, GITHUB_RUN_ID and GITHUB_ENV from the environment.
+Usage: python3 tf_env.py --env drill|prod [--restore-source] [--plan-only]. Reads
+SECRETS_JSON, VARS_JSON, GITHUB_REPOSITORY_OWNER, GITHUB_RUN_ID and GITHUB_ENV from the environment.
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENVS = ("drill", "prod")
+PLAN_ONLY = "plan-only-no-credential"
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,9 @@ class Entry:
     default: str = ""
     only_env: str = ""
     restore_only: bool = False
+    # ADR-0132 amendment (T-Q309): value emitted instead of the secret with
+    # `--plan-only` on prod (the plan job holds no credential for it).
+    plan_placeholder: str = ""
 
 
 # Order follows the old `env:` blocks. `var` is the Terraform variable name;
@@ -87,8 +93,11 @@ ENTRIES: tuple[Entry, ...] = (
     Entry("app_scw_secret_key", "secret", "APP_SCW_SECRET_KEY"),
     Entry("restore_reader_application_id", "secret", "RESTORE_READER_APPLICATION_ID", "", "prod"),
     # T-D67 / ADR-0094: Tailscale provider (auth key minting).
-    Entry("tailscale_oauth_client_id", "secret", "TS_OAUTH_CLIENT_ID"),
-    Entry("tailscale_oauth_client_secret", "secret", "TS_OAUTH_SECRET"),
+    # T-Q309: `prod-plan` holds no OAuth client (ADR-0132 §22); a prod plan runs
+    # with `-refresh=false`, so the provider only needs non-empty credentials to
+    # configure and never calls the Tailscale API.
+    Entry("tailscale_oauth_client_id", "secret", "TS_OAUTH_CLIENT_ID", plan_placeholder=PLAN_ONLY),
+    Entry("tailscale_oauth_client_secret", "secret", "TS_OAUTH_SECRET", plan_placeholder=PLAN_ONLY),
 )
 
 
@@ -104,6 +113,7 @@ def build_env(
     owner: str,
     run_id: str,
     restore_source: bool = False,
+    plan_only: bool = False,
 ) -> dict[str, str]:
     """`TF_VAR_*` name -> value for `target` (pure; no I/O)."""
     if target not in ENVS:
@@ -116,6 +126,8 @@ def build_env(
             entry.restore_only and not restore_source
         ):
             value = ""
+        elif plan_only and target == "prod" and entry.plan_placeholder:
+            value = entry.plan_placeholder
         elif entry.source in fixed:
             value = fixed[entry.source]
         else:
@@ -157,6 +169,11 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
         action="store_true",
         help="emit the prod replica read key (restore drill apply only, ADR-0132)",
     )
+    parser.add_argument(
+        "--plan-only",
+        action="store_true",
+        help="prod PR plan: placeholder Tailscale credentials (T-Q309, ADR-0132)",
+    )
     args = parser.parse_args(argv)
     try:
         values = build_env(
@@ -166,6 +183,7 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
             owner=environ.get("GITHUB_REPOSITORY_OWNER", ""),
             run_id=environ.get("GITHUB_RUN_ID", ""),
             restore_source=args.restore_source,
+            plan_only=args.plan_only,
         )
         target = environ.get("GITHUB_ENV", "")
         if not target:

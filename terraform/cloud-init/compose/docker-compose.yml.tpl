@@ -29,14 +29,15 @@ services:
       # T-D144 / ADR-0119: freshness file written by litestream-probe.
       BUDGET_REPLICATION_STATUS_FILE: "/replication/status.json"
       TZ: "Europe/Warsaw"
+      BUDGET_FX_REFRESH_ENABLED: "true"
       # ADR-0133: trust X-Forwarded-For only from the edge bridge gateway, the
       # address the app sees for Caddy's loopback connection (never "*").
-      FORWARDED_ALLOW_IPS: "172.28.0.1"
+      FORWARDED_ALLOW_IPS: "172.30.0.1"
     volumes:
       - /data:/data:rw
       - /var/lib/budget-planner/replication:/replication:ro
     networks:
-      - edge
+      - edge_v2
     # ADR-0133: Caddy runs on the host network (real client address), so the app
     # is published on host loopback only; no public or tailnet exposure.
     ports:
@@ -76,7 +77,7 @@ services:
       - /etc/budget-planner/litestream-restore.yml:/etc/litestream.yml:ro
       - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
-      - edge
+      - edge_v2
 
   litestream:
     image: litestream/litestream:0.3.14@sha256:c5a1e1b01916b3a110f6600820ef176d048d9b9c2411ef0a680de0caa68934a5
@@ -94,7 +95,7 @@ services:
       - /etc/budget-planner/litestream-entrypoint.sh:/etc/litestream-entrypoint.sh:ro
       - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
     networks:
-      - edge
+      - edge_v2
     stop_grace_period: 30s
     depends_on:
       litestream-restore:
@@ -118,7 +119,7 @@ services:
       - /etc/budget-planner/litestream-age.key:/run/litestream-age.key:ro
       - /var/lib/budget-planner/replication:/status:rw
     networks:
-      - edge
+      - edge_v2
     depends_on:
       litestream-restore:
         condition: service_completed_successfully
@@ -150,12 +151,14 @@ services:
     stop_grace_period: 15s
 
 networks:
-  edge:
+  # T-Q305 / ADR-0133 amendment: a network cannot change its ipam in place, so any
+  # change to this definition needs a NEW name (the agent removes the legacy one).
+  edge_v2:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
 
 volumes:
   caddy-data:

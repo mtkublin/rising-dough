@@ -42,3 +42,22 @@ ADR-0145 made the FX cache refresh itself, and failures are only a log line (`fx
 - Read the log for `fx_refresh_failed`: the monitor cannot see logs.
 - Alert on the age of the newest rate of any currency: hides a single missing currency (rates for one code can be absent while the table is fresh).
 - Per-user check behind auth: the external monitor has no session.
+
+## Amendment 2026-11-22 (T-Q307): disabled in production is a failure
+
+Operator decision (deferred question 45): the daily NBP refresh is on in production and a production deployment with it switched off must alert.
+
+1. **Production enables the refresh explicitly.** The compose template sets `BUDGET_FX_REFRESH_ENABLED: "true"` on the app service, so the setting no longer rests on the `None` default (`daily_refresh_active()` is true in production anyway). NBP egress from the host needs no firewall change (confirmed earlier).
+2. **Disabled in production is 503.** When `Settings.env == "production"` and `daily_refresh_active()` is false, `GET /health/fx` answers 503 with `status: "disabled"` (same body shape, empty `currencies`), so the UptimeRobot monitor alerts. This supersedes the section 2 row that made it 200 and the "explicit operator choice" remark. Outside production (dev, test) refresh-off stays 200 `disabled`. Production is detected by `Settings.env == "production"`, the same switch as the bcrypt floor (T-Q291) and the other production validators.
+3. **Enabled with no foreign account is 200 `ok`.** With the refresh active and no live account in a foreign currency (PLN-only prod today), nothing needs a rate: 200 `ok` with `currencies: []` (the refresh keeps fetching). `disabled` now means only "refresh not active".
+
+Updated table:
+
+| Case | HTTP | `status` |
+|------|------|----------|
+| refresh not active, not production | 200 | `disabled` |
+| refresh not active, production | 503 | `disabled` |
+| refresh active, no live foreign account, or all used currencies fresh | 200 | `ok` |
+| stale / never / error | 503 | `stale` / `never` / `error` |
+
+Operator step after deploy: add the UptimeRobot monitor on `/health/fx` (section 7); it is not yet in place.

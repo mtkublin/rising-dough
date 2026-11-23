@@ -1287,6 +1287,59 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
+### T-Q305 [M] Compose change must apply to an existing host; failure detail in the status file
+- Findings: release v3.1.0 (2026-11-22, run 45066657240) failed at `compose` on the live host; the rollback to the v3.0.8 image failed the same way (a rollback keeps the new compose template); prod was down (502) until the v3.0.8 release was re-run. The drill gate passed because a drill is a fresh host.
+- Cause (confirmed from the host journal, 20:39:06): ADR-0133 / T-Q203 added `ipam` (subnet `172.28.0.0/24`) to the existing `edge` network. Compose tried to recreate the network before it recreated the old bridged Caddy, which was still attached:
+  ```
+  bp-agent: compose: up: Container budget-planner-litestream-restore  Stopping
+   Container budget-planner-litestream-restore  Stopped
+   Network budget-planner_edge  Removed
+  Error response from daemon: error while removing network: network budget-planner_edge has active endpoints (name:"budget-planner-caddy" id:"<id>")
+  ```
+  Every later attempt, including the v3.0.8 image rollback that kept the new template, failed with `Error response from daemon: container <id> is not connected to the network budget-planner_edge` (half-migrated: old Caddy `Up` with published 80/443 on `172.18.0.0/16`, app, litestream and probe `Exited`).
+- Repair and state (operator): break-glass `docker compose down --remove-orphans` (no `-v`) plus a converge with main's template at 20:56 UTC (outage 20:39 to 20:56), then v3.1.0 released successfully at 21:05 UTC. Prod now has `budget-planner_edge` re-created on `172.28.0.0/24`. A rename reusing that subnet would fail with `Pool overlaps with other one on this address space`, so `edge_v2` uses `172.30.0.0/24` (gateway `172.30.0.1`) and the guard checks subnet overlap against the latest tag.
+- Epic: E04
+- Band: incident · Size: M · Tags: ops, deploy
+- Depends on: T-Q203
+- Docs-first step: ADR-0133, ADR-0111 and ADR-0099 amendments 2026-11-22; CHANGELOG.
+- Goal: rename the network `edge` -> `edge_v2`; the agent removes a still-bridged Caddy before `up` (80/443 handover) and, if `up` fails, removes the project's containers once (`compose rm --force --stop`, never `-v`) and retries, so a half-migrated host converges; the agent removes the legacy `budget-planner_edge` after a successful `up` (best effort); `status.json` carries `error_detail` (scrubbed, one line, 200 chars, compose failures only); a unit guard fails when a network keeps its name but changes its definition against the latest `v*` tag.
+- Acceptance: agent unit tests for the cleanup and the scrubbing (no `NAME=value` leaks, 200-char cap, non-compose codes empty); guard test green; `terraform fmt/validate/test` green. An existing v3.0.8 host converges and a rollback works (to be proven by the T-Q306 drill, not by this task).
+- Operator question blocking it: none. Operator: read the host journal (`journalctl -u bp-agent`) of the failed run to confirm the cause.
+- Removes allowlist entries: none.
+
+### T-Q306 [M] Upgrade-in-place drill (follow-up, not started)
+- Findings: T-Q305; ADR-0099 amendment 2026-11-22.
+- Epic: E04
+- Band: follow-up · Size: M · Tags: ci, deploy
+- Depends on: T-Q305
+- Docs-first step: ADR-0099 amendment naming the mode, written at implementation start.
+- Goal: a drill `mode=upgrade`: check out the latest `v*` tag, apply its terraform templates and image on a fresh host, smoke-test, then apply the PR head (terraform plus its image) on the same host and smoke-test again; then roll back to the tag image and smoke a third time. Always torn down; shares the `drill` concurrency group.
+- Acceptance: the gate posts `drill-gate` only when all three smokes pass; the v3.1.0 `edge` change would have failed it.
+- Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
+- Removes allowlist entries: none.
+
+### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
+- Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
+- Epic: E04
+- Band: incident · Size: S · Tags: ci, deploy
+- Depends on: T-Q218
+- Docs-first step: ADR-0132 amendment 2026-11-22 (T-Q309); CHANGELOG.
+- Goal: the prod PR plan gets placeholder Tailscale credentials (`tf_env.py --plan-only`, `terraform-env` input `plan-only`) and plans with `-refresh=false`; prod apply still requires the real credentials.
+- Acceptance: `test_tf_env.py` covers plan-only (prod placeholder, drill unchanged, apply unchanged); `terraform test` plan-only run shows no destroy or replace of `tailscale_tailnet_key.vm`; workflow wiring test green.
+- Operator question blocking it: none. Operator: none needed; optional read-scoped OAuth client if PR drift detection for prod is wanted.
+- Removes allowlist entries: none.
+
+### ✅ T-Q308 [S] merge-item skips worktree-agent branches still checked out
+- Findings: the final prune loop in `scripts/ci/merge_item.sh` ran `git branch -D` on empty `worktree-agent-*` branches that a live worktree still had checked out; git refuses, `set -e` exits non-zero after a successful merge, push and prune.
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q304
+- Docs-first step: none (bug fix within T-Q304 scope; no requirement or ADR change).
+- Goal: skip any branch named in `git worktree list --porcelain` (`branch refs/heads/<name>`) in the stale-branch loop.
+- Acceptance: the stale-branch loop never calls `git branch -D` on a checked-out branch; `bash -n` passes on the script.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
 ### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
@@ -1357,6 +1410,17 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Removes allowlist entries: none
 - Wave: 14e (before T-Q293).
 - Done when: ADR indexed; guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
+
+### T-Q307 [S] FX refresh on in prod; `/health/fx` 503 when disabled in prod
+- Findings: Q39 (deferred question 45, resolved 2026-11-22: operator chose enable (b) and alert (c)).
+- Epic: E01
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q292
+- Docs-first step: [ADR-0146](../../adr/0146-fx-freshness-health-path.md) amendment 2026-11-22 (T-Q307); `docs/requirements.md` F7.4.
+- Acceptance: tests first: production + refresh off is 503 `disabled`; non-production + off is 200 `disabled`; production + on + fresh is 200 `ok`; production + on + stale is 503 `stale`; on with no foreign account is 200 `ok`. The compose template sets `BUDGET_FX_REFRESH_ENABLED: "true"`; `terraform fmt/validate/test` pass.
+- Operator step (after deploy, not the agent): add the UptimeRobot monitor on `https://budget.rising-dough.eu/health/fx`.
+- Removes allowlist entries: none
+- Done when: guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
 ### ✅ T-Q293 [M] `money_scope` `fx-def` check keys on behaviour
 - Findings: Q39.
