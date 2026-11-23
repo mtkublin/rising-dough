@@ -1309,8 +1309,9 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: agent unit tests for the cleanup and the scrubbing (no `NAME=value` leaks, 200-char cap, non-compose codes empty); guard test green; `terraform fmt/validate/test` green. An existing v3.0.8 host converges and a rollback works (to be proven by the T-Q306 drill, not by this task).
 - Operator question blocking it: none. Operator: read the host journal (`journalctl -u bp-agent`) of the failed run to confirm the cause.
 - Removes allowlist entries: none.
+- Deferred acceptance proven 2026-11-23 by the T-Q306 drill runs 45247014045 (in-place upgrade and rollback from v3.2.0) and 45270858165 (same-name network change converges and rolls back).
 
-### T-Q306 [L] The drill gate is an upgrade from the prod version (re-scoped 2026-11-23) → ADR-0149, ADR-0099, ADR-0127 §7, ADR-0132
+### ✅ T-Q306 [L] The drill gate is an upgrade from the prod version (re-scoped 2026-11-23) → ADR-0149, ADR-0099, ADR-0127 §7, ADR-0132
 - Findings: T-Q305; ADR-0099 amendment 2026-11-22; T-D127, T-D115, T-D158 (fresh-boot vs running-host bugs).
 - Epic: E04
 - Band: follow-up · Size: L · Tags: ci, deploy
@@ -1328,6 +1329,13 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: a throwaway branch that changes an existing compose network's definition under the same name (the v3.1.0 case; skip the T-Q305 unit guard on that branch only) fails the upgrade or rollback phase; a normal PR passes all three phases; a VM-replacing PR takes the replacement path and passes; record the run times of the first green gates in this entry.
 - Operator question blocking it: none (answers 2026-11-23: in place + rollback, demo seed via the restore path, replacement branch included; release-bundle risk and host drift accepted; cost accepted).
 - Removes allowlist entries: none.
+- Result 2026-11-23: four acceptance drills of `drill.yml mode=gate`. The baseline in all of them was v3.2.0 (`ghcr.io/mtkublin/budget-planner:v3.2.0@sha256:4530ec49...`), resolved by `prod_baseline.py`.
+  1. Normal PR, in place: run 45247014045 on qa/followups c0b7e53d. Passed all phases in 22 min 24 s (19:15:30 to 19:37:54 UTC). Seed: accounts 10, transactions 616, integrity ok. Plan replaced=false and apply server_replaced=false. Writer: 130 of 130 marker rows, 0 lost. Generation unchanged (824b936c6ea3ff4b). Rollback to the v3.2.0 image verified.
+  2. VM replacement: run 45257355759 on throwaway branch `drilltest/replace-vm` (root volume 10 to 20 GB on drill). Passed in 25 min 00 s (20:14:52 to 20:39:52). Plan replaced=true and apply server_replaced=true. Restore report `restored`, generation 9d3c5d88d9473a3b = the seeded one. 114 of 114 markers, 0 lost. Integrity ok. Tailnet settled after cleanup and rename. Rollback skipped by design.
+  3. v3.1.0 class (same-name network definition change), in place: throwaway `drilltest/net-same-name` (edge_v2 172.30 to 172.31, T-Q305 unit guard skipped on that branch only). The first run, 45262019613, PASSED: the gate had no check that the network actually changed. T-Q306g added one (`scripts/ci/compose_networks.py` plus a host `docker network inspect` assertion in verify and verify-rollback). Re-run 45270858165 PASSED in about 19 min 47 s (21:33:26 to 21:53:13). The host reported `budget-planner_edge_v2` 172.31.0.0/24 / 172.31.0.1 after the upgrade AND after the rollback, as the template declared. The change applied to a running seeded host, and the T-Q305 host-agent recovery (remove containers once, retry `up`) now heals the v3.1.0 class. The original acceptance wording "fails the upgrade or rollback phase" is superseded. This also proves T-Q305's deferred acceptance ("an existing host converges and a rollback works").
+  4. Negative drill: run 45277396613 on throwaway `drilltest/rollback-breaks` (migration 0021 renames `users.is_admin`; the v3.2.0 `/ready` query `has_live_admin` then fails). Result: failed as expected. Job `verify the rolled-back host` failed (22:34:41 UTC), teardown ran and succeeded, and the `drill-gate` status was `failure` with description "drill gate failed in phase: rollback".
+- Fix found during the work: `toJSON(secrets)` in a dispatched workflow's own job aborts the run with `action_required` and zero jobs (bisected over 7 probes). drill.yml `detect` names its 14 secrets explicitly; the 13 drill-plan secret declarations in `ci_environments.toml` were operator-approved 2026-11-23.
+- Acceptance: met. The v3.1.0 case is superseded by T-Q305 recovery, proven by the network assertion. The negative drill shows the gate fails closed and names the phase (drill 4).
 ### ✅ T-Q310 [S] Forecast batching test independent of the wall clock
 - Findings: release CI 2026-11-23 (run 45140093769) failed `test_forecast_numbers_unchanged_by_batching`: every month off by 500 minor units; green in PR CI on 2026-11-22. Root cause: `recurring_repo.create_rule` derives `next_due` from `clock.today_local` (repository edge), and `seed_world` seeded rules with the real date while the test passed a fixed `TODAY`.
 - Epic: E04
@@ -1410,7 +1418,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
+### ✅ T-Q299 [S] e2e on Firefox and WebKit in `e2e.yml` (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: ci
@@ -1419,6 +1427,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Goal: run `tests/e2e` on Firefox and WebKit as well as Chromium. The pinned Playwright container already ships both, so the cost is runner minutes only.
 - Acceptance: `e2e.yml` runs a browser matrix (chromium, firefox, webkit) in the same pinned image; the existing job name `tests/e2e (Chromium, Playwright container)` is unchanged; the new contexts are not added to `protect-main` until an operator decision records it.
 - Status 2026-11-23: advisory jobs live (run 45224425657: Chromium incl. 1024 green, Firefox green, WebKit 6 failures); failures triaged as T-Q316, T-Q317, T-Q318. Not marked done: WebKit is not green.
+- Acceptance met 2026-11-23 after T-Q316 to T-Q318: chromium, firefox and webkit green on PR #52 (e2e run 45255472238). Still advisory: the operator adds firefox and webkit to protect-main after 3 consecutive green PRs.
 - Operator decision (2026-11-23): the Firefox and WebKit checks are advisory (not required) until they are green on 3 consecutive PRs; then the operator adds them to `protect-main`. Operator question blocking it: none.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
@@ -1451,7 +1460,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds in `e2e.yml`.
 
-### T-Q302 [M] Drill DB seeded from an anonymized snapshot (follow-up, not blocking)
+### ✅ T-Q302 [M] Drill DB seeded from an anonymized snapshot (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298). The drill DB is not seeded today.
 - Epic: E04
 - Band: follow-up · Size: M · Tags: ops, ci
@@ -1464,6 +1473,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
   2. It is refreshed on demand only (`just demo-build`), no schedule.
   3. It is never prod data; the anonymizer's source-basename tripwire stays.
 - Folded into T-Q306(c) (operator 2026-11-23); the "smoke asserts seeded tables non-empty" acceptance moves to T-Q306; marked done when T-Q306 lands.
+- Done 2026-11-23: delivered by T-Q306(c); seeded tables asserted non-empty in the gate: accounts 10, transactions 616.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds on a drill run.
@@ -1815,3 +1825,15 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds.
 - Operator decision 2026-11-23: deferred to the UI redesign migration (docs/plans/ui-redesign/tasks.md); the axe and Lighthouse checks must pass there.
+
+### QA follow-ups trunk: open follow-ups (2026-11-23)
+- (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`.
+- (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL.
+- (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement.
+- (d) Promote firefox and webkit e2e to required after 3 green PRs.
+- (e) T-Q319 to T-Q322 deferred to the UI redesign.
+- (f) a11y-perf: Lighthouse measured 11 of 13 routes, cause unknown.
+- (g) drill.yml actionlint SC2034 warning in the writer-started step, and the known actionlint false positive on `drill_allow_empty_db: "true"`.
+- (h) The T-Q316/T-Q317 frontend audit ran on the pre-merge tree (before v3.2.0); the post-merge e2e is green, but no audit re-run.
+- (i) Local Claude hook `block-no-verify` false positive on a plain `git commit` (harness, not repo).
+- (j) Gate run time is now 20 to 25 min per PR (was 11 to 18 min), so PRs queue longer on the drill lock.

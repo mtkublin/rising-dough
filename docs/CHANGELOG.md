@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-23 T-Q306 done (upgrade drill gate, 4 acceptance drills); T-Q302, T-Q299 done; follow-ups listed in quality-audit tasks.
+
 ## 2026-11-23 (T-Q306g: gate asserts host compose networks)
 - **Ci(T-Q306g): `drill.yml` `verify` and `verify-rollback` compare `docker network inspect` subnet and gateway on the drill host with the PR template's ipam networks (`scripts/ci/compose_networks.py`); a mismatch fails the `upgrade` / `rollback` phase.** ADR-0149 implementation note. No allowlist change.
 
