@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any, cast
 
 import pytest
@@ -21,7 +20,9 @@ class _PlainRequest:
         self.headers: dict[str, str] = {}
 
 
-def _render_context(monkeypatch: pytest.MonkeyPatch, fields: dict[str, str]) -> dict[str, Any]:
+async def _render_context(
+    monkeypatch: pytest.MonkeyPatch, fields: dict[str, str]
+) -> dict[str, Any]:
     seen: dict[str, Any] = {}
 
     def fake_render(_request: Request, template: str, status: int, **context: Any) -> HTMLResponse:
@@ -30,13 +31,13 @@ def _render_context(monkeypatch: pytest.MonkeyPatch, fields: dict[str, str]) -> 
 
     monkeypatch.setattr(errors, "_render", fake_render)
     request = cast(Request, _PlainRequest())
-    asyncio.run(errors.handle_validation(request, ValidationError(fields=fields)))
+    await errors.handle_validation(request, ValidationError(fields=fields))
     return seen
 
 
-def test_two_field_error_has_count_and_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_two_field_error_has_count_and_labels(monkeypatch: pytest.MonkeyPatch) -> None:
     fields = {"amount": "Amount is required", "operation_date": "Pick a date"}
-    ctx = _render_context(monkeypatch, fields)
+    ctx = await _render_context(monkeypatch, fields)
     assert ctx["template"] == "errors/422.html"
     assert ctx["status"] == 422
     assert ctx["fields"] == fields
@@ -47,14 +48,14 @@ def test_two_field_error_has_count_and_labels(monkeypatch: pytest.MonkeyPatch) -
     )
 
 
-def test_one_field_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    ctx = _render_context(monkeypatch, {"category_id": "Pick a category"})
+async def test_one_field_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    ctx = await _render_context(monkeypatch, {"category_id": "Pick a category"})
     assert ctx["field_count"] == 1
     assert ctx["field_errors"] == (("category_id", "Category", "Pick a category"),)
 
 
-def test_no_fields_is_zero(monkeypatch: pytest.MonkeyPatch) -> None:
-    ctx = _render_context(monkeypatch, {})
+async def test_no_fields_is_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    ctx = await _render_context(monkeypatch, {})
     assert (ctx["field_count"], ctx["field_errors"]) == (0, ())
 
 
