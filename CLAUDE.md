@@ -57,6 +57,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Category selection (expense category ids) | `services/categories.expense_category_ids` (actuals, archived included) and `reserves_budget` / `budgeted_expense_category_ids` (budget, archived excluded from the archive month on; ADR-0136) | exists (Q-030) | - |
 | Budget tier resolution | `services/budget.pick_tier` | exists (Q-075) | - |
 | Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | exists (Q-039) | - |
+| First-run setup (open predicate, token check, consume) | `services/setup.py` `is_open`, `check_token`, `complete_setup` (hash from `BUDGET_PLANNER_SETUP_TOKEN_HASH`, ADR-0134 §9) | exists (T-UR32) | - |
 
 **Target** rows are not yet extracted. Either call the row's **Interim** copy (public, named in the table), or, when it says "none", do the extraction as the registered migration task (`migration_task` in the registry), migrating **all** copies in the same change. Never import another module's private `_name` (G30, `test_private_imports.py`). Never create the canonical module without migrating the copies: a row may be `exists` only at zero copies, otherwise `exists-migrating` (`test_canonical_modules.py`). `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
 

@@ -47,6 +47,7 @@ NON_USER_SCOPED_REPOSITORIES: dict[str, str] = {
     "fx.py": "fx_rates is global reference data",
     "rate_limit.py": "T-D09: auth_rate_limit counters keyed by opaque strings (ADR-0072)",
     "retention.py": "T-D60: system retention sweeper (audit_log + sessions)",
+    "setup.py": "T-UR32: single-row first-run marker (system table, ADR-0134 section 9)",
     "sessions.py": "T-D02: resolves the user from an opaque session id",
     "users.py": "T-D19: writes the `users` identity table (bootstrap, operator CLI, T-D17)",
     "webauthn.py": "T-D02: resolves the user from a credential id",

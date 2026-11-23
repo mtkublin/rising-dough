@@ -171,3 +171,13 @@ finding = "Q-039"
 epic = "E09"
 search = ["left_per_day", "percent", "view_model"]
 banned = ["_left_per_day*", "*left_per_day*"]
+
+[[row]]
+concept = "First-run setup (open predicate, token check, consume)"
+module = "services/setup.py"
+symbol = "complete_setup"
+status = "exists"
+finding = "T-UR32"
+epic = "E12"
+search = ["setup_token", "is_open", "check_token", "first_run", "consume"]
+banned = ["*setup_token*", "*setup_open*"]
