@@ -1742,7 +1742,8 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 
-### T-Q318 [S] WebKit: change-secret journey gets invalid_csrf (follow-up, advisory)
+### ✅ T-Q318 [S] WebKit: change-secret journey gets invalid_csrf (follow-up, advisory)
+- Done 2026-11-23: root cause is the e2e harness, not the app (env=dev sends no `__Host-`/Secure cookie, prod unaffected). The `page` fixture's blanket `X-CSRF-Token` header followed rotation only via response headers; WebKit does not surface redirect-response headers, so the header went stale and beat the fresh form field (`header or form`). It now re-reads the token from the cookie jar (ADR-0065).
 - Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: e2e, webkit
