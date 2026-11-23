@@ -266,7 +266,7 @@ v2 keeps v1's functional surface and data model unchanged and layers a full UI/U
 
 | Endpoint | Purpose | Notes |
 |---|---|---|
-| `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. |
+| `GET /today/afford?amount=` | Returns recomputed left-per-day given an input purchase | Debounced live preview; pure service call. The result carries the clamped and the unclamped per-day figure and `over_minor` (amount minus what is left, floor 0). An empty, zero, negative or unparseable amount returns 422 with the text "Enter an amount, like 250.00" (T-UR34e, ADR-0148). |
 | `POST /recurring/formula/preview` | Returns computed value for a draft formula term list | Re-wired by T-UT12-3 (recurring form fires `rd-formula-change`); validates cycles / non-positive before save. |
 | `POST /categories/{id}/archive` + `POST /categories/{id}/restore` | Archive / restore category | Soft-delete via existing repository helper. |
 
@@ -396,7 +396,7 @@ Explicitly out of v3 scope (require ADR before promotion):
 - **Capacity target**: order-of-magnitude 10 users on the Stardust1-S host. Vertical bump to Pro2-S noted as future knob if load requires. SQLite single-writer ceiling (~100 concurrent writers) remains the long-term limit.
 - **Roles**: `is_admin` boolean on `users`. One admin bootstrapped at provisioning; any admin can promote another user. The last admin cannot be deleted or demoted.
 - **Data isolation**: every user-owned table (`accounts`, `categories`, `transactions`, `planned_transactions`, `recurring_rules`, `budget_defaults`, `budget_recurring_overrides`, `budget_one_off_overrides`, `user_preferences`) is filtered on `user_id = current_user.id` in every repository query. `account_snapshots` and `recurring_rule_overrides` are scoped via join through their parent FK. `fx_rates` is global. The admin cannot see other users' data.
-- **Admin panel**: `/settings/users` — list / add (auto-generated password shown once) / edit (email, name, is_admin toggle) / reset password / remove (soft-delete + session revoke).
+- **Admin panel**: `/settings/users` — list / add (auto-generated password shown once) / edit (name, is_admin toggle; the email is read-only: a different email is refused with 422 and nothing is saved; no actor may demote themselves and the last admin cannot be demoted, 409; ADR-0134 §11, T-UR29) / reset password / remove (soft-delete + session revoke).
 - **Password change**: Settings → Security → Password (`POST /settings/password`) — all users; `GET /settings/password` is the standalone forced-rotation page only (303 to `/settings/security#password` otherwise). Requires current password. Clears `must_change_password` flag; revokes all other sessions of the same user. New password: ≥12 characters, ≤72 bytes, different from the current one. While `must_change_password` is set every other route redirects here (HTMX/JSON get `403 password_change_required`). See ADR-0074.
 - **Schema**: migration `0012_multi_user.sql` extends `users` with `email`, `is_admin`, `must_change_password`, `updated_at`, `deleted_at`; drops the `DEFAULT 1` sentinel on every user-owned FK. Legacy `user_id = 1` data is preserved as the bootstrapped admin's own history. See ADR-0061. <!-- pragma: allowlist secret -->
 - **Static-analysis guard**: a CI test parses each repository module's SQL and fails if a SELECT/UPDATE/DELETE against a user-owned table lacks a `user_id` filter.

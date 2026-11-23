@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 import pytest
 
-from budget_planner.web.params import afford_amount_minor, credit_limit_amount, positive_amount
+from budget_planner.web.params import credit_limit_amount, positive_amount
 
 REJECT = "REJECT"
 
@@ -56,15 +56,9 @@ def _credit_limit(raw: str, ccy: str) -> int | str:
     return REJECT if err is not None or minor is None else minor
 
 
-def _afford(raw: str, ccy: str) -> int | str:
-    minor = afford_amount_minor(raw, ccy)
-    return REJECT if minor is None else minor
-
-
 PARSERS: dict[str, Callable[[str, str], int | str]] = {
-    "transactions/planned/recurring": _transactions,
+    "transactions/planned/recurring/today.afford": _transactions,
     "accounts.credit_limit": _credit_limit,
-    "today.afford": _afford,
 }
 
 

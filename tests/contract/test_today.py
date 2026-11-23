@@ -179,18 +179,17 @@ def test_upcoming_requires_login(anon_client: TestClient) -> None:
 
 @covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
-@pytest.mark.parametrize("amount", ["10000", "100.00", "0", ""])
+@pytest.mark.parametrize("amount", ["10000", "100.00"])
 def test_afford_accepts_non_negative_amounts(client: TestClient, path: str, amount: str) -> None:
     r = client.get(path, params={"amount": amount})
     assert r.status_code == 200
     assert _html.exists(r.text, today.afford_per_day)
-    # The signed per-day delta only shows for a positive amount.
-    assert _html.exists(r.text, today.afford_delta) is (amount not in {"0", ""})
+    assert _html.exists(r.text, today.afford_delta)
 
 
 @covers("GET /today/afford")
 @pytest.mark.parametrize("path", AFFORD_PATHS)
-@pytest.mark.parametrize("amount", ["not-a-number", "-1"])
+@pytest.mark.parametrize("amount", ["not-a-number", "-1", "0", ""])
 def test_afford_rejects_invalid_amount(client: TestClient, path: str, amount: str) -> None:
     r = client.get(path, params={"amount": amount})
     assert r.status_code == 422

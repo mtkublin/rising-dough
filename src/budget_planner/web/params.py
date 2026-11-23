@@ -145,12 +145,6 @@ def positive_amount(raw: str, currency: str) -> tuple[int | None, str | None]:
     return to_minor_units(dec, currency), None
 
 
-def afford_amount_minor(raw: str, currency: str) -> int | None:
-    """``amount=`` query text to minor units; blank is 0, invalid or out of range is ``None``."""
-    stripped = (raw or "").strip()
-    return 0 if stripped == "" else parse_amount_minor(stripped, currency)
-
-
 def credit_limit_amount(raw: str, currency: str) -> tuple[int | None, str | None]:
     """Positive credit limit text to ``(minor, None)`` or ``(None, error message)``."""
     minor = parse_amount_minor(raw, currency) if raw.strip() else None

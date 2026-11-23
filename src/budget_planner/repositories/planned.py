@@ -282,8 +282,19 @@ def clear_promotion(
     return True
 
 
+def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
+    """Count live (not soft-deleted) rows using the account as source or destination (T-UR33)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM planned_transactions "
+        "WHERE user_id = ? AND deleted_at IS NULL AND (account_id = ? OR dest_account_id = ?)",
+        (user_id, account_id, account_id),
+    ).fetchone()
+    return int(row[0])
+
+
 __all__ = [
     "clear_promotion",
+    "count_referencing_account",
     "create",
     "find_by_id",
     "list_filtered",
