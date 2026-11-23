@@ -72,3 +72,4 @@
 
 - Measured run times replace "not measured yet": in place 22 min 24 s (run 45247014045), VM replacement 25 min 00 s (run 45257355759), same-name network case about 19 min 47 s (run 45270858165). The gate is now 20 to 25 min per PR (was 11 to 18 min).
 - The v3.1.0 case (same-name network definition change) is healed by the T-Q305 host-agent recovery, so the gate no longer fails it. The gate instead asserts that the host's networks match the template after the upgrade and after the rollback (T-Q306g), so a silently kept old network fails the phase.
+- Negative drill (run 45277396613, throwaway `drilltest/rollback-breaks`: a migration renames `users.is_admin`, so the v3.2.0 `/ready` fails after rollback): the rollback phase failed, teardown still ran, and `drill-gate` was `failure` with "drill gate failed in phase: rollback". The gate fails closed and names the phase.
