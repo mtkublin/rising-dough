@@ -171,3 +171,13 @@ finding = "Q-039"
 epic = "E09"
 search = ["left_per_day", "percent", "view_model"]
 banned = ["_left_per_day*", "*left_per_day*"]
+
+[[row]]
+concept = "Invites (create, resend, revoke, accept, link state)"
+module = "services/invites.py"
+symbol = "create_invite"
+status = "exists"
+finding = "T-UR30"
+epic = "UR"
+search = ["invite", "resend", "link_state", "accept_invite"]
+banned = ["*invite_token*", "*link_state*"]
