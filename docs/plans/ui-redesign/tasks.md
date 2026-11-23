@@ -38,10 +38,11 @@
 - Injected mail port (ADR-0021) with a no-op adapter and a fake for tests; the invite service calls it on create and resend only when the config switch is on (default off). No secret committed; Terraform and secret only after T-UR18 is go. Code kept on no-go.
 - ADR-0134 §1, ADR-0099.
 
-### ◻ T-UR32 [P] Setup-token service (service part of T-UR21)
+### ✅ T-UR32 [P] Setup-token service (service part of T-UR21)
 - Source (operator 2026-11-22): the drill workflow generates the token and passes only its hash to the app as config (`BUDGET_PLANNER_SETUP_TOKEN_HASH`, unset = setup closed); the plain token appears only in the workflow output. The app stores no token, only a consumed marker: migration `0020_setup_token_consumed.sql` (+ `down/`).
 - Predicate "setup open": hash configured, no consumed marker, no users exist and no bootstrap admin configured. Token check: constant-time compare against the configured hash; the consumed marker is written in the same `db_transaction` that creates the first admin; invalid once any user exists. Never committed, never logged (log redaction test).
 - No route, no template; `/setup` stays T-UR21.
+- Done (2026-11-23): env name is `BUDGET_PLANNER_SETUP_TOKEN_HASH` (field `planner_setup_token_hash`: `BUDGET_` env prefix plus field name, no dynamic alias). Hash scheme: lowercase hex sha256 of the token (`services/setup.hash_token`; config validation rejects anything else). Marker table `setup_token_consumed` (single row, `id = 1`, `consumed_at`; the created admin is in the audit row `setup_token`). "No users" = no live user with an email (the pre-v3 legacy owner row does not count). Dev env counts as bootstrap-configured (dev default admin), so setup is closed there. `services/setup.py`: `is_open`, `check_token`, `complete_setup` (wrong token and closed setup raise the same `SetupClosedError`).
 - ADR-0134 §9.
 
 ### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
