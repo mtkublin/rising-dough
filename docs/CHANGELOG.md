@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q315: housekeeping, task statuses, recurring test clock, break-glass log entry)
+- **Docs(T-Q315): T-Q305/T-Q307/T-Q309/T-Q311 marked done; T-Q218/T-Q255 marked done after operator steps; `tests/contract/ledger/test_recurring.py` reads `clock.today_local(settings)` instead of `date.today()`; `docs/plans/v3/runbooks/break-glass.md` gains a break-glass log entry for the 2026-11-22 compose network recreate outage (20:39 to 20:56 UTC).** No code or allowlist change.
+
 ## 2026-11-23 (T-Q311: frozen test clock by default, CI date matrix, no SQLite clock)
 - **Test(T-Q311): every test runs under `clock.frozen(BUDGET_TEST_NOW, default 2026-11-21T12:00:00Z)`; marker `real_clock` opts out; CI job `pytest (shifted clock)` runs the suite on four dangerous dates; guard G32 bans `'now'`/`CURRENT_*` in runtime SQL and six update sites now bind `clock.utc_now_iso()`.** ADR-0140 amendment 2026-11-23. No allowlist change.
 
