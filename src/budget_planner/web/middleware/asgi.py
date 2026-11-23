@@ -43,6 +43,17 @@ def set_state(scope: Scope, **values: object) -> None:
     state.update(values)
 
 
+def reroute(scope: Scope, *, method: str, path: str) -> Scope:
+    """A copy of *scope* aimed at *method* *path* (the original scope is left untouched)."""
+    return {
+        **scope,
+        "method": method,
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": b"",
+    }
+
+
 def set_header(message: Message, name: str, value: str) -> None:
     """Set (replace) header *name* on a ``http.response.start`` *message*."""
     headers = MutableHeaders(scope=message)
