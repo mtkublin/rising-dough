@@ -1423,7 +1423,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds and the new jobs are green on a `wi/**` push.
 
-### T-Q300 [M] axe-core sweep and Lighthouse/CWV budgets in CI (follow-up, not blocking)
+### ✅ T-Q300 [M] axe-core sweep and Lighthouse/CWV budgets in CI (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
 - Band: follow-up · Size: M · Tags: ci, a11y, perf
@@ -1435,6 +1435,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds on a `wi/**` push.
+- Done 2026-11-23: `.github/workflows/a11y-perf.yml` (jobs `a11y (axe-core, advisory)`, `perf (Lighthouse budgets, advisory)`), `tests/e2e/test_axe_sweep.py` (vendored axe-core 4.10.3), `tests/e2e/test_lighthouse_budgets.py` + `tests/perf/lighthouserc.json` (`@lhci/cli` 0.15.1); ADR-0027 and ADR-0120 amendments 2026-11-23. Both jobs ran end to end on a `wi/**` push and reported real findings, triaged as T-Q319 to T-Q322. Not required checks.
 
 ### T-Q301 ✅ [S] Crawl diagnostics at 1024 (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
@@ -1754,3 +1755,55 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
+
+### T-Q319 [M] Fix axe `color-contrast` (serious) on app pages (follow-up, not blocking)
+- Findings: first axe/Lighthouse run of T-Q300 (2026-11-23, `a11y-perf.yml`).
+- Epic: E04
+- Band: follow-up · Size: M · Tags: a11y, frontend
+- Depends on: T-Q300
+- Docs-first step: ADR-0027 amendment if a design token or budget changes.
+- Goal: fix insufficient colour contrast found at 1440: `.rd-pill` / `.pill` / `.cat-pill` (every page with a pill, /accounts, /auth/sessions, /plan, /settings*, 8 nodes on /settings), `.rd-checked--stale` (/accounts), `.eyebrow` (40 nodes on /budget), ledger table header `th` (12 nodes), `.mb-2` text on /forecast (8 nodes), `.rd-pace` on /today. Adjust the design tokens, not the rule. Needs the `frontend-visual-audit` skill.
+- Acceptance: the axe job reports no `color-contrast` violation on any crawled route.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds.
+
+### T-Q320 [M] Fix axe `link-in-text-block` (serious) for the recently-deleted link (follow-up, not blocking)
+- Findings: first axe/Lighthouse run of T-Q300 (2026-11-23, `a11y-perf.yml`).
+- Epic: E04
+- Band: follow-up · Size: M · Tags: a11y, frontend
+- Depends on: T-Q300
+- Docs-first step: ADR-0027 amendment if a design token or budget changes.
+- Goal: the `a[href$="recently-deleted"]` link in running text on /ledger and /settings is distinguishable from surrounding text only by colour; add a non-colour cue (underline) or sufficient contrast.
+- Acceptance: the axe job reports no `link-in-text-block` violation. (Also seen, moderate, not failing: `heading-order` on /settings, `.rd-cat-group h3`; fix here or file separately.)
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds.
+
+### T-Q321 [M] Lighthouse LCP over budget (about 3.8 to 4.2 s, budget 2.5 s) on every app page (follow-up, not blocking)
+- Findings: first axe/Lighthouse run of T-Q300 (2026-11-23, `a11y-perf.yml`).
+- Epic: E04
+- Band: follow-up · Size: M · Tags: perf, frontend
+- Depends on: T-Q300
+- Docs-first step: ADR-0027 amendment if a design token or budget changes.
+- Goal: find the LCP element on the pages (Lighthouse reports in the `lighthouse-reports` artifact) and reduce render-blocking CSS (see T-Q322), font loading and server time; re-measure with the same config. Note the CI runner is slower than a laptop; if the config is judged unrealistic, change the budget only through an ADR-0027 amendment.
+- Acceptance: the perf job passes the `largest-contentful-paint` assertion (median of 3) on all routes.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds.
+
+### T-Q322 [M] Stylesheet transfer size over budget (about 142 to 152 kB, budget 50 kB) and no compression in the app (follow-up, not blocking)
+- Findings: first axe/Lighthouse run of T-Q300 (2026-11-23, `a11y-perf.yml`).
+- Epic: E04
+- Band: follow-up · Size: M · Tags: perf, frontend
+- Depends on: T-Q300
+- Docs-first step: ADR-0027 amendment if a design token or budget changes.
+- Goal: the measured stylesheet transfer size is raw (the app has no gzip middleware; the budget is gzipped). Decide whether to compress at the app, measure gzipped size, and cut CSS (purge, split per page) so the app-page CSS budget of 50 kB gzipped holds. JS (budget 300 kB), CLS and TBT already pass.
+- Acceptance: the perf job passes `resource-summary:stylesheet:size` on all routes.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds.
