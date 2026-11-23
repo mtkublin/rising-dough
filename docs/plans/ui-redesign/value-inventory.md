@@ -51,7 +51,7 @@ Base: `pages/today.html`. Router `web/routers/today.py` `today()`; data `web/tod
 | "PERIOD · 7 OCT → 7 NOV · DAY 25 OF 31" | `MonthSummary.period_start`, `.next_income_date`, `BudgetView.period_day`, `.period_total_days` | exists |
 | Bar `aria-label` "78 percent spent, 15 percent left" and block cells | `BudgetView.spent_pct`, `.committed_pct` (floored by `domain.money.percent_of`); `progress_bar` macro emits `aria-valuenow` only | partial: no `left_pct`, no cell count, rounding differs (G10; section 5) |
 | spent `5,014.55`, committed `34.60`, left `1,399.93`, of `6,449.08` | `MonthTotals.spent_minor`, `.committed_minor`, `.remaining_minor`, `.budgeted_minor` (`BudgetView.summary.totals`) | exists |
-| Can-I-afford input `@value=250.00` (and `1,800.00` in afford-over) | request query `amount` (`web.params.afford_amount_minor`) | exists |
+| Can-I-afford input `@value=250.00` (and `1,800.00` in afford-over) | request query `amount` (`web.params.positive_amount`) | exists |
 | "per day becomes 164.28" and "(↓ 35.71)" | `AffordResult.per_day_minor`, `.delta_minor` (`services.today.afford`) | exists |
 | afford-over: "per day becomes −14.20 · 114.20 over" | `AffordResult.per_day_minor` is clamped at 0; no "over" amount | missing (G4; confirm semantics) |
 | afford-invalid: "Enter an amount, like 250.00" | router returns bare `422 "invalid amount"` | missing (G4) |

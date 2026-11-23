@@ -26,7 +26,7 @@ from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import today_data, view_models
 from budget_planner.web.auth_cookies import DEFAULT_LANDING
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, get_settings_dep
-from budget_planner.web.params import afford_amount_minor, query_choice
+from budget_planner.web.params import positive_amount, query_choice
 from budget_planner.web.paths import GET_HEAD_METHODS
 from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
 from budget_planner.web.rendering import render
@@ -138,9 +138,9 @@ def afford(
     Returns the ``today/_afford_preview.html`` fragment with the recomputed
     per-day figure + signed delta + pace tag. Pure read; no DB write.
     """
-    amount_minor = afford_amount_minor(amount, settings.base_currency)
-    if amount_minor is None or amount_minor < 0:
-        return Response(status_code=422, content="invalid amount")
+    amount_minor, error = positive_amount(amount, settings.base_currency)
+    if amount_minor is None or error is not None:
+        return Response(status_code=422, content=today_service.AFFORD_INVALID_MESSAGE)
     today_d = clock.today_local(settings)
     result = today_service.afford(
         conn,
@@ -156,6 +156,8 @@ def afford(
         result=result,
         amount_minor=amount_minor,
         new_left_per_day=result.per_day_minor,
+        unclamped_per_day=result.unclamped_per_day_minor,
+        over=result.over_minor,
         delta=result.delta_minor,
         base_ccy=settings.base_currency,
     )
