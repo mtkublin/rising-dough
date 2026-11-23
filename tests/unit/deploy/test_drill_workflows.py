@@ -201,3 +201,82 @@ def test_restore_drill_uses_the_shared_terraform_jobs() -> None:
     assert jobs["verify-destroy"]["needs"] == "destroy"
     assert jobs["tailnet-cleanup"]["uses"] == "./.github/workflows/tailnet-cleanup.yml"
     assert set(jobs["report"]["needs"]) >= {"restore-drill", "destroy", "verify-destroy"}
+
+
+def _apply_steps() -> list[dict[str, Any]]:
+    steps: list[dict[str, Any]] = _load("terraform.yml")["jobs"]["apply"]["steps"]
+    return steps
+
+
+def _step(name_prefix: str) -> dict[str, Any]:
+    return next(s for s in _apply_steps() if str(s.get("name", "")).startswith(name_prefix))
+
+
+def test_terraform_ref_input_is_optional_and_empty_by_default() -> None:
+    """T-Q306b / ADR-0149 section 2: apply `terraform/` from a baseline tag, off by default."""
+    inputs = _triggers("terraform.yml")["workflow_call"]["inputs"]
+
+    assert inputs["terraform_ref"]["type"] == "string"
+    assert inputs["terraform_ref"]["required"] is False
+    assert inputs["terraform_ref"]["default"] == ""
+
+
+def test_terraform_ref_is_rejected_for_prod_and_non_tags() -> None:
+    steps = _apply_steps()
+    guard = _step("Guard terraform_ref")
+    run = str(guard["run"])
+
+    assert guard["if"] == "${{ inputs.terraform_ref != '' }}"
+    assert '"${TARGET_ENV}" != "drill"' in run
+    assert "exit 1" in run
+    assert "^v(0|[1-9][0-9]*)" in run  # vMAJOR.MINOR.PATCH only
+    # The ref reaches the script as env, never interpolated into it.
+    assert "inputs.terraform_ref" not in run
+    assert (
+        _load("terraform.yml")["jobs"]["apply"]["env"]["TERRAFORM_REF"]
+        == "${{ inputs.terraform_ref }}"
+    )
+    # The guard runs before the baseline ref is fetched.
+    names = [str(s.get("name", "")) for s in steps]
+    assert names.index(str(guard["name"])) < names.index(
+        "Checkout terraform_ref (baseline Terraform)"
+    )
+
+
+def test_terraform_ref_checkout_replaces_terraform_dir_but_keeps_tooling() -> None:
+    checkout = _step("Checkout terraform_ref")
+    use = _step("Use terraform/ from terraform_ref")
+    run = str(use["run"])
+
+    for step in (checkout, use):
+        assert "inputs.terraform_ref != ''" in step["if"]
+        assert "inputs.env == 'drill'" in step["if"]
+    assert checkout["with"]["ref"] == "refs/tags/${{ inputs.terraform_ref }}"
+    assert checkout["with"]["path"] == "terraform-baseline"
+    assert checkout["with"]["persist-credentials"] is False
+    # terraform/ comes from the checked-out ref; terraform/scripts (CI tooling) stays at HEAD.
+    assert "cp -a terraform-baseline/terraform terraform" in run
+    assert run.index("mv terraform/scripts") < run.index("rm -rf terraform\n")
+    assert 'mv "${RUNNER_TEMP}/tf-tooling" terraform/scripts' in run
+    # Plan and apply run in terraform/, i.e. against the replaced directory.
+    assert (
+        _load("terraform.yml")["jobs"]["apply"]["defaults"]["run"]["working-directory"]
+        == "terraform"
+    )
+    names = [str(s.get("name", "")) for s in _apply_steps()]
+    assert names.index(str(use["name"])) < names.index("terraform init (${{ inputs.env }})")
+
+
+def test_terraform_workflow_never_passes_var_flags() -> None:
+    """A `-var` for a variable the baseline tag lacks is an error; TF_VAR_* is ignored."""
+    jobs = _load("terraform.yml")["jobs"]
+    for job in jobs.values():
+        for step in job.get("steps", []):
+            code = "\n".join(
+                ln
+                for ln in str(step.get("run", "")).splitlines()
+                if not ln.lstrip().startswith("#")
+            )
+            assert " -var " not in code and " -var=" not in code, step.get("name")
+    apply_run = str(_step("terraform plan")["run"])
+    assert "TF_VAR_*" in apply_run  # the explaining comment sits next to the plan

@@ -1417,7 +1417,8 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Docs-first step: [ADR-0120](../../adr/0120-pre-commit-is-the-local-gate.md) amendment naming the browser matrix, written at implementation start.
 - Goal: run `tests/e2e` on Firefox and WebKit as well as Chromium. The pinned Playwright container already ships both, so the cost is runner minutes only.
 - Acceptance: `e2e.yml` runs a browser matrix (chromium, firefox, webkit) in the same pinned image; the existing job name `tests/e2e (Chromium, Playwright container)` is unchanged; the new contexts are not added to `protect-main` until an operator decision records it.
-- Operator question blocking it: should the Firefox and WebKit contexts become required checks, or stay advisory until they are green?
+- Status 2026-11-23: advisory jobs live (run 45224425657: Chromium incl. 1024 green, Firefox green, WebKit 6 failures); failures triaged as T-Q316, T-Q317, T-Q318. Not marked done: WebKit is not green.
+- Operator decision (2026-11-23): the Firefox and WebKit checks are advisory (not required) until they are green on 3 consecutive PRs; then the operator adds them to `protect-main`. Operator question blocking it: none.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds and the new jobs are green on a `wi/**` push.
@@ -1435,7 +1436,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds on a `wi/**` push.
 
-### T-Q301 [S] Crawl diagnostics at 1024 (follow-up, not blocking)
+### T-Q301 ✅ [S] Crawl diagnostics at 1024 (follow-up, not blocking)
 - Findings: testing coverage review (2026-11-22, T-Q298).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: e2e
@@ -1711,3 +1712,45 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 **Critical path.** T-Q216 and T-Q212 (FX hub, Wave 4 to 5) gate everything FX; T-Q243 then T-Q228 then T-Q241 (layering, repositories, services, Waves 6 to 10) gate the router thinning (Wave 12); the repo-wide sweeps T-Q271 and T-Q272 run last (Waves 16 and 17) because they touch every module; T-Q232 closes (Wave 18). Eighteen waves. Waves 1 to 9 deliver Bands 0, 1 and 3 and every `[pre-v4-P3]` task (the last of them, T-Q207, is in Wave 7); the rest of Band 2 (layering, thin routers, HTMX contract, purity) finishes in Waves 10 to 12.
 
 **Hotspot rules for the orchestrator.** (a) The allowlist TOML owner table above is the contract; a task needing another wave's TOML waits. (b) `tests/architecture/allowlists/*.toml`, `pyproject.toml`, `uv.lock`, `docs/CHANGELOG.md` (append-only: resolve by keeping both lines), `docs/adr/README.md` (new ADR numbers: reserve numbers per wave before dispatch to avoid duplicates) are merged by the orchestrator, not by items, whenever a conflict appears. (c) CLAUDE.md and `.claude/**` edits (T-Q245) are operator-reviewed and merged alone. (d) Terraform and GitHub-settings tasks (T-Q218, T-Q238, T-Q239, T-Q255) never apply from a laptop; their code half lands through the PR pipeline, the settings half is the operator's.
+
+### T-Q316 [S] WebKit: Add passkey button disabled (3 crawl inventory drifts, 1 journey timeout) (follow-up, advisory)
+- Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: e2e, webkit
+- Depends on: T-Q299
+- Docs-first step: none beyond this entry.
+- Test: `test_crawl.py::test_crawl_page[auth_sessions]`, `[settings_password]`, `[settings_security]`; `test_passkey_journey.py::test_ip_literal_host_explains_passkeys_need_localhost`
+- Error: inventory drift `Add passkey` skipped 'needs a WebAuthn authenticator' became 'disabled'; the journey times out on `get_by_role('button', name='Add passkey')` (`<button disabled aria-disabled=true>`, not enabled).
+- Goal: find why WebKit renders the button disabled (WebAuthn feature detection on WebKit in the container) and make the inventory or the journey browser-correct. No skip or xfail to turn the check green.
+- Acceptance: the test passes on the WebKit job of `e2e.yml` (`--e2e-browser=webkit`) on a `wi/**` push.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+
+### T-Q317 [S] WebKit: /today crawl, Undo after Promote all due, htmx request cancelled (follow-up, advisory)
+- Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: e2e, webkit
+- Depends on: T-Q299
+- Docs-first step: none beyond this entry.
+- Test: `test_crawl.py::test_crawl_page[today]`
+- Error: `/today :: button 'Undo' -> '' (via 'Promote all due'): requestfailed: GET /today Load request cancelled` plus `console.error: htmx:sendError`.
+- Goal: decide whether this is a WebKit navigation-cancel race in the crawl engine's activate/settle or a real double-load; fix the cause. No skip or xfail to turn the check green.
+- Acceptance: the test passes on the WebKit job of `e2e.yml` (`--e2e-browser=webkit`) on a `wi/**` push.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+
+### T-Q318 [S] WebKit: change-secret journey gets invalid_csrf (follow-up, advisory)
+- Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: e2e, webkit
+- Depends on: T-Q299
+- Docs-first step: none beyond this entry.
+- Test: `journeys/test_auth.py::test_change_secret_then_sign_in_with_the_new_one`
+- Error: expected `alert` not visible; page body is `{"detail":"invalid_csrf"}` (line 110). Likely related to the T-Q312 Origin / `__Host-csrf-bid` cookie binding on WebKit over plain HTTP 127.0.0.1.
+- Goal: determine whether WebKit drops the `__Host-` cookie on http://127.0.0.1 (test environment) or the app mis-handles it; fix the cause. No skip or xfail to turn the check green.
+- Acceptance: the test passes on the WebKit job of `e2e.yml` (`--e2e-browser=webkit`) on a `wi/**` push.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
