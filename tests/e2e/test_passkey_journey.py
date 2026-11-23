@@ -166,8 +166,14 @@ def test_stale_session_reauths_with_passkey(
     token = next(
         (c["value"] for c in page.context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME), ""
     )
-    resp = page.context.request.post("/auth/register/begin", headers={"X-CSRF-Token": token})
-    assert resp.status == 200, "guard should pass right after passkey re-auth"
+    # A real browser sends Origin on unsafe requests (T-Q312); this context has no blanket header.
+    origin = f"http://localhost:{urlsplit(live_server[0]).port}"
+    resp = page.context.request.post(
+        "/auth/register/begin", headers={"X-CSRF-Token": token, "Origin": origin}
+    )
+    assert resp.status == 200, (
+        f"guard should pass right after passkey re-auth: {resp.status} {resp.text()[:300]}"
+    )
 
 
 def test_ip_literal_host_explains_passkeys_need_localhost(
