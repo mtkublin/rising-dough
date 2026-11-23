@@ -44,7 +44,7 @@
 - No route, no template; `/setup` stays T-UR21.
 - ADR-0134 §9.
 
-### ◻ T-UR33 [P] Account delete rule (service part of T-UR23)
+### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
 - Service refuses delete while any live (not soft-deleted) transaction, planned item or recurring rule references the account (operator 2026-11-22: soft-deleted rows do not block) and returns the reference counts (transactions, planned, recurring; "blocked by recurring only" derivable). Otherwise soft delete as before.
 - The current accounts UI shows the refusal through the existing error flash (no template change). Tests assert DB state, audit and the counts.
 - Requirement F2.8, ADR-0134 §3.
