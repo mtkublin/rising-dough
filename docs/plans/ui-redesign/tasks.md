@@ -52,17 +52,19 @@
 - The current accounts UI shows the refusal through the existing error flash (no template change). Tests assert DB state, audit and the counts.
 - Requirement F2.8, ADR-0134 §3.
 
-### ◻ T-UR34 [S] Value inventory and data gaps
+### ✅ T-UR34 [S] Value inventory and data gaps
 - `docs/plans/ui-redesign/value-inventory.md`: per handoff page and state, every displayed value (text and the attributes of ADR-0147 §4) with the service or view-model field that produces it, or `missing`.
 - Every `missing` field added to its service or view model (canonical modules first, reuse report). Export (`/transactions/export`, `/planned/export`) honours the current tab and filters (ADR-0134 §6). The credit-limit preview returns "left of limit" and "left after this entry" (ADR-0134 §2).
 - Values that only differ because the handoff is internally inconsistent are listed as overlay candidates for T-UR00b, not fixed in the app.
 - ADR-0147 §3.
 - T-UR34b ✅ G1 export honours tab and filters (`direction` for actual; account, category, direction, search and the Ledger planned window for planned; `web/ledger_export.py` builds the per-tab hrefs; ADR-0134 §6, ADR-0148).
 - T-UR34a ✅ inventory: `docs/plans/ui-redesign/value-inventory.md` (106 handoff pages + 5 chart specimens; 20 overlay-candidate families for T-UR00b). Gap groups (one wave 2 item each, T-UR34b..l): G1 export filters and per-tab links (`web/ledger_data.py` parsers, export routers, `PlannedFilter`); G2 ledger strips, planned row status, recurring override deltas (`services/ledger_totals.py`, `web/ledger_data.py`); G3 credit-limit preview "left before" (`services/limit_preview.py`); G4 Today afford unclamped per-day and over amount (`services/today.py`); G5 reconcile difference (`services/account_reconcile.py`); G6 category entry count and recent categories (`services/categories.py`); G7 session device label (`services/security_settings.py`); G8 re-auth attempts left (`services/rate_limit.py`, `services/reauth.py`); G9 forecast summary delta (`services/forecast.py`); G10 view-model values: hero `data-digits`/`data-marks`/`data-signs` filter, budget over count, bar left% and cells (`web/view_models.py`, `web/templating.py`); G11 422 summary (`web/errors.py`). Shared files, disjoint hunks: `web/ledger_data.py` (G1, G2), `web/routers/transactions.py` (G1, G3).
+- Done (2026-11-23): gap groups G1..G11 delivered as T-UR34b..T-UR34l, registry catch-up T-UR34m, designer follow-up questions T-UR34n. Remainder T-UR34c2 moved to the frontend phase: ledger filter default from/to period, and recurring next-period net via `pending_occurrences` (the inventory board figure uses the monthly in-minus-out net, which T-UR34c delivered).
 
 ### ◻ T-UR35 [S] Precondition release → T-UR29..T-UR34
 - PR `ui/preconditions` → `main` with a green `drill-gate` on its head SHA (deploy PR: migrations 0019, 0020); release **v3.2.0** through the ADR-0099 pipeline; prod smoke (sign-in, Today, Accounts, edit user refusal, account delete refusal on a referenced account). `docs/CHANGELOG.md` entry; Phase P lines marked ✅.
 - Before the PR: migration rehearsal of 0019 and 0020 (up, down, up) on a copy of `data/demo.sqlite` (never `data/budget.sqlite`); the orchestrator runs `just test-e2e` once alone.
+- Progress (2026-11-23): migrations 0019/0020 rehearsed up/down/up on a demo copy (ok); prod pre-check of users without an email = 0 (read-only); `just test-e2e` replaced by the green GitHub `e2e.yml` run on the PR head; PR #48 merged with a green `drill-gate` on fd8ade5b; CI fixes T-UR35a (clock-independent planned export test) and T-UR35b (422 summary as a pure function). Remaining: release v3.2.0, prod smoke (sign-in, Today, Accounts, edit user refusal, account delete refusal), then ✅.
 
 ### Phase P execution plan
 
@@ -218,7 +220,12 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR20 [P] Invites, add user, user row menu, forced change → T-UR14, T-UR29, T-UR30
 - **Server side shipped in Phase P** (ADR-0148): invite model, migration and service (T-UR30), edit and delete guards (T-UR29). This task builds the pages, dialogs and the routes that render them on top. Routes: create invite with email and role, pending row with expiry, row menu copy link / resend / revoke; invite pages (AU08 and expired, used, invalid AU09); add user dialog with one-time credential dialog (not toast), duplicate email refused; reset and delete user with confirms (ledger entries stay); forced change page (ST10). Edit user dialog (name and member/admin, email read-only) as the first row-menu item before reset and delete; an admin's own row has no menu. Server-side guards (no self-demotion, no last-admin demotion, email unchanged) already shipped in T-UR29; the UI hides the menu on the admin's own row on top of them; delete keeps refusing self and last admin. ADR-0134 §10, §11, ADR-0061, ADR-0073.
 
-### ◻ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05, T-UR32
+### ◻ T-UR21a [P] Setup-token hash wiring → T-UR32
+- The drill workflow (and the prod bootstrap path, if any) generates the one-time setup token, prints it only in the workflow output, and passes only its sha256 hex as `BUDGET_PLANNER_SETUP_TOKEN_HASH` to the app (instance metadata / env, per ADR-0111); nothing sets it today, so setup stays closed. Needs an operator decision on where the hash lives for prod.
+- Must land before T-UR21 (`/setup` page) can be exercised on a drill.
+- ADR-0134 §9, ADR-0099, ADR-0111.
+
+### ◻ T-UR21 [P] First-run `/setup` page with one-time token → T-UR05, T-UR32, T-UR21a
 - Token service and "setup open" predicate shipped in Phase P (T-UR32, ADR-0148); this task adds the page and route. Page on `/setup` (not `/auth/register*`), reachable only while no users exist and no bootstrap admin is configured, and only with a valid single-use setup token; 404 without it (no oracle). Token invalidated once the first admin is created, never committed, never logged. Errors: invalid email, credential under 12 characters, mismatch. Once any user exists it redirects to sign in. ADR-0134 §9.
 
 ### ◻ T-UR22 [S] Drills: bootstrap admin off by default, setup token in workflow output → T-UR21
