@@ -1364,7 +1364,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Depends on: T-Q289
 - Docs-first step: ADR-0065 amendment 2026-11-23; CHANGELOG.
 - Goal: (1) unsafe methods require `Sec-Fetch-Site: same-origin`, else `Origin` equal to the configured public origin (`webauthn_origin`), else 403 `cross_origin`; (2) tokens carry a MAC-covered issued-at and pre-session tokens older than 2 h are refused, an expired login form POST re-renders the login page with a fresh token and a notice; (3) pre-session tokens are bound to a per-browser id cookie (`__Host-csrf-bid`, `csrf-bid` in dev).
-- Acceptance: tests for cross-site Sec-Fetch-Site, mismatched Origin, both headers absent, same-origin accepted, expired pre-session token (frozen clock) re-renders the login page, a token minted for another browser id is refused, session flow unchanged, health exempt.
+- Acceptance: tests for cross-site Sec-Fetch-Site, mismatched Origin, both headers absent, same-origin accepted, expired pre-session token (frozen clock) re-renders the login page, a token minted for another browser id is refused, session flow unchanged, health exempt. e2e fixtures send Origin on API-client requests.
 - Removes allowlist entries: none (adds none).
 
 ### ✅ T-Q313 [S] Rehash passwords on login when the bcrypt cost changed
