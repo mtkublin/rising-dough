@@ -131,3 +131,22 @@ def test_production_enabled_fresh_is_200_and_stale_is_503(cfg: Settings) -> None
     _seed(cfg, user_id=1, ccy="USD", rate_age_days=9)
     code, body = _get(_prod(cfg))
     assert (code, body["status"]) == (503, "stale")
+
+
+def test_crashed_refresh_task_is_503_and_app_keeps_serving(cfg: Settings) -> None:
+    """T-Q314: the crash flag fails the FX probe; liveness stays 200."""
+    app = create_app(settings=cfg)
+    app.state.crashed_tasks = frozenset({"fx-refresh"})
+    client = TestClient(app)
+    r = client.get("/health/fx", follow_redirects=False)
+    assert r.status_code == 503
+    assert r.json()["status"] == "refresh_crashed"
+    assert r.json()["currencies"] == []
+    assert client.get("/health").status_code == 200
+
+
+def test_other_crashed_task_does_not_fail_the_fx_probe(cfg: Settings) -> None:
+    app = create_app(settings=cfg)
+    app.state.crashed_tasks = frozenset({"retention-purge"})
+    r = TestClient(app).get("/health/fx", follow_redirects=False)
+    assert r.json()["status"] != "refresh_crashed"
