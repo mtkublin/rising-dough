@@ -75,6 +75,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  DRILL_SSH_HOST: budget-planner-drill-${{ github.run_id }}
+
 jobs:
   # T-D138 (ADR-0115): FIRST job. Fails the run when another drill run is active or
   # (unless noted) a drill VM / online tag:drill node exists. Runs inside the `drill`
@@ -170,10 +173,17 @@ jobs:
           INPUT_TTL: ${{ inputs.ttl_minutes }}
         run: |
           set -euo pipefail
-          # Gate runs are torn down by the teardown job; the 90 min tag is the
-          # sweeper's backstop if teardown itself fails. Explore uses ttl_minutes.
+          # Gate runs are torn down by the teardown job; the tag is the sweeper's
+          # backstop if teardown itself fails. Explore uses ttl_minutes.
+          # T-Q306e / ADR-0149: the gate is an upgrade drill (baseline boot ~4 min,
+          # seed, in-place converge, rollback converge; a replacing PR adds a
+          # restore, up to 30 min), plus up to three approvals of the gated `drill`
+          # environment (baseline, upgrade and rollback applies). The old gates took
+          # 11-18 min; the new run time is NOT measured yet. 240 min is a generous
+          # estimate (worst case with a replacement ~2.5 h incl. approvals), below the
+          # 480 cap. Measure on the first runs and tighten (T-Q306).
           ttl=60
-          if [ "${MODE}" = "gate" ]; then ttl=90; fi
+          if [ "${MODE}" = "gate" ]; then ttl=240; fi
           if [ "${MODE}" = "explore" ] && [ -n "${INPUT_TTL}" ]; then ttl="${INPUT_TTL}"; fi
           if ! [[ "${ttl}" =~ ^[0-9]+$ ]] || [ "${ttl}" -lt 15 ] || [ "${ttl}" -gt 480 ]; then
             echo "::error::ttl_minutes must be an integer in 15..480 (got '${ttl}')" >&2
@@ -181,9 +191,11 @@ jobs:
           fi
           echo "expires_at=$(date -u -d "+${ttl} minutes" +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+  # mode=explore: a fresh boot of the dispatched ref, unchanged (ADR-0149 §1).
   apply:
     name: terraform apply (drill)
     needs: [build, ttl]
+    if: ${{ inputs.mode == 'explore' }}
     # T-D121: reusable callee requests these; less is a startup_failure.
     permissions:
       contents: read
@@ -251,14 +263,621 @@ jobs:
           --url "${TARGET_URL}/.well-known/bp-deploy-status.json"
           --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
 
-  # Gate mode (always) and explore with keep=false: destroy even when the apply
-  # or smoke failed, as long as apply was attempted (a partial apply can leave
-  # resources behind). Explore with keep=true stays up until the TTL.
+
+  # ---------------------------------------------------------------------------
+  # mode=gate (T-Q306d/e, ADR-0149): the upgrade drill. Phases, one VM, in order:
+  #   baseline  baseline -> apply-baseline -> smoke-baseline
+  #   seed      seed (demo DB from the baseline tag, marker rows, replication)
+  #   upgrade   detect -> writer-started/writer -> apply-upgrade -> converge -> verify
+  #   rollback  apply-rollback -> verify-rollback (in-place path only)
+  # then teardown (always) and the verdict (gate-result) naming the failing phase.
+  # ---------------------------------------------------------------------------
+
+  # Resolve the version the server serves (T-Q306a): newest successful deployment,
+  # an ancestor of origin/main, with an image in GHCR. Fails closed.
+  baseline:
+    name: resolve baseline version
+    needs: drill-lock
+    if: ${{ inputs.mode == 'gate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: read
+      packages: read
+    outputs:
+      tag: ${{ steps.baseline.outputs.tag }}
+      ref: ${{ steps.baseline.outputs.ref }}
+    steps:
+      - name: Check out repository (full history and tags)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the baseline
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/budget-planner
+        run: |
+          set -euo pipefail
+          git fetch --tags origin main
+          echo "${GH_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin >/dev/null
+          out="$(python3 scripts/ci/prod_baseline.py --repo "${GITHUB_REPOSITORY}" --image "${IMAGE}" --main-ref origin/main)"
+          echo "${out}"
+          tag="$(sed -n 's/^tag=//p' <<<"${out}")"
+          image_ref="$(sed -n 's/^image_ref=//p' <<<"${out}")"
+          if [ -z "${tag}" ] || [ -z "${image_ref}" ]; then
+            echo "::error::baseline resolution printed no tag or image_ref" >&2
+            exit 1
+          fi
+          # terraform.yml takes refs as <tag>@sha256:<digest>, without the image name.
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "ref=${image_ref#*:}" >> "$GITHUB_OUTPUT"
+          echo "baseline: ${tag} (${image_ref#*:})" >> "$GITHUB_STEP_SUMMARY"
+
+  # Phase baseline: the tag's Terraform and templates plus its signed image (ADR-0149 §2).
+  apply-baseline:
+    name: terraform apply (baseline)
+    needs: [baseline, ttl]
+    if: ${{ inputs.mode == 'gate' }}
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      terraform_ref: ${{ needs.baseline.outputs.tag }}
+      image_ref: ${{ needs.baseline.outputs.ref }}
+      replace: module.compute.scaleway_instance_server.app tailscale_tailnet_key.vm
+      drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
+      drill_allow_empty_db: "true"
+      boot_log_upload: ${{ inputs.boot_logs }}
+    secrets: inherit  # pragma: allowlist secret
+
+  smoke-baseline:
+    name: smoke baseline (/ready)
+    needs: apply-baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: drill-teardown # ungated: the apply job already waited for approval
+    permissions:
+      contents: read
+    env:
+      TARGET_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Connect to tailnet (tag:ci, ACL tag:ci -> tag:drill:443)
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Wait for /ready and the host agent (fresh boot of the baseline)
+        uses: ./.github/actions/drill-ready
+        with:
+          target-url: ${{ env.TARGET_URL }}
+          generation: ${{ needs.apply-baseline.outputs.host_config_generation }}
+          image-ref: ${{ needs.apply-baseline.outputs.host_image_ref }}
+
+  # Phase seed (ADR-0149 §4): the demo DB of the baseline tag through seed-demo, which the
+  # baseline's own Terraform does not install; this PR's helper is rendered here and copied
+  # over ssh (stdin: scp over the tailnet is unproven). Then marker rows and replication.
+  seed:
+    name: seed demo DB and marker rows
+    needs: [baseline, smoke-baseline]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      generation: ${{ steps.replicated.outputs.generation }}
+    env:
+      TAG: ${{ needs.baseline.outputs.tag }}
+      TAILNET_DNS_NAME: ${{ vars.TAILNET_DNS_NAME }}
+      TARGET_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+    steps:
+      - name: Check out repository (full history and tags)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Demo DB from the baseline tag, seed-demo from this PR
+        run: |
+          set -euo pipefail
+          printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          git show "refs/tags/${TAG}:data/demo.sqlite" > demo.sqlite
+          test -s demo.sqlite
+          test "$(head -c 15 demo.sqlite)" = "SQLite format 3"
+          python3 scripts/ci/render_seed_demo.py --hostname "${DRILL_SSH_HOST}.${TAILNET_DNS_NAME}" > seed-demo.sh
+          bash -n seed-demo.sh
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      # The script is written to a file first: run from stdin (`bash -s`), a docker
+      # command inside it could read the rest of the script.
+      - name: Run seed-demo on the host
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'cat > /tmp/seed-demo.sqlite' < demo.sqlite
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'cat > /tmp/seed-demo.sh' < seed-demo.sh
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo bash /tmp/seed-demo.sh /tmp/seed-demo.sqlite'
+
+      # T-Q302: a seed that left the tables empty must fail here, not pass a smoke test.
+      - name: Seeded tables are non-empty and /ready is up
+        run: |
+          set -euo pipefail
+          for table in accounts transactions categories; do
+            n="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'SELECT count(*) FROM ${table};'")"
+            echo "${table}: ${n} rows"
+            if ! [[ "${n}" =~ ^[0-9]+$ ]] || [ "${n}" -lt 1 ]; then
+              echo "::error::seeded table ${table} is empty" >&2
+              exit 1
+            fi
+          done
+          curl -fsS --max-time 10 "${TARGET_URL}/ready" >/dev/null
+
+      - name: Write marker rows 1..20
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- init' < scripts/ci/rehearsal_marker.sh
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- write 20' < scripts/ci/rehearsal_marker.sh
+
+      # sync-interval is 10 s; three intervals ship the rows. The generation is what
+      # the upgraded (or replaced) host must report.
+      - name: Wait for replication and record the generation
+        id: replicated
+        run: |
+          set -euo pipefail
+          sleep 35
+          gen="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo cat /data/.budget.db-litestream/generation')"
+          if ! [[ "${gen}" =~ ^[0-9a-f]{16}$ ]]; then echo "::error::no Litestream generation (got '${gen}')" >&2; exit 1; fi
+          echo "seeded generation ${gen}"
+          echo "generation=${gen}" >> "$GITHUB_OUTPUT"
+
+  # Phase upgrade, detection (ADR-0149 §5): plan this PR's Terraform against the drill's
+  # state and say whether it replaces the server. Mirrors terraform.yml's PR plan job
+  # (ungated `drill-plan`, never applied).
+  detect:
+    name: detect VM replacement (plan)
+    needs: [build, ttl, seed]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: drill-plan
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: terraform
+    outputs:
+      replaced: ${{ steps.replace.outputs.replaced }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      TF_VAR_app_image_ref: ""
+      TF_VAR_drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
+      NEW_IMAGE_REF: ${{ needs.build.outputs.image-tag }}@${{ needs.build.outputs.image-digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Terraform inputs (TF_VAR_*, T-D133)
+        uses: ./.github/actions/terraform-env
+        with:
+          env: drill
+          secrets-json: ${{ toJSON(secrets) }}
+          vars-json: ${{ toJSON(vars) }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: terraform init (drill)
+        run: terraform init -input=false -backend-config=envs/drill/backend.hcl -reconfigure
+
+      - name: Resolve image refs
+        id: refs
+        run: |
+          set -euo pipefail
+          current="$(terraform output -raw app_image_ref 2>/dev/null || true)"
+          previous="$(terraform output -raw app_image_previous_ref 2>/dev/null || true)"
+          python3 ../scripts/ci/host_release.py refs --new "${NEW_IMAGE_REF}" --current "${current}" --current-previous "${previous}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: terraform plan (drill, this PR against the baseline state)
+        env:
+          TF_VAR_app_image_ref: ${{ steps.refs.outputs.ref }}
+          TF_VAR_app_image_previous_ref: ${{ steps.refs.outputs.previous }}
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false -lock=false -out=plan.bin | python3 scripts/mask_plan.py
+
+      # The plan JSON holds secrets: only `replaced=` and the server id are printed.
+      - name: Detect VM replacement
+        id: replace
+        run: |
+          set -euo pipefail
+          terraform show -json plan.bin | python3 ../scripts/ci/host_release.py replaced | tee -a "$GITHUB_OUTPUT" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Lets apply-upgrade start only once the writer is committing, so the upgrade runs under load.
+  writer-started:
+    name: writer is committing
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      at: ${{ steps.started.outputs.at }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Wait until marker rows beyond 25 exist
+        id: started
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh || true)"
+            max="${stats%%|*}"
+            if [[ "${max}" =~ ^[0-9]+$ ]] && [ "${max}" -gt 25 ]; then
+              echo "writer running (${stats})"
+              # The new tailnet node of a replacement is newer than this.
+              echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::the writer never started" >&2
+          exit 1
+
+  # One marker row per second through the app, tolerating errors while the app restarts
+  # (writer-until). Ends when `converge` asks it to stop (in place) or when the old host
+  # vanishes (replacement, ssh exit 255).
+  writer:
+    name: write through the upgrade
+    needs: seed
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: drill
+    permissions:
+      contents: read
+    outputs:
+      last: ${{ steps.write.outputs.last }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Insert one row per second until stopped or the host is gone
+        id: write
+        # GitHub runs `run:` with `bash -eo pipefail`; +e so the expected exit 255
+        # (host gone) reaches the check below instead of ending the step (T-D156).
+        run: |
+          set +e -uo pipefail
+          timeout 4800 ssh -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=3 \
+            operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- writer-until 21' < scripts/ci/rehearsal_marker.sh | tee writer.log
+          rc="${PIPESTATUS[0]}"
+          echo "writer ssh exit ${rc}"
+          if ! grep -q '^writer stopped: requested' writer.log && [ "${rc}" != 255 ]; then
+            echo "::error::the writer ended neither on request nor with the host going away (exit ${rc})" >&2
+            exit 1
+          fi
+          last="$(grep -o 'committed [0-9]*' writer.log | tail -n 1 | cut -d' ' -f2)"
+          echo "last committed row: ${last:-none}"
+          if [ -z "${last}" ] || [ "${last}" -le 25 ]; then
+            echo "::error::the writer committed too few rows to prove anything" >&2
+            exit 1
+          fi
+          echo "last=${last}" >> "$GITHUB_OUTPUT"
+
+  # Phase upgrade: this PR's Terraform and image on the same drill. In place, the host
+  # agent converges; when the plan replaces the VM, terraform.yml drains the old host first.
+  apply-upgrade:
+    name: terraform apply (upgrade to this PR)
+    needs: [build, ttl, detect, writer-started]
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.build.outputs.image-tag }}@${{ needs.build.outputs.image-digest }}
+      drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
+      boot_log_upload: ${{ inputs.boot_logs }}
+    secrets: inherit  # pragma: allowlist secret
+
+  converge:
+    name: upgraded host converged
+    needs: [detect, writer-started, apply-upgrade]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: drill
+    permissions:
+      contents: read
+    env:
+      TARGET_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+      EXPECTED: ${{ needs.detect.outputs.replaced }}
+      OBSERVED: ${{ needs.apply-upgrade.outputs.server_replaced }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # A plan that contradicts the apply fails the gate (ADR-0149 §5).
+      - name: The apply matched the detected path
+        run: |
+          echo "plan replaced=${EXPECTED}, apply server_replaced=${OBSERVED}"
+          test "${EXPECTED}" = "${OBSERVED}"
+
+      # The drill's certificate is for the plain name, so HTTPS needs the rename.
+      - name: Remove the old node and rename the new one (replaced-VM logic)
+        if: ${{ needs.apply-upgrade.outputs.server_replaced == 'true' }}
+        timeout-minutes: 15
+        env:
+          TS_CLEANUP_CLIENT_ID: ${{ secrets.TS_CLEANUP_CLIENT_ID }}
+          TS_CLEANUP_SECRET: ${{ secrets.TS_CLEANUP_SECRET }}
+          # The old node never counts as settled: it was created before this.
+          CREATED_AFTER: ${{ needs.writer-started.outputs.at }}
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 40); do
+            if python3 scripts/tailnet_drill_cleanup.py --env drill --replaced-name "${DRILL_SSH_HOST}" \
+              --require --created-after "${CREATED_AFTER}"; then
+              echo "tailnet settled after attempt ${i}"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::the old node was not removed or the new one not renamed" >&2
+          exit 1
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Wait for /ready and the agent on this PR's ref (replacement also restored)
+        uses: ./.github/actions/drill-ready
+        with:
+          target-url: ${{ env.TARGET_URL }}
+          generation: ${{ needs.apply-upgrade.outputs.host_config_generation }}
+          image-ref: ${{ needs.apply-upgrade.outputs.host_image_ref }}
+          ready-attempts: ${{ needs.apply-upgrade.outputs.server_replaced == 'true' && '180' || '60' }}
+          require-restore: ${{ needs.apply-upgrade.outputs.server_replaced == 'true' }}
+
+      # In place the writer survives the restart: stop it so its last committed row is known.
+      - name: Stop the writer (in place)
+        if: ${{ needs.apply-upgrade.outputs.server_replaced == 'false' }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stop' < scripts/ci/rehearsal_marker.sh
+
+  verify:
+    name: verify the upgraded host
+    needs: [seed, detect, writer, apply-upgrade, converge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: drill
+    permissions:
+      contents: read
+    env:
+      SEED_GENERATION: ${{ needs.seed.outputs.generation }}
+      WRITER_LAST: ${{ needs.writer.outputs.last }}
+      REPLACED: ${{ needs.apply-upgrade.outputs.server_replaced }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Restore report names the seeded generation (replacement)
+        if: ${{ needs.apply-upgrade.outputs.server_replaced == 'true' }}
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          report=""
+          for i in $(seq 1 60); do
+            report="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo cat /data/restore-report.json 2>/dev/null' || true)"
+            if [ -n "${report}" ]; then break; fi
+            echo "attempt ${i}: no restore report yet"
+            sleep 10
+          done
+          echo "restore report: ${report}"
+          jq -e --arg gen "${SEED_GENERATION}" '.result == "restored" and .generation == $gen' <<<"${report}"
+
+      - name: Replication continued in the seeded generation (in place)
+        if: ${{ needs.apply-upgrade.outputs.server_replaced == 'false' }}
+        run: |
+          set -euo pipefail
+          gen="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo cat /data/.budget.db-litestream/generation')"
+          echo "generation now ${gen}, seeded ${SEED_GENERATION}"
+          test "${gen}" = "${SEED_GENERATION}"
+
+      - name: Every committed marker row survived
+        run: |
+          set -euo pipefail
+          stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh)"
+          max="${stats%%|*}"
+          count="${stats##*|}"
+          echo "marker rows: max=${max} count=${count}; writer's last committed: ${WRITER_LAST}"
+          {
+            echo "### Upgrade verify (ADR-0149)"
+            echo "- server replaced: ${REPLACED}"
+            echo "- seeded generation: \`${SEED_GENERATION}\`"
+            echo "- writer's last committed row: ${WRITER_LAST}"
+            echo "- rows: max ${max}, count ${count}"
+            echo "- lost committed rows: $(( WRITER_LAST > max ? WRITER_LAST - max : 0 ))"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "${count}" -eq "${max}"
+          if [ "${max}" -lt "${WRITER_LAST}" ]; then
+            echo "::error::$(( WRITER_LAST - max )) committed row(s) lost in the upgrade" >&2
+            exit 1
+          fi
+
+      - name: Seeded tables are still non-empty
+        run: |
+          set -euo pipefail
+          for table in accounts transactions categories; do
+            n="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'SELECT count(*) FROM ${table};'")"
+            echo "${table}: ${n} rows"
+            test "${n}" -ge 1
+          done
+
+      - name: PRAGMA integrity_check
+        run: |
+          set -euo pipefail
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'PRAGMA integrity_check;'")"
+          echo "integrity_check=${result}"
+          test "${result}" = "ok"
+
+  # Phase rollback (ADR-0149 §6), in place only: the image goes back to the baseline ref and
+  # this PR's templates stay (as in a release rollback). A replacement is not rolled back.
+  apply-rollback:
+    name: terraform apply (rollback to baseline image)
+    needs: [baseline, ttl, detect, apply-upgrade, verify]
+    if: ${{ needs.detect.outputs.replaced == 'false' && needs.apply-upgrade.outputs.server_replaced == 'false' }}
+    # T-D121: reusable callee requests these; less is a startup_failure.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/terraform.yml
+    with:
+      env: drill
+      image_ref: ${{ needs.baseline.outputs.ref }}
+      rollback: true
+      drill_expires_at: ${{ needs.ttl.outputs.expires-at }}
+      boot_log_upload: ${{ inputs.boot_logs }}
+    secrets: inherit  # pragma: allowlist secret
+
+  verify-rollback:
+    name: verify the rolled-back host
+    needs: [seed, writer, apply-rollback]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: drill
+    permissions:
+      contents: read
+    env:
+      TARGET_URL: https://budget-planner-drill-${{ github.run_id }}.${{ vars.TAILNET_DNS_NAME }}
+      WRITER_LAST: ${{ needs.writer.outputs.last }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: SSH to the drill
+        uses: ./.github/actions/drill-ssh
+        with:
+          host: ${{ env.DRILL_SSH_HOST }}
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+
+      - name: Wait for /ready and the agent on the baseline ref
+        uses: ./.github/actions/drill-ready
+        with:
+          target-url: ${{ env.TARGET_URL }}
+          generation: ${{ needs.apply-rollback.outputs.host_config_generation }}
+          image-ref: ${{ needs.apply-rollback.outputs.host_image_ref }}
+
+      - name: Marker rows still present and seeded tables non-empty
+        run: |
+          set -euo pipefail
+          stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh)"
+          max="${stats%%|*}"
+          echo "marker rows after the rollback: ${stats}; writer's last committed: ${WRITER_LAST}"
+          test "${max}" -ge "${WRITER_LAST}"
+          for table in accounts transactions; do
+            n="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'SELECT count(*) FROM ${table};'")"
+            test "${n}" -ge 1
+          done
+
+      - name: PRAGMA integrity_check
+        run: |
+          set -euo pipefail
+          result="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" "sudo sqlite3 -readonly /data/budget.db 'PRAGMA integrity_check;'")"
+          echo "integrity_check=${result}"
+          test "${result}" = "ok"
+
+  # Gate mode (always) and explore with keep=false: destroy even when a phase failed, as
+  # long as an apply was attempted (a partial apply can leave resources behind). Explore
+  # with keep=true stays up until the TTL. Not after `writer`: in a failed run the writer
+  # ends only when this destroy removes the host.
   teardown:
     name: teardown (drill)
-    needs: [apply, smoke]
+    needs:
+      - apply
+      - smoke
+      - apply-baseline
+      - smoke-baseline
+      - seed
+      - writer-started
+      - apply-upgrade
+      - converge
+      - verify
+      - apply-rollback
+      - verify-rollback
     if: >-
-      ${{ always() && needs.apply.result != 'skipped' &&
+      ${{ always() &&
+      (needs.apply.result != 'skipped' || needs.apply-baseline.result != 'skipped') &&
       (inputs.mode == 'gate' || !inputs.keep) }}
     # T-D121: reusable callee requests these; less is a startup_failure.
     permissions:
@@ -281,12 +900,26 @@ jobs:
     uses: ./.github/workflows/tailnet-cleanup.yml
     secrets: inherit  # pragma: allowlist secret
 
-  # Gate mode: final verdict on the built SHA. Depends on apply + smoke ONLY, so a
-  # failing teardown (sweeper backstop) cannot flip a green gate, and a slow
-  # teardown does not delay it.
+  # Gate mode: final verdict on the built SHA (ADR-0149 §7). Depends on the phase jobs
+  # ONLY (not teardown, not the writer), so a failing or slow teardown cannot flip or
+  # delay a verdict. `success` iff every phase that ran passed; otherwise the
+  # description names the first failing phase (ci/build, baseline, seed, upgrade,
+  # rollback). The only job that posts a final `drill-gate` state.
   gate-result:
     name: gate status (result)
-    needs: [apply, smoke]
+    needs:
+      - ci
+      - build
+      - baseline
+      - apply-baseline
+      - smoke-baseline
+      - seed
+      - detect
+      - apply-upgrade
+      - converge
+      - verify
+      - apply-rollback
+      - verify-rollback
     if: ${{ always() && inputs.mode == 'gate' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -298,18 +931,50 @@ jobs:
       SHA: ${{ github.sha }}
       REF_NAME: ${{ github.ref_name }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      APPLY_RESULT: ${{ needs.apply.result }}
-      SMOKE_RESULT: ${{ needs.smoke.result }}
+      CI_RESULT: ${{ needs.ci.result }}
+      BUILD_RESULT: ${{ needs.build.result }}
+      BASELINE_RESULT: ${{ needs.baseline.result }}
+      APPLY_BASELINE_RESULT: ${{ needs.apply-baseline.result }}
+      SMOKE_BASELINE_RESULT: ${{ needs.smoke-baseline.result }}
+      SEED_RESULT: ${{ needs.seed.result }}
+      DETECT_RESULT: ${{ needs.detect.result }}
+      APPLY_UPGRADE_RESULT: ${{ needs.apply-upgrade.result }}
+      CONVERGE_RESULT: ${{ needs.converge.result }}
+      VERIFY_RESULT: ${{ needs.verify.result }}
+      APPLY_ROLLBACK_RESULT: ${{ needs.apply-rollback.result }}
+      VERIFY_ROLLBACK_RESULT: ${{ needs.verify-rollback.result }}
+      REPLACED: ${{ needs.apply-upgrade.outputs.server_replaced }}
     steps:
       - name: Post drill-gate result
         run: |
           set -euo pipefail
-          state=failure
-          desc="drill gate failed (apply=${APPLY_RESULT}, smoke=${SMOKE_RESULT})"
-          if [ "${APPLY_RESULT}" = "success" ] && [ "${SMOKE_RESULT}" = "success" ]; then
-            state=success
-            desc="drill gate passed (apply + smoke)"
+          # All jobs of a phase must be `success`; a skipped job after a failure counts as failed.
+          phase_ok() { for r in "$@"; do [ "${r}" = "success" ] || return 1; done; }
+          phase=""
+          path="in place + rollback"
+          if ! phase_ok "${CI_RESULT}" "${BUILD_RESULT}"; then
+            phase="ci/build"
+          elif ! phase_ok "${BASELINE_RESULT}" "${APPLY_BASELINE_RESULT}" "${SMOKE_BASELINE_RESULT}"; then
+            phase="baseline"
+          elif ! phase_ok "${SEED_RESULT}"; then
+            phase="seed"
+          elif ! phase_ok "${DETECT_RESULT}" "${APPLY_UPGRADE_RESULT}" "${CONVERGE_RESULT}" "${VERIFY_RESULT}"; then
+            phase="upgrade"
+          elif [ "${REPLACED}" = "false" ]; then
+            # In place: the rollback phase must have run and passed.
+            if ! phase_ok "${APPLY_ROLLBACK_RESULT}" "${VERIFY_ROLLBACK_RESULT}"; then phase="rollback"; fi
+          elif [ "${REPLACED}" = "true" ]; then
+            path="replacement"
+          else
+            phase="upgrade"
           fi
+          state=failure
+          desc="drill gate failed in phase: ${phase}"
+          if [ -z "${phase}" ]; then
+            state=success
+            desc="drill gate passed (upgrade from baseline, ${path})"
+          fi
+          desc="${desc:0:140}"
           gh api "repos/${REPO}/statuses/${SHA}" \
             -f state="${state}" -f context=drill-gate \
             -f description="${desc}" -f target_url="${RUN_URL}"
@@ -317,6 +982,8 @@ jobs:
             echo "### drill gate"
             echo "- ref: \`${REF_NAME}\`"
             echo "- sha: \`${SHA}\`"
-            echo "- apply: ${APPLY_RESULT}, smoke: ${SMOKE_RESULT}"
-            echo "- status: ${state} (\`drill-gate\`)"
+            echo "- server replaced: ${REPLACED:-unknown}"
+            echo "- baseline: ${BASELINE_RESULT}/${APPLY_BASELINE_RESULT}/${SMOKE_BASELINE_RESULT}, seed: ${SEED_RESULT}"
+            echo "- upgrade: ${DETECT_RESULT}/${APPLY_UPGRADE_RESULT}/${CONVERGE_RESULT}/${VERIFY_RESULT}, rollback: ${APPLY_ROLLBACK_RESULT}/${VERIFY_ROLLBACK_RESULT}"
+            echo "- status: ${state} (\`drill-gate\`) ${desc}"
           } >> "$GITHUB_STEP_SUMMARY"

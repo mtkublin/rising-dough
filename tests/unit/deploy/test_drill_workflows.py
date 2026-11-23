@@ -51,7 +51,8 @@ def test_drill_workflows_never_reference_prod(name: str) -> None:
     text = (WORKFLOWS / name).read_text()
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
-    assert "prod" not in code.replace("production", "")
+    # T-Q306d: the gate resolves its baseline with scripts/ci/prod_baseline.py (read-only).
+    assert "prod" not in code.replace("production", "").replace("prod_baseline.py", "")
     assert "env: drill" in code or name == "drill-sweeper.yml"
 
 
@@ -80,9 +81,13 @@ def test_gate_mode_has_always_teardown_with_destroy() -> None:
     assert "always()" in condition
     # Gate mode is torn down regardless of `keep`.
     assert "inputs.mode == 'gate' || !inputs.keep" in condition
-    # Runs after a failed apply/smoke, but only when apply was attempted.
+    # Runs after a failed phase, but only when an apply was attempted (T-Q306d: explore's
+    # `apply` or the gate's `apply-baseline`).
     assert "needs.apply.result != 'skipped'" in condition
-    assert set(teardown["needs"]) == {"apply", "smoke"}
+    assert "needs.apply-baseline.result != 'skipped'" in condition
+    assert {"apply", "smoke", "apply-baseline", "apply-upgrade", "verify-rollback"} <= set(
+        teardown["needs"]
+    )
 
 
 def test_sweeper_runs_every_15_minutes_and_destroys_conditionally() -> None:
@@ -116,13 +121,16 @@ def test_gate_status_jobs_post_drill_gate_on_built_sha() -> None:
     assert sum("statuses" in (j.get("permissions") or {}) for j in jobs.values()) == 2
 
 
-def test_gate_result_reflects_apply_and_smoke_only() -> None:
+def test_gate_result_reflects_the_phase_jobs_only() -> None:
+    # T-Q306e: the verdict covers every phase job, never teardown (ADR-0149 section 7).
     result = _load("drill.yml")["jobs"]["gate-result"]
     run = "\n".join(str(s.get("run", "")) for s in result["steps"])
 
-    assert set(result["needs"]) == {"apply", "smoke"}  # not teardown
+    assert "teardown" not in result["needs"]
+    assert {"apply-baseline", "seed", "apply-upgrade", "verify", "verify-rollback"} <= set(
+        result["needs"]
+    )
     assert "always()" in str(result["if"])
-    assert '[ "${APPLY_RESULT}" = "success" ] && [ "${SMOKE_RESULT}" = "success" ]' in run
     assert "state=failure" in run
 
 
