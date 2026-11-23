@@ -201,3 +201,63 @@ finding = "T-UR31"
 epic = "UR"
 search = ["MailSender", "MailMessage", "send_mail", "smtp", "email_enabled"]
 banned = ["*send_mail*", "*smtplib*"]
+
+[[row]]
+concept = "Due-date status (in N days, due today, overdue) and override delta"
+module = "services/ledger_totals.py"
+symbol = "planned_status"
+status = "exists"
+finding = "T-UR34c"
+epic = "UR"
+search = ["planned_status", "override_delta", "overdue", "due_today", "days_until"]
+banned = ["*planned_status*", "*override_delta*"]
+
+[[row]]
+concept = "Segmented bar cells and hero amount fit"
+module = "web/view_models.py"
+symbol = "bar_cells"
+status = "exists"
+finding = "T-UR34k"
+epic = "UR"
+search = ["bar_cells", "hero_fit", "cells", "data-digits"]
+banned = ["*bar_cells*", "_hero_fit", "compute_hero_fit"]
+
+[[row]]
+concept = "Session device label from a user agent"
+module = "domain/user_agent.py"
+symbol = "device_label"
+status = "exists"
+finding = "T-UR34h"
+epic = "UR"
+search = ["device_label", "user_agent", "parse_ua"]
+banned = ["*device_label*", "_parse_user_agent*"]
+
+[[row]]
+concept = "Rate-limit attempts left"
+module = "services/rate_limit.py"
+symbol = "attempts_left"
+status = "exists"
+finding = "T-UR34i"
+epic = "UR"
+search = ["attempts_left", "remaining_attempts", "rate_limit"]
+banned = ["_attempts_left*", "*remaining_attempts*"]
+
+[[row]]
+concept = "Form field labels and 422 field summary"
+module = "web/field_labels.py"
+symbol = "field_label"
+status = "exists"
+finding = "T-UR34l"
+epic = "UR"
+search = ["field_label", "field_summary", "FIELD_LABELS"]
+banned = ["_field_label*", "*field_summary*"]
+
+[[row]]
+concept = "Account in-use reference counts"
+module = "services/accounts.py"
+symbol = "account_references"
+status = "exists"
+finding = "T-UR33"
+epic = "UR"
+search = ["account_references", "count_referencing_account", "in_use"]
+banned = ["_account_references*", "*account_in_use*"]
