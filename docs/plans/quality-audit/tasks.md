@@ -1338,6 +1338,16 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: suite green under the default and under all four matrix instants; a route run through `TestClient` sees the frozen date; G32 fails on a fixture `datetime('now')`.
 - Removes allowlist entries: none (adds none).
 
+### T-Q314 ✅ [S] Background-task crashes are visible
+- Findings: Q46 follow-up (operator 2026-11-23): `retention_task.run_forever` / `fx_refresh_task.run_forever` catch only expected job errors; any other exception ends the task unobserved and the job silently never runs again.
+- Epic: E04
+- Band: follow-up · Size: S · Tags: reliability, observability
+- Depends on: T-Q271
+- Docs-first step: ADR-0130 amendment 2026-11-23 (T-Q314); requirements F7.4.
+- Goal: done-callback logs `background_task_crashed` and flags the job; `/health/fx` 503 `refresh_crashed`; no restart, no broad except.
+- Acceptance: tests for unexpected error, JOB_ERRORS unchanged, cancellation silent, health 503.
+- Removes allowlist entries: none (adds none).
+
 ### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04
