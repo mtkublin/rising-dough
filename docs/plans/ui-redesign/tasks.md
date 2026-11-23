@@ -23,7 +23,7 @@
 
 > **Decision**: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Everything backend that can ship before the migration ships first: schema, repositories, services, ports, config switches, service guards and the fields the handoff needs. No templates, CSS, JS or new page-rendering routes; existing routes change only the service call and the error shown through the existing flash. One PR to `main` from `ui/preconditions`, released through the ADR-0099 pipeline; Phase 0 starts after the release is live. Contract tests for the changed behaviour change here (requirements already amended), so the migration starts from that baseline.
 
-### ◻ T-UR29 [P] User edit guards (server side of T-UR20)
+### ✅ T-UR29 [P] User edit guards (server side of T-UR20)
 - `services/users.edit_user` refuses an actor demoting themselves (today allowed while a second admin exists) and demoting the last admin; an email different from the stored one is refused with a validation error (422 on the route, nothing saved; operator 2026-11-22). Delete keeps refusing self and last admin.
 - Tests assert the stored row, the audit row and that a second user's rows are untouched; HTTP tests on the existing edit route assert the flashed refusal and unchanged DB state.
 - ADR-0134 §11, ADR-0073, requirements §10.1 (user admin line), §6.2.
@@ -54,6 +54,7 @@
 - Every `missing` field added to its service or view model (canonical modules first, reuse report). Export (`/transactions/export`, `/planned/export`) honours the current tab and filters (ADR-0134 §6). The credit-limit preview returns "left of limit" and "left after this entry" (ADR-0134 §2).
 - Values that only differ because the handoff is internally inconsistent are listed as overlay candidates for T-UR00b, not fixed in the app.
 - ADR-0147 §3.
+- T-UR34a ✅ inventory: `docs/plans/ui-redesign/value-inventory.md` (106 handoff pages + 5 chart specimens; 20 overlay-candidate families for T-UR00b). Gap groups (one wave 2 item each, T-UR34b..l): G1 export filters and per-tab links (`web/ledger_data.py` parsers, export routers, `PlannedFilter`); G2 ledger strips, planned row status, recurring override deltas (`services/ledger_totals.py`, `web/ledger_data.py`); G3 credit-limit preview "left before" (`services/limit_preview.py`); G4 Today afford unclamped per-day and over amount (`services/today.py`); G5 reconcile difference (`services/account_reconcile.py`); G6 category entry count and recent categories (`services/categories.py`); G7 session device label (`services/security_settings.py`); G8 re-auth attempts left (`services/rate_limit.py`, `services/reauth.py`); G9 forecast summary delta (`services/forecast.py`); G10 view-model values: hero `data-digits`/`data-marks`/`data-signs` filter, budget over count, bar left% and cells (`web/view_models.py`, `web/templating.py`); G11 422 summary (`web/errors.py`). Shared files, disjoint hunks: `web/ledger_data.py` (G1, G2), `web/routers/transactions.py` (G1, G3).
 
 ### ◻ T-UR35 [S] Precondition release → T-UR29..T-UR34
 - PR `ui/preconditions` → `main` with a green `drill-gate` on its head SHA (deploy PR: migrations 0019, 0020); release **v3.2.0** through the ADR-0099 pipeline; prod smoke (sign-in, Today, Accounts, edit user refusal, account delete refusal on a referenced account). `docs/CHANGELOG.md` entry; Phase P lines marked ✅.
