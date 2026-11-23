@@ -15,6 +15,7 @@ from budget_planner.domain.accounts import Account, AccountStats
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services import (
     account_planned as planned_service,
+    account_reconcile as reconcile_service,
     accounts as accounts_service,
     balance as balance_service,
     categories as categories_service,
@@ -146,10 +147,22 @@ def available_mode_context(acc: Account, derived: int) -> dict[str, object]:
 
 
 def reconcile_modal_context(
-    conn: sqlite3.Connection, user_id: int, acc: Account, derived: int
+    conn: sqlite3.Connection,
+    user_id: int,
+    acc: Account,
+    derived: int,
+    entered_minor: int | None = None,
 ) -> dict[str, object]:
-    """Category choices and available-credit values shared by the modal and its rejections."""
+    """Category choices and available-credit values shared by the modal and its rejections.
+
+    ``preview`` carries the signed difference for a typed amount (T-UR34f), else ``None``.
+    """
     return {
+        "preview": (
+            None
+            if entered_minor is None
+            else reconcile_service.preview_difference(acc, entered_minor, derived)
+        ),
         "account": acc,
         "derived": derived,
         "categories": [c for c in categories_service.list_all(conn, user_id) if not c.is_system],
