@@ -18,7 +18,7 @@ from typing import Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import percent_of
+from budget_planner.domain.money import format_money, percent_of
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
@@ -57,6 +57,12 @@ MONTH_LONG: Final[tuple[str, ...]] = (
 
 _MAX_PCT: Final = 100
 _UPCOMING_CAP: Final = 6
+ROW_BAR_CELLS: Final = 10
+"""Block cells in a table-row bar (handoff README: 10 in rows and on phone)."""
+HERO_BAR_CELLS: Final = 20
+"""Block cells in a hero or desktop share bar (handoff README: 20 wide)."""
+_SIGN_MARKS: Final = ("-", "\u2212")
+_GROUP_MARKS: Final = (",", ".")
 _NEXT_WEEK_DAYS: Final = 7
 _YEAR_TIERS: Final[Mapping[str, str]] = MappingProxyType(
     {"one_off": "one-off", "recurring": "recurring", "default": "default", "unset": "unset"}
@@ -68,6 +74,58 @@ DeltaKind = Literal["up", "down", "flat"]
 def clamped_percent(part_minor: int, total_minor: int) -> int:
     """Whole percent of ``part`` in ``total`` clamped to 0..100 (bar widths)."""
     return max(0, min(_MAX_PCT, percent_of(part_minor, total_minor)))
+
+
+@dataclass(frozen=True, slots=True)
+class BarCells:
+    """Segmented block bar: ``filled`` + ``empty`` == the bar's cell count."""
+
+    filled: int
+    empty: int
+    left_pct: int
+
+
+def bar_cells(
+    used_pct: int, cells: int, *, is_over: bool = False, min_one: bool = False
+) -> BarCells:
+    """Filled/empty cells for a ``cells``-wide bar from a whole ``used_pct`` (0..100).
+
+    Rounding: half up on the already-floored ``used_pct`` (``percent_of`` floors,
+    the handoff rounds cells half up: 39 % of 10 -> 4 cells). ``is_over`` fills
+    every cell and reports 0 % left. ``min_one`` (handoff 20-cell bar only) shows
+    at least one filled cell for any non-zero use. ``left_pct`` is ``100 - used_pct``.
+    """
+    if is_over:
+        return BarCells(filled=cells, empty=0, left_pct=0)
+    used = max(0, min(_MAX_PCT, used_pct))
+    # Cell i is filled when used% reaches its midpoint: (i + 1/2) * 100 / cells <= used.
+    filled = sum(1 for i in range(cells) if (2 * i + 1) * _MAX_PCT <= 2 * used * cells)
+    if min_one and used > 0:
+        filled = max(filled, 1)
+    return BarCells(filled=filled, empty=cells - filled, left_pct=_MAX_PCT - used)
+
+
+@dataclass(frozen=True, slots=True)
+class HeroFit:
+    """Counts for the hero figure's ``data-digits`` / ``data-marks`` / ``data-signs``."""
+
+    digits: int
+    marks: int
+    signs: int
+
+
+def hero_fit(amount_minor: int, currency: str) -> HeroFit:
+    """Digit, grouping/decimal mark and sign counts of the formatted amount.
+
+    Counted over ``format_money`` output (the figure the page prints): digits are
+    0-9 characters, marks are ``,`` and ``.``, signs are 1 for a negative amount.
+    """
+    text = format_money(amount_minor, currency)
+    return HeroFit(
+        digits=sum(ch.isdigit() for ch in text),
+        marks=sum(text.count(m) for m in _GROUP_MARKS),
+        signs=int(any(text.startswith(m) for m in _SIGN_MARKS)),
+    )
 
 
 def left_per_day(summary: budget_service.MonthSummary) -> int:
@@ -109,6 +167,8 @@ class BudgetLineView:
     budgeted_minor: int
     remaining_after_minor: int
     used_pct: int
+    left_pct: int
+    cells: BarCells
     is_over: bool
     delta_kind: DeltaKind
 
@@ -123,6 +183,11 @@ class BudgetView:
     spent_pct: int
     committed_pct: int
     is_over: bool
+    over_count: int
+    left_pct: int
+    cells: BarCells
+    period_start: date
+    period_end: date
     period_day: int
     period_total_days: int
 
@@ -137,12 +202,17 @@ def _delta_kind(delta_minor: int) -> DeltaKind:
 
 def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
     budgeted = line.budgeted_minor or 0
+    used_pct = clamped_percent(line.spent_minor, budgeted)
+    is_over = line.spent_minor > budgeted
+    cells = bar_cells(used_pct, ROW_BAR_CELLS, is_over=is_over)
     return BudgetLineView(
         line=line,
         budgeted_minor=budgeted,
         remaining_after_minor=budgeted - line.spent_minor,
-        used_pct=clamped_percent(line.spent_minor, budgeted),
-        is_over=line.spent_minor > budgeted,
+        used_pct=used_pct,
+        left_pct=cells.left_pct,
+        cells=cells,
+        is_over=is_over,
         delta_kind=_delta_kind(line.delta_vs_prev_month_minor),
     )
 
@@ -150,13 +220,22 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
 def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView:
     """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker)."""
     totals = summary.totals
+    lines = tuple(_line_view(line) for line in summary.lines)
+    spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
+    is_over = totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor
+    cells = bar_cells(spent_pct, HERO_BAR_CELLS, is_over=is_over, min_one=True)
     return BudgetView(
         summary=summary,
-        lines=tuple(_line_view(line) for line in summary.lines),
+        lines=lines,
         left_per_day_minor=left_per_day(summary),
-        spent_pct=clamped_percent(totals.spent_minor, totals.budgeted_minor),
+        spent_pct=spent_pct,
         committed_pct=clamped_percent(totals.committed_minor, totals.budgeted_minor),
-        is_over=totals.budgeted_minor > 0 and totals.spent_minor > totals.budgeted_minor,
+        is_over=is_over,
+        over_count=sum(1 for line in lines if line.is_over),
+        left_pct=cells.left_pct,
+        cells=cells,
+        period_start=summary.period_start,
+        period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
     )
@@ -189,6 +268,10 @@ class UpcomingView:
     total_count: int
     cap: int
     has_more: bool
+    overdue_count: int
+    due_today_count: int
+    next_7_count: int
+    later_count: int
 
 
 def _upcoming_item(
@@ -229,12 +312,17 @@ def upcoming_view(
         item = _upcoming_item(row, today, categories_by_id, accounts_by_id)
         near = (row.operation_date - today).days <= _NEXT_WEEK_DAYS
         (next_7 if near else later).append(item)
+    shown = (*next_7, *later)
     return UpcomingView(
         next_7=tuple(next_7),
         later=tuple(later),
         total_count=len(upcoming),
         cap=_UPCOMING_CAP,
         has_more=len(upcoming) > _UPCOMING_CAP,
+        overdue_count=sum(1 for item in shown if item.is_overdue),
+        due_today_count=sum(1 for item in shown if item.is_due_today),
+        next_7_count=len(next_7),
+        later_count=len(later),
     )
 
 
