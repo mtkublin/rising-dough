@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q306d/e: drill gate is the upgrade drill)
+- **Ci(T-Q306d/e): `drill.yml` `mode=gate` runs baseline → seed → upgrade (+ marker writer) → verify → rollback (in place) or the replacement path, then teardown; `gate-result` names the failing phase; gate TTL 90 → 240 min; `mode=explore` unchanged.** New `scripts/ci/render_seed_demo.py` (the baseline's Terraform does not install `seed-demo`), `rehearsal_marker.sh writer-until` / `stop`, composite action `drill-ready`. ADR-0149 implementation note. No allowlist change.
+
 ## 2026-11-23 (T-Q306a: prod baseline resolver)
 - **Feat(T-Q306a): `scripts/ci/prod_baseline.py` resolves the version prod serves (newest `prod` deployment whose latest status is `success`, tag ancestor of `origin/main`, digest via `host_release.resolve_ref`) and prints `tag=`, `sha=`, `image_ref=`; fails closed.** ADR-0149 Decision 2. Not yet wired into `drill.yml` (T-Q306d/e). No allowlist change.
 
