@@ -1,37 +1,47 @@
-# Drill deploy pipeline (T-D90, T-D98, ADR-0099 decision 3): ci -> build ->
-# terraform apply drill -> smoke. Runs on the ephemeral `drill` environment only;
-# never touches prod.
+# Drill deploy pipeline (T-D90, T-D98, ADR-0099 decision 3, ADR-0149). Runs on the
+# ephemeral drill environments only; never touches prod.
 #
 # Trigger: workflow_dispatch ONLY (T-D98). No push and no pull_request trigger, so
 # nothing is applied to the drill unless a human dispatches it:
 #   gh workflow run drill.yml --ref <branch> -f mode=gate      (default)
 #   gh workflow run drill.yml --ref <branch> -f mode=explore -f ttl_minutes=90
 #
-#   mode=gate     merge gate for a PR to main. Short TTL (sweeper backstop), `keep` is
-#                 ignored (forced false), the drill is ALWAYS torn down once apply was
-#                 attempted. The result is posted as commit status `drill-gate` on the
-#                 exact SHA that was built and applied (`pending` at start, then
-#                 `success` iff apply AND smoke succeeded, else `failure`). Branch
-#                 protection on `main` requires `drill-gate`. A later push to the PR
-#                 produces a new head SHA without the status, so the gate must be
-#                 re-dispatched. A failing teardown fails the workflow run but not the
-#                 status (apply + smoke only); the sweeper is the backstop.
-#   mode=explore  browse the drill: `ttl_minutes` (15..480, default 60), `keep` (false =
-#                 tear down right after the smoke test), `boot_logs`. Never posts a
-#                 status.
+#   mode=gate     merge gate for a PR to main: the UPGRADE drill (ADR-0149), one VM,
+#                 phases in order: baseline (prod's served version via
+#                 scripts/ci/prod_baseline.py; the apply uses terraform_ref = that
+#                 tag) -> seed (the tag's demo DB through this head's seed-demo,
+#                 rendered by scripts/ci/render_seed_demo.py) -> detect (plan of the PR
+#                 head, scripts/ci/host_release.py replaced) -> upgrade (apply with a
+#                 marker writer running; converge/verify in place, or the replacement
+#                 path: drain, restore, tailnet cleanup) -> rollback (in place only:
+#                 baseline image, PR templates) -> teardown (always). TTL 240 min
+#                 (sweeper backstop); `keep` is ignored (forced false).
+#                 Result: commit status `drill-gate` on the exact SHA that was built
+#                 (`pending` at start, then `success` iff every phase that ran passed,
+#                 else `failure` whose description names the failing phase: ci/build,
+#                 baseline, seed, upgrade or rollback). Branch protection on `main`
+#                 requires `drill-gate`. A later push produces a new head SHA without
+#                 the status, so the gate must be re-dispatched. A failing teardown
+#                 fails the run but not the status; the sweeper is the backstop.
+#   mode=explore  unchanged: a fresh boot of the dispatched ref to browse. `ttl_minutes`
+#                 (15..480, default 60), `keep` (false = tear down right after the
+#                 smoke test), `boot_logs`. Never posts a status.
 #
-# ADR-0111: the drill exercises the same release path as prod. The apply sets
-# the image ref `sha-<short>@sha256:<digest>` built here in instance metadata;
-# on the fresh VM the host agent cosign-verifies, pulls and starts it. The smoke
-# job waits for /ready over the tailnet (fresh boot to ready takes ~3.5 min; the
-# budget is 10 min), then for the agent status to report this generation.
+# ADR-0111: the drill exercises the same release path as prod. The apply sets the image
+# ref `sha-<short>@sha256:<digest>` in instance metadata; the host agent cosign-verifies,
+# pulls and starts it. The smoke jobs wait for /ready over the tailnet (fresh boot to
+# ready takes ~3.5 min; the budget is 10 min), then for the agent status to report the
+# expected generation.
 #
 # Concurrency: group `drill` is shared with restore-drill.yml, the sweeper and
 # drill-destroy.yml; runs queue, never cancel a running apply/destroy.
 #
-# Environments (ADR-0101, T-D96): `drill` has required reviewers and gates every
-# apply (terraform.yml job `apply`). `drill-teardown` (ungated, same secrets/vars)
-# serves smoke and every destroy, so teardown never waits for approval.
+# Environments (ADR-0101, T-D96), none has required reviewers today (only the prod
+# environments do, github-settings.md): `drill` runs the applies, smoke and SSH jobs;
+# `drill-plan` (ungated) runs the `detect` plan; `drill-teardown` (ungated, same
+# secrets/vars) serves the lock and every destroy, so teardown never waits.
+# `detect` names its secrets explicitly: dumping the whole secrets context in a
+# dispatched workflow's own job aborts the dispatch with `action_required` (T-Q306 fix).
 # Secrets/vars: see terraform.yml / restore-drill.yml headers; vars.TAILNET_DNS_NAME
 # (MagicDNS suffix, e.g. tail1234.ts.net). The drill is tailnet-only (ADR-0101): the
 # smoke job joins the tailnet as tag:ci; ACL must allow tag:ci -> tag:drill:443.
