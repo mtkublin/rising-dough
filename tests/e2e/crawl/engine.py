@@ -48,11 +48,13 @@ def skip_reason(control: Control) -> str | None:  # noqa: PLR0911
         return "off-screen or visually hidden (skip link, sr-only)"
     if control.nonclick:
         return "triggered by input or form event, not a click"
-    if control.disabled:
-        return "disabled"
+    # Before the disabled check: passkeys.js disables the button where the engine has no
+    # WebAuthn (Playwright WebKit on Linux, T-Q316), so the reason must not depend on the browser.
     for name, why in SKIP_NAMES:
         if control.name == name:
             return why
+    if control.disabled:
+        return "disabled"
     for prefix, why in SKIP_TARGETS:
         if control.target.startswith(prefix):
             return why

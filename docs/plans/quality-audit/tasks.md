@@ -1714,7 +1714,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 
 **Hotspot rules for the orchestrator.** (a) The allowlist TOML owner table above is the contract; a task needing another wave's TOML waits. (b) `tests/architecture/allowlists/*.toml`, `pyproject.toml`, `uv.lock`, `docs/CHANGELOG.md` (append-only: resolve by keeping both lines), `docs/adr/README.md` (new ADR numbers: reserve numbers per wave before dispatch to avoid duplicates) are merged by the orchestrator, not by items, whenever a conflict appears. (c) CLAUDE.md and `.claude/**` edits (T-Q245) are operator-reviewed and merged alone. (d) Terraform and GitHub-settings tasks (T-Q218, T-Q238, T-Q239, T-Q255) never apply from a laptop; their code half lands through the PR pipeline, the settings half is the operator's.
 
-### T-Q316 [S] WebKit: Add passkey button disabled (3 crawl inventory drifts, 1 journey timeout) (follow-up, advisory)
+### ✅ T-Q316 [S] WebKit: Add passkey button disabled (3 crawl inventory drifts, 1 journey timeout) (follow-up, advisory)
 - Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: e2e, webkit
@@ -1726,9 +1726,10 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Acceptance: the test passes on the WebKit job of `e2e.yml` (`--e2e-browser=webkit`) on a `wi/**` push.
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
+- Root cause and fix (2026-11-23): Playwright WebKit on Linux has no WebAuthn, so `passkeys.js` correctly disables the button with "doesn't support passkeys"; the crawl now names the Add passkey skip before the generic `disabled` skip (browser-independent), and the IP-literal journey stubs the WebAuthn surface only where the engine lacks it.
 - Wave: follow-up, not blocking.
 
-### T-Q317 [S] WebKit: /today crawl, Undo after Promote all due, htmx request cancelled (follow-up, advisory)
+### ✅ T-Q317 [S] WebKit: /today crawl, Undo after Promote all due, htmx request cancelled (follow-up, advisory)
 - Findings: first WebKit run of `e2e.yml` (T-Q299, run 45224425657, 2026-11-23).
 - Epic: E04
 - Band: follow-up · Size: S · Tags: e2e, webkit
@@ -1740,6 +1741,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Acceptance: the test passes on the WebKit job of `e2e.yml` (`--e2e-browser=webkit`) on a `wi/**` push.
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
+- Root cause and fix (2026-11-23): a real double-load. `app-init.js` called `location.reload()` as soon as the Undo POST resolved, cancelling the `today-stale` region refreshes (`hx-get`) its HX-Trigger had just started; WebKit reports that as `Load request cancelled` + `htmx:sendError`. The reload now waits (bounded 2 s) until no `.htmx-request` is in flight.
 - Wave: follow-up, not blocking.
 
 ### T-Q318 [S] WebKit: change-secret journey gets invalid_csrf (follow-up, advisory)
