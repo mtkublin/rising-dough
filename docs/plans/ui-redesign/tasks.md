@@ -28,7 +28,7 @@
 - Tests assert the stored row, the audit row and that a second user's rows are untouched; HTTP tests on the existing edit route assert the flashed refusal and unchanged DB state.
 - ADR-0134 §11, ADR-0073, requirements §10.1 (user admin line), §6.2.
 
-### ◻ T-UR30 [P] Invite data layer (data part of T-UR20)
+### ✅ T-UR30 [P] Invite data layer (data part of T-UR20)
 - Migration `0019_invites.sql` (+ `down/`): invites (email, role, inviting admin, token hash, created / expires / used / revoked timestamps, soft delete + audit via repository helpers). Repository, user-scoped where it applies.
 - Lifetime 7 days from create or resend (named constant). Service: create (refuses an email that already has a live user or a pending invite), resend (new token and new expiry, old token dead; refused on a revoked or used invite), revoke (final: a revoked invite cannot be resent, the admin creates a new one), accept (creates the user with the invite's email and role, marks the invite used, one `db_transaction`), link state (`pending`, `expired`, `used`, `invalid`). Token stored hashed, compared in constant time, never logged.
 - No routes, no templates. Migration rehearsal on a scratch copy (never `data/budget.sqlite`).
