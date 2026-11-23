@@ -93,10 +93,20 @@ def test_afford_forwards_user_and_today_to_the_budget_service(
 def test_afford_exact_values(conn: sqlite3.Connection, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_summary(monkeypatch, remaining=10_000, days_left=10)
     assert _afford(conn, 0) == today_svc.AffordResult(
-        per_day_minor=1_000, delta_minor=0, pace_tag="on_track", days_left=10
+        per_day_minor=1_000,
+        delta_minor=0,
+        pace_tag="on_track",
+        days_left=10,
+        unclamped_per_day_minor=1_000,
+        over_minor=0,
     )
     assert _afford(conn, 2_500) == today_svc.AffordResult(
-        per_day_minor=750, delta_minor=-250, pace_tag="on_track", days_left=10
+        per_day_minor=750,
+        delta_minor=-250,
+        pace_tag="on_track",
+        days_left=10,
+        unclamped_per_day_minor=750,
+        over_minor=0,
     )
 
 

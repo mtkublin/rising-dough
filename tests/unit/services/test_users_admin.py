@@ -12,11 +12,13 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo, users as users_repo
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
+    EMAIL_LOCKED_MESSAGE,
     INVALID_EMAIL_MESSAGE,
     LAST_ADMIN_DELETE_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     NAME_MAX_LENGTH,
     SELF_DELETE_MESSAGE,
+    SELF_DEMOTE_MESSAGE,
     UserConflict,
     UserDraft,
     UserInputError,
@@ -192,18 +194,35 @@ def test_get_live_user_missing(admin_conn: sqlite3.Connection) -> None:
 # --- edit -----------------------------------------------------------------
 
 
-def test_edit_user_updates_and_audits(admin_conn: sqlite3.Connection) -> None:
+def _make(conn: sqlite3.Connection, email: str, *, admin: bool = False) -> int:
     user, _ = create_user(
-        admin_conn, ADMIN_ID, _draft("c@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
+        conn, ADMIN_ID, _draft(email, admin=admin), tokens=FakeTokenSource(), hasher=FAKE_HASHER
     )
+    return user.id
+
+
+def _stored(conn: sqlite3.Connection, user_id: int) -> tuple[object, ...]:
+    row = conn.execute(
+        "SELECT email, name, is_admin FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    return tuple(row)
+
+
+def test_edit_user_updates_name_and_admin_and_audits(admin_conn: sqlite3.Connection) -> None:
+    uid = _make(admin_conn, "c@x.test")
+    bystander = _make(admin_conn, "by@x.test")
     updated = edit_user(
-        admin_conn, ADMIN_ID, user.id, _draft("C2@x.test", admin=True, name="Cee"), request_ctx=CTX
+        admin_conn, ADMIN_ID, uid, _draft("C@x.test", admin=True, name="Cee"), request_ctx=CTX
     )
-    assert (updated.email, updated.name, updated.is_admin) == ("c2@x.test", "Cee", True)
-    update_row = _audit(admin_conn, user.id)[-1]
+    assert (updated.email, updated.name, updated.is_admin) == ("c@x.test", "Cee", True)
+    assert _stored(admin_conn, uid) == ("c@x.test", "Cee", 1)
+    update_row = _audit(admin_conn, uid)[-1]
     assert update_row["operation"] == "update"
     assert update_row["actor_user_id"] == ADMIN_ID
-    assert json.loads(update_row["prev_json"])["email"] == "c@x.test"
+    prev = json.loads(update_row["prev_json"])
+    assert (prev["email"], prev["name"], prev["is_admin"]) == ("c@x.test", "c", 0)
+    assert _stored(admin_conn, bystander) == ("by@x.test", "by", 0)
+    assert [r["operation"] for r in _audit(admin_conn, bystander)] == ["create"]
 
 
 def test_edit_user_keeps_own_email(admin_conn: sqlite3.Connection) -> None:
@@ -211,12 +230,15 @@ def test_edit_user_keeps_own_email(admin_conn: sqlite3.Connection) -> None:
     assert updated.email == "root@example.test"
 
 
-def test_edit_user_duplicate_email(admin_conn: sqlite3.Connection) -> None:
-    user, _ = create_user(
-        admin_conn, ADMIN_ID, _draft("d@x.test"), tokens=FakeTokenSource(), hasher=FAKE_HASHER
-    )
-    with pytest.raises(UserInputError):
-        edit_user(admin_conn, ADMIN_ID, user.id, _draft("Root@Example.test"))
+@pytest.mark.parametrize("new_email", ["other@x.test", "Root@Example.test"])
+def test_edit_user_refuses_email_change(admin_conn: sqlite3.Connection, new_email: str) -> None:
+    uid = _make(admin_conn, "d@x.test")
+    before = _audit(admin_conn, uid)
+    with pytest.raises(UserInputError) as exc:
+        edit_user(admin_conn, ADMIN_ID, uid, _draft(new_email, name="Changed"))
+    assert exc.value.fields == {"email": EMAIL_LOCKED_MESSAGE}
+    assert _stored(admin_conn, uid) == ("d@x.test", "d", 0)
+    assert _audit(admin_conn, uid) == before
 
 
 def test_edit_user_refuses_demoting_last_admin(admin_conn: sqlite3.Connection) -> None:
@@ -227,16 +249,36 @@ def test_edit_user_refuses_demoting_last_admin(admin_conn: sqlite3.Connection) -
     assert _audit(admin_conn, ADMIN_ID) == []
 
 
-def test_edit_user_allows_demote_with_second_admin(admin_conn: sqlite3.Connection) -> None:
-    create_user(
-        admin_conn,
-        ADMIN_ID,
-        _draft("e@x.test", admin=True),
-        tokens=FakeTokenSource(),
-        hasher=FAKE_HASHER,
-    )
-    demoted = edit_user(admin_conn, ADMIN_ID, ADMIN_ID, _draft("root@example.test"))
+def test_edit_user_refuses_self_demotion_even_with_second_admin(
+    admin_conn: sqlite3.Connection,
+) -> None:
+    second = _make(admin_conn, "e@x.test", admin=True)
+    with pytest.raises(UserConflict) as exc:
+        edit_user(admin_conn, ADMIN_ID, ADMIN_ID, _draft("root@example.test"))
+    assert exc.value.message == SELF_DEMOTE_MESSAGE
+    assert _stored(admin_conn, ADMIN_ID)[2] == 1
+    assert _audit(admin_conn, ADMIN_ID) == []
+    assert _stored(admin_conn, second) == ("e@x.test", "e", 1)
+
+
+def test_edit_user_admin_may_demote_another_admin(admin_conn: sqlite3.Connection) -> None:
+    second = _make(admin_conn, "f@x.test", admin=True)
+    demoted = edit_user(admin_conn, ADMIN_ID, second, _draft("f@x.test"))
     assert demoted.is_admin is False
+    assert _stored(admin_conn, second)[2] == 0
+    assert _stored(admin_conn, ADMIN_ID)[2] == 1
+
+
+def test_delete_refuses_self_and_last_admin(admin_conn: sqlite3.Connection) -> None:
+    with pytest.raises(UserConflict) as own:
+        soft_delete_user(admin_conn, ADMIN_ID, ADMIN_ID)
+    assert own.value.message == SELF_DELETE_MESSAGE
+    second = _make(admin_conn, "g@x.test", admin=True)
+    with pytest.raises(UserConflict) as own2:
+        soft_delete_user(admin_conn, second, second)
+    assert own2.value.message == SELF_DELETE_MESSAGE
+    assert _stored(admin_conn, ADMIN_ID)[2] == 1
+    assert get_live_user(admin_conn, second).id == second
 
 
 def test_edit_user_missing(admin_conn: sqlite3.Connection) -> None:

@@ -85,17 +85,11 @@ def test_today_upcoming_row_tint_overdue_due_future(
     assert "rd-upcoming__row--due" not in classes["future"]
 
 
-def test_afford_preview_without_amount_has_no_delta(client: TestClient) -> None:
-    html = client.get("/today/afford?amount=0").text
-    assert _html.exists(html, today.afford_per_day)
-    assert not _html.exists(html, today.afford_delta)
-
-
-def test_afford_endpoint_zero(client: TestClient) -> None:
-    r = client.get("/today/afford?amount=0")
-    assert r.status_code == 200
-    # No delta is shown with zero amount — just the per-day line.
-    assert _html.exists(r.text, today.afford_per_day)
+def test_afford_endpoint_zero_and_blank_are_invalid(client: TestClient) -> None:
+    for amount in ("0", ""):
+        r = client.get("/today/afford", params={"amount": amount})
+        assert r.status_code == 422
+        assert r.text == "Enter an amount, like 250.00"
 
 
 def test_afford_endpoint_major_units_fallback(client: TestClient) -> None:

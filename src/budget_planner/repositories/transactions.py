@@ -349,8 +349,20 @@ def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction
     return undelete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
+def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
+    """Count live (not soft-deleted) rows using the account as source or destination (T-UR33)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM transactions "
+        "WHERE user_id = ? AND deleted_at IS NULL AND (account_id = ? OR dest_account_id = ?)",
+        (user_id, account_id, account_id),
+    ).fetchone()
+    return int(row[0])
+
+
 __all__ = [
+    "category_usage",
     "count_filtered",
+    "count_referencing_account",
     "create",
     "find_by_id",
     "list_filtered",
@@ -378,3 +390,21 @@ def latest_operation_date_by_account(
         (user_id, category_id),
     ).fetchall()
     return {row["account_id"]: date.fromisoformat(row["d"]) for row in rows if row["d"] is not None}
+
+
+def category_usage(conn: sqlite3.Connection, user_id: int) -> list[tuple[int, int, date]]:
+    """Return ``(category_id, live entry count, latest operation_date)`` per used category.
+
+    One grouped read over live transactions (T-UR34g); categories with no live
+    transaction are absent.
+    """
+    rows = conn.execute(
+        """
+        SELECT category_id, COUNT(*) AS n, MAX(operation_date) AS d
+        FROM transactions
+        WHERE user_id = ? AND deleted_at IS NULL
+        GROUP BY category_id
+        """,
+        (user_id,),
+    ).fetchall()
+    return [(row["category_id"], row["n"], date.fromisoformat(row["d"])) for row in rows]

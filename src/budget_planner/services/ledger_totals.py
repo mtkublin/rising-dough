@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 
 from budget_planner.domain.enums import Cadence, Direction, months_per_cadence
 from budget_planner.domain.money import divide_minor_units, format_money
@@ -77,6 +78,9 @@ class RecurringTotals:
     monthly_out_minor: int
     monthly_in_display: str
     monthly_out_display: str
+    rule_count: int = 0
+    next_due: dt.date | None = None
+    net_minor: int = 0  # monthly_in_minor - monthly_out_minor (signed, like the planned net)
 
 
 @dataclass(frozen=True)
@@ -86,6 +90,74 @@ class PlannedTotals:
     count: int
     net_minor: int
     net_display: str
+    overdue_count: int = 0
+    due_today_count: int = 0
+
+
+class PlannedStatusKind(StrEnum):
+    """Where a planned row sits relative to the user's local today (T-UR34c, ADR-0147 section 3)."""
+
+    IN_DAYS = "in_days"
+    DUE_TODAY = "due_today"
+    OVERDUE = "overdue"
+
+
+@dataclass(frozen=True)
+class PlannedStatus:
+    """Structured planned-row status; ``days`` is the non-negative distance to today."""
+
+    kind: PlannedStatusKind
+    days: int
+
+
+class DeltaDirection(StrEnum):
+    """Direction of an override amount against the rule amount (magnitudes only, ADR-0008)."""
+
+    UP = "up"
+    DOWN = "down"
+    SAME = "same"
+
+
+@dataclass(frozen=True)
+class OverrideDelta:
+    """Absolute minor-unit difference between an override and the rule amount, plus direction."""
+
+    magnitude_minor: int
+    direction: DeltaDirection
+
+
+def planned_status(due: dt.date, today: dt.date) -> PlannedStatus:
+    """Classify ``due`` against ``today``: ``in N days``, ``due today`` or ``overdue N days``."""
+    days = (due - today).days
+    if days > 0:
+        return PlannedStatus(PlannedStatusKind.IN_DAYS, days)
+    if days == 0:
+        return PlannedStatus(PlannedStatusKind.DUE_TODAY, 0)
+    return PlannedStatus(PlannedStatusKind.OVERDUE, -days)
+
+
+def override_delta(rule_amount_minor: int, override_amount_minor: int) -> OverrideDelta:
+    """Override minus rule amount as an absolute amount and a direction (both positive units)."""
+    diff = override_amount_minor - rule_amount_minor
+    if diff == 0:
+        return OverrideDelta(0, DeltaDirection.SAME)
+    return OverrideDelta(abs(diff), DeltaDirection.UP if diff > 0 else DeltaDirection.DOWN)
+
+
+def spent_minor(
+    rows: Iterable[tuple[dt.date, int, Direction | None, str]], base_of: Converter
+) -> int | None:
+    """Base-currency total of the expense rows (a positive magnitude), via ``day_nets``.
+
+    ``None`` when a rate is unavailable, so the hero omits a wrong figure.
+    """
+    expenses = [r for r in rows if r[2] is Direction.EXPENSE]
+    total: int | None
+    try:
+        total = -sum(day_nets(expenses, base_of).values())
+    except FxUnavailableError:
+        total = None
+    return total
 
 
 def _int_field(row: Mapping[str, object], key: str) -> int:
@@ -125,8 +197,14 @@ def recurring_monthly_totals(
     """
     monthly_in = 0
     monthly_out = 0
+    count = 0
+    dues: list[dt.date] = []
     for row in rows:
         cadence = Cadence(str(row.get("cadence")))  # unknown or missing cadence raises
+        count += 1
+        due = row.get("next_due")
+        if isinstance(due, dt.date):
+            dues.append(due)
         direction = _direction_of(row)
         if direction is None:
             continue
@@ -147,11 +225,17 @@ def recurring_monthly_totals(
         monthly_out_minor=monthly_out,
         monthly_in_display=format_money(monthly_in, currency),
         monthly_out_display=format_money(monthly_out, currency),
+        rule_count=count,
+        next_due=min(dues) if dues else None,
+        net_minor=monthly_in - monthly_out,
     )
 
 
 def planned_totals(
-    rows: Iterable[Mapping[str, object]], currency: str, base_of: Converter
+    rows: Iterable[Mapping[str, object]],
+    currency: str,
+    base_of: Converter,
+    today: dt.date | None = None,
 ) -> PlannedTotals:
     """Count pending planned rows and sum their direction-signed net (ADR-0008).
 
@@ -160,6 +244,8 @@ def planned_totals(
     both the count and the net; rows without a direction add nothing. Each
     amount is converted to ``currency`` (the base) at its ``operation_date`` via
     ``base_of`` (ADR-0006, ADR-0139); a missing rate raises ``FxUnavailableError``.
+    With ``today`` (the user's local date) the pending rows dated before it count as
+    overdue and those dated on it as due today (T-UR34c).
     """
     pending = [row for row in rows if not row.get("is_promoted")]
     net = 0
@@ -171,16 +257,30 @@ def planned_totals(
                 _date_field(row, "operation_date"),
                 _ccy_field(row, currency),
             )
-    return PlannedTotals(count=len(pending), net_minor=net, net_display=format_money(net, currency))
+    dated = [_date_field(row, "operation_date") for row in pending] if today else []
+    return PlannedTotals(
+        count=len(pending),
+        net_minor=net,
+        net_display=format_money(net, currency),
+        overdue_count=sum(1 for d in dated if today and d < today),
+        due_today_count=sum(1 for d in dated if d == today),
+    )
 
 
 __all__ = [
     "Converter",
+    "DeltaDirection",
+    "OverrideDelta",
+    "PlannedStatus",
+    "PlannedStatusKind",
     "PlannedTotals",
     "RecurringTotals",
     "actual_day_nets",
     "day_nets",
+    "override_delta",
+    "planned_status",
     "planned_totals",
     "recurring_monthly_totals",
     "signed_effect",
+    "spent_minor",
 ]

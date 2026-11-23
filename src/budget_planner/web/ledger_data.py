@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Final
 
@@ -22,6 +22,7 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import PAGE_SIZE_MAX
+from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import RecurringRule
 from budget_planner.domain.transactions import Transaction, TransactionFilter
@@ -82,29 +83,53 @@ def parse_filters(request: Request) -> LedgerFilters:
     )
 
 
-def parse_txn_filter(request: Request) -> TransactionFilter:
-    """Parse the transaction export/list filter query params."""
-    q = request.query_params
-    account_id = query_int("account_id", q.get("account_id"))
-    category_id = query_int("category_id", q.get("category_id"))
+def txn_filter(filters: LedgerFilters) -> TransactionFilter:
+    """The one mapping from the shared ledger filter to a transaction filter (list and export)."""
     return TransactionFilter(
-        date_from=query_date("date_from", q.get("date_from")),
-        date_to=query_date("date_to", q.get("date_to")),
-        account_ids=(account_id,) if account_id is not None else (),
-        category_ids=(category_id,) if category_id is not None else (),
-        amount_min=query_int("min_amount", q.get("min_amount")),
-        amount_max=query_int("max_amount", q.get("max_amount")),
-        description_contains=q.get("q") or None,
+        date_from=filters.date_from,
+        date_to=filters.date_to,
+        account_ids=filters.account_ids,
+        category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
+        description_contains=filters.search,
     )
 
 
-def parse_planned_filter(request: Request) -> PlannedFilter:
-    """Parse the planned export filter query params (``scope=unpromoted`` narrows)."""
-    q = request.query_params
+def planned_filter(
+    filters: LedgerFilters, today: date, *, promoted: bool | None = None
+) -> PlannedFilter:
+    """The one mapping from the shared ledger filter to the Planned tab's filter.
+
+    Without dates the window is the pending backlog plus the forward window
+    ``[today-30d, today+180d]`` (not the service's calendar-month default), for
+    both the list and the export.
+    """
     return PlannedFilter(
-        date_from=query_date("date_from", q.get("date_from")),
-        date_to=query_date("date_to", q.get("date_to")),
-        promoted=False if query_choice("scope", q.get("scope"), _SCOPES) == "unpromoted" else None,
+        date_from=filters.date_from or (today - _PLANNED_LOOKBACK),
+        date_to=filters.date_to or (today + _PLANNED_LOOKAHEAD),
+        account_ids=filters.account_ids,
+        category_ids=filters.category_ids,
+        directions=_direction_tuple(filters.direction),
+        description_contains=filters.search,
+        promoted=promoted,
+    )
+
+
+def parse_txn_filter(request: Request) -> TransactionFilter:
+    """Parse the transaction export filter: the ledger filter plus the amount bounds."""
+    q = request.query_params
+    return replace(
+        txn_filter(parse_filters(request)),
+        amount_min=query_int("min_amount", q.get("min_amount")),
+        amount_max=query_int("max_amount", q.get("max_amount")),
+    )
+
+
+def parse_planned_filter(request: Request, today: date) -> PlannedFilter:
+    """Parse the planned export filter (``scope=unpromoted`` narrows), as the Planned tab does."""
+    scope = query_choice("scope", request.query_params.get("scope"), _SCOPES)
+    return planned_filter(
+        parse_filters(request), today, promoted=False if scope == "unpromoted" else None
     )
 
 
@@ -166,7 +191,10 @@ def _planned_key(view: planned_service.PlannedView) -> str:
 
 
 def _hydrate_planned_rows(
-    conn: sqlite3.Connection, user_id: int, views: Sequence[planned_service.PlannedView]
+    conn: sqlite3.Connection,
+    user_id: int,
+    views: Sequence[planned_service.PlannedView],
+    today: date | None = None,
 ) -> list[dict[str, object]]:
     cats, accts = _lookups(conn, user_id)
     out: list[dict[str, object]] = []
@@ -185,6 +213,9 @@ def _hydrate_planned_rows(
                 "account": acc,
                 "category": cats.get(v.category_id),
                 "currency": acc.currency if acc else "",
+                "status": ledger_totals.planned_status(v.operation_date, today)
+                if today is not None and not v.is_promoted
+                else None,
             }
         )
     return out
@@ -248,6 +279,16 @@ def _recurring_row(
         "account": acc,
         "category": cat,
         "overrides": overrides,
+        "override_deltas": {
+            ov.occurrence_date: ledger_totals.override_delta(
+                formula_svc.resolve_rule_amount(
+                    conn, user_id, rule, ov.occurrence_date, fx=formula_fx
+                ),
+                ov.amount_override,
+            )
+            for ov in overrides
+            if ov.amount_override is not None
+        },
         "override_on_next_due": override,
         "override_present": override is not None,
         "amount_overridden": amount_overridden,
@@ -300,19 +341,14 @@ def _direction_tuple(raw: str | None) -> tuple[Direction, ...]:
 
 
 def _actual_rows(conn: sqlite3.Connection, user_id: int, filters: LedgerFilters) -> list[TxnRow]:
-    txn_filter = TransactionFilter(
-        date_from=filters.date_from,
-        date_to=filters.date_to,
-        account_ids=filters.account_ids,
-        category_ids=filters.category_ids,
-        directions=_direction_tuple(filters.direction),
-        description_contains=filters.search,
+    txn_filter_ = replace(
+        txn_filter(filters),
         limit=filters.page_size,
         offset=(filters.page - 1) * filters.page_size,
         order_desc=True,
     )
     return hydrate_txn_rows(
-        conn, user_id, transactions_service.list_filtered(conn, user_id, txn_filter)
+        conn, user_id, transactions_service.list_filtered(conn, user_id, txn_filter_)
     )
 
 
@@ -335,20 +371,78 @@ def _ledger_day_nets(
 def _planned_rows(
     conn: sqlite3.Connection, user_id: int, filters: LedgerFilters, today: date
 ) -> list[dict[str, object]]:
-    # Ledger · Planned surfaces the pending backlog + the forward window, not the
-    # current calendar month (the service default): [today-30d, today+180d] unless filtered.
-    pl_filter = PlannedFilter(
-        date_from=filters.date_from or (today - _PLANNED_LOOKBACK),
-        date_to=filters.date_to or (today + _PLANNED_LOOKAHEAD),
-        account_ids=filters.account_ids,
-        category_ids=filters.category_ids,
-        directions=_direction_tuple(filters.direction),
+    views = planned_service.list_planned(conn, user_id, planned_filter(filters, today), today=today)
+    return _hydrate_planned_rows(conn, user_id, views, today)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FilterSummary:
+    """Structured description of the active ledger filters for the no-matches state (T-UR34c)."""
+
+    category_names: tuple[str, ...] = ()
+    account_names: tuple[str, ...] = ()
+    direction: str | None = None
+    search: str | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+
+    @property
+    def is_active(self) -> bool:
+        """True when at least one filter narrows the list."""
+        return bool(
+            self.category_names
+            or self.account_names
+            or self.direction
+            or self.search
+            or self.date_from
+            or self.date_to
+        )
+
+
+def filter_summary(
+    filters: LedgerFilters,
+    categories: Mapping[int, Category],
+    accounts: Mapping[int, Account],
+) -> FilterSummary:
+    """Describe the active filters by name (unknown ids are skipped); no formatting."""
+    return FilterSummary(
+        category_names=tuple(categories[i].name for i in filters.category_ids if i in categories),
+        account_names=tuple(accounts[i].name for i in filters.account_ids if i in accounts),
+        direction=filters.direction,
+        search=filters.search,
+        date_from=filters.date_from,
+        date_to=filters.date_to,
     )
-    views = planned_service.list_planned(conn, user_id, pl_filter, today=today)
-    if filters.search:
-        needle = filters.search.lower()
-        views = tuple(v for v in views if needle in (v.description or "").lower())
-    return _hydrate_planned_rows(conn, user_id, views)
+
+
+def period_spent_minor(
+    conn: sqlite3.Connection, user_id: int, settings: Settings, today: date
+) -> int | None:
+    """Actual hero "spent this period": this month's expenses in the base currency.
+
+    ``None`` when a needed FX rate is not cached (the hero omits a wrong figure).
+    """
+    start, end = month_bounds(today.year, today.month)
+    rows = hydrate_txn_rows(
+        conn,
+        user_id,
+        transactions_service.list_filtered(
+            conn,
+            user_id,
+            TransactionFilter(
+                date_from=start,
+                date_to=end,
+                directions=(Direction.EXPENSE,),
+                live_accounts_only=True,
+            ),
+        ),
+    )
+    fx = fx_service.converter_for(conn, settings, today)
+    items = [
+        (r.operation_date, r.amount, r.category.direction if r.category else None, r.currency)
+        for r in rows
+    ]
+    return ledger_totals.spent_minor(items, lambda amount, day, ccy: fx.to_base(amount, ccy, day))
 
 
 def _tab_counts(conn: sqlite3.Connection, user_id: int) -> dict[str, int]:
@@ -420,6 +514,22 @@ def render_table_for(
     return render_context(request, "ledger/_table.html", ctx)
 
 
+def _lookup_keys(
+    conn: sqlite3.Connection, user_id: int, filters: LedgerFilters
+) -> dict[str, object]:
+    """Category and account lists, the id lookup and the no-matches filter summary."""
+    cats_all = categories_service.list_all(conn, user_id, include_deleted=True)
+    accts_all = accounts_service.list_all(conn, user_id, include_deleted=True)
+    return {
+        "categories": categories_service.list_all(conn, user_id),
+        "accounts": accounts_service.list_all(conn, user_id),
+        "categories_by_id": {c.id: c for c in cats_all},
+        "filter_summary": filter_summary(
+            filters, {c.id: c for c in cats_all}, {a.id: a for a in accts_all}
+        ),
+    }
+
+
 def index_context(
     conn: sqlite3.Connection,
     user_id: int,
@@ -436,15 +546,18 @@ def index_context(
     planned_summary: ledger_totals.PlannedTotals | None = None
     base_ccy = settings.base_currency
     fx = fx_service.converter_for(conn, settings, today)
+    spent: int | None = None
     if view == "actual":
         actual = _actual_rows(conn, user_id, filters)
         rows, day_nets = actual, _ledger_day_nets(conn, settings, actual)
+        spent = period_spent_minor(conn, user_id, settings, today)
     elif view == "planned":
         planned = _planned_rows(conn, user_id, filters, today)
         planned_summary = ledger_totals.planned_totals(
             [r for r in planned if _on_live_account(r)],
             base_ccy,
             lambda amount, day, ccy: fx.to_base(amount, ccy, day),
+            today,
         )
         rows = planned
     else:
@@ -453,16 +566,14 @@ def index_context(
             recurring, base_ccy, lambda amount, day, ccy: fx.to_base(amount, ccy, day)
         )
         rows = recurring
-    cats_all = categories_service.list_all(conn, user_id, include_deleted=True)
     return {
         **_page_keys(view, rows, filters, today),
+        **_lookup_keys(conn, user_id, filters),
+        "spent_minor": spent,
         "views": view_kinds(),
         "day_nets": day_nets,
         "filters": filters,
-        "categories": categories_service.list_all(conn, user_id),
-        "accounts": accounts_service.list_all(conn, user_id),
         "tab_counts": _tab_counts(conn, user_id),
         "recurring_summary": recurring_summary,
         "planned_summary": planned_summary,
-        "categories_by_id": {c.id: c for c in cats_all},
     }
