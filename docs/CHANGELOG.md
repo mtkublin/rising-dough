@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-Q310: forecast batching test independent of the wall clock)
+- **Fix(T-Q310): `seed_world` in `tests/integration/web/test_query_budget.py` creates recurring rules under `clock.frozen(today)`; `create_rule` derives `next_due` from the clock, so seeding on a later real date shifted every forecast month by 500 (release CI 2026-11-23). The forecast test now runs seeded under three wall dates.** Test-only; no production change, no allowlist change.
+
 ## 2026-11-22 (T-Q308: merge-item skips checked-out worktree-agent branches)
 - **Fix(T-Q308): `scripts/ci/merge_item.sh` prune loop skips `worktree-agent-*` branches still checked out in a live worktree; `git branch -D` on them failed under `set -e` after a successful merge, push and prune.** Names come from `git worktree list --porcelain`.
 ## 2026-11-22 (T-Q307: FX refresh on in prod, /health/fx 503 when disabled in prod)

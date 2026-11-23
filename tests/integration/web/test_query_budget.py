@@ -20,12 +20,13 @@ carry headroom (about +30 percent) so unrelated small changes do not flap the te
 from __future__ import annotations
 
 import sqlite3
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings, get_settings
 from budget_planner.db.connection import get_connection
@@ -127,19 +128,22 @@ def seed_world(
                 amount=700 + i,
             ),
         )
-    for r in range(rules):
-        recurring_repo.create_rule(
-            conn,
-            _USER,
-            NewRecurringRule(
-                cadence=Cadence.MONTHLY,
-                start_date=today - timedelta(days=60 + r),
-                category_id=expense_ids[r % 3] if r % 2 else income,
-                account_id=ids[r % len(ids)],
-                default_amount=500 + r,
-                default_description=f"rule {r}",
-            ),
-        )
+    # create_rule derives next_due from the clock (repository edge), so pin it to `today`;
+    # otherwise the stored next_due, and every forecast number, drifts with the wall clock.
+    with clock.frozen(datetime.combine(today, time(12), tzinfo=UTC)):
+        for r in range(rules):
+            recurring_repo.create_rule(
+                conn,
+                _USER,
+                NewRecurringRule(
+                    cadence=Cadence.MONTHLY,
+                    start_date=today - timedelta(days=60 + r),
+                    category_id=expense_ids[r % 3] if r % 2 else income,
+                    account_id=ids[r % len(ids)],
+                    default_amount=500 + r,
+                    default_description=f"rule {r}",
+                ),
+            )
     return ids
 
 
@@ -248,9 +252,15 @@ def test_budget_resolver_equals_resolve_budget(conn: sqlite3.Connection) -> None
             )
 
 
-def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection) -> None:
-    """Values recorded from the pre-batching code (with FX-converted spent) on this world."""
-    seed_world(conn, 6, 5)
+@pytest.mark.parametrize("wall_day", [date(2026, 11, 22), date(2026, 11, 23), date(2027, 3, 9)])
+def test_forecast_numbers_unchanged_by_batching(conn: sqlite3.Connection, wall_day: date) -> None:
+    """Values recorded from the pre-batching code (with FX-converted spent) on this world.
+
+    Independent of the wall clock (T-Q310): the seed pins the clock to TODAY, so seeding
+    while the real date is ``wall_day`` must give the same numbers.
+    """
+    with clock.frozen(datetime.combine(wall_day, time(9), tzinfo=UTC)):
+        seed_world(conn, 6, 5)
     conn.commit()
     settings = get_settings()
     proj = forecast_svc.monthly_projection(conn, _USER, settings, TODAY, horizon=12)
