@@ -44,7 +44,7 @@
 - No route, no template; `/setup` stays T-UR21.
 - ADR-0134 §9.
 
-### ◻ T-UR33 [P] Account delete rule (service part of T-UR23)
+### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
 - Service refuses delete while any live (not soft-deleted) transaction, planned item or recurring rule references the account (operator 2026-11-22: soft-deleted rows do not block) and returns the reference counts (transactions, planned, recurring; "blocked by recurring only" derivable). Otherwise soft delete as before.
 - The current accounts UI shows the refusal through the existing error flash (no template change). Tests assert DB state, audit and the counts.
 - Requirement F2.8, ADR-0134 §3.
@@ -71,6 +71,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR34a | M | 1 | discovery only: `docs/plans/ui-redesign/value-inventory.md`; no code | — |
 | T-UR30 | M | 2 → T-UR29 | new `repositories/invites.py`, new `services/invites.py`; accept calls the users service (after T-UR29 to avoid `users.py` conflicts) | 0019 |
 | T-UR32 | S | 2 | new `services/setup.py`, settings field, small repository for the marker | 0020 |
+| T-UR34e ✅ | S | 2 | `services/today.py` (`AffordResult.unclamped_per_day_minor`, `over_minor`, `AFFORD_INVALID_MESSAGE`), `web/routers/today.py` pass-through; "over" = max(amount - max(remaining, 0), 0); handoff "114.20 over" does not reproduce (board: left 1,399.93 over 7 days, 1,800.00 gives -57.15 per day and 400.07 over); blank/zero now 422 | — |
 | T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
 
