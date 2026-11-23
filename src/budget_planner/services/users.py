@@ -311,6 +311,8 @@ CONCURRENT_CHANGE_MESSAGE: Final = (
 LAST_ADMIN_DEMOTE_MESSAGE: Final = (
     "Can't remove admin rights from the last admin. Promote another user first."
 )
+SELF_DEMOTE_MESSAGE: Final = "You can't remove your own admin rights. Ask another admin."
+EMAIL_LOCKED_MESSAGE: Final = "The email address can't be changed."
 SELF_DELETE_MESSAGE: Final = "You can't remove your own account. Ask another admin."
 DUPLICATE_EMAIL_MESSAGE: Final = "Another user already has this email."
 INVALID_EMAIL_MESSAGE: Final = "Enter a valid email address."
@@ -481,17 +483,22 @@ def edit_user(
     *,
     request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
 ) -> auth_users_repo.AuthUser:
-    """Update email / name / admin flag of a live user.
+    """Update name / admin flag of a live user; the email is read-only.
 
-    Raises :class:`UserNotFound`, :class:`UserInputError` (duplicate email)
-    or :class:`UserConflict` (demoting the last admin).
+    Raises :class:`UserNotFound`, :class:`UserInputError` (email differs from
+    the stored one, ADR-0134 §11) or :class:`UserConflict` (demoting the last
+    admin, or an actor demoting themselves).
     """
 
     def _body() -> auth_users_repo.AuthUser:
         target = _require_target(conn, user_id)
-        _ensure_email_free(conn, draft.email, own_id=target.id)
-        if draft.is_admin is False and _is_last_admin(conn, target):
-            raise UserConflict(LAST_ADMIN_DEMOTE_MESSAGE)
+        if draft.email != (target.email or "").lower():
+            raise UserInputError({"email": EMAIL_LOCKED_MESSAGE})
+        if draft.is_admin is False and target.is_admin:
+            if _is_last_admin(conn, target):
+                raise UserConflict(LAST_ADMIN_DEMOTE_MESSAGE)
+            if user_id == actor_user_id:
+                raise UserConflict(SELF_DEMOTE_MESSAGE)
         return users_repo.update_profile(
             conn,
             user_id,

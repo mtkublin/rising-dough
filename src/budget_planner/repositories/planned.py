@@ -103,6 +103,7 @@ def _planned_filter_clauses(
             *in_parts("p.account_id", filters.account_ids),
             *in_parts("p.category_id", filters.category_ids),
             *in_parts("c.direction", (d.value for d in filters.directions or ())),
+            *_planned_text_parts(filters),
             *_planned_rule_parts(filters, include_deleted),
         ]
     )
@@ -115,6 +116,12 @@ def _planned_date_parts(filters: PlannedFilter) -> list[FilterPart]:
     if filters.date_to is not None:
         parts.append(("p.operation_date <= ?", [filters.date_to.isoformat()]))
     return parts
+
+
+def _planned_text_parts(filters: PlannedFilter) -> list[FilterPart]:
+    if filters.description_contains is None:
+        return []
+    return [("p.description LIKE ?", [f"%{filters.description_contains}%"])]
 
 
 def _planned_rule_parts(filters: PlannedFilter, include_deleted: bool) -> list[FilterPart]:
@@ -275,8 +282,19 @@ def clear_promotion(
     return True
 
 
+def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
+    """Count live (not soft-deleted) rows using the account as source or destination (T-UR33)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM planned_transactions "
+        "WHERE user_id = ? AND deleted_at IS NULL AND (account_id = ? OR dest_account_id = ?)",
+        (user_id, account_id, account_id),
+    ).fetchone()
+    return int(row[0])
+
+
 __all__ = [
     "clear_promotion",
+    "count_referencing_account",
     "create",
     "find_by_id",
     "list_filtered",

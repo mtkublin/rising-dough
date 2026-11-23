@@ -134,3 +134,19 @@ def patch_account_errors(patch: PatchAccount) -> dict[str, str]:
             "credit_limit": credit_limit_error(patch.credit_limit_minor),
         }
     )
+
+
+@dataclass(frozen=True, slots=True)
+class AccountReferences:
+    """Live rows that reference an account (T-UR33, ADR-0134 §3).
+
+    "Blocked by recurring only" is ``recurring > 0`` with the other two at 0.
+    """
+
+    transactions: int
+    planned: int
+    recurring: int
+
+    @property
+    def total(self) -> int:
+        return self.transactions + self.planned + self.recurring

@@ -349,8 +349,19 @@ def undelete(conn: sqlite3.Connection, user_id: int, txn_id: int) -> Transaction
     return undelete_owned(conn, _TRANSACTIONS, user_id, txn_id)
 
 
+def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id: int) -> int:
+    """Count live (not soft-deleted) rows using the account as source or destination (T-UR33)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM transactions "
+        "WHERE user_id = ? AND deleted_at IS NULL AND (account_id = ? OR dest_account_id = ?)",
+        (user_id, account_id, account_id),
+    ).fetchone()
+    return int(row[0])
+
+
 __all__ = [
     "count_filtered",
+    "count_referencing_account",
     "create",
     "find_by_id",
     "list_filtered",

@@ -232,3 +232,58 @@ class TestAfford:
         )
         # January remaining = 30000 - 10000 = 20000 (non-zero) → per_day > 0.
         assert baseline.per_day_minor > 0
+
+
+def _afford(
+    conn: sqlite3.Connection, amount_minor: int, user_id: int = USER_ID
+) -> today_svc.AffordResult:
+    return today_svc.afford(
+        conn,
+        user_id,
+        date(2026, 1, 10),
+        amount_minor,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
+
+
+class TestUnclampedAndOver:
+    """T-UR34e (G4): unclamped per-day and the over amount; remaining = 20_000."""
+
+    def test_under_remaining(self, conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
+        days = _afford(conn, 0).days_left
+        result = _afford(conn, 5_000)
+        assert result.over_minor == 0
+        assert result.unclamped_per_day_minor == today_svc.daily_share_minor(15_000, days)
+        assert result.unclamped_per_day_minor == result.per_day_minor
+
+    def test_exactly_remaining(self, conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
+        result = _afford(conn, 20_000)
+        assert result.over_minor == 0
+        assert result.unclamped_per_day_minor == 0
+        assert result.per_day_minor == 0
+
+    def test_over_remaining(self, conn: sqlite3.Connection, seeded: dict[str, int]) -> None:
+        days = _afford(conn, 0).days_left
+        result = _afford(conn, 30_000)
+        assert result.over_minor == 10_000
+        assert result.unclamped_per_day_minor == today_svc.daily_share_minor(-10_000, days)
+        assert result.unclamped_per_day_minor < 0
+        assert result.per_day_minor == 0
+        assert result.pace_tag == "over_limit"
+
+    def test_no_budget_everything_is_over(self, conn: sqlite3.Connection) -> None:
+        result = _afford(conn, 2_500)
+        assert result.over_minor == 2_500
+        assert result.unclamped_per_day_minor < 0
+
+    def test_second_user_data_is_ignored(
+        self, conn: sqlite3.Connection, seeded: dict[str, int]
+    ) -> None:
+        other = _afford(conn, 30_000, user_id=USER_ID + 1)
+        assert other.over_minor == 30_000
+        assert _afford(conn, 30_000).over_minor == 10_000
+
+
+def test_invalid_message_text() -> None:
+    assert today_svc.AFFORD_INVALID_MESSAGE == "Enter an amount, like 250.00"

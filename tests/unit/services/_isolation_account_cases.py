@@ -392,11 +392,12 @@ def _case_get_live_user(conn: sqlite3.Connection, world: World) -> None:
 @covers("users.edit_user")
 def _case_edit_user(conn: sqlite3.Connection, world: World) -> None:
     _login_users(conn)
-    edited = users.edit_user(conn, OWNER_ID, OTHER_ID, _draft("renamed@example.test", "Renamed"))
-    assert (edited.id, edited.email, edited.name) == (OTHER_ID, "renamed@example.test", "Renamed")
+    edited = users.edit_user(conn, OWNER_ID, OTHER_ID, _draft("other@example.test", "Renamed"))
+    assert (edited.id, edited.email, edited.name) == (OTHER_ID, "other@example.test", "Renamed")
     assert users.get_live_user(conn, OWNER_ID).email == "owner@example.test"
-    with pytest.raises(users.UserInputError):  # user 1's email is taken
+    with pytest.raises(users.UserInputError):  # the email is read-only on edit
         users.edit_user(conn, OWNER_ID, OTHER_ID, _draft("owner@example.test", "x"))
+    assert users.get_live_user(conn, OTHER_ID).email == "other@example.test"
     users.soft_delete_user(conn, OWNER_ID, OTHER_ID)
     with pytest.raises(users.UserNotFound):
         users.edit_user(conn, OWNER_ID, OTHER_ID, _draft("again@example.test", "x"))

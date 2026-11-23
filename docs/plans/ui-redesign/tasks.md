@@ -23,7 +23,7 @@
 
 > **Decision**: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Everything backend that can ship before the migration ships first: schema, repositories, services, ports, config switches, service guards and the fields the handoff needs. No templates, CSS, JS or new page-rendering routes; existing routes change only the service call and the error shown through the existing flash. One PR to `main` from `ui/preconditions`, released through the ADR-0099 pipeline; Phase 0 starts after the release is live. Contract tests for the changed behaviour change here (requirements already amended), so the migration starts from that baseline.
 
-### ◻ T-UR29 [P] User edit guards (server side of T-UR20)
+### ✅ T-UR29 [P] User edit guards (server side of T-UR20)
 - `services/users.edit_user` refuses an actor demoting themselves (today allowed while a second admin exists) and demoting the last admin; an email different from the stored one is refused with a validation error (422 on the route, nothing saved; operator 2026-11-22). Delete keeps refusing self and last admin.
 - Tests assert the stored row, the audit row and that a second user's rows are untouched; HTTP tests on the existing edit route assert the flashed refusal and unchanged DB state.
 - ADR-0134 §11, ADR-0073, requirements §10.1 (user admin line), §6.2.
@@ -45,7 +45,7 @@
 - Done (2026-11-23): env name is `BUDGET_PLANNER_SETUP_TOKEN_HASH` (explicit alias, like the admin bootstrap vars; field `setup_token_hash`). Hash scheme: lowercase hex sha256 of the token (`services/setup.hash_token`; config validation rejects anything else). Marker table `setup_token_consumed` (single row, `id = 1`, `consumed_at`; the created admin is in the audit row `setup_token`). "No users" = no live user with an email (the pre-v3 legacy owner row does not count). Dev env counts as bootstrap-configured (dev default admin), so setup is closed there. `services/setup.py`: `is_open`, `check_token`, `complete_setup` (wrong token and closed setup raise the same `SetupClosed`).
 - ADR-0134 §9.
 
-### ◻ T-UR33 [P] Account delete rule (service part of T-UR23)
+### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
 - Service refuses delete while any live (not soft-deleted) transaction, planned item or recurring rule references the account (operator 2026-11-22: soft-deleted rows do not block) and returns the reference counts (transactions, planned, recurring; "blocked by recurring only" derivable). Otherwise soft delete as before.
 - The current accounts UI shows the refusal through the existing error flash (no template change). Tests assert DB state, audit and the counts.
 - Requirement F2.8, ADR-0134 §3.
@@ -55,6 +55,8 @@
 - Every `missing` field added to its service or view model (canonical modules first, reuse report). Export (`/transactions/export`, `/planned/export`) honours the current tab and filters (ADR-0134 §6). The credit-limit preview returns "left of limit" and "left after this entry" (ADR-0134 §2).
 - Values that only differ because the handoff is internally inconsistent are listed as overlay candidates for T-UR00b, not fixed in the app.
 - ADR-0147 §3.
+- T-UR34b ✅ G1 export honours tab and filters (`direction` for actual; account, category, direction, search and the Ledger planned window for planned; `web/ledger_export.py` builds the per-tab hrefs; ADR-0134 §6, ADR-0148).
+- T-UR34a ✅ inventory: `docs/plans/ui-redesign/value-inventory.md` (106 handoff pages + 5 chart specimens; 20 overlay-candidate families for T-UR00b). Gap groups (one wave 2 item each, T-UR34b..l): G1 export filters and per-tab links (`web/ledger_data.py` parsers, export routers, `PlannedFilter`); G2 ledger strips, planned row status, recurring override deltas (`services/ledger_totals.py`, `web/ledger_data.py`); G3 credit-limit preview "left before" (`services/limit_preview.py`); G4 Today afford unclamped per-day and over amount (`services/today.py`); G5 reconcile difference (`services/account_reconcile.py`); G6 category entry count and recent categories (`services/categories.py`); G7 session device label (`services/security_settings.py`); G8 re-auth attempts left (`services/rate_limit.py`, `services/reauth.py`); G9 forecast summary delta (`services/forecast.py`); G10 view-model values: hero `data-digits`/`data-marks`/`data-signs` filter, budget over count, bar left% and cells (`web/view_models.py`, `web/templating.py`); G11 422 summary (`web/errors.py`). Shared files, disjoint hunks: `web/ledger_data.py` (G1, G2), `web/routers/transactions.py` (G1, G3).
 
 ### ◻ T-UR35 [S] Precondition release → T-UR29..T-UR34
 - PR `ui/preconditions` → `main` with a green `drill-gate` on its head SHA (deploy PR: migrations 0019, 0020); release **v3.2.0** through the ADR-0099 pipeline; prod smoke (sign-in, Today, Accounts, edit user refusal, account delete refusal on a referenced account). `docs/CHANGELOG.md` entry; Phase P lines marked ✅.
@@ -71,7 +73,9 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 | T-UR34a | M | 1 | discovery only: `docs/plans/ui-redesign/value-inventory.md`; no code | — |
 | T-UR30 | M | 2 → T-UR29 | new `repositories/invites.py`, new `services/invites.py`; accept calls the users service (after T-UR29 to avoid `users.py` conflicts) | 0019 |
 | T-UR32 | S | 2 | new `services/setup.py`, settings field, small repository for the marker | 0020 |
-| T-UR34b.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
+| T-UR34b ✅ | S | 2 | G1 export filters: `web/ledger_data.py` (parsers), `web/ledger_export.py` (new), export handlers, `PlannedFilter.description_contains` + planned repository | — |
+| T-UR34e ✅ | S | 2 | `services/today.py` (`AffordResult.unclamped_per_day_minor`, `over_minor`, `AFFORD_INVALID_MESSAGE`), `web/routers/today.py` pass-through; "over" = max(amount - max(remaining, 0), 0); handoff "114.20 over" does not reproduce (board: left 1,399.93 over 7 days, 1,800.00 gives -57.15 per day and 400.07 over); blank/zero now 422 | — |
+| T-UR34c.. | S each | 2 | one item per gap group found by T-UR34a (export filters, credit-limit preview, others); split by owning service so items don't share files | — |
 | T-UR31 | S | 3 → T-UR30 | mail port Protocol + `adapters/mail/` no-op adapter + test fake, settings switch; invite service create/resend call | — |
 
 - **Migration numbers are fixed here** (0019 invites, 0020 setup marker) so parallel items cannot collide; a later item needing a migration takes 0021 and updates this table.
