@@ -51,11 +51,11 @@ class InviteError(Exception):
     """Base for invite refusals (plain exception, re-raisable through dependencies)."""
 
 
-class InviteNotFound(InviteError):  # noqa: N818 — reads as a status, maps to 404
+class InviteNotFoundError(InviteError):
     """No live invite with this id (404)."""
 
 
-class InviteConflict(InviteError):  # noqa: N818 — maps to 409
+class InviteConflictError(InviteError):
     """The invite is in a state that refuses the action (409)."""
 
     def __init__(self, message: str) -> None:
@@ -97,7 +97,7 @@ def list_invites(conn: sqlite3.Connection) -> list[Invite]:
 def _live_invite_or_404(conn: sqlite3.Connection, invite_id: int) -> Invite:
     invite = invites_repo.get_live(conn, invite_id)
     if invite is None:
-        raise InviteNotFound(INVITE_NOT_FOUND_MESSAGE)
+        raise InviteNotFoundError(INVITE_NOT_FOUND_MESSAGE)
     return invite
 
 
@@ -149,7 +149,7 @@ def resend_invite(
     with transaction(conn):
         current = _live_invite_or_404(conn, invite_id)
         if current.used_at is not None or current.revoked_at is not None:
-            raise InviteConflict(INVITE_FINAL_MESSAGE)
+            raise InviteConflictError(INVITE_FINAL_MESSAGE)
         invite = invites_repo.rotate_token(
             conn,
             invite_id,
@@ -174,7 +174,7 @@ def revoke_invite(
     with transaction(conn):
         current = _live_invite_or_404(conn, invite_id)
         if current.used_at is not None or current.revoked_at is not None:
-            raise InviteConflict(INVITE_FINAL_MESSAGE)
+            raise InviteConflictError(INVITE_FINAL_MESSAGE)
         return invites_repo.mark_revoked(
             conn, invite_id, now=now, actor_user_id=actor_user_id, request_ctx=request_ctx
         )
@@ -209,14 +209,14 @@ def accept_invite(
 ) -> AuthUser:
     """Create the user (invite's email and role), mark the invite used; one transaction.
 
-    Raises :class:`InviteConflict` unless the link is ``pending``; user input
+    Raises :class:`InviteConflictError` unless the link is ``pending``; user input
     errors propagate as :class:`~budget_planner.services.users.UserInputError`
     and roll everything back.
     """
     with transaction(conn):
         invite = _invite_for_token(conn, token)
         if invite is None or invite_state(invite, now=now) != PENDING:
-            raise InviteConflict(INVITE_LINK_UNUSABLE_MESSAGE)
+            raise InviteConflictError(INVITE_LINK_UNUSABLE_MESSAGE)
         draft = users_service.build_draft(email=invite.email, name=name, is_admin=invite.is_admin)
         user = users_service.create_invited_user(
             conn, draft, password=password, hasher=hasher, request_ctx=request_ctx

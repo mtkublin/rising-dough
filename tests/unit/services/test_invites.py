@@ -15,8 +15,8 @@ from budget_planner.repositories import invites as invites_repo
 from budget_planner.services import invites as invites_service
 from budget_planner.services.invites import (
     INVITE_LIFETIME,
-    InviteConflict,
-    InviteNotFound,
+    InviteConflictError,
+    InviteNotFoundError,
     IssuedInvite,
     accept_invite,
     create_invite,
@@ -181,7 +181,7 @@ def test_resend_refused_on_revoked_and_used(conn: sqlite3.Connection) -> None:
     accept_invite(conn, used.token, name="B", password=PW, hasher=FAKE_HASHER, now=NOW)
 
     for invite_id in (revoked.invite.id, used.invite.id):
-        with pytest.raises(InviteConflict) as err:
+        with pytest.raises(InviteConflictError) as err:
             resend_invite(conn, ADMIN_ID, invite_id, tokens=tokens, now=NOW)
         assert err.value.message == invites_service.INVITE_FINAL_MESSAGE
     assert conn.execute(
@@ -190,9 +190,9 @@ def test_resend_refused_on_revoked_and_used(conn: sqlite3.Connection) -> None:
 
 
 def test_resend_and_revoke_unknown_invite(conn: sqlite3.Connection) -> None:
-    with pytest.raises(InviteNotFound):
+    with pytest.raises(InviteNotFoundError):
         resend_invite(conn, ADMIN_ID, 999, tokens=FakeTokenSource(), now=NOW)
-    with pytest.raises(InviteNotFound):
+    with pytest.raises(InviteNotFoundError):
         revoke_invite(conn, ADMIN_ID, 999, now=NOW)
 
 
@@ -210,11 +210,11 @@ def test_revoke_is_final(conn: sqlite3.Connection) -> None:
     audit = _audit(conn, issued.invite.id)
     assert [a["operation"] for a in audit] == ["create", "update"]
     assert json.loads(audit[1]["new_json"])["revoked_at"] == "2026-11-20T10:30:15.250Z"
-    with pytest.raises(InviteConflict):
+    with pytest.raises(InviteConflictError):
         revoke_invite(conn, ADMIN_ID, issued.invite.id, now=at)
-    with pytest.raises(InviteConflict):
+    with pytest.raises(InviteConflictError):
         resend_invite(conn, ADMIN_ID, issued.invite.id, tokens=tokens, now=at)
-    with pytest.raises(InviteConflict):
+    with pytest.raises(InviteConflictError):
         accept_invite(conn, issued.token, name="x", password=PW, hasher=FAKE_HASHER, now=at)
 
 
@@ -243,7 +243,7 @@ def test_accept_creates_user_marks_used_and_audits(conn: sqlite3.Connection) -> 
     assert [a["operation"] for a in audit] == ["create", "update"]
     assert audit[1]["actor_user_id"] == user.id
     assert link_state(conn, issued.token, now=at) == "used"
-    with pytest.raises(InviteConflict):
+    with pytest.raises(InviteConflictError):
         accept_invite(conn, issued.token, name="x", password=PW, hasher=FAKE_HASHER, now=at)
     assert conn.execute("SELECT count(*) FROM users").fetchone()[0] == 2
 
@@ -297,7 +297,7 @@ def test_accept_rolls_back_user_when_marking_used_fails(
 
 def test_accept_refused_when_expired(conn: sqlite3.Connection) -> None:
     issued = _issue(conn, FakeTokenSource())
-    with pytest.raises(InviteConflict):
+    with pytest.raises(InviteConflictError):
         accept_invite(
             conn,
             issued.token,
