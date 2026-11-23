@@ -1455,3 +1455,4 @@
 - 2026-11-23 T-UR35c: docs only, Phase P closeout (T-UR34 ✅, T-UR35 progress), T-UR34c2 moved to the frontend phase, new T-UR21a setup-token hash wiring before T-UR21 (ADR-0148).
 - 2026-11-23 T-UR35d: T-UR35 marked done; v3.2.0 live, prod smoke passed (ADR-0148).
 - 2026-11-23 T-Q318: WebKit change-secret journey fixed in the e2e harness: the page fixture's blanket X-CSRF-Token header now follows session rotation from the cookie jar (WebKit hides redirect-response headers). App and prod unchanged (ADR-0065).
+- 2026-11-23 T-Q306(f): docs only: `drill.yml` header rewritten for the upgrade drill (phases, TTL, environments without reviewers, explicit `detect` secrets), deploy runbook section "What the drill gate proves", ADR-0149 amendment (ADR-0149).
