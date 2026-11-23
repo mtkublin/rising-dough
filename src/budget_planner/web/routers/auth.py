@@ -55,6 +55,7 @@ from budget_planner.web.auth_flow import (
     json_body,
     login_page,
     passkey_host_error,
+    reauth_attempts_left,
     reauth_page,
     reauth_success,
     reauth_target,
@@ -413,6 +414,7 @@ def reauth_password(
         next_path=target,
         error=GENERIC_REAUTH_ERROR,
         status_code=HTTPStatus.UNAUTHORIZED,
+        attempts_left=reauth_attempts_left(request, conn, settings, user),
     )
 
 
