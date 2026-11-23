@@ -10,6 +10,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from budget_planner.adapters.mail.noop import NoopMailSender
+from budget_planner.domain.ports import MailMessage
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import invites as invites_repo
 from budget_planner.services import invites as invites_service
@@ -31,7 +33,7 @@ from budget_planner.services.users import (
     INVALID_EMAIL_MESSAGE,
     UserInputError,
 )
-from tests.auth_support import FAKE_HASHER, FakeTokenSource
+from tests.auth_support import FAKE_HASHER, FakeMailSender, FakeTokenSource
 
 ADMIN_ID = 1
 PW = "pw"
@@ -367,3 +369,184 @@ def test_token_and_hash_never_logged(
     for secret in (first.token, second.token, _sha(first.token), _sha(second.token)):
         assert secret not in logged
     assert second.token not in repr(second)
+
+
+# --- T-UR31: invite email behind a switch -------------------------------------
+
+BASE_URL = "https://app.example.test/"
+EMAIL = "a@example.test"
+
+
+def _create_mail(
+    conn: sqlite3.Connection, tokens: FakeTokenSource, mail: FakeMailSender, *, enabled: bool
+) -> IssuedInvite:
+    return create_invite(
+        conn,
+        ADMIN_ID,
+        email=EMAIL,
+        is_admin=False,
+        tokens=tokens,
+        now=NOW,
+        mail=mail,
+        email_enabled=enabled,
+        base_url=BASE_URL,
+    )
+
+
+def _resend_mail(
+    conn: sqlite3.Connection,
+    invite_id: int,
+    tokens: FakeTokenSource,
+    mail: FakeMailSender,
+    *,
+    enabled: bool,
+) -> IssuedInvite:
+    return resend_invite(
+        conn,
+        ADMIN_ID,
+        invite_id,
+        tokens=tokens,
+        now=NOW,
+        mail=mail,
+        email_enabled=enabled,
+        base_url=BASE_URL,
+    )
+
+
+def test_mail_off_sends_nothing_on_create_and_resend(conn: sqlite3.Connection) -> None:
+    mail, tokens = FakeMailSender(), FakeTokenSource()
+
+    issued = _create_mail(conn, tokens, mail, enabled=False)
+    resent = _resend_mail(conn, issued.invite.id, tokens, mail, enabled=False)
+
+    assert mail.sent == []
+    assert (issued.mail_sent, resent.mail_sent) == (False, False)
+
+
+def test_mail_on_sends_one_message_per_create_and_resend(conn: sqlite3.Connection) -> None:
+    mail, tokens = FakeMailSender(), FakeTokenSource()
+
+    issued = _create_mail(conn, tokens, mail, enabled=True)
+
+    assert issued.mail_sent is True
+    assert len(mail.sent) == 1
+    first = mail.sent[0]
+    assert first.to == EMAIL
+    assert first.subject == "You are invited to Rising Dough"
+    assert "https://app.example.test/invite/tok-1-32" in first.body
+
+    resent = _resend_mail(conn, issued.invite.id, tokens, mail, enabled=True)
+
+    assert resent.mail_sent is True
+    assert len(mail.sent) == 2
+    assert mail.sent[1].to == EMAIL
+    assert "https://app.example.test/invite/tok-2-32" in mail.sent[1].body
+    assert "tok-1-32" not in mail.sent[1].body
+
+
+def test_mail_on_without_base_url_uses_path_only(conn: sqlite3.Connection) -> None:
+    mail = FakeMailSender()
+
+    create_invite(
+        conn,
+        ADMIN_ID,
+        email=EMAIL,
+        is_admin=False,
+        tokens=FakeTokenSource(),
+        now=NOW,
+        mail=mail,
+        email_enabled=True,
+    )
+
+    assert "\n/invite/tok-1-32\n" in mail.sent[0].body
+
+
+def test_mail_on_without_sender_is_refused_before_any_write(conn: sqlite3.Connection) -> None:
+    with pytest.raises(ValueError, match="no mail sender"):
+        create_invite(
+            conn,
+            ADMIN_ID,
+            email=EMAIL,
+            is_admin=False,
+            tokens=FakeTokenSource(),
+            now=NOW,
+            email_enabled=True,
+        )
+    assert conn.execute("SELECT COUNT(*) FROM invites").fetchone()[0] == 0
+
+
+def test_refused_resend_sends_nothing(conn: sqlite3.Connection) -> None:
+    mail, tokens = FakeMailSender(), FakeTokenSource()
+    used = _create_mail(conn, tokens, mail, enabled=True)
+    accept_invite(conn, used.token, name="N", password=PW_CHOSEN, hasher=FAKE_HASHER, now=NOW)
+    other = create_invite(
+        conn, ADMIN_ID, email="b@example.test", is_admin=False, tokens=tokens, now=NOW
+    )
+    revoke_invite(conn, ADMIN_ID, other.invite.id, now=NOW)
+    mail.sent.clear()
+
+    with pytest.raises(InviteConflictError):
+        _resend_mail(conn, used.invite.id, tokens, mail, enabled=True)
+    with pytest.raises(InviteConflictError):
+        _resend_mail(conn, other.invite.id, tokens, mail, enabled=True)
+    with pytest.raises(InviteNotFoundError):
+        _resend_mail(conn, 9999, tokens, mail, enabled=True)
+
+    assert mail.sent == []
+
+
+def test_mail_failure_keeps_invite_and_reports_not_sent(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    mail = FakeMailSender(fail=True)
+
+    issued = _create_mail(conn, FakeTokenSource(), mail, enabled=True)
+
+    assert issued.mail_sent is False
+    assert mail.sent == []
+    assert conn.execute("SELECT COUNT(*) FROM invites").fetchone()[0] == 1
+    assert link_state(conn, issued.token, now=NOW) == "pending"
+    assert f"invite mail failed for invite {issued.invite.id}" in caplog.text
+    assert issued.token not in caplog.text
+
+
+def test_token_never_logged_by_service_or_noop_adapter(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    tokens = FakeTokenSource()
+    noop = NoopMailSender()
+
+    issued = create_invite(
+        conn,
+        ADMIN_ID,
+        email=EMAIL,
+        is_admin=False,
+        tokens=tokens,
+        now=NOW,
+        mail=noop,
+        email_enabled=True,
+        base_url=BASE_URL,
+    )
+    resent = resend_invite(
+        conn,
+        ADMIN_ID,
+        issued.invite.id,
+        tokens=tokens,
+        now=NOW,
+        mail=noop,
+        email_enabled=True,
+        base_url=BASE_URL,
+    )
+
+    logged = caplog.text + "".join(str(r.__dict__) for r in caplog.records)
+    assert "mail.noop" in logged
+    for secret in (issued.token, resent.token, _sha(issued.token), EMAIL, "/invite/"):
+        assert secret not in logged
+
+
+def test_mail_message_repr_is_redacted() -> None:
+    message = MailMessage(to=EMAIL, subject="s", body="link tok-1-32")
+
+    assert repr(message) == "MailMessage(<redacted>)"
