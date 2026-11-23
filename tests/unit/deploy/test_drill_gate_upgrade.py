@@ -338,3 +338,27 @@ def test_renderer_rejects_unsafe_values() -> None:
     )
     assert res.returncode == 1
     assert "unsafe" in res.stderr
+
+
+def test_drill_does_not_dump_the_whole_secrets_context() -> None:
+    """T-Q306fix: `toJSON(secrets)` in drill.yml's own job ends every dispatch with
+    `action_required` and zero jobs (probes 3 vs 5, run 45239604940). Name the secrets instead."""
+    text = DRILL.read_text()
+    assert "toJSON(secrets)" not in text.replace("toJSON(secrets.", "")
+
+
+def test_detect_names_every_secret_the_drill_plan_reads() -> None:
+    source = (ROOT / "scripts" / "ci" / "tf_env.py").read_text()
+    lines = [
+        ln for ln in source.splitlines() if ln.lstrip().startswith("Entry(") and '"secret"' in ln
+    ]
+    # prod-only and restore-drill-only inputs are not part of a gate plan
+    kept = [ln for ln in lines if '"prod"' not in ln and ", True" not in ln]
+    needed = {m.group(1) for ln in kept if (m := re.search(r'"secret", "(\w+)"', ln))}
+    step = next(
+        s for s in _jobs()["detect"]["steps"] if s.get("uses") == "./.github/actions/terraform-env"
+    )
+    expr = step["with"]["secrets-json"]
+    missing = {n for n in needed if f"secrets.{n})" not in expr}
+    assert needed
+    assert not missing
