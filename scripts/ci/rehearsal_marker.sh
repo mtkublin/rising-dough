@@ -10,11 +10,16 @@
 #                   stops; a failed insert is retried while it still runs. Prints
 #                   "committed <seq>" after each commit and "writer stopped: app gone"
 #                   at the end
+#   writer-until FROM  as `writer`, but for an in-place upgrade (ADR-0149): the app
+#                   container restarts, so it never ends on "app gone". It runs until
+#                   `stop` creates the stop file (or the host vanishes and ssh drops)
+#   stop            create the stop file that ends `writer-until`
 #   stats           print "<max seq>|<row count>" (read-only)
 set -eu
 
 APP=budget-planner-app
 DB="${REHEARSAL_DB:-/data/budget.db}"
+STOP_FILE="${REHEARSAL_STOP_FILE:-/tmp/rehearsal-marker.stop}"
 PY_INIT='import sqlite3; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("CREATE TABLE IF NOT EXISTS t_d156_marker (seq INTEGER PRIMARY KEY, at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"); c.commit()'
 PY_INSERT='import sqlite3, sys; c = sqlite3.connect("/data/budget.db", timeout=5); c.execute("INSERT INTO t_d156_marker (seq) VALUES (?)", (int(sys.argv[1]),)); c.commit()'
 
@@ -47,11 +52,26 @@ case "${1:-}" in
     done
     echo "writer stopped: app gone before $seq"
     ;;
+  writer-until)
+    seq="$2"
+    rm -f "$STOP_FILE"
+    while [ ! -e "$STOP_FILE" ]; do
+      if insert "$seq" 2>/dev/null; then
+        echo "committed $seq"
+        seq=$((seq + 1))
+      fi
+      sleep 1
+    done
+    echo "writer stopped: requested before $seq"
+    ;;
+  stop)
+    : > "$STOP_FILE"
+    ;;
   stats)
     sqlite3 -readonly -separator '|' "$DB" 'SELECT coalesce(max(seq), 0), count(*) FROM t_d156_marker;'
     ;;
   *)
-    echo "usage: $0 init | write N | writer FROM | stats" >&2
+    echo "usage: $0 init | write N | writer FROM | writer-until FROM | stop | stats" >&2
     exit 2
     ;;
 esac
