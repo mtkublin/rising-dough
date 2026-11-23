@@ -1307,17 +1307,24 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: none. Operator: read the host journal (`journalctl -u bp-agent`) of the failed run to confirm the cause.
 - Removes allowlist entries: none.
 
-### T-Q306 [M] Upgrade-in-place drill (follow-up, not started)
-- Findings: T-Q305; ADR-0099 amendment 2026-11-22.
+### T-Q306 [L] The drill gate is an upgrade from the prod version (re-scoped 2026-11-23) → ADR-0149, ADR-0099, ADR-0127 §7, ADR-0132
+- Findings: T-Q305; ADR-0099 amendment 2026-11-22; T-D127, T-D115, T-D158 (fresh-boot vs running-host bugs).
 - Epic: E04
-- Band: follow-up · Size: M · Tags: ci, deploy
+- Band: follow-up · Size: L · Tags: ci, deploy
 - Depends on: T-Q305
-- Docs-first step: ADR-0099 amendment naming the mode, written at implementation start.
-- Goal: a drill `mode=upgrade`: check out the latest `v*` tag, apply its terraform templates and image on a fresh host, smoke-test, then apply the PR head (terraform plus its image) on the same host and smoke-test again; then roll back to the tag image and smoke a third time. Always torn down; shares the `drill` concurrency group.
-- Acceptance: the gate posts `drill-gate` only when all three smokes pass; the v3.1.0 `edge` change would have failed it.
-- Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
+- Docs-first step: ADR-0149, ADR-0099 amendment 2026-11-23, `docs/requirements.md` (drill gate), CHANGELOG (2026-11-23).
+- Re-scoped 2026-11-23 (operator): no separate `mode=upgrade`. `mode=gate` itself becomes the upgrade drill for every PR the ADR-0121 skip does not cover. That answers the old operator question. The baseline is the version prod serves, not the latest tag.
+- Work items:
+  - (a) `scripts/ci/prod_baseline.py`: newest `prod` deployment whose latest status is `success` → tag; check the tag is an ancestor of `origin/main`; resolve `<tag>@sha256:<digest>` from GHCR; fail closed otherwise. Unit-tested with recorded API payloads (v3.1.1 tagged but not deployed → v3.1.2 / earlier).
+  - (b) `terraform.yml`: optional input to apply `terraform/` from a given ref (the baseline tag) while the tooling stays at the workflow ref.
+  - (c) Drill-only helper `seed-demo` (cloud-init `bin/`, rendered on `drill` only, like `restore-from-prod`): stop app + litestream, move the DB aside, install the demo DB copied from the runner, integrity check, chown 10001, start, wait `/ready`. The workflow copies `data/demo.sqlite` from the baseline tag, writes marker rows (`rehearsal_marker.sh`), waits for replication and records the generation.
+  - (d) `drill.yml` gate jobs: baseline apply + smoke → seed → detection (`host_release.py replaced` on the PR plan) → writer + upgrade apply → verify (in place: `server_replaced=false`, converged on the PR ref, all committed rows, same generation, integrity; replacement: drain, `--require-restore`, seeded generation restored, 0 lost rows, integrity, tailnet cleanup + rename) → rollback apply (`rollback: true`, in place only) + smoke + integrity → teardown. Writer steps use `set +e` (T-D156 lesson).
+  - (e) Gate verdict names the failing phase; TTL covers the longer run; `mode=explore` unchanged.
+  - (f) Runbooks / workflow headers: `drill.yml` header, `deploy.md` (what the gate proves and what it does not: release bundles, host drift, no fresh boot of the PR head).
+- Tests: `prod_baseline.py` unit tests; workflow-wiring tests (phase order, rollback only on the in-place path, `drill-gate` posted only from `gate-result`, no `prod-restore-read` or `restore_source` in `drill.yml`); render tftest (`seed-demo` only on `drill`); `seed-demo` script test like `test_litestream_restore_guard.py`.
+- Acceptance: a throwaway branch that changes an existing compose network's definition under the same name (the v3.1.0 case; skip the T-Q305 unit guard on that branch only) fails the upgrade or rollback phase; a normal PR passes all three phases; a VM-replacing PR takes the replacement path and passes; record the run times of the first green gates in this entry.
+- Operator question blocking it: none (answers 2026-11-23: in place + rollback, demo seed via the restore path, replacement branch included; release-bundle risk and host drift accepted; cost accepted).
 - Removes allowlist entries: none.
-
 ### ✅ T-Q310 [S] Forecast batching test independent of the wall clock
 - Findings: release CI 2026-11-23 (run 45140093769) failed `test_forecast_numbers_unchanged_by_batching`: every month off by 500 minor units; green in PR CI on 2026-11-22. Root cause: `recurring_repo.create_rule` derives `next_due` from `clock.today_local` (repository edge), and `seed_world` seeded rules with the real date while the test passed a fixed `TODAY`.
 - Epic: E04
