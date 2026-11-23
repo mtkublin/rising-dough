@@ -67,3 +67,13 @@ Normal state = the laptop holds no prod-write key and CI applies via the `prod` 
 
 - **403 on state bucket**: the admin principal must be in `state_admin_principals` of `terraform/bootstrap/ci` (bucket policy allow-list, ADR-0091). Fix by applying that stack with the admin key (the owner can still edit the bucket policy through the console).
 - **Plan wants to recreate the instance**: stop; do not apply. See `deploy.md`/`disaster-recovery.md`.
+
+## Break-glass log
+
+### 2026-11-22 break-glass (v3.1.0 compose network recreate failure)
+
+- **Who / when**: operator, on the prod host, 20:39 to 20:56 UTC. Outage (502) for that window.
+- **Trigger**: release v3.1.0 `compose` failed with `error while removing network: network budget-planner_edge has active endpoints`. ADR-0133 added an `ipam` subnet to the existing `edge` network; compose tried to recreate it while the old bridged Caddy was still attached. The v3.0.8 rollback failed the same way.
+- **Repair (on the host, not the org-admin key)**: `sudo docker compose -f /etc/budget-planner/docker-compose.yml down --remove-orphans` (never `-v`; data stays on the volumes), then `sudo systemctl start bp-converge.service` to converge with main's template.
+- **Result**: prod back at 20:56 UTC; v3.1.0 released successfully at 21:05 UTC. `budget-planner_edge` now exists on `172.28.0.0/24`.
+- **Root cause and permanent fix**: T-Q305 (ADR-0133 amendment). `edge_v2` uses `172.30.0.0/24`; the guard checks subnet overlap against the latest tag. This entry is the manual recovery only; do not repeat it for a compose network change.

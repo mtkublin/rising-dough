@@ -245,7 +245,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### 🟡 T-Q218 [S] Gate the CI environments that hold prod-grade secrets
+### ✅ T-Q218 [S] Gate the CI environments that hold prod-grade secrets
 - Findings: Q-012 (H1-01, H1-06, H4-03). Also drop `restore-source.env` and the prod age identity from explore drills (H4-03).
 - Epic: none (ci-trust-boundary)
 - Band: 0 · Size: M · Tags: none
@@ -830,6 +830,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Final-backlog note: Also owns the `workflow_trust.toml` entry for `cosign-identity-unpinned` (Q-040).
 - Removes allowlist entries: `workflow_trust`:1 (1 entry)
 - Done when: every entry listed under "Removes allowlist entries" is deleted from `allowlists/workflow_trust.toml` (delete, never lower; the guard ratchets both ways) and the guard is green; the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
+- Status 2026-11-23: operator steps done (T-Q218: prod-restore-read environment and drill environments migrated via the operator scripts; T-Q255: sha_pinning_required and allowed_actions: selected set, scripts/check_github_settings.py 0 FAIL).
 
 ### 🟡 T-Q239 [P] Merge gate becomes tamper-resistant (operator GitHub settings)
 - Findings: Q-041 (H1-03).
@@ -980,7 +981,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
-### 🟡 T-Q255 [P] Infra pinning and release-workflow hardening
+### ✅ T-Q255 [P] Infra pinning and release-workflow hardening
 - Findings: Q-067 (D-11), Q-068 (D-10, H1-09, H1-10, H4-04), Q-069 (H1-07, H1-08), Q-078 (H4-02), Q-079 (H4-05), Q-080 (H4-06).
 - Epic: none (dependency, ci-trust-boundary)
 - Band: 6 · Size: M · Tags: none
@@ -990,6 +991,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Operator question blocking it: OQ-24 (Tailscale ACL parity), OQ-32.
 - Status 2026-11-22: repo side done. Digest-pinned Caddy, Litestream (compose + restore script) and both Dockerfile base stages; `uv==0.11.2`; tailscale pinned to `1.104.7` with `apt-mark hold`; `permissions: contents: read` on `ci.yml` and the release `ci` job; `security.yml` reads the allowlist from `origin/main`, validates ids, passes args via `env:`; drill port control documented (ADR-0101 amendment) and asserted in `render.tftest.hcl`; `scripts/check_github_settings.py` checks `allowed_actions: selected`.
 - Operator steps left: (1) set Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected`, then run `scripts/check_github_settings.py`; (2) OQ-32 (`tag:ci` ACL): pending operator, ACL source not in repo. Not done: pinning the runner's apt `cloud-init` package in `terraform.yml` (ubuntu-latest image owns the version; the rendered user-data is schema-checked, not installed); re-resolve digests on bump.
+- Status 2026-11-23: operator steps done (T-Q218: prod-restore-read environment and drill environments migrated via the operator scripts; T-Q255: sha_pinning_required and allowed_actions: selected set, scripts/check_github_settings.py 0 FAIL).
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 
@@ -1287,7 +1289,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q305 [M] Compose change must apply to an existing host; failure detail in the status file
+### ✅ T-Q305 [M] Compose change must apply to an existing host; failure detail in the status file
 - Findings: release v3.1.0 (2026-11-22, run 45066657240) failed at `compose` on the live host; the rollback to the v3.0.8 image failed the same way (a rollback keeps the new compose template); prod was down (502) until the v3.0.8 release was re-run. The drill gate passed because a drill is a fresh host.
 - Cause (confirmed from the host journal, 20:39:06): ADR-0133 / T-Q203 added `ipam` (subnet `172.28.0.0/24`) to the existing `edge` network. Compose tried to recreate the network before it recreated the old bridged Caddy, which was still attached:
   ```
@@ -1328,7 +1330,7 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: the forecast test is parametrized over three wall dates (seeded under `clock.frozen`) and fails on the old fixture (2 of 3 dates), passes now.
 - Removes allowlist entries: none.
 
-### T-Q311 [M] Frozen test clock by default and a CI date matrix
+### ✅ T-Q311 [M] Frozen test clock by default and a CI date matrix
 - Findings: release CI 2026-11-23 (T-Q310): date-dependent tests pass on the authoring day and fail later.
 - Epic: E04
 - Band: incident follow-up · Size: M · Tags: tests, clock, ci
@@ -1368,7 +1370,17 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: tests assert upgraded hash cost and verification, audit row, session issued, same-cost and wrong-password logins untouched, second user untouched, repository failure keeps login working.
 - Removes allowlist entries: none (adds none).
 
-### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
+### ✅ T-Q315 [S] Housekeeping: task statuses, test clock, break-glass runbook entry
+- Findings: 2026-11-23 housekeeping after PRs #44, #47 and the T-Q218/T-Q255 operator steps; `tests/contract/ledger/test_recurring.py` still used `date.today()`; the T-Q305 compose recovery had no runbook entry.
+- Epic: E04
+- Band: housekeeping · Size: S · Tags: docs, tests, clock
+- Depends on: T-Q305, T-Q311
+- Docs-first step: CHANGELOG; runbook entry in `docs/plans/v3/runbooks/break-glass.md` (ADR-0133 amendment is T-Q305's).
+- Goal: task statuses match main (T-Q305, T-Q307, T-Q309, T-Q311, T-Q218, T-Q255 marked done); recurring contract tests read the app clock (`clock.today_local(settings)`); break-glass log records the 2026-11-22 compose network recreate outage and its on-host repair.
+- Acceptance: `tests/contract/ledger/test_recurring.py` passes at default and with `BUDGET_TEST_NOW=2027-01-31T23:30:00Z`; no `date.today()` left in that file; the runbook entry names the outage window (20:39 to 20:56 UTC) and the repair (`docker compose down --remove-orphans`, never `-v`, then `bp-converge.service`).
+- Removes allowlist entries: none (adds none).
+
+### ✅ T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04
 - Band: incident · Size: S · Tags: ci, deploy
@@ -1461,7 +1473,7 @@ Q40 (promotion into an archived category stays refused, T-Q287) and Q42 (recurri
 - Wave: 14e (before T-Q293).
 - Done when: ADR indexed; guards green; the Acceptance holds; the CLAUDE.md handoff checklist is complete.
 
-### T-Q307 [S] FX refresh on in prod; `/health/fx` 503 when disabled in prod
+### ✅ T-Q307 [S] FX refresh on in prod; `/health/fx` 503 when disabled in prod
 - Findings: Q39 (deferred question 45, resolved 2026-11-22: operator chose enable (b) and alert (c)).
 - Epic: E01
 - Band: 3 · Size: S · Tags: ops

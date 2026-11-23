@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.repositories._unaudited import set_next_due
@@ -30,7 +31,7 @@ def _make_due(settings: Settings, rule_id: int) -> None:
             conn,
             1,
             rule_id,
-            next_due=date.today() - timedelta(days=1),  # noqa: DTZ011
+            next_due=clock.today_local(settings) - timedelta(days=1),
             last_promoted_date=None,
         )
     finally:
@@ -78,7 +79,8 @@ def test_create_with_formula_term(client: TestClient, seeded: Ids, _migrated: Se
         "/recurring",
         data=rule_form(
             seeded,
-            start_date=date.today().isoformat(),  # noqa: DTZ011 - the exp source rule must occur in the start month (Q-028)
+            # the exp source rule must occur in the start month (Q-028)
+            start_date=clock.today_local(_migrated).isoformat(),
             category_id=seeded["inc"],
             amount_source="formula",
             default_amount="",
