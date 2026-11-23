@@ -1,5 +1,7 @@
 # Changelog
 
+## 2026-11-23 (T-UR34d: credit-limit preview left before and account name)
+- **Feat(T-UR34d): `LimitPreview` gains `available_before` and `account_name`; `GET /transactions/_limit_preview?txn_id=` excludes the edited transaction's own effect from the before balance (foreign ids ignored).** ADR-0134 §2, ADR-0148; backend only, no template change. No allowlist change.
 ## 2026-11-23 (T-UR34h: session device label)
 - **Feat(T-UR34h): `SessionRow.device_label` ("Firefox · macOS", "Safari · iPhone", "Unknown device") parsed from the stored user agent by the pure `domain/user_agent.device_label`; backend only (ADR-0147 section 3, ADR-0148). No allowlist change.**
 

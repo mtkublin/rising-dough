@@ -56,6 +56,11 @@ def test_limit_preview_blank_ok_and_malformed_ids_422(client: TestClient, seeded
         params={"account_id": "x", "category_id": "y", "amount": "z"},
     )
     assert garbage.status_code == 422  # T-Q282: malformed ids are a 422, not a blank preview
+    bad_txn = client.get(
+        "/transactions/_limit_preview",
+        params={"account_id": seeded["acc"], "category_id": seeded["exp"], "txn_id": "x"},
+    )
+    assert bad_txn.status_code == 422  # T-UR34d: the edited transaction id is validated too
 
 
 @covers("POST /transactions")
