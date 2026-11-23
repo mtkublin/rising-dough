@@ -180,6 +180,8 @@ Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer
 
 ## Follow-up 2026-11-23: numbers in the handoff we could not reproduce (backend preconditions)
 
+> Status: **answered 2026-11-23** (answers at the end of this section); decisions in [ADR-0150](../../adr/0150-designer-follow-up-answers-2026-11-23.md), code changes in T-UR36. The questions below are unchanged.
+
 While building the data behind the boards, we found seven places where the board's numbers or wording do not follow from the board's own data, or where the meaning is ambiguous. For each one we picked an option, described below, so the work could move on. We need a yes or a correction for each.
 
 ### 1. Today: "can I afford" numbers
@@ -223,3 +225,17 @@ While building the data behind the boards, we found seven places where the board
 - **Board:** "+X over N months".
 - **What we did:** X is the change from this month's projected end balance to the last month's. N is the number of months shown.
 - **Ask:** confirm that the change starts from this month's projected end balance, or give us the start point you want.
+
+### Designer answers (2026-11-23)
+
+| # | Question | Answer | Designer's words (summary) | Lands in |
+|---|---|---|---|---|
+| 1 | Today "can I afford" | Agree | Yes to both; board becomes −57.15 per day · 400.07 over. | overlay row 9 (no code) |
+| 2 | Limit preview when editing | Agree | Yes; board unchanged. | none (T-UR34d stands) |
+| 3 | Category counts and picker | Change | Count and lock on transactions, planned items and recurring rules ("locked by 41 entries · 2 planned · 1 rule", archive text too). Reconciliation is system-only: not in recent, not in search, not counted in N. | T-UR36 |
+| 4 | Re-auth attempts left | Agree | 5 per minute, password re-check screen only. | none (T-UR34i stands) |
+| 5 | Unknown device label | Change | Show the known part: "Unknown browser · macOS" or "Firefox · unknown system"; "Unknown device" only when neither is known. | T-UR36 |
+| 6 | Spent this period | Change | Pay period, the same window as Budget and Today (e.g. 7 Oct → 7 Nov); label stays "spent this period". | T-UR36 |
+| 7 | Forecast change | Change | From today's balance (net worth now, as on Accounts) to the projected end balance of the last month shown (board: +44,608.10 over 12 months). | T-UR36 |
+
+Operator decisions (2026-11-23): the designer's "board updated" notes (1, 3, 7) are not vendored; the data overlay corrects those values. Category direction stays immutable regardless of usage; zero parts of the count are omitted, and a category with no usage shows only its direction.

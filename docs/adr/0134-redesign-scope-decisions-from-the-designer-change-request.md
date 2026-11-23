@@ -86,3 +86,4 @@
 ## Amendments
 
 - 2026-11-22: [ADR-0148](0148-redesign-backend-preconditions-released-first.md): the server-side parts of §1, §3, §9, §10 and §11 (invite data layer and email port, setup-token service, account delete rule, user edit guards) and the fields the handoff needs ship in a precondition release before the migration (T-UR29..T-UR35). Pages, dialogs and the routes rendering them stay in the redesign release.
+- 2026-11-23: [ADR-0150](0150-designer-follow-up-answers-2026-11-23.md): designer answers to the seven Phase P follow-up questions (afford, edit preview, category counts and picker, re-auth limit, device label, spent period, forecast start); four backend deltas land as T-UR36 on `ui/sourdough`.
