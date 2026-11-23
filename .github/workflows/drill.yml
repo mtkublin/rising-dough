@@ -483,11 +483,13 @@ jobs:
         with:
           persist-credentials: false
 
+      # T-Q306fix: never dump the whole secrets context (toJSON of it) in a dispatch workflow's own job: GitHub ends the run
+      # at once (action_required, no jobs). Only the drill secrets scripts/ci/tf_env.py reads are named.
       - name: Terraform inputs (TF_VAR_*, T-D133)
         uses: ./.github/actions/terraform-env
         with:
           env: drill
-          secrets-json: ${{ toJSON(secrets) }}
+          secrets-json: ${{ format('{{"SCW_DEFAULT_PROJECT_ID":{0},"SCW_DEFAULT_ORG_ID":{1},"ADMIN_EMAIL":{2},"APP_DOMAIN":{3},"OPERATOR_SSH_PUBKEY":{4},"GHCR_PULL_PAT":{5},"BUCKET_ADMIN_PRINCIPALS":{6},"BUCKET_READONLY_PRINCIPALS":{7},"BUCKET_PLAN_PRINCIPALS":{8},"APP_APPLICATION_ID":{9},"APP_SCW_ACCESS_KEY":{10},"APP_SCW_SECRET_KEY":{11},"TS_OAUTH_CLIENT_ID":{12},"TS_OAUTH_SECRET":{13}}}', toJSON(secrets.SCW_DEFAULT_PROJECT_ID), toJSON(secrets.SCW_DEFAULT_ORG_ID), toJSON(secrets.ADMIN_EMAIL), toJSON(secrets.APP_DOMAIN), toJSON(secrets.OPERATOR_SSH_PUBKEY), toJSON(secrets.GHCR_PULL_PAT), toJSON(secrets.BUCKET_ADMIN_PRINCIPALS), toJSON(secrets.BUCKET_READONLY_PRINCIPALS), toJSON(secrets.BUCKET_PLAN_PRINCIPALS), toJSON(secrets.APP_APPLICATION_ID), toJSON(secrets.APP_SCW_ACCESS_KEY), toJSON(secrets.APP_SCW_SECRET_KEY), toJSON(secrets.TS_OAUTH_CLIENT_ID), toJSON(secrets.TS_OAUTH_SECRET)) }}
           vars-json: ${{ toJSON(vars) }}
 
       - name: Set up Terraform
