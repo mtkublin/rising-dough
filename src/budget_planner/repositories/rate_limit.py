@@ -33,6 +33,15 @@ def hit(conn: sqlite3.Connection, key: str, bucket_start: datetime) -> int:
     return int(row[0])
 
 
+def get_count(conn: sqlite3.Connection, key: str, bucket_start: datetime) -> int:
+    """Return the ``(key, bucket_start)`` counter without changing it (0 if absent)."""
+    row = conn.execute(
+        "SELECT count FROM auth_rate_limit WHERE key = ? AND bucket_start = ?",
+        (key, _iso(bucket_start)),
+    ).fetchone()
+    return 0 if row is None else int(row[0])
+
+
 def prune(conn: sqlite3.Connection, before: datetime) -> int:
     """Delete every bucket that started before ``before``; return rows removed."""
     cur = conn.execute("DELETE FROM auth_rate_limit WHERE bucket_start < ?", (_iso(before),))
