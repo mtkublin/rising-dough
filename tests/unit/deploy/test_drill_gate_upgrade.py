@@ -362,3 +362,19 @@ def test_detect_names_every_secret_the_drill_plan_reads() -> None:
     missing = {n for n in needed if f"secrets.{n})" not in expr}
     assert needed
     assert not missing
+
+
+@pytest.mark.parametrize(("job", "phase"), [("verify", "upgrade"), ("verify-rollback", "rollback")])
+def test_verify_paths_assert_host_networks_match_the_template(job: str, phase: str) -> None:
+    """T-Q306g: a same-name ipam change must be seen on the host, not inferred from `ok`."""
+    steps = _jobs()[job]["steps"]
+    step = next(s for s in steps if str(s.get("name", "")).startswith("Host compose networks"))
+    run = str(step["run"])
+    assert "set -euo pipefail" in run
+    assert (
+        "scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl" in run
+    )
+    assert "docker network inspect" in run
+    assert f"::error::{phase}: network" in run
+    ssh_idx = next(i for i, s in enumerate(steps) if s.get("uses") == "./.github/actions/drill-ssh")
+    assert steps.index(step) > ssh_idx
