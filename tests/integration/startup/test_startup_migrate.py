@@ -69,6 +69,11 @@ def latest_version() -> int:
     return discover(MIGRATIONS_DIR)[-1].version
 
 
+def _nth_from_latest(n: int) -> int:
+    """Version ``n`` migrations before the latest (the numbering may have gaps, e.g. 0019)."""
+    return discover(MIGRATIONS_DIR)[-1 - n].version
+
+
 def test_fresh_db_applies_everything_without_backup(tmp_path: Path, latest_version: int) -> None:
     db = tmp_path / "data" / "budget.db"
 
@@ -99,7 +104,7 @@ def test_second_run_is_a_noop(tmp_path: Path) -> None:
 @pytest.mark.real_clock
 def test_upgrade_takes_pre_migration_backup(tmp_path: Path, latest_version: int) -> None:
     db = tmp_path / "budget.db"
-    older = latest_version - 1
+    older = _nth_from_latest(1)
     startup_migrate.run_startup_migrations(
         _settings(db), migrations_dir=_subset_dir(tmp_path, older)
     )
@@ -119,11 +124,11 @@ def test_backups_are_pruned_to_keep(tmp_path: Path, latest_version: int) -> None
     db = tmp_path / "budget.db"
     clock = _clock(dt.datetime(2026, 11, 3, 12, 0, tzinfo=dt.UTC))
     keep = 2
-    first = latest_version - 3
+    first = _nth_from_latest(3)
     startup_migrate.run_startup_migrations(
         _settings(db), migrations_dir=_subset_dir(tmp_path, first)
     )
-    for upto in range(first + 1, latest_version + 1):
+    for upto in [m.version for m in discover(MIGRATIONS_DIR) if m.version > first]:
         startup_migrate.run_startup_migrations(
             _settings(db),
             migrations_dir=_subset_dir(tmp_path, upto),
@@ -133,7 +138,7 @@ def test_backups_are_pruned_to_keep(tmp_path: Path, latest_version: int) -> None
 
     remaining = sorted(p.name for p in (tmp_path / "backups").iterdir())
     assert len(remaining) == keep
-    assert remaining[-1].startswith(f"budget.db.pre-migrate-{latest_version - 1:04d}-")
+    assert remaining[-1].startswith(f"budget.db.pre-migrate-{_nth_from_latest(1):04d}-")
 
 
 def test_prune_ignores_missing_dir_and_foreign_files(tmp_path: Path) -> None:
@@ -207,7 +212,7 @@ def test_main_returns_one_on_failure(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 def test_failed_migration_leaves_db_untouched(tmp_path: Path, latest_version: int) -> None:
     db = tmp_path / "budget.db"
-    older = latest_version - 1
+    older = _nth_from_latest(1)
     startup_migrate.run_startup_migrations(
         _settings(db), migrations_dir=_subset_dir(tmp_path, older)
     )

@@ -11,9 +11,9 @@ HTMX contract (``static/js/users-admin.js`` + ``templates/settings/users/*``):
   re-render ``#users-table`` out of band. The response is ``no-store``.
 - Edit / remove re-render ``#users-table`` (``outerHTML``) and flash a
   success message out of band.
-- 422 (invalid / duplicate email) re-renders the add errors, or the edit
-  form via ``HX-Retarget``. 409 (last admin / self-removal) is a flash with
-  ``HX-Reswap: none``.
+- 422 (invalid / duplicate email, or an edit that changes the email)
+  re-renders the add errors, or the edit form via ``HX-Retarget``. 409 (last
+  admin, self-demotion, self-removal) is a flash with ``HX-Reswap: none``.
 
 Non-HTMX fallbacks: add / reset re-render the full page with the toast (no
 redirect, so the password is not lost); edit / remove redirect 303 back
@@ -130,7 +130,7 @@ def save_user(
     admin: CurrentUser = Depends(current_admin),
     request_ctx: RequestCtx = Depends(get_request_ctx),
 ) -> Response:
-    """Save edits; enforce live-email uniqueness and the last-admin rule."""
+    """Save edits; the email is read-only (422), no self- or last-admin demotion (409)."""
     try:
         target = users_service.get_live_user(conn, user_id)
     except UserNotFound:

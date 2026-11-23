@@ -177,3 +177,49 @@ Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer
 **Edit user dialog.** The Edit user dialog is gone from Settings, Users (the handoff page `overlays/edit-user` was removed). Should the user row menu get an "edit name / role" entry, or is editing intentionally dropped (changing a role would then mean delete and re-add)? Until you answer, the app has no way to edit an existing user's name or role.
 
 **Answered 2026-11-21 (ST17).** "Keep editing; leaving it out was an oversight. Drawn: edit user is now the first item in the member row menu and opens an Edit user dialog with name and member/admin; the email stays fixed. An admin's own row has no menu, so they can't demote or delete themselves and there is always at least one admin." Delivered as a delta package (`pages/overlays/edit-user.html`, Users page and overlays, CSS move), vendored in T-UT06-EDITUSER (ADR-0107). Decision: ADR-0134 §11.
+
+## Follow-up 2026-11-23: numbers in the handoff we could not reproduce (backend preconditions)
+
+While building the data behind the boards, we found seven places where the board's numbers or wording do not follow from the board's own data, or where the meaning is ambiguous. For each one we picked an option, described below, so the work could move on. We need a yes or a correction for each.
+
+### 1. Today: "can I afford" numbers
+
+- **Board:** "-14.20 per day · 114.20 over".
+- **What we did:** the board's own data (1,399.93 left, 7 days, entry 1,800.00) gives "-57.15 per day · 400.07 over". We compute "over" as the entry minus what is left, and never below zero.
+- **Ask:** confirm this definition of "over", and may we correct the board's numbers to the ones above?
+
+### 2. Credit-limit preview when editing an entry
+
+- **Board:** the edit version of the limit preview repeats the new-entry figures.
+- **What we did:** we leave the entry being edited out of "left of limit before this entry". So "after" equals "before" minus the new amount.
+- **Ask:** confirm that the entry being edited should be left out of "before".
+
+### 3. Category: entry count and picker lists
+
+- **Board:** "locked by 41 entries" and "Its 41 entries ... stay".
+- **What we did:** we count ledger entries (transactions) only, not planned items or repeating rules. The picker's "recent" list leaves out the system Reconciliation category. "Search all N categories" counts every live category, system ones included.
+- **Ask:** confirm all three: entries mean ledger entries only, Reconciliation stays out of "recent", and the total includes system categories.
+
+### 4. Re-auth "attempts left"
+
+- **Board:** "4 attempts left".
+- **What we did:** the count goes down from the per-minute limit and includes the failed attempt just made. So the first wrong password shows the limit minus one. The board's "4 attempts left" implies a limit of 5. The counter shows only on the password re-auth error, not for passkeys and not on the sign-in page.
+- **Ask:** confirm the limit (5 per minute?) and confirm that the counter shows only on the password re-auth error.
+
+### 5. Session list device label
+
+- **Board:** "Firefox · macOS".
+- **What we did:** we follow that format. A browser we cannot name shows "Unknown device".
+- **Ask:** confirm "Unknown device" as the fallback text, or give us the text you want.
+
+### 6. Ledger "spent this period"
+
+- **Board:** "spent this period".
+- **What we did:** we use the calendar month of today, not the pay-period window.
+- **Ask:** which period should "spent this period" cover: the calendar month, or the pay period?
+
+### 7. Forecast "+X over N months"
+
+- **Board:** "+X over N months".
+- **What we did:** X is the change from this month's projected end balance to the last month's. N is the number of months shown.
+- **Ask:** confirm that the change starts from this month's projected end balance, or give us the start point you want.

@@ -19,8 +19,10 @@ from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
+    EMAIL_LOCKED_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
+    SELF_DEMOTE_MESSAGE,
 )
 from tests.auth_support import FAST_HASHER, issue_session
 from tests.ui_map import _html, settings as ui
@@ -278,14 +280,14 @@ def test_edit_updates_and_audits(admin_client: TestClient, db: sqlite3.Connectio
     uid = _user_row(db, "bob@example.test")["id"]
     resp = admin_client.post(
         f"/settings/users/{uid}",
-        data={"email": "Robert@Example.test", "name": "Robert", "is_admin": "on"},
+        data={"email": "Bob@Example.test", "name": "Robert", "is_admin": "on"},
         headers=HX,
     )
     assert resp.status_code == 200
-    assert "robert@example.test" in _html.text_of(resp.text, ui.users_table)
+    assert "bob@example.test" in _html.text_of(resp.text, ui.users_table)
     assert _html.exists(resp.text, ui.flash_success)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    assert (row["email"], row["name"], row["is_admin"]) == ("robert@example.test", "Robert", 1)
+    assert (row["email"], row["name"], row["is_admin"]) == ("bob@example.test", "Robert", 1)
     audit = db.execute(
         "SELECT * FROM audit_log WHERE entity_type = 'users' AND entity_id = ? "
         "AND operation = 'update'",
@@ -304,16 +306,26 @@ def test_edit_non_htmx_redirects(admin_client: TestClient) -> None:
     assert resp.headers["location"] == "/settings/users"
 
 
-def test_edit_duplicate_email_htmx_retargets_form(
+def test_edit_email_change_refused_htmx_retargets_form(
     admin_client: TestClient, db: sqlite3.Connection
 ) -> None:
     _add(admin_client, "carol@example.test")
+    uid = _user_row(db, "carol@example.test")["id"]
+    audits = db.execute("SELECT count(*) FROM audit_log WHERE entity_id = ?", (uid,)).fetchone()[0]
     resp = admin_client.post(
-        "/settings/users/1", data={"email": "CAROL@example.test", "is_admin": "on"}, headers=HX
+        f"/settings/users/{uid}",
+        data={"email": "carol2@example.test", "name": "Changed"},
+        headers=HX,
     )
     assert resp.status_code == 422
     assert resp.headers["hx-retarget"] == "#user-edit-form"
-    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    assert EMAIL_LOCKED_MESSAGE in _html.text_of(resp.text, ui.add_errors)
+    row = db.execute("SELECT email, name FROM users WHERE id = ?", (uid,)).fetchone()
+    assert (row["email"], row["name"]) == ("carol@example.test", "Alice")
+    assert (
+        db.execute("SELECT count(*) FROM audit_log WHERE entity_id = ?", (uid,)).fetchone()[0]
+        == audits
+    )
 
 
 def test_edit_invalid_email_non_htmx(admin_client: TestClient) -> None:
@@ -339,7 +351,7 @@ def test_demote_last_admin_refused(admin_client: TestClient, db: sqlite3.Connect
     assert page.status_code == 409
 
 
-def test_self_demote_allowed_with_second_admin(
+def test_self_demote_refused_even_with_second_admin(
     admin_client: TestClient, db: sqlite3.Connection
 ) -> None:
     _add(admin_client, "second@example.test", admin=True)
@@ -348,10 +360,13 @@ def test_self_demote_allowed_with_second_admin(
         data={"email": "owner@example.test", "name": "o", "is_admin": "0"},
         headers=HX,
     )
-    assert resp.status_code == 200
-    assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 0
-    # Admin surface disappears on the very next request.
-    assert admin_client.get("/settings/users").status_code == 404
+    assert resp.status_code == 409
+    assert resp.headers["hx-reswap"] == "none"
+    assert SELF_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
+    assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
+    second = _user_row(db, "second@example.test")
+    assert second["is_admin"] == 1
+    assert admin_client.get("/settings/users").status_code == 200
 
 
 # --- reset password -------------------------------------------------------

@@ -18,12 +18,14 @@ import pytest
 
 from budget_planner.clock import DEFAULT_DISPLAY_TIMEZONE
 from budget_planner.config import Settings
+from budget_planner.domain.accounts import AccountReferences
 from budget_planner.domain.errors import ConflictError
 from budget_planner.domain.recurring import AmountFormula, FormulaTerm
 from budget_planner.services import (
     accounts,
     analytics,
     budget,
+    categories,
     fortune,
     fx,
     recurring_formula,
@@ -121,10 +123,20 @@ def _case_archive_account(conn: sqlite3.Connection, world: World) -> None:
     with pytest.raises(ConflictError) as err:
         accounts.archive_account(conn, OWNER_ID, world.owner.account_id)
     assert err.value.message == (
-        "Cannot archive account: Balance is not zero; 2 recurring rules use this account; "
-        "1 planned transaction uses this account"
+        "Cannot archive account: Balance is not zero; 1 transaction uses this account; "
+        "1 planned transaction uses this account; 3 recurring rules use this account"
     )
     assert world.owner.account_id in _checked_accounts(conn, OWNER_ID)
+
+
+@covers("accounts.account_references")
+def _case_account_references(conn: sqlite3.Connection, world: World) -> None:
+    # Counts are per user and live-only: the owner's soft-deleted rows are not counted.
+    owner_refs = accounts.account_references(conn, OWNER_ID, world.owner.account_id)
+    assert (owner_refs.transactions, owner_refs.planned, owner_refs.recurring) == (1, 1, 3)
+    assert accounts.account_references(conn, OTHER_ID, world.owner.account_id) == (
+        AccountReferences(0, 0, 0)
+    )
 
 
 @covers("analytics.bundle")
@@ -188,6 +200,31 @@ def test_soft_deleted_rows_stay_out_of_the_owners_results(
     assert _fortune(conn, OWNER_ID) == OWNER_BALANCE - 1_000
     assert _checked_accounts(conn, OWNER_ID) == {world_with_tombstones.owner.account_id}
     assert _grid_categories(conn, OWNER_ID) == {world_with_tombstones.owner.category_id}
+
+
+@covers("categories.usage_by_category")
+def _case_usage_by_category(conn: sqlite3.Connection, world: World) -> None:
+    mine = categories.usage_by_category(conn, OWNER_ID)
+    theirs = categories.usage_by_category(conn, OTHER_ID)
+    assert world.owner.category_id in mine
+    assert world.other.category_id not in mine
+    assert world.other.category_id in theirs
+    assert world.owner.category_id not in theirs
+
+
+@covers("categories.entry_count")
+def _case_entry_count(conn: sqlite3.Connection, world: World) -> None:
+    assert categories.entry_count(conn, OWNER_ID, world.owner.category_id) == 1
+    assert categories.entry_count(conn, OWNER_ID, world.other.category_id) == 0
+    assert categories.entry_count(conn, OTHER_ID, world.owner.category_id) == 0
+
+
+@covers("categories.picker_summary")
+def _case_picker_summary(conn: sqlite3.Connection, world: World) -> None:
+    recent = {c.id for c in categories.picker_summary(conn, OWNER_ID).recent}
+    assert world.owner.category_id in recent
+    assert world.other.category_id not in recent
+    assert all(c.user_id == OWNER_ID for c in categories.picker_summary(conn, OWNER_ID).recent)
 
 
 def collect() -> list[Violation]:

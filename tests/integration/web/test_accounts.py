@@ -472,6 +472,31 @@ def test_delete_refused_when_balance_not_zero(
     assert _count(db, "audit_log") == audit_before
 
 
+def test_delete_refused_while_live_transaction_references_account(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    acc = accounts_repo.create(db, USER_ID, NewAccount(name="Used", currency="PLN"))
+    cat = categories_repo.create(db, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE))
+    transactions_repo.create(
+        db,
+        USER_ID,
+        NewTransaction(
+            operation_date=date(2026, 11, 10), category_id=cat.id, account_id=acc.id, amount=1
+        ),
+    )
+    audit_before = _count(db, "audit_log")
+
+    r = client.post(f"/accounts/{acc.id}/delete", headers={"HX-Request": "true"})
+
+    assert r.status_code == 409
+    assert (
+        "Cannot archive account: Balance is not zero; 1 transaction uses this account"
+        in _html.all_text(r.text, shell.flash_region)
+    )
+    assert accounts_repo.find_by_id(db, USER_ID, acc.id) is not None
+    assert _count(db, "audit_log") == audit_before
+
+
 def _create(settings: Settings, **kwargs: object) -> int:
     conn = get_connection(settings)
     try:
