@@ -126,3 +126,7 @@ This list supersedes the ADR-0121 list for required contexts. Not yet required: 
 ## Amendment 2026-11-22 (T-Q305): the drill gate does not prove an in-place upgrade
 
 Drills always build a fresh host, so the drill gate cannot catch a compose or host-state change that is valid on an empty host but cannot be applied to a running one (v3.1.0: the `edge` network gained `ipam`). Until an upgrade drill exists (T-Q306: apply the latest `v*` tag, then the PR head, on one host), a cheap guard runs in the unit suite: `tests/unit/deploy/test_compose_upgrade_in_place.py` fails when a compose network that exists in the latest `v*` tag changes its definition under the same name. The release checklist for a change to `docker-compose.yml.tpl` is: rename the changed network, or document the migration in an ADR and extend the guard's allowance.
+
+## Amendment 2026-11-23 (T-Q306): the drill gate is an upgrade from the prod version
+
+[ADR-0149](0149-drill-gate-is-an-upgrade-from-the-prod-version.md) replaces the interim note above: `mode=gate` boots the version prod serves (newest successful `prod` deployment), seeds the demo DB, upgrades the same host to the PR head (in place, or the replacing path when the PR replaces the VM), then rolls back to the baseline image (in place only). `drill-gate` passes only if every phase passes. The T-Q305 unit guard stays.
