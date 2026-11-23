@@ -26,7 +26,7 @@ from budget_planner.config import Settings, get_settings
 from budget_planner.logging import configure as _configure_logging, get_logger
 from budget_planner.services import users as users_service
 from budget_planner.services.connections import get_connection
-from budget_planner.web import fx_refresh_task, retention_task
+from budget_planner.web import background_tasks, fx_refresh_task, retention_task
 from budget_planner.web.errors import register_exception_handlers
 from budget_planner.web.middleware.admin import admin_required_middleware
 from budget_planner.web.middleware.auth import auth_required_middleware
@@ -170,7 +170,9 @@ def _close_app_connections(app: FastAPI) -> None:
                 )
 
 
-def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+def _make_lifespan(
+    cfg: Settings, on_crash: background_tasks.CrashReporter
+) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
     """Build a lifespan context manager bound to the given settings."""
 
     log = get_logger("budget_planner.lifespan")
@@ -192,8 +194,8 @@ def _make_lifespan(cfg: Settings) -> Callable[[FastAPI], AbstractAsyncContextMan
             raise SystemExit(1) from exc
         _install_sigterm_observer()
         log.info("lifespan_startup", env=cfg.env)
-        purge_task = retention_task.start(cfg)
-        fx_task = fx_refresh_task.start(cfg)
+        purge_task = retention_task.start(cfg, on_crash)
+        fx_task = fx_refresh_task.start(cfg, on_crash)
         try:
             yield
         finally:
@@ -245,15 +247,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _configure_logging()
     # OQ-20 default (2026-11-21): interactive docs and the schema are dev-only.
     is_production = cfg.env == "production"
+    crashed_tasks = set[str]()  # names of crashed background tasks (T-Q314)
     app = FastAPI(
         title="Budget Planner",
         version="0.1.0",
         docs_url=None if is_production else "/docs",
         openapi_url=None if is_production else "/openapi.json",
         redoc_url=None,
-        lifespan=_make_lifespan(cfg),
+        lifespan=_make_lifespan(cfg, crashed_tasks.add),
     )
     app.state.settings = cfg
+    app.state.crashed_tasks = crashed_tasks
     app.state.jinja_env = build_jinja_env(cfg)
 
     _install_middleware(app, cfg)

@@ -91,6 +91,8 @@ def browser(smoke_env: dict[str, str]) -> Iterator[Browser]:
 def _new_context(browser: Browser, base: str) -> BrowserContext:
     ctx = browser.new_context(base_url=base)
     ctx.set_default_timeout(_TIMEOUT_MS)
+    # T-Q312: API-client requests send no Origin; the CSRF origin check needs one.
+    ctx.set_extra_http_headers({"Origin": base})
     return ctx
 
 

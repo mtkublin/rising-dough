@@ -263,6 +263,7 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
             "next": "/today",
             CSRF_FORM_FIELD: token,
         },
+        headers={"Origin": base_url},
         max_redirects=0,
     )
     assert login.status == 303, f"e2e login failed: {login.status}"
@@ -277,14 +278,14 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     assert token, "login did not set a session-bound CSRF cookie (T-Q289)"
     # ADR-0113 / T-D140c / T-Q254: the app itself sends the prod CSP (app-minted
     # nonce) in every environment, so the browser enforces it with no injection.
-    context.set_extra_http_headers({CSRF_HEADER_NAME: token})
+    context.set_extra_http_headers({CSRF_HEADER_NAME: token, "Origin": base_url})
 
     def _follow_rotation(response: Response) -> None:
         # The server echoes a re-bound token on login/logout/session rotation (T-Q289);
         # keep the blanket header current.
         fresh = response.headers.get(CSRF_HEADER_NAME.lower())
         if fresh:
-            context.set_extra_http_headers({CSRF_HEADER_NAME: fresh})
+            context.set_extra_http_headers({CSRF_HEADER_NAME: fresh, "Origin": base_url})
 
     context.on("response", _follow_rotation)
     violations: list[str] = []

@@ -31,6 +31,7 @@ from typing import Any
 
 import fastapi.dependencies.utils as fastapi_dependency_utils
 import pytest
+from fastapi.testclient import TestClient
 
 from budget_planner import clock, config as config_module
 from budget_planner.config import Settings, get_settings
@@ -157,6 +158,43 @@ def _suite_bcrypt_floor(monkeypatch: pytest.MonkeyPatch) -> None:
     ``tests/unit/test_config.py`` restores the real floor to assert it.
     """
     monkeypatch.setattr(config_module, "PRODUCTION_MIN_BCRYPT_ROUNDS", FAST_ROUNDS)
+
+
+# T-Q312 (ADR-0065 amendment 2026-11-23): unsafe requests must be same-origin. Starlette's
+# TestClient sends neither ``Origin`` nor ``Sec-Fetch-Site``, so every client defaults to
+# the app's configured public origin. A test that needs the header absent passes
+# ``headers={NO_ORIGIN_HEADER: "1"}``; one that sets ``Origin`` or ``Sec-Fetch-Site`` wins.
+NO_ORIGIN_HEADER = "X-Test-No-Origin"
+_ORIGIN_HEADERS = frozenset({"origin", "sec-fetch-site"})
+_REAL_CLIENT_REQUEST = TestClient.request
+
+
+def _app_settings(app: Any) -> Any:
+    """``app.state.settings`` of the FastAPI app, looking through wrapping ASGI middleware."""
+    for _ in range(8):
+        settings = getattr(getattr(app, "state", None), "settings", None)
+        if settings is not None:
+            return settings
+        app = getattr(app, "app", None)
+    return None
+
+
+def _request_with_origin(self: TestClient, method: str, url: Any, *args: Any, **kwargs: Any) -> Any:
+    headers = {str(k): v for k, v in dict(kwargs.get("headers") or {}).items()}
+    skip = headers.pop(NO_ORIGIN_HEADER, None) is not None
+    settings = _app_settings(self.app)
+    if not skip and settings is not None and not _ORIGIN_HEADERS & {k.lower() for k in headers}:
+        headers["Origin"] = settings.webauthn_origin
+    kwargs["headers"] = headers
+    return _REAL_CLIENT_REQUEST(self, method, url, *args, **kwargs)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _default_same_origin() -> Iterator[None]:
+    """T-Q312: give every TestClient request the app's public ``Origin`` unless it sets one."""
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(TestClient, "request", _request_with_origin)
+        yield
 
 
 @pytest.fixture

@@ -8,11 +8,16 @@ import pytest
 from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.adapters.entropy import SecretsTokenSource
 from budget_planner.config import Settings
 from budget_planner.web.app import create_app
-from budget_planner.web.csrf_token import mint_token, verify_token
-from budget_planner.web.middleware.csrf import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
+from budget_planner.web.csrf_token import browser_binding, mint_token, session_binding, verify_token
+from budget_planner.web.middleware.csrf import (
+    BROWSER_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    CSRF_HEADER_NAME,
+)
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD, issue_session, seed_login_user
 
 pytestmark = pytest.mark.integration
@@ -41,15 +46,18 @@ def _signed_in(c: TestClient, session_id: str) -> str:
 
 
 def test_token_binding_unit() -> None:
-    token = mint_token(SECRET, "sess-a", TOKENS)
-    assert verify_token(SECRET, token, "sess-a")
-    assert not verify_token(SECRET, token, "sess-b")
-    assert not verify_token(SECRET, token, None)
-    assert not verify_token("t" * 32, token, "sess-a")
-    assert not verify_token(SECRET, "", "sess-a")
-    pre = mint_token(SECRET, None, TOKENS)
-    assert verify_token(SECRET, pre, None)
-    assert not verify_token(SECRET, pre, "sess-a")
+    now = clock.utc_now()
+    sess_a, sess_b = session_binding("sess-a"), session_binding("sess-b")
+    token = mint_token(SECRET, sess_a, TOKENS, now)
+    assert verify_token(SECRET, token, sess_a, now)
+    assert not verify_token(SECRET, token, sess_b, now)
+    assert not verify_token(SECRET, token, browser_binding("sess-a"), now)
+    assert not verify_token("t" * 32, token, sess_a, now)
+    assert not verify_token(SECRET, "", sess_a, now)
+    pre = mint_token(SECRET, browser_binding("b1"), TOKENS, now)
+    assert verify_token(SECRET, pre, browser_binding("b1"), now)
+    assert not verify_token(SECRET, pre, browser_binding("b2"), now)
+    assert not verify_token(SECRET, pre, sess_a, now)
 
 
 def test_token_from_session_a_refused_on_session_b(
@@ -76,7 +84,10 @@ def test_logout_rotates_and_old_token_refused(
     assert r.status_code == 303
     new = app_client.cookies[CSRF_COOKIE_NAME]
     assert new != old
-    assert verify_token(_migrated.resolve().cookie_secret, new, None)
+    bid = app_client.cookies[BROWSER_COOKIE_NAME]
+    assert verify_token(
+        _migrated.resolve().cookie_secret, new, browser_binding(bid), clock.utc_now()
+    )
     replay = app_client.post(
         "/auth/login",
         data={"email": TEST_EMAIL, "password": TEST_PASSWORD},
@@ -93,7 +104,8 @@ def test_pre_session_login_works_and_login_rotates(
     app_client.get("/auth/login")
     pre = app_client.cookies[CSRF_COOKIE_NAME]
     secret = _migrated.resolve().cookie_secret
-    assert verify_token(secret, pre, None)
+    bid = app_client.cookies[BROWSER_COOKIE_NAME]
+    assert verify_token(secret, pre, browser_binding(bid), clock.utc_now())
     r = app_client.post(
         "/auth/login",
         data={"email": TEST_EMAIL, "password": TEST_PASSWORD},
@@ -103,7 +115,10 @@ def test_pre_session_login_works_and_login_rotates(
     assert r.status_code == 303
     post = app_client.cookies[CSRF_COOKIE_NAME]
     assert post != pre
-    assert verify_token(secret, post, app_client.cookies[SESSION_COOKIE])
+    assert verify_token(
+        secret, post, session_binding(app_client.cookies[SESSION_COOKIE]), clock.utc_now()
+    )
+    assert BROWSER_COOKIE_NAME not in app_client.cookies  # cleared once a session exists
     stale = app_client.post("/_test/echo", headers={CSRF_HEADER_NAME: pre})
     assert stale.status_code == 403
     fresh = app_client.post("/_test/echo", headers={CSRF_HEADER_NAME: post})
@@ -114,7 +129,9 @@ def test_pre_session_token_refused_for_signed_in_session(
     app_client: TestClient, _migrated: Settings, conn: sqlite3.Connection
 ) -> None:
     seed_login_user(conn)
-    pre = mint_token(_migrated.resolve().cookie_secret, None, TOKENS)
+    pre = mint_token(
+        _migrated.resolve().cookie_secret, browser_binding("b1"), TOKENS, clock.utc_now()
+    )
     app_client.cookies.set(SESSION_COOKIE, issue_session(conn))
     app_client.cookies.set(CSRF_COOKIE_NAME, pre)
     r = app_client.post("/_test/echo", headers={CSRF_HEADER_NAME: pre})
@@ -126,7 +143,7 @@ def test_empty_csrf_cookie_is_reminted(app_client: TestClient) -> None:
     r = app_client.get("/auth/login")
     assert CSRF_COOKIE_NAME in r.headers.get("set-cookie", "")
     minted = r.headers["set-cookie"].split(f"{CSRF_COOKIE_NAME}=", 1)[1].split(";", 1)[0]
-    assert len(minted) == 65
+    assert len(minted) == 73
 
 
 @pytest.mark.parametrize("bad", ["x" * 65, "bad id with spaces", "a/b", ""])

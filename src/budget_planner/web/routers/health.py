@@ -6,7 +6,8 @@
 
 - ``GET /health/fx`` → 200 iff every currency used by a live account has a
   recent cached rate (T-Q292, ADR-0146); 503 when stale, missing or unreadable,
-  or when the refresh is disabled in production (T-Q307).
+  or when the refresh is disabled in production (T-Q307) or its task crashed
+  (T-Q314, status ``refresh_crashed``).
 
 - ``GET /health/replication`` → 200 iff the newest Litestream replica object is
   fresh (T-D144, ADR-0119); 503 when stale, missing or unreadable.
@@ -28,6 +29,7 @@ from fastapi.responses import JSONResponse
 from budget_planner import clock
 from budget_planner.services import fx_health, replication_health
 from budget_planner.services.connections import DB_ERRORS, get_connection, ping
+from budget_planner.web import fx_refresh_task
 from budget_planner.web.paths import GET_HEAD_METHODS
 
 if TYPE_CHECKING:
@@ -85,6 +87,9 @@ def fx_freshness(request: Request) -> JSONResponse:
     cfg: Settings = request.app.state.settings
     now = clock.utc_now()
     max_age = cfg.fx_max_rate_age_days
+    if fx_refresh_task.TASK_NAME in getattr(request.app.state, "crashed_tasks", frozenset()):
+        verdict = fx_health.crashed(max_age_days=max_age, now=now)
+        return JSONResponse(status_code=503, content=verdict.body())
     try:
         conn = get_connection(cfg)
         try:

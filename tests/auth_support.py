@@ -129,6 +129,9 @@ class FakePasswordHasher:
     def verify(self, password: str, hashed: str | None) -> bool:
         return bool(password) and hashed == self._digest(password)
 
+    def needs_rehash(self, hashed: str | None) -> bool:
+        return bool(hashed) and not str(hashed).startswith(self.PREFIX)
+
     def verify_dummy(self, password: str) -> None:
         self.dummy_verifies.append(password)
 
