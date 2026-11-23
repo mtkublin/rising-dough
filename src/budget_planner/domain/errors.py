@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from budget_planner.domain.accounts import AccountReferences
+
 
 @dataclass(frozen=True)
 class ValidationError(Exception):
@@ -72,3 +74,11 @@ def require_present[T](value: T | None, what: str) -> T:
     if value is None:
         raise InvariantError(f"{what} is missing")
     return value
+
+
+class AccountInUseError(ConflictError):
+    """Account delete refused: live rows still reference it (T-UR33). 409 on the wire."""
+
+    def __init__(self, message: str, references: AccountReferences) -> None:
+        super().__init__(message)
+        self.references = references

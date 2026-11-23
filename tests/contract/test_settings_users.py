@@ -14,8 +14,10 @@ from fastapi.testclient import TestClient
 
 from budget_planner.services.users import (
     DUPLICATE_EMAIL_MESSAGE,
+    EMAIL_LOCKED_MESSAGE,
     LAST_ADMIN_DEMOTE_MESSAGE,
     SELF_DELETE_MESSAGE,
+    SELF_DEMOTE_MESSAGE,
 )
 from tests.auth_support import FAST_HASHER, issue_session
 from tests.contract._audit import audit_count
@@ -278,14 +280,14 @@ def test_save_updates_row_flashes_and_audits(
     uid = _uid(db, "bob@example.test")
     r = admin_client.post(
         f"/settings/users/{uid}",
-        data={"email": "Robert@Example.test", "name": "Robert", "is_admin": "on"},
+        data={"email": "Bob@Example.test", "name": "Robert", "is_admin": "on"},
         headers=HX,
     )
     assert r.status_code == 200
-    assert "robert@example.test" in _html.text_of(r.text, ui.users_table)
+    assert "bob@example.test" in _html.text_of(r.text, ui.users_table)
     assert _html.exists(r.text, ui.flash_success)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    assert (row["email"], row["name"], row["is_admin"]) == ("robert@example.test", "Robert", 1)
+    assert (row["email"], row["name"], row["is_admin"]) == ("bob@example.test", "Robert", 1)
     assert _audit(db, uid, "update")["actor_user_id"] == 1
 
 
@@ -301,15 +303,18 @@ def test_save_non_htmx_redirects_to_list(admin_client: TestClient) -> None:
 
 
 @covers("POST /settings/users/{user_id}")
-def test_save_duplicate_email_retargets_form(admin_client: TestClient) -> None:
+def test_save_email_change_refused_retargets_form(
+    admin_client: TestClient, db: sqlite3.Connection
+) -> None:
     _add(admin_client, "carol@example.test")
     r = admin_client.post(
-        "/settings/users/1", data={"email": "CAROL@example.test", "is_admin": "on"}, headers=HX
+        "/settings/users/1", data={"email": "new@example.test", "is_admin": "on"}, headers=HX
     )
     assert r.status_code == 422
     assert r.headers["hx-retarget"] == "#user-edit-form"
     assert r.headers["hx-reswap"] == "outerHTML"
-    assert DUPLICATE_EMAIL_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert EMAIL_LOCKED_MESSAGE in _html.text_of(r.text, ui.add_errors)
+    assert db.execute("SELECT email FROM users WHERE id = 1").fetchone()[0] == "owner@example.test"
 
 
 @covers("POST /settings/users/{user_id}")
@@ -344,7 +349,7 @@ def test_demote_last_admin_is_409_without_swap(
 
 
 @covers("POST /settings/users/{user_id}")
-def test_self_demote_allowed_with_second_admin_and_drops_access(
+def test_self_demote_refused_with_second_admin(
     admin_client: TestClient, db: sqlite3.Connection
 ) -> None:
     _add(admin_client, "second@example.test", is_admin=True)
@@ -353,9 +358,10 @@ def test_self_demote_allowed_with_second_admin_and_drops_access(
         data={"email": "owner@example.test", "name": "o", "is_admin": "0"},
         headers=HX,
     )
-    assert r.status_code == 200
-    assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 0
-    assert admin_client.get("/settings/users").status_code == 404
+    assert r.status_code == 409
+    assert SELF_DEMOTE_MESSAGE in _html.text_of(r.text, ui.flash_error)
+    assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
+    assert admin_client.get("/settings/users").status_code == 200
 
 
 # --- POST /settings/users/{id}/reset-password ---------------------------------

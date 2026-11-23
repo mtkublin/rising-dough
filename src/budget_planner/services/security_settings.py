@@ -10,6 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from budget_planner.domain.user_agent import device_label
 from budget_planner.repositories.sessions import Session
 from budget_planner.repositories.webauthn import WebAuthnCredential
 from budget_planner.services import auth as auth_service
@@ -22,6 +23,7 @@ class SessionRow:
     session: Session
     is_current: bool
     absolute_expires_at: datetime
+    device_label: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +49,7 @@ def security_view(
             session=s,
             is_current=s.handle == current_handle,
             absolute_expires_at=s.created_at + absolute,
+            device_label=device_label(s.user_agent),
         )
         for s in auth_service.list_active_sessions(conn, user_id)
     )

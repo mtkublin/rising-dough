@@ -88,6 +88,7 @@ def edit_form(
         slide_over_title="Edit category",
         form_include="partials/categories/_form.html",
         category=cat,
+        entry_count=categories_service.entry_count(conn, user_id, category_id),
         action=f"/categories/{category_id}",
         errors={},
     )

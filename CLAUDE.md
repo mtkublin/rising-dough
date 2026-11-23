@@ -57,6 +57,15 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Category selection (expense category ids) | `services/categories.expense_category_ids` (actuals, archived included) and `reserves_budget` / `budgeted_expense_category_ids` (budget, archived excluded from the archive month on; ADR-0136) | exists (Q-030) | - |
 | Budget tier resolution | `services/budget.pick_tier` | exists (Q-075) | - |
 | Template view-model values (left per day, percentages) | `web/view_models.py` `left_per_day` | exists (Q-039) | - |
+| Due-date status (in N days, due today, overdue) and override delta | `services/ledger_totals.py` `planned_status` (also `override_delta`) | exists (T-UR34c) | - |
+| Segmented bar cells and hero amount fit | `web/view_models.py` `bar_cells`, `hero_fit` | exists (T-UR34k) | - |
+| Session device label from a user agent | `domain/user_agent.py` `device_label` | exists (T-UR34h) | - |
+| Rate-limit attempts left | `services/rate_limit.py` `attempts_left` | exists (T-UR34i) | - |
+| Form field labels and 422 field summary | `web/field_labels.py` `field_label`, `field_summary` | exists (T-UR34l) | - |
+| Account in-use reference counts | `services/accounts.py` `account_references` | exists (T-UR33) | - |
+| Invites (create, resend, revoke, accept, link state) | `services/invites.py` `create_invite`, `resend_invite`, `revoke_invite`, `accept_invite`, `link_state` (7-day `INVITE_LIFETIME`; token stored hashed; ADR-0134 §1, §10) | exists (T-UR30) | - |
+| First-run setup (open predicate, token check, consume) | `services/setup.py` `is_open`, `check_token`, `complete_setup` (hash from `BUDGET_PLANNER_SETUP_TOKEN_HASH`, ADR-0134 §9) | exists (T-UR32) | - |
+| Outbound mail (send one message) | port `domain/ports.py` `MailSender`, `MailMessage`; adapter `adapters/mail/` (`NoopMailSender`, default; `BUDGET_INVITE_EMAIL_ENABLED` switch, ADR-0134 §1) | exists (T-UR31) | - |
 
 **Target** rows are not yet extracted. Either call the row's **Interim** copy (public, named in the table), or, when it says "none", do the extraction as the registered migration task (`migration_task` in the registry), migrating **all** copies in the same change. Never import another module's private `_name` (G30, `test_private_imports.py`). Never create the canonical module without migrating the copies: a row may be `exists` only at zero copies, otherwise `exists-migrating` (`test_canonical_modules.py`). `allowlists/banned_patterns.toml` (G6) bans copies of a row's banned names outside its module.
 

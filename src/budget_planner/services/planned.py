@@ -147,6 +147,7 @@ def list_planned(
         account_ids=filters.account_ids,
         category_ids=filters.category_ids,
         directions=filters.directions,
+        description_contains=filters.description_contains,
         recurring_rule_id=filters.recurring_rule_id,
         promoted=filters.promoted,
         limit=filters.limit,

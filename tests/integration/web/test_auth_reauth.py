@@ -25,6 +25,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import sessions as sessions_repo, webauthn as webauthn_repo
 from budget_planner.services import auth as auth_service, reauth as reauth_service
+from budget_planner.web import auth_flow
 from budget_planner.web.auth_cookies import SESSION_COOKIE_NAME
 from tests.auth_support import TEST_PASSWORD, seed_login_user
 from tests.db_template import sqlite_url
@@ -279,6 +280,25 @@ def test_wrong_password_is_generic_401_and_audited(
     failed = _rows(db, "reauth_failed")
     assert failed[-1]["method"] == "password"
     assert failed[-1]["reason"] == "bad_password"
+
+
+def test_failed_reauth_passes_attempts_left_to_the_page_context(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _freeze_rate_limit_window(client)
+    seen: list[int | None] = []
+    target = "budget_planner.web.routers.auth.reauth_page"
+    real = auth_flow.reauth_page
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs.get("attempts_left"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(target, spy)
+    for _ in range(3):
+        client.post("/auth/reauth", data={"password": WRONG_PASSWORD})
+    client.post("/auth/reauth", data={"password": WRONG_PASSWORD})  # throttled
+    assert seen == [2, 1, 0, None]
 
 
 def test_success_is_audited_with_session_handle(

@@ -22,7 +22,7 @@ from budget_planner.config import Settings
 from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.services import auth as auth_service, reauth as reauth_service
 from budget_planner.services.auth import IssuedSession
-from budget_planner.services.rate_limit import RateDecision
+from budget_planner.services.rate_limit import RateDecision, reauth_rules
 from budget_planner.web.auth_cookies import (
     DEFAULT_LANDING,
     Purpose,
@@ -33,7 +33,7 @@ from budget_planner.web.auth_cookies import (
     sign_challenge,
     verify_challenge,
 )
-from budget_planner.web.auth_deps import RETRY_AFTER, throttled_json
+from budget_planner.web.auth_deps import RETRY_AFTER, rate_limit_now, throttled_json
 from budget_planner.web.deps import REAUTH_PATH, reauth_now
 from budget_planner.web.htmx import wants_json
 from budget_planner.web.http_headers import JSON_MEDIA_TYPE
@@ -203,8 +203,9 @@ def reauth_page(
     error: str | None = None,
     status_code: int = HTTPStatus.OK,
     throttled: bool = False,
+    attempts_left: int | None = None,
 ) -> HTMLResponse:
-    """The confirm-it's-you page."""
+    """The confirm-it's-you page (``attempts_left``: G8 data, unrendered until the redesign)."""
     return render(
         request,
         "auth/reauth.html",
@@ -212,8 +213,18 @@ def reauth_page(
         next_path=next_path,
         error=error,
         throttled=throttled,
+        attempts_left=attempts_left,
         has_passkeys=bool(auth_service.list_passkeys(conn, user.id)),
         current_user=user,
+    )
+
+
+def reauth_attempts_left(
+    request: Request, conn: sqlite3.Connection, settings: Settings, user: CurrentUser
+) -> int | None:
+    """Re-auth attempts the signed-in user has left in the current windows (G8)."""
+    return reauth_service.attempts_left(
+        conn, user.id, reauth_rules(settings), now=rate_limit_now(request)
     )
 
 
