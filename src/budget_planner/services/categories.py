@@ -12,6 +12,8 @@ from __future__ import annotations
 import logging
 import sqlite3
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import date
 from zoneinfo import ZoneInfo
 
 from budget_planner.domain.categories import (
@@ -26,9 +28,13 @@ from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
+    transactions as transactions_repo,
 )
 
 logger = logging.getLogger(__name__)
+
+RECENT_CATEGORY_LIMIT = 4
+"""Handoff category picker shows four recent categories (T-UR34g, value-inventory G6)."""
 
 
 class CategoryNotFoundError(LookupError):
@@ -124,6 +130,55 @@ def budgeted_expense_category_ids(
             conn, user_id, year, month, display_timezone=display_timezone
         )
     ]
+
+
+@dataclass(frozen=True)
+class CategoryUsage:
+    """Live transactions booked to one category: how many, and the latest date."""
+
+    entry_count: int
+    last_used: date
+
+
+@dataclass(frozen=True)
+class CategoryPicker:
+    """Picker header values: recently used categories and the total shown in "search all N"."""
+
+    recent: tuple[Category, ...]
+    total_count: int
+
+
+def usage_by_category(conn: sqlite3.Connection, user_id: int) -> dict[int, CategoryUsage]:
+    """Usage of every category with at least one live transaction, in one query.
+
+    Counts live (not soft-deleted) transactions only; planned items and recurring rules
+    do not count (the handoff says "entries", i.e. ledger rows; designer question).
+    """
+    return {
+        category_id: CategoryUsage(entry_count=count, last_used=last)
+        for category_id, count, last in transactions_repo.category_usage(conn, user_id)
+    }
+
+
+def entry_count(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
+    """Live transactions in the category ("locked by N entries", "Its N entries stay")."""
+    usage = usage_by_category(conn, user_id).get(category_id)
+    return usage.entry_count if usage is not None else 0
+
+
+def picker_summary(
+    conn: sqlite3.Connection, user_id: int, *, limit: int = RECENT_CATEGORY_LIMIT
+) -> CategoryPicker:
+    """Recent categories (latest live transaction date desc, id asc on ties) and picker size.
+
+    The picker lists live categories (:func:`list_all`), so archived ones are neither
+    recent nor counted. The system Reconciliation (adjustment) category is never "recent".
+    """
+    live = list_all(conn, user_id)
+    usage = usage_by_category(conn, user_id)
+    used = [c for c in live if c.id in usage and c.direction is not Direction.ADJUSTMENT]
+    used.sort(key=lambda c: (-usage[c.id].last_used.toordinal(), c.id))
+    return CategoryPicker(recent=tuple(used[:limit]), total_count=len(live))
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
@@ -233,22 +288,28 @@ def soft_delete(conn: sqlite3.Connection, user_id: int, category_id: int) -> Non
 
 
 __all__ = [
+    "RECENT_CATEGORY_LIMIT",
     "CategoryHasLiveRulesError",
     "CategoryNotFoundError",
+    "CategoryPicker",
+    "CategoryUsage",
     "SystemCategoryError",
     "archive",
     "budget_reserver",
     "budgeted_expense_categories",
     "budgeted_expense_category_ids",
     "create",
+    "entry_count",
     "expense_categories",
     "expense_category_ids",
     "find_by_id",
     "find_by_name",
     "list_all",
     "list_recently_deleted",
+    "picker_summary",
     "reserves_budget",
     "restore",
     "soft_delete",
     "update",
+    "usage_by_category",
 ]

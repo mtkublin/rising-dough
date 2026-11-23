@@ -191,3 +191,13 @@ finding = "T-UR32"
 epic = "E12"
 search = ["setup_token", "is_open", "check_token", "first_run", "consume"]
 banned = ["*setup_token*", "*setup_open*"]
+
+[[row]]
+concept = "Outbound mail (send one message)"
+module = "adapters/mail/noop.py"
+symbol = "NoopMailSender"
+status = "exists"
+finding = "T-UR31"
+epic = "UR"
+search = ["MailSender", "MailMessage", "send_mail", "smtp", "email_enabled"]
+banned = ["*send_mail*", "*smtplib*"]

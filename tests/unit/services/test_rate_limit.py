@@ -168,3 +168,43 @@ def test_audit_throttled_writes_auth_event(conn: sqlite3.Connection) -> None:
         "email": "a@b.test",
     }
     assert json.loads(rows[1][3]) == {"event": "rate_limited", "scope": "passkey_register"}
+
+
+# --- attempts_left (G8, T-UR34i) -------------------------------------------
+LIMIT5 = (RateRule(limit=5, window_seconds=60),)
+
+
+def _hits(conn: sqlite3.Connection, identity: str, n: int, now: datetime = T0) -> None:
+    for _ in range(n):
+        svc.consume(conn, "reauth", identity, LIMIT5, now=now)
+
+
+@pytest.mark.parametrize(("hits", "expected"), [(0, 5), (2, 3), (5, 0), (7, 0)])
+def test_attempts_left_is_limit_minus_failures_floored_at_zero(
+    conn: sqlite3.Connection, hits: int, expected: int
+) -> None:
+    _hits(conn, "user=1", hits)
+    assert svc.attempts_left(conn, "reauth", "user=1", LIMIT5, now=T0) == expected
+
+
+def test_attempts_left_resets_after_window_expiry(conn: sqlite3.Connection) -> None:
+    _hits(conn, "user=1", 5)
+    later = T0 + timedelta(seconds=60)
+    assert svc.attempts_left(conn, "reauth", "user=1", LIMIT5, now=later) == 5
+
+
+def test_attempts_left_is_isolated_per_identity(conn: sqlite3.Connection) -> None:
+    _hits(conn, svc.user_identity(1), 4)
+    assert svc.attempts_left(conn, "reauth", svc.user_identity(2), LIMIT5, now=T0) == 5
+    assert svc.attempts_left(conn, "reauth", svc.user_identity(1), LIMIT5, now=T0) == 1
+
+
+def test_attempts_left_takes_the_tightest_rule_and_never_counts(conn: sqlite3.Connection) -> None:
+    rules = (RateRule(limit=3, window_seconds=60), RateRule(limit=50, window_seconds=3600))
+    svc.consume(conn, "reauth", "user=1", rules, now=T0)
+    assert svc.attempts_left(conn, "reauth", "user=1", rules, now=T0) == 2
+    assert svc.attempts_left(conn, "reauth", "user=1", rules, now=T0) == 2
+
+
+def test_attempts_left_is_none_when_limiter_disabled(conn: sqlite3.Connection) -> None:
+    assert svc.attempts_left(conn, "reauth", "user=1", (), now=T0) is None

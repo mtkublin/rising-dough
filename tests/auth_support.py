@@ -15,7 +15,7 @@ from typing import Final
 from budget_planner.adapters.bcrypt_hasher import BcryptHasher
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
-from budget_planner.domain.ports import PasswordHasher
+from budget_planner.domain.ports import MailMessage, MailSendError, PasswordHasher
 from budget_planner.repositories import sessions as sessions_repo
 from budget_planner.web.auth_cookies import session_cookie_name
 
@@ -90,6 +90,19 @@ class FakeTokenSource:
     def new_token(self, nbytes: int) -> str:
         self.calls.append(nbytes)
         return f"tok-{len(self.calls)}-{nbytes}"
+
+
+class FakeMailSender:
+    """Recording ``MailSender`` fake (T-UR31); ``fail=True`` raises ``MailSendError``."""
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.sent: list[MailMessage] = []
+        self.fail = fail
+
+    def send(self, message: MailMessage) -> None:
+        if self.fail:
+            raise MailSendError("fake mail failure")
+        self.sent.append(message)
 
 
 class FakePasswordHasher:
