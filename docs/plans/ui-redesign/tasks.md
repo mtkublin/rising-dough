@@ -23,7 +23,7 @@
 
 > **Decision**: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Everything backend that can ship before the migration ships first: schema, repositories, services, ports, config switches, service guards and the fields the handoff needs. No templates, CSS, JS or new page-rendering routes; existing routes change only the service call and the error shown through the existing flash. One PR to `main` from `ui/preconditions`, released through the ADR-0099 pipeline; Phase 0 starts after the release is live. Contract tests for the changed behaviour change here (requirements already amended), so the migration starts from that baseline.
 
-### ◻ T-UR29 [P] User edit guards (server side of T-UR20)
+### ✅ T-UR29 [P] User edit guards (server side of T-UR20)
 - `services/users.edit_user` refuses an actor demoting themselves (today allowed while a second admin exists) and demoting the last admin; an email different from the stored one is refused with a validation error (422 on the route, nothing saved; operator 2026-11-22). Delete keeps refusing self and last admin.
 - Tests assert the stored row, the audit row and that a second user's rows are untouched; HTTP tests on the existing edit route assert the flashed refusal and unchanged DB state.
 - ADR-0134 §11, ADR-0073, requirements §10.1 (user admin line), §6.2.
@@ -44,7 +44,7 @@
 - No route, no template; `/setup` stays T-UR21.
 - ADR-0134 §9.
 
-### ◻ T-UR33 [P] Account delete rule (service part of T-UR23)
+### ✅ T-UR33 [P] Account delete rule (service part of T-UR23)
 - Service refuses delete while any live (not soft-deleted) transaction, planned item or recurring rule references the account (operator 2026-11-22: soft-deleted rows do not block) and returns the reference counts (transactions, planned, recurring; "blocked by recurring only" derivable). Otherwise soft delete as before.
 - The current accounts UI shows the refusal through the existing error flash (no template change). Tests assert DB state, audit and the counts.
 - Requirement F2.8, ADR-0134 §3.
