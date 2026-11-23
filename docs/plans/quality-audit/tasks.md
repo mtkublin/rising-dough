@@ -1456,10 +1456,11 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Docs-first step: ADR-0099 / ADR-0101 amendment naming the seed source, written at implementation start.
 - Goal: seed the drill from the anonymized prod-shaped `data/demo.sqlite` (built by `just demo-build`), or an equivalent anonymized snapshot, so migrations and smoke run against realistic data shapes.
 - Acceptance: the drill seeds from the snapshot; smoke asserts the seeded tables are non-empty; CI never reads prod data and never touches `data/budget.sqlite`.
-- Open questions (to answer before implementation):
-  1. Where does the snapshot live? `data/demo.sqlite` is tracked in git today; an object-store copy is the alternative.
-  2. How fresh is it? Rebuild cadence, or rebuild on demand only.
-  3. It is never real prod data. The drill receives only the output of the anonymizer (`build_demo_db.py`), and its source-basename tripwire stays.
+- Answers (operator 2026-11-23):
+  1. The snapshot is the git-tracked `data/demo.sqlite`, taken from the baseline tag (so its schema is at most the tag's).
+  2. It is refreshed on demand only (`just demo-build`), no schedule.
+  3. It is never prod data; the anonymizer's source-basename tripwire stays.
+- Folded into T-Q306(c) (operator 2026-11-23); the "smoke asserts seeded tables non-empty" acceptance moves to T-Q306; marked done when T-Q306 lands.
 - Removes allowlist entries: none.
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds on a drill run.

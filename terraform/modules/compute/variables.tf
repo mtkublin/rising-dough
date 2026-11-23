@@ -152,6 +152,12 @@ variable "enable_restore_helper" {
   default     = false
 }
 
+variable "enable_seed_helper" {
+  description = "Install /usr/local/bin/seed-demo (drill environment only, T-Q306(c), ADR-0149). Needs no prod credential."
+  type        = bool
+  default     = false
+}
+
 variable "restore_source_bucket" {
   description = "PROD replica bucket the restore helper reads from (read-only)."
   type        = string

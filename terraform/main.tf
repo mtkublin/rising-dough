@@ -201,7 +201,10 @@ module "compute" {
 
   # T-D41a: restore-from-prod helper, drill env only.
   # ADR-0132 / H4-03: only the restore drill supplies the prod read key; explore drills get no restore-source.env.
-  enable_restore_helper  = var.env == "drill" && var.scw_access_key_restore != ""
+  enable_restore_helper = var.env == "drill" && var.scw_access_key_restore != ""
+  # T-Q306(c) / ADR-0149: seed-demo, drill env only; no prod credential involved.
+  enable_seed_helper = var.env == "drill"
+
   restore_source_bucket  = "budget-planner-prod-${var.scaleway_region}"
   scw_access_key_restore = var.env == "drill" ? var.scw_access_key_restore : ""
   scw_secret_key_restore = var.env == "drill" ? var.scw_secret_key_restore : ""
