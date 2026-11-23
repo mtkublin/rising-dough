@@ -67,3 +67,8 @@
 ## Implementation note 2026-11-23 (T-Q306g)
 
 `verify` and `verify-rollback` assert the host's compose networks against the PR head's `docker-compose.yml.tpl`: `scripts/ci/compose_networks.py` prints `<project>_<network> subnet gateway` for every network with `ipam` (today `budget-planner_edge_v2 172.30.0.0/24 172.30.0.1`), and each step runs `sudo docker network inspect` for it over the drill ssh and fails with `::error::` on any mismatch (the verdict names `upgrade` or `rollback`). Reason: run 45262019613 passed with a same-name subnet change and `ok` status, so a silently kept old network (or one healed by the T-Q305 retry) was indistinguishable. The rollback keeps the PR's templates, so it is checked against the same file.
+
+## Amendment 2026-11-23 (acceptance results)
+
+- Measured run times replace "not measured yet": in place 22 min 24 s (run 45247014045), VM replacement 25 min 00 s (run 45257355759), same-name network case about 19 min 47 s (run 45270858165). The gate is now 20 to 25 min per PR (was 11 to 18 min).
+- The v3.1.0 case (same-name network definition change) is healed by the T-Q305 host-agent recovery, so the gate no longer fails it. The gate instead asserts that the host's networks match the template after the upgrade and after the rollback (T-Q306g), so a silently kept old network fails the phase.
