@@ -51,15 +51,22 @@ def limit_preview(
     account_id: str = "",
     category_id: str = "",
     amount: str = "",
+    txn_id: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
+    edited_id = query_int("txn_id", txn_id)
     acc_id = query_int("account_id", account_id)
     cat_id = query_int("category_id", category_id)
     preview = None
     if acc_id is not None and cat_id is not None:
         preview = compute_limit_preview(
-            conn, user_id, account_id=acc_id, category_id=cat_id, amount_raw=amount
+            conn,
+            user_id,
+            account_id=acc_id,
+            category_id=cat_id,
+            amount_raw=amount,
+            exclude_txn_id=edited_id,
         )
     return render(request, "partials/transactions/_limit_preview.html", preview=preview)
 

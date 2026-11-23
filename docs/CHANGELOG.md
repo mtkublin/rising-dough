@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-11-23 (T-UR34d: credit-limit preview left before and account name)
+- **Feat(T-UR34d): `LimitPreview` gains `available_before` and `account_name`; `GET /transactions/_limit_preview?txn_id=` excludes the edited transaction's own effect from the before balance (foreign ids ignored).** ADR-0134 §2, ADR-0148; backend only, no template change. No allowlist change.
+
 ## 2026-11-23 (T-Q311: frozen test clock by default, CI date matrix, no SQLite clock)
 - **Test(T-Q311): every test runs under `clock.frozen(BUDGET_TEST_NOW, default 2026-11-21T12:00:00Z)`; marker `real_clock` opts out; CI job `pytest (shifted clock)` runs the suite on four dangerous dates; guard G32 bans `'now'`/`CURRENT_*` in runtime SQL and six update sites now bind `clock.utc_now_iso()`.** ADR-0140 amendment 2026-11-23. No allowlist change.
 
