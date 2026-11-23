@@ -46,6 +46,7 @@ NON_USER_SCOPED_REPOSITORIES: dict[str, str] = {
     "audit.py": "audit_log is not user-owned (actor columns are attribution)",
     "fx.py": "fx_rates is global reference data",
     "rate_limit.py": "T-D09: auth_rate_limit counters keyed by opaque strings (ADR-0072)",
+    "invites.py": "T-UR30: admin-wide invites; accept resolves one from an opaque token hash",
     "retention.py": "T-D60: system retention sweeper (audit_log + sessions)",
     "sessions.py": "T-D02: resolves the user from an opaque session id",
     "users.py": "T-D19: writes the `users` identity table (bootstrap, operator CLI, T-D17)",
