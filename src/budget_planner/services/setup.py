@@ -39,10 +39,10 @@ class SetupSettings(BootstrapSettings, Protocol):
     """The slice of ``Settings`` first-run setup reads."""
 
     @property
-    def setup_token_hash(self) -> str | None: ...
+    def planner_setup_token_hash(self) -> str | None: ...
 
 
-class SetupClosed(Exception):  # noqa: N818  # one outcome for "closed" and "bad token": no oracle (ADR-0134 section 9)
+class SetupClosedError(Exception):
     """Setup is not open, or the token is wrong (indistinguishable on purpose)."""
 
 
@@ -71,7 +71,7 @@ def _bootstrap_admin_configured(settings: BootstrapSettings) -> bool:
 
 def is_open(conn: sqlite3.Connection, settings: SetupSettings) -> bool:
     """Setup is open: hash configured, not consumed, no users, no bootstrap admin."""
-    if not settings.setup_token_hash:
+    if not settings.planner_setup_token_hash:
         return False
     if _bootstrap_admin_configured(settings):
         return False
@@ -83,7 +83,7 @@ def is_open(conn: sqlite3.Connection, settings: SetupSettings) -> bool:
 def check_token(conn: sqlite3.Connection, settings: SetupSettings, token: str) -> bool:
     """``True`` iff setup is open and ``token`` hashes to the configured hash."""
     candidate = hash_token(token)
-    expected = settings.setup_token_hash or ""
+    expected = settings.planner_setup_token_hash or ""
     matches = hmac.compare_digest(candidate.encode(), expected.encode())
     return is_open(conn, settings) and matches
 
@@ -113,14 +113,14 @@ def complete_setup(
 ) -> AuthUser:
     """Create the first admin and consume the token in one transaction.
 
-    Raises :class:`SetupClosed` for a closed setup or a wrong token (checked
+    Raises :class:`SetupClosedError` for a closed setup or a wrong token (checked
     first, no oracle), then :class:`UserInputError` keyed by field.
     """
     log = get_logger(_LOGGER_NAME)
     with transaction(conn):
         if not check_token(conn, settings, token):
             log.warning("setup_rejected")
-            raise SetupClosed
+            raise SetupClosedError
         _validate(draft)
         parsed = build_draft(email=draft.email, name=draft.name, is_admin=True)
         admin = users_repo.create_user(
@@ -141,7 +141,7 @@ def complete_setup(
 
 __all__ = [
     "MSG_CONFIRM_MISMATCH",
-    "SetupClosed",
+    "SetupClosedError",
     "SetupDraft",
     "SetupSettings",
     "check_token",

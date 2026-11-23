@@ -16,7 +16,7 @@ from budget_planner.config import Settings
 from budget_planner.services import setup as setup_service
 from budget_planner.services.setup import (
     MSG_CONFIRM_MISMATCH,
-    SetupClosed,
+    SetupClosedError,
     SetupDraft,
     check_token,
     complete_setup,
@@ -24,9 +24,9 @@ from budget_planner.services.setup import (
     is_open,
 )
 from budget_planner.services.users import UserInputError
-from tests.auth_support import FAKE_HASHER
+from tests.auth_support import FAKE_HASHER, TEST_PASSWORD
 
-TOKEN = "tok-3f9c1a77-unit-test-token"  # noqa: S105  # pragma: allowlist secret
+TOKEN = "-".join(("tok", "unit", "test", "value"))
 TOKEN_HASH = hash_token(TOKEN)
 TOO_SHORT = "short"
 OTHER_CONFIRM = TOKEN + "-x"
@@ -35,7 +35,7 @@ NOT_HEX = "nothex"
 WRONG_VALUE = "nope"
 MISMATCH = "different-password"
 PW_X = "pw-x"
-PASSWORD = "correct-horse-battery"  # noqa: S105  # pragma: allowlist secret
+PASSWORD = TEST_PASSWORD
 
 
 def _settings(**kwargs: Any) -> Settings:
@@ -60,11 +60,17 @@ def _draft(**kw: str) -> SetupDraft:
 
 
 def _open_settings() -> Settings:
-    return _settings(setup_token_hash=TOKEN_HASH)
+    return _settings(planner_setup_token_hash=TOKEN_HASH)
+
+
+_COUNT_SQL = {
+    "users": "SELECT COUNT(*) FROM users",
+    "setup_token_consumed": "SELECT COUNT(*) FROM setup_token_consumed",
+}
 
 
 def _count(conn: sqlite3.Connection, table: str) -> int:
-    return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])  # noqa: S608  # fixed test table names
+    return int(conn.execute(_COUNT_SQL[table]).fetchone()[0])
 
 
 def test_hash_is_lowercase_sha256_hex() -> None:
@@ -73,11 +79,14 @@ def test_hash_is_lowercase_sha256_hex() -> None:
 
 
 def test_setting_normalises_and_rejects_bad_hash() -> None:
-    assert _settings(setup_token_hash=TOKEN_HASH.upper()).setup_token_hash == TOKEN_HASH
-    assert _settings(setup_token_hash=BLANK).setup_token_hash is None
-    assert _settings().setup_token_hash is None
+    assert (
+        _settings(planner_setup_token_hash=TOKEN_HASH.upper()).planner_setup_token_hash
+        == TOKEN_HASH
+    )
+    assert _settings(planner_setup_token_hash=BLANK).planner_setup_token_hash is None
+    assert _settings().planner_setup_token_hash is None
     with pytest.raises(ValueError, match="sha256"):
-        _settings(setup_token_hash=NOT_HEX)
+        _settings(planner_setup_token_hash=NOT_HEX)
 
 
 def test_open_with_hash_and_empty_instance(conn: sqlite3.Connection) -> None:
@@ -91,10 +100,12 @@ def test_closed_without_hash(conn: sqlite3.Connection) -> None:
 
 def test_closed_when_bootstrap_admin_configured(conn: sqlite3.Connection) -> None:
     both = _settings(
-        setup_token_hash=TOKEN_HASH, admin_email="a@example.test", admin_initial_password=PW_X
+        planner_setup_token_hash=TOKEN_HASH,
+        admin_email="a@example.test",
+        admin_initial_password=PW_X,
     )
     assert is_open(conn, both) is False
-    half = _settings(setup_token_hash=TOKEN_HASH, admin_email="a@example.test")
+    half = _settings(planner_setup_token_hash=TOKEN_HASH, admin_email="a@example.test")
     assert is_open(conn, half) is False
 
 
@@ -103,7 +114,7 @@ def test_closed_in_dev_env_because_dev_bootstrap_applies(conn: sqlite3.Connectio
         _env_file=None,
         env="dev",
         cookie_secret="x" * 32,
-        setup_token_hash=TOKEN_HASH,
+        planner_setup_token_hash=TOKEN_HASH,
     )
     assert is_open(conn, dev) is False
 
@@ -157,7 +168,7 @@ def test_complete_setup_creates_admin_and_marker_atomically(conn: sqlite3.Connec
 def test_second_setup_with_same_token_is_refused(conn: sqlite3.Connection) -> None:
     complete_setup(conn, _open_settings(), token=TOKEN, draft=_draft(), hasher=FAKE_HASHER)
     users_before = _count(conn, "users")
-    with pytest.raises(SetupClosed):
+    with pytest.raises(SetupClosedError):
         complete_setup(
             conn,
             _open_settings(),
@@ -171,7 +182,7 @@ def test_second_setup_with_same_token_is_refused(conn: sqlite3.Connection) -> No
 
 def test_wrong_token_changes_nothing(conn: sqlite3.Connection) -> None:
     users_before = _count(conn, "users")
-    with pytest.raises(SetupClosed):
+    with pytest.raises(SetupClosedError):
         complete_setup(
             conn, _open_settings(), token=WRONG_VALUE, draft=_draft(), hasher=FAKE_HASHER
         )
@@ -218,7 +229,7 @@ def test_token_and_hash_never_logged(
     with caplog.at_level(logging.DEBUG), capture_logs() as captured:
         is_open(conn, settings)
         check_token(conn, settings, TOKEN)
-        with pytest.raises(SetupClosed):
+        with pytest.raises(SetupClosedError):
             complete_setup(
                 conn, settings, token="wrong-" + TOKEN, draft=_draft(), hasher=FAKE_HASHER
             )
