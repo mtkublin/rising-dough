@@ -25,6 +25,7 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
+from budget_planner.web.field_labels import field_summary
 from budget_planner.web.http_headers import HX_REQUEST
 from budget_planner.web.params import ParamError
 
@@ -114,6 +115,8 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
         "errors/422.html",
         status=422,
         fields=v.fields,
+        field_count=len(v.fields),
+        field_errors=field_summary(v.fields),
     )
 
 
