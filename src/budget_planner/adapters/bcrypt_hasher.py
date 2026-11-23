@@ -5,6 +5,7 @@
   (malformed hash, ``None``, over-long password); it returns ``False`` instead.
 - :meth:`BcryptHasher.verify_dummy` verifies against a precomputed hash of a discarded secret at
   the same cost, closing the user-enumeration timing oracle.
+- :meth:`BcryptHasher.needs_rehash` reports a stored hash made at another cost (T-Q313).
 
 bcrypt ignores everything past 72 bytes; rather than silently truncating, such passwords are
 rejected (``ValueError`` on hash, ``False`` on verify).
@@ -13,6 +14,7 @@ rejected (``ValueError`` on hash, ``False`` on verify).
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -36,6 +38,9 @@ _DUMMY_HASHES: Final[Mapping[int, str]] = MappingProxyType(
         12: "$2b$12$9fyBN20Uq9OnIZV2HfQivuWqvBdA08Vh8.DBes5U4PrBHd7ELkQTe",
     }
 )
+
+
+_COST_PREFIX: Final = re.compile(r"^\$2[abxy]\$(\d{2})\$")
 
 
 def _encode(plain: str) -> bytes:
@@ -71,6 +76,11 @@ class BcryptHasher:
         except (ValueError, TypeError, UnicodeEncodeError) as exc:
             _LOG.debug("password verify rejected input: %s", type(exc).__name__)
             return False
+
+    def needs_rehash(self, hashed: str | None) -> bool:
+        """``True`` iff ``hashed`` is bcrypt at a cost other than :attr:`rounds` (T-Q313)."""
+        match = _COST_PREFIX.match(hashed or "")
+        return match is not None and int(match.group(1)) != self.rounds
 
     def verify_dummy(self, password: str) -> None:
         known = _DUMMY_HASHES.get(self.rounds)

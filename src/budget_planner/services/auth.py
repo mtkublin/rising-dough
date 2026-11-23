@@ -60,6 +60,7 @@ id (ADR-0067 §4).
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import sqlite3
 from dataclasses import dataclass, replace
 from typing import Any, Final, Protocol
@@ -92,12 +93,15 @@ from budget_planner.domain.request_ctx import RequestCtx
 from budget_planner.repositories import (
     auth_users as users_repo,
     sessions as sessions_repo,
+    users as users_mutations,
     webauthn as webauthn_repo,
 )
 from budget_planner.repositories._shared import transaction, write_audit
 from budget_planner.repositories.auth_users import AuthUser
 from budget_planner.repositories.sessions import IssuedSession, Session, session_handle
 from budget_planner.repositories.webauthn import WebAuthnCredential
+
+_LOG = logging.getLogger(__name__)
 
 SESSION_ENTITY: Final = "session"
 AUTH_EVENT_ENTITY: Final = "auth_event"
@@ -256,7 +260,30 @@ def authenticate_password(
             conn, ctx, method="password", reason="bad_password", user_id=user.id, email=email
         )
         return None
+    _rehash_if_needed(conn, user, password, ctx, hasher=hasher)
     return _issue_session(conn, user, ctx, method="password", ip=ip, user_agent=user_agent)
+
+
+def _rehash_if_needed(
+    conn: sqlite3.Connection,
+    user: AuthUser,
+    password: str,
+    ctx: RequestCtx,
+    *,
+    hasher: PasswordHasher,
+) -> None:
+    """Upgrade a verified user's hash to the configured cost; never fails the login (T-Q313)."""
+    if not hasher.needs_rehash(user.password_hash):
+        return
+    try:
+        users_mutations.rehash_password(
+            conn,
+            user.id,
+            password_hash=hasher.hash(password),
+            request_ctx=replace(ctx, user_id=user.id),
+        )
+    except (sqlite3.Error, users_mutations.UserNotFoundError, ValueError):
+        _LOG.warning("password rehash failed for user %s; login continues", user.id, exc_info=True)
 
 
 # ---------------------------------------------------------------------------

@@ -1358,6 +1358,16 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: tests for cross-site Sec-Fetch-Site, mismatched Origin, both headers absent, same-origin accepted, expired pre-session token (frozen clock) re-renders the login page, a token minted for another browser id is refused, session flow unchanged, health exempt.
 - Removes allowlist entries: none (adds none).
 
+### ✅ T-Q313 [S] Rehash passwords on login when the bcrypt cost changed
+- Findings: operator decision 2026-11-23 (Q43 follow-up): raising `BUDGET_BCRYPT_ROUNDS` leaves old-cost hashes, so unknown-user dummy verifies (T-Q291) and real users differ in timing until hashes are upgraded.
+- Epic: E04
+- Band: security follow-up · Size: S · Tags: auth, security
+- Depends on: T-Q291, T-Q311
+- Docs-first step: ADR-0074 amendment 2026-11-23; CHANGELOG.
+- Goal: `PasswordHasher.needs_rehash`; after a successful password verify, a hash at another cost is replaced at the configured cost (`users.rehash_password`, audit action `password_rehash`); not a password change (no rotation flag, no session revocation); a failure is logged and the login continues.
+- Acceptance: tests assert upgraded hash cost and verification, audit row, session issued, same-cost and wrong-password logins untouched, second user untouched, repository failure keeps login working.
+- Removes allowlist entries: none (adds none).
+
 ### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04

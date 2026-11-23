@@ -376,6 +376,39 @@ def reset_password(
     return updated
 
 
+def rehash_password(
+    conn: sqlite3.Connection,
+    user_id: int,
+    *,
+    password_hash: str,
+    request_ctx: RequestCtx = _EMPTY_REQUEST_CTX,
+) -> AuthUser:
+    """Swap a live user's hash for an equivalent one at a new cost (T-Q313, ADR-0074 amendment).
+
+    Not a credential rotation: ``must_change_password`` and sessions are untouched. Audit row:
+    ``operation='update'`` with ``action='password_rehash'``. Raises :class:`UserNotFoundError`
+    for a missing / soft-deleted user.
+    """
+    with transaction(conn):
+        prev = _require_live(conn, user_id)
+        conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at = ? "
+            "WHERE id = ? AND deleted_at IS NULL",
+            (password_hash, clock.utc_now_iso(), user_id),
+        )
+        updated = _require_live(conn, user_id)
+        write_audit(
+            conn,
+            entity_type="users",
+            entity_id=user_id,
+            operation="update",
+            prev=_redacted(prev),
+            new={**_redacted(updated), "action": "password_rehash"},
+            request_ctx=request_ctx,
+        )
+    return updated
+
+
 def soft_delete(
     conn: sqlite3.Connection,
     user_id: int,
@@ -423,6 +456,7 @@ __all__ = [
     "has_live_admin",
     "list_live",
     "owns_accounts",
+    "rehash_password",
     "reset_password",
     "soft_delete",
     "update_credentials",
