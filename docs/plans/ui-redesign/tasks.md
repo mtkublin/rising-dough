@@ -19,6 +19,21 @@
 
 ---
 
+## Accessibility and performance gate (operator 2026-11-23)
+
+The redesign must make the advisory `a11y-perf.yml` checks pass: `a11y (axe-core, advisory)` (no serious or critical axe violations on any crawled route) and `perf (Lighthouse budgets, advisory)` (budgets in `tests/perf/lighthouserc.json`: LCP < 2.5 s, CLS < 0.1, TBT < 200 ms, JS < 300 kB, CSS < 50 kB).
+
+Open findings to resolve in this redesign:
+
+- T-Q319: colour contrast (`color-contrast`), all 13 routes.
+- T-Q320: link in text block (`link-in-text-block`) on /ledger and /settings; heading order on /settings.
+- T-Q321: LCP about 3.8 to 4.2 s.
+- T-Q322: CSS about 145 kB raw, no response compression.
+
+See `docs/plans/quality-audit/tasks.md`. Once they pass, the operator decides whether to make both checks required.
+
+---
+
 ## Phase P — Backend preconditions (own PR and release, before Phase 0)
 
 > **Decision**: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Everything backend that can ship before the migration ships first: schema, repositories, services, ports, config switches, service guards and the fields the handoff needs. No templates, CSS, JS or new page-rendering routes; existing routes change only the service call and the error shown through the existing flash. One PR to `main` from `ui/preconditions`, released through the ADR-0099 pipeline; Phase 0 starts after the release is live. Contract tests for the changed behaviour change here (requirements already amended), so the migration starts from that baseline.
