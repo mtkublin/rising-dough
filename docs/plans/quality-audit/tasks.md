@@ -1318,6 +1318,16 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Operator question blocking it: should `upgrade` become the default gate mode for PRs that touch `terraform/`? (cost: about twice the drill time)
 - Removes allowlist entries: none.
 
+### ✅ T-Q310 [S] Forecast batching test independent of the wall clock
+- Findings: release CI 2026-11-23 (run 45140093769) failed `test_forecast_numbers_unchanged_by_batching`: every month off by 500 minor units; green in PR CI on 2026-11-22. Root cause: `recurring_repo.create_rule` derives `next_due` from `clock.today_local` (repository edge), and `seed_world` seeded rules with the real date while the test passed a fixed `TODAY`.
+- Epic: E04
+- Band: incident · Size: S · Tags: tests, clock
+- Depends on: none
+- Docs-first step: CHANGELOG (no ADR; ADR-0140 unchanged).
+- Goal: `seed_world` pins the clock (`clock.frozen`) to its `today` while creating rules, so the stored `next_due` and the forecast do not depend on the wall date.
+- Acceptance: the forecast test is parametrized over three wall dates (seeded under `clock.frozen`) and fails on the old fixture (2 of 3 dates), passes now.
+- Removes allowlist entries: none.
+
 ### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04
