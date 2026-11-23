@@ -11,6 +11,7 @@ branch and reach for the Jinja env on `app.state`.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -102,6 +103,13 @@ async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+def validation_summary(
+    fields: Mapping[str, str],
+) -> tuple[int, tuple[tuple[str, str, str], ...]]:
+    """Pure 422 summary values: the field count and the (name, label, message) rows."""
+    return len(fields), field_summary(fields)
+
+
 async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     v = exc if isinstance(exc, ValidationError) else ValidationError(fields={})
     # No form context here (handler cannot know which form was in flight); send
@@ -110,13 +118,14 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     message = next(iter(v.fields.values()), "validation failed")
     if _is_htmx(request):
         return _flash_fragment(request, "error", message, status=422)
+    field_count, field_errors = validation_summary(v.fields)
     return _render(
         request,
         "errors/422.html",
         status=422,
         fields=v.fields,
-        field_count=len(v.fields),
-        field_errors=field_summary(v.fields),
+        field_count=field_count,
+        field_errors=field_errors,
     )
 
 
