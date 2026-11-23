@@ -29,6 +29,7 @@ from budget_planner.domain.money import (
     major_float,
     minor_to_major,
 )
+from budget_planner.web import view_models
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -77,6 +78,11 @@ def _money_whole_filter(amount_minor: int | None, currency: str, grouped: bool =
 def _major_float_filter(amount_minor: int | None, currency: str) -> float:
     """Major-unit float for visual scales (heat weights), never for display text."""
     return major_float(int(amount_minor or 0), currency)
+
+
+def _hero_fit_filter(amount_minor: int, currency: str) -> view_models.HeroFit:
+    """``data-digits`` / ``data-marks`` / ``data-signs`` counts for a hero figure."""
+    return view_models.hero_fit(int(amount_minor), currency)
 
 
 def _bps_percent_filter(bps: int) -> str:
@@ -244,6 +250,7 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["money_whole"] = _money_whole_filter
     env.filters["major_float"] = _major_float_filter
     env.filters["bps_percent"] = _bps_percent_filter
+    env.filters["hero_fit"] = _hero_fit_filter
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
     for name, pattern in _DATE_STYLES.items():
