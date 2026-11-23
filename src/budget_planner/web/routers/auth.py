@@ -77,11 +77,13 @@ from budget_planner.web.deps import (
 )
 from budget_planner.web.htmx import wants_json
 from budget_planner.web.middleware.auth import CurrentUser
+from budget_planner.web.middleware.csrf import EXPIRED_STATE_KEY
 from budget_planner.web.rendering import is_hx_request
 
 _LOG = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+PAGE_EXPIRED_NOTICE: Final = "This page expired, please try again."
 GENERIC_LOGIN_ERROR: Final = "That email and password combination didn't work."
 PASSKEY_LOGIN_FAILED: Final = "login_failed"
 SECURITY_SESSIONS_URL: Final = "/settings/security#sessions"
@@ -107,6 +109,11 @@ def login_form(
     target = safe_next(next_path)
     if getattr(request.state, "user", None) is not None:
         return redirect(target)
+    if getattr(request.state, EXPIRED_STATE_KEY, False):
+        # T-Q312: the CSRF middleware rerouted an expired login POST here with a fresh token.
+        return login_page(
+            request, next_path=target, error=PAGE_EXPIRED_NOTICE, status_code=HTTPStatus.FORBIDDEN
+        )
     return login_page(request, next_path=target)
 
 

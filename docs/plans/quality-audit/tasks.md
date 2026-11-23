@@ -1348,6 +1348,16 @@ The operator answered the deferred questions on 2026-11-22. Each decision below 
 - Acceptance: tests for unexpected error, JOB_ERRORS unchanged, cancellation silent, health 503.
 - Removes allowlist entries: none (adds none).
 
+### ✅ T-Q312 [M] Harden CSRF against login CSRF (Origin check, token lifetime, browser binding)
+- Findings: Q44 follow-up (operator decision 2026-11-23): pre-session tokens are universal and never expire; no Origin / Sec-Fetch-Site check, so login CSRF rests on cookie integrity alone.
+- Epic: E04
+- Band: security follow-up · Size: M · Tags: security, csrf, web
+- Depends on: T-Q289
+- Docs-first step: ADR-0065 amendment 2026-11-23; CHANGELOG.
+- Goal: (1) unsafe methods require `Sec-Fetch-Site: same-origin`, else `Origin` equal to the configured public origin (`webauthn_origin`), else 403 `cross_origin`; (2) tokens carry a MAC-covered issued-at and pre-session tokens older than 2 h are refused, an expired login form POST re-renders the login page with a fresh token and a notice; (3) pre-session tokens are bound to a per-browser id cookie (`__Host-csrf-bid`, `csrf-bid` in dev).
+- Acceptance: tests for cross-site Sec-Fetch-Site, mismatched Origin, both headers absent, same-origin accepted, expired pre-session token (frozen clock) re-renders the login page, a token minted for another browser id is refused, session flow unchanged, health exempt.
+- Removes allowlist entries: none (adds none).
+
 ### T-Q309 [S] Prod PR plan works without a Tailscale OAuth client
 - Findings: PR #44 `terraform.yml` run 45072238526, `plan (prod)`: `TF_VAR_tailscale_oauth_client_id/secret is empty`. ADR-0132 checklist step 4 deleted `TS_OAUTH_*` from `prod-plan`; the input check and the provider were never adapted.
 - Epic: E04
