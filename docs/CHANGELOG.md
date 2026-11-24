@@ -1,6 +1,7 @@
 # Changelog
 
 2026-11-24 OPS-5: quality-audit follow-ups (c), (d), (e), (g), (h), (i), (j) updated and (k) added; gate run time corrected to 18 to 25 min (ADR-0149, deploy runbook); T-UR40 (promote Firefox and WebKit e2e) and T-UR41 (re-run the T-Q316/T-Q317 audit) added to the redesign plan; OQ table reconciled with recorded answers plus an open-questions list in `findings.md`; OQ-24 second-reviewer answer recorded (still open).
+2026-11-24 OPS-6: `drill.yml` `verify` and `verify-rollback` network checks use `ssh -n` inside the `while read` loop (SC2095); previously ssh swallowed the loop input, so only the first compose network was compared (ADR-0149).
 
 2026-11-24 OPS-1: T-Q239 ruleset pin applied (`integration_id` 15368 on 7 required checks, evidence refreshed); OQ-32 answered, `tag:ci -> tag:prod:22` removed from the live ACL and `tailscale-acl.hujson` (ADR-0099, ADR-0132).
 
