@@ -172,6 +172,11 @@ mutate-clean:
 merge-item ID MSG:
     bash scripts/ci/merge_item.sh "{{ID}}" "{{MSG}}"
 
+# Executable Definition of Done for an item branch wi/<current>/<ID> (ADR-0150 §4, T-Q326).
+# Pass the brief's owned globs (not expanded by the shell): just check-item T-1 'src/x.py' 'tests/unit/*'
+check-item ID *OWNED:
+    set -f; uv run python scripts/ci/check_item.py --item "{{ID}}" --owned {{OWNED}}
+
 # Architecture guards (tests/architecture). Run in the pytest suite and CI.
 guards:
     uv run pytest tests/architecture tests/unit/services/test_user_isolation.py -q --no-cov

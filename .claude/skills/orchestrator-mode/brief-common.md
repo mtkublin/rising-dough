@@ -1,25 +1,50 @@
-## Branch setup (do first)
-1. Your worktree may start from `main`, which is NOT the base. Run `git reset --hard <MAIN>` now (no work yet); `git log -1` must show the sha the orchestrator names, or later. Then `git branch -m wi/<MAIN>/<ID>`.
-2. Work and commit ONLY inside this worktree. Run `just worktree-init` once.
+# Item brief template (ADR-0150 §3, §4)
 
-## Goal source
-Read your task entry `<ID>` in `docs/plans/<plan>/tasks.md` and every ADR amendment it names; they are the spec. Failing test first, exact values (amounts, audit row, stored sign, second user's rows absent). Mark the task heading done, add a CHANGELOG line, reference the ADR in the commit.
+The role's standing rules live in its agent file (`.claude/agents/<role>.md`): branch setup,
+repo rules, testing, CPU, locks, runtime budget, the report block. The brief carries only what
+is specific to the item. Fill every `<...>`. A brief with an empty field fails the Definition of
+Ready: do not dispatch it; finish planning or send an `explorer` first.
 
-## Repo rules (MANDATORY; read CLAUDE.md)
-- `data/budget.sqlite` is PRODUCTION; never touch it (scratch DB or demo copy only).
-- Canonical modules table: search before you write, reuse owners, never import another module's `_private` name; report `Searched/Reused/New helper`.
-- No new allowlist entry or suppression (unless your task entry explicitly says so). Delete entries you fix (exact ratchet).
-- Fix the cause, never the guard. A change that satisfies a guard by syntax only (call-form tricks, renames, wrappers) is rejected at merge. The fix is a real code change, or a `[[permanent]]` row with a reason and an ADR-0130 amendment.
-- Template/CSS/HTMX change: MANDATORY `frontend-visual-audit` skill (the skill itself) on affected routes at 1440/1024/375 incl. Step 3b, plus `docs/audits/<date>-<id>.md`.
-- New test assertions use `tests/ui_map` / `db_probe`, never raw markup substrings (no-markup guard).
-- After every merge of `<MAIN>` into your branch: `just guards`, `uv run lint-imports`, `uv run ruff check src tests`, `uv run mypy src tests` clean (a clean `git merge` runs no hooks). Merge `<MAIN>` before the final commit; resolve keeping both.
-- **Tests = pre-commit hooks only (ADR-0120).** Do NOT run `tests/unit` / `tests/integration` / `tests/contract` / `tests/e2e` suites or post-merge reruns by hand. While developing run only the single test file(s) you are writing (`uv run pytest <file> -q --no-cov -p no:xdist`, no lock needed). The commit hook (testmon-affected, or full suite when it must) is the gate. Full e2e, full suite, visual baselines and mutation run on GitHub (see the skill, "Delegate heavy work to GitHub"). Exception: the frontend-visual-audit skill when templates/CSS change.
-- **CPU:** env exports do NOT persist between Bash calls. Prefix every commit inline with `PYTEST_WORKERS=2` and use `-F <file>` messages. Direct pytest calls pass 2 workers; never `auto` (it caused load 70-110 on 8 cores). No `just ci`.
-- Commit with a plain command (`PYTEST_WORKERS=2 git commit -F <file>`); the worktree guard refuses a chained `git commit`.
-- Hooks run on every commit: never pass the hook-skip flag, never set SKIP. Unique commit-message file names; scratch under the session scratchpad in `<id>/`; never run other agents' scripts.
-- Heavy lock (the orchestrator names `<plan>` and the open slots in your brief): simple separate Bash calls: try `mkdir /tmp/<plan>-heavy.lock` (SLOT 1); if it fails and a second slot is open and 5-min load < 2x cores try `mkdir /tmp/<plan>-heavy-2.lock` (SLOT 2); else `until mkdir /tmp/<plan>-heavy.lock 2>/dev/null; do sleep 20; done`. Then job/commit, then `rmdir` the lock you got. ALWAYS release it, also when the job or commit fails, and kill any wait loop you started before you report. Never touch other lock files.
-- **Runtime budget:** the item is sized for under ~1 h. If you pass ~45 min or are looping (lock waits, merge conflicts, hook retries), commit what is green and report what remains instead of continuing. Do not gold-plate beyond this brief.
-- Commit `<type>(<ID>): ...`. Autonomous; no confirmation questions (prod DB is the only exception).
+## Definition of Ready (all must hold before dispatch)
 
-## Report back
-branch + sha; what changed (functions/files); tests added with exact values; allowlist entries deleted/added; audit summary if any; hook results; `Searched/Reused/New helper`; anything left undone.
+- [ ] Goal in one line, and the task id(s) it implements.
+- [ ] Owned files (exact paths or narrow globs) and the files it must not touch.
+- [ ] Pre-assigned ADR / migration numbers, or `none`.
+- [ ] Numbered steps, each naming its file and function and a check command with the expected result.
+- [ ] Acceptance criteria written as commands (pytest node ids, `rg` expectations, `just` recipes).
+- [ ] Base sha, `<MAIN>`, heavy-lock name, role and model (Haiku test passed, if Haiku).
+- [ ] Hotspot files (`tasks.md`, `CHANGELOG.md`, ADR index) left to the scribe unless listed as owned.
+
+## Template
+
+```text
+Role: <implementer | scribe | visual-auditor | tester | reviewer | explorer>. Your agent file has the standing rules; follow it.
+Item <ID>: <one-line goal>. Task(s): <T-...> in docs/plans/<plan>/tasks.md.
+MAIN=<work branch>  BASE=<sha>  LOCK=/tmp/<plan>-heavy.lock (second slot /tmp/<plan>-heavy-2.lock only while 5-min load < 2x cores)
+Branch name: wi/<MAIN>/<ID>. Worktree: <your isolation worktree | existing path for handover/audit/review>.
+Autonomous run: never stop for confirmation except the prod-DB rule.
+
+Spec: <ADR(s) and sections; requirement ids; what was already ruled out>
+
+Owns: <paths/globs>
+Must not touch: <paths owned by parallel items, hotspots>
+Numbers: ADR-<NNNN> | migration <NNNN> | none
+
+Steps (do in order; run each check, report its result):
+1. <file>::<function>: <change>. Pattern to copy: <path:line>. Check: `<command>` -> <expected>
+2. ...
+
+Acceptance (all must pass; the reviewer reruns them):
+- `<command>` -> <expected>
+- `just check-item <ID> <owned globs>` -> rc=0
+
+Out of scope: <what not to do>
+```
+
+## Handover addition (stuck agent or semantic conflict)
+
+```text
+Handover: cd <worktree path>; branch wi/<MAIN>/<ID>. Do not create a worktree, reset, stash or checkout.
+Done so far: <git log --oneline MAIN..HEAD>; <git diff --stat>; <git status --short>
+Remains: <steps n..m> | Conflict: merge MAIN into the branch and resolve <files>, keeping both intents: <what each side wanted>
+```

@@ -103,6 +103,7 @@ just worktree-init       # seed a new worktree's .testmondata from the main chec
 just test-fast    # testmon-selected tests, e2e excluded (what the pre-commit hook runs)
 just test-e2e     # optional locally; e2e runs on GitHub (e2e.yml) on every PR, T-Q297
 just merge-item <ID> "<msg>"   # orchestrator: gated merge of wi/<work>/<ID> (guards, lint-imports, ruff, mypy, push, prune; T-Q304)
+just check-item <ID> <globs>   # orchestrator DoD for wi/<current>/<ID>: owned files, hotspots, subjects, allowlists, audit record (T-Q326)
 just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
@@ -113,11 +114,11 @@ just migrate      # apply pending migrations
 just seed         # seed default categories + demo accounts
 ```
 
-The pre-commit hooks are the local gate and `*-changed` run the same selection on demand; the full gate is PR CI (ADR-0120). `PYTEST_WORKERS=2` for parallel orchestrator item agents; `0` runs serially.
+The pre-commit hooks are the local gate and `*-changed` run the same selection on demand; the full gate is PR CI (ADR-0120). In an orchestrated run item agents skip the pytest hook and one tester runs it per wave (ADR-0150 §5). `PYTEST_WORKERS=2` for parallel orchestrator item agents; `0` runs serially; `-n auto` inside a linked git worktree resolves to 2 workers (`tests/worker_cap.py`, ADR-0150 §6).
 
 ## Multi-agent work
 
-For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066): main agent orchestrates only, each work item runs in its own worktree + branch, conflicts are resolved by merging the main work branch into the item branch (no rebase). Heavy runs go to GitHub where a workflow exists; agents are sized to under 1 h (details in the skill).
+For work split across parallel subagents, use the `orchestrator-mode` skill (`.claude/skills/orchestrator-mode/SKILL.md`, ADR-0066, ADR-0150): the main agent plans, dispatches, merges and reads verdicts only. Work goes to role agents in `.claude/agents/` (`explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor`; model pinned per role), each item in its own worktree + branch, briefs that pass a Definition of Ready (`brief-common.md`), the executable Definition of Done `just check-item`, and one `tester` pass per wave (orchestrated item agents commit with `SKIP=pytest-fast`; ADR-0120 amendment 2026-11-24). Conflicts are resolved by merging the main work branch into the item branch (no rebase). Heavy runs go to GitHub where a workflow exists; agents are sized to under 1 h; each run ends with a run log in `docs/runs/`.
 
 ## Frontend validation (MANDATORY)
 

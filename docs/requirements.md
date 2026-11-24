@@ -572,7 +572,8 @@ Shorter CI and local check times without weakening the gates. Plan: `docs/plans/
 
 ### 11.1 Scope
 
-- Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents), after a random-order run fixes order dependence.
+- Parallel tests with `pytest-xdist` (`-n auto`; capped by `PYTEST_WORKERS` for parallel orchestrator agents, and `auto` resolves to 2 workers inside a linked git worktree, ADR-0150 §6), after a random-order run fixes order dependence.
+- Orchestrated runs (ADR-0150): item agents commit with `SKIP=pytest-fast` and one tester agent runs the affected tests once per wave; each item passes `scripts/ci/check_item.py` (executable Definition of Done) before merge. Single-agent work keeps the pytest hook as the local gate (ADR-0120).
 - Slow-test causes fixed at the source (hashing cost, per-test migrations, sleeps, browser start-up). Redundant-test candidates come from the quality audit (Track F).
 - Change-based checks in the inner loop with the tools' own mechanisms: `pre-commit --from-ref` for lint, `pytest-testmon` for tests (full-suite fallback when the diff touches anything testmon cannot see: any non-Python file outside `docs/` and Markdown — templates, static files, migrations, SQL, dependencies, Terraform, scripts, fixtures, CI config — or any `conftest.py`), the mypy incremental cache. Base ref = merge-base with the parent branch (`main` for feature branches, the main work branch for orchestrator items).
 - CI caches for mypy (uv cache already on).
