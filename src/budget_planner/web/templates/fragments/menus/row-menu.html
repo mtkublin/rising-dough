@@ -1,0 +1,45 @@
+{# fragment: menus/row-menu
+   Inputs: menu_id (unique, the trigger's popovertarget), title (e.g. "Takeaway · −35.50 PLN"),
+   sub (e.g. "31 OCT · Credit Card"), items (list of: label, href for a link item, or hx_post
+   [+ hx_target, hx_swap] for an action item; danger bool). A cancel item is always appended.
+   Native popover with role=menu; row-menu.js handles arrow keys, Home/End and placement. #}
+<button type="button"
+        class="rd-btn rd-btn--icon"
+        aria-label="Row menu"
+        aria-haspopup="menu"
+        popovertarget="{{ menu_id }}"
+        data-js="row-menu">
+  <svg class="rd-icon" aria-hidden="true" focusable="false">
+    <use href="/static/rd/icons/sprite.svg#icon-more"></use>
+  </svg>
+</button>
+<div class="rd-menu"
+     id="{{ menu_id }}"
+     popover
+     role="menu"
+     aria-label="Row actions">
+  <span class="rd-menu__grabber" aria-hidden="true"></span>
+  <div class="rd-menu__head" role="none">
+    <p class="rd-menu__title">{{ title }}</p>
+    {% if sub|default(none) %}<p class="rd-menu__sub">{{ sub }}</p>{% endif %}
+  </div>
+  {% for item in items %}
+    {% if item.href|default(none) %}
+      <a class="rd-menu__item{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
+         role="menuitem"
+         href="{{ item.href }}">{{ item.label }}</a>
+    {% else %}
+      <button type="button"
+              class="rd-menu__item{% if item.danger|default(none) %} rd-menu__item--danger{% endif %}"
+              role="menuitem"
+              hx-post="{{ item.hx_post }}"
+              {% if item.hx_target|default(none) %}hx-target="{{ item.hx_target }}"{% endif %}
+              {% if item.hx_swap|default(none) %}hx-swap="{{ item.hx_swap }}"{% endif %}>{{ item.label }}</button>
+    {% endif %}
+  {% endfor %}
+  <button type="button"
+          class="rd-menu__item rd-menu__cancel"
+          role="menuitem"
+          popovertarget="{{ menu_id }}"
+          popovertargetaction="hide">cancel</button>
+</div>

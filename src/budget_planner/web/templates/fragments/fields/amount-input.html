@@ -1,0 +1,42 @@
+{# fragment: fields/amount-input
+   Inputs: field_id, name, value (already formatted text), currency (code from the account),
+   label (text), variant ('field' default, 'hero' for the dialog hero), sign (hero only: '+' or '−'),
+   error (text, optional), required (bool, optional), placeholder (optional). The JS never formats;
+   the server returns the formatted value. #}
+{% if variant|default("field") == "hero" %}
+  <div class="rd-dialog__hero-row">
+    {% if sign|default(none) %}<span class="rd-dialog__sign" aria-hidden="true">{{ sign }}</span>{% endif %}
+    <label class="u-visually-hidden" for="{{ field_id }}">{{ label|default("Amount") }}</label>
+    <input class="rd-dialog__amount"
+           id="{{ field_id }}"
+           name="{{ name }}"
+           inputmode="decimal"
+           autocomplete="off"
+           value="{{ value }}"
+           placeholder="{{ placeholder|default('0.00') }}"
+           {% if error|default(none) %}aria-invalid="true" aria-describedby="{{ field_id }}-error"{% endif %}
+           data-js="amount-input"
+           {% if required|default(none) %}required{% endif %}>
+    <span class="rd-dialog__cur">{{ currency }}</span>
+  </div>
+  {% if error|default(none) %}<p class="rd-dialog__hero-error"
+   id="{{ field_id }}-error"
+   role="alert">▲ {{ error }}</p>{% endif %}
+{% else %}
+  <div class="rd-field">
+    <label class="rd-field__label" for="{{ field_id }}">{{ label|default("amount") }}</label>
+    <span class="rd-input"><input class="rd-input__control rd-input__control--end"
+       id="{{ field_id }}"
+       name="{{ name }}"
+       inputmode="decimal"
+       autocomplete="off"
+       value="{{ value }}"
+       {% if placeholder|default(none) %}placeholder="{{ placeholder }}"{% endif %}
+       {% if error|default(none) %}aria-invalid="true" aria-describedby="{{ field_id }}-error"{% endif %}
+       data-js="amount-input"
+       {% if required|default(none) %}required{% endif %}><span class="rd-input__suffix">{{ currency }}</span></span>
+    {% if error|default(none) %}<p class="rd-field__error"
+   id="{{ field_id }}-error"
+   role="alert">▲ {{ error }}</p>{% endif %}
+  </div>
+{% endif %}
