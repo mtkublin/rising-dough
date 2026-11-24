@@ -18,6 +18,7 @@ from markupsafe import Markup
 
 from budget_planner import clock
 from budget_planner.config import Settings
+from budget_planner.domain import category_colors
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.money import (
     ISO_4217_CURRENCIES,
@@ -83,6 +84,11 @@ def _major_float_filter(amount_minor: int | None, currency: str) -> float:
 def _hero_fit_filter(amount_minor: int, currency: str) -> view_models.HeroFit:
     """``data-digits`` / ``data-marks`` / ``data-signs`` counts for a hero figure."""
     return view_models.hero_fit(int(amount_minor), currency)
+
+
+def _aria_current_date_filter(is_current: bool) -> Markup:
+    """``aria-current="date"`` attribute text (safe markup) or empty."""
+    return Markup('aria-current="date"') if is_current else Markup("")
 
 
 def _bps_percent_filter(bps: int) -> str:
@@ -251,6 +257,11 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["major_float"] = _major_float_filter
     env.filters["bps_percent"] = _bps_percent_filter
     env.filters["hero_fit"] = _hero_fit_filter
+    env.filters["category_color"] = category_colors.category_color
+    env.filters["bar_spans"] = view_models.bar_spans
+    env.filters["bar_aria_label"] = view_models.bar_aria_label
+    env.filters["year_cell_state"] = view_models.year_cell_state
+    env.filters["aria_current_date"] = _aria_current_date_filter
     env.filters["money_major"] = _money_major_filter
     env.filters["date_fmt"] = _date_fmt_filter
     for name, pattern in _DATE_STYLES.items():

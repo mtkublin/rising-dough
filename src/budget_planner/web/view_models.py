@@ -108,6 +108,74 @@ def bar_cells(
 
 
 @dataclass(frozen=True, slots=True)
+class BarSpans:
+    """Block-character bar for the template: modifier class, two text runs, label."""
+
+    modifier: str
+    filled: str
+    remainder: str
+    remainder_class: str
+    left_pct: int
+    label: str
+
+
+_BAR_FILLED: Final = "\u2588"
+_BAR_LEFT: Final = "\u2591"
+_BAR_REST: Final = "\u2592"
+
+
+def bar_aria_label(used_pct: int, left_pct: int) -> str:
+    """Handoff wording for a ``role="img"`` bar: ``78 percent spent, 15 percent left``."""
+    return f"{used_pct} percent spent, {left_pct} percent left"
+
+
+def bar_spans(
+    used_pct: int,
+    cells: int,
+    *,
+    is_over: bool = False,
+    has_budget: bool = True,
+    min_one: bool = False,
+    share: bool = False,
+) -> BarSpans:
+    """Block characters for a budget bar (``share=False``) or a share bar (``share=True``).
+
+    Built on ``bar_cells``. Filled cells are full blocks; the remainder is the light
+    shade (``.rd-bar__left``) for budget bars and the medium shade (``.rd-bar__rest``)
+    for share bars. ``is_over`` -> ``rd-bar--over`` (all filled); ``has_budget=False``
+    -> ``rd-bar--none`` (all remainder, label ``no budget``).
+    """
+    remainder_class = "rd-bar__rest" if share else "rd-bar__left"
+    remainder_char = _BAR_REST if share else _BAR_LEFT
+    if not has_budget:
+        return BarSpans(
+            modifier="rd-bar--none",
+            filled="",
+            remainder=remainder_char * cells,
+            remainder_class=remainder_class,
+            left_pct=0,
+            label="no budget",
+        )
+    parts = bar_cells(used_pct, cells, is_over=is_over, min_one=min_one)
+    used = used_pct if is_over else _MAX_PCT - parts.left_pct
+    return BarSpans(
+        modifier="rd-bar--over" if is_over else "",
+        filled=_BAR_FILLED * parts.filled,
+        remainder=remainder_char * parts.empty,
+        remainder_class=remainder_class,
+        left_pct=parts.left_pct,
+        label=bar_aria_label(used, parts.left_pct),
+    )
+
+
+def year_cell_state(origin: str | None, *, editing: bool = False) -> str:
+    """``data-state`` of a ``.rd-year-cell``: default|recurring|one-off|unset|editing."""
+    if editing:
+        return "editing"
+    return _YEAR_TIERS.get(origin or "", "default")
+
+
+@dataclass(frozen=True, slots=True)
 class HeroFit:
     """Counts for the hero figure's ``data-digits`` / ``data-marks`` / ``data-signs``."""
 

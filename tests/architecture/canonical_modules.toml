@@ -261,3 +261,13 @@ finding = "T-UR33"
 epic = "UR"
 search = ["account_references", "count_referencing_account", "in_use"]
 banned = ["_account_references*", "*account_in_use*"]
+
+[[row]]
+concept = "Category colour preset and edge contrast"
+module = "domain/category_colors.py"
+symbol = "category_color"
+status = "exists"
+finding = "T-UR03"
+epic = "UR"
+search = ["category_color", "edge_color", "contrast_ratio", "relative_luminance", "data-color"]
+banned = ["*relative_luminance*", "*contrast_ratio*", "_edge_color*"]
