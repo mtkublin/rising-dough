@@ -47,10 +47,10 @@ Not a routine path. During a GitHub Actions outage, with explicit user go, follo
 
 ```sh
 # App serves and reports ready.
-curl -fsS "https://budget-planner-prod/ready" | jq .
+curl -fsS "https://budget.rising-dough.eu/ready" | jq .
 
 # Host agent applied the rollback generation and runs the target ref.
-curl -fsS "https://budget-planner-prod/.well-known/bp-deploy-status.json" | jq .
+curl -fsS "https://budget.rising-dough.eu/.well-known/bp-deploy-status.json" | jq .
 # Expect: state "ok", running_ref ".../budget-planner:<target tag>@sha256:..."
 
 # Older image tolerated the newer schema (expected after a migrating release).
