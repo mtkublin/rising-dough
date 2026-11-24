@@ -442,7 +442,19 @@ def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id
     return int(row[0])
 
 
+def count_by_category(conn: sqlite3.Connection, user_id: int) -> dict[int, int]:
+    """Live (not soft-deleted) recurring rules per category id (ADR-0151 §2)."""
+    rows = conn.execute(
+        "SELECT category_id, COUNT(*) FROM recurring_rules "
+        "WHERE user_id = ? AND deleted_at IS NULL AND category_id IS NOT NULL "
+        "GROUP BY category_id",
+        (user_id,),
+    ).fetchall()
+    return {int(r[0]): int(r[1]) for r in rows}
+
+
 __all__ = [
+    "count_by_category",
     "count_referencing_account",
     "create_rule",
     "deactivate_rule",

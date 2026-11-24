@@ -25,6 +25,7 @@ from budget_planner.services import (
     ledger_totals,
     today as today_service,
 )
+from budget_planner.services.categories import CategoryUsage
 from budget_planner.web.today_data import UpcomingRow
 
 MONTH_SHORT: Final[tuple[str, ...]] = (
@@ -500,3 +501,14 @@ class OverridePeriod:
 def override_period(month: int, year: int) -> OverridePeriod:
     """The override form's month/year with its short month label."""
     return OverridePeriod(year, month, MONTH_SHORT[month - 1])
+
+
+def category_usage_text(usage: CategoryUsage) -> str | None:
+    """Usage line "41 entries · 2 planned · 1 rule"; zero parts omitted, None when all zero."""
+    entries, planned, rules = usage.entry_count, usage.planned_count, usage.rule_count
+    parts = [
+        f"{entries} {'entry' if entries == 1 else 'entries'}" if entries else "",
+        f"{planned} planned" if planned else "",
+        f"{rules} {'rule' if rules == 1 else 'rules'}" if rules else "",
+    ]
+    return " · ".join(p for p in parts if p) or None

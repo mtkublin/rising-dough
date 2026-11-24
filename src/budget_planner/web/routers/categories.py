@@ -15,6 +15,7 @@ from budget_planner.web.htmx import Event, toast_payload, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE, HX_REFRESH, HX_RESWAP
 from budget_planner.web.paths import NEW_PATH
 from budget_planner.web.rendering import SLIDEOVER_TEMPLATE, render
+from budget_planner.web.view_models import category_usage_text
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -82,13 +83,16 @@ def edit_form(
             errors={"category": "not found"},
             status_code=404,
         )
+    usage = categories_service.usage_for(conn, user_id, category_id)
     return render(
         request,
         SLIDEOVER_TEMPLATE,
         slide_over_title="Edit category",
         form_include="partials/categories/_form.html",
         category=cat,
-        entry_count=categories_service.entry_count(conn, user_id, category_id),
+        entry_count=usage.entry_count,
+        usage=usage,
+        usage_text=category_usage_text(usage),
         action=f"/categories/{category_id}",
         errors={},
     )
