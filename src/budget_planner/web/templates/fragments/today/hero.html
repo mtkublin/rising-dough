@@ -5,7 +5,7 @@
          id="today-hero"
          aria-labelledby="hero-label"
          hx-get="/today"
-         hx-trigger="today-stale from:body"
+         hx-trigger="today-stale from:body, ledger-stale from:body"
          hx-select="#today-hero"
          hx-swap="outerHTML">
   <pre class="rd-hero__loaf" aria-hidden="true">          .:+*###%%%%###*+:.

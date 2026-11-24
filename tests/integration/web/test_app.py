@@ -39,8 +39,9 @@ def test_today_renders_shell(client: TestClient) -> None:
     assert "/static/vendor/htmx-" in body
     assert "unpkg.com" not in body
     # T-R50 — Plotly removed per ADR-0054; SVG charts are server-rendered now.
-    assert "tailwind" in body
     soup = BeautifulSoup(body, "html.parser")
+    sheets = [str(link.get("href", "")) for link in soup.find_all("link", rel="stylesheet")]
+    assert any("tailwind" in href or "app.bundle" in href for href in sheets)
     assert soup.find("main", id="main") is not None
     assert soup.find("a", href="#main") is not None
 

@@ -29,7 +29,7 @@
     <script src="{{ url_for('static', path='rd/js/htmx-csrf.js') }}" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="rd-app" hx-ext="csrf">
+  <body class="rd-app" hx-ext="csrf" data-today-local="{{ today_local() }}">
     <a class="rd-skip" href="#main">skip to content</a>
     <div class="rd-frame">
       <header class="rd-topbar">
@@ -69,6 +69,10 @@
           <a class="rd-topbar__link rd-topbar__link--muted"
              href="/settings"
              aria-keyshortcuts="g s">settings</a>
+          {% if request.state.user is defined and request.state.user %}
+            <span class="rd-topbar__link rd-topbar__link--muted u-hide-below-md"
+                  title="{{ request.state.user.email or request.state.user.name }}">{{ request.state.user.email or request.state.user.name }}</span>
+          {% endif %}
           <form class="rd-topbar__form" method="post" action="/auth/logout">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit"
@@ -78,7 +82,14 @@
           </form>
         </div>
       </header>
-      <div id="flash-region" class="rd-flash-region"></div>
+      <div id="flash-region"
+           class="rd-flash-region"
+           role="status"
+           aria-live="polite"></div>
+      <div id="flash-region-assertive"
+           class="rd-flash-region"
+           role="alert"
+           aria-live="assertive"></div>
       <main id="main" class="rd-main" tabindex="-1">
         {% block main %}{% endblock %}
       </main>
@@ -125,6 +136,8 @@
     <script type="module"
             src="{{ url_for('static', path='rd/js/segmented.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='rd/js/toast.js') }}"></script>
+    <script type="module"
+            src="{{ url_for('static', path='rd/js/app-toast.js') }}"></script>
     <script type="module"
             src="{{ url_for('static', path='rd/js/theme-switch.js') }}"></script>
     <script type="module" src="{{ url_for('static', path='rd/js/offline.js') }}"></script>
