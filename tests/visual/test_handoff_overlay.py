@@ -238,7 +238,7 @@ def test_serve_returns_the_overlaid_page_and_static_files_as_is() -> None:
         page = _get(base, "/pages/today--afford-over.html?theme=dark")
         css = _get(base, "/static/css/tokens.css")
     text = page.decode()
-    assert f"{chr(0x2212)}57.15 {chr(0xB7)} 400.07 over" in text
+    assert f"{chr(0x2212)}116.01 {chr(0xB7)} 812.07 over" in text
     assert "114.20" not in text
     assert 'aria-keyshortcuts="g t"' in text
     assert css == (HANDOFF / "static/css/tokens.css").read_bytes()

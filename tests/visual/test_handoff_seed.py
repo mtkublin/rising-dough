@@ -288,3 +288,13 @@ def test_invite_expired(tmp_path: Path) -> None:
     state = invites_service.link_state(conn, result.invite_token or "", now=NOW)
     conn.close()
     assert state == "expired"
+
+
+def test_invite_used(tmp_path: Path) -> None:
+    result = seed.build_seed(tmp_path / "u.sqlite", modifiers=("invite-used",))
+    conn = _open(result.db_path)
+    state = invites_service.link_state(conn, result.invite_token or "", now=NOW)
+    emails = sorted(str(u.email) for u in users_repo.list_live(conn))
+    conn.close()
+    assert state == "used"
+    assert "accountant@example.test" in emails

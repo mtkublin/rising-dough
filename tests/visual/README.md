@@ -52,6 +52,7 @@ Modifiers (pure `SeedData -> SeedData` functions, `MODIFIER_NAMES`):
 | `empty-recurring` | no rules or overrides |
 | `long` | two 1,234,567.89 rows with a long description |
 | `invite-expired` | the invite is 8 days old (link state expired) |
+| `invite-used` | the invite was accepted (link state used) |
 | `no-matches` | no data change: a filter query that matches nothing |
 | `over-limit` | no data change: a 13,000.00 entry exceeds the card's 12,521.63 left |
 | `form-error` | no data change: 422, wrong password and similar request states |

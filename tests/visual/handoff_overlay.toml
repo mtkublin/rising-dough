@@ -64,17 +64,6 @@ old = "2026-10-31"
 value = "2026-01-31"
 reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
 
-# --- row 6: bar label whose parts do not add up (78 + 15).
-
-[[row]]
-page = "pages/*.html"
-select = '[role="img"][aria-label="78 percent spent, 15 percent left"]'
-field = "aria-label"
-old = "78 percent spent, 15 percent left"
-value = "78 percent spent, 22 percent left"
-optional = true
-reason = "value-inventory 5 row 6: 78 spent leaves 22, not 15; the app emits left_pct (T-UR34k)"
-
 # --- row 7: credit card bar, 12,521.63 of 14,977.37 available is 84%.
 
 [[row]]
@@ -84,16 +73,6 @@ field = "aria-label"
 old = "16 percent spent, 80 percent left"
 value = "16 percent spent, 84 percent left"
 reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 80%"
-
-# --- row 9 / ADR-0151: afford over, 1,399.93 left over 7 days, entry 1,800.00.
-
-[[row]]
-page = "pages/today--afford-over.html"
-select = "#afford-result .rd-afford__result--over"
-field = "text"
-old = "▲ per day becomes −14.20 · 114.20 over"
-value = "▲ per day becomes −57.15 · 400.07 over"
-reason = "ADR-0151: (1,399.93 - 1,800.00) / 7 = -57.15 per day, 400.07 over; the board's 114.20 has no derivation"
 
 # --- row 12 / ADR-0151: Reconciliation is system-only, so N = 24 - 1 = 23.
 # The search input placeholder carries the same count but `placeholder` is not
@@ -117,3 +96,286 @@ field = "text"
 old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
 value = "Credit Card · 12,557.13 of 14,977.37 left → 12,521.63 after this"
 reason = "value-inventory 5 row 19, ADR-0151: the 35.50 entry is already in 12,521.63 left, so before = 12,521.63 + 35.50 and after = 12,521.63"
+
+# --- Seed-dependent rows (T-UR00b remainder, ADR-0147 section 4): the handoff value is
+# replaced by what the seed + app produce. Generated from the cases of
+# tests/visual/test_overlay_values.py, which asserts every value equals its service
+# value (rows 1, 6, 9, 10, 11, 14, 15, 20 of value-inventory section 5; the former
+# rows 6 and 9 live here with the seed figures).
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__figure--xl"
+field = "text"
+old = "199.99"
+value = "141.13"
+optional = true
+reason = "seed value via budget.month_summary: left per day (overdue Annual insurance is committed)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-stats__value:-soup-contains-own(\"34.60\")"
+field = "text"
+old = "34.60"
+value = "446.60"
+optional = true
+reason = "seed value via budget.month_summary: committed (overdue Annual insurance 412.00 included)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-stats__value:-soup-contains-own(\"1,399.93\")"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+optional = true
+reason = "seed value via budget.month_summary: left (budgeted - spent - committed)"
+
+[[row]]
+page = "pages/*.html"
+select = "[role=\"img\"][aria-label=\"78 percent spent, 15 percent left\"]"
+field = "aria-label"
+old = "78 percent spent, 15 percent left"
+value = "77 percent spent, 23 percent left"
+optional = true
+reason = "seed value via view_models.bar_aria_label on budget_view (floored spent percent, left = 100 - spent); value-inventory 5 row 6"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-afford__result:not(.rd-afford__result--over)"
+field = "text"
+old = "→ per day becomes 164.28 "
+value = "→ per day becomes 105.42 "
+optional = true
+reason = "seed value via today.afford(250.00): per day after the entry"
+
+[[row]]
+page = "pages/today--afford-over.html"
+select = "#afford-result .rd-afford__result--over"
+field = "text"
+old = "▲ per day becomes −14.20 · 114.20 over"
+value = "▲ per day becomes −116.01 · 812.07 over"
+reason = "seed value via today.afford(1,800.00) (ADR-0151 semantics unchanged); the handoff is inconsistent (value-inventory 5 row 9)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__figure--plan"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+optional = true
+reason = "seed value via budget.month_summary: budget left"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__note > .u-hide-below-md:-soup-contains-own(\"6,449.08 budgeted\")"
+field = "text"
+old = "6,449.08 budgeted · 5,014.55 spent · 34.60 committed · 6 categories over · 277.94 planned in unbudgeted categories"
+value = "6,449.08 budgeted · 5,014.55 spent · 446.60 committed · 8 categories over · 277.94 planned in unbudgeted categories"
+optional = true
+reason = "seed value via budget.month_summary and view_models.budget_view (committed, categories over)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__note > .u-hide-from-md:-soup-contains-own(\"34.60 committed\")"
+field = "text"
+old = "34.60 committed · 6 over"
+value = "446.60 committed · 8 over"
+optional = true
+reason = "seed value via budget.month_summary and view_models.budget_view"
+
+[[row]]
+page = "pages/*.html"
+select = "td.rd-budget__status:-soup-contains-own(\"left 1,399.93\")"
+field = "text"
+old = "left 1,399.93"
+value = "left 987.93"
+optional = true
+reason = "seed value via budget.month_summary: left"
+
+[[row]]
+page = "pages/*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"actual 616\")"
+field = "text"
+old = "actual 616"
+value = "actual 26"
+optional = true
+reason = "seed value via ledger_data tab_counts (transactions.count_filtered)"
+
+[[row]]
+page = "pages/*.html"
+select = "a.rd-tabs__tab:-soup-contains-own(\"recurring 27\")"
+field = "text"
+old = "recurring 27"
+value = "recurring 15"
+optional = true
+reason = "seed value via ledger_data tab_counts (recurring.list_rules, active)"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__figure--wide:-soup-contains-own(\"13,755.41\")"
+field = "text"
+old = "−13,755.41"
+value = "−10,726.62"
+optional = true
+reason = "seed value via ledger_totals.recurring_monthly_totals: monthly out"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-hero__note:-soup-contains-own(\"27 rules\")"
+field = "text"
+old = "in +23,253.18 · 27 rules · next due 01 nov"
+value = "in +19,548.13 · 15 rules · next due 01 nov"
+optional = true
+reason = "seed value via ledger_totals.recurring_monthly_totals: monthly in, rule count, next due"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-formula__next"
+field = "text"
+old = "→ next amount 1,836.93 PLN"
+value = "→ next amount 3,077.69 PLN"
+count = 4
+optional = true
+reason = "seed value via recurring_formula.resolve_rule_amount: the seed's formula rules all evaluate to one amount for their next occurrence"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(1) .rd-account__txns"
+field = "text"
+old = "2"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments A txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(2) .rd-account__txns"
+field = "text"
+old = "8"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Savings txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(3) .rd-account__txns"
+field = "text"
+old = "6"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments C txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(4) .rd-account__txns"
+field = "text"
+old = "84"
+value = "17"
+optional = true
+reason = "seed value via balance.account_stats_many: Checking txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(5) .rd-account__txns"
+field = "text"
+old = "2"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Investments B txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(7) .rd-account__txns"
+field = "text"
+old = "13"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Cash Wallet txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(8) .rd-account__txns"
+field = "text"
+old = "24"
+value = "1"
+optional = true
+reason = "seed value via balance.account_stats_many: Checking EUR txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(9) .rd-account__txns"
+field = "text"
+old = "468"
+value = "7"
+optional = true
+reason = "seed value via balance.account_stats_many: Credit Card txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(10) .rd-account__txns"
+field = "text"
+old = "30"
+value = "0"
+optional = true
+reason = "seed value via balance.account_stats_many: Everyday Spending txn_count"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(3) .rd-account__checked"
+field = "text"
+old = "01 JUL"
+value = "29 OCT"
+optional = true
+reason = "seed value via accounts.last_checked: Investments C counts the 29 Oct reconciliation"
+
+[[row]]
+page = "pages/*.html"
+select = ".rd-row--account:nth-of-type(7) .rd-account__checked"
+field = "text"
+old = "01 APR"
+value = "29 OCT"
+optional = true
+reason = "seed value via accounts.last_checked: Cash Wallet counts the 29 Oct reconciliation"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"12 NOV 09:14\")"
+field = "text"
+old = "12 NOV 09:14"
+value = "31 OCT 11:00"
+optional = true
+reason = "seed value via security_settings.security_view: the owner's session start (seed clock)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"12 DEC\")"
+field = "text"
+old = "12 DEC"
+value = "30 NOV"
+optional = true
+reason = "seed value via security_settings.security_view: absolute expiry (start + 30 days)"
+
+[[row]]
+page = "pages/*.html"
+select = "tr.rd-row--user td:-soup-contains-own(\"12 NOV 08:40\")"
+field = "text"
+old = "12 NOV 08:40"
+value = "—"
+optional = true
+reason = "seed value via users.list_live: Ewa never signed in (last_seen_at is empty)"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-hero__figure--wide"
+field = "text"
+old = "79,047.79"
+value = "58,761.15"
+reason = "seed value via forecast.projection_summary: end balance of the 12-month projection"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-hero__note"
+field = "text"
+old = "+46,320.57 PLN over 12 months · peak 86,239.67 in aug 2027"
+value = "+24,321.46 PLN over 12 months · peak 58,761.15 in sep 2027"
+reason = "seed value via forecast.projection_summary: delta from net worth (NOW), peak month"

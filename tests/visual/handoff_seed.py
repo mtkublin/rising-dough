@@ -169,6 +169,7 @@ class SeedData:
     income_anchor: str
     invite_email: str | None
     invite_age_days: int
+    invite_accepted: bool
     invite_link: str  # fixed path segment of the invite URL in the scratch DB
 
 
@@ -391,6 +392,7 @@ BASE: Final = SeedData(
     income_anchor="Salary",
     invite_email="accountant@example.test",
     invite_age_days=0,
+    invite_accepted=False,
     invite_link="handoff-invite-accountant",
 )
 
@@ -433,6 +435,10 @@ def _invite_expired(d: SeedData) -> SeedData:
     return replace(d, invite_age_days=8)
 
 
+def _invite_used(d: SeedData) -> SeedData:
+    return replace(d, invite_accepted=True)
+
+
 def _no_data_change(d: SeedData) -> SeedData:
     return d
 
@@ -453,6 +459,7 @@ _MODIFIERS: Final = (
         "query state: a 13,000.00 entry exceeds Credit Card's 12,521.63 left",
     ),
     ("invite-expired", _invite_expired, "invite page --expired: link older than 7 days"),
+    ("invite-used", _invite_used, "invite page --used: the link was already accepted"),
     ("form-error", _no_data_change, "request states (422, wrong password): no data change"),
 )
 MODIFIER_NAMES: Final = tuple(name for name, _, _ in _MODIFIERS)
@@ -657,6 +664,15 @@ def _write_users(conn: sqlite3.Connection, data: SeedData) -> str | None:
         tokens=_FixedToken(data.invite_link),
         now=created,
     )
+    if data.invite_accepted:
+        invites_service.accept_invite(
+            conn,
+            data.invite_link,
+            name="Accountant",
+            password=TEST_PASSWORD,
+            hasher=FAST_HASHER,
+            now=created + dt.timedelta(hours=1),
+        )
     return data.invite_link
 
 
