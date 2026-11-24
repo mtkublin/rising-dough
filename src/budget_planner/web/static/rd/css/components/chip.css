@@ -1,0 +1,102 @@
+/*
+ * Category chip. Runtime properties set by the server per category (see README):
+ *   --cat       the category hue (hex)          default neutral grey
+ *   --cat-edge  light-theme outline: the hue darkened to 3:1 on panel
+ * Dark: hue at 20% fill and 60% outline. Light: hue at 30% fill, --cat-edge outline. Label always ink.
+ */
+.rd-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid color-mix(in srgb, color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-edge-mix), transparent) var(--chip-theme-dark), var(--cat-edge, var(--cat-edge-default)));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-fill-mix), transparent);
+  color: var(--color-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-caption);
+  line-height: var(--line-height-chip);
+  text-align: start;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Selectable chip (recent categories, picker options, filters) */
+.rd-chip-option {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-control);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid color-mix(in srgb, color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-edge-mix), transparent) var(--chip-theme-dark), var(--cat-edge, var(--cat-edge-default)));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-option-fill-mix), transparent);
+  color: var(--color-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-caption);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rd-chip-option:hover {
+  background: color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-option-selected-fill-mix), transparent);
+}
+
+.rd-chip-option[aria-selected="true"],
+.rd-chip-option[aria-pressed="true"],
+.rd-chip-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-theme-dark), var(--cat-edge, var(--cat-edge-default)));
+  background: color-mix(in srgb, var(--cat, var(--cat-default)) var(--chip-option-selected-fill-mix), transparent);
+}
+
+.rd-chip-option[aria-selected="true"]::before,
+.rd-chip-option[aria-pressed="true"]::before,
+.rd-chip-option:has(input:checked)::before {
+  content: "✓";
+}
+
+.rd-chip-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rd-chip-option:has(input:focus-visible) {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: var(--focus-offset);
+}
+
+/* Status chip: ● on track · ▲ over pace · ↑ ahead */
+.rd-status {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width-strong) solid currentcolor;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-data);
+  line-height: var(--line-height-data);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.rd-status--over {
+  color: var(--color-over);
+}
+
+/* Small tag (formula ƒ, "default", role badges) */
+.rd-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  white-space: nowrap;
+}

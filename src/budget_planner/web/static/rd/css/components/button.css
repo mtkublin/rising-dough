@@ -1,0 +1,132 @@
+/* Buttons: primary (now-fill, [ brackets ], one per surface) · secondary · quiet · danger · disabled · loading */
+.rd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--size-control);
+  padding: 0 var(--space-5);
+  border: var(--border-width) solid var(--color-ink);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  white-space: nowrap;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.rd-btn:hover {
+  background: var(--color-rule);
+}
+
+.rd-btn:active {
+  transform: translateY(var(--offset-press));
+}
+
+.rd-btn--primary {
+  border-color: var(--color-now-fill);
+  background: var(--color-now-fill);
+  box-shadow: var(--ring-now);
+  color: var(--color-ink-deep);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-btn--primary:hover {
+  background: var(--color-now-fill);
+  opacity: 0.88;
+}
+
+.rd-btn--secondary-rule {
+  border-color: var(--color-rule);
+}
+
+.rd-btn--quiet {
+  border-color: transparent;
+}
+
+.rd-btn--danger {
+  border-color: var(--color-over);
+  color: var(--color-over);
+}
+
+.rd-btn--lg {
+  height: var(--size-control-lg);
+  padding: 0 var(--space-7);
+  font-size: var(--font-size-heading);
+}
+
+.rd-btn--icon {
+  width: var(--size-control);
+  padding: 0;
+  border-color: transparent;
+  font-size: var(--font-size-icon);
+}
+
+.rd-btn--icon-outline {
+  border-color: var(--color-rule);
+}
+
+.rd-btn--block {
+  width: 100%;
+}
+
+.rd-btn--sm {
+  padding: 0 var(--space-3-5);
+}
+
+.rd-btn:disabled,
+.rd-btn[aria-disabled="true"] {
+  border-color: var(--color-rule);
+  background: var(--color-rule);
+  box-shadow: none;
+  color: var(--color-ink-muted);
+  font-weight: var(--font-weight-regular);
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+
+/* Loading: HTMX adds .htmx-request to the element making the request.
+   Pair with hx-disabled-elt="this" (or "find button[type=submit]") so the button is
+   also disabled while the request runs. */
+.rd-btn.htmx-request,
+form.htmx-request .rd-btn[type="submit"] {
+  cursor: progress;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.rd-btn.htmx-request::after,
+form.htmx-request .rd-btn[type="submit"]::after {
+  content: "…";
+}
+
+.rd-btn__icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+/* Link styled as inline text link */
+.rd-link {
+  text-decoration: underline;
+  text-underline-offset: var(--underline-offset);
+}
+
+.rd-link:hover {
+  color: var(--color-ink-muted);
+}
+
+/* On the bake field: outlined in ink-deep */
+.rd-btn--on-bake {
+  border-width: var(--border-width-strong);
+  border-color: var(--color-ink-deep);
+  color: var(--color-ink-deep);
+}
+
+.rd-btn--on-bake:hover {
+  background: color-mix(in srgb, var(--color-ink-deep) 10%, transparent);
+}
