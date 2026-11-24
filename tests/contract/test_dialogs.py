@@ -98,6 +98,14 @@ def test_dialog_response_retargets_into_modal_root(client: TestClient) -> None:
     assert _html.resolve_one(resp.text, role("textbox", "Amount")).get("value") == "5.00"
 
 
+def test_dialog_is_wrapped_so_dialog_js_finds_it(client: TestClient) -> None:
+    body = client.get("/open").text.strip()
+    assert body.startswith("<div>")
+    assert body.endswith("</div>")
+    assert body.count("<dialog") == 1
+    assert body.index("<dialog") > 0
+
+
 def test_saved_response_swaps_row_and_flashes_out_of_band(client: TestClient) -> None:
     resp = client.get("/saved")
     assert resp.status_code == 200
