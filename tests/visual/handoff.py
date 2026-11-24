@@ -169,6 +169,15 @@ def generate(only_surface: str | None = None, shard: str | None = None) -> int:
     return count
 
 
+def _add_bytes(x: bytes, y: bytes) -> bytes:
+    """Bytewise ``(x + y) mod 256`` of two equal-length byte strings (SWAR over big ints)."""
+    n = len(x)
+    low = int.from_bytes(b"\x7f" * n, "little")
+    xi, yi = int.from_bytes(x, "little"), int.from_bytes(y, "little")
+    total = ((xi & low) + (yi & low)) ^ ((xi ^ yi) & ~low & ((1 << (8 * n)) - 1))
+    return total.to_bytes(n, "little")
+
+
 def _decode(path: Path) -> tuple[int, int, int, bytes]:
     """Minimal PNG decoder: 8-bit, non-interlaced. Returns width, height, channels, raw rows."""
     data = path.read_bytes()
@@ -191,6 +200,15 @@ def _decode(path: Path) -> tuple[int, int, int, bytes]:
     for row in range(height):
         base = row * (stride + 1)
         ftype, line = raw[base], bytearray(raw[base + 1 : base + 1 + stride])
+        if ftype == 0:
+            out += line
+            prev = line
+            continue
+        if ftype == 2:
+            line = bytearray(_add_bytes(bytes(line), bytes(prev)))
+            out += line
+            prev = line
+            continue
         for i in range(stride):
             a = line[i - channels] if i >= channels else 0
             b = prev[i]
@@ -227,7 +245,11 @@ Box = tuple[int, int, int, int]  # left, top, right, bottom (inclusive)
 
 @dataclass(frozen=True)
 class Comparison:
-    """Result of comparing two screenshots (``size_mismatch``: ratio 1.0, no cluster)."""
+    """Result of comparing two screenshots.
+
+    ``cluster`` is -1 when not computed (ratio already over the limit or a size mismatch)
+    and ``cap + 1`` when the scan stopped early on a cluster above ``cluster_cap``.
+    """
 
     ratio: float
     cluster: int
@@ -235,15 +257,24 @@ class Comparison:
     width: int
     height: int
     mask: bytes
+    pixels: bytes = b""
+    channels: int = 3
     size_mismatch: bool = False
 
 
-def largest_cluster(mask: bytes, width: int, height: int) -> tuple[int, Box | None]:
-    """Size and bounding box of the largest 8-connected region of set cells in ``mask``."""
+def largest_cluster(
+    mask: bytes, width: int, height: int, cap: int | None = None
+) -> tuple[int, Box | None]:
+    """Size and bounding box of the largest 8-connected region of set cells in ``mask``.
+
+    With ``cap`` the scan stops at the first region larger than ``cap`` (returns ``cap + 1``).
+    """
     seen = bytearray(len(mask))
     best, best_box = 0, None
-    for start in range(len(mask)):
-        if not mask[start] or seen[start]:
+    start = mask.find(1)
+    while start != -1:
+        if seen[start]:
+            start = mask.find(1, start + 1)
             continue
         seen[start] = 1
         stack = [start]
@@ -262,20 +293,50 @@ def largest_cluster(mask: bytes, width: int, height: int) -> tuple[int, Box | No
                     if mask[j] and not seen[j]:
                         seen[j] = 1
                         stack.append(j)
+            if cap is not None and size > cap:
+                return cap + 1, (left, top, right, bottom)
         if size > best:
             best, best_box = size, (left, top, right, bottom)
+        start = mask.find(1, start + 1)
     return best, best_box
 
 
-def compare(expected: Path, actual: Path) -> Comparison:
-    """Pixel ratio plus largest differing cluster of two same-size PNGs."""
+_NONZERO_TO_ONE: Final = bytes([0] + [1] * 255)
+
+
+def diff_mask(a: bytes, b: bytes, channels: int) -> bytes:
+    """Per-pixel 1/0 mask of differing pixels, via big-int XOR (no per-pixel Python loop)."""
+    n = len(a)
+    xor = (int.from_bytes(a, "little") ^ int.from_bytes(b, "little")).to_bytes(n, "little")
+    flags = xor.translate(_NONZERO_TO_ONE)
+    merged = int.from_bytes(flags[0::channels], "little")
+    for k in range(1, channels):
+        merged |= int.from_bytes(flags[k::channels], "little")
+    return merged.to_bytes(n // channels, "little")
+
+
+def compare(
+    expected: Path,
+    actual: Path,
+    *,
+    ratio_limit: float | None = None,
+    cluster_cap: int | None = None,
+) -> Comparison:
+    """Pixel ratio plus largest differing cluster of two same-size PNGs.
+
+    The cluster scan is skipped when the ratio is above ``ratio_limit`` and stops early above
+    ``cluster_cap`` (both ``None`` = exact cluster, used for self-comparison calibration).
+    """
     w1, h1, c1, a = _decode(expected)
     w2, h2, c2, b = _decode(actual)
     if (w1, h1, c1) != (w2, h2, c2):
-        return Comparison(1.0, 0, None, w2, h2, b"", size_mismatch=True)
-    mask = bytes(1 if a[i : i + c1] != b[i : i + c1] else 0 for i in range(0, len(a), c1))
-    cluster, box = largest_cluster(mask, w1, h1)
-    return Comparison(sum(mask) / (w1 * h1), cluster, box, w1, h1, mask)
+        return Comparison(1.0, -1, None, w2, h2, b"", size_mismatch=True)
+    mask = diff_mask(a, b, c1)
+    ratio = mask.count(1) / (w1 * h1)
+    if ratio_limit is not None and ratio > ratio_limit:
+        return Comparison(ratio, -1, None, w1, h1, mask, b, c1)
+    cluster, box = largest_cluster(mask, w1, h1, cluster_cap)
+    return Comparison(ratio, cluster, box, w1, h1, mask, b, c1)
 
 
 def _png(width: int, height: int, rows: bytes) -> bytes:
@@ -292,17 +353,20 @@ def _png(width: int, height: int, rows: bytes) -> bytes:
     )
 
 
-def write_diff_png(actual: Path, result: Comparison, out: Path) -> None:
-    """Actual screenshot with differing pixels red and the largest cluster outlined in blue."""
+def write_diff_png(result: Comparison, out: Path) -> None:
+    """Actual screenshot with differing pixels red; the largest cluster (if scanned) outlined."""
     if result.size_mismatch:
         return
-    w, h, c, data = _decode(actual)
-    rgb = bytearray(w * h * 3)
-    for i in range(w * h):
-        px = data[i * c : i * c + 3]
-        if result.mask[i]:
-            px = b"\xff\x00\x00"
-        rgb[i * 3 : i * 3 + 3] = px
+    w, h, c = result.width, result.height, result.channels
+    n = w * h
+    rgb = bytearray(n * 3)
+    on = int.from_bytes(result.mask.translate(bytes([0, 255] + [255] * 254)), "little")
+    off = on ^ int.from_bytes(b"\xff" * n, "little")
+    chans = [int.from_bytes(result.pixels[k::c], "little") for k in range(3)]
+    red = (chans[0] | on).to_bytes(n, "little")
+    green = (chans[1] & off).to_bytes(n, "little")
+    blue = (chans[2] & off).to_bytes(n, "little")
+    rgb[0::3], rgb[1::3], rgb[2::3] = red, green, blue
     if result.box:
         left, top, right, bottom = result.box
         left, top = max(left - 2, 0), max(top - 2, 0)

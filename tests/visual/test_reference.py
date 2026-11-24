@@ -79,6 +79,8 @@ def _record_self_cluster(page: str, viewport: str, theme: str, result: handoff.C
     """One line per self-comparison for calibrating ``MAX_DIFF_CLUSTER_PX`` (T-UR00b)."""
     keep = _keep_dir()
     keep.mkdir(parents=True, exist_ok=True)
+    if result.cluster < 0:
+        return
     with (keep / "self-clusters.txt").open("a") as fh:
         fh.write(f"{result.cluster} {page} {viewport} {theme}\n")
 
@@ -94,7 +96,7 @@ def test_handoff_matches_itself(
     with handoff.serve_handoff() as base, tempfile.TemporaryDirectory() as tmp:
         actual = Path(tmp) / "actual.png"
         handoff.shoot(browser, base, handoff_page, viewport=viewport, theme=theme, out=actual)
-        result = handoff.compare(expected, actual)
+        result = handoff.compare(expected, actual, ratio_limit=handoff.SELF_TOLERANCE)
     _record_self_cluster(handoff_page, viewport, theme, result)
     assert result.ratio <= handoff.SELF_TOLERANCE, (
         f"{handoff_page} {viewport} {theme}: {result.ratio:.4%} pixels differ, "
@@ -133,20 +135,30 @@ def test_app_matches_handoff(
         with tempfile.TemporaryDirectory() as tmp:
             actual = Path(tmp) / "actual.png"
             pg.screenshot(path=str(actual), full_page=True)
-            result = handoff.compare(handoff.reference_path(handoff_page, viewport, theme), actual)
+            result = handoff.compare(
+                handoff.reference_path(handoff_page, viewport, theme),
+                actual,
+                ratio_limit=handoff.MAX_DIFF_PIXEL_RATIO,
+                cluster_cap=handoff.MAX_DIFF_CLUSTER_PX,
+            )
             ok = (
                 result.ratio <= handoff.MAX_DIFF_PIXEL_RATIO
                 and result.cluster <= handoff.MAX_DIFF_CLUSTER_PX
             )
             if not ok:
                 stem = Path(handoff_page).with_suffix("").as_posix().replace("/", "_")
-                handoff.write_diff_png(
-                    actual, result, _keep_dir() / f"{stem}.{viewport}.{theme}.diff.png"
-                )
+                handoff.write_diff_png(result, _keep_dir() / f"{stem}.{viewport}.{theme}.diff.png")
     finally:
         context.close()
+    cluster = (
+        "not computed (ratio over the limit)"
+        if result.cluster < 0
+        else f"> {handoff.MAX_DIFF_CLUSTER_PX}px"
+        if result.cluster > handoff.MAX_DIFF_CLUSTER_PX
+        else f"{result.cluster}px"
+    )
     assert ok, (
         f"{route} {viewport} {theme}: {result.ratio:.4%} differ "
-        f"(max {handoff.MAX_DIFF_PIXEL_RATIO:.2%}), largest cluster {result.cluster}px "
+        f"(max {handoff.MAX_DIFF_PIXEL_RATIO:.2%}), largest cluster {cluster} "
         f"(max {handoff.MAX_DIFF_CLUSTER_PX}px) at {result.box}"
     )
