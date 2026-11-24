@@ -1,4 +1,4 @@
-# ADR-0150: Designer Follow-up Answers (2026-11-23) and Where Their Backend Deltas Land
+# ADR-0151: Designer Follow-up Answers (2026-11-23) and Where Their Backend Deltas Land
 
 - **Status**: Accepted (implementation pending, T-UR36)
 - **Date**: 2026-11-23

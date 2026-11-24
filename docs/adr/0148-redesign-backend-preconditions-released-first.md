@@ -55,4 +55,4 @@ Behaviour that changes in the precondition release (user edit guards, account de
 
 ## Amendments
 
-- 2026-11-23: [ADR-0150](0150-designer-follow-up-answers-2026-11-23.md) §3: the designer follow-up answers arrived after v3.2.0; their four backend deltas land as T-UR36, the first code item on `ui/sourdough`, and ship with the redesign release. The only backend exception to "the migration is frontend work only".
+- 2026-11-23: [ADR-0151](0151-designer-follow-up-answers-2026-11-23.md) §3: the designer follow-up answers arrived after v3.2.0; their four backend deltas land as T-UR36, the first code item on `ui/sourdough`, and ship with the redesign release. The only backend exception to "the migration is frontend work only".

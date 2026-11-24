@@ -180,7 +180,7 @@ Recorded in [ADR-0134](../../adr/0134-redesign-scope-decisions-from-the-designer
 
 ## Follow-up 2026-11-23: numbers in the handoff we could not reproduce (backend preconditions)
 
-> Status: **answered 2026-11-23** (answers at the end of this section); decisions in [ADR-0150](../../adr/0150-designer-follow-up-answers-2026-11-23.md), code changes in T-UR36. The questions below are unchanged.
+> Status: **answered 2026-11-23** (answers at the end of this section); decisions in [ADR-0151](../../adr/0151-designer-follow-up-answers-2026-11-23.md), code changes in T-UR36. The questions below are unchanged.
 
 While building the data behind the boards, we found seven places where the board's numbers or wording do not follow from the board's own data, or where the meaning is ambiguous. For each one we picked an option, described below, so the work could move on. We need a yes or a correction for each.
 
