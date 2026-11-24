@@ -26,8 +26,8 @@ TOAST_TEMPLATE: Final = "settings/users/_password-toast.html"
 ADD_ERRORS_TEMPLATE: Final = "settings/users/_add-errors.html"
 EDIT_TEMPLATE: Final = "settings/users/edit.html"
 FLASH_TEMPLATE: Final = "partials/_flash.html"
-NOT_FOUND_TEMPLATE: Final = "errors/404.html"
-CONFLICT_TEMPLATE: Final = "errors/409.html"
+NOT_FOUND_TEMPLATE: Final = "pages/errors/404.html"
+CONFLICT_TEMPLATE: Final = "pages/errors/409.html"
 _CHECKBOX_TRUE: Final = frozenset({"on", "1", "true", "yes"})
 
 
