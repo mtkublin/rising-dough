@@ -132,6 +132,12 @@ def test_gate_flags_each_class_of_violation(tmp_path: Path) -> None:
     ]
 
 
+def test_carve_out_maximum_is_pinned_and_the_file_fits_it() -> None:
+    rows = tomllib.loads((ALLOWLIST_DIR / CARVE_OUT_FILE).read_text(encoding="utf-8"))["entry"]
+    assert CARVE_OUT_MAX == 76
+    assert len(rows) <= CARVE_OUT_MAX
+
+
 def test_gate_caps_the_carve_out_at_the_tagged_entry_maximum(tmp_path: Path) -> None:
     row = '[[entry]]\npath = "t{n}.html"\ncount = 1\nfinding = "Q-039"\nowner = "T-UR08"\n'
     _write(tmp_path, CARVE_OUT_FILE, "".join(row.format(n=n) for n in range(CARVE_OUT_MAX)))
