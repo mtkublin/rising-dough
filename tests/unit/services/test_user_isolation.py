@@ -219,6 +219,14 @@ def _case_entry_count(conn: sqlite3.Connection, world: World) -> None:
     assert categories.entry_count(conn, OTHER_ID, world.owner.category_id) == 0
 
 
+@covers("categories.usage_for")
+def _case_usage_for(conn: sqlite3.Connection, world: World) -> None:
+    mine = categories.usage_for(conn, OWNER_ID, world.owner.category_id)
+    assert mine.entry_count == 1
+    assert categories.usage_for(conn, OWNER_ID, world.other.category_id).entry_count == 0
+    assert categories.usage_for(conn, OTHER_ID, world.owner.category_id).entry_count == 0
+
+
 @covers("categories.picker_summary")
 def _case_picker_summary(conn: sqlite3.Connection, world: World) -> None:
     recent = {c.id for c in categories.picker_summary(conn, OWNER_ID).recent}

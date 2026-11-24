@@ -5,16 +5,28 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
+from datetime import date
+from typing import Any
 
 import pytest
+from fastapi import Request
+from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
+from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.system_categories import RECONCILIATION_CATEGORY_NAME
-from budget_planner.repositories import categories as categories_repo
+from budget_planner.repositories import (
+    accounts as accounts_repo,
+    categories as categories_repo,
+    planned as planned_repo,
+)
+from budget_planner.web import rendering
+from budget_planner.web.routers import categories as categories_router
 from tests.ui_map import _html, settings as ui
 
 USER_ID = 1
@@ -91,6 +103,36 @@ def test_edit(client: TestClient, cat_id: int) -> None:
     form = _html.form_of(r.text, ui.category_name)
     assert form["hx-post"] == f"/categories/{cat_id}"
     assert ("name", "Groceries") in _html.submitted_fields(form)
+
+
+def test_edit_passes_usage_context(
+    client: TestClient,
+    cat_id: int,
+    db: sqlite3.Connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    real_render = rendering.render
+
+    def spy(request: Request, template: str, **ctx: Any) -> HTMLResponse:
+        captured.update(ctx)
+        return real_render(request, template, **ctx)
+
+    monkeypatch.setattr(categories_router, "render", spy)
+    assert client.get(f"/categories/{cat_id}/edit").status_code == 200
+    assert captured["usage_text"] is None
+    assert captured["entry_count"] == 0
+
+    acc = accounts_repo.create(db, USER_ID, NewAccount(name="Main", currency="PLN")).id
+    planned_repo.create(
+        db,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=date(2026, 11, 10), category_id=cat_id, account_id=acc, amount=100
+        ),
+    )
+    assert client.get(f"/categories/{cat_id}/edit").status_code == 200
+    assert captured["usage_text"] == "1 planned"
 
 
 def test_edit_404(client: TestClient) -> None:

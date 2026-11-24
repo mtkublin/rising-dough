@@ -292,8 +292,20 @@ def count_referencing_account(conn: sqlite3.Connection, user_id: int, account_id
     return int(row[0])
 
 
+def count_by_category(conn: sqlite3.Connection, user_id: int) -> dict[int, int]:
+    """Live (not soft-deleted) planned rows per category id (ADR-0151 §2)."""
+    rows = conn.execute(
+        "SELECT category_id, COUNT(*) FROM planned_transactions "
+        "WHERE user_id = ? AND deleted_at IS NULL AND category_id IS NOT NULL "
+        "GROUP BY category_id",
+        (user_id,),
+    ).fetchall()
+    return {int(r[0]): int(r[1]) for r in rows}
+
+
 __all__ = [
     "clear_promotion",
+    "count_by_category",
     "count_referencing_account",
     "create",
     "find_by_id",

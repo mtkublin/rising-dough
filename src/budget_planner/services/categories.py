@@ -27,6 +27,7 @@ from budget_planner.domain.enums import Direction
 from budget_planner.domain.errors import ValidationError, require_present
 from budget_planner.repositories import (
     categories as categories_repo,
+    planned as planned_repo,
     recurring as recurring_repo,
     transactions as transactions_repo,
 )
@@ -134,51 +135,80 @@ def budgeted_expense_category_ids(
 
 @dataclass(frozen=True)
 class CategoryUsage:
-    """Live transactions booked to one category: how many, and the latest date."""
+    """Live references to one category: transactions, planned items and recurring rules.
+
+    ``last_used`` is the latest live transaction date, ``None`` when there is none.
+    """
 
     entry_count: int
-    last_used: date
+    planned_count: int
+    rule_count: int
+    last_used: date | None
 
 
 @dataclass(frozen=True)
 class CategoryPicker:
-    """Picker header values: recently used categories and the total shown in "search all N"."""
+    """Picker values: recent categories, the searchable list and "search all N" (= its size)."""
 
     recent: tuple[Category, ...]
+    searchable: tuple[Category, ...]
     total_count: int
 
 
 def usage_by_category(conn: sqlite3.Connection, user_id: int) -> dict[int, CategoryUsage]:
-    """Usage of every category with at least one live transaction, in one query.
+    """Usage of every category with at least one live transaction, planned item or rule.
 
-    Counts live (not soft-deleted) transactions only; planned items and recurring rules
-    do not count (the handoff says "entries", i.e. ledger rows; designer question).
+    Soft-deleted rows do not count (ADR-0151 §2, F2.8).
     """
-    return {
-        category_id: CategoryUsage(entry_count=count, last_used=last)
+    entries = {
+        category_id: (count, last)
         for category_id, count, last in transactions_repo.category_usage(conn, user_id)
     }
+    planned = planned_repo.count_by_category(conn, user_id)
+    rules = recurring_repo.count_by_category(conn, user_id)
+    return {
+        category_id: CategoryUsage(
+            entry_count=entries[category_id][0] if category_id in entries else 0,
+            planned_count=planned.get(category_id, 0),
+            rule_count=rules.get(category_id, 0),
+            last_used=entries[category_id][1] if category_id in entries else None,
+        )
+        for category_id in sorted({*entries, *planned, *rules})
+    }
+
+
+def usage_for(conn: sqlite3.Connection, user_id: int, category_id: int) -> CategoryUsage:
+    """Live references to one category (all zero when unused)."""
+    return usage_by_category(conn, user_id).get(
+        category_id, CategoryUsage(entry_count=0, planned_count=0, rule_count=0, last_used=None)
+    )
 
 
 def entry_count(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
     """Live transactions in the category ("locked by N entries", "Its N entries stay")."""
-    usage = usage_by_category(conn, user_id).get(category_id)
-    return usage.entry_count if usage is not None else 0
+    return usage_for(conn, user_id, category_id).entry_count
 
 
 def picker_summary(
     conn: sqlite3.Connection, user_id: int, *, limit: int = RECENT_CATEGORY_LIMIT
 ) -> CategoryPicker:
-    """Recent categories (latest live transaction date desc, id asc on ties) and picker size.
+    """Recent categories (latest live transaction date desc, id asc on ties) and picker list.
 
     The picker lists live categories (:func:`list_all`), so archived ones are neither
-    recent nor counted. The system Reconciliation (adjustment) category is never "recent".
+    recent nor counted. The system Reconciliation (``Direction.ADJUSTMENT``) category is
+    not in recent, not in the search list and not in N; Transit stays (ADR-0151 §2).
     """
-    live = list_all(conn, user_id)
+    searchable = [c for c in list_all(conn, user_id) if c.direction is not Direction.ADJUSTMENT]
     usage = usage_by_category(conn, user_id)
-    used = [c for c in live if c.id in usage and c.direction is not Direction.ADJUSTMENT]
-    used.sort(key=lambda c: (-usage[c.id].last_used.toordinal(), c.id))
-    return CategoryPicker(recent=tuple(used[:limit]), total_count=len(live))
+    used = [c for c in searchable if c.id in usage and usage[c.id].last_used is not None]
+    used.sort(key=lambda c: (-_last_ordinal(usage[c.id]), c.id))
+    return CategoryPicker(
+        recent=tuple(used[:limit]), searchable=tuple(searchable), total_count=len(searchable)
+    )
+
+
+def _last_ordinal(usage: CategoryUsage) -> int:
+    return usage.last_used.toordinal() if usage.last_used is not None else 0
 
 
 def _live_rule_refs(conn: sqlite3.Connection, user_id: int, category_id: int) -> int:
@@ -312,4 +342,5 @@ __all__ = [
     "soft_delete",
     "update",
     "usage_by_category",
+    "usage_for",
 ]
