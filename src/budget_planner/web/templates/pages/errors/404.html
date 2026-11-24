@@ -1,0 +1,13 @@
+{# pages/errors/404 (T-UR06): the page does not exist. Handoff: pages/errors/404.html. #}
+{% extends "layouts/base.html" %}
+{% block title %}404 · Not found · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-error" aria-labelledby="err-title">
+    <p class="rd-caption">ERROR 404</p>
+    <h1 class="rd-error__title" id="err-title">Not found</h1>
+    <p class="rd-error__msg">This page doesn’t exist or was removed.</p>
+    <div class="rd-error__actions">
+      <a class="rd-btn rd-btn--primary" href="/today">[ back to today ]</a>
+    </div>
+  </section>
+{% endblock %}

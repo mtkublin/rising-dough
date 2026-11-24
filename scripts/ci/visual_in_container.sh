@@ -18,7 +18,9 @@ if [ "${1:-}" = "reference" ]; then
   if uv run pytest tests/visual/test_reference.py -m visual --reference=handoff "$@" \
     --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov -p no:cacheprovider \
     2>&1 | tee "$log"; then rc=0; else rc=$?; fi
-  line="reference shard ${REFERENCE_SHARD_LABEL:-all}: $(tail -n 1 "$log") (wall $((SECONDS - start))s, rc=$rc)"
+  # Largest handoff-vs-itself cluster, to calibrate MAX_DIFF_CLUSTER_PX (T-UR00b).
+  max_cluster="$(sort -n "${VISUAL_KEEP_DIR:-visual-actual}/self-clusters.txt" 2>/dev/null | tail -n 1 | cut -d' ' -f1)"
+  line="reference shard ${REFERENCE_SHARD_LABEL:-all}: $(tail -n 1 "$log") (wall $((SECONDS - start))s, rc=$rc, max self-cluster: ${max_cluster:-0}px)"
   echo "$line"
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "- $line" >> "$GITHUB_STEP_SUMMARY"; fi
   exit "$rc"
