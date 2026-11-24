@@ -66,7 +66,6 @@ from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 FROZEN_DAY: Final = dt.date.fromisoformat(HANDOFF_FIXTURE_DATE)
 OWNER_ID: Final = 1
 WARSAW_OFFSET: Final = dt.timedelta(hours=1)  # CET from 2026-10-25, so local = UTC + 1 h
-INVITE_TOKEN: Final = "handoff-invite-accountant"  # noqa: S105  # pragma: allowlist secret  # fixed link token of the scratch DB
 OWNER_USER_AGENT: Final = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0"
 )
@@ -170,6 +169,7 @@ class SeedData:
     income_anchor: str
     invite_email: str | None
     invite_age_days: int
+    invite_link: str  # fixed path segment of the invite URL in the scratch DB
 
 
 # value-inventory 2.2 (balances in PLN as the handoff prints them; the two EUR-named
@@ -391,6 +391,7 @@ BASE: Final = SeedData(
     income_anchor="Salary",
     invite_email="accountant@example.test",
     invite_age_days=0,
+    invite_link="handoff-invite-accountant",
 )
 
 LONG_DESCRIPTION: Final = (
@@ -653,10 +654,10 @@ def _write_users(conn: sqlite3.Connection, data: SeedData) -> str | None:
         OWNER_ID,
         email=data.invite_email,
         is_admin=False,
-        tokens=_FixedToken(INVITE_TOKEN),
+        tokens=_FixedToken(data.invite_link),
         now=created,
     )
-    return INVITE_TOKEN
+    return data.invite_link
 
 
 @dataclass(frozen=True, slots=True)
