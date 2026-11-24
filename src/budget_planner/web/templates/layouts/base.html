@@ -29,7 +29,7 @@
     <script src="{{ url_for('static', path='rd/js/htmx-csrf.js') }}" defer></script>
     {% block head_extra %}{% endblock %}
   </head>
-  <body class="rd-app" hx-ext="csrf">
+  <body class="rd-app" hx-ext="csrf" data-today-local="{{ today_local() }}">
     <a class="rd-skip" href="#main">skip to content</a>
     <div class="rd-frame">
       <header class="rd-topbar">
@@ -78,7 +78,14 @@
           </form>
         </div>
       </header>
-      <div id="flash-region" class="rd-flash-region"></div>
+      <div id="flash-region"
+           class="rd-flash-region"
+           role="status"
+           aria-live="polite"></div>
+      <div id="flash-region-assertive"
+           class="rd-flash-region"
+           role="alert"
+           aria-live="assertive"></div>
       <main id="main" class="rd-main" tabindex="-1">
         {% block main %}{% endblock %}
       </main>

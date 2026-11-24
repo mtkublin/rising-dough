@@ -38,4 +38,13 @@
               hx-target="#modal-root">open dev dialog</button>
     </div>
   </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="toast-title">
+    <h2 class="rd-card__title" id="toast-title">Toast</h2>
+    <div class="rd-card__body">
+      <button type="button"
+              class="rd-btn"
+              hx-post="/dev/shell/toast"
+              hx-swap="none">show dev toast</button>
+    </div>
+  </section>
 {% endblock %}

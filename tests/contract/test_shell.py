@@ -380,3 +380,31 @@ def test_authenticated_pages_are_no_store_and_set_the_csrf_cookie(client: TestCl
         r = client.get(path, headers=headers)
         assert r.headers["cache-control"] == "no-store", path
     assert client.cookies.get("__Host-csrf")
+
+
+# ---------------------------------------------------------------------------
+# POST /dev/shell/toast (T-UR02: dev trigger for the toast renderer, ADR-0143)
+# ---------------------------------------------------------------------------
+
+
+@covers("POST /dev/shell/toast")
+def test_dev_toast_answers_with_an_hx_trigger_toast(client: TestClient) -> None:
+    r = client.post("/dev/shell/toast", headers=HX)
+    assert r.status_code == 204
+    assert json.loads(r.headers["hx-trigger"]) == {
+        "toast": {
+            "variant": "success",
+            "message": "Dev toast saved",
+            "undo_url": "/dev/shell/toast/undo",
+        }
+    }
+
+
+@covers("POST /dev/shell/toast")
+def test_dev_toast_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/toast", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]

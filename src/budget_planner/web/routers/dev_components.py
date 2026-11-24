@@ -8,11 +8,12 @@ list so the Playwright canary has a stable target.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
 from budget_planner.web.deps import get_settings_dep
 from budget_planner.web.dialogs import dialog_response, saved_response
+from budget_planner.web.htmx import toast_payload, trigger
 from budget_planner.web.rendering import render
 
 router = APIRouter(tags=["dev"])
@@ -60,3 +61,18 @@ def dev_shell_dialog_save(
     if getattr(settings, "env", "dev") == "production":
         raise HTTPException(status_code=404)
     return saved_response(request, None, {}, message=f"Saved note: {note}")
+
+
+@router.post("/dev/shell/toast", include_in_schema=False)
+def dev_shell_toast(
+    settings: Settings = Depends(get_settings_dep),
+) -> Response:
+    """Dev-only: answer with an HX-Trigger toast carrying an undo link (T-UR02, ADR-0143)."""
+    if getattr(settings, "env", "dev") == "production":
+        raise HTTPException(status_code=404)
+    response = Response(status_code=204)
+    trigger(
+        response,
+        toast=toast_payload("success", "Dev toast saved", undo_url="/dev/shell/toast/undo"),
+    )
+    return response
