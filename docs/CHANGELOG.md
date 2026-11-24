@@ -1,5 +1,13 @@
 # Changelog
 
+2026-11-24 T-UR03: category colour presets/edge contrast, bar spans, aria label, year-cell state helpers and filters (ADR-0107).
+
+2026-11-24 T-UR00b: handoff data overlay, apply module and guard (ADR-0147).
+
+2026-11-24 T-UR00b: handoff seed for the visual reference suite (ADR-0147).
+
+2026-11-24 T-UR02: new base layout, shell fragments, `/dev/shell` placeholder (ADR-0107).
+
 2026-11-24 T-UR00: old-frontend removal ledger and `test_old_frontend_removed.py` guard (ADR-0107).
 
 2026-11-24 T-UR36: category usage counts across transactions, planned and recurring; picker without Reconciliation (ADR-0151).
