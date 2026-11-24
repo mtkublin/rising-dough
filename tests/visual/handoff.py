@@ -130,8 +130,8 @@ def shoot(browser: Browser, base: str, page: str, *, viewport: str, theme: str, 
         context.close()
 
 
-def generate(only_surface: str | None = None, *, committed_only: bool = False) -> int:
-    """``committed_only``: skip overlays and 1024 (the subset kept in git)."""
+def generate(only_surface: str | None = None) -> int:
+    """Render every page x viewport x theme (optionally one surface) into ``REFERENCE_DIR``."""
     count = 0
     with serve_handoff() as base, sync_playwright() as p:
         browser = p.chromium.launch(args=CHROMIUM_ARGS)
@@ -139,11 +139,7 @@ def generate(only_surface: str | None = None, *, committed_only: bool = False) -
             for page in pages():
                 if only_surface and surface_of(page) != only_surface:
                     continue
-                if committed_only and surface_of(page) == "overlays":
-                    continue
                 for viewport in VIEWPORTS:
-                    if committed_only and viewport == "1024":
-                        continue
                     for theme in THEMES:
                         shoot(
                             browser,
@@ -213,12 +209,10 @@ def diff_ratio(expected: Path, actual: Path) -> float:
 
 
 def main(argv: list[str]) -> None:
-    committed_only = "--committed" in argv
-    argv = [a for a in argv if a != "--committed"]
     surface = argv[0] if argv else None
     if surface and surface not in surfaces():
         raise SystemExit(f"unknown surface {surface!r}; choose from {surfaces()}")
-    written = generate(surface, committed_only=committed_only)
+    written = generate(surface)
     print(f"[visual-reference] wrote {written} references into {REFERENCE_DIR}")
 
 
