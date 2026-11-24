@@ -137,3 +137,4 @@ Drills always build a fresh host, so the drill gate cannot catch a compose or ho
 - The ruleset `workflows` rule (required workflows) is an accepted gap: the repository is owned by a personal account and the rule is offered for organization repositories only.
 - Code-owner review enforcement (`require_code_owner_review`) waits for OQ-24 (a second reviewer or bot). With the sole owner it would block every PR touching `.github/`, `scripts/ci/` or `terraform/`. CODEOWNERS keeps auto-requesting review.
 - The operator applies the ruleset change. The evidence is a refreshed `repro/H1/gh_api/ruleset_protect_main.json`, committed after the change.
+- Applied 2026-11-24 13:07 (+01:00): all 7 required contexts carry `integration_id` 15368; `drill-gate` on the gate and skip paths is created by `github-actions[bot]` (PR #52, PR #53), so the pin blocks nothing. Evidence refreshed (OPS-1).

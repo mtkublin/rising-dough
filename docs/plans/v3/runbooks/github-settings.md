@@ -107,7 +107,7 @@ Three OAuth clients. `budget-planner-automation` is used by every environment; `
 
 - [ ] **DNS > MagicDNS**: enabled.
 - [ ] **DNS > HTTPS Certificates**: enabled (Caddy on the drill gets its `*.ts.net` certificate from tailscaled; without this the TLS handshake fails).
-- [ ] ACL (`tailscale-acl.hujson`): grant `tag:ci -> tag:drill:443` (the smoke test and `restore-drill.yml` probe `/ready`) in addition to the existing SSH rules. Operators' own devices need `443` to `tag:drill` to browse the drill UI.
+- [ ] ACL (`tailscale-acl.hujson`): grant `tag:ci -> tag:drill:443` (the smoke test and `restore-drill.yml` probe `/ready`) in addition to the existing SSH rules. Operators' own devices need `443` to `tag:drill` to browse the drill UI. `tag:ci` has no rule to `tag:prod` (OQ-32, removed 2026-11-24).
 - [ ] Copy the tailnet DNS name (e.g. `tail1234.ts.net`) into the `TAILNET_DNS_NAME` variable of `drill`, `drill-teardown` and `drill-plan`.
 
 ## 5. Actions settings (Settings > Actions > General)
