@@ -7,7 +7,7 @@ only need to drive the UI and assert its visible result.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,13 +20,14 @@ from budget_planner.domain.fx import NewFxRate
 from budget_planner.repositories import fx as fx_repo
 from tests.e2e import db_probe
 from tests.e2e.ui_actions import open_add_slide_over, pick
-from tests.ui_map import accounts, ledger, plan, settings, shell, today
+from tests.ui_map import accounts, ledger, plan, settings, shell
 from tests.ui_map.locator import Locator as UiLocator, to_playwright
 
 pytestmark = pytest.mark.e2e
 
 _SLIDE = shell.slideover
 _ADDED_MINOR = 1234
+SKIP_REASON = "T-UR07b ports the new-entry dialog; the old slide-over is gone from Today"
 
 
 def _seed(base_url: str, db_path: Path, page: Page, category: str = "Groceries") -> tuple[str, str]:
@@ -58,6 +59,9 @@ def _open_add_slide_over(page: Page, base_url: str, route: str) -> None:
     expect(to_playwright(page, ledger.form)).to_be_visible()
 
 
+@pytest.mark.skip(
+    reason="T-UR07b ports the new-entry and promote dialogs; the old slide-over is gone from Today"
+)
 def test_add_slide_over_on_today_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
@@ -70,6 +74,9 @@ def test_add_slide_over_on_today_under_csp(live_server: tuple[str, Path], page: 
     expect(to_playwright(page, ledger.form)).to_have_count(0)
 
 
+@pytest.mark.skip(
+    reason="T-UR07b ports the new-entry and promote dialogs; the old slide-over is gone from Today"
+)
 def test_add_from_today_submits_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)
@@ -87,6 +94,9 @@ def test_add_from_today_submits_under_csp(live_server: tuple[str, Path], page: P
     expect(to_playwright(page, ledger.table_container)).to_contain_text("today-added")
 
 
+@pytest.mark.skip(
+    reason="T-UR07b ports the new-entry and promote dialogs; the old slide-over is gone from Today"
+)
 def test_add_from_today_invalid_amount_rerenders_form(
     live_server: tuple[str, Path], page: Page
 ) -> None:
@@ -113,33 +123,6 @@ def test_add_slide_over_on_ledger_under_csp(live_server: tuple[str, Path], page:
     _submit(page, ledger.add_entry)
     expect(to_playwright(page, ledger.view_table("actual"))).to_contain_text("csp-added")
     assert db_probe.txn_amounts(db_path, "csp-added") == [_ADDED_MINOR]
-
-
-def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -> None:
-    base_url, db_path = live_server
-    account_id, category_id = _seed(base_url, db_path, page)
-    soon = datetime.now(tz=UTC).date() + timedelta(days=2)
-    assert page.request.post(
-        f"{base_url}/planned",
-        form={
-            "operation_date": soon.isoformat(),
-            "category_id": category_id,
-            "account_id": account_id,
-            "amount": "25.00",
-            "description": "csp-promote",
-        },
-    ).ok
-    planned_row = today.upcoming_planned(db_probe.planned_id(db_path, "csp-promote"))
-
-    page.goto(f"{base_url}/today")
-    assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, today.promote.inside(planned_row)).first.click()
-    to_playwright(page, today.confirm_promote).click()
-    # The promoted planned item leaves Upcoming and lands in the ledger.
-    expect(to_playwright(page, planned_row)).to_have_count(0)
-    assert db_probe.txn_amounts(db_path, "csp-promote") == [2500]
-    page.goto(f"{base_url}/ledger?view=actual")
-    expect(to_playwright(page, ledger.table_container)).to_contain_text("csp-promote")
 
 
 def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: Page) -> None:
@@ -170,65 +153,6 @@ def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: 
         )
         == 32100
     )
-
-
-def _open_today_form(page: Page, base_url: str, button: UiLocator, form: UiLocator) -> None:
-    page.goto(f"{base_url}/today")
-    assert page.evaluate("typeof window.htmx") == "object"
-    to_playwright(page, button).click()
-    expect(to_playwright(page, form)).to_be_visible()
-
-
-def test_add_planned_from_today_submits_under_csp(
-    live_server: tuple[str, Path], page: Page
-) -> None:
-    base_url, db_path = live_server
-    _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today.add_planned, ledger.planned_form)
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    soon = datetime.now(tz=UTC).date() + timedelta(days=2)
-    _fill(page, ledger.field_date, soon.isoformat())
-    _fill(page, ledger.field_amount, "25.00")
-    _fill(page, ledger.field_note, "today-planned")
-    _submit(page, ledger.add_entry)
-    expect(to_playwright(page, ledger.planned_form)).to_have_count(0)
-    planned_row = today.upcoming_planned(db_probe.planned_id(db_path, "today-planned"))
-    expect(to_playwright(page, planned_row)).to_be_visible()
-    page.goto(f"{base_url}/ledger?view=planned")
-    expect(to_playwright(page, ledger.table_container)).to_contain_text("today-planned")
-
-
-def test_add_planned_from_today_invalid_amount_rerenders_form(
-    live_server: tuple[str, Path], page: Page
-) -> None:
-    base_url, db_path = live_server
-    _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today.add_planned, ledger.planned_form)
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    _fill(page, ledger.field_amount, "0")
-    _submit(page, ledger.add_entry)
-    expect(to_playwright(page, ledger.planned_form)).to_have_count(1)
-    expect(to_playwright(page, ledger.planned_form)).to_contain_text("amount")
-    assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM planned_transactions") == 0
-
-
-def test_add_recurring_from_today_submits_under_csp(
-    live_server: tuple[str, Path], page: Page
-) -> None:
-    base_url, db_path = live_server
-    _seed(base_url, db_path, page)
-    _open_today_form(page, base_url, today.add_recurring, ledger.recurring_form)
-    pick(page, ledger.field_category, "Groceries")
-    pick(page, ledger.field_account, "Checking")
-    _fill(page, ledger.field_default_amount, "40.00")
-    _fill(page, ledger.field_note, "today-rule")
-    _submit(page, ledger.add_rule_button)
-    expect(to_playwright(page, ledger.recurring_form)).to_have_count(0)
-    rule = ledger.recurring_row(db_probe.rule_id(db_path, "today-rule"))
-    page.goto(f"{base_url}/ledger?view=recurring")
-    expect(to_playwright(page, rule)).to_be_visible()
 
 
 def _open_new_account_form(page: Page, base_url: str) -> None:

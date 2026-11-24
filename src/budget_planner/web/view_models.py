@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from types import MappingProxyType
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
@@ -26,7 +26,9 @@ from budget_planner.services import (
     today as today_service,
 )
 from budget_planner.services.categories import CategoryUsage
-from budget_planner.web.today_data import UpcomingRow
+
+if TYPE_CHECKING:
+    from budget_planner.web.today_data import UpcomingRow
 
 MONTH_SHORT: Final[tuple[str, ...]] = (
     "Jan",
@@ -58,7 +60,7 @@ MONTH_LONG: Final[tuple[str, ...]] = (
 )
 
 _MAX_PCT: Final = 100
-_UPCOMING_CAP: Final = 6
+UPCOMING_CAP: Final = 6
 ROW_BAR_CELLS: Final = 10
 """Block cells in a table-row bar (handoff README: 10 in rows and on phone)."""
 HERO_BAR_CELLS: Final = 20
@@ -119,9 +121,9 @@ class BarSpans:
     label: str
 
 
-_BAR_FILLED: Final = "\u2588"
-_BAR_LEFT: Final = "\u2591"
-_BAR_REST: Final = "\u2592"
+BAR_FILLED: Final = "\u2588"
+BAR_LEFT: Final = "\u2591"
+BAR_REST: Final = "\u2592"
 
 
 _DIRECTION_LABELS: Final[Mapping[Direction, str]] = MappingProxyType(
@@ -161,7 +163,7 @@ def bar_spans(
     -> ``rd-bar--none`` (all remainder, label ``no budget``).
     """
     remainder_class = "rd-bar__rest" if share else "rd-bar__left"
-    remainder_char = _BAR_REST if share else _BAR_LEFT
+    remainder_char = BAR_REST if share else BAR_LEFT
     if not has_budget:
         return BarSpans(
             modifier="rd-bar--none",
@@ -175,7 +177,7 @@ def bar_spans(
     used = used_pct if is_over else _MAX_PCT - parts.left_pct
     return BarSpans(
         modifier="rd-bar--over" if is_over else "",
-        filled=_BAR_FILLED * parts.filled,
+        filled=BAR_FILLED * parts.filled,
         remainder=remainder_char * parts.empty,
         remainder_class=remainder_class,
         left_pct=parts.left_pct,
@@ -359,7 +361,7 @@ class UpcomingView:
     later_count: int
 
 
-def _upcoming_item(
+def upcoming_item(
     row: UpcomingRow,
     today: date,
     categories_by_id: Mapping[int, Category],
@@ -394,8 +396,8 @@ def upcoming_view(
     """Group, cap and annotate Today's upcoming rows."""
     next_7: list[UpcomingItem] = []
     later: list[UpcomingItem] = []
-    for row in upcoming[:_UPCOMING_CAP]:
-        item = _upcoming_item(row, today, categories_by_id, accounts_by_id)
+    for row in upcoming[:UPCOMING_CAP]:
+        item = upcoming_item(row, today, categories_by_id, accounts_by_id)
         near = (row.operation_date - today).days <= _NEXT_WEEK_DAYS
         (next_7 if near else later).append(item)
     shown = (*next_7, *later)
@@ -403,8 +405,8 @@ def upcoming_view(
         next_7=tuple(next_7),
         later=tuple(later),
         total_count=len(upcoming),
-        cap=_UPCOMING_CAP,
-        has_more=len(upcoming) > _UPCOMING_CAP,
+        cap=UPCOMING_CAP,
+        has_more=len(upcoming) > UPCOMING_CAP,
         overdue_count=sum(1 for item in shown if item.is_overdue),
         due_today_count=sum(1 for item in shown if item.is_due_today),
         next_7_count=len(next_7),

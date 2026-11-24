@@ -1,0 +1,110 @@
+{# pages/today/index.html: Today on the new shell (T-UR07, handoff pages/today*.html).
+   Context: nav_current, view (TodayView), afford (AffordPanel), upcoming (TodayUpcoming), window_label.
+   States: empty (no upcoming rows), loading (htmx-request on the upcoming section), afford-over and
+   afford-invalid (GET /today?amount=...), flash (fragments/flash/* via #flash-region). #}
+{% extends "layouts/base.html" %}
+{% block title %}Today · Rising Dough{% endblock %}
+{% block main %}
+  {% include "fragments/today/hero.html" %}
+  <section class="rd-panel rd-today" aria-label="Period and net worth">
+    <div class="rd-today__period">
+      <p class="rd-caption">{{ view.caption }}</p>
+      <p>
+        <span class="rd-bar rd-bar--lg{% if view.bar.modifier %} {{ view.bar.modifier }}{% endif %}"
+              role="img"
+              aria-label="{{ view.bar.label }}">{{ view.bar.solid }}<span class="{{ view.bar.remainder_class }}">{{ view.bar.remainder }}</span></span>
+      </p>
+      <dl class="rd-stats">
+        {% for stat in view.stats %}
+          <div>
+            <dt class="rd-stats__label">{{ stat.label }}</dt>
+            <dd class="rd-stats__value">
+              {{ stat.value }}
+            </dd>
+          </div>
+        {% endfor %}
+      </dl>
+      <form class="rd-afford"
+            method="get"
+            action="/today"
+            hx-get="/today/afford"
+            hx-trigger="input delay:250ms, submit"
+            hx-target="#afford-result"
+            hx-swap="outerHTML"
+            hx-indicator="#afford-result">
+        <label class="rd-afford__label" for="afford">can i afford it?</label>
+        <span class="rd-input rd-input--afford"><input class="rd-input__control rd-input__control--end"
+       id="afford"
+       name="amount"
+       inputmode="decimal"
+       autocomplete="off"
+       value="{{ afford.input_text }}"
+       data-js="amount-input"
+       {% if afford.invalid %}aria-invalid="true" aria-describedby="afford-error"{% endif %}><span class="rd-input__suffix">{{ base_ccy }}</span></span>
+        {% include "fragments/today/afford-result.html" %}
+        {% if afford.invalid %}<p class="rd-field__error" id="afford-error">▲ {{ afford.message }}</p>{% endif %}
+      </form>
+    </div>
+    <div class="rd-today__networth">
+      <p class="rd-caption">NET WORTH · ALL ACCOUNTS</p>
+      <p class="rd-figure-row">
+        <span class="rd-figure">{{ view.net_total }}</span><span class="rd-caption">{{ base_ccy }}</span>
+      </p>
+      <p class="rd-today__nw-note">assets {{ view.net_assets }} · liabilities {{ view.net_liabilities }}</p>
+      <p class="rd-today__links">
+        <a class="rd-link"
+           href="/accounts">{{ view.accounts_link }}</a><a class="rd-link"
+   href="/plan?tab=forecast">forecast →</a>
+      </p>
+    </div>
+  </section>
+  <section class="rd-panel-section rd-upcoming"
+           id="upcoming"
+           aria-labelledby="upcoming-title">
+    <div class="rd-section-head">
+      <div class="rd-section-head__start">
+        <h2 class="rd-section-title" id="upcoming-title">Upcoming</h2>
+        <div class="rd-segmented" role="group" aria-label="Upcoming range">
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="{{ 'true' if window_label == '7' else 'false' }}"
+                  hx-get="/today/upcoming?window=7"
+                  hx-target="#upcoming-list"
+                  hx-swap="outerHTML"
+                  hx-indicator="#upcoming">7 days</button>
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="{{ 'true' if window_label == '30' else 'false' }}"
+                  hx-get="/today/upcoming?window=30"
+                  hx-target="#upcoming-list"
+                  hx-swap="outerHTML"
+                  hx-indicator="#upcoming">30 days</button>
+          <button type="button"
+                  class="rd-segmented__option"
+                  aria-pressed="{{ 'true' if window_label == 'all' else 'false' }}"
+                  hx-get="/today/upcoming?window=all"
+                  hx-target="#upcoming-list"
+                  hx-swap="outerHTML"
+                  hx-indicator="#upcoming">all</button>
+        </div>
+      </div>
+      {% if upcoming.has_due %}
+        <form method="post"
+              action="/planned/batch/promote-due"
+              class="rd-upcoming__promote-all"
+              hx-post="/planned/batch/promote-due"
+              hx-swap="none"
+              hx-confirm="Promote every due planned and recurring entry?">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button type="submit"
+                  class="rd-btn"
+                  name="promote_all"
+                  value="due"
+                  hx-disabled-elt="this">promote all due</button>
+        </form>
+      {% endif %}
+    </div>
+    {# upcoming-root: target of the inline promote fragments, which stay routed until T-UR24 #}
+    <div id="upcoming-root">{% include "fragments/today/upcoming-list.html" %}</div>
+  </section>
+{% endblock %}

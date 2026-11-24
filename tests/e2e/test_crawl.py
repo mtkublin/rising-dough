@@ -110,7 +110,14 @@ NOT_PAGES: dict[str, str] = {
 # route -> (task id, substring identifying the problem, reason). The page test
 # ignores matching problems; ``test_known_bug`` re-crawls and xfails strictly,
 # so the day the bug is fixed the xfail turns into a failure and the entry must go.
-KNOWN_BUGS: dict[str, tuple[str, str, str]] = {}
+KNOWN_BUGS: dict[str, tuple[str, str, str]] = {
+    "/today": (
+        "T-UR07b",
+        "button 'Close'",
+        "promote and override open the old dialog markup, whose close script the new shell "
+        "does not load; T-UR07b / T-UR10 port the dialogs",
+    ),
+}
 
 # Shell controls (header / nav / aside / footer) are identical on every page;
 # activate each once per run and only list them per page. Serial-run state.
@@ -266,7 +273,6 @@ def test_known_bug(
         route=_resolve(route_template, ids),
         on_destructive=lambda: restore_db(snapshot, db_path),
         shell_done=set(),
-        activate_controls=False,
     )
     needle = KNOWN_BUGS[route_template][1]
     assert not [p for p in problems if needle in p]

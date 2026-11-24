@@ -39,7 +39,11 @@
 
 | Where | Deviation | Reason | Task |
 |---|---|---|---|
-| _…_ | | | |
+| Today, afford-invalid | The HTMX 422 body is the bare message (`Enter an amount, like 250.00`, pinned by `tests/integration/web/test_today.py`); it is retargeted into the result `<output>` (`HX-Retarget`), so the live state shows the text without the separate `.rd-field__error` line and `aria-invalid`. The full handoff state is the server render of `GET /today?amount=<invalid>` | contract and integration tests pin the 422 body; HTMX cannot add markup around a bare body | T-UR07 |
+| Today, afford-over / afford-invalid page states | Reproducible as `GET /today?amount=1800.00` and `GET /today?amount=0` (new optional `amount` query on `/today`, also the no-script fallback of the afford form) | the visual harness needs a URL per state | T-UR07 |
+| Today, loading | No skeleton in the app: during a range change or refresh the panel shows the `.htmx-request` progress line (`hx-indicator="#upcoming"`) | HTMX swaps whole responses; the skeleton fragment is kept for pages that render a placeholder first | T-UR07 |
+| Today, upcoming row menu | `skip` on a planned row soft-deletes it (`POST /planned/{id}/delete`, restorable in Recently deleted); on a recurring row it is `skip-next`. `promote` and `override` open the existing (old-markup) dialogs in `#modal-root` until T-UR07b and T-UR10 port them | no planned-skip route exists; dialogs are other tasks | T-UR07 |
+| Today, hero bar | `aria-label` is `N percent spent, M percent left` with `M` = remaining over budgeted (committed excluded), so the two need not add to 100 | handoff data row 6 (value-inventory 5) | T-UR07 |
 
 ## Tolerance exceptions
 
