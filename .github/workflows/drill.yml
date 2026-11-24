@@ -563,7 +563,7 @@ jobs:
         id: started
         run: |
           set -euo pipefail
-          for i in $(seq 1 120); do
+          for _ in $(seq 1 120); do
             stats="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" 'sudo sh -s -- stats' < scripts/ci/rehearsal_marker.sh || true)"
             max="${stats%%|*}"
             if [[ "${max}" =~ ^[0-9]+$ ]] && [ "${max}" -gt 25 ]; then

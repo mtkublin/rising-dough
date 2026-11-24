@@ -1461,3 +1461,4 @@
 - 2026-11-23 T-UR35d: T-UR35 marked done; v3.2.0 live, prod smoke passed (ADR-0148).
 - 2026-11-23 T-Q318: WebKit change-secret journey fixed in the e2e harness: the page fixture's blanket X-CSRF-Token header now follows session rotation from the cookie jar (WebKit hides redirect-response headers). App and prod unchanged (ADR-0065).
 - 2026-11-23 T-Q306(f): docs only: `drill.yml` header rewritten for the upgrade drill (phases, TTL, environments without reviewers, explicit `detect` secrets), deploy runbook section "What the drill gate proves", ADR-0149 amendment (ADR-0149).
+- 2026-11-24 OPS-3: `drill.yml` writer-started loop uses `for _ in` (clears actionlint SC2034); the `drill_allow_empty_db: "true"` actionlint report is an actionlint false positive on a quoted string literal and is left as is (ADR-0149).
