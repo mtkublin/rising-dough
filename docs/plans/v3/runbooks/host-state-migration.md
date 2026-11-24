@@ -13,7 +13,7 @@ This is a logged break-glass host change (ADR-0099 exception list): explicit use
 - The T-D129 change is on `main`, and its PR had a green `drill-gate`. The drill boots a fresh VM through the new path: agent converges, cosign verifies, `/ready` and the status file report the generation.
 - The PR's `plan (prod)` shows `scaleway_instance_server.app` **updated in-place** (`user_data`), with no replacement. Before the first new-style apply the plan uses a placeholder image ref (`sha-0000000@sha256:000…`); that is expected for a plan that is never applied.
 - Optional, recommended: an explore drill (`gh workflow run drill.yml -f mode=explore -f keep=true`) followed by `gh workflow run rollback.yml --ref main -f env=drill -f target=<older sha-tag>`. This checks the two things a fresh boot cannot: a metadata update is served to the running VM without a reboot, and the agent converges to it.
-- Prod is healthy: `curl -fsS https://budget-planner-prod/ready | jq .`.
+- Prod is healthy: `curl -fsS https://budget.rising-dough.eu/ready | jq .`.
 
 ## Procedure
 
@@ -30,7 +30,7 @@ This is a logged break-glass host change (ADR-0099 exception list): explicit use
    - State holds no previous ref yet, so this first release has **no automatic rollback**. If it fails, roll back explicitly to the image prod ran before: `gh workflow run rollback.yml --ref main -f env=prod -f target=<previous release or sha-tag>` (the break-glass release on 2026-11-16 was `sha-89ac3c2`).
 4. Verify:
    ```sh
-   curl -fsS https://budget-planner-prod/.well-known/bp-deploy-status.json | jq .
+   curl -fsS https://budget.rising-dough.eu/.well-known/bp-deploy-status.json | jq .
    ssh operator@budget-planner-prod 'id deploy 2>&1; ls -l /usr/local/bin/deploy-budget-planner 2>&1; sudo ls -l /etc/budget-planner/'
    ```
    Expect state `ok` with the release ref, `no such user`, no deploy script, and the compose file at `root:root 0600`.

@@ -39,6 +39,7 @@ from budget_planner.db.connection import get_connection
 from tests.auth_support import FAST_ROUNDS
 from tests.db_template import build_template, copy_template, db_path_of, sqlite_url
 from tests.e2e.mockup_target import pytest_addoption as _mockup_addoption
+from tests.worker_cap import auto_workers
 
 # T-CS08: every web test builds a fresh app, and FastAPI re-analyses every
 # endpoint signature on that app's first request (~35% of ~87 ms CPU per app).
@@ -122,6 +123,12 @@ def suite_now() -> datetime:
     if instant.tzinfo is None:
         instant = instant.replace(tzinfo=UTC)
     return instant.astimezone(UTC)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_xdist_auto_num_workers(config: pytest.Config) -> int | None:
+    """``-n auto`` in a linked git worktree runs 2 workers (ADR-0150 §6); else xdist decides."""
+    return auto_workers(config.rootpath)
 
 
 def pytest_configure(config: pytest.Config) -> None:

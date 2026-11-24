@@ -1842,6 +1842,67 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Done when: the Acceptance above holds.
 - Operator decision 2026-11-24: deferred to this task (OQ-33, recorded in the OQ table of `findings.md`).
 
+### ✅ T-Q324 [S] Orchestrator v2 decision record (docs only)
+- Findings: 2026-11-24 operator review of the orchestrator-mode skill (CPU from per-commit suites, orchestrator context spent on diff review, Sonnet-heavy model mix, bookkeeping hotspots, no run measurements).
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs, ops
+- Depends on: T-Q303, T-Q304
+- Docs-first step: this entry; [ADR-0150](../../adr/0150-orchestrator-role-agents-executable-dod-and-wave-testing.md); ADR-0066 amendment 2026-11-24; ADR-0120 amendment 2026-11-24; `docs/requirements.md` §3 test-tooling lines.
+- Goal: record the decision before T-Q325 to T-Q329 change the skill, agents, scripts and conftest.
+- Acceptance: ADR-0150 and its index row exist; ADR-0066 and ADR-0120 carry dated amendments naming it; requirements name the wave test and `check_item.py`; `docs/CHANGELOG.md` has a line.
+- Operator question blocking it: none (operator accepted the review 2026-11-24).
+- Removes allowlist entries: none.
+
+### ✅ T-Q325 [S] Role agent definitions in `.claude/agents/`
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops
+- Depends on: T-Q324
+- Docs-first step: ADR-0150 §2, §3, §4.
+- Goal: `explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor` definitions with pinned model, restricted tools, the role's standing rules (from `brief-common.md` and CLAUDE.md) and the shared report block.
+- Acceptance: six files with valid frontmatter (`name`, `description`, `tools`, `model`); read-only roles carry no `Edit`/`Write`; every file ends with the ADR-0150 §4 report block; each links CLAUDE.md as the rule source.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q326 [S] `scripts/ci/check_item.py`: executable Definition of Done
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops, tests
+- Depends on: T-Q324
+- Docs-first step: ADR-0150 §4.
+- Goal: a script that checks an item branch against its work branch: branch ahead, owned files, scribe hotspots, commit subjects, allowlist totals, added suppressions, audit record on template/CSS change, new top-level definitions (canonical-concept names flagged). Exit 1 on any FAIL; WARN lines for the reviewer. `just check-item <ID> [owned globs]` recipe.
+- Acceptance: unit tests on the pure checks with exact outputs (`tests/unit/deploy/test_check_item.py`); the recipe runs on this branch's own item.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q327 [S] Wave testing: worker cap in code, hook skip for orchestrated items
+- Epic: E04
+- Band: 3 · Size: S · Tags: ops, tests
+- Depends on: T-Q324
+- Docs-first step: ADR-0150 §5, §6; ADR-0120 amendment 2026-11-24.
+- Goal: `pytest_xdist_auto_num_workers` in `tests/conftest.py` returns 2 inside a linked git worktree; item briefs commit with `SKIP=pytest-fast`; the `tester` role runs `just test-changed <wave-base>` then `just test-e2e` under the heavy lock.
+- Acceptance: unit test of the worktree detection with exact worker counts (linked worktree 2, normal checkout `None` so xdist keeps its default); CLAUDE.md "Developer commands" and the skill describe the wave test.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q328 [M] Orchestrator-mode skill rewritten as a flow
+- Epic: E04
+- Band: 3 · Size: M · Tags: docs, ops
+- Depends on: T-Q325, T-Q326, T-Q327
+- Docs-first step: ADR-0150 §1, §4, §8.
+- Goal: `SKILL.md` is the flow (branch, plan and DoR, dispatch by role, review, merge, wave test, scribe, finish) with the machine-load and supervision rules; role rules move to the agent files; `brief-common.md` becomes the item-brief template (DoR fields, numbered steps, command checks); the human contract is one list.
+- Acceptance: skill under about 200 lines; no rule lost (each old rule is in the skill, an agent file, a script or CLAUDE.md); CLAUDE.md "Multi-agent work" names the role agents.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
+### ✅ T-Q329 [S] Run log template
+- Epic: E04
+- Band: 3 · Size: S · Tags: docs, ops
+- Depends on: T-Q324
+- Docs-first step: ADR-0150 §7.
+- Goal: `docs/runs/README.md` with the run-log format (one row per agent run: item, role, model, wall time, attempts, verdict, escalations; wave test results; peak load); the scribe writes `docs/runs/<date>-<slug>.md` at the end of each run.
+- Acceptance: the template exists and the skill's finish step and the scribe role point to it.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
 - ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
 - ✅ (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL. Done 2026-11-24: live ACL matched the repo file; `tag:prod:22` removed from the `tag:ci` rule, `tag:drill:22/443` kept (ADR-0132 amendment).
