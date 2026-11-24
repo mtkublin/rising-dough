@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-24 OPS-6: `drill.yml` `verify` and `verify-rollback` network checks use `ssh -n` inside the `while read` loop (SC2095); previously ssh swallowed the loop input, so only the first compose network was compared (ADR-0149).
+
 2026-11-24 OPS-1: T-Q239 ruleset pin applied (`integration_id` 15368 on 7 required checks, evidence refreshed); OQ-32 answered, `tag:ci -> tag:prod:22` removed from the live ACL and `tailscale-acl.hujson` (ADR-0099, ADR-0132).
 
 2026-11-23 T-Q306 done (upgrade drill gate, 4 acceptance drills); T-Q302, T-Q299 done; follow-ups listed in quality-audit tasks.

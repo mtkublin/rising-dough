@@ -375,6 +375,7 @@ def test_verify_paths_assert_host_networks_match_the_template(job: str, phase: s
         "scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl" in run
     )
     assert "docker network inspect" in run
+    assert "ssh -n " in run  # SC2095: ssh must not swallow the while-read loop input
     assert f"::error::{phase}: network" in run
     ssh_idx = next(i for i, s in enumerate(steps) if s.get("uses") == "./.github/actions/drill-ssh")
     assert steps.index(step) > ssh_idx

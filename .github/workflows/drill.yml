@@ -747,7 +747,7 @@ jobs:
           expected="$(python3 scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl)"
           test -n "${expected}"
           while read -r name subnet gateway; do
-            actual="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            actual="$(ssh -n -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
               "sudo docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}}{{end}}' ${name}")"
             echo "${name}: expected ${subnet} ${gateway}, host has ${actual}"
             if [ "${actual}" != "${subnet} ${gateway}" ]; then
@@ -875,7 +875,7 @@ jobs:
           expected="$(python3 scripts/ci/compose_networks.py terraform/cloud-init/compose/docker-compose.yml.tpl)"
           test -n "${expected}"
           while read -r name subnet gateway; do
-            actual="$(ssh -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
+            actual="$(ssh -n -o BatchMode=yes operator@"${DRILL_SSH_HOST}" \
               "sudo docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{.Gateway}}{{end}}' ${name}")"
             echo "${name}: expected ${subnet} ${gateway}, host has ${actual}"
             if [ "${actual}" != "${subnet} ${gateway}" ]; then
