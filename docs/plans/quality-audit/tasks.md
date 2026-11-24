@@ -843,6 +843,7 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
 - Operator decision 2026-11-23: integration_id only; workflows rule accepted gap (personal-account repo); code-owner enforcement waits OQ-24 (ADR-0099 amendment 2026-11-23). Remaining: operator applies the prepared ruleset JSON and the evidence file is refreshed.
+- Applied 2026-11-24 (OPS-1): ruleset `protect-main` (27387188) has `integration_id` 15368 on all 7 required contexts; `drill-gate` on the gate and skip paths is created by `github-actions[bot]` (checked on PR #52 and #53), so nothing is blocked; evidence refreshed. `workflows` rule stays an accepted gap; code-owner review waits for OQ-24.
 
 ### ✅ T-Q240 [P] Dev-dependency provenance and CI/pre-commit parity
 - Findings: Q-043 (G-07), Q-044 (G-05, G-06).
@@ -989,9 +990,9 @@ Source: [findings.md](findings.md) (80 Q-ids, 0 Critical, 20 High, 41 Medium, 19
 - Depends on: T-Q218, T-Q239
 - Docs-first step: ADR-0101/0099 amendments (where the port control sits; pinning policy).
 - Acceptance: Caddy/Litestream/base image by `@sha256:` digest, `uv`, tailscale and cloud-init versions pinned; Actions repo settings (`sha_pinning_required`, `allowed_actions: selected`) set by the operator; `permissions: contents: read` default on `ci.yml` and the release `ci` job, `.security-allowlist.yml` read from `origin/main` and passed via `env:` with a validated pattern; drill ports bound to the tailnet address or filtered in `DOCKER-USER`. Terraform changes go through the pipeline only; no prod apply from a laptop.
-- Operator question blocking it: OQ-24 (Tailscale ACL parity), OQ-32.
+- Operator question blocking it: OQ-24 (Tailscale ACL parity), OQ-32 (answered 2026-11-24).
 - Status 2026-11-22: repo side done. Digest-pinned Caddy, Litestream (compose + restore script) and both Dockerfile base stages; `uv==0.11.2`; tailscale pinned to `1.104.7` with `apt-mark hold`; `permissions: contents: read` on `ci.yml` and the release `ci` job; `security.yml` reads the allowlist from `origin/main`, validates ids, passes args via `env:`; drill port control documented (ADR-0101 amendment) and asserted in `render.tftest.hcl`; `scripts/check_github_settings.py` checks `allowed_actions: selected`.
-- Operator steps left: (1) set Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected`, then run `scripts/check_github_settings.py`; (2) OQ-32 (`tag:ci` ACL): pending operator, ACL source not in repo. Not done: pinning the runner's apt `cloud-init` package in `terraform.yml` (ubuntu-latest image owns the version; the rendered user-data is schema-checked, not installed); re-resolve digests on bump.
+- Operator steps left: (1) set Actions repo settings `sha_pinning_required: true` and `allowed_actions: selected`, then run `scripts/check_github_settings.py`; (2) OQ-32 (`tag:ci` ACL): answered 2026-11-24, `tag:prod:22` removed from the `tag:ci` rule (ADR-0132 amendment). Not done: pinning the runner's apt `cloud-init` package in `terraform.yml` (ubuntu-latest image owns the version; the rendered user-data is schema-checked, not installed); re-resolve digests on bump.
 - Status 2026-11-23: operator steps done (T-Q218: prod-restore-read environment and drill environments migrated via the operator scripts; T-Q255: sha_pinning_required and allowed_actions: selected set, scripts/check_github_settings.py 0 FAIL).
 - Removes allowlist entries: none
 - Done when: no allowlist entry to delete; the guards stay green (counts decremented incidentally by this task are re-read from `allowlist_by_qid.py` at start); the Acceptance above holds and the CLAUDE.md handoff checklist is complete.
@@ -1827,8 +1828,8 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator decision 2026-11-23: deferred to the UI redesign migration (docs/plans/ui-redesign/tasks.md); the axe and Lighthouse checks must pass there.
 
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
-- (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`.
-- (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL.
+- ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
+- ✅ (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL. Done 2026-11-24: live ACL matched the repo file; `tag:prod:22` removed from the `tag:ci` rule, `tag:drill:22/443` kept (ADR-0132 amendment).
 - (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement.
 - (d) Promote firefox and webkit e2e to required after 3 green PRs.
 - (e) T-Q319 to T-Q322 deferred to the UI redesign.
