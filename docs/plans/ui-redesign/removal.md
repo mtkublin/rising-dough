@@ -18,7 +18,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/auth.css` | T-UR05 | delete |  |
-| `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them |  |
+| `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts/LICENSE-OFL.txt` | T-UR15 | delete |  |
@@ -34,7 +34,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/fonts/newsreader-italic-400-latin.woff2` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin-ext.woff2` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (moves to `rd/js/` in T-UR04) |  |
+| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | keep: ADR-0107 §2: CSRF header on HTMX requests, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | delete |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | delete |  |
@@ -44,7 +44,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/overlay-actions.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/palette.js` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (moves to `rd/js/` in T-UR04) |  |
+| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | keep: ADR-0107 §2: WebAuthn ceremonies, adapted to the new markup (copy in `rd/js/` since T-UR04b; this old file stays until T-UR15) |  |
 | `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | delete |  |
 | `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | delete |  |
