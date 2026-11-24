@@ -4,7 +4,7 @@
 <div class="rd-upcoming__body"
      id="upcoming-list"
      hx-get="/today/upcoming?window={{ window_label }}"
-     hx-trigger="today-stale from:body"
+     hx-trigger="today-stale from:body, ledger-stale from:body"
      hx-select="#upcoming-list"
      hx-swap="outerHTML">
   {% if upcoming.color_rules %}

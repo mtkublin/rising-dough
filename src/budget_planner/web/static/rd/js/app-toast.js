@@ -60,16 +60,52 @@
   });
 
   const FLASH_OOB = /id="flash-region(-assertive)?"[^>]*hx-swap-oob/;
+  /* Same copy as the old shell (static/js/app-init.js) for error bodies that carry no flash. */
+  const STATUS_TEXT = {
+    400: 'The request was not accepted. Check the form and try again.',
+    401: 'Your session has expired. Reload the page and sign in again.',
+    403: 'The request was refused. Reload the page and try again.',
+    404: 'That item was not found. It may have been removed.',
+    409: 'That item changed in the meantime. Reload and try again.',
+    503: 'A required service is unavailable. Try again shortly.',
+  };
+  const FALLBACK_TEXT = 'Something went wrong on our side. Try again.';
+  const FORM_RERENDER = [422, 429];
+
+  function flashBox(message) {
+    const box = document.createElement('div');
+    box.className = 'flash flash-error';
+    box.dataset.flashKind = 'error';
+    const text = document.createElement('span');
+    text.textContent = message;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'flash-dismiss';
+    close.setAttribute('aria-label', 'Dismiss message');
+    close.dataset.action = 'dismiss-flash';
+    close.textContent = '\u00d7';
+    box.append(text, close);
+    return box;
+  }
+
   document.addEventListener('htmx:beforeSwap', (event) => {
     const detail = event.detail || {};
     const xhr = detail.xhr;
-    if (!xhr || xhr.status < 400 || !FLASH_OOB.test(xhr.responseText || '')) return;
-    const incoming = new DOMParser().parseFromString(xhr.responseText, 'text/html');
-    ['flash-region', 'flash-region-assertive'].forEach((id) => {
-      const from = incoming.getElementById(id);
-      const region = document.getElementById(id);
-      if (from && region) region.replaceChildren(...from.childNodes);
-    });
+    if (!xhr || xhr.status < 400) return;
+    const body = xhr.responseText || '';
+    if (FLASH_OOB.test(body)) {
+      const incoming = new DOMParser().parseFromString(body, 'text/html');
+      ['flash-region', 'flash-region-assertive'].forEach((id) => {
+        const from = incoming.getElementById(id);
+        const region = document.getElementById(id);
+        if (from && region) region.replaceChildren(...from.childNodes);
+      });
+    } else if (!FORM_RERENDER.includes(xhr.status)) {
+      const region = document.getElementById('flash-region-assertive');
+      if (region) region.replaceChildren(flashBox(STATUS_TEXT[xhr.status] || FALLBACK_TEXT));
+    } else {
+      return;
+    }
     detail.shouldSwap = false;
     detail.isError = false;
   });

@@ -26,7 +26,8 @@ def test_page_region_refetches_itself_on_stale_event(
     assert r.status_code == 200
     region = BeautifulSoup(r.text, "html.parser").find(id=region_id)
     assert region is not None
-    assert region.get("hx-trigger") == f"{event} from:body"
+    triggers = [t.strip() for t in str(region.get("hx-trigger")).split(",")]
+    assert f"{event} from:body" in triggers
     assert region.get("hx-select") == f"#{region_id}"
     assert region.get("hx-swap") == "outerHTML"
     assert str(region.get("hx-get")).startswith(path.split("?", maxsplit=1)[0])

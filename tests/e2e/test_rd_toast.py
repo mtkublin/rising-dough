@@ -20,6 +20,7 @@ _dev_toast_button = role("button", "show dev toast")
 _toast_any = role("status").inside(shell.toast_root)
 _flash_assertive = by_id("flash-region-assertive")
 _fail_409 = role("button", "fail with 409")
+_fail_404 = role("button", "fail with plain 404")
 _fail_500 = role("button", "fail with 500")
 _toast_undo = role("button", "undo").inside(shell.toast_root)
 
@@ -85,3 +86,13 @@ def test_repeated_errors_keep_the_region_and_show_the_latest(journey: Journey) -
         state="visible"
     )
     assert region.get_attribute("class") == "rd-flash-region"
+
+
+def test_plain_text_404_still_shows_a_visible_message(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, _fail_404).click()
+    _loc(journey, _flash_assertive).get_by_text(
+        "That item was not found. It may have been removed."
+    ).wait_for(state="visible")

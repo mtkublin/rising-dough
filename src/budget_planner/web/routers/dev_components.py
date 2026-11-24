@@ -93,4 +93,6 @@ def dev_shell_fail(
         raise ConflictError(message="Dev conflict: that row is protected")
     if status == HTTPStatus.INTERNAL_SERVER_ERROR:
         raise RuntimeError("dev failure")
+    if status == HTTPStatus.NOT_FOUND:
+        return Response(status_code=HTTPStatus.NOT_FOUND, content="not found")
     raise HTTPException(status_code=404)
