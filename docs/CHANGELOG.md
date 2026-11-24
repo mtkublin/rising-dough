@@ -1,5 +1,15 @@
 # Changelog
 
+2026-11-24 T-UR00b: handoff reference job sharded by width and theme (ADR-0147).
+
+2026-11-24 T-UR04: dialog responses wrapped so the vendored dialog.js opens them (ADR-0107).
+
+2026-11-24 T-UR25: offline save failure keeps typed input and shows the offline state; no service worker (ADR-0134).
+
+2026-11-24 T-UR00b: seed parity: owner Safari session, forecast cells, `recurring-board` modifier (ADR-0147).
+
+2026-11-24 T-UR03: `direction_label` filter in the category picker (ADR-0107).
+
 2026-11-24 T-UR00b: CI-rendered handoff references, every surface compared, committed reference PNGs removed (ADR-0147).
 
 2026-11-24 T-UR04: dialog/OOB/toast/422 response helpers `web/dialogs.py`, error summary, kept JS in `rd/js` (ADR-0107, ADR-0143).
