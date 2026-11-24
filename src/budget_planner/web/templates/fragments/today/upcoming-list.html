@@ -1,0 +1,30 @@
+{# fragment: today/upcoming-list
+   Inputs: upcoming (view_models.TodayUpcoming), window_label ("7" | "30" | "all").
+   Refetches itself on today-stale (promote, batch promote). #}
+<div class="rd-upcoming__body"
+     id="upcoming-list"
+     hx-get="/today/upcoming?window={{ window_label }}"
+     hx-trigger="today-stale from:body"
+     hx-select="#upcoming-list"
+     hx-swap="outerHTML">
+  {% if upcoming.color_rules %}
+    <style nonce="{{ csp_nonce }}">
+        {{ upcoming.color_rules|safe }}
+    </style>
+  {% endif %}
+  {% for group in upcoming.groups %}
+    <h3 class="rd-upcoming__group rd-caption">{{ group.heading }}</h3>
+    <ul class="rd-upcoming__list">
+      {% for row in group.rows %}
+        {% include "fragments/rows/upcoming-row.html" %}
+      {% endfor %}
+    </ul>
+  {% else %}
+    {% with show_all_url = "/today?window=all" %}
+      {% include "fragments/states/upcoming-empty.html" %}
+    {% endwith %}
+  {% endfor %}
+  {% if upcoming.has_more %}
+    <p class="rd-upcoming__foot">showing {{ upcoming.shown_count }} of {{ upcoming.total_count }} · <a class="rd-link rd-upcoming__more" href="/ledger?view=planned">open in ledger →</a></p>
+  {% endif %}
+</div>

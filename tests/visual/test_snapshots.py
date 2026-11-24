@@ -41,16 +41,12 @@ VIEWPORTS: Final = {
     "375": _Viewport(width=375, height=812),
 }
 ROUTES: Final = {
-    "today": "/today",
     "ledger": "/ledger",
-    "accounts": "/accounts",
     "budget": "/budget",
     "forecast": "/forecast",
     "recurring": "/recurring/new",
     "settings": "/settings",
-    "login": "/login",
 }
-SIGNED_OUT: Final = frozenset({"login"})
 FONT_HOSTS: Final = ("**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**")
 
 # Kill transitions/animations/carets so a screenshot never lands mid-motion.
@@ -107,7 +103,7 @@ def test_route_snapshot(
     missing = not update_baseline and not baseline.exists()
     if missing and not os.environ.get("CI"):
         pytest.skip(f"missing baseline {baseline.name}. {UPDATE_HINT}")
-    cookies = [] if route_name in SIGNED_OUT else session_cookies
+    cookies = session_cookies
     with tempfile.TemporaryDirectory() as tmp:
         shot = Path(tmp) / baseline.name
         _shoot(

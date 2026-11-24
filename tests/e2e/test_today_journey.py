@@ -2,7 +2,8 @@
 
 ``--target=app`` (default) loads the live Today page; ``--target=mockup``
 runs the same names against ``pages/today.html`` and also clicks through to
-the promote overlay (the app promotes inline, so that step is mockup-only).
+the promote overlay (the app's promote dialog is ported with T-UR07b, so that
+step is mockup-only until then).
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ def test_today_shows_hero_and_upcoming(journey: Journey) -> None:
 
 def test_today_promote_opens_overlay(journey: Journey) -> None:
     if journey.target != "mockup":
-        pytest.skip("app promotes inline; the overlay click-through is a handoff flow")
+        pytest.skip("the app promote dialog is ported in T-UR07b; click-through is a handoff flow")
     today = journey.ui("today")
     journey.goto("/today")
     page: Any = journey.page

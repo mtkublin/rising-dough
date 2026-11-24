@@ -47,7 +47,7 @@ def index(
     user_id: int = Depends(current_user_id),
 ) -> HTMLResponse:
     data: dict[str, Any] = accounts_data.hydrate(conn, user_id, settings)
-    return render(request, "accounts/index.html", **data)
+    return render(request, "pages/accounts/index.html", nav_current="accounts", **data)
 
 
 @router.get(NEW_PATH, response_class=HTMLResponse)

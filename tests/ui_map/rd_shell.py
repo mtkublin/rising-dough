@@ -19,6 +19,8 @@ brand_link = role("link", "Rising Dough").inside(header)
 nav_desktop = role("navigation", "Main", exact=True)
 nav_phone = role("navigation", "Main, phone", exact=True)
 
+nav_links = role("link").inside(nav_desktop)  # the four primary destinations
+
 new_entry = role("link", "[ new entry ]").inside(header)
 shortcuts_button = role("button", "Keyboard shortcuts")
 settings_link = role("link", "settings").inside(header)

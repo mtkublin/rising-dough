@@ -10,10 +10,10 @@ this module does no I/O and reads no clock (``today`` comes in as an argument).
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from types import MappingProxyType
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
@@ -26,7 +26,9 @@ from budget_planner.services import (
     today as today_service,
 )
 from budget_planner.services.categories import CategoryUsage
-from budget_planner.web.today_data import UpcomingRow
+
+if TYPE_CHECKING:
+    from budget_planner.web.today_data import UpcomingRow
 
 MONTH_SHORT: Final[tuple[str, ...]] = (
     "Jan",
@@ -58,7 +60,7 @@ MONTH_LONG: Final[tuple[str, ...]] = (
 )
 
 _MAX_PCT: Final = 100
-_UPCOMING_CAP: Final = 6
+UPCOMING_CAP: Final = 6
 ROW_BAR_CELLS: Final = 10
 """Block cells in a table-row bar (handoff README: 10 in rows and on phone)."""
 HERO_BAR_CELLS: Final = 20
@@ -119,9 +121,9 @@ class BarSpans:
     label: str
 
 
-_BAR_FILLED: Final = "\u2588"
-_BAR_LEFT: Final = "\u2591"
-_BAR_REST: Final = "\u2592"
+BAR_FILLED: Final = "\u2588"
+BAR_LEFT: Final = "\u2591"
+BAR_REST: Final = "\u2592"
 
 
 _DIRECTION_LABELS: Final[Mapping[Direction, str]] = MappingProxyType(
@@ -161,7 +163,7 @@ def bar_spans(
     -> ``rd-bar--none`` (all remainder, label ``no budget``).
     """
     remainder_class = "rd-bar__rest" if share else "rd-bar__left"
-    remainder_char = _BAR_REST if share else _BAR_LEFT
+    remainder_char = BAR_REST if share else BAR_LEFT
     if not has_budget:
         return BarSpans(
             modifier="rd-bar--none",
@@ -175,7 +177,7 @@ def bar_spans(
     used = used_pct if is_over else _MAX_PCT - parts.left_pct
     return BarSpans(
         modifier="rd-bar--over" if is_over else "",
-        filled=_BAR_FILLED * parts.filled,
+        filled=BAR_FILLED * parts.filled,
         remainder=remainder_char * parts.empty,
         remainder_class=remainder_class,
         left_pct=parts.left_pct,
@@ -256,6 +258,9 @@ class BudgetLineView:
     cells: BarCells
     is_over: bool
     delta_kind: DeltaKind
+    has_budget: bool
+    over_minor: int
+    bar: BarSpans
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,6 +290,12 @@ def _delta_kind(delta_minor: int) -> DeltaKind:
     return "flat"
 
 
+def _row_bar(used_pct: int, *, is_over: bool, has_budget: bool) -> BarSpans:
+    """Table-row bar; an over-budget row is announced as ``over budget`` (handoff)."""
+    spans = bar_spans(used_pct, ROW_BAR_CELLS, is_over=is_over, has_budget=has_budget)
+    return replace(spans, label="over budget") if is_over and has_budget else spans
+
+
 def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
     budgeted = line.budgeted_minor or 0
     used_pct = clamped_percent(line.spent_minor, budgeted)
@@ -299,6 +310,9 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
         cells=cells,
         is_over=is_over,
         delta_kind=_delta_kind(line.delta_vs_prev_month_minor),
+        has_budget=line.budgeted_minor is not None,
+        over_minor=max(0, line.spent_minor - budgeted),
+        bar=_row_bar(used_pct, is_over=is_over, has_budget=line.budgeted_minor is not None),
     )
 
 
@@ -323,6 +337,76 @@ def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView
         period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PickerCell:
+    """One link of the period picker: month or year."""
+
+    label: str
+    url: str
+    current: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodPicker:
+    """Inputs of ``popovers/period-picker`` (month kind)."""
+
+    id: str
+    is_year: bool
+    year: int
+    prev_year_url: str
+    next_year_url: str
+    cells: tuple[PickerCell, ...]
+    note: str
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetPeriod:
+    """Inputs of ``plan/period-nav`` for the budget tab."""
+
+    label: str
+    prev_url: str
+    next_url: str
+    picker: PeriodPicker
+
+
+def day_month(day: date) -> str:
+    """``7 oct``: the handoff's lower-case day and short month."""
+    return f"{day.day} {MONTH_SHORT[day.month - 1].lower()}"
+
+
+def period_note(month: int, start: date, end: date) -> str:
+    """Picker note ``oct = 7 oct -> 7 nov``: the month's income-to-income range."""
+    return f"{MONTH_SHORT[month - 1].lower()} = {day_month(start)} \u2192 {day_month(end)}"
+
+
+def budget_period(
+    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+) -> BudgetPeriod:
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+
+    def url(year: int, month: int) -> str:
+        return f"{base_url}&year={year}&month={month}"
+
+    picker = PeriodPicker(
+        id="period-budget",
+        is_year=False,
+        year=picked.year,
+        prev_year_url=url(picked.year - 1, picked.month),
+        next_year_url=url(picked.year + 1, picked.month),
+        cells=tuple(
+            PickerCell(MONTH_SHORT[n - 1], url(picked.year, n), n == picked.month)
+            for n in range(1, 13)
+        ),
+        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+    )
+    return BudgetPeriod(
+        label=f"{month_name(picked.month)} {picked.year}",
+        prev_url=url(picked.prev_year, picked.prev_month),
+        next_url=url(picked.next_year, picked.next_month),
+        picker=picker,
     )
 
 
@@ -359,7 +443,7 @@ class UpcomingView:
     later_count: int
 
 
-def _upcoming_item(
+def upcoming_item(
     row: UpcomingRow,
     today: date,
     categories_by_id: Mapping[int, Category],
@@ -394,8 +478,8 @@ def upcoming_view(
     """Group, cap and annotate Today's upcoming rows."""
     next_7: list[UpcomingItem] = []
     later: list[UpcomingItem] = []
-    for row in upcoming[:_UPCOMING_CAP]:
-        item = _upcoming_item(row, today, categories_by_id, accounts_by_id)
+    for row in upcoming[:UPCOMING_CAP]:
+        item = upcoming_item(row, today, categories_by_id, accounts_by_id)
         near = (row.operation_date - today).days <= _NEXT_WEEK_DAYS
         (next_7 if near else later).append(item)
     shown = (*next_7, *later)
@@ -403,8 +487,8 @@ def upcoming_view(
         next_7=tuple(next_7),
         later=tuple(later),
         total_count=len(upcoming),
-        cap=_UPCOMING_CAP,
-        has_more=len(upcoming) > _UPCOMING_CAP,
+        cap=UPCOMING_CAP,
+        has_more=len(upcoming) > UPCOMING_CAP,
         overdue_count=sum(1 for item in shown if item.is_overdue),
         due_today_count=sum(1 for item in shown if item.is_due_today),
         next_7_count=len(next_7),

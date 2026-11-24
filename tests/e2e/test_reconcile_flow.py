@@ -46,7 +46,7 @@ def test_reconcile_creates_adjustment_transaction(
     # Reconcile through the account row's form: bank says 70.00 -> +10.00 adjustment.
     page.goto(f"{base_url}/accounts")
     wait_for_htmx(page)
-    to_playwright(page, accounts.row(account_id)).get_by_role("button", name="Reconcile").click()
+    to_playwright(page, accounts.reconcile_button(account_id)).click()
     expect(to_playwright(page, PANEL)).to_be_visible()
     to_playwright(page, accounts.reconcile_actual.inside(PANEL)).fill("70.00")
     with page.expect_response(

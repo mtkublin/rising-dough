@@ -1,0 +1,57 @@
+{# Plan · budget (T-UR11, ADR-0107). Handoff: pages/plan/budget.html.
+   Context: budget (view_models.BudgetView), period (view_models.BudgetPeriod), header
+   (PlanHeader, for the table caption), year, month, base_ccy. Rendered by GET /plan?tab=budget. #}
+{% extends "layouts/base.html" %}
+{% block title %}Plan · budget · Rising Dough{% endblock %}
+{% block main %}
+  {% include "fragments/plan/budget-hero.html" %}
+  <section class="rd-panel" aria-label="Budget">
+    <div class="rd-plan-head">
+      {% include "pages/plan/_tabs.html" %}
+      {% with label=period.label, prev_url=period.prev_url, next_url=period.next_url, picker=period.picker %}
+        {% include "fragments/plan/period-nav.html" %}
+      {% endwith %}
+    </div>
+    <div class="rd-table-scroll"
+         tabindex="0"
+         role="region"
+         aria-label="Budget by category, {{ header.month_label }} (scrolls sideways)">
+      <table class="rd-ledger rd-ledger--budget">
+        <caption class="u-visually-hidden">Budget by category, {{ header.month_label }}</caption>
+        <thead>
+          <tr class="rd-row rd-row--head">
+            <th scope="col">CATEGORY</th>
+            <th scope="col">USED</th>
+            <th scope="col" class="rd-budget__spent">SPENT / BUDGET</th>
+            <th scope="col" class="rd-budget__status">STATUS</th>
+            <th scope="col">
+              <span class="u-visually-hidden">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in budget.lines %}
+            {% include "fragments/rows/budget-line.html" %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="rd-row rd-row--total">
+            <th scope="row" class="rd-budget__cat">Total</th>
+            <td class="rd-budget__bar"></td>
+            <td class="rd-budget__spent rd-num">
+              {{ budget.summary.totals.spent_minor|money_num(base_ccy) }} <span class="rd-muted">/ {{ budget.summary.totals.budgeted_minor|money_num(base_ccy) }}</span>
+            </td>
+            <td class="rd-budget__status">
+              {% if budget.summary.totals.remaining_minor < 0 %}
+                over {{ budget.summary.totals.remaining_minor|money_num(base_ccy, abs_value=True) }}
+              {% else %}
+                left {{ budget.summary.totals.remaining_minor|money_num(base_ccy) }}
+              {% endif %}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+{% endblock %}

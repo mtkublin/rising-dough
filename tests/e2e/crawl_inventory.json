@@ -560,53 +560,18 @@
   ],
   "/plan": [
     {
-      "kind": "disclosure",
-      "name": "{month}",
+      "kind": "button",
+      "name": "Keyboard shortcuts",
       "target": ""
     },
     {
-      "kind": "hx-get",
-      "name": "Override Groceries",
-      "target": "/budget/rules/{id}/overrides/new?inline={n}"
-    },
-    {
       "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "Analytics",
-      "target": "/plan?tab=analytics"
-    },
-    {
-      "kind": "link",
-      "name": "Budget",
-      "target": "/plan?tab=budget"
-    },
-    {
-      "kind": "link",
-      "name": "Forecast",
-      "target": "/plan?tab=forecast"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Next month",
+      "name": "Next period",
       "target": "/plan?tab=budget&year={n}&month={n}"
     },
     {
       "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
-    },
-    {
-      "kind": "link",
-      "name": "Previous month",
+      "name": "Previous period",
       "target": "/plan?tab=budget&year={n}&month={n}"
     },
     {
@@ -616,57 +581,166 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
     },
     {
       "kind": "link",
-      "name": "Year",
+      "name": "year",
       "target": "/plan?tab=year"
     },
     {
-      "kind": "link",
-      "name": "change",
-      "target": "/settings?tab=prefs#income-anchor"
+      "kind": "popover",
+      "name": "Row menu",
+      "target": "#menu-budget-5"
+    },
+    {
+      "kind": "popover",
+      "name": "{month} \u25be",
+      "target": "#period-budget"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
-      "kind": "button",
-      "name": "Cancel",
-      "target": "",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Apr",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Groceries This month only Every Nov New default PLN Cancel S...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Aug",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save \u21b5",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Dec",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Feb",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jan",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jul",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jun",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Mar",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "May",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Next year",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Nov",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Oct",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Previous year",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Sep",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "hx-get",
+      "name": "override",
+      "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}",
+      "via": "Row menu"
     }
   ],
   "/plan?tab=year": [
@@ -1358,109 +1432,52 @@
   ],
   "/today": [
     {
-      "kind": "hx-get",
-      "name": "+ Add n",
-      "target": "/add?when=happened"
+      "kind": "button",
+      "name": "Keyboard shortcuts",
+      "target": ""
     },
     {
       "kind": "hx-get",
-      "name": "+ Planned",
-      "target": "/planned/new"
+      "name": "30 days",
+      "target": "/today/upcoming?window={n}"
     },
     {
       "kind": "hx-get",
-      "name": "+ Recurring",
-      "target": "/recurring/new"
+      "name": "7 days",
+      "target": "/today/upcoming?window={n}"
     },
     {
       "kind": "hx-get",
-      "name": "Can I afford it? PLN \u2192 per day becomes 0.00",
+      "name": "NEXT 30 DAYS 29 NOV planned shop \u00b7 Checking Groceries \u221280.00...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today/upcoming?window={n}"
+    },
+    {
+      "kind": "hx-get",
+      "name": "all",
+      "target": "/today/upcoming?window=all"
+    },
+    {
+      "kind": "hx-get",
+      "name": "can i afford it? PLN",
       "skipped": "triggered by input or form event, not a click",
       "target": "/today/afford"
     },
     {
       "kind": "hx-get",
-      "name": "Left to spend per day",
+      "name": "left to spend per day",
       "skipped": "triggered by input or form event, not a click",
       "target": "/today"
     },
     {
       "kind": "hx-get",
-      "name": "Next 7 days {day} planned shop \u00b7 Checking GROCERIES 80.00PL...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/today"
+      "name": "promote",
+      "target": "/planned/{id}/promote"
     },
     {
       "kind": "hx-get",
-      "name": "Override",
-      "target": "/planned/{id}/edit"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Override",
-      "target": "/recurring/{id}/overrides/new?occurrence_date={date}"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Promote",
-      "target": "/planned/{id}/promote/inline"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Promote",
-      "target": "/recurring/{id}/promote/inline?date={date}"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Promote all due \u21e7\u21b5",
-      "target": "/planned/batch/promote-due"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Skip",
-      "target": "/recurring/{id}/skip-next"
-    },
-    {
-      "kind": "link",
-      "name": "30 days",
-      "target": "/today?window={n}"
-    },
-    {
-      "kind": "link",
-      "name": "7 days",
-      "target": "/today?window={n}"
-    },
-    {
-      "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "All",
-      "target": "/today?window=all"
-    },
-    {
-      "kind": "link",
-      "name": "All 2 accounts \u2192",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "Forecast \u2192",
-      "target": "/plan?tab=forecast"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
+      "name": "promote",
+      "target": "/recurring/{id}/promote"
     },
     {
       "kind": "link",
@@ -1469,129 +1486,142 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "all 2 accounts \u2192",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "forecast \u2192",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
+    },
+    {
+      "kind": "popover",
+      "name": "Row menu",
+      "target": "#menu-upcoming-planned-1"
+    },
+    {
+      "kind": "popover",
+      "name": "Row menu",
+      "target": "#menu-upcoming-recurring-1"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
-      "kind": "button",
-      "name": "Cancel",
-      "target": "",
-      "via": "Override"
+      "kind": "hx-get",
+      "name": "NEXT 7 DAYS 29 NOV planned shop \u00b7 Checking Groceries \u221280.00 ...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today/upcoming?window={n}",
+      "via": "7 days"
+    },
+    {
+      "kind": "hx-get",
+      "name": "override",
+      "target": "/planned/{id}/edit",
+      "via": "Row menu"
+    },
+    {
+      "kind": "hx-get",
+      "name": "override",
+      "target": "/recurring/{id}/overrides/new?occurrence_date={date}",
+      "via": "Row menu"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "skip",
+      "target": "/planned/{id}/delete",
+      "via": "Row menu"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "skip",
+      "target": "/recurring/{id}/skip-next",
+      "via": "Row menu"
+    },
+    {
+      "kind": "hx-get",
+      "name": "LATER 29 NOV planned shop \u00b7 Checking Groceries \u221280.00 PLN pr...",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/today/upcoming?window=all",
+      "via": "all"
     },
     {
       "kind": "button",
       "name": "Close",
       "target": "",
-      "via": "Override"
-    },
-    {
-      "kind": "button",
-      "name": "Next month",
-      "target": "",
-      "via": "Override"
-    },
-    {
-      "kind": "button",
-      "name": "Previous month",
-      "target": "",
-      "via": "Override"
-    },
-    {
-      "kind": "disclosure",
-      "name": "{month}",
-      "target": "",
-      "via": "Override"
+      "via": "promote"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "Category Groceries Paycheck Reconciliation Transit Amount Ac...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/planned/{id}",
-      "via": "Override"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "subscription \u2190 {month} \u2190 2026 \u2192 Jan Feb Mar Apr May Ju...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/recurring/{id}/overrides",
-      "via": "Override"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save",
-      "target": "/planned/{id}",
-      "via": "Override"
-    },
-    {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save \u21b5",
-      "target": "/recurring/{id}/overrides",
-      "via": "Override"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Esc",
-      "target": "/today/upcoming",
-      "via": "Promote"
-    },
-    {
-      "kind": "hx-get",
-      "name": "Next 7 days {day} planned shop \u00b7 GROCERIES Checking Date Am...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/today",
-      "via": "Promote"
-    },
-    {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "{day} planned shop \u00b7 GROCERIES Checking Date Amount PLN Con...",
+      "name": "Date Amount Description Promote",
       "skipped": "triggered by input or form event, not a click",
       "target": "/planned/{id}/promote",
-      "via": "Promote"
+      "via": "promote"
     },
     {
       "destructive": true,
       "kind": "hx-post",
-      "name": "{day} subscription \u00b7 GROCERIES Checking Date Amount PLN Con...",
+      "name": "Date Amount Description Promote",
       "skipped": "triggered by input or form event, not a click",
       "target": "/recurring/{id}/promote",
-      "via": "Promote"
+      "via": "promote"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Confirm \u21b5",
+      "name": "Promote",
       "target": "/planned/{id}/promote",
-      "via": "Promote"
+      "via": "promote"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Confirm \u21b5",
+      "name": "Promote",
       "target": "/recurring/{id}/promote",
-      "via": "Promote"
+      "via": "promote"
     }
   ]
 }

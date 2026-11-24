@@ -17,7 +17,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 |---|---|---|---|
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/auth.css` | T-UR05 | delete |  |
+| `src/budget_planner/web/static/auth.css` | T-UR15 | delete | kept: rd-auth__* used by settings security/password until T-UR14 |
 | `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
@@ -80,14 +80,14 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/_partials/overdue_row.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/segmented.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/slide_over_header.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | delete |  |
-| `src/budget_planner/web/templates/auth/login.html` | T-UR05 | delete |  |
-| `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | delete |  |
+| `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | deleted |  |
+| `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | deleted |  |
+| `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
+| `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/base.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/budget/_yearly.html` | T-UR11 | delete |  |
-| `src/budget_planner/web/templates/budget/index.html` | T-UR11 | delete |  |
-| `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | delete |  |
+| `src/budget_planner/web/templates/budget/index.html` | T-UR15 | delete | UR11a: `GET /budget` still renders it; `tests/contract/test_plan_views.py::test_budget_page_renders_sections_in_order` pins its sections (hero, summary, rules, yearly, breakdown), so it moves to the final sweep |
+| `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
 | `src/budget_planner/web/templates/categories/index.html` | T-UR13 | delete |  |
 | `src/budget_planner/web/templates/dev/components.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/errors/404.html` | T-UR06 | deleted |  |
@@ -144,7 +144,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/partials/transactions/_table.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/plan/_analytics_bundle.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/plan/_analytics_tab.html` | T-UR12 | delete |  |
-| `src/budget_planner/web/templates/plan/_budget_tab.html` | T-UR11 | delete |  |
+| `src/budget_planner/web/templates/plan/_budget_tab.html` | T-UR11 | deleted | UR11a: `GET /plan?tab=budget` renders `pages/plan/budget.html`; `plan/index.html:67` still names it in a dead branch (T-UR15 removes the hub) |
 | `src/budget_planner/web/templates/plan/_forecast_tab.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/plan/_year_tab.html` | T-UR11 | delete |  |
 | `src/budget_planner/web/templates/plan/index.html` | T-UR15 | delete |  |
@@ -165,18 +165,18 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/settings/users/_table.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/users/edit.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/users/list.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/today/_afford_preview.html` | T-UR07 | delete |  |
-| `src/budget_planner/web/templates/today/_upcoming.html` | T-UR07 | delete |  |
-| `src/budget_planner/web/templates/today/index.html` | T-UR07 | delete |  |
+| `src/budget_planner/web/templates/today/_afford_preview.html` | T-UR07 | deleted |  |
+| `src/budget_planner/web/templates/today/_upcoming.html` | T-UR07 | deleted |  |
+| `src/budget_planner/web/templates/today/index.html` | T-UR07 | deleted |  |
 | `src/budget_planner/web/templates/transactions/index.html` | T-UR09 | delete |  |
 
 ## Old visual baselines
 
 | Path | Owner | Status | Note |
 |---|---|---|---|
-| `tests/visual/__snapshots__/accounts.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/accounts.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/accounts.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
@@ -186,18 +186,18 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `tests/visual/__snapshots__/ledger.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/settings.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/settings.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/settings.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 
 ## Toolchain and CI (non-file rows)
 

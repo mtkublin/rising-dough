@@ -28,7 +28,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import budget as budget_service
 from budget_planner.web import view_models
-from tests.ui_map import _html, plan, today as today_ui
+from tests.ui_map import _html, plan, plan_budget, today as today_ui
 
 USER_ID = 1
 BUDGET_MINOR = 100_000
@@ -108,8 +108,10 @@ def test_today_hero_shows_view_model_values(
     assert _html.text_of(html, today_ui.hero_per_day) == expected_per_day
     assert view.spent_pct == 25
     spent_bar = _html.resolve_one(html, today_ui.spent_bar)
-    assert float(str(spent_bar["aria-valuenow"])) == 25
-    assert f"day {view.period_day} of {view.period_total_days}" in _html.page_text(html)
+    totals = summary.totals
+    left_pct = view_models.clamped_percent(totals.remaining_minor, totals.budgeted_minor)
+    assert spent_bar["aria-label"] == view_models.bar_aria_label(view.spent_pct, left_pct)
+    assert f"DAY {view.period_day} OF {view.period_total_days}" in _html.page_text(html)
 
 
 def test_plan_budget_tab_shows_view_model_values(
@@ -131,13 +133,14 @@ def test_plan_budget_tab_shows_view_model_values(
 
     html = client.get("/plan?tab=budget").text
 
-    assert _html.text_of(html, plan.period_per_day) == _money_num(client, view.left_per_day_minor)
-    cells = _html.texts(html, plan.budget_row_cells)
-    assert cells[1] == _money_num(client, BUDGET_MINOR)
-    assert cells[2] == _money_num(client, SPENT_MINOR)
-    assert cells[4] == _money_num(client, BUDGET_MINOR - SPENT_MINOR)
-    used = _html.resolve_one(html, plan.budget_row_spent)
-    assert float(str(used["aria-valuenow"])) == 25
+    hero = _html.text_of(html, plan_budget.hero)
+    assert hero.startswith(f"budget left {_money_num(client, summary.totals.remaining_minor)} PLN")
+    assert view.left_per_day_minor == view_models.left_per_day(summary)
+    cells = _html.texts(html, plan_budget.row_cells("Groceries"))
+    assert cells[2] == f"{_money_num(client, SPENT_MINOR)} / {_money_num(client, BUDGET_MINOR)}"
+    assert cells[3] == f"left {_money_num(client, BUDGET_MINOR - SPENT_MINOR)}"
+    bar = _html.resolve_one(html, plan_budget.bar("Groceries"))
+    assert bar["aria-label"] == "25 percent spent, 75 percent left"
 
 
 def test_budget_page_row_bar_uses_view_percent(client: TestClient, world: None) -> None:

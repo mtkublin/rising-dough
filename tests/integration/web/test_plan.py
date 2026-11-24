@@ -27,7 +27,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from tests.ui_map import _html, plan
+from tests.ui_map import _html, plan, plan_budget, rd_fragments
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -183,8 +183,9 @@ def test_budget_month_committed_zero_and_period_dates(
     r = client.get(f"/plan?tab=budget&year={start.year}&month={start.month}")
 
     assert r.status_code == 200, label
-    region = _html.text_of(r.text, plan.period_region)
-    assert f"{start.day} {start:%b} → {nxt.day} {nxt:%b}" in region
+    hero = _html.text_of(r.text, plan_budget.hero)
+    note = _html.text_of(r.text, rd_fragments.period_picker)
+    assert f"{start:%b}".lower() + f" = {start.day} {start:%b} → {nxt.day} {nxt:%b}".lower() in note
     picked = budget_service.resolve_picker_month(
         db, USER_ID, today, year_raw=str(start.year), month_raw=str(start.month)
     )
@@ -199,11 +200,10 @@ def test_budget_month_committed_zero_and_period_dates(
     assert summary.totals.committed_minor == 0
     assert summary.period_start == start
     assert summary.next_income_date == nxt
-    assert "0.00 committed" in region
-    assert f"{summary.days_until_next_income} days left" in region
-    # Groceries default budget is the planned figure on that month's row.
-    planned_cells = _html.texts(r.text, plan.budget_row_cells)
-    assert f"{GROCERIES_BUDGET_MINOR / 100:,.2f}" in planned_cells
+    assert "0.00 committed" in hero
+    # Groceries default budget is the budget figure on that month's row.
+    spent_cell = _html.texts(r.text, plan_budget.row_cells("Groceries"))[2]
+    assert spent_cell.endswith(f"/ {GROCERIES_BUDGET_MINOR / 100:,.2f}")
     assert month_bounds(start.year, start.month)[0] == start
 
 
@@ -227,9 +227,9 @@ def test_budget_month_future_has_no_days_elapsed_pressure(
 
     assert summary.totals.spent_minor == 0
     assert summary.totals.budgeted_minor == GROCERIES_BUDGET_MINOR
-    assert f"{summary.days_until_next_income} days left" in _html.text_of(
-        r.text, plan.period_region
-    )
+    hero = _html.text_of(r.text, plan_budget.hero)
+    assert f"{GROCERIES_BUDGET_MINOR / 100:,.2f} budgeted · 0.00 spent" in hero
+    assert summary.days_until_next_income > 0
 
 
 def test_year_tab_grid_and_totals(

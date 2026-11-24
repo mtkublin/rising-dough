@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from datetime import date, timedelta
-from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup, Tag
@@ -27,7 +26,7 @@ from budget_planner.repositories import (
     planned as planned_repo,
     transactions as transactions_repo,
 )
-from tests.ui_map import _html, errors, plan
+from tests.ui_map import _html, errors, plan, plan_budget
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -260,31 +259,21 @@ def test_yearly_cell_renders_major_decimal(client: TestClient, cat_id: int) -> N
     assert inp.get("value") == "22.33"
 
 
-def test_plan_budget_override_button_targets_per_row_slot(client: TestClient, cat_id: int) -> None:
-    """T-D49: each Override button targets its own slot row; ids are unique."""
-    r = client.get("/plan?tab=budget")
+def test_plan_budget_override_item_targets_its_own_category(
+    client: TestClient, cat_id: int
+) -> None:
+    """T-D49: each row's override item opens that category's form; menu ids are unique."""
+    r = client.get("/plan?tab=budget&year=2026&month=10")
     assert r.status_code == 200
-    soup = BeautifulSoup(r.text, "html.parser")
-    btn = soup.find("button", {"data-override-open": str(cat_id)})
-    assert isinstance(btn, Tag)
-    assert btn.get("hx-target") == f"#override-slot-{cat_id}"
-    slot = soup.find("td", {"id": f"override-slot-{cat_id}"})
-    assert isinstance(slot, Tag)
-    assert slot.get("colspan") == "6"
-    row = slot.find_parent("tr")
-    assert isinstance(row, Tag)
-    btn_row = btn.find_parent("tr")
-    assert isinstance(btn_row, Tag)
-    assert btn_row.find_next_sibling("tr") is row
-    # T-D49a: closed slot is empty and its row is hidden by CSS (no row gaps).
-    assert slot.get_text(strip=True) == "" and not slot.find(True)
-    assert "rd-override-slot-row" in (row.get("class") or [])
-    static = Path(__file__).resolve().parents[3] / "src/budget_planner/web/static"
-    css = (static / "rising-dough.css").read_text()
-    assert ".rd-override-slot-row:not(:has(.rd-override)) { display: none; }" in css
-    ids = [t["id"] for t in soup.find_all(id=True)]
+    item = _html.resolve_one(r.text, plan_budget.override_item("Groceries"))
+    target = f"/budget/rules/{cat_id}/overrides/new?year=2026&month=10"
+    assert item.get("href") == target
+    assert item.get("hx-get") == target
+    assert item.get("hx-target") == "#modal-root"
+    menu = _html.resolve_one(r.text, plan_budget.row_menu("Groceries"))
+    assert menu.get("id") == f"menu-budget-{cat_id}"
+    ids = [t["id"] for t in BeautifulSoup(r.text, "html.parser").find_all(id=True)]
     assert len(ids) == len(set(ids))
-    assert soup.find(id="budget-override-slot") is None
 
 
 def test_inline_override_form_is_fragment_with_cancel(client: TestClient, cat_id: int) -> None:
