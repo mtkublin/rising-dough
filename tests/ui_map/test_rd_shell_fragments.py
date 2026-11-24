@@ -36,8 +36,9 @@ def test_toast_undo_posts_to_the_undo_url_with_csrf() -> None:
     context = {"message": "Takeaway deleted", "undo_url": "/undo/5", "csrf_token": "tok"}
     html = _render("toast/undo", **context)
     assert _html.count(html, role("button", "undo")) == 1
-    assert 'action="/undo/5"' in html
-    assert 'name="_csrf_token" value="tok"' in html
+    form = _html.form_of(html, role("button", "undo"))
+    assert form.get("action") == "/undo/5"
+    assert _html.submitted_fields(form) == [("_csrf_token", "tok")]
     assert _html.text_of(html, role("status")).startswith("Takeaway deleted")
 
 
