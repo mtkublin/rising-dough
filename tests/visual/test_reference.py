@@ -34,7 +34,7 @@ SURFACE_ROUTES: dict[str, str] = {
     "plan": "/plan",
     "settings": "/settings",
     "auth": "/auth/login",
-    "errors": "/does-not-exist",
+    "errors": "/settings/users/999999/edit",
     "overlays": "/today",
 }
 # Tab pages with their own app route (plan ?tab=, ledger ?view=, recently-deleted).
@@ -45,6 +45,7 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/ledger/planned.html": "/ledger?view=planned",
     "pages/ledger/recurring.html": "/ledger?view=recurring",
     "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
+    "pages/errors/422.html": "/budget?month=zz",
 }
 
 
