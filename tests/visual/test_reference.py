@@ -1,13 +1,15 @@
 """Handoff reference comparison (T-UT10, ADR-0106 amends ADR-0027 section 4).
 
-Runs only with ``--reference=handoff`` (optionally ``--surface=<name>``):
+Runs only with ``--reference=handoff`` (optionally ``--surface=<name>``).
+The references are never committed (T-UR00b, ADR-0147 section 1): the ``references``
+fixture renders every selected page (overlay applied) at 1440/1024/375, light and
+dark, into ``tests/visual/reference/`` in the same job and container first.
 
-* ``test_handoff_matches_itself``: re-renders each handoff page and requires 0
-  diff against ``tests/visual/reference/``. Proves the references are stable.
+* ``test_handoff_matches_itself``: re-renders each handoff page and requires
+  the raster noise floor against the fresh reference. Proves rendering is stable.
 * ``test_app_matches_handoff``: renders the app route that replaces a handoff
-  page (frozen server, demo data at 2026-10-31) and compares within the
-  per-surface tolerance. Skipped for surfaces not yet
-  migrated by ADR-0107 (``MIGRATED_SURFACES``).
+  page (frozen server, handoff seed at 2026-10-31) and compares within the
+  per-surface tolerance. Every surface is compared; red until it migrates.
 """
 
 from __future__ import annotations
@@ -22,9 +24,33 @@ from tests.visual import handoff
 
 pytestmark = pytest.mark.visual
 
-# Surfaces whose templates have been migrated to the handoff markup. Empty
-# until ADR-0107 work lands; add a surface here to turn on the app comparison.
-MIGRATED_SURFACES: dict[str, str] = {}  # surface -> app route of its main page
+# Main app route of each handoff surface (the page its reference is compared with).
+SURFACE_ROUTES: dict[str, str] = {
+    "today": "/today",
+    "accounts": "/accounts",
+    "ledger": "/ledger",
+    "plan": "/plan",
+    "settings": "/settings",
+    "auth": "/login",
+    "errors": "/does-not-exist",
+    "overlays": "/today",
+}
+# Tab pages with their own app route (plan ?tab=, ledger ?view=, recently-deleted).
+PAGE_ROUTES: dict[str, str] = {
+    "pages/plan/year.html": "/plan?tab=year",
+    "pages/plan/forecast.html": "/plan?tab=forecast",
+    "pages/plan/analytics.html": "/plan?tab=analytics",
+    "pages/ledger/planned.html": "/ledger?view=planned",
+    "pages/ledger/recurring.html": "/ledger?view=recurring",
+    "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
+}
+
+
+@pytest.fixture(scope="session")
+def references(request: pytest.FixtureRequest) -> int:
+    """Render the handoff references once per session, before any comparison."""
+    surface = request.config.getoption("--surface") or None
+    return handoff.generate(surface)
 
 
 def _selected(config: pytest.Config) -> list[str]:
@@ -43,16 +69,14 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         )
 
 
+@pytest.mark.usefixtures("references")
 @pytest.mark.parametrize("theme", handoff.THEMES)
 @pytest.mark.parametrize("viewport", list(handoff.VIEWPORTS))
 def test_handoff_matches_itself(
     handoff_page: str, viewport: str, theme: str, browser: Browser
 ) -> None:
     expected = handoff.reference_path(handoff_page, viewport, theme)
-    if not expected.exists():
-        pytest.skip(
-            f"reference not committed (size budget): {expected.name}; run `just visual-reference`"
-        )
+    assert expected.exists(), f"reference not rendered: {expected}"
     with handoff.serve_handoff() as base, tempfile.TemporaryDirectory() as tmp:
         actual = Path(tmp) / "actual.png"
         handoff.shoot(browser, base, handoff_page, viewport=viewport, theme=theme, out=actual)
@@ -62,6 +86,7 @@ def test_handoff_matches_itself(
     )
 
 
+@pytest.mark.usefixtures("references")
 @pytest.mark.parametrize("theme", handoff.THEMES)
 @pytest.mark.parametrize("viewport", list(handoff.VIEWPORTS))
 def test_app_matches_handoff(
@@ -72,9 +97,7 @@ def test_app_matches_handoff(
     request: pytest.FixtureRequest,
 ) -> None:
     surface = handoff.surface_of(handoff_page)
-    route = MIGRATED_SURFACES.get(surface)
-    if route is None or handoff_page != f"pages/{surface}.html":
-        pytest.skip(f"surface {surface!r} not migrated to the handoff markup yet")
+    route = PAGE_ROUTES.get(handoff_page, SURFACE_ROUTES[surface])
     live_server: str = request.getfixturevalue("live_server")
     cookies = request.getfixturevalue("session_cookies")
     width, height = handoff.VIEWPORTS[viewport]
