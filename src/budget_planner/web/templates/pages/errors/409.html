@@ -1,0 +1,14 @@
+{# pages/errors/409 (T-UR06): a conflicting save. Inputs: message (ConflictError text).
+   Handoff: pages/errors/409.html. #}
+{% extends "layouts/base.html" %}
+{% block title %}409 · Changed elsewhere · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-error" aria-labelledby="err-title">
+    <p class="rd-caption">ERROR 409</p>
+    <h1 class="rd-error__title" id="err-title">Changed elsewhere</h1>
+    <p class="rd-error__msg">{{ message }}</p>
+    <div class="rd-error__actions">
+      <a class="rd-btn rd-btn--primary" href="/ledger">[ reload ]</a>
+    </div>
+  </section>
+{% endblock %}
