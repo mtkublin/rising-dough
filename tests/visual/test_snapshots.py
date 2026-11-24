@@ -42,7 +42,6 @@ VIEWPORTS: Final = {
 }
 ROUTES: Final = {
     "ledger": "/ledger",
-    "accounts": "/accounts",
     "budget": "/budget",
     "forecast": "/forecast",
     "recurring": "/recurring/new",

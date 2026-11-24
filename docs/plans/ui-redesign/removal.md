@@ -80,7 +80,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/_partials/overdue_row.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/segmented.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/slide_over_header.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | delete |  |
+| `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | deleted |  |
 | `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
@@ -174,9 +174,9 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 
 | Path | Owner | Status | Note |
 |---|---|---|---|
-| `tests/visual/__snapshots__/accounts.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/accounts.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/accounts.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/accounts.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/budget.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |

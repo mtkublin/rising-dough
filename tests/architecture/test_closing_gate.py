@@ -7,7 +7,7 @@ Every allowlist under ``tests/architecture/allowlists/`` is empty of burn-down d
 * no file except ``template_logic.toml`` has an ``[[entry]]`` row, and every ``[ceilings]`` value is 0;
 * ``[[permanent]]`` and ``[[framework]]`` rows carry a non-empty ``reason`` and their path is named in ADR-0130
   (the closing amendment lists them), so a new one cannot land without an amendment;
-* redesign carve-out: ``template_logic.toml`` holds at most ``CARVE_OUT_MAX`` (83, the D3 entries of T-Q273) ``[[entry]]``
+* redesign carve-out: ``template_logic.toml`` holds at most ``CARVE_OUT_MAX`` (83 at the start, lowered by each surface task: the D3 entries of T-Q273) ``[[entry]]``
   rows, each with an ``owner`` that is a T-UR task heading in ``docs/plans/ui-redesign/tasks.md``; it has no other
   table. The redesign's last task (T-UR15) burns it to zero and then deletes the carve-out from this guard.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 from tests.architecture._ratchet import ALLOWLIST_DIR, REPO_ROOT
 
 CARVE_OUT_FILE = "template_logic.toml"
-CARVE_OUT_MAX = 83
+CARVE_OUT_MAX = 76
 ADR_FILE = (
     REPO_ROOT / "docs" / "adr" / "0130-prevention-regime-and-full-architectural-compliance.md"
 )
@@ -132,11 +132,17 @@ def test_gate_flags_each_class_of_violation(tmp_path: Path) -> None:
     ]
 
 
-def test_gate_caps_the_carve_out_at_83_tagged_entries(tmp_path: Path) -> None:
+def test_carve_out_maximum_is_pinned_and_the_file_fits_it() -> None:
+    rows = tomllib.loads((ALLOWLIST_DIR / CARVE_OUT_FILE).read_text(encoding="utf-8"))["entry"]
+    assert CARVE_OUT_MAX == 76
+    assert len(rows) <= CARVE_OUT_MAX
+
+
+def test_gate_caps_the_carve_out_at_the_tagged_entry_maximum(tmp_path: Path) -> None:
     row = '[[entry]]\npath = "t{n}.html"\ncount = 1\nfinding = "Q-039"\nowner = "T-UR08"\n'
-    _write(tmp_path, CARVE_OUT_FILE, "".join(row.format(n=n) for n in range(83)))
+    _write(tmp_path, CARVE_OUT_FILE, "".join(row.format(n=n) for n in range(CARVE_OUT_MAX)))
     assert gate_problems(tmp_path, "", frozenset({"T-UR08"})) == []
-    _write(tmp_path, CARVE_OUT_FILE, "".join(row.format(n=n) for n in range(84)))
+    _write(tmp_path, CARVE_OUT_FILE, "".join(row.format(n=n) for n in range(CARVE_OUT_MAX + 1)))
     assert gate_problems(tmp_path, "", frozenset({"T-UR08"})) == [
-        "template_logic.toml: 84 entries, carve-out allows at most 83"
+        f"template_logic.toml: {CARVE_OUT_MAX + 1} entries, carve-out allows at most {CARVE_OUT_MAX}"
     ]

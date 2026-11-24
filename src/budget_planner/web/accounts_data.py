@@ -22,7 +22,12 @@ from budget_planner.services import (
     fortune as fortune_service,
     fx as fx_service,
 )
-from budget_planner.web.accounts_view import credit_utilisation, sparkline_fields
+from budget_planner.web.accounts_view import (
+    account_row,
+    accounts_hero,
+    credit_utilisation,
+    sparkline_fields,
+)
 
 _RECENT_SNAPSHOTS = 5
 
@@ -91,7 +96,7 @@ def single_card(
 
 
 def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[str, object]:
-    """Template context for the accounts list page."""
+    """Template context for the accounts list page: row view-models and the hero (T-UR08)."""
     today = clock.today_local(settings)
     accs = accounts_service.list_all(conn, user_id)
     planned = planned_service.compute_accounts_planned(conn, user_id, today, settings)
@@ -123,13 +128,16 @@ def hydrate(conn: sqlite3.Connection, user_id: int, settings: Settings) -> dict[
         conn, user_id, fx_service.converter_for(conn, settings, today)
     )
     return {
-        "cards": cards,
-        "fortune": fortune,
+        "rows": [account_row(c) for c in cards],
+        "hero": accounts_hero(
+            count=len(cards),
+            net_minor=fortune.net_base,
+            assets_minor=fortune.assets_base,
+            liabilities_minor=fortune.liabilities_base,
+            planned_minor=planned.base_net_minor,
+            currency=settings.base_currency,
+        ),
         "base_ccy": settings.base_currency,
-        "totals_by_ccy": fortune.net_by_ccy,
-        "fortune_base": fortune.net_base,
-        "today_date": today,
-        "planned_base": planned.base_net_minor,
     }
 
 
