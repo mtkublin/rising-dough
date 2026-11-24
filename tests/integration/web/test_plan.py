@@ -253,3 +253,18 @@ def test_year_tab_grid_and_totals(
     assert footer[-1] == total
     assert footer[:-1] == [f"{GROCERIES_BUDGET_MINOR / 100:,.0f}"] * 12
     assert _html.text_of(r.text, plan.year_heading) == f"Year · {today.year}"
+
+
+def test_forecast_summary_now_is_todays_net_worth_not_first_month_end(
+    client: TestClient, db: sqlite3.Connection, _migrated: Settings, today: date, world: None
+) -> None:
+    series = forecast_service.monthly_projection(
+        db, USER_ID, _migrated, today, horizon=DEFAULT_HORIZON
+    )
+    assert series[0].end_balance_minor != OPENING_MINOR  # the old behaviour showed this value
+
+    r = client.get("/plan?tab=forecast")
+
+    text = _html.text_of(r.text, plan.forecast_summary)
+    assert text.startswith("Now 1,000 PLN"), text
+    assert f"End · {series[-1].label} -2,100 PLN" in text, text

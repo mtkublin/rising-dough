@@ -16,11 +16,13 @@ from budget_planner.domain.money import major_float
 from budget_planner.services import (
     analytics as analytics_service,
     budget as budget_service,
+    forecast as forecast_service,
+    fortune as fortune_service,
     fx as fx_service,
 )
 from budget_planner.services.analytics import AnalyticsBundle
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner.web import view_models
+from budget_planner.web import charts, view_models
 from budget_planner.web.params import query_choice
 
 
@@ -31,6 +33,38 @@ def forecast_chart_points(
     return tuple(
         (float(i), major_float(p.end_balance_minor, base_ccy)) for i, p in enumerate(projection)
     )
+
+
+def forecast_summary(
+    conn: sqlite3.Connection,
+    user_id: int,
+    settings: Settings,
+    today: date,
+    projection: tuple[MonthlyProjectionPoint, ...],
+) -> forecast_service.ProjectionSummary | None:
+    """Summary strip whose NOW is today's net worth, as on Accounts (ADR-0151 section 2)."""
+    net_worth = fortune_service.compute_fortune(
+        conn, user_id, fx_service.converter_for(conn, settings, today)
+    ).net_base
+    return forecast_service.projection_summary(projection, now_value=net_worth)
+
+
+def forecast_context(
+    conn: sqlite3.Connection, user_id: int, settings: Settings, today: date, horizon: int
+) -> dict[str, object]:
+    """Template keys of the Forecast tab: series, chart and the summary strip."""
+    projection = forecast_service.monthly_projection(
+        conn, user_id, settings, today, horizon=horizon
+    )
+    return {
+        "forecast_points": projection,
+        "forecast_horizon": horizon,
+        "forecast_chart": charts.line_area(
+            forecast_chart_points(projection, settings.base_currency),
+            x_labels=tuple(p.label for p in projection),
+        ),
+        "forecast_summary": forecast_summary(conn, user_id, settings, today, projection),
+    }
 
 
 def base_context(

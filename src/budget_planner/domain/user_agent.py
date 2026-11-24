@@ -3,7 +3,9 @@
 Pure string matching, no dependency. The label format is the handoff board's
 ``"<browser> · <os>"`` (``Firefox · macOS``, ``Safari · iPhone``). Order of the
 marker tuples matters: the first match wins (Edge and Opera also say ``Chrome``, Chrome
-also says ``Safari``, iPhone also says ``Mac OS X``).
+also says ``Safari``, iPhone also says ``Mac OS X``). The known part is always shown
+(``Unknown browser · macOS``, ``Firefox · unknown system``); ``Unknown device`` only when
+neither part is known (ADR-0151 section 2).
 """
 
 from __future__ import annotations
@@ -11,6 +13,8 @@ from __future__ import annotations
 from typing import Final
 
 UNKNOWN_DEVICE: Final = "Unknown device"
+UNKNOWN_BROWSER: Final = "Unknown browser"
+UNKNOWN_SYSTEM: Final = "unknown system"
 LABEL_SEPARATOR: Final = " · "
 
 _BROWSERS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
@@ -39,11 +43,11 @@ def _first_match(user_agent: str, table: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 def device_label(user_agent: str | None) -> str:
-    """``"Firefox · macOS"``-style label; ``"Unknown device"`` for empty or non-browser text."""
+    """``"Firefox · macOS"``-style label; unknown parts are named (ADR-0151)."""
     if not user_agent:
         return UNKNOWN_DEVICE
     browser = _first_match(user_agent, _BROWSERS)
-    if browser is None:
-        return UNKNOWN_DEVICE
     system = _first_match(user_agent, _SYSTEMS)
-    return browser if system is None else f"{browser}{LABEL_SEPARATOR}{system}"
+    if browser is None and system is None:
+        return UNKNOWN_DEVICE
+    return f"{browser or UNKNOWN_BROWSER}{LABEL_SEPARATOR}{system or UNKNOWN_SYSTEM}"

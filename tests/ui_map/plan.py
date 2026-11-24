@@ -160,3 +160,6 @@ forecast_caption = by_id("forecast-caption")
 forecast_projection = role("table", "Monthly projection table")
 forecast_projection_rows = role("row").inside(forecast_projection)
 year_cell_open_any = by_id("yc-", prefix=True)
+
+# --- T-UR36b: forecast summary strip (ADR-0151 section 2) ---
+forecast_summary = role("complementary", "Projection summary")

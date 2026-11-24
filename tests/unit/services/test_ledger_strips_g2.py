@@ -24,7 +24,7 @@ from budget_planner.repositories import (
     recurring as recurring_repo,
     transactions as txn_repo,
 )
-from budget_planner.services import ledger_totals as lt
+from budget_planner.services import ledger_totals as lt, preferences as preferences_svc
 from budget_planner.web import ledger_data
 from budget_planner.web.ledger_types import LedgerFilters, ViewKind
 from tests.unit.services.conftest import OWNER_ID, WORLD_TODAY, World, expense_rule_amount
@@ -106,8 +106,9 @@ def test_actual_spent_converts_eur_and_excludes_other_month_income_and_other_use
     add(w.owner.account_id, w.owner.category_id, dt.date(2026, 10, 31), 9_999)  # last month
     add(w.owner.account_id, w.owner.income_category_id, dt.date(2026, 11, 11), 50_000)  # income
     add(w.other.account_id, w.other.category_id, dt.date(2026, 11, 11), 7_777, w.other.user_id)
-    # world expense 1_000 + 2_450 + 30_000 EUR * 4.00
-    assert _ctx(conn, "actual")["spent_minor"] == 123_450
+    # the 11 Nov income opens the pay window, so the world's 10 Nov expense (1_000) is before it:
+    # 2_450 + 30_000 EUR * 4.00
+    assert _ctx(conn, "actual")["spent_minor"] == 122_450
 
 
 def test_actual_spent_is_none_without_cached_rate(
@@ -197,3 +198,31 @@ def test_filter_summary_names_active_filters(
     empty = _ctx(conn, "actual")["filter_summary"]
     assert isinstance(empty, ledger_data.FilterSummary)
     assert not empty.is_active
+
+
+def test_actual_spent_uses_the_pay_window_not_the_calendar_month(
+    conn: sqlite3.Connection, world_with_two_users: World
+) -> None:
+    """ADR-0151 section 2: income anchor on 25 Oct, today 3 Nov: spent counts 25 Oct..today."""
+    w = world_with_two_users
+    preferences_svc.set_income_anchor_category_id(conn, OWNER_ID, w.owner.income_category_id)
+
+    def add(cat: int, day: dt.date, amount: int, *, user: int = OWNER_ID) -> None:
+        rows = w.owner if user == OWNER_ID else w.other
+        txn_repo.create(
+            conn,
+            user,
+            NewTransaction(
+                operation_date=day, category_id=cat, account_id=rows.account_id, amount=amount
+            ),
+        )
+
+    add(w.owner.income_category_id, dt.date(2026, 10, 25), 100_000)  # payday opens the window
+    add(w.owner.category_id, dt.date(2026, 10, 24), 5_000)  # before the window
+    add(w.owner.category_id, dt.date(2026, 10, 25), 1_100)
+    add(w.owner.category_id, dt.date(2026, 10, 30), 2_200)  # previous calendar month, in window
+    add(w.owner.category_id, dt.date(2026, 11, 3), 330)
+    add(w.other.category_id, dt.date(2026, 10, 30), 7_777, user=w.other.user_id)
+    spent = ledger_data.period_spent_minor(conn, OWNER_ID, SETTINGS, dt.date(2026, 11, 3))
+    # 1_100 + 2_200 + 330, plus the world's own 1_000 expense dated 10 Nov (inside the window)
+    assert spent == 4_630

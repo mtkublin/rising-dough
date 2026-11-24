@@ -707,9 +707,11 @@ class TrendDirection(StrEnum):
 class ProjectionSummary:
     """NOW / END / PEAK strip of the forecast tab.
 
-    ``delta_minor`` is the non-negative magnitude of ``end - now`` in base
-    currency minor units and ``delta_direction`` carries the sign (ADR-0147
-    §3, ADR-0148); ``months`` is the horizon length shown as "over N months".
+    ``now_value`` is today's net worth as on Accounts (ADR-0151 section 2), not the first
+    projected month end. ``delta_minor`` is the non-negative magnitude of
+    ``last projected end - now`` in base currency minor units and
+    ``delta_direction`` carries the sign (ADR-0147 §3, ADR-0148);
+    ``months`` is the horizon length shown as "over N months".
     The balances themselves stay signed, as in the rest of this module.
     """
 
@@ -729,11 +731,12 @@ def _trend_direction(change: int) -> TrendDirection:
     return TrendDirection.FLAT
 
 
-def projection_summary(projection: tuple[MonthlyProjectionPoint, ...]) -> ProjectionSummary | None:
-    """Return the summary strip for a projection, or ``None`` when it is empty."""
+def projection_summary(
+    projection: tuple[MonthlyProjectionPoint, ...], *, now_value: int
+) -> ProjectionSummary | None:
+    """Return the summary strip, or ``None`` when empty; ``now_value`` is today's net worth."""
     if not projection:
         return None
-    now_value = projection[0].end_balance_minor
     change = projection[-1].end_balance_minor - now_value
     return ProjectionSummary(
         now_value=now_value,
