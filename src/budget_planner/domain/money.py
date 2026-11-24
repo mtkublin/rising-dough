@@ -297,6 +297,25 @@ def format_money(amount_minor: int, currency: str) -> str:
     return f"{sign}{whole}{('.' + frac) if frac else ''} {currency.upper()}"
 
 
+_MINUS: Final = "\N{MINUS SIGN}"
+
+
+def format_figure(
+    amount_minor: int, currency: str, *, plus: bool = False, with_currency: bool = False
+) -> str:
+    """Signed display figure: U+2212 for negatives, ``+`` for positives when ``plus``.
+
+    Magnitude comes from ``format_money`` (grouping, exponent); zero carries no sign.
+    The currency suffix is added only with ``with_currency``.
+    """
+    text = format_money(abs(amount_minor), currency)
+    if not with_currency:
+        text = text.rsplit(" ", 1)[0]
+    if amount_minor < 0:
+        return _MINUS + text
+    return "+" + text if plus and amount_minor > 0 else text
+
+
 def bps_to_percent(bps: int) -> Decimal:
     """Basis points as a percent ``Decimal`` (150 -> 1.5); not a currency amount."""
     return Decimal(bps) / _BPS_PER_PERCENT
