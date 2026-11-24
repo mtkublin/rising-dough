@@ -74,9 +74,9 @@ def test_category_picker_searchable_options_carry_id_direction_and_first_active(
         ("4", "false"),
         ("7", "false"),
     ]
-    assert _html.text_of(html, f.category_option("Salary")).endswith("income")
-    assert _html.text_of(html, f.category_option("Transit")).endswith("transit")
-    assert _html.text_of(html, f.category_option("Takeaway")).endswith("expense")
+    assert _html.text_of(html, f.category_option("Salary")).endswith("\u2191 income")
+    assert _html.text_of(html, f.category_option("Transit")).endswith("\u21c4 transit")
+    assert _html.text_of(html, f.category_option("Takeaway")).endswith("\u2193 expense")
     chip = _html.resolve_one(html, f.category_option("Takeaway")).select_one(".rd-chip")
     assert chip is not None
     assert chip.get("data-color") == "orange"

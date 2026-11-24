@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from budget_planner.config import Settings
+from budget_planner.domain.enums import Direction
 from budget_planner.web import view_models
 from budget_planner.web.templating import build_jinja_env
 
@@ -19,6 +20,19 @@ REST = "▒"
 )
 def test_bar_aria_label(used: int, left: int, label: str) -> None:
     assert view_models.bar_aria_label(used, left) == label
+
+
+@pytest.mark.parametrize(
+    ("direction", "label"),
+    [
+        (Direction.EXPENSE, "\u2193 expense"),
+        (Direction.INCOME, "\u2191 income"),
+        (Direction.TRANSIT, "\u21c4 transit"),
+        (Direction.ADJUSTMENT, "\u00b1 adjustment"),
+    ],
+)
+def test_direction_label(direction: Direction, label: str) -> None:
+    assert view_models.direction_label(direction) == label
 
 
 def test_bar_spans_zero_percent() -> None:
@@ -108,6 +122,11 @@ def test_filter_bar_spans_and_label() -> None:
         FULL * 4 + LEFT * 6
     )
     assert _render("{{ 78 | bar_aria_label(15) }}") == "78 percent spent, 15 percent left"
+
+
+def test_filter_direction_label() -> None:
+    assert _render("{{ 'income' | direction_label }}") == "\u2191 income"
+    assert _render("{{ d | direction_label }}", d=Direction.TRANSIT) == "\u21c4 transit"
 
 
 def test_filter_year_cell_state() -> None:
