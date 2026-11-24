@@ -70,19 +70,19 @@ gh workflow run drill.yml --ref <branch> -f mode=gate
 
 ## Verification
 
-Run from your workstation. All three must pass before the deploy is considered done.
+Run from your workstation. All three must pass before the deploy is considered done. The HTTPS checks use the public URL `https://budget.rising-dough.eu` because the tailnet ACL gives the operator only port 22 on `tag:prod` (SSH stays on `budget-planner-prod`).
 
 ```sh
 # TLS + reachability + readiness.
-curl -fsS "https://budget-planner-prod/ready" | jq .
+curl -fsS "https://budget.rising-dough.eu/ready" | jq .
 # Expect: {"status":"ok","db":"ok","litestream":"ok", ...}
 
 # Host agent reports the release applied (ADR-0111).
-curl -fsS "https://budget-planner-prod/.well-known/bp-deploy-status.json" | jq .
+curl -fsS "https://budget.rising-dough.eu/.well-known/bp-deploy-status.json" | jq .
 # Expect: state "ok", running_ref ".../budget-planner:vX.Y.Z@sha256:...", previous_ref the release before.
 
 # Caddy still serving HTTPS with current cert.
-curl -fsSI "https://budget-planner-prod/" | grep -i strict-transport-security
+curl -fsSI "https://budget.rising-dough.eu/" | grep -i strict-transport-security
 # Expect: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 ```
 

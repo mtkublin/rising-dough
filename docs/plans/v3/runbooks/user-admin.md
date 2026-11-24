@@ -46,7 +46,7 @@ Every change writes an `audit_log` row (`entity_type='users'`, `operation='updat
 
 ## Preconditions
 
-- Operator is logged in as an admin at `https://budget-planner-prod/`.
+- Operator is logged in as an admin at `https://budget.rising-dough.eu/`.
 - Admin's own password has already been rotated (never leave the Terraform-generated bootstrap password in use beyond the first login — ADR-0061 §3).
 - 2FA / passkey is registered for the admin's own account (optional but strongly recommended).
 
@@ -71,7 +71,7 @@ ssh operator@budget-planner-prod \
   "sqlite3 /data/budget.db \"SELECT id, email, is_admin, must_change_password, deleted_at FROM users WHERE lower(email) = lower('<new-email>');\""
 
 # Audit entry present.
-curl -fsS -b <admin-session-cookie-jar> "https://budget-planner-prod/debug/audit-tail?entity_type=users&limit=5" | jq .
+curl -fsS -b <admin-session-cookie-jar> "https://budget.rising-dough.eu/debug/audit-tail?entity_type=users&limit=5" | jq .
 
 # System categories were seeded for the new user (ADR-0061 §6).
 ssh operator@budget-planner-prod \
@@ -97,7 +97,7 @@ ssh operator@budget-planner-prod \
   ```
 - Audit log carries the reset entry:
   ```sh
-  curl -fsS -b <admin-cookie-jar> "https://budget-planner-prod/debug/audit-tail?entity_type=users&operation=update&limit=5"
+  curl -fsS -b <admin-cookie-jar> "https://budget.rising-dough.eu/debug/audit-tail?entity_type=users&operation=update&limit=5"
   # Reset rows are `operation = 'update'` with `new_json.action = "reset_password"` (ADR-0073 §6):
   ssh operator@budget-planner-prod \
     "sqlite3 /data/budget.db \"SELECT id, entity_id, actor_user_id, changed_at FROM audit_log WHERE entity_type = 'users' AND json_extract(new_json, '$.action') = 'reset_password' ORDER BY id DESC LIMIT 5;\""
@@ -124,7 +124,7 @@ ssh operator@budget-planner-prod \
 # Target can no longer log in.
 curl -fsS -o /dev/null -w '%{http_code}\n' \
   -c /tmp/jar -b /tmp/jar \
-  -X POST "https://budget-planner-prod/auth/login" \
+  -X POST "https://budget.rising-dough.eu/auth/login" \
   --data-urlencode "email=<removed-email>" \
   --data-urlencode "password=<their-old-password>"
 # Expect: 401.
