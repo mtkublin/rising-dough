@@ -165,7 +165,7 @@ def test_expired_login_form_rerenders_login_with_fresh_token(
         )
         assert r.status_code == 403
         assert r.headers["content-type"].startswith("text/html")
-        assert text_of(r.text, auth.login_error) == EXPIRED_NOTICE
+        assert text_of(r.text, auth.login_error) == f"▲ {EXPIRED_NOTICE}"
         assert exists(r.text, auth.login_heading)
         assert SESSION_COOKIE not in app_client.cookies  # no login happened
         fresh = _form_token(r.text)
