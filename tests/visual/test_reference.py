@@ -9,11 +9,13 @@ dark, into ``tests/visual/reference/`` in the same job and container first.
   the raster noise floor against the fresh reference. Proves rendering is stable.
 * ``test_app_matches_handoff``: renders the app route that replaces a handoff
   page (frozen server, handoff seed at 2026-10-31) and compares within the
-  per-surface tolerance. Every surface is compared; red until it migrates.
+  one strict tolerance (ratio and largest cluster, ADR-0147 section 2).
+  Every surface is compared; red until it migrates.
 """
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -31,7 +33,7 @@ SURFACE_ROUTES: dict[str, str] = {
     "ledger": "/ledger",
     "plan": "/plan",
     "settings": "/settings",
-    "auth": "/login",
+    "auth": "/auth/login",
     "errors": "/does-not-exist",
     "overlays": "/today",
 }
@@ -69,6 +71,18 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         )
 
 
+def _keep_dir() -> Path:
+    return Path(os.environ.get("VISUAL_KEEP_DIR", "visual-actual"))
+
+
+def _record_self_cluster(page: str, viewport: str, theme: str, result: handoff.Comparison) -> None:
+    """One line per self-comparison for calibrating ``MAX_DIFF_CLUSTER_PX`` (T-UR00b)."""
+    keep = _keep_dir()
+    keep.mkdir(parents=True, exist_ok=True)
+    with (keep / "self-clusters.txt").open("a") as fh:
+        fh.write(f"{result.cluster} {page} {viewport} {theme}\n")
+
+
 @pytest.mark.usefixtures("references")
 @pytest.mark.parametrize("theme", handoff.THEMES)
 @pytest.mark.parametrize("viewport", list(handoff.VIEWPORTS))
@@ -80,9 +94,11 @@ def test_handoff_matches_itself(
     with handoff.serve_handoff() as base, tempfile.TemporaryDirectory() as tmp:
         actual = Path(tmp) / "actual.png"
         handoff.shoot(browser, base, handoff_page, viewport=viewport, theme=theme, out=actual)
-        ratio = handoff.diff_ratio(expected, actual)
-    assert ratio <= handoff.SELF_TOLERANCE, (
-        f"{handoff_page} {viewport} {theme}: {ratio:.4%} pixels differ"
+        result = handoff.compare(expected, actual)
+    _record_self_cluster(handoff_page, viewport, theme, result)
+    assert result.ratio <= handoff.SELF_TOLERANCE, (
+        f"{handoff_page} {viewport} {theme}: {result.ratio:.4%} pixels differ, "
+        f"largest cluster {result.cluster}px"
     )
 
 
@@ -117,11 +133,20 @@ def test_app_matches_handoff(
         with tempfile.TemporaryDirectory() as tmp:
             actual = Path(tmp) / "actual.png"
             pg.screenshot(path=str(actual), full_page=True)
-            ratio = handoff.diff_ratio(
-                handoff.reference_path(handoff_page, viewport, theme), actual
+            result = handoff.compare(handoff.reference_path(handoff_page, viewport, theme), actual)
+            ok = (
+                result.ratio <= handoff.MAX_DIFF_PIXEL_RATIO
+                and result.cluster <= handoff.MAX_DIFF_CLUSTER_PX
             )
+            if not ok:
+                stem = Path(handoff_page).with_suffix("").as_posix().replace("/", "_")
+                handoff.write_diff_png(
+                    actual, result, _keep_dir() / f"{stem}.{viewport}.{theme}.diff.png"
+                )
     finally:
         context.close()
-    assert ratio <= handoff.SURFACE_TOLERANCE[surface], (
-        f"{route} {viewport} {theme}: {ratio:.2%} differ"
+    assert ok, (
+        f"{route} {viewport} {theme}: {result.ratio:.4%} differ "
+        f"(max {handoff.MAX_DIFF_PIXEL_RATIO:.2%}), largest cluster {result.cluster}px "
+        f"(max {handoff.MAX_DIFF_CLUSTER_PX}px) at {result.box}"
     )

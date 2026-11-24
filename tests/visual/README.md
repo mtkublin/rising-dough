@@ -15,21 +15,23 @@ References come from the designer handoff (`docs/design/rising-dough-frontend/`,
 - Compare: `just test-visual --reference=handoff [surface]` (same container; surface: today, accounts, ledger, plan, settings, auth, errors, overlays). Renders the references first, then runs only `test_reference.py` for every surface. Expected red with the old app (T-UR00b red run) until each surface migrates.
 - Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`.
 
-### Tolerance (max fraction of differing pixels)
+### Tolerance (ADR-0147 section 2)
 
-| Comparison | Tolerance |
+One strict tolerance for every app-vs-handoff comparison, all surfaces alike (`handoff.compare`):
+
+| Check | Limit |
 |---|---|
-| handoff vs itself (any surface) | 0.05% (raster noise floor, observed <= 0.022% under load; most pages are exactly 0) |
-| today | 2% |
-| accounts | 2% |
-| ledger | 3% |
-| plan | 4% (SVG charts) |
-| settings | 2% |
-| auth | 1% |
-| errors | 1% |
-| overlays | 3% |
+| Differing pixels | `MAX_DIFF_PIXEL_RATIO` = 0.1% |
+| Largest 8-connected differing region | `MAX_DIFF_CLUSTER_PX` = 64 px, **provisional** |
+| Handoff vs itself (noise floor) | `SELF_TOLERANCE` = 0.05% |
 
-Different image sizes always fail (ratio 1.0). Values live in `handoff.SURFACE_TOLERANCE`; tighten as surfaces migrate.
+Different image sizes always fail (ratio 1.0). The cluster cap catches a small but real defect (a missing icon, a shifted label) that stays under the ratio on a tall page. Calibration: every handoff-vs-itself test appends `<cluster> <page> <viewport> <theme>` to `$VISUAL_KEEP_DIR/self-clusters.txt` (default `visual-actual/`), and each shard's summary line reports `max self-cluster: <N>px`. Set the cap to twice the largest self-cluster seen over at least two CI runs under load. Exceptions only through the "Tolerance exceptions" table in `docs/plans/ui-redesign/derived.md` (reason plus operator sign-off). A failing comparison writes `<page>.<viewport>.<theme>.diff.png` into `VISUAL_KEEP_DIR`: differing pixels red, the largest cluster outlined in blue; the assertion message carries ratio, cluster size and its box. `test_snapshots.py` (old-UI baselines) keeps its own `diff_ratio` threshold (`MAX_DIFF_PIXEL_RATIO` there is its own constant).
+
+### Known gaps
+
+- Overlay pages (`pages/overlays/*`) are compared against the plain `/today` route without opening the dialog; overlay routing is a later item.
+- Forecast net cell: a month the app projects positive where the board shows a loss (Dec 2026, Sep 2027) keeps the board's negative styling (overlay class), so those cells differ.
+- The `recurring-board` modifier is not yet wired per page in `test_reference.py`.
 
 ### Bootstrap (before baselines exist)
 

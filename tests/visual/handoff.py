@@ -19,6 +19,7 @@ import threading
 import zlib
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
@@ -37,19 +38,15 @@ HANDOFF_FIXED_TIME: Final = "2026-10-31T10:00:00Z"  # == frozen_server.HANDOFF_F
 VIEWPORTS: Final = {"1440": (1440, 900), "1024": (1024, 768), "375": (375, 812)}
 THEMES: Final = ("light", "dark")
 
-# Per-surface tolerance for app-vs-handoff comparisons: max fraction of pixels
-# that may differ. Handoff-vs-itself uses ``SELF_TOLERANCE`` (noise floor).
+# One strict tolerance for every app-vs-handoff comparison (ADR-0147 section 2): at most
+# MAX_DIFF_PIXEL_RATIO of the pixels differ AND the largest 8-connected differing region is at
+# most MAX_DIFF_CLUSTER_PX. Exceptions only via derived.md "Tolerance exceptions".
+MAX_DIFF_PIXEL_RATIO: Final = 0.001
+# provisional until calibrated from CI self-comparison (T-UR00b): twice the largest cluster
+# seen in repeated handoff-vs-itself runs (``self-clusters.txt``).
+MAX_DIFF_CLUSTER_PX: Final = 64
+# Handoff-vs-itself uses ``SELF_TOLERANCE`` (noise floor).
 SELF_TOLERANCE: Final = 0.0005  # raster noise floor: observed <= 0.022% under load, most pages 0
-SURFACE_TOLERANCE: Final = {
-    "today": 0.02,
-    "accounts": 0.02,
-    "ledger": 0.03,
-    "plan": 0.04,  # SVG charts anti-alias differently
-    "settings": 0.02,
-    "auth": 0.01,
-    "errors": 0.01,
-    "overlays": 0.03,
-}
 
 CHROMIUM_ARGS: Final = [
     "--disable-gpu",
@@ -223,6 +220,101 @@ def diff_ratio(expected: Path, actual: Path) -> float:
         return 1.0
     differing = sum(1 for i in range(0, len(a), c1) if a[i : i + c1] != b[i : i + c1])
     return differing / (w1 * h1)
+
+
+Box = tuple[int, int, int, int]  # left, top, right, bottom (inclusive)
+
+
+@dataclass(frozen=True)
+class Comparison:
+    """Result of comparing two screenshots (``size_mismatch``: ratio 1.0, no cluster)."""
+
+    ratio: float
+    cluster: int
+    box: Box | None
+    width: int
+    height: int
+    mask: bytes
+    size_mismatch: bool = False
+
+
+def largest_cluster(mask: bytes, width: int, height: int) -> tuple[int, Box | None]:
+    """Size and bounding box of the largest 8-connected region of set cells in ``mask``."""
+    seen = bytearray(len(mask))
+    best, best_box = 0, None
+    for start in range(len(mask)):
+        if not mask[start] or seen[start]:
+            continue
+        seen[start] = 1
+        stack = [start]
+        size = 0
+        left, top, right, bottom = width, height, 0, 0
+        while stack:
+            i = stack.pop()
+            y, x = divmod(i, width)
+            size += 1
+            left, right = min(left, x), max(right, x)
+            top, bottom = min(top, y), max(bottom, y)
+            for ny in range(max(y - 1, 0), min(y + 2, height)):
+                row = ny * width
+                for nx in range(max(x - 1, 0), min(x + 2, width)):
+                    j = row + nx
+                    if mask[j] and not seen[j]:
+                        seen[j] = 1
+                        stack.append(j)
+        if size > best:
+            best, best_box = size, (left, top, right, bottom)
+    return best, best_box
+
+
+def compare(expected: Path, actual: Path) -> Comparison:
+    """Pixel ratio plus largest differing cluster of two same-size PNGs."""
+    w1, h1, c1, a = _decode(expected)
+    w2, h2, c2, b = _decode(actual)
+    if (w1, h1, c1) != (w2, h2, c2):
+        return Comparison(1.0, 0, None, w2, h2, b"", size_mismatch=True)
+    mask = bytes(1 if a[i : i + c1] != b[i : i + c1] else 0 for i in range(0, len(a), c1))
+    cluster, box = largest_cluster(mask, w1, h1)
+    return Comparison(sum(mask) / (w1 * h1), cluster, box, w1, h1, mask)
+
+
+def _png(width: int, height: int, rows: bytes) -> bytes:
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        crc = zlib.crc32(kind + body) & 0xFFFFFFFF
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", crc)
+
+    raw = b"".join(b"\x00" + rows[y * width * 3 : (y + 1) * width * 3] for y in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
+def write_diff_png(actual: Path, result: Comparison, out: Path) -> None:
+    """Actual screenshot with differing pixels red and the largest cluster outlined in blue."""
+    if result.size_mismatch:
+        return
+    w, h, c, data = _decode(actual)
+    rgb = bytearray(w * h * 3)
+    for i in range(w * h):
+        px = data[i * c : i * c + 3]
+        if result.mask[i]:
+            px = b"\xff\x00\x00"
+        rgb[i * 3 : i * 3 + 3] = px
+    if result.box:
+        left, top, right, bottom = result.box
+        left, top = max(left - 2, 0), max(top - 2, 0)
+        right, bottom = min(right + 2, w - 1), min(bottom + 2, h - 1)
+        for x in range(left, right + 1):
+            for y in (top, bottom):
+                rgb[(y * w + x) * 3 : (y * w + x) * 3 + 3] = b"\x00\x00\xff"
+        for y in range(top, bottom + 1):
+            for x in (left, right):
+                rgb[(y * w + x) * 3 : (y * w + x) * 3 + 3] = b"\x00\x00\xff"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(_png(w, h, bytes(rgb)))
 
 
 def main(argv: list[str]) -> None:
