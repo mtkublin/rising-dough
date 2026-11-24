@@ -61,3 +61,14 @@ def palette_option(label: str) -> Locator:
 def theme_option(value: str) -> Locator:
     """Theme button (``system``, ``light``, ``dark``)."""
     return role("button", value, exact=True).inside(theme_switch)
+
+
+# Offline state (T-UR25, ADR-0134 section 4): dev-only dialog on /dev/shell plus the
+# handoff's errors/offline copy shown inside the dialog when a save gets no response.
+dev_dialog_open = role("button", "open dev dialog")
+dev_dialog = role("dialog", "dev note")
+dev_dialog_note = role("textbox", "note").inside(dev_dialog)
+dev_dialog_save = role("button", "[ save note ]").inside(dev_dialog)
+offline_state = role("alert").inside(dev_dialog)
+offline_retry = role("button", "retry now").inside(offline_state)
+flash_saved = role("status").inside(flash_region)

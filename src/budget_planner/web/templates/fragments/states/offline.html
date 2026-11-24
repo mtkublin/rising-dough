@@ -1,0 +1,14 @@
+{# fragment: states/offline (T-UR25, ADR-0134 section 4; handoff pages/errors/offline.html copy).
+   A save got no response: shown at the top of the open dialog or form, typed input kept.
+   Cloned by rd/js/offline.js from the <template id="rd-offline-template"> in layouts/base.html.
+   Inputs: none. #}
+<div class="rd-error-summary"
+     role="alert"
+     tabindex="-1"
+     data-js="offline-state">
+  <p class="rd-error-summary__title">You’re offline</p>
+  <p>Changes can’t be saved right now. Your input is kept; retry when you’re back online.</p>
+  <div>
+    <button type="button" class="rd-btn" data-js="offline-retry">retry now</button>
+  </div>
+</div>

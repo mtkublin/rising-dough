@@ -29,4 +29,13 @@
       </div>
     </div>
   </section>
+  <section class="rd-card rd-card--outline" aria-labelledby="dialog-title">
+    <h2 class="rd-card__title" id="dialog-title">Dialog</h2>
+    <div class="rd-card__body">
+      <button type="button"
+              class="rd-btn"
+              hx-get="/dev/shell/dialog"
+              hx-target="#modal-root">open dev dialog</button>
+    </div>
+  </section>
 {% endblock %}
