@@ -1,0 +1,8 @@
+{# fragment: states/recurring-empty
+   Inputs: new_entry_url. #}
+<div class="rd-empty">
+  {% include "fragments/states/loaf.html" %}
+  <p class="rd-empty__msg">No recurring rules.</p>
+  <div class="rd-empty__actions"><a class="rd-btn rd-btn--primary"
+   href="{{ new_entry_url | default('/transactions/new') }}">[ new entry ]</a></div>
+</div>

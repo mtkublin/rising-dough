@@ -1,0 +1,17 @@
+{# fragment: toast/undo
+   Rendered into #toast-root after a delete, skip or restore. Inputs: message (text), undo_url (POST), csrf_token. #}
+<div class="rd-toast" role="status" data-js="toast">
+  <span>{{ message }}</span>
+  <form method="post"
+        action="{{ undo_url }}"
+        hx-post="{{ undo_url }}"
+        hx-target="#toast-root">
+    <input type="hidden"
+           name="_csrf_token"
+           value="{{ csrf_token }}"><button type="submit"
+        class="rd-toast__action"
+        name="undo"
+        value="1"
+        hx-disabled-elt="this">undo</button>
+  </form>
+</div>

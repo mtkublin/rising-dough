@@ -25,3 +25,14 @@ def dev_components(
     if getattr(settings, "env", "dev") == "production":
         raise HTTPException(status_code=404)
     return render(request, "dev/components.html")
+
+
+@router.get("/dev/shell", response_class=HTMLResponse, include_in_schema=False)
+def dev_shell(
+    request: Request,
+    settings: Settings = Depends(get_settings_dep),
+) -> HTMLResponse:
+    """Placeholder page on the new base layout (T-UR02); same gating as above."""
+    if getattr(settings, "env", "dev") == "production":
+        raise HTTPException(status_code=404)
+    return render(request, "pages/dev/shell.html", nav_current="today")

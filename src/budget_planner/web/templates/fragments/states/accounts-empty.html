@@ -1,0 +1,8 @@
+{# fragment: states/accounts-empty
+   Inputs: new_account_url (default /accounts/new). #}
+<div class="rd-empty">
+  {% include "fragments/states/loaf.html" %}
+  <p class="rd-empty__msg">No accounts yet.</p>
+  <div class="rd-empty__actions"><a class="rd-btn rd-btn--primary"
+   href="{{ new_account_url | default('/accounts/new') }}">[ new account ]</a></div>
+</div>
