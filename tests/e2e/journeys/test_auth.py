@@ -12,7 +12,9 @@ from playwright.sync_api import expect
 
 from tests.auth_support import TEST_EMAIL, TEST_PASSWORD
 from tests.e2e.journeys._world import World
+from tests.e2e.mockup_target import Journey
 from tests.ui_map import auth, settings, shell, today
+from tests.ui_map.locator import to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -44,7 +46,7 @@ def test_logout_revokes_the_session_and_blocks_the_back_button(anon_world: World
     _sign_in(anon_world, TEST_PASSWORD)
     expect(anon_world.find(today.heading)).to_be_visible()
     anon_world.settle()
-    anon_world.find(shell.sign_out).click()
+    anon_world.find(shell.sign_out).first.click()
 
     expect(anon_world.find(auth.login_heading)).to_be_visible()
     assert anon_world.scalar(LIVE_SESSIONS) == 0
@@ -73,6 +75,7 @@ def test_stale_session_is_sent_to_reauth_then_confirmed_with_the_secret(world: W
     world.find(auth.reauth_password).fill("wrong-wrong-wrong")
     world.find(auth.reauth_confirm).click()
     expect(world.find(auth.reauth_error)).to_be_visible()
+    expect(world.find(auth.reauth_error)).to_contain_text(re.compile(r"\d+ attempts left\."))
 
     world.find(auth.reauth_password).fill(TEST_PASSWORD)
     world.find(auth.reauth_confirm).click()
@@ -111,3 +114,13 @@ def test_change_secret_then_sign_in_with_the_new_one(world: World) -> None:
     world.find(auth.password).fill(NEW_SECRET)
     world.find(auth.sign_in).click()
     expect(world.find(today.heading)).to_be_visible()
+
+
+def test_login_and_reauth_pages_show_their_fields_on_either_target(journey: Journey) -> None:
+    """Handoff and app render the same names (T-UR05); app needs a signed-out visit."""
+    auth_ui = journey.ui("auth")
+    if journey.target == "app":
+        journey.page.context.clear_cookies()
+    journey.goto("/auth/login")
+    for name in ("login_heading", "email", "password", "sign_in", "passkey_sign_in"):
+        to_playwright(journey.page, getattr(auth_ui, name)).wait_for(state="attached")

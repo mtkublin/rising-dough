@@ -1,0 +1,47 @@
+{#
+  layouts/auth.html: bare shell for the signed-out and step-up pages (T-UR05).
+
+  The handoff auth pages carry no app nav (rd-app--bare rd-app--auth), so they
+  do not extend layouts/base.html. Blocks: title, bake (left column), form (right column).
+  Context: csrf_token (injected by render()).
+#}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="csrf-token"
+          content="{{ csrf_token if csrf_token is string else '' }}">
+    <meta name="robots" content="noindex">
+    <title>{% block title %}Sign in · Rising Dough{% endblock %}</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', path='rd/img/favicon.svg') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='rd/css/app.bundle.css') }}">
+    <script src="{{ url_for('static', path='rd/js/theme.js') }}"></script>
+    <script src="{{ url_for('static', path='rd/js/csrf.js') }}" defer></script>
+    <script src="{{ url_for('static', path='rd/js/passkeys.js') }}" defer></script>
+  </head>
+  <body class="rd-app rd-app--bare rd-app--auth">
+    <a class="rd-skip" href="#main">skip to content</a>
+    <div class="rd-frame">
+      <div id="flash-region" class="rd-flash-region"></div>
+      <main id="main" class="rd-main rd-main--auth" tabindex="-1">
+        <div class="rd-auth">
+          <header class="rd-auth__bake">
+            {% block bake %}{% endblock %}
+          </header>
+          <div class="rd-auth__side">
+            <div class="rd-auth__form">
+              {% block form %}{% endblock %}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+  </body>
+</html>

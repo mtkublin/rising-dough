@@ -43,7 +43,11 @@
 | Today, afford-over / afford-invalid page states | Reproducible as `GET /today?amount=1800.00` and `GET /today?amount=0` (new optional `amount` query on `/today`, also the no-script fallback of the afford form) | the visual harness needs a URL per state | T-UR07 |
 | Today, loading | No skeleton in the app: during a range change or refresh the panel shows the `.htmx-request` progress line (`hx-indicator="#upcoming"`) | HTMX swaps whole responses; the skeleton fragment is kept for pages that render a placeholder first | T-UR07 |
 | Today, upcoming row menu | `skip` on a planned row soft-deletes it (`POST /planned/{id}/delete`, restorable in Recently deleted); on a recurring row it is `skip-next`. `promote` and `override` open the existing (old-markup) dialogs in `#modal-root` until T-UR07b and T-UR10 port them | no planned-skip route exists; dialogs are other tasks | T-UR07 |
+| Today, hero loaf at 375 px | The ASCII loaf overflows the hero at 375 px, exactly as in the handoff (visual-audit finding accepted as handoff parity) | handoff parity (ADR-0107 section 1) | T-UR07 |
 | Today, hero bar | `aria-label` is `N percent spent, M percent left` with `M` = remaining over budgeted (committed excluded), so the two need not add to 100 | handoff data row 6 (value-inventory 5) | T-UR07 |
+| `pages/plan/budget` period links | `?year=&month=` instead of the handoff's `?period=YYYY-MM` | contract tests and journeys pin the app's query names | T-UR11 |
+| `pages/plan/budget` row menu, `override` item | link to the existing `GET /budget/rules/{id}/overrides/new` (with `hx-get` into `#modal-root`) | the override dialog is rebuilt by the second Plan item; the static board links to its overlay page | T-UR11 |
+| `rows/budget-line` over-budget bar | `aria-label="over budget"` as in the handoff, clamped `used_pct` is not printed | `bar_spans` label would read "100 percent spent, 0 percent left" | T-UR11 |
 
 ## Tolerance exceptions
 

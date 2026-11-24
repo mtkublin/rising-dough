@@ -22,7 +22,7 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.category_colors import category_color
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import divide_minor_units, format_money
+from budget_planner.domain.money import divide_minor_units, format_figure
 from budget_planner.repositories import accounts as accounts_repo
 from budget_planner.services import (
     balance as balance_service,
@@ -230,7 +230,6 @@ def afford_state(
 
 # --- Today page view values (T-UR07, ADR-0107 section 5) --------------------------
 
-_MINUS: Final = chr(0x2212)  # handoff negative sign
 _HEX_COLOR: Final = re.compile(r"#[0-9a-f]{6}")
 _PACE_STATUS: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -238,9 +237,6 @@ _PACE_STATUS: Final[Mapping[str, str]] = MappingProxyType(
         "pacing_high": "▲ over pace",
         "over_budget": "▲ over budget",
     }
-)
-_ROW_SIGNS: Final[Mapping[str, str]] = MappingProxyType(
-    {Direction.INCOME.value: "+", Direction.EXPENSE.value: _MINUS}
 )
 _ROW_CLASSES: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -252,19 +248,6 @@ _ROW_CLASSES: Final[Mapping[str, str]] = MappingProxyType(
 _WINDOW_HEADINGS: Final[Mapping[str, str]] = MappingProxyType(
     {"7": "NEXT 7 DAYS", "30": "NEXT 30 DAYS", "all": "LATER"}
 )
-
-
-def figure_text(amount_minor: int, currency: str, *, plus: bool = False) -> str:
-    """Handoff figure: grouped, no currency suffix, U+2212 for negatives (``+`` when ``plus``)."""
-    text = format_money(amount_minor, currency).rsplit(" ", 1)[0]
-    if text.startswith("-"):
-        return _MINUS + text[1:]
-    return "+" + text if plus and amount_minor > 0 else text
-
-
-def _day_month(day: date) -> str:
-    """``7 nov``: the lower-case form the hero note uses."""
-    return f"{day.day} {vm.MONTH_SHORT[day.month - 1].lower()}"
 
 
 def _day_month_upper(day: date, *, padded: bool) -> str:
@@ -356,13 +339,13 @@ def today_view(
     totals = summary.totals
     days = _count_noun(summary.days_until_next_income, "day")
     anchor = summary.anchor_category_name
-    until = _day_month(summary.next_income_date)
+    until = vm.day_month(summary.next_income_date)
     long_who = f"next income ({anchor}, {until})" if anchor else f"next income ({until})"
     short_who = f"{anchor.lower()} ({until})" if anchor else f"next income ({until})"
     liabilities = -fortune.liabilities_base
 
     def fmt(minor: int) -> str:
-        return figure_text(minor, base_currency)
+        return format_figure(minor, base_currency)
 
     return TodayView(
         figure=fmt(budget.left_per_day_minor),
@@ -407,10 +390,10 @@ def afford_view(result: today_service.AffordResult, base_currency: str) -> Affor
     shown = result.unclamped_per_day_minor if is_over else result.per_day_minor
     return AffordView(
         is_over=is_over,
-        per_day=figure_text(shown, base_currency),
-        over_by=figure_text(result.over_minor, base_currency),
+        per_day=format_figure(shown, base_currency),
+        over_by=format_figure(result.over_minor, base_currency),
         delta_arrow="↓" if result.delta_minor < 0 else "↑",
-        delta=figure_text(abs(result.delta_minor), base_currency),
+        delta=format_figure(abs(result.delta_minor), base_currency),
     )
 
 
@@ -423,7 +406,6 @@ class UpcomingRowView:
     row_class: str
     date_text: str
     flag: str
-    sign: str
     amount_text: str
     cat_color: str
     color_rule: str
@@ -462,8 +444,12 @@ def _status_key(item: vm.UpcomingItem) -> str:
 def _row_view(item: vm.UpcomingItem, today: date, base_currency: str) -> UpcomingRowView:
     status = ledger_totals.planned_status(item.row.operation_date, today)
     date_text = _day_month_upper(item.row.operation_date, padded=True)
-    sign = _ROW_SIGNS.get(item.direction, "")
-    amount = figure_text(item.row.amount_minor, base_currency)
+    is_expense = item.direction == Direction.EXPENSE.value
+    amount = format_figure(
+        -item.row.amount_minor if is_expense else item.row.amount_minor,
+        base_currency,
+        plus=item.is_income,
+    )
     cat_color, color_rule = "", ""
     if item.category is not None and item.category.color:
         colour = category_color(item.category.color)
@@ -477,11 +463,10 @@ def _row_view(item: vm.UpcomingItem, today: date, base_currency: str) -> Upcomin
         row_class=_ROW_CLASSES[_status_key(item)],
         date_text=date_text,
         flag=f"▲ overdue {_count_noun(status.days, 'day')}" if item.is_overdue else "",
-        sign=sign,
         amount_text=amount,
         cat_color=cat_color,
         color_rule=color_rule,
-        menu_title=f"{item.row.description} · {sign}{amount} {base_currency}",
+        menu_title=f"{item.row.description} · {amount} {base_currency}",
         menu_sub=f"{date_text} · {account}" if account else date_text,
         occurrence=item.row.operation_date.isoformat(),
     )
@@ -539,7 +524,7 @@ def afford_panel(state: AffordState, base_currency: str) -> AffordPanel:
     if state.result is None or state.amount_minor is None:
         return AffordPanel("", state.invalid, today_service.AFFORD_INVALID_MESSAGE, None)
     return AffordPanel(
-        figure_text(state.amount_minor, base_currency),
+        format_figure(state.amount_minor, base_currency),
         False,
         "",
         afford_view(state.result, base_currency),

@@ -50,6 +50,7 @@ ROUTES: dict[str, str] = {
     "/recurring/{rule_id}/overrides/new": "pages/overlays/override--occurrence.html",
     "/recurring/{rule_id}/promote": "pages/overlays/promote--recurring.html",
     "/plan": "pages/plan/budget.html",
+    "/plan?tab=budget": "pages/plan/budget.html",
     "/budget/rules/{category_id}/overrides/new": "pages/overlays/override--budget-month.html",
     "/plan?tab=year": "pages/plan/year.html",
     "/budget/yearly": "pages/plan/year.html",
