@@ -10,11 +10,10 @@ Load with ``pytest_plugins = ["tests.e2e.mockup_target"]`` in
 
 from __future__ import annotations
 
-import functools
 import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -23,6 +22,7 @@ import pytest
 
 from tests.ui_map.mockup_routes import HANDOFF_ROOT, handoff_page
 from tests.ui_map.target import TARGETS, Target, surface
+from tests.visual.overlay import overlay_handler
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -33,11 +33,6 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         choices=TARGETS,
         help="e2e target: the live app (default) or the static design handoff",
     )
-
-
-class _QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, format: str, *args: Any) -> None:
-        return
 
 
 @dataclass(frozen=True)
@@ -69,8 +64,7 @@ def mockup_base_url(target: Target) -> Iterator[str]:
     if target != "mockup":
         yield ""
         return
-    handler = functools.partial(_QuietHandler, directory=str(Path(HANDOFF_ROOT)))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), overlay_handler(Path(HANDOFF_ROOT)))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
