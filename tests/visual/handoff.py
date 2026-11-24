@@ -11,7 +11,6 @@ Stdlib-only PNG diff (no Pillow dependency; a stack change needs an ADR).
 
 from __future__ import annotations
 
-import functools
 import http.server
 import struct
 import sys
@@ -23,6 +22,8 @@ from pathlib import Path
 from typing import Final
 
 from playwright.sync_api import Browser, sync_playwright
+
+from tests.visual.overlay import overlay_handler
 
 VISUAL_ROOT: Final = Path(__file__).parent
 REPO_ROOT: Final = VISUAL_ROOT.parents[1]
@@ -92,16 +93,10 @@ def reference_path(page: str, viewport: str, theme: str) -> Path:
     return REFERENCE_DIR / stem.parent / f"{stem.name}.{viewport}.{theme}.png"
 
 
-class _QuietHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
-        return
-
-
 @contextmanager
 def serve_handoff() -> Iterator[str]:
-    """Serve the handoff on ``127.0.0.1:<free port>``; yields the base URL."""
-    handler = functools.partial(_QuietHandler, directory=str(HANDOFF_ROOT))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    """Serve the handoff (data overlay applied, ``overlay.py``) on a free loopback port."""
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), overlay_handler(HANDOFF_ROOT))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

@@ -1,0 +1,119 @@
+# Data overlay on the vendored design handoff (T-UR00b, ADR-0147 section 4,
+# ADR-0151). Applied at serve time by tests/visual/overlay.py; the files under
+# docs/design/rising-dough-frontend/ stay byte-identical.
+# Format: see the module docstring of tests/visual/overlay.py.
+# Allowed: text and the value attributes of ADR-0147 section 4, never tags,
+# classes, ids, CSS or JS. Geometry rows need `source = "geometry"` (T-UR12;
+# none yet). Families of docs/plans/ui-redesign/value-inventory.md section 5
+# not covered here are listed in the T-UR00b item report.
+
+# --- value-inventory section 5, row 17 / ADR-0147 section 5: Today key is `g t`.
+
+[[row]]
+page = "pages/*.html"
+select = '.rd-mainnav__link[aria-keyshortcuts="g o"]'
+field = "aria-keyshortcuts"
+old = "g o"
+value = "g t"
+optional = true  # auth boards have no main nav
+reason = "ADR-0147 section 5: operator chose g t for Today; the handoff says g o"
+
+[[row]]
+page = "pages/*.html"
+exclude = ["pages/overlays/command-palette.html"]
+select = 'kbd.rd-palette__keys:-soup-contains-own("g o")'
+field = "text"
+old = "g o"
+value = "g t"
+optional = true  # auth boards have no palette
+reason = "ADR-0147 section 5: visible key label of the Today palette entry is g t"
+
+[[row]]
+page = "pages/overlays/command-palette.html"
+select = 'kbd.rd-palette__keys:-soup-contains-own("g o")'
+field = "text"
+old = "g o"
+value = "g t"
+count = 2  # the board shows the palette list twice (unfiltered and filtered rows)
+reason = "ADR-0147 section 5: visible key label of the Today palette entry is g t"
+
+[[row]]
+page = "pages/overlays/shortcuts.html"
+select = '.rd-keys__row:-soup-contains("Go to Today") dt > kbd.rd-key:nth-child(2)'
+field = "text"
+old = "o"
+value = "t"
+count = 2  # desktop and phone copies of the cheatsheet
+reason = "ADR-0147 section 5: cheatsheet key for Go to Today is g t"
+
+# --- row 5: filter inputs disagree with the filter summary.
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = "input#f-from"
+field = "value"
+old = "2026-10-07"
+value = "2026-01-01"
+reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
+
+[[row]]
+page = "pages/ledger/actual--no-matches.html"
+select = "input#f-to"
+field = "value"
+old = "2026-10-31"
+value = "2026-01-31"
+reason = "value-inventory 5 row 5: summary reads 01/01/2026 - 31/01/2026, the inputs must agree"
+
+# --- row 6: bar label whose parts do not add up (78 + 15).
+
+[[row]]
+page = "pages/*.html"
+select = '[role="img"][aria-label="78 percent spent, 15 percent left"]'
+field = "aria-label"
+old = "78 percent spent, 15 percent left"
+value = "78 percent spent, 22 percent left"
+optional = true
+reason = "value-inventory 5 row 6: 78 spent leaves 22, not 15; the app emits left_pct (T-UR34k)"
+
+# --- row 7: credit card bar, 12,521.63 of 14,977.37 available is 84%.
+
+[[row]]
+page = "pages/accounts.html"
+select = '[role="img"][aria-label="16 percent spent, 80 percent left"]'
+field = "aria-label"
+old = "16 percent spent, 80 percent left"
+value = "16 percent spent, 84 percent left"
+reason = "value-inventory 5 row 7: 12,521.63 of 14,977.37 is 84% available, not 80%"
+
+# --- row 9 / ADR-0151: afford over, 1,399.93 left over 7 days, entry 1,800.00.
+
+[[row]]
+page = "pages/today--afford-over.html"
+select = "#afford-result .rd-afford__result--over"
+field = "text"
+old = "▲ per day becomes −14.20 · 114.20 over"
+value = "▲ per day becomes −57.15 · 400.07 over"
+reason = "ADR-0151: (1,399.93 - 1,800.00) / 7 = -57.15 per day, 400.07 over; the board's 114.20 has no derivation"
+
+# --- row 12 / ADR-0151: Reconciliation is system-only, so N = 24 - 1 = 23.
+# The search input placeholder carries the same count but `placeholder` is not
+# an allowed overlay attribute (ADR-0147 section 4); see the item report.
+
+[[row]]
+page = "pages/overlays/*.html"
+select = "button.rd-catfield__search"
+field = "text"
+old = "search all 21 categories"
+value = "search all 23 categories"
+optional = true  # only the overlays with a category picker
+reason = "value-inventory 5 row 12, ADR-0151: 24 categories in settings minus system-only Reconciliation"
+
+# --- row 19 / ADR-0151 section 1: edited entry is left out of "before".
+
+[[row]]
+page = "pages/overlays/edit-transaction.html"
+select = "p.rd-credit-line"
+field = "text"
+old = "Credit Card · 12,521.63 of 14,977.37 left → 12,486.13 after this"
+value = "Credit Card · 12,557.13 of 14,977.37 left → 12,521.63 after this"
+reason = "value-inventory 5 row 19, ADR-0151: the 35.50 entry is already in 12,521.63 left, so before = 12,521.63 + 35.50 and after = 12,521.63"
