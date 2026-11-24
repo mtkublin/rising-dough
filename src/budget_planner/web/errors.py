@@ -60,11 +60,24 @@ def _render(request: Request, template: str, status: int, **context: Any) -> HTM
 
 
 def _back_url(request: Request) -> str:
-    """Where "back to the form" goes: the same-origin Referer path, else Today."""
-    referer = urlsplit(request.headers.get("referer", ""))
+    """Where "back to the form" goes: the same-origin Referer path, else Today.
+
+    A browser reads ``/\\evil`` as ``//evil``, so a backslash (raw or ``%5C``) in the
+    path is refused as well as ``//``; a control character anywhere in the Referer is
+    refused too (``isprintable`` is False for those).
+    """
+    raw = request.headers.get("referer", "")
+    referer = urlsplit(raw)
+    path = referer.path
     same_origin = referer.netloc == request.url.netloc
-    if same_origin and referer.path.startswith("/") and not referer.path.startswith("//"):
-        return f"{referer.path}?{referer.query}" if referer.query else referer.path
+    safe_path = (
+        path.startswith("/")
+        and not path.startswith("//")
+        and "\\" not in path
+        and "%5c" not in path.lower()
+    )
+    if same_origin and safe_path and raw.isprintable():
+        return f"{path}?{referer.query}" if referer.query else path
     return "/today"
 
 
