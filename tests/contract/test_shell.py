@@ -23,7 +23,7 @@ from budget_planner.web.app import create_app
 from budget_planner.web.deps import get_settings_dep
 from tests.contract._audit import audit_count
 from tests.contract.conftest import covers
-from tests.ui_map import _html, errors
+from tests.ui_map import _html, errors, rd_shell
 
 pytest_plugins = ["tests.contract._support"]
 
@@ -223,6 +223,41 @@ def test_dev_components_is_404_in_production(client: TestClient, settings: Setti
 def test_dev_components_requires_a_session(anon_client: TestClient) -> None:
     r = anon_client.get("/dev/components", follow_redirects=False)
     assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fcomponents")
+
+
+# ---------------------------------------------------------------------------
+# GET /dev/shell
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_renders_the_new_base_shell(client: TestClient) -> None:
+    r = client.get("/dev/shell")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    page = r.text
+    assert _html.exists(page, rd_shell.skip_link)
+    assert _html.exists(page, rd_shell.palette)
+    assert _html.exists(page, rd_shell.shortcuts)
+    for root in (rd_shell.modal_root, rd_shell.drawer_root, rd_shell.toast_root):
+        assert _html.count(page, root) == 1
+    assert _html.resolve_one(page, rd_shell.nav_link("today")).get("aria-current") == "page"
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell").status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell")
+def test_dev_shell_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell", follow_redirects=False)
+    assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fshell")
 
 
 # ---------------------------------------------------------------------------
