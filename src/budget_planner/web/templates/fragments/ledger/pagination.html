@@ -1,0 +1,13 @@
+{# fragment: ledger/pagination
+   Inputs: page (current page number), older_url (none on the last page), newer_url (none on page
+   1), deleted_url (the "recently deleted" aside, optional). Plain links, so it works without
+   script. #}
+<nav class="rd-pagination" aria-label="Pages">
+  <span class="rd-pagination__pages">{% if newer_url|default(none) %}<a class="rd-btn rd-btn--secondary-rule"
+   href="{{ newer_url }}"
+   rel="prev">← newer</a> {% endif %}page {{ page }}{% if older_url|default(none) %} <a class="rd-btn rd-btn--secondary-rule"
+    href="{{ older_url }}"
+    rel="next">older →</a>{% endif %}</span>
+  {% if deleted_url|default(none) %}<a class="rd-link rd-pagination__aside"
+   href="{{ deleted_url }}">recently deleted →</a>{% endif %}
+</nav>

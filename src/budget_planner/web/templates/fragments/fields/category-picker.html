@@ -1,0 +1,67 @@
+{# fragment: fields/category-picker
+   Inputs: field_id (unique id of the panel), picker (services.categories.CategoryPicker: recent,
+   searchable, total_count), selected_id (category id or none), name (default 'category'),
+   query (text echoed in the search box, optional), no_match (bool: show the empty block),
+   new_category_url (optional link in the empty block), open (bool: panel shown).
+   The posted value is the category id; combobox.js filters and picks. #}
+<fieldset class="rd-catfield" data-js="combobox">
+  <legend class="rd-catfield__label">category</legend>
+  <div class="rd-catfield__recent"><span class="rd-catfield__hint">recent</span>{% for c in picker.recent %}<label class="rd-chip-option"
+       {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}><input type="radio"
+       name="{{ name|default('category') }}"
+       value="{{ c.id }}"
+       {% if c.id == selected_id|default(none) %} checked{% endif %}>{{ c.name }}</label>{% endfor %}</div>
+  <button type="button"
+          class="rd-catfield__search"
+          aria-haspopup="listbox"
+          aria-expanded="{{ 'true' if open|default(none) else 'false' }}"
+          aria-controls="{{ field_id }}"
+          data-js="combobox-open">
+    <svg class="rd-icon" aria-hidden="true" focusable="false">
+      <use href="/static/rd/icons/sprite.svg#icon-search"></use>
+    </svg>search all {{ picker.total_count }} categories
+  </button>
+  <div class="rd-catpick"
+       id="{{ field_id }}"
+       role="group"
+       aria-label="Pick a category"
+       {% if not open|default(none) %}hidden{% endif %}>
+    <div class="rd-catpick__search">
+      <svg class="rd-icon" aria-hidden="true" focusable="false">
+        <use href="/static/rd/icons/sprite.svg#icon-search"></use>
+      </svg>
+      <input class="rd-catpick__input"
+             role="combobox"
+             aria-expanded="{{ 'true' if open|default(none) else 'false' }}"
+             aria-controls="{{ field_id }}-list"
+             aria-autocomplete="list"
+             aria-label="Search categories"
+             {% if picker.searchable and not no_match|default(none) %}aria-activedescendant="{{ field_id }}-o0"{% endif %}
+             placeholder="search all {{ picker.total_count }} categories"
+             autocomplete="off"
+             data-js="combobox-input"
+             {% if query|default(none) %}value="{{ query|default('') }}"{% endif %}>
+      <kbd class="rd-kbd">esc</kbd>
+    </div>
+    <ul class="rd-catpick__list"
+        role="listbox"
+        id="{{ field_id }}-list"
+        aria-label="Categories"
+        {% if no_match|default(none) %}hidden{% endif %}>
+      {% for c in picker.searchable %}
+        <li class="rd-catpick__option"
+            role="option"
+            id="{{ field_id }}-o{{ loop.index0 }}"
+            aria-selected="{{ 'true' if (loop.first and not no_match|default(none)) else 'false' }}"
+            data-value="{{ c.id }}"><span class="rd-chip"
+      {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span><span class="rd-catpick__dir">{{ c.direction.value }}</span></li>
+      {% endfor %}
+    </ul>
+    <div class="rd-catpick__empty"
+         data-js="combobox-empty"
+         {% if not no_match|default(none) %} hidden{% endif %}>
+      <p>No category matches “<span data-js="combobox-query">{{ query|default("") }}</span>”.</p>
+      {% if new_category_url|default(none) %}<a class="rd-btn" href="{{ new_category_url }}">+ new category “<span data-js="combobox-query">{{ query|default("") }}</span>”</a>{% endif %}
+    </div>
+  </div>
+</fieldset>
