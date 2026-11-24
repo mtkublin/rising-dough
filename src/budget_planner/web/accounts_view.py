@@ -15,7 +15,7 @@ from datetime import date
 from typing import cast
 
 from budget_planner.domain.accounts import Account, AccountStats
-from budget_planner.domain.money import format_money, percent_of
+from budget_planner.domain.money import format_figure, percent_of
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
@@ -75,25 +75,11 @@ def sparkline_fields(series: list[tuple[date, int]]) -> dict[str, object]:
 
 
 # --- T-UR08: handoff accounts page view-models --------------------------------
-_MINUS = "\N{MINUS SIGN}"
-_PLUS = "+"
 _TREND_WIDTH = 100
 _TREND_HEIGHT = 28
 _TREND_MARGIN = 2
 _TREND_POINTS = 11
 _TREND_PLOT_HEIGHT = _TREND_HEIGHT - 2 * _TREND_MARGIN
-
-
-def minus_sign(amount_minor: int) -> str:
-    """Printed sign of an amount shown without its own sign: minus when negative, else empty."""
-    return _MINUS if amount_minor < 0 else ""
-
-
-def plus_minus_sign(amount_minor: int) -> str:
-    """``+`` / the minus sign for a signed delta, empty at zero."""
-    if amount_minor == 0:
-        return ""
-    return _PLUS if amount_minor > 0 else _MINUS
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,14 +136,13 @@ class AccountRow:
     subtitle: str
     currency: str
     balance_minor: int
-    balance_sign: str
+    balance_text: str
     negative: bool
     txn_count: int
     checked: str
     trend: TrendView
     credit: CreditLine | None
-    after_minor: int | None
-    after_sign: str
+    after_text: str | None
     menu_id: str
     menu_sub: str
 
@@ -190,32 +175,32 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
         subtitle=f"{type_label(acc.type) or 'credit'} · liability" if acc.is_liability else kind,
         currency=acc.currency,
         balance_minor=balance,
-        balance_sign=minus_sign(balance),
+        balance_text=format_figure(balance, acc.currency),
         negative=balance < 0,
         txn_count=stats.txn_count,
         checked=checked_label(cast(list[AccountSnapshot], card["snapshots"])),
         trend=trend_view(cast(list[tuple[date, int]], card["series"]), balance),
         credit=credit_line(util) if util is not None else None,
-        after_minor=planned.projected_minor if planned is not None and shows_after else None,
-        after_sign=minus_sign(planned.projected_minor) if planned is not None else "",
+        after_text=(
+            format_figure(planned.projected_minor, acc.currency)
+            if planned is not None and shows_after
+            else None
+        ),
         menu_id=f"account-menu-{acc.id}",
-        menu_sub=f"{kind} · {minus_sign(balance)}{format_money(abs(balance), acc.currency)}",
+        menu_sub=f"{kind} · {format_figure(balance, acc.currency, with_currency=True)}",
     )
 
 
 @dataclass(frozen=True, slots=True)
 class AccountsHero:
-    """Net-worth hero values (base currency); signs are printed, amounts are filtered."""
+    """Net-worth hero figures (base currency) as printed text."""
 
     count: int
-    net_minor: int
-    net_sign: str
     fit: HeroFit
-    assets_minor: int
-    liabilities_minor: int
-    liabilities_sign: str
-    planned_minor: int
-    planned_sign: str
+    net_text: str
+    assets_text: str
+    liabilities_text: str
+    planned_text: str
 
 
 def accounts_hero(
@@ -230,14 +215,11 @@ def accounts_hero(
     """Hero values; ``liabilities_minor`` is the stored (positive) owed amount, shown negative."""
     return AccountsHero(
         count=count,
-        net_minor=net_minor,
-        net_sign=minus_sign(net_minor),
         fit=hero_fit(net_minor, currency),
-        assets_minor=assets_minor,
-        liabilities_minor=liabilities_minor,
-        liabilities_sign=_MINUS if liabilities_minor > 0 else "",
-        planned_minor=planned_minor,
-        planned_sign=plus_minus_sign(planned_minor),
+        net_text=format_figure(net_minor, currency),
+        assets_text=format_figure(assets_minor, currency),
+        liabilities_text=format_figure(-liabilities_minor, currency),
+        planned_text=format_figure(planned_minor, currency, plus=True),
     )
 
 

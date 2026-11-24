@@ -22,8 +22,8 @@
   </td>
   <td class="rd-account__txns">{{ row.txn_count }}</td>
   <td class="rd-row__amount">
-    <span class="rd-amount{% if row.negative %} rd-amount--negative{% endif %}">{{ row.balance_sign }}{{ row.balance_minor|money_num(row.currency, abs_value=True) }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
-    {%- if row.after_minor is not none %}<span class="rd-amount__note">→ {{ row.after_sign }}{{ row.after_minor|money_num(row.currency, abs_value=True) }} after planned</span>{% endif %}
+    <span class="rd-amount{% if row.negative %} rd-amount--negative{% endif %}">{{ row.balance_text }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
+    {%- if row.after_text %}<span class="rd-amount__note">→ {{ row.after_text }} after planned</span>{% endif %}
   </td>
   <td class="rd-account__reconcile">
     <a class="rd-btn rd-btn--quiet rd-btn--sm rd-link"

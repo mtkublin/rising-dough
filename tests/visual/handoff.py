@@ -42,9 +42,9 @@ THEMES: Final = ("light", "dark")
 # MAX_DIFF_PIXEL_RATIO of the pixels differ AND the largest 8-connected differing region is at
 # most MAX_DIFF_CLUSTER_PX. Exceptions only via derived.md "Tolerance exceptions".
 MAX_DIFF_PIXEL_RATIO: Final = 0.001
-# provisional until calibrated from CI self-comparison (T-UR00b): twice the largest cluster
-# seen in repeated handoff-vs-itself runs (``self-clusters.txt``).
-MAX_DIFF_CLUSTER_PX: Final = 64
+# 2 x 26 px: the largest handoff-vs-itself cluster in visual.yml runs
+# 45496302019, 45496318944 and 45498452834 of 2026-11-24 (T-UR00b, ADR-0147 section 2).
+MAX_DIFF_CLUSTER_PX: Final = 52
 # Handoff-vs-itself uses ``SELF_TOLERANCE`` (noise floor).
 SELF_TOLERANCE: Final = 0.0005  # raster noise floor: observed <= 0.022% under load, most pages 0
 

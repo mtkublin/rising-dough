@@ -160,7 +160,7 @@ def login_page(
     default_status = HTTPStatus.UNAUTHORIZED if error else HTTPStatus.OK
     return render(
         request,
-        "auth/login.html",
+        "pages/auth/login.html",
         status_code=default_status if status_code is None else status_code,
         next_path=next_path,
         email=email,
@@ -205,10 +205,10 @@ def reauth_page(
     throttled: bool = False,
     attempts_left: int | None = None,
 ) -> HTMLResponse:
-    """The confirm-it's-you page (``attempts_left``: G8 data, unrendered until the redesign)."""
+    """The confirm-it's-you page (``attempts_left``: rendered in the field error)."""
     return render(
         request,
-        "auth/reauth.html",
+        "pages/auth/reauth.html",
         status_code=status_code,
         next_path=next_path,
         error=error,

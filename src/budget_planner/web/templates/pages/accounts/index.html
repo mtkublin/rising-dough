@@ -21,10 +21,10 @@
         <span class="rd-hero__figure rd-hero__figure--wide"
               data-digits="{{ hero.fit.digits }}"
               data-marks="{{ hero.fit.marks }}"
-              data-signs="{{ hero.fit.signs }}">{{ hero.net_sign }}{{ hero.net_minor|money_num(base_ccy, abs_value=True) }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+              data-signs="{{ hero.fit.signs }}">{{ hero.net_text }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
       </p>
       <p class="rd-hero__note">
-        <span class="u-hide-below-md">assets {{ hero.assets_minor|money_num(base_ccy) }} · liabilities {{ hero.liabilities_sign }}{{ hero.liabilities_minor|money_num(base_ccy, abs_value=True) }} · <span id="accounts-planned-total">planned {{ hero.planned_sign }}{{ hero.planned_minor|money_num(base_ccy, abs_value=True) }}</span></span><span class="u-hide-from-md">assets {{ hero.assets_minor|money_num(base_ccy) }} · liabilities {{ hero.liabilities_sign }}{{ hero.liabilities_minor|money_num(base_ccy, abs_value=True) }}</span>
+        <span class="u-hide-below-md">assets {{ hero.assets_text }} · liabilities {{ hero.liabilities_text }} · <span id="accounts-planned-total">planned {{ hero.planned_text }}</span></span><span class="u-hide-from-md">assets {{ hero.assets_text }} · liabilities {{ hero.liabilities_text }}</span>
       </p>
     </div>
   </section>

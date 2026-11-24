@@ -104,8 +104,12 @@ def test_row_view_holds_exact_values() -> None:
         "01 NOV",
         468,
     )
-    assert (row.balance_sign, row.balance_minor, row.negative) == (_MINUS, -245_574, True)
-    assert (row.after_minor, row.after_sign) == (-274_499, _MINUS)
+    assert (row.balance_text, row.balance_minor, row.negative) == (
+        f"{_MINUS}2,455.74",
+        -245_574,
+        True,
+    )
+    assert row.after_text == f"{_MINUS}2,744.99"
     assert row.menu_sub == f"liability · {_MINUS}2,455.74 PLN"
     assert row.credit is not None
     assert (row.credit.used_pct, row.credit.available_minor, row.credit.limit_minor) == (
@@ -120,7 +124,7 @@ def test_account_without_snapshot_reads_never_and_zero_planned_hides_the_note() 
     card["snapshots"] = []
     card["planned"] = AccountPlanned(account_id=9, currency="PLN", net_minor=0, projected_minor=0)
     row = account_row(card)
-    assert (row.checked, row.after_minor, row.credit, row.subtitle) == ("never", None, None, "bank")
+    assert (row.checked, row.after_text, row.credit, row.subtitle) == ("never", None, None, "bank")
 
 
 def test_row_fragment_prints_the_handoff_values() -> None:
@@ -172,7 +176,7 @@ def test_snapshot_fragment_prints_date_and_amount() -> None:
     assert _html.text_of(html, accounts.snapshot_item) == "01 APR 3,702.44 PLN"
 
 
-def test_hero_signs_and_fit() -> None:
+def test_hero_figures_and_fit() -> None:
     hero = accounts_hero(
         count=10,
         net_minor=3_443_969,
@@ -181,7 +185,8 @@ def test_hero_signs_and_fit() -> None:
         planned_minor=-31_254,
         currency="PLN",
     )
-    assert (hero.net_sign, hero.liabilities_sign, hero.planned_sign) == ("", _MINUS, _MINUS)
+    assert (hero.net_text, hero.assets_text) == ("34,439.69", "36,895.43")
+    assert (hero.liabilities_text, hero.planned_text) == (f"{_MINUS}2,455.74", f"{_MINUS}312.54")
     assert (hero.fit.digits, hero.fit.marks, hero.fit.signs) == (7, 2, 0)
 
 

@@ -45,6 +45,9 @@
 | Accounts hero, empty state | The empty page prints the real totals (`0.00 PLN`, `0 accounts`, `assets 0.00 · liabilities 0.00 · planned 0.00`) | `accounts--empty.html` repeats the sample page's hero (`34,439.69 PLN`, 10 accounts) beside an empty list, which cannot be true; the empty route (`/accounts?state=empty` on the mockup target) is only a state of the same page | T-UR08a |
 | Accounts "checked" | Prints the newest snapshot date (`01 APR`), or `never`; the old relative chips (today, N days ago, stale) are dropped | The handoff shows a date only | T-UR08a |
 | Accounts planned note | `-> 3,662.52 after planned` (projected balance) replaces the old `-9,824.01 planned -> 2,575.99` sub-line | Handoff wording; the signed planned net stays in the hero (`planned -312.54`, id `accounts-planned-total`) | T-UR08a |
+| `pages/plan/budget` period links | `?year=&month=` instead of the handoff's `?period=YYYY-MM` | contract tests and journeys pin the app's query names | T-UR11 |
+| `pages/plan/budget` row menu, `override` item | link to the existing `GET /budget/rules/{id}/overrides/new` (with `hx-get` into `#modal-root`) | the override dialog is rebuilt by the second Plan item; the static board links to its overlay page | T-UR11 |
+| `rows/budget-line` over-budget bar | `aria-label="over budget"` as in the handoff, clamped `used_pct` is not printed | `bar_spans` label would read "100 percent spent, 0 percent left" | T-UR11 |
 
 > **Transitional (T-UR08a, until T-UR08b):** the dialogs (new, edit, delete, reconcile) and their POST responses still render the old `partials/accounts/_card.html`, `_row.html` and the slide-over into the new page, so a swapped old row or slide-over looks unstyled until T-UR08b ports them. The row menu, the `reconcile` link and `+ new account` already target the existing routes with `#modal-root`.
 

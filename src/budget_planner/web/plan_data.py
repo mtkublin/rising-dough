@@ -25,6 +25,9 @@ from budget_planner.services.forecast import MonthlyProjectionPoint
 from budget_planner.web import charts, view_models
 from budget_planner.web.params import query_choice
 
+BUDGET_TAB_URL = "/plan?tab=budget"
+"""Base of the budget tab's period links (``&year=&month=`` follow)."""
+
 
 def forecast_chart_points(
     projection: Sequence[MonthlyProjectionPoint], base_ccy: str
@@ -102,6 +105,13 @@ def budget_view_for(
         display_timezone=settings.display_timezone,
     )
     return view_models.budget_view(summary, today)
+
+
+def budget_period_for(
+    picked: budget_service.PickerMonth, budget: view_models.BudgetView
+) -> view_models.BudgetPeriod:
+    """Return the Plan · Budget period nav (arrows and picker) for the picked month."""
+    return view_models.budget_period(picked, budget.summary, BUDGET_TAB_URL)
 
 
 def year_context(

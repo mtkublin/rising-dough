@@ -1,0 +1,8 @@
+{# Plan view tabs (budget, year, forecast, analytics). Context: tab (the current tab). #}
+<nav class="rd-tabs rd-tabs--compact" aria-label="Plan view">
+  {% for name in ("budget", "year", "forecast", "analytics") %}
+    <a class="rd-tabs__tab"
+       href="/plan?tab={{ name }}"
+       {% if tab == name %}aria-current="page"{% endif %}>{{ name }}</a>
+  {% endfor %}
+</nav>
