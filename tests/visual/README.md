@@ -13,7 +13,7 @@ References come from the designer handoff (`docs/design/rising-dough-frontend/`,
 - Regenerate: `just visual-reference [surface]` (`--committed` limits it to the committed subset). Serves the handoff on 127.0.0.1, screenshots every page at 1440 / 1024 / 375, light and dark (`?theme=`), animations frozen, browser clock fixed at 2026-10-31T10:00Z, fonts awaited, network idle. Output: `reference/<group>/<page>.<viewport>.<theme>.png`.
 - Compare: `just test-visual --reference=handoff [surface]` (surface: today, accounts, ledger, plan, settings, auth, errors, overlays; or `--surface=`). Runs only the reference tests.
 - Committed subset (size budget, ~13 MB): non-overlay pages at 1440 and 375. Overlays and 1024 are gitignored; tests skip missing images, run `just visual-reference` to get them (full set 546 images, ~68 MB).
-- Fixture: the app side uses the frozen server on `data/demo.sqlite` at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`); the handoff sample data (period 7 Oct to 7 Nov, day 25 of 31) was drawn from that DB on that day. The app comparison (`test_app_matches_handoff`) is off until a surface is added to `MIGRATED_SURFACES` in `test_reference.py` (ADR-0107 migration).
+- Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`. The app comparison (`test_app_matches_handoff`) is off until a surface is added to `MIGRATED_SURFACES` in `test_reference.py` (ADR-0107 migration).
 
 ### Tolerance (max fraction of differing pixels)
 
@@ -34,3 +34,26 @@ Different image sizes always fail (ratio 1.0). Values live in `handoff.SURFACE_T
 ### Bootstrap (before baselines exist)
 
 `workflow_dispatch` only works once `visual.yml` is on `main`. Until baselines are committed, a PR run fails on every missing baseline, but each failing test still writes its actual screenshot to `__snapshots__/<route>.<width>.png`, and the workflow uploads that directory as the `visual-baselines` artifact (also on failure). Download it from the PR run and commit it. Later regenerations use the `update_baselines` dispatch or `just visual-update`.
+
+## Handoff seed (`handoff_seed.py`, T-UR00b, ADR-0147 §3)
+
+One base seed holds the handoff's entities at the frozen date 2026-10-31: 10 accounts (balances fitted to the handoff's figures; credit card with its 14,977.37 limit), 22 live categories plus 2 system ones (3 soft-deleted), 26 ledger rows (the 11 listed on the Ledger page plus per-category lump entries that give the budget page's spent figures), 3 live planned items (+1 deleted), 15 recurring rules (4 with the 19 % formula, 7 overrides), 13 budget defaults, income anchor Salary, users Ola and Ewa, a pending invite for accountant@example.test and the owner's Firefox session. Nothing is typed as a total: net worth, left per day and so on come from the app's services (`test_handoff_seed.py` pins them).
+
+`build_seed(db_path, *, modifiers=())` migrates a fresh DB (it refuses an existing file), writes through the repositories and services with the clock frozen, and returns the dev session token. The `scratch_db` / `live_server` fixtures use it for `test_reference.py`; the `handoff_server(modifiers)` factory serves a modified seed for one state.
+
+Modifiers (pure `SeedData -> SeedData` functions, `MODIFIER_NAMES`):
+
+| Modifier | Effect |
+|---|---|
+| `empty` | Today `--empty`: no accounts, ledger, planned or recurring |
+| `empty-accounts` | Accounts `--empty` (same data as `empty`) |
+| `empty-ledger` | no transactions |
+| `empty-planned` | no live planned items |
+| `empty-recurring` | no rules or overrides |
+| `long` | two 1,234,567.89 rows with a long description |
+| `invite-expired` | the invite is 8 days old (link state expired) |
+| `no-matches` | no data change: a filter query that matches nothing |
+| `over-limit` | no data change: a 13,000.00 entry exceeds the card's 12,521.63 left |
+| `form-error` | no data change: 422, wrong password and similar request states |
+
+Values the seed cannot produce are not faked here; they are rows in `handoff_overlay.toml` (UR00bB, value-inventory section 5). Known today: tab counts 616 / 27 rules and per-account TXNS counts (the seed holds only the listed entries), committed 34.60 / left 1,399.93 / 199.99 per day / afford figures (the app also commits the overdue planned Annual insurance: 446.60 / 987.93 / 141.13), "checked 01 JUL" and "01 APR" for accounts with a reconciliation row, future-dated session and user times, the 21-category picker count, and the shared formula result 1,836.93.
