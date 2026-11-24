@@ -14,7 +14,8 @@ import shutil
 import socket
 import subprocess
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
 import httpx
@@ -27,6 +28,7 @@ from budget_planner.db.migrate import apply_migrations
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.auth_support import issue_session, seed_login_user
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
+from tests.visual.handoff_seed import build_seed
 
 VISUAL_ROOT = Path(__file__).parent
 # Linux baselines, generated only in the pinned Playwright container (ADR-0027, T-Q251).
@@ -79,14 +81,28 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
-@pytest.fixture(scope="session")
-def scratch_db(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
-    """Copy ``data/demo.sqlite`` (or start empty) into a temp file, migrate it,
-    and give user 1 a password + live session (T-D02b).
+def _uses_handoff_seed(request: pytest.FixtureRequest) -> bool:
+    """The handoff-reference comparison (test_reference.py) renders the handoff seed.
 
-    Never touches ``data/budget.sqlite`` (prod). Returns ``(path, session id)``.
+    Every other module (test_snapshots.py: old-UI route baselines, which go away per
+    migrated surface) keeps the anonymized demo copy (ADR-0147 §3, T-UR00b).
+    """
+    return str(request.module.__name__).rsplit(".", 1)[-1] == "test_reference"
+
+
+@pytest.fixture(scope="module")
+def scratch_db(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[Path, str]:
+    """A scratch DB plus a live session for user 1; never ``data/budget.sqlite`` (prod).
+
+    ``test_reference.py``: the handoff base seed (`handoff_seed.build_seed`).
+    Other modules: a copy of ``data/demo.sqlite`` (or empty), migrated, login user
+    seeded (T-D02b). Returns ``(path, session id)``.
     """
     path = tmp_path_factory.mktemp("visual") / "visual.sqlite"
+    if _uses_handoff_seed(request):
+        return path, build_seed(path).session_token
     if DEMO_DB.exists():
         shutil.copyfile(DEMO_DB, path)
     settings = Settings(_env_file=None, database_url=f"sqlite:///{path.as_posix()}")
@@ -118,19 +134,19 @@ def _wait_until_ready(url: str, proc: subprocess.Popen[bytes]) -> None:
     raise RuntimeError(f"uvicorn did not become ready at {url} within {SERVER_READY_TIMEOUT_S}s")
 
 
-@pytest.fixture(scope="session")
-def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
-    """Boot uvicorn against a scratch copy of the demo DB for the session.
+@contextmanager
+def serve_db(db_path: Path) -> Iterator[str]:
+    """Boot uvicorn (frozen clock) against the scratch DB at ``db_path``; yield its base URL.
 
-    Routes the server at `127.0.0.1:<free-port>`. Blocks until `/health`
-    returns 200 or raises after a 45 s timeout (cold `uv run` start can take >10 s).
+    Routes the server at `127.0.0.1:<free-port>`. Blocks until `/health` returns 200
+    or raises after the ready timeout (cold `uv run` start can take >10 s).
     """
     port = _free_port()
     base = f"http://127.0.0.1:{port}"
     env = {
         **os.environ,
         "PYTHONUNBUFFERED": "1",
-        "BUDGET_DATABASE_URL": f"sqlite:///{scratch_db[0].as_posix()}",
+        "BUDGET_DATABASE_URL": f"sqlite:///{db_path.as_posix()}",
         # Plain HTTP → dev cookie names without ``Secure`` (ADR-0065/0070).
         "BUDGET_ENV": "dev",
         "BUDGET_VISUAL_FROZEN_DATE": FROZEN_DATE,
@@ -150,6 +166,34 @@ def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
                 proc.kill()
 
 
+@pytest.fixture(scope="module")
+def live_server(scratch_db: tuple[Path, str]) -> Iterator[str]:
+    """The module's server: handoff seed for test_reference.py, demo copy otherwise."""
+    with serve_db(scratch_db[0]) as base:
+        yield base
+
+
+@pytest.fixture(scope="session")
+def handoff_server(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Callable[[Iterable[str]], AbstractContextManager[tuple[str, str]]]:
+    """Factory for per-state servers: ``with handoff_server(("empty-ledger",)) as (url, token)``.
+
+    Builds the handoff base seed with the named modifiers (``handoff_seed.MODIFIER_NAMES``)
+    in a fresh scratch DB and serves it at the frozen date; the token is the session id
+    for the dev session cookie.
+    """
+
+    @contextmanager
+    def _serve(modifiers: Iterable[str]) -> Iterator[tuple[str, str]]:
+        path = tmp_path_factory.mktemp("handoff-state") / "handoff.sqlite"
+        result = build_seed(path, modifiers=modifiers)
+        with serve_db(path) as base:
+            yield base, result.session_token
+
+    return _serve
+
+
 @pytest.fixture(scope="session")
 def browser() -> Iterator[Browser]:
     with sync_playwright() as p:
@@ -160,7 +204,7 @@ def browser() -> Iterator[Browser]:
             b.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def session_cookies(live_server: str, scratch_db: tuple[Path, str]) -> list[dict[str, str]]:
     """Playwright ``add_cookies`` payload that signs the browser in as user 1."""
     return [{"name": SESSION_DEV_COOKIE_NAME, "value": scratch_db[1], "url": live_server}]
