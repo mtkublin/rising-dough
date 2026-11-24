@@ -22,10 +22,27 @@ One strict tolerance for every app-vs-handoff comparison, all surfaces alike (`h
 | Check | Limit |
 |---|---|
 | Differing pixels | `MAX_DIFF_PIXEL_RATIO` = 0.1% |
-| Largest 8-connected differing region | `MAX_DIFF_CLUSTER_PX` = 64 px, **provisional** |
+| Largest 8-connected differing region | `MAX_DIFF_CLUSTER_PX` = 52 px (calibrated, T-UR00b) |
 | Handoff vs itself (noise floor) | `SELF_TOLERANCE` = 0.05% |
 
 Different image sizes always fail (ratio 1.0). The cluster cap catches a small but real defect (a missing icon, a shifted label) that stays under the ratio on a tall page. Calibration: every handoff-vs-itself test appends `<cluster> <page> <viewport> <theme>` to `$VISUAL_KEEP_DIR/self-clusters.txt` (default `visual-actual/`), and each shard's summary line reports `max self-cluster: <N>px`. Both files are uploaded with the `visual-reference-actual-<viewport>-<theme>` artifact (the reference job sets `VISUAL_KEEP_DIR=visual-actual`). Set the cap to twice the largest self-cluster seen over at least two CI runs under load. Exceptions only through the "Tolerance exceptions" table in `docs/plans/ui-redesign/derived.md` (reason plus operator sign-off). A failing comparison writes `<page>.<viewport>.<theme>.diff.png` into `VISUAL_KEEP_DIR`: differing pixels red, the largest cluster outlined in blue; the assertion message carries ratio, cluster size and its box. `test_snapshots.py` (old-UI baselines) keeps its own `diff_ratio` threshold (`MAX_DIFF_PIXEL_RATIO` there is its own constant).
+
+#### Cluster cap calibration (T-UR00b)
+
+`MAX_DIFF_CLUSTER_PX` = 52 = 2 x 26 px, the largest handoff-vs-itself cluster per shard across three `visual.yml` runs (2026-11-24). The per-shard maxima were the same in all three runs:
+
+| Shard (viewport:theme) | Max self-cluster | Runs |
+|---|---|---|
+| 375:light | 26 px | 45496302019, 45496318944, 45498452834 |
+| 375:dark | 19 px | 45496302019, 45496318944, 45498452834 |
+| 1024:light | 15 px | 45496302019, 45496318944, 45498452834 |
+| 1440:light | 15 px | 45496302019, 45496318944, 45498452834 |
+| 1024:dark | 14 px | 45496302019, 45496318944, 45498452834 |
+| 1440:dark | 14 px | 45496302019, 45496318944, 45498452834 |
+
+Runs 45496302019 and 45496318944 ran on branch `wi/ui/sourdough/UR00bD` at `afbd61f1`; run 45498452834 ran on `ui/sourdough` with the final UR00bD code. Shard wall times were 335-768 s (timeout 45 min). The red run 45493474608 failed every shard on the old app (106 failed / 106 passed); at 45498452834 105 of 107 matched.
+
+Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` from the reference job, twice the largest value over at least two CI runs under load, ADR-0147 section 2) whenever the pinned Playwright container or the fonts change. Changing the cap needs an amendment to ADR-0147.
 
 ### Known gaps
 
