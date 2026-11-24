@@ -75,3 +75,4 @@
 | `overlays/delete-account*` | "Investments E" → an account in the seed | not in the handoff's account list (handoff README §6 item 17) | T-UR00b |
 
 HTMX error flashes render the old partial's markup inside the new regions until T-UR15 (T-UR02, UR02b).
+| Shell topbar | Shows the signed-in email before "sign out" (requirements section 6 / ADR-0075; handoff topbar has no identity slot; designer to confirm placement) | requirement wins on content | T-UR02 |

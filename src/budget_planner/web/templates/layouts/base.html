@@ -69,6 +69,10 @@
           <a class="rd-topbar__link rd-topbar__link--muted"
              href="/settings"
              aria-keyshortcuts="g s">settings</a>
+          {% if request.state.user is defined and request.state.user %}
+            <span class="rd-topbar__link rd-topbar__link--muted u-hide-below-md"
+                  title="{{ request.state.user.email or request.state.user.name }}">{{ request.state.user.email or request.state.user.name }}</span>
+          {% endif %}
           <form class="rd-topbar__form" method="post" action="/auth/logout">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit"
