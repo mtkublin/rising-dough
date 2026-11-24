@@ -2,6 +2,9 @@
 
 2026-11-23 T-Q306 done (upgrade drill gate, 4 acceptance drills); T-Q302, T-Q299 done; follow-ups listed in quality-audit tasks.
 
+## 2026-11-24 (OPS-2: Lighthouse measured 11 of 13 routes)
+- **Fix(OPS-2): `/auth/sessions` and `/settings/password` 3xx-redirect to `/settings/security`, so Lighthouse (grouping by final URL) never measured them as themselves ("11 URL(s), 39 runs"). `test_lighthouse_budgets.py` now probes each route un-followed, excludes redirect-only routes by name and prints "measures N of 13 routes; redirect-only, excluded by name: [...]".** ADR-0027. Advisory job, budgets untouched; no allowlist change.
+
 ## 2026-11-23 (T-Q306g: gate asserts host compose networks)
 - **Ci(T-Q306g): `drill.yml` `verify` and `verify-rollback` compare `docker network inspect` subnet and gateway on the drill host with the PR template's ipam networks (`scripts/ci/compose_networks.py`); a mismatch fails the `upgrade` / `rollback` phase.** ADR-0149 implementation note. No allowlist change.
 
