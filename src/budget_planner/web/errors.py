@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, Response
@@ -58,6 +59,28 @@ def _render(request: Request, template: str, status: int, **context: Any) -> HTM
     return HTMLResponse(html, status_code=status, headers=headers)
 
 
+def _back_url(request: Request) -> str:
+    """Where "back to the form" goes: the same-origin Referer path, else Today.
+
+    A browser reads ``/\\evil`` as ``//evil``, so a backslash (raw or ``%5C``) in the
+    path is refused as well as ``//``; a control character anywhere in the Referer is
+    refused too (``isprintable`` is False for those).
+    """
+    raw = request.headers.get("referer", "")
+    referer = urlsplit(raw)
+    path = referer.path
+    same_origin = referer.netloc == request.url.netloc
+    safe_path = (
+        path.startswith("/")
+        and not path.startswith("//")
+        and "\\" not in path
+        and "%5c" not in path.lower()
+    )
+    if same_origin and safe_path and raw.isprintable():
+        return f"{path}?{referer.query}" if referer.query else path
+    return "/today"
+
+
 def _flash_fragment(request: Request, kind: str, message: str, status: int) -> HTMLResponse:
     """Render the flash partial as an OOB swap, suitable for HTMX responses.
 
@@ -84,7 +107,7 @@ async def handle_not_found(request: Request, exc: Exception) -> HTMLResponse:
         )
     return _render(
         request,
-        "errors/404.html",
+        "pages/errors/404.html",
         status=404,
         entity=nf.entity,
         entity_id=nf.entity_id,
@@ -97,7 +120,7 @@ async def handle_conflict(request: Request, exc: Exception) -> HTMLResponse:
         return _flash_fragment(request, "warning", cf.message, status=409)
     return _render(
         request,
-        "errors/409.html",
+        "pages/errors/409.html",
         status=409,
         message=cf.message,
     )
@@ -121,11 +144,12 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     field_count, field_errors = validation_summary(v.fields)
     return _render(
         request,
-        "errors/422.html",
+        "pages/errors/422.html",
         status=422,
         fields=v.fields,
         field_count=field_count,
         field_errors=field_errors,
+        back_url=_back_url(request),
     )
 
 
@@ -150,8 +174,9 @@ async def handle_server_error(request: Request, exc: Exception) -> HTMLResponse:
         return _flash_fragment(request, "error", reference, status=500)
     return _render(
         request,
-        "errors/500.html",
+        "pages/errors/500.html",
         status=500,
+        status_code=500,
         message=message,
     )
 
@@ -162,7 +187,7 @@ async def handle_missing_quote(request: Request, exc: Exception) -> HTMLResponse
     message = f"Exchange rate unavailable: {exc}"
     if _is_htmx(request):
         return _flash_fragment(request, "error", message, status=503)
-    return _render(request, "errors/500.html", status=503, message=message)
+    return _render(request, "pages/errors/500.html", status=503, status_code=503, message=message)
 
 
 def handle_reauth_required(_request: Request, exc: Exception) -> Response:

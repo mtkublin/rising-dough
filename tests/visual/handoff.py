@@ -12,12 +12,14 @@ Stdlib-only PNG diff (no Pillow dependency; a stack change needs an ADR).
 from __future__ import annotations
 
 import http.server
+import os
 import struct
 import sys
 import threading
 import zlib
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
@@ -36,19 +38,15 @@ HANDOFF_FIXED_TIME: Final = "2026-10-31T10:00:00Z"  # == frozen_server.HANDOFF_F
 VIEWPORTS: Final = {"1440": (1440, 900), "1024": (1024, 768), "375": (375, 812)}
 THEMES: Final = ("light", "dark")
 
-# Per-surface tolerance for app-vs-handoff comparisons: max fraction of pixels
-# that may differ. Handoff-vs-itself uses ``SELF_TOLERANCE`` (noise floor).
+# One strict tolerance for every app-vs-handoff comparison (ADR-0147 section 2): at most
+# MAX_DIFF_PIXEL_RATIO of the pixels differ AND the largest 8-connected differing region is at
+# most MAX_DIFF_CLUSTER_PX. Exceptions only via derived.md "Tolerance exceptions".
+MAX_DIFF_PIXEL_RATIO: Final = 0.001
+# provisional until calibrated from CI self-comparison (T-UR00b): twice the largest cluster
+# seen in repeated handoff-vs-itself runs (``self-clusters.txt``).
+MAX_DIFF_CLUSTER_PX: Final = 64
+# Handoff-vs-itself uses ``SELF_TOLERANCE`` (noise floor).
 SELF_TOLERANCE: Final = 0.0005  # raster noise floor: observed <= 0.022% under load, most pages 0
-SURFACE_TOLERANCE: Final = {
-    "today": 0.02,
-    "accounts": 0.02,
-    "ledger": 0.03,
-    "plan": 0.04,  # SVG charts anti-alias differently
-    "settings": 0.02,
-    "auth": 0.01,
-    "errors": 0.01,
-    "overlays": 0.03,
-}
 
 CHROMIUM_ARGS: Final = [
     "--disable-gpu",
@@ -130,8 +128,22 @@ def shoot(browser: Browser, base: str, page: str, *, viewport: str, theme: str, 
         context.close()
 
 
-def generate(only_surface: str | None = None) -> int:
-    """Render every page x viewport x theme (optionally one surface) into ``REFERENCE_DIR``."""
+SHARD_ENV: Final = "REFERENCE_SHARD"  # "<viewport>:<theme>"; set by the CI matrix job
+
+
+def parse_shard(shard: str | None) -> tuple[str, str] | None:
+    """``"<viewport>:<theme>"`` (CI shard, T-UR00b) -> ``(viewport, theme)``; None = all."""
+    if not shard:
+        return None
+    viewport, _, theme = shard.partition(":")
+    if viewport not in VIEWPORTS or theme not in THEMES:
+        raise ValueError(f"bad shard {shard!r}; expected <viewport>:<theme>, e.g. 1440:dark")
+    return viewport, theme
+
+
+def generate(only_surface: str | None = None, shard: str | None = None) -> int:
+    """Render page x viewport x theme (or one surface / shard) into ``REFERENCE_DIR``."""
+    only = parse_shard(shard or os.environ.get(SHARD_ENV))
     count = 0
     with serve_handoff() as base, sync_playwright() as p:
         browser = p.chromium.launch(args=CHROMIUM_ARGS)
@@ -141,6 +153,8 @@ def generate(only_surface: str | None = None) -> int:
                     continue
                 for viewport in VIEWPORTS:
                     for theme in THEMES:
+                        if only and (viewport, theme) != only:
+                            continue
                         shoot(
                             browser,
                             base,
@@ -153,6 +167,15 @@ def generate(only_surface: str | None = None) -> int:
         finally:
             browser.close()
     return count
+
+
+def _add_bytes(x: bytes, y: bytes) -> bytes:
+    """Bytewise ``(x + y) mod 256`` of two equal-length byte strings (SWAR over big ints)."""
+    n = len(x)
+    low = int.from_bytes(b"\x7f" * n, "little")
+    xi, yi = int.from_bytes(x, "little"), int.from_bytes(y, "little")
+    total = ((xi & low) + (yi & low)) ^ ((xi ^ yi) & ~low & ((1 << (8 * n)) - 1))
+    return total.to_bytes(n, "little")
 
 
 def _decode(path: Path) -> tuple[int, int, int, bytes]:
@@ -177,6 +200,15 @@ def _decode(path: Path) -> tuple[int, int, int, bytes]:
     for row in range(height):
         base = row * (stride + 1)
         ftype, line = raw[base], bytearray(raw[base + 1 : base + 1 + stride])
+        if ftype == 0:
+            out += line
+            prev = line
+            continue
+        if ftype == 2:
+            line = bytearray(_add_bytes(bytes(line), bytes(prev)))
+            out += line
+            prev = line
+            continue
         for i in range(stride):
             a = line[i - channels] if i >= channels else 0
             b = prev[i]
@@ -206,6 +238,147 @@ def diff_ratio(expected: Path, actual: Path) -> float:
         return 1.0
     differing = sum(1 for i in range(0, len(a), c1) if a[i : i + c1] != b[i : i + c1])
     return differing / (w1 * h1)
+
+
+Box = tuple[int, int, int, int]  # left, top, right, bottom (inclusive)
+
+
+@dataclass(frozen=True)
+class Comparison:
+    """Result of comparing two screenshots.
+
+    ``cluster`` is -1 when not computed (ratio already over the limit or a size mismatch)
+    and ``cap + 1`` when the scan stopped early on a cluster above ``cluster_cap``.
+    """
+
+    ratio: float
+    cluster: int
+    box: Box | None
+    width: int
+    height: int
+    mask: bytes
+    pixels: bytes = b""
+    channels: int = 3
+    size_mismatch: bool = False
+
+
+def largest_cluster(
+    mask: bytes, width: int, height: int, cap: int | None = None
+) -> tuple[int, Box | None]:
+    """Size and bounding box of the largest 8-connected region of set cells in ``mask``.
+
+    With ``cap`` the scan stops at the first region larger than ``cap`` (returns ``cap + 1``).
+    """
+    seen = bytearray(len(mask))
+    best, best_box = 0, None
+    start = mask.find(1)
+    while start != -1:
+        if seen[start]:
+            start = mask.find(1, start + 1)
+            continue
+        seen[start] = 1
+        stack = [start]
+        size = 0
+        left, top, right, bottom = width, height, 0, 0
+        while stack:
+            i = stack.pop()
+            y, x = divmod(i, width)
+            size += 1
+            left, right = min(left, x), max(right, x)
+            top, bottom = min(top, y), max(bottom, y)
+            for ny in range(max(y - 1, 0), min(y + 2, height)):
+                row = ny * width
+                for nx in range(max(x - 1, 0), min(x + 2, width)):
+                    j = row + nx
+                    if mask[j] and not seen[j]:
+                        seen[j] = 1
+                        stack.append(j)
+            if cap is not None and size > cap:
+                return cap + 1, (left, top, right, bottom)
+        if size > best:
+            best, best_box = size, (left, top, right, bottom)
+        start = mask.find(1, start + 1)
+    return best, best_box
+
+
+_NONZERO_TO_ONE: Final = bytes([0] + [1] * 255)
+
+
+def diff_mask(a: bytes, b: bytes, channels: int) -> bytes:
+    """Per-pixel 1/0 mask of differing pixels, via big-int XOR (no per-pixel Python loop)."""
+    n = len(a)
+    xor = (int.from_bytes(a, "little") ^ int.from_bytes(b, "little")).to_bytes(n, "little")
+    flags = xor.translate(_NONZERO_TO_ONE)
+    merged = int.from_bytes(flags[0::channels], "little")
+    for k in range(1, channels):
+        merged |= int.from_bytes(flags[k::channels], "little")
+    return merged.to_bytes(n // channels, "little")
+
+
+def compare(
+    expected: Path,
+    actual: Path,
+    *,
+    ratio_limit: float | None = None,
+    cluster_cap: int | None = None,
+) -> Comparison:
+    """Pixel ratio plus largest differing cluster of two same-size PNGs.
+
+    The cluster scan is skipped when the ratio is above ``ratio_limit`` and stops early above
+    ``cluster_cap`` (both ``None`` = exact cluster, used for self-comparison calibration).
+    """
+    w1, h1, c1, a = _decode(expected)
+    w2, h2, c2, b = _decode(actual)
+    if (w1, h1, c1) != (w2, h2, c2):
+        return Comparison(1.0, -1, None, w2, h2, b"", size_mismatch=True)
+    mask = diff_mask(a, b, c1)
+    ratio = mask.count(1) / (w1 * h1)
+    if ratio_limit is not None and ratio > ratio_limit:
+        return Comparison(ratio, -1, None, w1, h1, mask, b, c1)
+    cluster, box = largest_cluster(mask, w1, h1, cluster_cap)
+    return Comparison(ratio, cluster, box, w1, h1, mask, b, c1)
+
+
+def _png(width: int, height: int, rows: bytes) -> bytes:
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        crc = zlib.crc32(kind + body) & 0xFFFFFFFF
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", crc)
+
+    raw = b"".join(b"\x00" + rows[y * width * 3 : (y + 1) * width * 3] for y in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
+def write_diff_png(result: Comparison, out: Path) -> None:
+    """Actual screenshot with differing pixels red; the largest cluster (if scanned) outlined."""
+    if result.size_mismatch:
+        return
+    w, h, c = result.width, result.height, result.channels
+    n = w * h
+    rgb = bytearray(n * 3)
+    on = int.from_bytes(result.mask.translate(bytes([0, 255] + [255] * 254)), "little")
+    off = on ^ int.from_bytes(b"\xff" * n, "little")
+    chans = [int.from_bytes(result.pixels[k::c], "little") for k in range(3)]
+    red = (chans[0] | on).to_bytes(n, "little")
+    green = (chans[1] & off).to_bytes(n, "little")
+    blue = (chans[2] & off).to_bytes(n, "little")
+    rgb[0::3], rgb[1::3], rgb[2::3] = red, green, blue
+    if result.box:
+        left, top, right, bottom = result.box
+        left, top = max(left - 2, 0), max(top - 2, 0)
+        right, bottom = min(right + 2, w - 1), min(bottom + 2, h - 1)
+        for x in range(left, right + 1):
+            for y in (top, bottom):
+                rgb[(y * w + x) * 3 : (y * w + x) * 3 + 3] = b"\x00\x00\xff"
+        for y in range(top, bottom + 1):
+            for x in (left, right):
+                rgb[(y * w + x) * 3 : (y * w + x) * 3 + 3] = b"\x00\x00\xff"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(_png(w, h, bytes(rgb)))
 
 
 def main(argv: list[str]) -> None:

@@ -74,7 +74,7 @@ def test_bad_value_is_422_page_naming_the_parameter(
     r = client.get(_url(path, name, value))
 
     assert r.status_code == 422
-    assert "Check the form" in _html.text_of(r.text, errors.heading)
+    assert "save that" in _html.text_of(r.text, errors.heading)
     assert name in _html.text_of(r.text, errors.main)
 
 

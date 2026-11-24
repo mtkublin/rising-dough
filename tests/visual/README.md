@@ -10,26 +10,29 @@ Eight routes x 375/1024/1440, light theme, baselines in `__snapshots__/` (Linux 
 
 References come from the designer handoff (`docs/design/rising-dough-frontend/`, frozen), not from the app.
 
-- Never committed (ADR-0147 section 1): `tests/visual/reference/` is gitignored and rendered in the same job and pinned container as the app (the `reference` job of `visual.yml`, advisory until surfaces migrate; artifacts `visual-references`, `visual-reference-actual`). Rendering uses the OVERLAID handoff (`overlay.py`, data from `handoff_overlay.toml`).
+- Never committed (ADR-0147 section 1): `tests/visual/reference/` is gitignored and rendered in the same job and pinned container as the app (the `reference` job of `visual.yml`, advisory until surfaces migrate). CI shards the 1272 tests into six jobs of 212, one per width x theme (`strategy.matrix`, `fail-fast: false`, 45 min each): the job sets `REFERENCE_SHARD=<viewport>:<theme>` (e.g. `1440:dark`; also the `--reference-shard` option in `tests/visual/conftest.py`) so `handoff.generate` renders only that shard's references and only its tests run. Artifacts per shard: `visual-references-<viewport>-<theme>`, `visual-reference-actual-<viewport>-<theme>`; each shard appends a pass/fail and wall-time line to the job summary. Rendering uses the OVERLAID handoff (`overlay.py`, data from `handoff_overlay.toml`).
 - Render locally: `just visual-reference [surface]` (docker, pinned container; never on the host). Serves the handoff on 127.0.0.1, screenshots every page (106) at 1440 / 1024 / 375, light and dark (`?theme=`), animations frozen, browser clock fixed at 2026-10-31T10:00Z, fonts awaited, network idle. Output: `reference/<group>/<page>.<viewport>.<theme>.png`.
 - Compare: `just test-visual --reference=handoff [surface]` (same container; surface: today, accounts, ledger, plan, settings, auth, errors, overlays). Renders the references first, then runs only `test_reference.py` for every surface. Expected red with the old app (T-UR00b red run) until each surface migrates.
 - Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`.
 
-### Tolerance (max fraction of differing pixels)
+### Tolerance (ADR-0147 section 2)
 
-| Comparison | Tolerance |
+One strict tolerance for every app-vs-handoff comparison, all surfaces alike (`handoff.compare`):
+
+| Check | Limit |
 |---|---|
-| handoff vs itself (any surface) | 0.05% (raster noise floor, observed <= 0.022% under load; most pages are exactly 0) |
-| today | 2% |
-| accounts | 2% |
-| ledger | 3% |
-| plan | 4% (SVG charts) |
-| settings | 2% |
-| auth | 1% |
-| errors | 1% |
-| overlays | 3% |
+| Differing pixels | `MAX_DIFF_PIXEL_RATIO` = 0.1% |
+| Largest 8-connected differing region | `MAX_DIFF_CLUSTER_PX` = 64 px, **provisional** |
+| Handoff vs itself (noise floor) | `SELF_TOLERANCE` = 0.05% |
 
-Different image sizes always fail (ratio 1.0). Values live in `handoff.SURFACE_TOLERANCE`; tighten as surfaces migrate.
+Different image sizes always fail (ratio 1.0). The cluster cap catches a small but real defect (a missing icon, a shifted label) that stays under the ratio on a tall page. Calibration: every handoff-vs-itself test appends `<cluster> <page> <viewport> <theme>` to `$VISUAL_KEEP_DIR/self-clusters.txt` (default `visual-actual/`), and each shard's summary line reports `max self-cluster: <N>px`. Both files are uploaded with the `visual-reference-actual-<viewport>-<theme>` artifact (the reference job sets `VISUAL_KEEP_DIR=visual-actual`). Set the cap to twice the largest self-cluster seen over at least two CI runs under load. Exceptions only through the "Tolerance exceptions" table in `docs/plans/ui-redesign/derived.md` (reason plus operator sign-off). A failing comparison writes `<page>.<viewport>.<theme>.diff.png` into `VISUAL_KEEP_DIR`: differing pixels red, the largest cluster outlined in blue; the assertion message carries ratio, cluster size and its box. `test_snapshots.py` (old-UI baselines) keeps its own `diff_ratio` threshold (`MAX_DIFF_PIXEL_RATIO` there is its own constant).
+
+### Known gaps
+
+- Overlay pages (`pages/overlays/*`) are compared against the plain `/today` route without opening the dialog; overlay routing is a later item.
+- Errors surface: 404 compares against `/settings/users/999999/edit` (full-page 404; unknown paths answer JSON, so they never render the page) and 422 against `/budget?month=zz`. The 409 and 500 pages have no deterministic full-page GET, so they stay on the 404 route and stay red until one exists.
+- Forecast net cell: a month the app projects positive where the board shows a loss (Dec 2026, Sep 2027) keeps the board's negative styling (overlay class), so those cells differ.
+- The `recurring-board` modifier is not yet wired per page in `test_reference.py`.
 
 ### Bootstrap (before baselines exist)
 
