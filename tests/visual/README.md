@@ -10,10 +10,10 @@ Eight routes x 375/1024/1440, light theme, baselines in `__snapshots__/` (Linux 
 
 References come from the designer handoff (`docs/design/rising-dough-frontend/`, frozen), not from the app.
 
-- Regenerate: `just visual-reference [surface]` (`--committed` limits it to the committed subset). Serves the handoff on 127.0.0.1, screenshots every page at 1440 / 1024 / 375, light and dark (`?theme=`), animations frozen, browser clock fixed at 2026-10-31T10:00Z, fonts awaited, network idle. Output: `reference/<group>/<page>.<viewport>.<theme>.png`.
-- Compare: `just test-visual --reference=handoff [surface]` (surface: today, accounts, ledger, plan, settings, auth, errors, overlays; or `--surface=`). Runs only the reference tests.
-- Committed subset (size budget, ~13 MB): non-overlay pages at 1440 and 375. Overlays and 1024 are gitignored; tests skip missing images, run `just visual-reference` to get them (full set 546 images, ~68 MB).
-- Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`. The app comparison (`test_app_matches_handoff`) is off until a surface is added to `MIGRATED_SURFACES` in `test_reference.py` (ADR-0107 migration).
+- Never committed (ADR-0147 section 1): `tests/visual/reference/` is gitignored and rendered in the same job and pinned container as the app (the `reference` job of `visual.yml`, advisory until surfaces migrate; artifacts `visual-references`, `visual-reference-actual`). Rendering uses the OVERLAID handoff (`overlay.py`, data from `handoff_overlay.toml`).
+- Render locally: `just visual-reference [surface]` (docker, pinned container; never on the host). Serves the handoff on 127.0.0.1, screenshots every page (106) at 1440 / 1024 / 375, light and dark (`?theme=`), animations frozen, browser clock fixed at 2026-10-31T10:00Z, fonts awaited, network idle. Output: `reference/<group>/<page>.<viewport>.<theme>.png`.
+- Compare: `just test-visual --reference=handoff [surface]` (same container; surface: today, accounts, ledger, plan, settings, auth, errors, overlays). Renders the references first, then runs only `test_reference.py` for every surface. Expected red with the old app (T-UR00b red run) until each surface migrates.
+- Fixture: the app side of `test_reference.py` uses the frozen server on the handoff seed (next section) at 2026-10-31 (`frozen_server.HANDOFF_FIXTURE_DATE`). `test_snapshots.py` (old-UI route baselines, removed per migrated surface) still serves a copy of `data/demo.sqlite`.
 
 ### Tolerance (max fraction of differing pixels)
 

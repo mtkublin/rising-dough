@@ -76,17 +76,6 @@ css:
 css-watch:
     npm run css:watch
 
-# Run Playwright visual-regression snapshot suite. Opt-in; not part of `just ci`.
-# `just test-visual --reference=handoff [surface]` compares against the handoff references (T-UT10).
-test-visual *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    opts=()
-    for a in {{args}}; do
-      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
-    done
-    uv run pytest tests/visual -m visual --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov ${opts[@]+"${opts[@]}"}
-
 # Visual regression in the pinned Playwright container (ADR-0027 amendment 2026-11-22, T-Q251).
 # Needs docker (macOS devs: Docker Desktop). Baselines are Linux-only; never generate them on the host.
 # Keep the image in step with .github/workflows/visual.yml (tests/architecture/test_visual_image_pin.py).
@@ -99,9 +88,21 @@ visual:
 visual-update:
     docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh update
 
-# Regenerate tests/visual/reference/ from the designer handoff (optionally one surface).
+# Render tests/visual/reference/ from the overlaid designer handoff in the pinned container
+# (ADR-0147 section 1; never on the host, never committed). Optionally one surface.
 visual-reference *surface:
-    uv run python -m tests.visual.handoff {{surface}}
+    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash -c 'pip install --quiet --break-system-packages "uv==0.11.2" && export UV_PYTHON_PREFERENCE=only-system && uv sync --group dev --frozen && uv run python -m tests.visual.handoff "$@"' _ {{surface}}
+
+# Compare every surface against the handoff references, in the pinned container; the references
+# are rendered first. `just test-visual --reference=handoff [surface]` (a bare word is a surface).
+test-visual *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    opts=()
+    for a in {{args}}; do
+      case "$a" in -*) opts+=("$a") ;; *) opts+=("--surface=$a") ;; esac
+    done
+    docker run --rm --ipc=host -v "$PWD":/work -w /work {{visual_image}} bash scripts/ci/visual_in_container.sh reference ${opts[@]+"${opts[@]}"}
 
 # Run the e2e journeys on Chromium (ADR-0106 §4). Extra args pass through
 # (paths, -k, later --target=...). Optional locally: e2e runs on GitHub

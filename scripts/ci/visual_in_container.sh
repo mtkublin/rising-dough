@@ -8,6 +8,12 @@ pip install --quiet --break-system-packages "uv==0.11.2"
 export UV_PYTHON_PREFERENCE=only-system
 uv sync --group dev --frozen
 
+if [ "${1:-}" = "reference" ]; then
+  shift
+  # The `references` fixture renders tests/visual/reference/ first, in this container.
+  exec uv run pytest tests/visual/test_reference.py -m visual --reference=handoff "$@" \
+    --override-ini="addopts=-ra --strict-config --strict-markers" --no-cov -p no:cacheprovider
+fi
 if [ "${1:-}" = "update" ]; then
   export VISUAL_UPDATE=1
 fi
