@@ -1,5 +1,13 @@
 # Changelog
 
+2026-11-24 T-UR00b: CI-rendered handoff references, every surface compared, committed reference PNGs removed (ADR-0147).
+
+2026-11-24 T-UR04: dialog/OOB/toast/422 response helpers `web/dialogs.py`, error summary, kept JS in `rd/js` (ADR-0107, ADR-0143).
+
+2026-11-24 T-UR04: eight shared redesign fragments with UI-map tests (ADR-0107).
+
+2026-11-24 T-UR00b: seed-dependent overlay rows with a service drift test; `invite-used` seed modifier (ADR-0147).
+
 2026-11-24 T-UR03: category colour presets/edge contrast, bar spans, aria label, year-cell state helpers and filters (ADR-0107).
 
 2026-11-24 T-UR00b: handoff data overlay, apply module and guard (ADR-0147).
