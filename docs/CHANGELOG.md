@@ -1,5 +1,15 @@
 # Changelog
 
+2026-11-24 T-UR00: old-frontend removal ledger and `test_old_frontend_removed.py` guard (ADR-0107).
+
+2026-11-24 T-UR36: category usage counts across transactions, planned and recurring; picker without Reconciliation (ADR-0151).
+
+2026-11-24 T-UR36: device label unknown parts; spent this period over the pay window; forecast delta from net worth (ADR-0151).
+
+2026-11-24 T-UR01: vendored `static/rd/` assets, CSS bundle build and hooks (ADR-0107).
+
+2026-11-24 T-UR36: designer follow-up ADR renumbered ADR-0150 -> ADR-0151 after main's orchestrator ADR-0150.
+
 2026-11-24 T-Q325 to T-Q329: orchestrator v2 (ADR-0150): role agents `.claude/agents/` (explorer, implementer, scribe, reviewer, tester, visual-auditor); `scripts/ci/check_item.py` + `just check-item` (executable DoD, unit-tested); `-n auto` capped at 2 workers in linked worktrees (`tests/worker_cap.py`, conftest hook); `orchestrator-mode` skill rewritten as a flow (308 -> 175 lines), `brief-common.md` now the item-brief template with the Definition of Ready; run-log format `docs/runs/README.md`; CLAUDE.md updated. No allowlist change.
 
 2026-11-24 T-Q324: ADR-0150 (orchestrator v2: role agents in `.claude/agents/`, executable Definition of Done `scripts/ci/check_item.py`, one tester run per wave with `SKIP=pytest-fast` for orchestrated item agents, worker cap in code, run logs); ADR-0066 and ADR-0120 amendments; tasks T-Q324 to T-Q329; docs only.

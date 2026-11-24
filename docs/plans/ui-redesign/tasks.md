@@ -120,16 +120,17 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 
 ## Phase 0 — Entry
 
-### ◻ T-UR00 [S] Entry gate and open design questions → T-UR35
+### ✅ T-UR00 [S] Entry gate and open design questions → T-UR35
 - UI test harness exit gate ✅ (T-UT12); quality-audit `[pre-v4-P3]` remediation ✅; ADR-0107 Accepted; **precondition release live (T-UR35, ADR-0148)**.
 - Operator decisions recorded in `derived.md` for the handoff README §6 open items: visible bulk-select entry point (#7), inline promote variant, `g o` vs `g t` for Today, and every `no board` / `handoff-only` row from `../ui-test-harness/parity.md` (T-UT06). All decided by 2026-11-22: bulk select as delivered, promote dialog only, `g t` for Today (ADR-0147 §5).
 - Work branch `ui/sourdough` created from `main` after the precondition release.
 - Progress (2026-11-23): `ui/sourdough` created from `main` at bd3c1b0a (v3.2.0 live); designer follow-up answers folded into the docs (ADR-0151, T-UR36).
-- **Removal ledger** `removal.md` generated from `git ls-files` at the branch point: every file under `web/templates/`, `web/static/` (outside `rd/`), `tests/visual/baselines/`, plus the Tailwind/Node config, `justfile` recipes, pre-commit hooks and CI steps that exist only for the old frontend. Each row: path, owning surface task (or T-UR15 for shared files), status (`delete` / `keep: <reason>`). Only the kept-behaviour files from ADR-0107 §2 may be `keep`.
+- **Removal ledger** `removal.md` generated from `git ls-files` at the branch point: every file under `web/templates/`, `web/static/` (outside `rd/`), `tests/visual/__snapshots__/`, plus the Tailwind/Node config, `justfile` recipes, pre-commit hooks and CI steps that exist only for the old frontend. Each row: path, owning surface task (or T-UR15 for shared files), status (`delete` / `keep: <reason>`). Only the kept-behaviour files from ADR-0107 §2 may be `keep`.
 - **`template_logic.toml` (ADR-0130 amendment 2026-11-21):** after the redesign the allowlist must be empty; new templates add no entries; surface tasks delete the entries of the templates they remove.
 - `tests/architecture/test_old_frontend_removed.py`: reads `removal.md` and fails if a row marked `deleted` still exists, or if a new file appears under an old-frontend path (the old trees may only shrink). Starts green with nothing deleted.
+- Done (2026-11-24): removal ledger `removal.md` (154 old frontend file rows at bd3c1b0a + 24 old visual snapshot rows + 10 toolchain/CI rows; 4 `keep` rows: `htmx-csrf.js`, `js/passkeys.js`, `csrf.js`, `vendor/htmx-2.0.11.min.js`, the last two pending operator confirmation); guard `tests/architecture/test_old_frontend_removed.py` (new files allowed only under `templates/layouts`, `templates/pages`, `templates/fragments`, `static/rd`). Old visual baselines are `tests/visual/__snapshots__/` (there is no `tests/visual/baselines/`). Follow-ups: the branch-point check skips on CI's shallow checkout (`ci.yml` needs `fetch-depth: 0`, operator go); T-UR15 porting `dev/components.html` to the same path must flip that row to `keep` or use a new path.
 
-### ◻ T-UR36 [S] Designer follow-up deltas (backend) → T-UR00 (blocks T-UR00b)
+### ✅ T-UR36 [S] Designer follow-up deltas (backend) → T-UR00 (blocks T-UR00b)
 - **Decision**: [ADR-0151](../../adr/0151-designer-follow-up-answers-2026-11-23.md) §2–§3; answers in [designer-change-request.md](designer-change-request.md) (follow-up 2026-11-23). The only backend item on `ui/sourdough`; services, view models and their contract tests, no templates.
 - **Category usage** (`services/categories.py`, categories / planned / recurring repositories): usage = live transactions, live planned items, live recurring rules per category (soft-deleted rows excluded); a view-model text for the edit and archive dialogs with zero parts omitted ("41 entries · 2 planned · 1 rule"; nothing when all are zero). Direction stays immutable. Reuse `account_references` (T-UR33) shape where it fits; reuse report.
 - **Picker** (`picker_summary`): Reconciliation (system `adjustment`) excluded from recent, search and the total N; Transit kept.
@@ -138,6 +139,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 - **Forecast summary** (`services/forecast.projection_summary`): `now_value` = today's net worth (`services/fortune.compute_fortune` `net_base`, same converter as Accounts); `delta_minor` / `delta_direction` = last month's projected end minus that; `months` unchanged.
 - Tests assert exact values (counts per kind, label strings per user agent, spent over a pay period straddling a month boundary, forecast delta from net worth) and that a second user's rows are absent from the counts; requirements F1.6 and §10.1 already amended.
 - Overlay follow-ups for T-UR00b: afford row 9 (−57.15 per day · 400.07 over), row 12 (N without Reconciliation), row 19 (confirmed), plus forecast delta and category count text rows.
+- Done (2026-11-24): category usage counts live transactions, planned items and all live recurring rules (inactive included) with `view_models.category_usage_text` ("41 entries · 2 planned · 1 rule"), `categories.usage_for`; picker excludes Reconciliation from recent, `searchable` and N (UR36a). Device label "Unknown browser" / "unknown system" parts; spent this period over `account_planned.resolve_window` (whole pay window); forecast NOW = `compute_fortune().net_base`, delta = last projected end minus it, via `plan_data.forecast_summary` / `forecast_context` (UR36b). Archive-dialog wiring of the usage text is left to T-UR13.
 
 ### ◻ T-UR00b [S] Pixel parity against the handoff → T-UR00, T-UR36 (blocks T-UR05..T-UR14)
 - **Decision**: [ADR-0106 amendment 2026-11-22](../../adr/0106-ui-behaviour-test-harness.md#amendment-2026-11-22-pixel-parity-against-the-handoff) as amended by [ADR-0147](../../adr/0147-handoff-parity-ci-rendered-references-and-data-overlay.md). The handoff screenshots are the visual baselines; the goal of every surface task is pixel parity, test-first.
@@ -158,7 +160,7 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
 
 ## Phase 1 — Foundation (sequential core, then two parallel items)
 
-### ◻ T-UR01 [S] Assets and toolchain → T-UR00
+### ✅ T-UR01 [S] Assets and toolchain → T-UR00
 - **Deliverables**:
   - Handoff `static/` copied to `src/budget_planner/web/static/rd/` unchanged, minus `js/stand-in.js`.
   - `scripts/build_css_bundle.py` + `just css`: concatenates `rd/css/main.css`'s `@import` list in order into `rd/css/app.bundle.css`, preserving `@layer` order; pre-commit hook fails when the bundle is stale. Unit test on a small fixture tree.
@@ -166,11 +168,13 @@ Orchestrator mode (ADR-0066, `.claude/skills/orchestrator-mode/SKILL.md`): main 
   - Script tags as `type="module"`; theme script as classic `<head>` script; external icon sprite path.
 - **Acceptance**: bundle byte-identical across two runs; `just lint` green; old pages render unchanged (crawler and visual on old UI unchanged).
 - References: ADR-0107 §3–§4.
+- Done (2026-11-24): `static/rd/` = handoff `static/` minus `js/stand-in.js`; `scripts/build_css_bundle.py` (`--check`; flat `@import url(...) layer(x)` only) builds `rd/css/app.bundle.css`; `just css` runs it after Tailwind; hooks `css-bundle-check`, `stylelint-rd` (`rd/.stylelintrc.json` = handoff config plus `declaration-block-single-line-max-declarations: null` for vendored `rd/css/components/panel.css:45`; fix panel.css and drop the override later). Audit: `docs/audits/2026-11-24-t-ur01-rd-assets.md` (clean). Moved to T-UR02: module script tags, theme script in `<head>`, bundle link, icon sprite path.
 
 ### ◻ T-UR02 [S] Base layout and shell → T-UR01
 - **Deliverables**: `templates/layouts/base.html` per the handoff page shell: skip link, nav (desktop rail ≥ 768 px, bottom tab bar below), header, `#modal-root`, `#drawer-root`, `#toast-root`, `#flash-region`, global `#palette` and `#shortcuts` dialogs, CSRF meta for `htmx-csrf.js`, CSP nonce on any `<style>`. `fragments/flash/*`, `fragments/toast/undo`, `fragments/states/*`. The palette entries and shortcut targets come from the existing palette route data.
 - **Test-first**: `tests/ui_map/shell.py` rewritten to the handoff markup and checked with `--target=mockup` before the template is written.
 - **Acceptance**: a placeholder page extending the new base passes shell journeys (navigation, palette, shortcuts, theme switch); unmigrated pages still use the old base; crawler green on both.
+- From T-UR01: link `/static/rd/css/app.bundle.css`; `<script type="module">` for `/static/rd/js/*`; `theme.js` as a classic `<head>` script; the palette is static markup today (`templates/partials/_palette.html`, 15 entries, first `g o`), there is no palette route: port the entries and use `g t` for Today (ADR-0147 §5).
 
 ### ◻ T-UR03 [P] Server-side value helpers → T-UR01
 - **Deliverables** (pure functions + Jinja filters, unit-tested, ADR-0107 §5): category colour to `data-color` preset or nonce'd rule with the `--cat-edge` 3:1 contrast computation; block-character bar spans (20 / 10 cells, `--over`, `--none`); hero figure fit counts (`data-digits`, `data-marks`, `data-signs`); year-cell `data-state`; bar `aria-label` text.
