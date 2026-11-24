@@ -67,7 +67,7 @@ def jpy_id(_migrated: Settings) -> int:
 def test_jpy_balance_and_planned_net_have_no_decimals(client: TestClient, jpy_id: int) -> None:
     row = _html.text_of(client.get("/accounts").text, accounts.row(jpy_id))
     assert "100,000JPY" in row.replace(" ", "")
-    assert "\u221230,000 planned \u2192 70,000" in row
+    assert "100,000 JPY \u2192 70,000 after planned" in row
     assert "1,000.00" not in row
 
 

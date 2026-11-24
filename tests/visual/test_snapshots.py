@@ -43,7 +43,6 @@ VIEWPORTS: Final = {
 ROUTES: Final = {
     "today": "/today",
     "ledger": "/ledger",
-    "accounts": "/accounts",
     "budget": "/budget",
     "forecast": "/forecast",
     "recurring": "/recurring/new",

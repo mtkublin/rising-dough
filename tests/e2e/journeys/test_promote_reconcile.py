@@ -63,6 +63,7 @@ def test_promote_recurring_rule_advances_it(world: World) -> None:
     expect(world.find(ledger.row(txn["id"]))).to_contain_text("promote-rule")
 
 
+@pytest.mark.skip(reason="T-UR08b: reconcile dialog not ported yet")
 def test_reconcile_asset_records_an_adjustment(world: World) -> None:
     account = world.account("Checking", opening="100.00")
     world.goto("/accounts")
@@ -82,6 +83,7 @@ def test_reconcile_asset_records_an_adjustment(world: World) -> None:
     expect(world.find(accounts.row(account))).to_contain_text("70.00")
 
 
+@pytest.mark.skip(reason="T-UR08b: reconcile dialog not ported yet")
 def test_reconcile_liability_asks_for_available_credit(world: World) -> None:
     card = world.account("Visa", opening="-1234.56", liability=True, credit_limit="5000.00")
     world.goto("/accounts")

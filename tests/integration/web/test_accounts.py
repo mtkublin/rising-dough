@@ -430,8 +430,8 @@ def test_liability_available_shows_two_decimals(client: TestClient, _migrated: S
     r = client.get("/accounts")
     assert r.status_code == 200
     cards = _html.all_text(r.text, accounts.any_row)
-    assert "Available 3,765.44 ·" in cards
-    assert "Available 3,765 ·" not in cards
+    assert "available 3,765.44 of 5,000.00" in cards
+    assert "available 3,765 of" not in cards
 
 
 def test_create_reloads_page_without_swap(client: TestClient) -> None:
