@@ -1,0 +1,48 @@
+{# Dev-only dialog on the new base (T-UR25): exercises the offline save-failure state. #}
+<div>
+  {# dialog.js init() scans the htmx:load target's descendants, so the dialog needs a wrapper #}
+  <dialog class="rd-dialog"
+          id="dev-dialog"
+          aria-labelledby="dev-dialog-title"
+          data-js="modal">
+    <form class="rd-dialog__form"
+          method="post"
+          action="/dev/shell/dialog"
+          hx-post="/dev/shell/dialog"
+          hx-target="#modal-root"
+          hx-swap="innerHTML">
+      <header class="rd-dialog__band">
+        <div class="rd-dialog__band-head">
+          <h2 class="rd-dialog__title" id="dev-dialog-title">dev note</h2>
+          <button type="button"
+                  class="rd-dialog__close"
+                  aria-label="Close"
+                  data-js="dialog-close">
+            <svg class="rd-icon" aria-hidden="true" focusable="false">
+              <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div class="rd-dialog__body">
+        <div class="rd-field">
+          <label class="rd-field__label" for="dev-note">note</label>
+          <span class="rd-input">
+            <input class="rd-input__control"
+                   id="dev-note"
+                   name="note"
+                   type="text"
+                   autocomplete="off"
+                   required>
+          </span>
+        </div>
+        <div class="rd-dialog__actions">
+          <button type="button"
+                  class="rd-btn rd-btn--lg rd-btn--quiet"
+                  data-js="dialog-close">cancel</button>
+          <button type="submit" class="rd-btn rd-btn--lg rd-btn--primary">[ save note ]</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+</div>
