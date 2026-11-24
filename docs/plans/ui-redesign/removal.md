@@ -17,7 +17,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 |---|---|---|---|
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/auth.css` | T-UR05 | delete |  |
+| `src/budget_planner/web/static/auth.css` | T-UR05 | deleted |  |
 | `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
@@ -81,9 +81,9 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/_partials/segmented.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/slide_over_header.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/accounts/index.html` | T-UR08 | delete |  |
-| `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | delete |  |
-| `src/budget_planner/web/templates/auth/login.html` | T-UR05 | delete |  |
-| `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | delete |  |
+| `src/budget_planner/web/templates/auth/_layout.html` | T-UR05 | deleted |  |
+| `src/budget_planner/web/templates/auth/login.html` | T-UR05 | deleted |  |
+| `src/budget_planner/web/templates/auth/reauth.html` | T-UR05 | deleted |  |
 | `src/budget_planner/web/templates/base.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/budget/_yearly.html` | T-UR11 | delete |  |
 | `src/budget_planner/web/templates/budget/index.html` | T-UR11 | delete |  |
@@ -186,9 +186,9 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `tests/visual/__snapshots__/ledger.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/ledger.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/login.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/login.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/recurring.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
