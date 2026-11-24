@@ -29,11 +29,20 @@ SURFACE_ROUTES: dict[str, str] = {
     "today": "/today",
     "accounts": "/accounts",
     "ledger": "/ledger",
-    "plan": "/budget",
+    "plan": "/plan",
     "settings": "/settings",
     "auth": "/login",
     "errors": "/does-not-exist",
     "overlays": "/today",
+}
+# Tab pages with their own app route (plan ?tab=, ledger ?view=, recently-deleted).
+PAGE_ROUTES: dict[str, str] = {
+    "pages/plan/year.html": "/plan?tab=year",
+    "pages/plan/forecast.html": "/plan?tab=forecast",
+    "pages/plan/analytics.html": "/plan?tab=analytics",
+    "pages/ledger/planned.html": "/ledger?view=planned",
+    "pages/ledger/recurring.html": "/ledger?view=recurring",
+    "pages/ledger/recently-deleted.html": "/ledger/recently-deleted",
 }
 
 
@@ -88,7 +97,7 @@ def test_app_matches_handoff(
     request: pytest.FixtureRequest,
 ) -> None:
     surface = handoff.surface_of(handoff_page)
-    route = SURFACE_ROUTES[surface]
+    route = PAGE_ROUTES.get(handoff_page, SURFACE_ROUTES[surface])
     live_server: str = request.getfixturevalue("live_server")
     cookies = request.getfixturevalue("session_cookies")
     width, height = handoff.VIEWPORTS[viewport]
