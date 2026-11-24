@@ -7,10 +7,13 @@ list so the Playwright canary has a stable target.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 from budget_planner.config import Settings
+from budget_planner.domain.errors import ConflictError
 from budget_planner.web.deps import get_settings_dep
 from budget_planner.web.dialogs import dialog_response, saved_response
 from budget_planner.web.htmx import toast_payload, trigger
@@ -76,3 +79,18 @@ def dev_shell_toast(
         toast=toast_payload("success", "Dev toast saved", undo_url="/dev/shell/toast/undo"),
     )
     return response
+
+
+@router.post("/dev/shell/fail/{status}", include_in_schema=False)
+def dev_shell_fail(
+    status: int,
+    settings: Settings = Depends(get_settings_dep),
+) -> Response:
+    """Dev-only: fail through the real error handlers (409 conflict, 500 unhandled)."""
+    if getattr(settings, "env", "dev") == "production":
+        raise HTTPException(status_code=404)
+    if status == HTTPStatus.CONFLICT:
+        raise ConflictError(message="Dev conflict: that row is protected")
+    if status == HTTPStatus.INTERNAL_SERVER_ERROR:
+        raise RuntimeError("dev failure")
+    raise HTTPException(status_code=404)

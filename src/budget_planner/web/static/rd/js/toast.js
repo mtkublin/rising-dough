@@ -93,6 +93,18 @@
     arm(toast);
   });
 
+  /* Error responses (404/409/500...) carry only the OOB flash partial (web/errors.py): swap that
+     into the flash regions and leave the request target alone. */
+  const FLASH_OOB = /id="flash-region(-assertive)?"[^>]*hx-swap-oob/;
+  document.addEventListener('htmx:beforeSwap', (event) => {
+    const detail = event.detail || {};
+    const xhr = detail.xhr;
+    if (!xhr || xhr.status < 400 || !FLASH_OOB.test(xhr.responseText || '')) return;
+    detail.shouldSwap = true;
+    detail.isError = false;
+    detail.swapOverride = 'none';
+  });
+
   window.RD = window.RD || {};
   window.RD.toast = { init, arm };
   init();

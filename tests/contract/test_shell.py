@@ -408,3 +408,12 @@ def test_dev_toast_is_404_in_production(client: TestClient, settings: Settings) 
         assert client.post("/dev/shell/toast", headers=HX).status_code == 404
     finally:
         client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("POST /dev/shell/fail/{status}")
+def test_dev_fail_409_goes_through_the_conflict_handler(client: TestClient) -> None:
+    r = client.post("/dev/shell/fail/409", headers=HX)
+    assert r.status_code == 409
+    flash = _html.resolve_one(r.text, rd_shell.flash_region)
+    assert flash.get("hx-swap-oob") == "true"
+    assert flash.get_text(" ", strip=True).startswith("Dev conflict: that row is protected")

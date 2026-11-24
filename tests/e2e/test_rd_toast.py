@@ -17,7 +17,11 @@ from tests.ui_map.locator import by_id, role, to_playwright
 pytestmark = pytest.mark.e2e
 
 _dev_toast_button = role("button", "show dev toast")
-_toast_undo_form = by_id("toast-root")
+_toast_any = role("status").inside(shell.toast_root)
+_flash_assertive = by_id("flash-region-assertive")
+_fail_409 = role("button", "fail with 409")
+_fail_500 = role("button", "fail with 500")
+_toast_undo = role("button", "undo").inside(shell.toast_root)
 
 
 def _loc(journey: Journey, locator: Any) -> Any:
@@ -30,12 +34,10 @@ def test_hx_trigger_toast_shows_message_and_undo_link(journey: Journey) -> None:
     journey.goto("/dev/shell")
     _loc(journey, _dev_toast_button).click()
 
-    toast = _loc(journey, shell.toast_root).get_by_role("status")
-    toast.wait_for(state="visible")
-    assert "Dev toast saved" in toast.inner_text()
-    form = _loc(journey, _toast_undo_form).locator("form")
-    assert form.get_attribute("action") == "/dev/shell/toast/undo"
-    assert form.get_by_role("button", name="undo").is_visible()
+    _loc(journey, shell.toast_root).get_by_text("Dev toast saved").wait_for(state="visible")
+    undo = _loc(journey, _toast_undo)
+    undo.wait_for(state="visible")
+    assert undo.evaluate("el => el.form.getAttribute('action')") == "/dev/shell/toast/undo"
 
 
 def test_toast_leaves_on_its_own(journey: Journey) -> None:
@@ -43,6 +45,24 @@ def test_toast_leaves_on_its_own(journey: Journey) -> None:
         pytest.skip("the handoff mockup has no server to send HX-Trigger")
     journey.goto("/dev/shell")
     _loc(journey, _dev_toast_button).click()
-    toast = _loc(journey, shell.toast_root).get_by_role("status")
+    toast = _loc(journey, _toast_any)
     toast.wait_for(state="visible")
     toast.wait_for(state="detached", timeout=12000)
+
+
+def test_conflict_response_flashes_in_the_new_shell(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, _fail_409).click()
+    flash = _loc(journey, shell.flash_region).get_by_text("Dev conflict: that row is protected")
+    flash.wait_for(state="visible")
+
+
+def test_server_error_flashes_in_the_new_shell(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, _fail_500).click()
+    flash = _loc(journey, _flash_assertive).get_by_text("Something went wrong on our side.")
+    flash.wait_for(state="visible")
