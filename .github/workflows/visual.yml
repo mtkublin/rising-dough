@@ -129,9 +129,9 @@ jobs:
       - name: Render references and compare every surface
         env:
           VISUAL_KEEP_DIR: visual-actual
+          REFERENCE_SHARD: ${{ matrix.shard }}
           REFERENCE_SHARD_LABEL: ${{ matrix.shard }}
-          SHARD: ${{ matrix.shard }}
-        run: bash scripts/ci/visual_in_container.sh reference "--reference-shard=$SHARD"
+        run: bash scripts/ci/visual_in_container.sh reference
 
       - name: Name the shard for artifacts
         if: ${{ always() }}

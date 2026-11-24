@@ -12,6 +12,7 @@ Stdlib-only PNG diff (no Pillow dependency; a stack change needs an ADR).
 from __future__ import annotations
 
 import http.server
+import os
 import struct
 import sys
 import threading
@@ -130,6 +131,9 @@ def shoot(browser: Browser, base: str, page: str, *, viewport: str, theme: str, 
         context.close()
 
 
+SHARD_ENV: Final = "REFERENCE_SHARD"  # "<viewport>:<theme>"; set by the CI matrix job
+
+
 def parse_shard(shard: str | None) -> tuple[str, str] | None:
     """``"<viewport>:<theme>"`` (CI shard, T-UR00b) -> ``(viewport, theme)``; None = all."""
     if not shard:
@@ -142,7 +146,7 @@ def parse_shard(shard: str | None) -> tuple[str, str] | None:
 
 def generate(only_surface: str | None = None, shard: str | None = None) -> int:
     """Render page x viewport x theme (or one surface / shard) into ``REFERENCE_DIR``."""
-    only = parse_shard(shard)
+    only = parse_shard(shard or os.environ.get(SHARD_ENV))
     count = 0
     with serve_handoff() as base, sync_playwright() as p:
         browser = p.chromium.launch(args=CHROMIUM_ARGS)

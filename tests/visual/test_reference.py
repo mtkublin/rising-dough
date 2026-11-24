@@ -50,8 +50,7 @@ PAGE_ROUTES: dict[str, str] = {
 def references(request: pytest.FixtureRequest) -> int:
     """Render the handoff references once per session, before any comparison."""
     surface = request.config.getoption("--surface") or None
-    shard = request.config.getoption("--reference-shard") or None
-    return handoff.generate(surface, shard)
+    return handoff.generate(surface)
 
 
 def _selected(config: pytest.Config) -> list[str]:

@@ -67,8 +67,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     parser.addoption(
         "--reference-shard",
-        default=None,
-        help="limit --reference=handoff to one '<viewport>:<theme>' shard, e.g. 1440:dark (CI)",
+        default=os.environ.get(handoff.SHARD_ENV),
+        help="limit --reference=handoff to one '<viewport>:<theme>' shard, e.g. 1440:dark "
+        f"(default: ${handoff.SHARD_ENV}; also the only shard the references are rendered for)",
     )
 
 
