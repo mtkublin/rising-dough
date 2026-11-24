@@ -77,3 +77,60 @@ F3 (Layout, low, pre-existing on ui/sourdough 10cf35bb, identical there): the de
 F4 (Behavior, note): a polite flash is not cleared when an assertive one arrives (and the reverse), so a stale message can remain next to the new one.
 F5 (Behavior, note, server): POST /accounts/99999/delete (unknown id) answers success; the UI removes the targeted row and shows the
    "Account deleted" toast although nothing was deleted. Pre-existing, outside UR02b.
+
+## Re-audit (82796f2b)
+
+Fix commit 82796f2b (F1: app-toast.js status-copy map for flash-less 4xx/5xx; F2: Today hero and upcoming list also refetch on ledger-stale).
+Method: frontend-visual-audit skill, heavy lock taken and released, scratch copy of data/demo.sqlite (no write to data/budget.sqlite).
+Screenshots (viewed): /private/tmp/claude-501/-Users-mikolajkublin-workspace-budget-budget-planner/0eb4ab23-4451-4f62-857f-3e5a0b3150dd/scratchpad/UR02c/shots/ (name-width.png; dark-prefixed for dark).
+
+### F1 (404 visible) - resolved
+
+Forced 404 = the real handler POST /dev/shell/fail/404 (plain-text "not found", no flash body), fulfilled onto the real request; real 404 =
+the request rerouted to a stale id / unknown path. Message in #flash-region-assertive each time: "That item was not found. It may have been removed."
+
+| Action | 1440 light | 375 light | 1440 dark |
+|---|---|---|---|
+| Today skip /recurring/<id>/skip-next, forced 404 | message | message | message |
+| Today skip, real stale id (/recurring/99999/skip-next) | message | message | message |
+| promote-all-due, forced 404 (1440 only) | message | - | message |
+| promote-all-due, real 404 | message | - | message |
+| Accounts row-menu delete, forced 404 | message, 20 rows before and after | message | message |
+| /dev/shell "fail with plain 404" button | message | message | message |
+| 409 (one per action, Today skip, promote-all, Accounts delete) | unchanged: "Dev conflict: that row is protected" in #flash-region | same (Today skip, Accounts) | same |
+| 500 (same actions) | unchanged: "Something went wrong on our side. Reference: <id>" in #flash-region-assertive | same | same |
+
+Each region keeps one element per id (n=1), role status/alert and aria-live polite/assertive, childEls=1, duplicateIds 0 on every state.
+consoleErrors=1 only on the deliberately failing responses (browser line "Failed to load resource ... 404/409/500"), no script error.
+Accounts delete with a real stale id (/accounts/99999/delete) is not a 404: the server answers success and the UI shows "Account deleted" (F5, pre-existing,
+server side, outside UR02b; unchanged). So the Accounts 404 is covered by the forced case.
+
+### F2 (skip refetches list and hero) - resolved
+
+Successful Today skip on a clean scratch copy, 1440 and 375: POST /recurring/<id>/skip-next, then GET /today and GET /today/upcoming?window=30. The skipped row
+leaves the upcoming list (rule 21 at 1440, rule 23 at 375; the list stays at 6 rows because the next row fills in), no toast (parity with the old page,
+derived.md), #today-hero and #upcoming-list each count 1, duplicateIds 0, consoleErrors 0, requestFailures 0.
+Hero figure equals the service value: on three consecutive skips the swapped hero ("left to spend per day") read -17.66, -17.55, -17.32 PLN / day, and after
+each a full reload (fresh server render of budget_service.month_summary / view_models) read the identical value. Skipping rule 21 leaves the figure unchanged
+(-17.66 before and after), on a fresh render too, so that is service behaviour, not a stale swap.
+
+### Diagnostics, one pass (light)
+
+| Route | 1440 | 1024 | 375 |
+|---|---|---|---|
+| /today | hs=0 ov=0 dup=0 con=0 rf=0 | same | hs=0 ov=1 (F3 loaf, pre-existing) dup=0 con=0 rf=0 |
+| /accounts | 0/0/0/0/0 | same | same |
+| /plan?tab=budget | 0/0/0/0/0 | same | same |
+
+Swap targets (every hx-target selector) match exactly one element on all routes; main has 0 style attributes.
+
+### Step 3b
+
+- Templates touched since the first record (hero.html, upcoming-list.html, pages/dev/shell.html): only hx-trigger text and a dev button; no arithmetic, float or literals.
+- Failing saves visible: yes for 404, 409 and 500 on Today skip, promote-all, Accounts delete and the dev shell.
+- Rendered number equals the service value: yes (hero after skip equals fresh render, see F2).
+- Listeners: ledger-stale has emitters (skip, promote) and the hero and list now listen; the toast event listener is unchanged.
+
+### Result
+
+CLEAN. F1 and F2 resolved. F3 (loaf, pre-existing), F4 and F5 (notes) are unchanged and not blocking.
