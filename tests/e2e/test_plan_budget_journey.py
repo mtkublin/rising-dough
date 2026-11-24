@@ -105,6 +105,8 @@ def test_period_arrows_step_months_without_writing(
     if journey.target != "app":
         pytest.skip("the handoff page has one fixed month; the arrows link to the same page")
     _open(journey, request)
+    _base, db_path = request.getfixturevalue("live_server")
+    writes = db_probe.scalar(db_path, "SELECT COUNT(*) FROM audit_log")
     trigger = _find(journey, plan_budget.period_trigger)
     expect(trigger).to_contain_text("June 2026")
     _find(journey, rd_fragments.period_prev).click()
@@ -112,6 +114,7 @@ def test_period_arrows_step_months_without_writing(
     _find(journey, rd_fragments.period_next).click()
     _find(journey, rd_fragments.period_next).click()
     expect(trigger).to_contain_text("July 2026")
+    assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM audit_log") == writes
 
 
 def test_period_arrows_cross_the_year_boundary(
