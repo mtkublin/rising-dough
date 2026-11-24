@@ -60,6 +60,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Due-date status (in N days, due today, overdue) and override delta | `services/ledger_totals.py` `planned_status` (also `override_delta`) | exists (T-UR34c) | - |
 | Segmented bar cells and hero amount fit | `web/view_models.py` `bar_cells`, `hero_fit` | exists (T-UR34k) | - |
 | Session device label from a user agent | `domain/user_agent.py` `device_label` | exists (T-UR34h) | - |
+| Category colour preset and edge contrast | `domain/category_colors.py` `category_color`, `edge_color`, `contrast_ratio` (`data-color` preset name or nonce'd rule, `--cat-edge` 3:1 on `--color-panel`; ADR-0107 §5) | exists (T-UR03) | - |
 | Rate-limit attempts left | `services/rate_limit.py` `attempts_left` | exists (T-UR34i) | - |
 | Form field labels and 422 field summary | `web/field_labels.py` `field_label`, `field_summary` | exists (T-UR34l) | - |
 | Account in-use reference counts | `services/accounts.py` `account_references` | exists (T-UR33) | - |
