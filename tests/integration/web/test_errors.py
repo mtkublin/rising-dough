@@ -76,7 +76,7 @@ def test_not_found_browser_renders_404_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/not-found")
     assert r.status_code == 404
     assert _html.text_of(r.text, errors.heading) == "Not found"
-    assert "transaction" in _html.text_of(r.text, errors.main)
+    assert "exist or was removed" in _html.text_of(r.text, errors.main)
     # Request id echoed by middleware.
     assert r.headers.get("X-Request-Id")
 
@@ -94,7 +94,7 @@ def test_conflict_browser_renders_409_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/conflict")
     assert r.status_code == 409
     heading = _html.text_of(r.text, errors.heading)
-    assert "Can" in heading and "that" in heading
+    assert heading == "Changed elsewhere"
     assert "protected row" in _html.text_of(r.text, errors.main)
 
 
@@ -109,7 +109,7 @@ def test_conflict_htmx_renders_warning_flash(error_client: TestClient) -> None:
 def test_validation_browser_renders_422_page(error_client: TestClient) -> None:
     r = error_client.get("/_boom/validation")
     assert r.status_code == 422
-    assert "Check the form" in _html.text_of(r.text, errors.heading)
+    assert "save that" in _html.text_of(r.text, errors.heading)
     assert "amount" in _html.text_of(r.text, errors.main)
 
 
@@ -150,7 +150,7 @@ def test_unhandled_exception_falls_back_to_500(
     with caplog.at_level(logging.ERROR, logger="budget_planner.web"):
         r = error_client.get("/_boom/unhandled")
     assert r.status_code == 500
-    assert "Something went wrong" in _html.text_of(r.text, errors.heading)
+    assert _html.text_of(r.text, errors.heading) == "Something broke"
     rid = r.headers["X-Request-Id"]
     assert rid
     assert any(getattr(rec, "request_id", None) == rid for rec in caplog.records)

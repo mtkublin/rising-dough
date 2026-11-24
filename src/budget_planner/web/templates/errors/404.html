@@ -1,6 +1,0 @@
-{% extends "errors/_shell.html" %}
-{% set status = 404 %}
-{% set heading = "Not found" %}
-{% block body %}
-  <p>The {{ entity|default("page") }} you asked for doesn't exist or was removed.</p>
-{% endblock %}

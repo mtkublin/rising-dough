@@ -7,7 +7,7 @@ Every allowlist under ``tests/architecture/allowlists/`` is empty of burn-down d
 * no file except ``template_logic.toml`` has an ``[[entry]]`` row, and every ``[ceilings]`` value is 0;
 * ``[[permanent]]`` and ``[[framework]]`` rows carry a non-empty ``reason`` and their path is named in ADR-0130
   (the closing amendment lists them), so a new one cannot land without an amendment;
-* redesign carve-out: ``template_logic.toml`` holds at most ``CARVE_OUT_MAX`` (80 after T-UR08a, 83 at the start: the D3 entries of T-Q273) ``[[entry]]``
+* redesign carve-out: ``template_logic.toml`` holds at most ``CARVE_OUT_MAX`` (83 at the start, lowered by each surface task: the D3 entries of T-Q273) ``[[entry]]``
   rows, each with an ``owner`` that is a T-UR task heading in ``docs/plans/ui-redesign/tasks.md``; it has no other
   table. The redesign's last task (T-UR15) burns it to zero and then deletes the carve-out from this guard.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 from tests.architecture._ratchet import ALLOWLIST_DIR, REPO_ROOT
 
 CARVE_OUT_FILE = "template_logic.toml"
-CARVE_OUT_MAX = 80
+CARVE_OUT_MAX = 76
 ADR_FILE = (
     REPO_ROOT / "docs" / "adr" / "0130-prevention-regime-and-full-architectural-compliance.md"
 )

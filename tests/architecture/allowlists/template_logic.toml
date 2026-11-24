@@ -219,38 +219,6 @@ epic = "E16"
 owner = "T-UR15"
 
 [[entry]]
-path = "src/budget_planner/web/templates/errors/404.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR06"
-
-[[entry]]
-path = "src/budget_planner/web/templates/errors/409.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR06"
-
-[[entry]]
-path = "src/budget_planner/web/templates/errors/422.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR06"
-
-[[entry]]
-path = "src/budget_planner/web/templates/errors/500.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR06"
-
-[[entry]]
 path = "src/budget_planner/web/templates/ledger/_recently_deleted.html"
 rule = "tpl-format"
 count = 1

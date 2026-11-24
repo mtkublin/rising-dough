@@ -1,0 +1,16 @@
+{# pages/errors/422 (T-UR06): validation failed on a full-page request.
+   Inputs: field_count, field_errors (web/errors.validation_summary), back_url.
+   Handoff: pages/errors/422.html. #}
+{% extends "layouts/base.html" %}
+{% block title %}422 · Can’t save that · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-error" aria-labelledby="err-title">
+    <p class="rd-caption">ERROR 422</p>
+    <h1 class="rd-error__title" id="err-title">Can’t save that</h1>
+    <p class="rd-error__msg">Some fields need fixing. Your changes are still in the form.</p>
+    {% include "fragments/forms/error-summary.html" %}
+    <div class="rd-error__actions">
+      <a class="rd-btn rd-btn--primary" href="{{ back_url }}">[ back to the form ]</a>
+    </div>
+  </section>
+{% endblock %}
