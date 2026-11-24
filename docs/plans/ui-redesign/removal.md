@@ -17,7 +17,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 |---|---|---|---|
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/auth.css` | T-UR05 | deleted |  |
+| `src/budget_planner/web/static/auth.css` | T-UR15 | delete | kept: rd-auth__* used by settings security/password until T-UR14 |
 | `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
