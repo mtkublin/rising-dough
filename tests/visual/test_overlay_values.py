@@ -13,6 +13,7 @@ import datetime as dt
 import sqlite3
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from typing import Final
 
 import pytest
 
@@ -90,8 +91,12 @@ class Vals:
     txns: dict[str, int]
     checked: dict[str, dt.datetime]
     session_created: dt.datetime
+    phone_created: dt.datetime
+    phone_last_seen: dt.datetime
+    phone_expires: dt.datetime
     session_expires: dt.datetime
     ewa_last_seen: dt.datetime | None
+    projection: tuple[forecast_service.MonthlyProjectionPoint, ...]
     fc_delta: int
     fc_end: int
     fc_peak: int
@@ -131,6 +136,7 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
             absolute_lifetime_days=settings.session_absolute_lifetime_days,
         )
     (current,) = (r for r in view.session_rows if r.is_current)
+    (phone,) = (r for r in view.session_rows if not r.is_current)
     ewa = next(u for u in users_repo.list_live(conn) if u.email == "parent@example.test")
     net = fortune_service.compute_fortune(
         conn, USER, fx_service.converter_for(conn, settings, DAY)
@@ -167,7 +173,11 @@ def _collect(conn: sqlite3.Connection, settings: Settings, token: str) -> Vals:
         checked=checked,
         session_created=current.session.created_at,
         session_expires=current.absolute_expires_at,
+        phone_created=phone.session.created_at,
+        phone_last_seen=phone.session.last_seen_at,
+        phone_expires=phone.absolute_expires_at,
         ewa_last_seen=ewa.last_seen_at,
+        projection=projection,
         fc_delta=fc.delta_minor,
         fc_end=fc.end_point.end_balance_minor,
         fc_peak=fc.peak_point.end_balance_minor,
@@ -251,7 +261,78 @@ _CHECKED_ROWS = (3, 7)  # Investments C and Cash Wallet carry the 29 Oct reconci
 ARROW = "→"
 UP = "▲"
 
-CASES: tuple[Case, ...] = (
+# plan/forecast.html monthly table as the handoff prints it (cell texts without " PLN"):
+# income, expenses, planned budget, net, end balance per month, Oct 2026 first.
+_FORECAST_BOARD: Final[tuple[tuple[str, str, str, str, str], ...]] = (
+    ("0.00", "312.54", "1,399.93", "\u25b2 \u22121,712.47", "32,727.22"),
+    ("20,707.93", "13,197.08", "5,558.28", "1,952.57", "34,679.79"),
+    ("18,204.66", "14,724.56", "5,204.12", "\u25b2 \u22121,724.02", "32,955.77"),
+    ("18,592.59", "11,415.20", "5,558.28", "1,619.11", "34,574.88"),
+    ("21,631.15", "13,459.79", "190.86", "7,980.50", "42,555.38"),
+    ("59,190.66", "29,071.31", "4,884.94", "25,234.41", "67,789.79"),
+    ("21,631.15", "13,620.76", "5,443.36", "2,567.03", "70,356.82"),
+    ("21,631.15", "13,620.76", "190.86", "7,819.53", "78,176.35"),
+    ("21,944.34", "13,709.87", "5,397.31", "2,837.16", "81,013.51"),
+    ("21,631.15", "13,620.76", "5,397.31", "2,613.08", "83,626.59"),
+    ("21,631.15", "13,620.76", "5,397.31", "2,613.08", "86,239.67"),
+    ("21,631.15", "13,620.76", "15,202.27", "\u25b2 \u22127,191.88", "79,047.79"),
+)
+_FORECAST_COLUMNS: Final = ("income", "expenses", "planned budget", "net", "end balance")
+
+
+def _forecast_cell(point: forecast_service.MonthlyProjectionPoint, column: int) -> str:
+    """One cell of the handoff table from the app's monthly point (net: arrow when negative)."""
+    minor = (
+        point.income_minor,
+        point.expense_minor,
+        point.planned_budget_minor,
+        point.net_minor,
+        point.end_balance_minor,
+    )[column]
+    text = money(minor)
+    return f"\u25b2 {text}" if column == 3 and minor < 0 else text
+
+
+_FORECAST_MONTHS: Final = (
+    "Oct 2026",
+    "Nov 2026",
+    "Dec 2026",
+    "Jan 2027",
+    "Feb 2027",
+    "Mar 2027",
+    "Apr 2027",
+    "May 2027",
+    "Jun 2027",
+    "Jul 2027",
+    "Aug 2027",
+    "Sep 2027",
+)
+# (month, column) cells the seed already reproduces (Oct: income, net, end balance).
+_FORECAST_SAME: Final = frozenset({(0, 0), (0, 3), (0, 4)})
+
+
+def _forecast_value(month: int, column: int) -> Callable[[Vals], str]:
+    return lambda v: _forecast_cell(v.projection[month], column)
+
+
+def _forecast_cases() -> tuple[Case, ...]:
+    """One case per cell where the seed's projection differs from the handoff's printed value."""
+    return tuple(
+        Case(
+            "pages/plan/forecast.html",
+            f".rd-row--forecast:nth-of-type({i + 1}) td:nth-of-type({c + 1})",
+            _FORECAST_BOARD[i][c],
+            _forecast_value(i, c),
+            f"{_SEED} forecast.monthly_projection: {_FORECAST_MONTHS[i]} {_FORECAST_COLUMNS[c]}",
+            optional=False,
+        )
+        for i in range(12)
+        for c in range(5)
+        if (i, c) not in _FORECAST_SAME
+    )
+
+
+_LISTED_CASES: tuple[Case, ...] = (
     # Today and Plan headline: committed includes the overdue "Annual insurance".
     Case(
         ALL,
@@ -406,6 +487,27 @@ CASES: tuple[Case, ...] = (
         f"{_SEED} security_settings.security_view: absolute expiry (start + 30 days)",
     ),
     Case(
+        "pages/settings/security*.html",
+        '.rd-row--session td:-soup-contains-own("02 NOV 18:40")',
+        "02 NOV 18:40",
+        lambda v: stamp(v.phone_created),
+        f"{_SEED} security_settings.security_view: Safari session start (board's is future)",
+    ),
+    Case(
+        "pages/settings/security*.html",
+        '.rd-row--session td:-soup-contains-own("11 NOV 22:03")',
+        "11 NOV 22:03",
+        lambda v: stamp(v.phone_last_seen),
+        f"{_SEED} security_settings.security_view: Safari session last seen (board's is future)",
+    ),
+    Case(
+        "pages/settings/security*.html",
+        '.rd-row--session td:-soup-contains-own("02 DEC")',
+        "02 DEC",
+        lambda v: stamp(v.phone_expires, with_time=False),
+        f"{_SEED} security_settings.security_view: Safari session expiry (start + 30 days)",
+    ),
+    Case(
         ALL,
         'tr.rd-row--user td:-soup-contains-own("12 NOV 08:40")',
         "12 NOV 08:40",
@@ -429,6 +531,7 @@ CASES: tuple[Case, ...] = (
         optional=False,
     ),
 )
+CASES: tuple[Case, ...] = (*_LISTED_CASES, *_forecast_cases())
 
 
 ROWS = load_rows()
@@ -474,3 +577,10 @@ def test_overlay_values_pin(vals: Vals) -> None:
     assert (vals.afford_over_per_day, vals.afford_over_over) == (-11_601, 81_207)
     assert (vals.actual_count, vals.recurring_count) == (26, 15)
     assert len(vals.formula_next_all) == 1
+
+
+def test_forecast_cells_left_out_of_the_overlay_match(vals: Vals) -> None:
+    """The Oct 2026 income, net and end balance equal the handoff's printed cells."""
+    for i, c in sorted(_FORECAST_SAME):
+        assert _forecast_cell(vals.projection[i], c) == _FORECAST_BOARD[i][c], (i, c)
+    assert [p.label for p in vals.projection] == list(_FORECAST_MONTHS)
