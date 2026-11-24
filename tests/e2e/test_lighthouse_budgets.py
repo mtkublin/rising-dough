@@ -15,7 +15,11 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -23,6 +27,7 @@ from playwright.sync_api import Page, Playwright
 
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.e2e.crawl.seed import seed_world
+from tests.e2e.redirect_routes import probe_routes
 from tests.e2e.test_crawl import PAGES, VIEWS
 
 pytestmark = [pytest.mark.e2e]
@@ -33,7 +38,59 @@ _needs_lhci = pytest.mark.skipif(
 
 LHCI_VERSION = "0.15.1"
 CONFIG = Path(__file__).resolve().parents[1] / "perf" / "lighthouserc.json"
+CADDYFILE = Path(__file__).resolve().parents[1] / "perf" / "Caddyfile"
+CADDY_BIN_ENV = "PERF_CADDY_BIN"
 LHCI_TIMEOUT_S = 1500
+CADDY_READY_TIMEOUT_S = 15.0
+CADDY_POLL_S = 0.1
+LOCALHOST = "127.0.0.1"
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind((LOCALHOST, 0))
+        port: int = sock.getsockname()[1]
+    return port
+
+
+def _wait_until_listening(port: int) -> None:
+    deadline = time.monotonic() + CADDY_READY_TIMEOUT_S
+    while time.monotonic() < deadline:
+        with socket.socket() as sock:
+            if sock.connect_ex((LOCALHOST, port)) == 0:
+                return
+        time.sleep(CADDY_POLL_S)
+    raise RuntimeError(f"caddy did not listen on {port} within {CADDY_READY_TIMEOUT_S}s")
+
+
+@contextmanager
+def _caddy_front(upstream_url: str) -> Iterator[str]:
+    """Front the app with Caddy and the prod ``encode zstd gzip`` (ADR-0027 amendment 2026-11-24).
+
+    The budgets are transfer sizes users receive, and in prod Caddy compresses; the app does not.
+    ``PERF_CADDY_BIN`` is the caddy binary from prod's pinned image (a11y-perf.yml). Without
+    it the app is measured bare, which reports raw sizes (local runs only).
+    """
+    binary = os.environ.get(CADDY_BIN_ENV)
+    if not binary:
+        yield upstream_url
+        return
+    port = _free_port()
+    env = {
+        **os.environ,
+        "PERF_LISTEN": f"{LOCALHOST}:{port}",
+        "PERF_UPSTREAM": upstream_url.removeprefix("http://"),
+    }
+    proc = subprocess.Popen(  # noqa: S603  # fixed argv, binary path from the workflow
+        [binary, "run", "--config", str(CADDYFILE), "--adapter", "caddyfile"],
+        env=env,
+    )
+    try:
+        _wait_until_listening(port)
+        yield f"http://{LOCALHOST}:{port}"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
 
 
 def _lhci(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
@@ -55,23 +112,6 @@ def _sandbox_free_chrome(real: str, directory: Path) -> str:
     return str(wrapper)
 
 
-def split_redirect_routes(statuses: dict[str, int]) -> tuple[list[str], list[str]]:
-    """Split routes into (measurable, redirect-only) by their un-followed GET status.
-
-    Lighthouse groups results by final URL, so a legacy route that 3xx-redirects (e.g.
-    ``/auth/sessions`` and ``/settings/password`` -> ``/settings/security``) is never measured as
-    itself and only inflates the target's run count. Such routes are excluded by name instead.
-    """
-    redirected = [r for r, status in statuses.items() if 300 <= status < 400]
-    return [r for r in statuses if r not in redirected], redirected
-
-
-def test_split_redirect_routes_names_the_redirecting_routes() -> None:
-    measured, redirected = split_redirect_routes({"/a": 200, "/b": 303, "/c": 200, "/d": 302})
-    assert measured == ["/a", "/c"]
-    assert redirected == ["/b", "/d"]
-
-
 @_needs_lhci
 def test_lighthouse_budgets(
     page: Page, live_server: tuple[str, Path], _playwright: Playwright, tmp_path: Path
@@ -85,20 +125,21 @@ def test_lighthouse_budgets(
     chrome = _sandbox_free_chrome(_playwright.chromium.executable_path, tmp_path)
     env = {**os.environ, "CHROME_PATH": chrome}
     routes = (*PAGES, *VIEWS)
-    statuses = {r: page.request.get(base_url + r, max_redirects=0).status for r in routes}
-    measured, redirected = split_redirect_routes(statuses)
+    measured, redirected = probe_routes(page.request, base_url, routes)
     print(
         f"lighthouse measures {len(measured)} of {len(routes)} routes; "
         f"redirect-only, excluded by name: {redirected}"
     )
-    urls = [f"{base_url}{route}" for route in measured]
-    collect_args = [
-        "collect",
-        f"--config={CONFIG}",
-        f"--collect.settings.extraHeaders={headers}",
-        *[f"--collect.url={u}" for u in urls],
-    ]
-    collected = _lhci(collect_args, env)
+    with _caddy_front(base_url) as front_url:
+        print(f"lighthouse target: {front_url} (app: {base_url})")
+        urls = [f"{front_url}{route}" for route in measured]
+        collect_args = [
+            "collect",
+            f"--config={CONFIG}",
+            f"--collect.settings.extraHeaders={headers}",
+            *[f"--collect.url={u}" for u in urls],
+        ]
+        collected = _lhci(collect_args, env)
     print(collected.stdout, collected.stderr)
     assert collected.returncode == 0, "lhci collect failed (not a budget result)"
     asserted = _lhci(["assert", f"--config={CONFIG}"], env)

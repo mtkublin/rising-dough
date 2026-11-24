@@ -23,6 +23,7 @@ from playwright.sync_api import Page
 
 from tests.e2e.crawl.engine import DESKTOP, settle
 from tests.e2e.crawl.seed import seed_world
+from tests.e2e.redirect_routes import probe_routes
 from tests.e2e.test_crawl import PAGES, VIEWS
 
 pytestmark = [
@@ -59,7 +60,12 @@ def test_axe_sweep_serious_and_critical(page: Page, live_server: tuple[str, Path
     seed_world(page.request, base_url, db_path)
     axe_source = AXE_PATH.read_text(encoding="utf-8")
     page.set_viewport_size(DESKTOP)  # type: ignore[arg-type]
-    routes = (*PAGES, *VIEWS)
+    all_routes = (*PAGES, *VIEWS)
+    routes, redirected = probe_routes(page.request, base_url, all_routes)
+    print(
+        f"axe scans {len(routes)} of {len(all_routes)} routes; "
+        f"redirect-only, excluded by name: {redirected}"
+    )
     report: dict[str, list[dict[str, Any]]] = {}
     failing: list[str] = []
     for route in routes:

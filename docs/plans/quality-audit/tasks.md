@@ -1813,7 +1813,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Done when: the Acceptance above holds.
 - Operator decision 2026-11-23: deferred to the UI redesign migration (docs/plans/ui-redesign/tasks.md); the axe and Lighthouse checks must pass there.
 
-### T-Q322 [M] Stylesheet transfer size over budget (about 142 to 152 kB, budget 50 kB) and no compression in the app (follow-up, not blocking)
+### ✅ T-Q322 [M] Stylesheet transfer size over budget (about 142 to 152 kB, budget 50 kB) and no compression in the app (follow-up, not blocking)
 - Findings: first axe/Lighthouse run of T-Q300 (2026-11-23, `a11y-perf.yml`).
 - Epic: E04
 - Band: follow-up · Size: M · Tags: perf, frontend
@@ -1826,6 +1826,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Wave: follow-up, not blocking.
 - Done when: the Acceptance above holds.
 - Operator decision 2026-11-23: deferred to the UI redesign migration (docs/plans/ui-redesign/tasks.md); the axe and Lighthouse checks must pass there.
+- Done 2026-11-24 (OPS-7), measurement half: the perf job now measures behind Caddy with the prod `encode zstd gzip` (ADR-0027 amendment 2026-11-24; same digest-pinned Caddy image as prod; the app is not changed, no app-side compression). Run 45402763678: `resource-summary:stylesheet:size` passed on all 11 measured routes (before: about 142 to 152 kB raw, failing). The real CSS is about 32 kB gzipped (147 kB raw over 9 stylesheets, `gzip -9`), under the 50 kB budget. The CSS cut goal is not needed; the redesign must keep CSS under 50 kB compressed. LCP is T-Q321 (now about 2.71 to 2.87 s through Caddy, was about 3.8 to 4.2 s; still over 2.5 s).
 
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
 - ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
@@ -1833,7 +1834,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement. Still open (operator decision). Answered 2026-11-24: a Claude subscription cannot be the approving reviewer. `claude-code-action` with a Pro/Max OAuth token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) posts review comments only; Anthropic's approving features (Code Review, Claude Approvals) need a Team or Enterprise plan; CODEOWNERS owners are users, teams or emails, not apps. Workable path: a second GitHub account (human or machine user) with write access as code owner. Recorded in the OQ-24 row of `findings.md`.
 - (d) Promote firefox and webkit e2e to required after 3 green PRs. Moved to the redesign plan as T-UR40 (`docs/plans/ui-redesign/tasks.md`, "After the migration"), 2026-11-24.
 - (e) T-Q319 to T-Q322 deferred to the UI redesign. Owned by the redesign (already in its "Accessibility and performance gate" section), 2026-11-24.
-- (f) a11y-perf: Lighthouse measured 11 of 13 routes, cause unknown.
+- ✅ (f) a11y-perf: Lighthouse measured 11 of 13 routes, cause unknown. Done 2026-11-24: the 2 unmeasured routes were redirect-only (`/auth/sessions`, `/settings/password` -> `/settings/security`), now excluded by name (OPS-2, run 45396991056); the axe sweep does the same (OPS-7).
 - ✅ (g) drill.yml actionlint SC2034 warning in the writer-started step, and the known actionlint false positive on `drill_allow_empty_db: "true"`. Done 2026-11-24 (OPS-3): SC2034 fixed (`for _ in`). The `drill_allow_empty_db: "true"` report is an actionlint 1.7.12 false positive (callee `terraform.yml` declares `type: string`, the caller passes the quoted string; a boolean would break `inputs.drill_allow_empty_db || 'true'` and the pinned tests), left without a suppression (ADR-0130). New findings are item (k).
 - (h) The T-Q316/T-Q317 frontend audit ran on the pre-merge tree (before v3.2.0); the post-merge e2e is green, but no audit re-run. Deferred by the operator (2026-11-24) until after the redesign migration, which replaces the audited templates; moved to the redesign plan as T-UR41.
 - ✅ (i) Local Claude hook `block-no-verify` false positive on a plain `git commit` (harness, not repo). Resolved 2026-11-24 outside the repo. Cause: `block-no-verify@1.1.2` (an ECC-installed Claude Code PreToolUse hook) tests the whole Bash command, so any command with `git commit` plus ` -n` anywhere (for example `&& git log -n 1`, `sed -n`) was blocked. The operator removed ECC and its hooks from the user config. No repo change.

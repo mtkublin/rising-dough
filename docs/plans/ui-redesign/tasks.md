@@ -28,7 +28,7 @@ Open findings to resolve in this redesign:
 - T-Q319: colour contrast (`color-contrast`), all 13 routes.
 - T-Q320: link in text block (`link-in-text-block`) on /ledger and /settings; heading order on /settings.
 - T-Q321: LCP about 3.8 to 4.2 s.
-- T-Q322: CSS about 145 kB raw, no response compression.
+- T-Q322: resolved 2026-11-24 by measuring behind Caddy compression (OPS-7, ADR-0027 amendment): the real CSS is about 32 kB gzipped. The redesign must keep CSS under 50 kB compressed.
 
 See `docs/plans/quality-audit/tasks.md`. Once they pass, the operator decides whether to make both checks required.
 
