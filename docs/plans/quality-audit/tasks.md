@@ -1828,10 +1828,24 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator decision 2026-11-23: deferred to the UI redesign migration (docs/plans/ui-redesign/tasks.md); the axe and Lighthouse checks must pass there.
 - Done 2026-11-24 (OPS-7), measurement half: the perf job now measures behind Caddy with the prod `encode zstd gzip` (ADR-0027 amendment 2026-11-24; same digest-pinned Caddy image as prod; the app is not changed, no app-side compression). Run 45402763678: `resource-summary:stylesheet:size` passed on all 11 measured routes (before: about 142 to 152 kB raw, failing). The real CSS is about 32 kB gzipped (147 kB raw over 9 stylesheets, `gzip -9`), under the 50 kB budget. The CSS cut goal is not needed; the redesign must keep CSS under 50 kB compressed. LCP is T-Q321 (now about 2.71 to 2.87 s through Caddy, was about 3.8 to 4.2 s; still over 2.5 s).
 
+### T-Q323 [S] Caddy response when the app is down (follow-up, not blocking)
+- Findings: Q-064 (H4 Q1, OQ-33).
+- Epic: E04
+- Band: follow-up · Size: S · Tags: ops, security
+- Depends on: none (needs one controlled explore drill).
+- Docs-first step: ADR-0036 amendment if a security header is missing on the error response.
+- Goal: on the next explore drill (`drill.yml mode=explore`), stop the app container, record Caddy's status code, body and response headers (security headers, CSP) for `/` and `/ready`, then restart the app. If security headers are missing on the error response, fix them in `terraform/cloud-init/compose/Caddyfile.tpl` (`handle_errors`) with an ADR-0036 amendment.
+- Acceptance: the drill records the status, body and headers for both paths; any missing header is fixed or triaged.
+- Operator question blocking it: none.
+- Removes allowlist entries: none.
+- Wave: follow-up, not blocking.
+- Done when: the Acceptance above holds.
+- Operator decision 2026-11-24: deferred to this task (OQ-33, recorded in the OQ table of `findings.md`).
+
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
 - ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
 - ✅ (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL. Done 2026-11-24: live ACL matched the repo file; `tag:prod:22` removed from the `tag:ci` rule, `tag:drill:22/443` kept (ADR-0132 amendment).
-- (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement. Still open (operator decision). Answered 2026-11-24: a Claude subscription cannot be the approving reviewer. `claude-code-action` with a Pro/Max OAuth token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) posts review comments only; Anthropic's approving features (Code Review, Claude Approvals) need a Team or Enterprise plan; CODEOWNERS owners are users, teams or emails, not apps. Workable path: a second GitHub account (human or machine user) with write access as code owner. Recorded in the OQ-24 row of `findings.md`.
+- ✅ (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement. Closed 2026-11-24 as accepted risk (operator): self-approved merges stay; the required checks pinned to GitHub Actions (`integration_id` 15368, T-Q239) are the gate; code-owner enforcement stays off; revisit when a second maintainer joins. Earlier answer 2026-11-24: a Claude subscription cannot be the approving reviewer. `claude-code-action` with a Pro/Max OAuth token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) posts review comments only; Anthropic's approving features (Code Review, Claude Approvals) need a Team or Enterprise plan; CODEOWNERS owners are users, teams or emails, not apps. Workable path: a second GitHub account (human or machine user) with write access as code owner. Recorded in the OQ-24 row of `findings.md`.
 - (d) Promote firefox and webkit e2e to required after 3 green PRs. Moved to the redesign plan as T-UR40 (`docs/plans/ui-redesign/tasks.md`, "After the migration"), 2026-11-24.
 - (e) T-Q319 to T-Q322 deferred to the UI redesign. Owned by the redesign (already in its "Accessibility and performance gate" section), 2026-11-24.
 - ✅ (f) a11y-perf: Lighthouse measured 11 of 13 routes, cause unknown. Done 2026-11-24: the 2 unmeasured routes were redirect-only (`/auth/sessions`, `/settings/password` -> `/settings/security`), now excluded by name (OPS-2, run 45396991056); the axe sweep does the same (OPS-7).
