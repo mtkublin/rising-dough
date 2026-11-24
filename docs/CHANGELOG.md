@@ -1,5 +1,7 @@
 # Changelog
 
+2026-11-24 T-Q324: ADR-0150 (orchestrator v2: role agents in `.claude/agents/`, executable Definition of Done `scripts/ci/check_item.py`, one tester run per wave with `SKIP=pytest-fast` for orchestrated item agents, worker cap in code, run logs); ADR-0066 and ADR-0120 amendments; tasks T-Q324 to T-Q329; docs only.
+
 2026-11-24 OPS-8: operator answers to the open quality-audit questions recorded in `findings.md` (OQ table; the open-question list is now "None open", OQ-33 deferred to new T-Q323); OQ-5 closed with the read-only demo evidence, no data fix; OQ-24 second-reviewer part closed as accepted risk (follow-up (c) closed); ADR-0107 OQ-23 confirmed, ADR-0140 and ADR-0099 notes updated; docs only.
 
 2026-11-24 OPS-7: the Lighthouse perf job measures through Caddy with the prod `encode zstd gzip` (binary from prod's digest-pinned image, `tests/perf/Caddyfile`, `fetch_caddy.sh`; ADR-0027 amendment); stylesheet budget now passes on all 11 routes (about 32 kB gzipped), T-Q322 measurement half done, LCP now about 2.7 to 2.9 s (T-Q321 open); the axe sweep names redirect-only routes it skips via the shared `tests/e2e/redirect_routes.py`; follow-up (f) closed.

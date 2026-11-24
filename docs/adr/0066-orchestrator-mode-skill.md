@@ -2,7 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-11-03
-- **Amended by**: ADR-0097 (verification policy: scoped checks per item, one full `just ci` per merge batch); [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: search-before-write, shared-helper carve-out, merge-step duplication check)
+- **Amended by**: ADR-0097 (verification policy: scoped checks per item, one full `just ci` per merge batch); [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: search-before-write, shared-helper carve-out, merge-step duplication check); [ADR-0150](0150-orchestrator-role-agents-executable-dod-and-wave-testing.md) (2026-11-24: role agents, executable DoD, one test run per wave)
 - **Related**: ADR-0027 (frontend toolchain / `frontend-visual-audit` skill)
 
 ## Context
@@ -30,6 +30,13 @@ Subagents are dispatched with an explicit, cheaper `model` than the orchestrator
 - Agents are sized to under ~1 h: the orchestrator checks in at ~30 min and splits the item or hands the worktree to a fresh agent at ~60 min without commit progress; overruns go in the final report.
 - Merge review rejects guard-gaming: a syntactic dodge goes back to the agent. Merges skip hooks, so `just merge-item` (T-Q304) runs guards, lint-imports, ruff and mypy before the push and prunes only on success.
 - The brief is a shared `brief-common.md` plus the item-specific part (T-Q303).
+
+## Amendment (2026-11-24): role agents, executable DoD, wave testing (ADR-0150)
+
+- Subagents are role definitions in `.claude/agents/` (`explorer`, `implementer`, `scribe`, `reviewer`, `tester`, `visual-auditor`). The model is pinned in frontmatter: Haiku for explorer, scribe and tester; Sonnet for the rest. An `implementer` item goes to Haiku when it passes the Haiku test of ADR-0150 §3. The 2026-11-03 model rule is replaced by the escalation ladder there: Haiku fails once, retry on Sonnet; Sonnet fails twice, try Opus.
+- The orchestrator no longer reviews diffs. Per item it reads `scripts/ci/check_item.py` and the `reviewer` verdict. Doc bookkeeping (tasks marks, CHANGELOG, ADR index, run log) is one `scribe` run per wave.
+- Briefs meet a Definition of Ready and are numbered steps with command checks. Reports end in a fixed block (ADR-0150 §4).
+- Orchestrated item agents commit with `SKIP=pytest-fast`; one `tester` per wave runs the tests (ADR-0150 §5, amends ADR-0120 for orchestrated runs).
 
 ## Consequences
 

@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-11-18
 - **Amends**: [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md) §4 (gates table), [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md) §§1, 2, 5, 7 (item-agent checks, batch CI, single-agent handoff, fast-subset hook); compatible with and extends the ADR-0097 amendment of 2026-11-18 (orchestrator pre-PR checks) to single-agent work
-- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: CI additionally runs `pre-commit run --all-files` with `SKIP=pytest-fast`); amended 2026-11-21 (T-Q240, see Amendment below)
+- **Amended by**: [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) (2026-11-20: CI additionally runs `pre-commit run --all-files` with `SKIP=pytest-fast`); amended 2026-11-21 (T-Q240, see Amendment below); [ADR-0150](0150-orchestrator-role-agents-executable-dod-and-wave-testing.md) §5 (2026-11-24: orchestrated item agents skip the pytest hook; one tester run per wave)
 - **Relates to**: [ADR-0066](0066-orchestrator-mode-skill.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0027](0027-frontend-toolchain-hardening.md)
 
 ## Context
@@ -72,3 +72,10 @@
 - **Operator decision, 2026-11-23:** the Firefox and WebKit e2e checks are advisory (not required) until they are green on 3 consecutive PRs; then the operator adds them to `protect-main`.
 - **Browser matrix.** `.github/workflows/e2e.yml` keeps the job `e2e` (`tests/e2e (Chromium, Playwright container)`, required, unchanged) and gains a separate job `e2e-browsers` with `matrix.browser: [firefox, webkit]` (`fail-fast: false`), the same pinned Playwright image and digest and the same steps, passing `--e2e-browser=<browser>` (`tests/e2e/conftest.py`). Contexts: `tests/e2e (firefox, Playwright container, advisory)` and `tests/e2e (webkit, Playwright container, advisory)`. Failure artifacts upload as `e2e-failure-<browser>`.
 - **Promotion rule.** After 3 consecutive green PR runs of a browser's context, the operator adds it to the `protect-main` required checks (with `integration_id` 15368) and to `REQUIRED_CHECKS` in `scripts/check_github_settings.py`, with an amendment here. Until then the ADR-0099 required-contexts list is unchanged. Failures are triaged as tasks, never skipped or xfailed to turn the check green.
+
+## Amendment 2026-11-24: orchestrated runs test once per wave (ADR-0150, T-Q327)
+
+- **Scope: item agents in an orchestrated run only.** Single-agent work keeps §1 unchanged: the pytest hook is the local gate.
+- Item agents commit with `SKIP=pytest-fast`; every other hook still runs, and `--no-verify` stays banned. While developing they run only the test files their brief names, serially.
+- After every item of a wave is merged, one `tester` agent runs `just test-changed <wave-base-sha>` under the heavy lock in the main checkout (testmon selection, or the full suite for paths testmon cannot see), then the wave e2e (amendment 2026-11-22, "Cadence"). The next wave starts only on a green work branch.
+- `-n auto` resolves to 2 workers inside a linked git worktree (`pytest_xdist_auto_num_workers` in `tests/conftest.py`); the main checkout and CI keep `auto`.
