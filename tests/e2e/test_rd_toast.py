@@ -66,3 +66,22 @@ def test_server_error_flashes_in_the_new_shell(journey: Journey) -> None:
     _loc(journey, _fail_500).click()
     flash = _loc(journey, _flash_assertive).get_by_text("Something went wrong on our side.")
     flash.wait_for(state="visible")
+
+
+def test_repeated_errors_keep_the_region_and_show_the_latest(journey: Journey) -> None:
+    if journey.target == "mockup":
+        pytest.skip("the handoff mockup has no server to answer an error")
+    journey.goto("/dev/shell")
+    _loc(journey, _fail_500).click()
+    region = _loc(journey, _flash_assertive)
+    region.get_by_text("Something went wrong on our side.").wait_for(state="visible")
+    _loc(journey, _fail_500).click()
+    region.get_by_text("Something went wrong on our side.").wait_for(state="visible")
+    assert region.get_attribute("role") == "alert"
+    assert region.get_attribute("aria-live") == "assertive"
+    assert "rd-flash-region" in (region.get_attribute("class") or "").split()
+    _loc(journey, _fail_409).click()
+    _loc(journey, shell.flash_region).get_by_text("Dev conflict: that row is protected").wait_for(
+        state="visible"
+    )
+    assert region.get_attribute("class") == "rd-flash-region"

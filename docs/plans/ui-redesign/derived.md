@@ -57,3 +57,5 @@
 |---|---|---|---|
 | all pages with the nav and shortcuts dialog | `g o` → `g t` (`aria-keyshortcuts`, key labels) | operator decision, question 3 | T-UR00b |
 | `overlays/delete-account*` | "Investments E" → an account in the seed | not in the handoff's account list (handoff README §6 item 17) | T-UR00b |
+
+HTMX error flashes render the old partial's markup inside the new regions until T-UR15 (T-UR02, UR02b).
