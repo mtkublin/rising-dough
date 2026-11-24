@@ -356,6 +356,33 @@ optional = true
 reason = "seed value via security_settings.security_view: absolute expiry (start + 30 days)"
 
 [[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"02 NOV 18:40\")"
+field = "text"
+old = "02 NOV 18:40"
+value = "26 OCT 18:40"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session start (board's is future)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"11 NOV 22:03\")"
+field = "text"
+old = "11 NOV 22:03"
+value = "30 OCT 22:03"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session last seen (board's is future)"
+
+[[row]]
+page = "pages/settings/security*.html"
+select = ".rd-row--session td:-soup-contains-own(\"02 DEC\")"
+field = "text"
+old = "02 DEC"
+value = "25 NOV"
+optional = true
+reason = "seed value via security_settings.security_view: Safari session expiry (start + 30 days)"
+
+[[row]]
 page = "pages/*.html"
 select = "tr.rd-row--user td:-soup-contains-own(\"12 NOV 08:40\")"
 field = "text"
@@ -379,3 +406,459 @@ field = "text"
 old = "+46,320.57 PLN over 12 months · peak 86,239.67 in aug 2027"
 value = "+24,321.46 PLN over 12 months · peak 58,761.15 in sep 2027"
 reason = "seed value via forecast.projection_summary: delta from net worth (NOW), peak month"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(1) td:nth-of-type(2)"
+field = "text"
+old = "312.54"
+value = "724.54"
+reason = "seed value via forecast.monthly_projection: Oct 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(1) td:nth-of-type(3)"
+field = "text"
+old = "1,399.93"
+value = "987.93"
+reason = "seed value via forecast.monthly_projection: Oct 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(1)"
+field = "text"
+old = "20,707.93"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Nov 2026 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(2)"
+field = "text"
+old = "13,197.08"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Nov 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(3)"
+field = "text"
+old = "5,558.28"
+value = "6,069.87"
+reason = "seed value via forecast.monthly_projection: Nov 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(4)"
+field = "text"
+old = "1,952.57"
+value = "2,558.56"
+reason = "seed value via forecast.monthly_projection: Nov 2026 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(2) td:nth-of-type(5)"
+field = "text"
+old = "34,679.79"
+value = "35,285.78"
+reason = "seed value via forecast.monthly_projection: Nov 2026 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(1)"
+field = "text"
+old = "18,204.66"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Dec 2026 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(2)"
+field = "text"
+old = "14,724.56"
+value = "12,491.03"
+reason = "seed value via forecast.monthly_projection: Dec 2026 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(3)"
+field = "text"
+old = "5,204.12"
+value = "6,060.32"
+reason = "seed value via forecast.monthly_projection: Dec 2026 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(4)"
+field = "text"
+old = "▲ −1,724.02"
+value = "740.31"
+reason = "seed value via forecast.monthly_projection: Dec 2026 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(3) td:nth-of-type(5)"
+field = "text"
+old = "32,955.77"
+value = "36,026.09"
+reason = "seed value via forecast.monthly_projection: Dec 2026 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(1)"
+field = "text"
+old = "18,592.59"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jan 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(2)"
+field = "text"
+old = "11,415.20"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Jan 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(3)"
+field = "text"
+old = "5,558.28"
+value = "6,060.32"
+reason = "seed value via forecast.monthly_projection: Jan 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(4)"
+field = "text"
+old = "1,619.11"
+value = "2,568.11"
+reason = "seed value via forecast.monthly_projection: Jan 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(4) td:nth-of-type(5)"
+field = "text"
+old = "34,574.88"
+value = "38,594.20"
+reason = "seed value via forecast.monthly_projection: Jan 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Feb 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(2)"
+field = "text"
+old = "13,459.79"
+value = "10,301.23"
+reason = "seed value via forecast.monthly_projection: Feb 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(3)"
+field = "text"
+old = "190.86"
+value = "6,414.48"
+reason = "seed value via forecast.monthly_projection: Feb 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(4)"
+field = "text"
+old = "7,980.50"
+value = "2,575.95"
+reason = "seed value via forecast.monthly_projection: Feb 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(5) td:nth-of-type(5)"
+field = "text"
+old = "42,555.38"
+value = "41,170.15"
+reason = "seed value via forecast.monthly_projection: Feb 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(1)"
+field = "text"
+old = "59,190.66"
+value = "22,954.12"
+reason = "seed value via forecast.monthly_projection: Mar 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(2)"
+field = "text"
+old = "29,071.31"
+value = "14,942.82"
+reason = "seed value via forecast.monthly_projection: Mar 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(3)"
+field = "text"
+old = "4,884.94"
+value = "6,060.32"
+reason = "seed value via forecast.monthly_projection: Mar 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(4)"
+field = "text"
+old = "25,234.41"
+value = "1,950.98"
+reason = "seed value via forecast.monthly_projection: Mar 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(6) td:nth-of-type(5)"
+field = "text"
+old = "67,789.79"
+value = "43,121.13"
+reason = "seed value via forecast.monthly_projection: Mar 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Apr 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Apr 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(3)"
+field = "text"
+old = "5,443.36"
+value = "6,060.32"
+reason = "seed value via forecast.monthly_projection: Apr 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(4)"
+field = "text"
+old = "2,567.03"
+value = "2,568.11"
+reason = "seed value via forecast.monthly_projection: Apr 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(7) td:nth-of-type(5)"
+field = "text"
+old = "70,356.82"
+value = "45,689.24"
+reason = "seed value via forecast.monthly_projection: Apr 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: May 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: May 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(3)"
+field = "text"
+old = "190.86"
+value = "6,414.48"
+reason = "seed value via forecast.monthly_projection: May 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(4)"
+field = "text"
+old = "7,819.53"
+value = "2,625.95"
+reason = "seed value via forecast.monthly_projection: May 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(8) td:nth-of-type(5)"
+field = "text"
+old = "78,176.35"
+value = "48,315.19"
+reason = "seed value via forecast.monthly_projection: May 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(1)"
+field = "text"
+old = "21,944.34"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jun 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(2)"
+field = "text"
+old = "13,709.87"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Jun 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "6,414.48"
+reason = "seed value via forecast.monthly_projection: Jun 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(4)"
+field = "text"
+old = "2,837.16"
+value = "2,625.95"
+reason = "seed value via forecast.monthly_projection: Jun 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(9) td:nth-of-type(5)"
+field = "text"
+old = "81,013.51"
+value = "50,941.14"
+reason = "seed value via forecast.monthly_projection: Jun 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Jul 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,663.23"
+reason = "seed value via forecast.monthly_projection: Jul 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "6,060.32"
+reason = "seed value via forecast.monthly_projection: Jul 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(4)"
+field = "text"
+old = "2,613.08"
+value = "2,568.11"
+reason = "seed value via forecast.monthly_projection: Jul 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(10) td:nth-of-type(5)"
+field = "text"
+old = "83,626.59"
+value = "53,509.25"
+reason = "seed value via forecast.monthly_projection: Jul 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Aug 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Aug 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(3)"
+field = "text"
+old = "5,397.31"
+value = "6,414.48"
+reason = "seed value via forecast.monthly_projection: Aug 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(4)"
+field = "text"
+old = "2,613.08"
+value = "2,625.95"
+reason = "seed value via forecast.monthly_projection: Aug 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(11) td:nth-of-type(5)"
+field = "text"
+old = "86,239.67"
+value = "56,135.20"
+reason = "seed value via forecast.monthly_projection: Aug 2027 end balance"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(1)"
+field = "text"
+old = "21,631.15"
+value = "19,291.66"
+reason = "seed value via forecast.monthly_projection: Sep 2027 income"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(2)"
+field = "text"
+old = "13,620.76"
+value = "10,251.23"
+reason = "seed value via forecast.monthly_projection: Sep 2027 expenses"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(3)"
+field = "text"
+old = "15,202.27"
+value = "6,414.48"
+reason = "seed value via forecast.monthly_projection: Sep 2027 planned budget"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(4)"
+field = "text"
+old = "▲ −7,191.88"
+value = "2,625.95"
+reason = "seed value via forecast.monthly_projection: Sep 2027 net"
+
+[[row]]
+page = "pages/plan/forecast.html"
+select = ".rd-row--forecast:nth-of-type(12) td:nth-of-type(5)"
+field = "text"
+old = "79,047.79"
+value = "58,761.15"
+reason = "seed value via forecast.monthly_projection: Sep 2027 end balance"
