@@ -22,6 +22,31 @@ Merging to `main` builds nothing for prod, so prod can lag `main`. The happy-pat
 - Prod host DNS (`budget-planner-prod`) still resolves to the Scaleway Flex IPv4 recorded in `terraform output prod_host_ipv4`.
 - `budget-planner-prod-pl-waw` bucket is reachable from the host (Litestream health probe green in the last 5 min).
 
+## What the drill gate proves (ADR-0149)
+
+The `drill-gate` status on a PR comes from `drill.yml` `mode=gate`: an upgrade of a running, seeded drill host from the version prod serves to the PR head.
+
+**Proves**
+
+- The prod -> PR upgrade step on a running host with data. In place: converge to the PR ref, replication continues, 0 lost committed rows, integrity check, then rollback to the baseline image with the PR templates. Replacement (the plan replaces the VM): drain, restore, 0 lost rows, tailnet cleanup.
+
+**Does not prove**
+
+- A release bundles several PRs, and no drill runs on the release candidate. Each PR is proven alone against the prod version at the time it ran.
+- Host drift: the prod VM's cloud-init predates the baseline, the drill VM gets the baseline tag's cloud-init.
+- A fresh boot of the PR head. That is covered by `mode=explore`, the replace rehearsal and the monthly restore drill.
+
+**How to run**
+
+```sh
+gh run list --workflow drill.yml --status in_progress --status queued   # expect none: one drill at a time (group `drill`)
+gh workflow run drill.yml --ref <branch> -f mode=gate
+```
+
+**How to read a failure.** The `drill-gate` description names the first failing phase: `ci/build`, `baseline`, `seed`, `upgrade` or `rollback`. A `baseline` failure is not the PR's fault (the prod version itself no longer deploys cleanly) but it still blocks the gate. Teardown runs in every case; a failed teardown fails the run, not the status.
+
+**First measured run:** 22 min 24 s (run 45247014045, 2026-11-23, in-place path). Measured on PR #52: 17 min 54 s (final gate, run 45281705301) to 25 min 00 s (VM replacement, run 45257355759); expect 18 to 25 min per PR.
+
 ## Procedure
 
 0. Cut the release (operator, from any checkout):

@@ -61,3 +61,14 @@
 - **Operator decision, 2026-11-22:** "fold it into this PR, add it also to the main branch's policy".
 - `.github/workflows/e2e.yml` (proven green twice on GitHub in the pinned Playwright container) now also runs on `pull_request` to `main`. Its job `tests/e2e (Chromium, Playwright container)` is added to the required status checks of the `protect-main` ruleset (with the Actions `integration_id`, ADR-0099) and to `REQUIRED_CHECKS` in `scripts/check_github_settings.py`. The job name is the check context and must not change without updating both.
 - The local pre-PR e2e run required by the amendment above ("Cadence") is dropped; the PR run replaces it. The orchestrator no longer runs `just test-e2e` before opening or updating a PR. `just test-e2e` stays available as an optional local check; the per-wave run and the `wi/**` push offload are unchanged.
+
+## Amendment 2026-11-23: advisory a11y and perf jobs (T-Q300)
+
+- New workflow `.github/workflows/a11y-perf.yml` (push `wi/**`, `pull_request` to `main`, `workflow_dispatch`; pinned Playwright container, `contents: read`) with two jobs: `a11y (axe-core, advisory)` and `perf (Lighthouse budgets, advisory)`. Details and budgets: ADR-0027 amendment 2026-11-23.
+- **Both are advisory.** They are not in the `protect-main` ruleset or `REQUIRED_CHECKS`; making either required needs a recorded operator decision. The required `tests/e2e (Chromium, Playwright container)` job is unchanged: the new tests live under `tests/e2e` but skip unless `A11Y_SWEEP=1` / `PERF_LHCI=1`.
+
+## Amendment 2026-11-23: Firefox and WebKit e2e, advisory (T-Q299)
+
+- **Operator decision, 2026-11-23:** the Firefox and WebKit e2e checks are advisory (not required) until they are green on 3 consecutive PRs; then the operator adds them to `protect-main`.
+- **Browser matrix.** `.github/workflows/e2e.yml` keeps the job `e2e` (`tests/e2e (Chromium, Playwright container)`, required, unchanged) and gains a separate job `e2e-browsers` with `matrix.browser: [firefox, webkit]` (`fail-fast: false`), the same pinned Playwright image and digest and the same steps, passing `--e2e-browser=<browser>` (`tests/e2e/conftest.py`). Contexts: `tests/e2e (firefox, Playwright container, advisory)` and `tests/e2e (webkit, Playwright container, advisory)`. Failure artifacts upload as `e2e-failure-<browser>`.
+- **Promotion rule.** After 3 consecutive green PR runs of a browser's context, the operator adds it to the `protect-main` required checks (with `integration_id` 15368) and to `REQUIRED_CHECKS` in `scripts/check_github_settings.py`, with an amendment here. Until then the ADR-0099 required-contexts list is unchanged. Failures are triaged as tasks, never skipped or xfailed to turn the check green.

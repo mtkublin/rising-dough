@@ -130,3 +130,11 @@ Drills always build a fresh host, so the drill gate cannot catch a compose or ho
 ## Amendment 2026-11-23 (T-Q306): the drill gate is an upgrade from the prod version
 
 [ADR-0149](0149-drill-gate-is-an-upgrade-from-the-prod-version.md) replaces the interim note above: `mode=gate` boots the version prod serves (newest successful `prod` deployment), seeds the demo DB, upgrades the same host to the PR head (in place, or the replacing path when the PR replaces the VM), then rolls back to the baseline image (in place only). `drill-gate` passes only if every phase passes. The T-Q305 unit guard stays.
+
+## Amendment 2026-11-23 (T-Q239 operator decision)
+
+- `integration_id` 15368 (GitHub Actions) is pinned on every required status context of the `protect-main` ruleset. This was verified before applying: the `drill-gate` status is created by `github-actions[bot]` on both the gate path (PR #50 head) and the ADR-0121 skip path (PR #49 head).
+- The ruleset `workflows` rule (required workflows) is an accepted gap: the repository is owned by a personal account and the rule is offered for organization repositories only.
+- Code-owner review enforcement (`require_code_owner_review`) waits for OQ-24 (a second reviewer or bot). Accepted risk, operator 2026-11-24: self-approved merges stay, enforcement stays off until a second maintainer joins, and the `integration_id` 15368 pin is the gate. With the sole owner it would block every PR touching `.github/`, `scripts/ci/` or `terraform/`. CODEOWNERS keeps auto-requesting review.
+- The operator applies the ruleset change. The evidence is a refreshed `repro/H1/gh_api/ruleset_protect_main.json`, committed after the change.
+- Applied 2026-11-24 13:07 (+01:00): all 7 required contexts carry `integration_id` 15368; `drill-gate` on the gate and skip paths is created by `github-actions[bot]` (PR #52, PR #53), so the pin blocks nothing. Evidence refreshed (OPS-1).

@@ -1,6 +1,6 @@
 # ADR-0107: Sourdough Redesign Built Solely From the Designer Handoff
 
-- **Status**: Accepted (implementation pending) (2026-11-21; operator question OQ-23 open, default applied)
+- **Status**: Accepted (implementation pending) (2026-11-21; OQ-23 confirmed 2026-11-24)
 - **Date**: 2026-11-16
 - **Supersedes**: [ADR-0052](0052-v2-tailwind-v4-tokens-and-font-hosting.md) (Tailwind v4 `@theme` tokens; font self-hosting continues under §4), [ADR-0053](0053-v2-component-system-and-jinja-macros.md) (component and macro inventory), [ADR-0055](0055-v2-responsive-layer-mobile-first.md) (breakpoints and mobile shell)
 - **Supersedes (visual direction only)**: [ADR-0050](0050-v2-rising-dough-rename-and-visual-direction.md) palette, typography and elevation. The product name stays.

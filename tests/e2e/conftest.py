@@ -280,10 +280,15 @@ def page(_browser: Browser, live_server: tuple[str, Path]) -> Iterator[Page]:
     # nonce) in every environment, so the browser enforces it with no injection.
     context.set_extra_http_headers({CSRF_HEADER_NAME: token, "Origin": base_url})
 
-    def _follow_rotation(response: Response) -> None:
-        # The server echoes a re-bound token on login/logout/session rotation (T-Q289);
-        # keep the blanket header current.
-        fresh = response.headers.get(CSRF_HEADER_NAME.lower())
+    def _follow_rotation(_response: Response) -> None:
+        # The server re-binds the token on login/logout/session rotation (T-Q289).
+        # Read it from the cookie jar, not the response header: WebKit does not
+        # surface the headers of redirect responses (303 after a form POST), so the
+        # blanket header went stale and beat the fresh hidden field (T-Q318).
+        fresh = next(
+            (c["value"] for c in context.cookies() if c["name"] == CSRF_DEV_COOKIE_NAME),
+            "",
+        )
         if fresh:
             context.set_extra_http_headers({CSRF_HEADER_NAME: fresh, "Origin": base_url})
 

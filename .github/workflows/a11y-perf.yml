@@ -1,0 +1,126 @@
+name: a11y-perf
+
+# ADR-0027 amendment 2026-11-23 (T-Q300) and ADR-0120 amendment 2026-11-23 (T-Q300).
+# Two ADVISORY jobs (not required checks; no ruleset or REQUIRED_CHECKS entry):
+#   - axe-core sweep over every crawled page route at 1440 (fails on serious/critical);
+#   - Lighthouse (@lhci/cli, pinned) budgets: LCP, CLS, TBT, JS and CSS size.
+# Both run tests/e2e files that skip unless A11Y_SWEEP=1 / PERF_LHCI=1, so the required
+# e2e job is unaffected. Same pinned Playwright container as e2e.yml and visual.yml.
+on:
+  push:
+    branches: ["wi/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to test (default: the dispatched ref)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  a11y:
+    name: a11y (axe-core, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433 # v4.1.0
+        with:
+          version: "0.11.2"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync Python dependencies
+        run: uv sync --group dev --frozen
+
+      - name: axe-core sweep (serious and critical fail)
+        env:
+          A11Y_SWEEP: "1"
+          A11Y_REPORT: a11y-report.json
+        run: >-
+          uv run pytest tests/e2e/test_axe_sweep.py -q -s --no-cov
+          --override-ini="addopts=-ra --strict-config --strict-markers"
+
+      - name: Upload axe report
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: a11y-report
+          path: a11y-report.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  perf:
+    name: perf (Lighthouse budgets, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@5f42d5af6c403a722299fda36d451c39f302a433 # v4.1.0
+        with:
+          version: "0.11.2"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync Python dependencies
+        run: uv sync --group dev --frozen
+
+      # ADR-0027 amendment 2026-11-24: budgets are transfer sizes, prod compresses at Caddy
+      # (`encode zstd gzip`), the app does not. Reuse prod's digest-pinned Caddy image ref
+      # (read from the compose template, no second pin) and measure through it.
+      - name: Extract Caddy from prod's pinned image
+        run: |
+          ref="$(grep -oE 'caddy:[0-9.]+@sha256:[0-9a-f]{64}' terraform/cloud-init/compose/docker-compose.yml.tpl | head -n 1)"
+          test -n "$ref"
+          bash tests/perf/fetch_caddy.sh "$ref" "$RUNNER_TEMP/caddy"
+
+      - name: Lighthouse budgets (tests/perf/lighthouserc.json, behind Caddy)
+        env:
+          PERF_LHCI: "1"
+          PERF_CADDY_BIN: ${{ runner.temp }}/caddy
+        run: >-
+          uv run pytest tests/e2e/test_lighthouse_budgets.py -q -s --no-cov
+          --override-ini="addopts=-ra --strict-config --strict-markers"
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -31,7 +31,7 @@
 - A stolen write token or a prompt-injected agent that pushes a branch workflow naming `drill`, `drill-plan`, `drill-teardown` or `prod-plan` gets no prod replica read key, no prod age identity, no prod app key and no tailnet identity that reaches prod. Reaching `prod-restore-read` needs a `main` ref and a reviewer approval.
 - The monthly restore drill now waits for approval of `prod-restore-read` before its apply (the cron run holds the `drill` concurrency group while waiting: approve or cancel promptly, as for any gated drill run). Acceptable for a monthly job.
 - `prod-restore-read` duplicates the drill-project secrets (keep in sync on rotation, `key-rotation.md`).
-- The `tag:ci` to `tag:prod:22` ACL rule is not removed by this ADR (live ACL parity is tracked by the Tailscale ACL task, OQ-24/OQ-32); removing the OAuth client from `prod-plan` removes the main route to it.
+- The `tag:ci` to `tag:prod:22` ACL rule is not removed by this ADR (live ACL parity is tracked by the Tailscale ACL task, OQ-24/OQ-32; removed later, see the amendment 2026-11-24); removing the OAuth client from `prod-plan` removes the main route to it.
 - Alternative rejected: required reviewers plus `main`-only on `drill`/`drill-teardown`. Teardown must stay ungated and the operator would approve their own gates.
 
 ## Operator checklist (GitHub settings; agents have no admin credentials)
@@ -60,3 +60,10 @@
 - **Why not conditional resources or `-target`.** A `count`/variable switch changes the resource address and would plan a destroy of the prod key; `-target` excludes hide resources from the PR signal. With `-refresh=false` the key stays in state unchanged, so it is planned as no-op, or as create/replace only when `vm_spec_id` (config) changes, exactly as with refresh.
 - **Cost.** The prod PR plan no longer detects drift of any prod resource (Terraform has no per-resource refresh switch). It still shows every configuration change against the recorded state. Apply refreshes everything. If drift detection in PRs is wanted, the operator can instead give `prod-plan` a read-scoped Tailscale OAuth client and drop `--plan-only`; not done here (this ADR's intent is no tailnet identity in `prod-plan`).
 - **Safety.** The placeholder never reaches an apply: only the `plan` job passes `plan-only`, and it writes `plan.bin` for the PR comment only. Tests: `tests/unit/deploy/test_tf_env.py`, `terraform/tests/render.tftest.hcl` (plan-only run).
+
+## Amendment 2026-11-24 (OQ-32): `tag:ci` no longer reaches `tag:prod:22`
+
+- The live Tailscale ACL was compared with `docs/plans/v3/runbooks/tailscale-acl.hujson` and was identical (owner email placeholder aside).
+- The rule `tag:ci` to `tag:prod:22` was used by nothing: only `drill`, `drill-plan` and `drill-teardown` hold `TS_OAUTH_*`; no prod environment can join the tailnet; prod has no SSH deploy path ([ADR-0111](0111-terraform-declared-host-state.md)); the CI SSH public key is rendered only on drill hosts (`operator_ssh_pubkey`); break-glass runs from the operator laptop.
+- The `drill` environment is ungated, so the rule was a needless path from an ungated environment to prod port 22.
+- Decision: the operator removed `tag:prod:22` from the `tag:ci` rule in the live ACL and the repo file now matches. `tag:ci` keeps `tag:drill:22` and `tag:drill:443`; the operator's own devices keep `tag:prod:22`. This supersedes the Consequences line that left the rule in place.

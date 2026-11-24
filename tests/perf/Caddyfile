@@ -1,0 +1,13 @@
+# CI front for the Lighthouse job (ADR-0027 amendment 2026-11-24, T-Q322).
+# Prod serves through Caddy with `encode zstd gzip` (terraform/cloud-init/compose/Caddyfile.tpl);
+# the budgets are transfer sizes, so the perf job measures behind the same directive.
+# Plain HTTP on loopback; listen and upstream come from tests/e2e/test_lighthouse_budgets.py.
+{
+	admin off
+	auto_https off
+}
+
+http://{$PERF_LISTEN} {
+	encode zstd gzip
+	reverse_proxy {$PERF_UPSTREAM}
+}

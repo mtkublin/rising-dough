@@ -15,7 +15,7 @@ Port 22 is closed on the Scaleway security group of both `drill` and `prod`. Ope
 
 1. Open the admin console, Access controls.
 2. Replace the contents with `tailscale-acl.hujson` (same folder), setting `you@example.com` to your login email.
-3. Save. The editor validates the policy and its tests. Only your devices and `tag:ci` may reach `tag:prod` / `tag:drill` on port 22.
+3. Save. The editor validates the policy and its tests. Only your devices may reach `tag:prod` on port 22; `tag:ci` reaches `tag:drill` on port 22 only (OQ-32, ADR-0132 amendment 2026-11-24).
 
 The ACL is deliberately not in Terraform (tailnet-global; two env states would both own it, same trap as ADR-0088).
 

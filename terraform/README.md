@@ -32,7 +32,8 @@ terraform/
 │   │   ├── docker-compose.yml.tpl   # app + litestream + caddy
 │   │   ├── Caddyfile.tpl            # auto-TLS, CSP nonce, access log
 │   │   └── litestream.yml.tpl       # WAL replication to Scaleway Object Storage
-│   └── bin/restore-from-prod.tpl    # drill-only restore helper (written by the agent)
+│   ├── bin/restore-from-prod.tpl    # drill-only restore helper (written by the agent)
+│   └── bin/seed-demo.tpl            # drill-only demo DB seed helper (T-Q306(c), ADR-0149)
 ├── host/
 │   ├── agent/bp_agent.py            # host agent, shipped as metadata key bp-agent (ADR-0111)
 │   └── migrate/                     # one-time host migration (T-D129f)

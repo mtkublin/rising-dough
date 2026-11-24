@@ -19,6 +19,21 @@
 
 ---
 
+## Accessibility and performance gate (operator 2026-11-23)
+
+The redesign must make the advisory `a11y-perf.yml` checks pass: `a11y (axe-core, advisory)` (no serious or critical axe violations on any crawled route) and `perf (Lighthouse budgets, advisory)` (budgets in `tests/perf/lighthouserc.json`: LCP < 2.5 s, CLS < 0.1, TBT < 200 ms, JS < 300 kB, CSS < 50 kB).
+
+Open findings to resolve in this redesign:
+
+- T-Q319: colour contrast (`color-contrast`), all 13 routes.
+- T-Q320: link in text block (`link-in-text-block`) on /ledger and /settings; heading order on /settings.
+- T-Q321: LCP about 3.8 to 4.2 s.
+- T-Q322: resolved 2026-11-24 by measuring behind Caddy compression (OPS-7, ADR-0027 amendment): the real CSS is about 32 kB gzipped. The redesign must keep CSS under 50 kB compressed.
+
+See `docs/plans/quality-audit/tasks.md`. Once they pass, the operator decides whether to make both checks required.
+
+---
+
 ## Phase P — Backend preconditions (own PR and release, before Phase 0)
 
 > **Decision**: [ADR-0148](../../adr/0148-redesign-backend-preconditions-released-first.md). Everything backend that can ship before the migration ships first: schema, repositories, services, ports, config switches, service guards and the fields the handoff needs. No templates, CSS, JS or new page-rendering routes; existing routes change only the service call and the error shown through the existing flash. One PR to `main` from `ui/preconditions`, released through the ADR-0099 pipeline; Phase 0 starts after the release is live. Contract tests for the changed behaviour change here (requirements already amended), so the migration starts from that baseline.
@@ -282,3 +297,17 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
 - ADR-0107 flipped to Accepted (if not already), `docs/CHANGELOG.md` entry, `derived.md` final.
+
+---
+
+## After the migration (operator 2026-11-24)
+
+### ◻ T-UR40 [S] Promote Firefox and WebKit e2e to required checks → T-UR17
+- **Rule**: ADR-0120 "Promotion rule": after 3 consecutive green PR runs of a browser's context. During the migration the redesign keeps both browsers green but does not promote them. Quality-audit follow-up (d).
+- **Agent PR**: remove "advisory" from the two job names in `.github/workflows/e2e.yml` (`tests/e2e (${{ matrix.browser }}, Playwright container, advisory)`); update everything that pins the required check names (`REQUIRED_CHECKS` in `scripts/check_github_settings.py`, `tests/architecture/test_e2e_required_check.py`, the ADR-0099 required-contexts list); ADR-0120 amendment recording the 3 green runs.
+- **Operator**: add both contexts to the `protect-main` ruleset with `integration_id` 15368; refresh the ruleset evidence file.
+- **Acceptance**: `scripts/check_github_settings.py` passes against the live ruleset; architecture guards green.
+
+### ◻ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
+- Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
+- Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
