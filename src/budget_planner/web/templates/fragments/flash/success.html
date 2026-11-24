@@ -1,0 +1,12 @@
+{# fragment: flash/success
+   Rendered into #flash-region (out of band after a save). Inputs: message (text). #}
+<div class="rd-flash rd-flash--success" role="status">
+  <span>● {{ message }}</span><button type="button"
+        class="rd-btn rd-btn--icon rd-flash__close"
+        aria-label="Dismiss"
+        data-js="flash-close">
+    <svg class="rd-icon" aria-hidden="true" focusable="false">
+      <use href="/static/rd/icons/sprite.svg#icon-close"></use>
+    </svg>
+  </button>
+</div>

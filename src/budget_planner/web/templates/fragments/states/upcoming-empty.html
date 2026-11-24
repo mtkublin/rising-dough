@@ -1,0 +1,7 @@
+{# fragment: states/upcoming-empty
+   Inputs: show_all_url (default /today?range=all). #}
+<div class="rd-empty">
+  <p class="rd-empty__msg">Nothing due in the next 30 days.</p>
+  <div class="rd-empty__actions"><a class="rd-btn"
+   href="{{ show_all_url | default('/today?range=all') }}">show all</a></div>
+</div>

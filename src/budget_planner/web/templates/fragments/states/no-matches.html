@@ -1,0 +1,7 @@
+{# fragment: states/no-matches
+   Inputs: summary (the active filters, text), clear_url (default /ledger). #}
+<div class="rd-empty">
+  <p class="rd-empty__msg">Nothing matches these filters.</p>
+  <p class="rd-empty__sub">{{ summary }}</p>
+  <div class="rd-empty__actions"><a class="rd-btn" href="{{ clear_url | default('/ledger') }}">clear filters</a></div>
+</div>
