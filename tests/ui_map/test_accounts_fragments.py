@@ -189,3 +189,10 @@ def test_checked_cell_keeps_the_handoff_whitespace() -> None:
     """The phone cell is ``white-space: pre``: the text is `` · checked 01 NOV`` with no padding."""
     cells = _html.resolve(_render_row(_card(_account(), -245_574)), role("cell"))
     assert cells[2].get_text() == " · checked 01 NOV"
+
+
+def test_stored_type_with_underscore_reads_as_words_in_subtitle_and_menu() -> None:
+    html = _render_row(_card(_account(type="credit_card"), -245_574))
+    sub = _html.resolve(html, role("cell"))[0]
+    assert sub.get_text(" ", strip=True).startswith("Visa credit card \u00b7 liability")
+    assert "credit_card" not in html

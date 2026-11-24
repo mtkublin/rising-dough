@@ -162,6 +162,11 @@ class AccountRow:
     menu_sub: str
 
 
+def type_label(account_type: str | None) -> str:
+    """Account type for display: free text with ``_`` shown as a space (``credit_card``)."""
+    return (account_type or "").replace("_", " ")
+
+
 def checked_label(snapshots: list[AccountSnapshot]) -> str:
     """Date of the newest snapshot as ``01 APR``; ``never`` when the account has none."""
     if not snapshots:
@@ -176,13 +181,13 @@ def account_row(card: Mapping[str, object]) -> AccountRow:
     stats = cast(AccountStats, card["stats"])
     planned = cast(AccountPlanned | None, card["planned"])
     util = cast(CreditUtilisation | None, card["utilisation"])
-    kind = "liability" if acc.is_liability else (acc.type or "account")
+    kind = "liability" if acc.is_liability else (type_label(acc.type) or "account")
     shows_after = planned is not None and planned.net_minor != 0
     return AccountRow(
         id=acc.id,
         name=acc.name,
         kind=kind,
-        subtitle=f"{acc.type or 'credit'} · liability" if acc.is_liability else kind,
+        subtitle=f"{type_label(acc.type) or 'credit'} · liability" if acc.is_liability else kind,
         currency=acc.currency,
         balance_minor=balance,
         balance_sign=minus_sign(balance),
