@@ -63,6 +63,7 @@ ROUTES: dict[str, str] = {
     "/budget-legacy": "pages/plan/budget.html",
     "/analytics": "pages/plan/budget.html",
     "/accounts": "pages/accounts.html",
+    "/accounts?state=empty": "pages/accounts--empty.html",  # app: no accounts yet
     "/accounts/last-checked": "pages/accounts.html",
     "/accounts/new": "pages/overlays/new-account.html",
     "/accounts/{account_id}/edit": "pages/overlays/edit-account.html",

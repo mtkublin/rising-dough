@@ -39,7 +39,14 @@
 
 | Where | Deviation | Reason | Task |
 |---|---|---|---|
-| _…_ | | | |
+| Accounts row, sparkline | The polyline carries `transform="translate(0 2)"` and its points span a 24 px plot (y 0..24) instead of y 2..26 | Points come from `services.balance.sparkline_points` (canonical, no margin parameter); the 2 px margin of the chart notes is applied by the transform, identical pixels | T-UR08a |
+| Accounts row, credit line | `data-testid="credit-utilisation"` on `.rd-account__credit`; bar `aria-label` is `bar_aria_label` (`49 percent spent, 51 percent left`), the handoff sample rounds the left cells (`80`) | UI-map locator for the line (last resort, ids are data); one aria wording across all bars (`view_models.bar_spans`) | T-UR08a |
+| Accounts row, menu | Menu markup is inline in `rows/account-row` (items are `hx-get`/`hx-post` buttons to the existing routes), not the shared `menus/row-menu` fragment | The shared fragment only renders `href` links or `hx-post` items and has no phone-only item; UR08b swaps the items for the new dialog links and can then move to the shared fragment (needs `hx_get` and `phone` support) | T-UR08a |
+| Accounts hero, empty state | The empty page prints the real totals (`0.00 PLN`, `0 accounts`, `assets 0.00 · liabilities 0.00 · planned 0.00`) | `accounts--empty.html` repeats the sample page's hero (`34,439.69 PLN`, 10 accounts) beside an empty list, which cannot be true; the empty route (`/accounts?state=empty` on the mockup target) is only a state of the same page | T-UR08a |
+| Accounts "checked" | Prints the newest snapshot date (`01 APR`), or `never`; the old relative chips (today, N days ago, stale) are dropped | The handoff shows a date only | T-UR08a |
+| Accounts planned note | `-> 3,662.52 after planned` (projected balance) replaces the old `-9,824.01 planned -> 2,575.99` sub-line | Handoff wording; the signed planned net stays in the hero (`planned -312.54`, id `accounts-planned-total`) | T-UR08a |
+
+> **Transitional (T-UR08a, until T-UR08b):** the dialogs (new, edit, delete, reconcile) and their POST responses still render the old `partials/accounts/_card.html`, `_row.html` and the slide-over into the new page, so a swapped old row or slide-over looks unstyled until T-UR08b ports them. The row menu, the `reconcile` link and `+ new account` already target the existing routes with `#modal-root`.
 
 ## Tolerance exceptions
 

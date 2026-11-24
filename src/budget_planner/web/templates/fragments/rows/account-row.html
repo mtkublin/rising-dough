@@ -1,0 +1,82 @@
+{# fragment: rows/account-row (one account in the accounts table, credit-limit line included)
+   Inputs: row (accounts_view.AccountRow). The menu is inline: its items still open the
+   existing accounts dialogs in #modal-root until T-UR08b ports them. #}
+<tr class="rd-row rd-row--account" id="account-{{ row.id }}">
+  <td class="rd-row__desc">
+    <span class="rd-row__title">{{ row.name }}</span>
+    <span class="rd-row__sub">{{ row.subtitle }}</span>
+    {%- if row.credit %}
+      <span class="rd-account__credit" data-testid="credit-utilisation"><span class="rd-bar rd-bar--sm {{ row.credit.bar.modifier }}"
+      role="img"
+      aria-label="{{ row.credit.bar.label }}">{{ row.credit.bar.filled }}<span class="{{ row.credit.bar.remainder_class }}">{{ row.credit.bar.remainder }}</span></span> used {{ row.credit.used_pct }}% · available {{ row.credit.available_minor|money_num(row.currency) }} of {{ row.credit.limit_minor|money_num(row.currency) }}</span>
+    {%- endif %}
+  </td>
+  <td class="rd-account__trend">
+    {% with spark = row.trend %}
+      {% include "fragments/charts/sparkline.html" %}
+    {% endwith %}
+  </td>
+  <td class="rd-account__checked">
+    {#- the cell is white-space: pre on phone, so no stray whitespace around the text -#}
+    <span class="u-hide-from-md">{{ " · checked " }}</span>{{ row.checked }}{#- -#}
+  </td>
+  <td class="rd-account__txns">{{ row.txn_count }}</td>
+  <td class="rd-row__amount">
+    <span class="rd-amount{% if row.negative %} rd-amount--negative{% endif %}">{{ row.balance_sign }}{{ row.balance_minor|money_num(row.currency, abs_value=True) }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
+    {%- if row.after_minor is not none %}<span class="rd-amount__note">→ {{ row.after_sign }}{{ row.after_minor|money_num(row.currency, abs_value=True) }} after planned</span>{% endif %}
+  </td>
+  <td class="rd-account__reconcile">
+    <a class="rd-btn rd-btn--quiet rd-btn--sm rd-link"
+       href="/accounts/{{ row.id }}/reconcile"
+       hx-get="/accounts/{{ row.id }}/reconcile"
+       hx-target="#modal-root"
+       hx-swap="innerHTML">reconcile</a>
+  </td>
+  <td class="rd-row__actions">
+    <button type="button"
+            class="rd-btn rd-btn--icon"
+            aria-label="Row menu"
+            aria-haspopup="menu"
+            popovertarget="{{ row.menu_id }}"
+            data-js="row-menu">
+      <svg class="rd-icon" aria-hidden="true" focusable="false">
+        <use href="/static/rd/icons/sprite.svg#icon-more"></use>
+      </svg>
+    </button>
+    <div class="rd-menu"
+         id="{{ row.menu_id }}"
+         popover
+         role="menu"
+         aria-label="{{ row.name }} actions">
+      <span class="rd-menu__grabber" aria-hidden="true"></span>
+      <div class="rd-menu__head" role="none">
+        <p class="rd-menu__title">{{ row.name }}</p>
+        <p class="rd-menu__sub">{{ row.menu_sub }}</p>
+      </div>
+      <button type="button"
+              class="rd-menu__item rd-menu__item--phone"
+              role="menuitem"
+              hx-get="/accounts/{{ row.id }}/reconcile"
+              hx-target="#modal-root"
+              hx-swap="innerHTML">reconcile</button>
+      <button type="button"
+              class="rd-menu__item"
+              role="menuitem"
+              hx-get="/accounts/{{ row.id }}/edit"
+              hx-target="#modal-root"
+              hx-swap="innerHTML">edit</button>
+      <button type="button"
+              class="rd-menu__item rd-menu__item--danger"
+              role="menuitem"
+              hx-post="/accounts/{{ row.id }}/delete"
+              hx-target="#account-{{ row.id }}"
+              hx-swap="outerHTML"
+              hx-confirm="Soft-delete this account? Transactions remain.">delete</button>
+      <button type="button"
+              class="rd-menu__item rd-menu__cancel"
+              role="menuitem"
+              popovertarget="{{ row.menu_id }}"
+              popovertargetaction="hide">cancel</button>
+    </div>
+  </td>
+</tr>

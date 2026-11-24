@@ -1,0 +1,73 @@
+{# pages/accounts/index (T-UR08, handoff pages/accounts and accounts--empty).
+   Context: hero (accounts_view.AccountsHero), rows (AccountRow list), base_ccy.
+   The dialogs (new, edit, delete, reconcile) are T-UR08b: their triggers point at the
+   existing accounts routes and swap into #modal-root. #}
+{% extends "layouts/base.html" %}
+{% block title %}Accounts · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero"
+           id="accounts-hero"
+           aria-labelledby="hero-label"
+           hx-get="/accounts"
+           hx-trigger="balance-stale from:body"
+           hx-select="#accounts-hero"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__label" id="hero-label">
+        <span class="u-hide-below-md">net worth · {{ hero.count }} accounts</span><span class="u-hide-from-md">net worth</span>
+      </h1>
+      <p class="rd-hero__figure-row">
+        <span class="rd-hero__figure rd-hero__figure--wide"
+              data-digits="{{ hero.fit.digits }}"
+              data-marks="{{ hero.fit.marks }}"
+              data-signs="{{ hero.fit.signs }}">{{ hero.net_sign }}{{ hero.net_minor|money_num(base_ccy, abs_value=True) }}</span><span class="rd-hero__unit">{{ base_ccy }}</span>
+      </p>
+      <p class="rd-hero__note">
+        <span class="u-hide-below-md">assets {{ hero.assets_minor|money_num(base_ccy) }} · liabilities {{ hero.liabilities_sign }}{{ hero.liabilities_minor|money_num(base_ccy, abs_value=True) }} · <span id="accounts-planned-total">planned {{ hero.planned_sign }}{{ hero.planned_minor|money_num(base_ccy, abs_value=True) }}</span></span><span class="u-hide-from-md">assets {{ hero.assets_minor|money_num(base_ccy) }} · liabilities {{ hero.liabilities_sign }}{{ hero.liabilities_minor|money_num(base_ccy, abs_value=True) }}</span>
+      </p>
+    </div>
+  </section>
+  <section class="rd-panel rd-accounts" aria-label="Accounts">
+    <div class="rd-accounts__head">
+      <p class="rd-caption u-hide-from-md">{{ hero.count }} ACCOUNTS</p>
+      <a class="rd-btn"
+         href="/accounts/new"
+         hx-get="/accounts/new"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">+ new account</a>
+    </div>
+    {% if rows %}
+      <div class="rd-table-scroll rd-table-scroll--tight"
+           tabindex="0"
+           role="region"
+           aria-label="Accounts and balances (scrolls sideways)">
+        <table class="rd-ledger rd-ledger--accounts">
+          <caption class="u-visually-hidden">Accounts and balances</caption>
+          <thead>
+            <tr class="rd-row rd-row--head">
+              <th scope="col">ACCOUNT</th>
+              <th scope="col">TREND</th>
+              <th scope="col">CHECKED</th>
+              <th scope="col" class="rd-account__txns">TXNS</th>
+              <th scope="col" class="rd-row__amount">BALANCE</th>
+              <th scope="col">
+                <span class="u-visually-hidden">Reconcile</span>
+              </th>
+              <th scope="col">
+                <span class="u-visually-hidden">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              {% include "fragments/rows/account-row.html" %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% include "fragments/states/accounts-empty.html" %}
+    {% endif %}
+  </section>
+{% endblock %}

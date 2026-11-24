@@ -211,30 +211,6 @@ epic = "E16"
 owner = "T-UR15"
 
 [[entry]]
-path = "src/budget_planner/web/templates/accounts/index.html"
-rule = "tpl-arith"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR08"
-
-[[entry]]
-path = "src/budget_planner/web/templates/accounts/index.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR08"
-
-[[entry]]
-path = "src/budget_planner/web/templates/accounts/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR08"
-
-[[entry]]
 path = "src/budget_planner/web/templates/dev/components.html"
 rule = "tpl-currency-lit"
 count = 1

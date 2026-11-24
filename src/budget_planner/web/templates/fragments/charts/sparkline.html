@@ -1,0 +1,14 @@
+{# fragment: charts/sparkline (account trend, handoff charts/sparkline)
+   Inputs: spark (accounts_view.TrendView: points, negative, width, height, margin).
+   Geometry comes from the server; the line is drawn inside the 2 px top/bottom margin.
+   Hidden below 768 px by the page CSS. #}
+<svg class="rd-spark{% if spark.negative %} rd-spark--negative{% endif %}"
+     role="img"
+     aria-label="Balance trend"
+     width="{{ spark.width }}"
+     height="{{ spark.height }}"
+     viewBox="0 0 {{ spark.width }} {{ spark.height }}">
+  {%- if spark.points %}
+    <polyline class="rd-spark__line" transform="translate(0 {{ spark.margin }})" points="{{ spark.points }}" />
+  {%- endif %}
+</svg>
