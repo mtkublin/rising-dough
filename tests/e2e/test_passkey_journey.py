@@ -176,10 +176,22 @@ def test_stale_session_reauths_with_passkey(
     )
 
 
+_WEBAUTHN_SURFACE_JS = """
+if (!window.PublicKeyCredential) window.PublicKeyCredential = function PublicKeyCredential() {};
+if (!navigator.credentials) {
+  Object.defineProperty(navigator, 'credentials', { value: {}, configurable: true });
+}
+"""
+
+
 def test_ip_literal_host_explains_passkeys_need_localhost(
     page: Page, live_server: tuple[str, Path]
 ) -> None:
     base_url, _ = live_server
+    # The IP-literal refusal comes from /auth/register/begin, before any ceremony. Playwright
+    # WebKit on Linux has no WebAuthn, so passkeys.js disables the button (T-Q316); give it the
+    # feature surface it detects, only where the engine lacks it (Chromium is untouched).
+    page.add_init_script(_WEBAUTHN_SURFACE_JS)
     page.goto(f"{base_url}/settings/security")
     to_playwright(page, settings.add_passkey).click()
     expect(to_playwright(page, settings.passkeys)).to_contain_text("http://localhost")

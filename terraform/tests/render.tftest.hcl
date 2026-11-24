@@ -488,6 +488,43 @@ run "prod_render_keeps_public_web" {
   }
 }
 
+# T-Q306(c) / ADR-0149: seed-demo is a drill-only host file, independent of the restore helper.
+run "seed_demo_installed_on_drill" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  variables {
+    enable_seed_helper    = true
+    enable_restore_helper = false
+  }
+
+  assert {
+    condition     = contains([for f in jsondecode(nonsensitive(output.host_config)).files : f.path], "/usr/local/bin/seed-demo")
+    error_message = "seed-demo must be an agent-managed file on the drill (T-Q306(c))."
+  }
+
+  assert {
+    condition     = !contains([for f in jsondecode(nonsensitive(output.host_config)).files : f.path], "/usr/local/bin/restore-from-prod") && !strcontains(nonsensitive(output.all_rendered), "RESTORE_ACCESS_KEY_ID=")
+    error_message = "seed-demo must work without the restore helper or any prod credential."
+  }
+}
+
+run "seed_demo_absent_on_prod" {
+  command = plan
+
+  module {
+    source = "./tests/render"
+  }
+
+  assert {
+    condition     = !contains([for f in jsondecode(nonsensitive(output.host_config)).files : f.path], "/usr/local/bin/seed-demo")
+    error_message = "seed-demo must never be installed outside the drill (T-Q306(c))."
+  }
+}
+
 run "drill_render_is_tailnet_only" {
   command = plan
 

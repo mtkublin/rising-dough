@@ -71,6 +71,13 @@ locals {
     age_key_file     = "${local.compose_dir}/restore-source-age.key"
   }) : ""
 
+  # T-Q306(c) / ADR-0149: drill-only demo seed helper. Needs no prod credential, so it
+  # has its own switch, independent of enable_restore_helper. Empty string elsewhere.
+  seed_script_rendered = var.enable_seed_helper ? templatefile("${path.module}/../../cloud-init/bin/seed-demo.tpl", {
+    compose_dir = local.compose_dir
+    hostname    = var.hostname
+  }) : ""
+
   docker_config_json = jsonencode({
     auths = { "ghcr.io" = { auth = base64encode("deploy:${var.ghcr_pull_pat}") } }
   })
@@ -102,6 +109,9 @@ locals {
       # ADR-0135: the PROD replica identity, never the host's own litestream-age.key.
       { path = "${local.compose_dir}/restore-source-age.key", mode = "0600", content = "${trimspace(var.restore_source_age_identity)}\n", restart = [] },
       { path = "/usr/local/bin/restore-from-prod", mode = "0755", content = local.restore_script_rendered, restart = [] },
+    ] : [],
+    var.enable_seed_helper ? [
+      { path = "/usr/local/bin/seed-demo", mode = "0755", content = local.seed_script_rendered, restart = [] },
     ] : [],
   )
 

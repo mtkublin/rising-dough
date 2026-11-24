@@ -1,0 +1,71 @@
+name: Drill ready
+description: >-
+  Wait for the drill's /ready over the tailnet, then for the host agent to report
+  the given generation and image ref (ADR-0111, ADR-0149). Run after the runner has
+  joined the tailnet (drill-ssh or the tailscale action) and after checkout.
+
+inputs:
+  target-url:
+    description: https://budget-planner-drill-<run id>.<tailnet dns name>
+    required: true
+  generation:
+    description: host_config_generation output of the apply.
+    required: true
+  image-ref:
+    description: host_image_ref output of the apply.
+    required: true
+  ready-attempts:
+    description: Attempts of 10 s for /ready (60 = a fresh boot, 180 = a replaced VM).
+    required: false
+    default: "60"
+  require-restore:
+    description: "'true' after a VM replacement: the agent must also report restore.result == restored."
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for /ready
+      shell: bash
+      env:
+        TARGET_URL: ${{ inputs.target-url }}
+        ATTEMPTS: ${{ inputs.ready-attempts }}
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 "${ATTEMPTS}"); do
+          if curl -fsS --max-time 5 "${TARGET_URL}/ready" >/dev/null; then
+            echo "drill /ready OK after attempt ${i}"
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "::error::drill /ready never came up (${ATTEMPTS} attempts of 10 s)" >&2
+        exit 1
+
+    # A replaced host may fail its first agent probe while Caddy waits for the
+    # certificate of the renamed node; a failed generation is retried with back-off,
+    # so the restore variant retries the wait until the deadline (replace-rehearsal).
+    - name: Wait for the host agent status
+      shell: bash
+      env:
+        TARGET_URL: ${{ inputs.target-url }}
+        GENERATION: ${{ inputs.generation }}
+        HOST_IMAGE_REF: ${{ inputs.image-ref }}
+        REQUIRE_RESTORE: ${{ inputs.require-restore }}
+      run: |
+        set -uo pipefail
+        url="${TARGET_URL}/.well-known/bp-deploy-status.json"
+        if [ "${REQUIRE_RESTORE}" != "true" ]; then
+          exec python3 scripts/ci/host_release.py wait --timeout 300 \
+            --url "${url}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"
+        fi
+        for i in $(seq 1 12); do
+          if python3 scripts/ci/host_release.py wait --timeout 120 --require-restore \
+            --url "${url}" --generation "${GENERATION}" --ref "${HOST_IMAGE_REF}"; then
+            exit 0
+          fi
+          echo "attempt ${i} not converged yet"
+          sleep 20
+        done
+        exit 1

@@ -1,0 +1,6 @@
+{
+  "3003": [{"id": 9, "state": "in_progress", "environment": "prod"}],
+  "3002": [{"id": 8, "state": "failure", "environment": "prod"}, {"id": 7, "state": "in_progress", "environment": "prod"}],
+  "3001": [{"id": 6, "state": "success", "environment": "prod"}, {"id": 5, "state": "in_progress", "environment": "prod"}],
+  "3000": [{"id": 4, "state": "inactive", "environment": "prod"}, {"id": 3, "state": "success", "environment": "prod"}]
+}

@@ -23,6 +23,12 @@ variable "enable_restore_helper" {
   default     = true
 }
 
+variable "enable_seed_helper" {
+  description = "Render the drill-only seed-demo helper (T-Q306(c))."
+  type        = bool
+  default     = false
+}
+
 variable "break_glass_ssh_cidrs" {
   description = "Render the drill-only break-glass ufw rules (T-D81)."
   type        = list(string)
@@ -110,6 +116,7 @@ module "compute" {
   expires_at            = var.expires_at
 
   enable_restore_helper  = var.enable_restore_helper
+  enable_seed_helper     = var.enable_seed_helper
   restore_source_bucket  = "render-check-prod-bucket"
   scw_access_key_restore = var.enable_restore_helper ? "SCWDUMMYRESTOREKEY000" : ""
   scw_secret_key_restore = var.enable_restore_helper ? "11111111-dummy-0000-0000-000000000000" : ""

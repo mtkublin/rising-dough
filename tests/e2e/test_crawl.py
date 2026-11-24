@@ -3,7 +3,7 @@
 One test per page route. Each logs in on a seeded scratch DB, discovers every
 control (link, button, ``hx-*``, menu item, dialog / popover trigger), activates
 each one and asserts: no 4xx/5xx, no console errors, no failed requests, no
-duplicate ids, no horizontal scroll at 375 and 1440, and that the control did
+duplicate ids, no horizontal scroll at 375, 1024 and 1440, and that the control did
 something (navigated, opened, closed or swapped). Destructive controls
 (POST / delete) run after the scratch DB is restored from a pristine snapshot.
 
@@ -14,8 +14,8 @@ Themes: the app ships a single theme (no ``data-theme`` / dark-mode CSS), so
 the crawl runs once. Revisit when the redesign adds a second theme.
 
 Only the 1440 viewport activates controls (several are hidden at 375);
-375 gets the load-time diagnostics plus the diagnostics after the
-mobile-reachable nav toggle is not in scope.
+375 and 1024 get the load-time diagnostics (T-Q301: the
+frontend-visual-audit viewport set).
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from tests.e2e.crawl.dom import Control
 from tests.e2e.crawl.engine import (
     DESKTOP,
     MOBILE,
+    TABLET,
     Recorder,
     activate,
     diagnose,
@@ -150,6 +151,12 @@ def crawl_page(
     settle(page)
     problems += [f"[load 375] {p}" for p in recorder.drain()]
     problems += diagnose(page, "[375]")
+
+    page.set_viewport_size(TABLET)  # type: ignore[arg-type]
+    page.goto(base_url + route)
+    settle(page)
+    problems += [f"[load 1024] {p}" for p in recorder.drain()]
+    problems += diagnose(page, "[1024]")
 
     page.set_viewport_size(DESKTOP)  # type: ignore[arg-type]
     page.goto(base_url + route)

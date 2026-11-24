@@ -78,6 +78,18 @@
             slide.parentElement.innerHTML = "";
           }
         });
+        /* The undo response's HX-Trigger events start region refreshes (hx-get);
+         * reloading at once cancels them (WebKit: "Load request cancelled" +
+         * htmx:sendError, T-Q317). Reload once they finish, bounded. */
+        var RELOAD_IDLE_CAP_MS = 2000;
+        function reloadWhenIdle(startedAt) {
+          var busy = document.querySelector(".htmx-request");
+          if (busy && Date.now() - startedAt < RELOAD_IDLE_CAP_MS) {
+            setTimeout(function () { reloadWhenIdle(startedAt); }, 50);
+            return;
+          }
+          window.location.reload();
+        }
         /* Toast handler via HX-Trigger. */
         document.body.addEventListener("toast", function (e) {
           var d = e.detail || {};
@@ -109,7 +121,7 @@
               document.body.addEventListener("htmx:afterRequest", onUndo);
               htmx.ajax("POST", d.undo_url, { target: "body", swap: "none", values: values }).then(function () {
                 document.body.removeEventListener("htmx:afterRequest", onUndo);
-                if (undone) window.location.reload();
+                if (undone) reloadWhenIdle(Date.now());
               }, function () {
                 document.body.removeEventListener("htmx:afterRequest", onUndo);
               });
