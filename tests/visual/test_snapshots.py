@@ -41,7 +41,6 @@ VIEWPORTS: Final = {
     "375": _Viewport(width=375, height=812),
 }
 ROUTES: Final = {
-    "today": "/today",
     "ledger": "/ledger",
     "budget": "/budget",
     "forecast": "/forecast",

@@ -119,7 +119,10 @@ def test_afford_endpoint_no_db_write(client: TestClient) -> None:
 
 
 def test_afford_delta_is_signed_per_day(client: TestClient) -> None:
-    # Spending can only lower the per-day budget, so the delta is negative or zero.
-    delta = _html.text_of(client.get("/today/afford?amount=100.00").text, today.afford_delta)
-    assert delta.endswith("/ day")
-    assert delta.startswith(("-", "+"))
+    # Nothing is budgeted, so 100.00 exceeds what is left: the over line carries the ▲ glyph
+    # and the over amount is the delta element.
+    html = client.get("/today/afford?amount=100.00").text
+    assert _html.text_of(html, today.afford_delta) == "100.00"
+    result = _html.text_of(html, today.afford_per_day)
+    assert result.startswith("▲ per day becomes")
+    assert result.endswith("over")

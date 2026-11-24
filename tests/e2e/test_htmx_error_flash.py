@@ -28,7 +28,7 @@ _PROBE = (
 
 
 def _open(page: Page, base_url: str) -> None:
-    page.goto(f"{base_url}/today")
+    page.goto(f"{base_url}/ledger")  # old shell page; Today is on the new shell
     assert page.evaluate("typeof window.htmx") == "object"
 
 

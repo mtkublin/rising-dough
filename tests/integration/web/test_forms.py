@@ -187,8 +187,9 @@ def test_amount_sidebar_request_does_not_dismiss_slide_over(
     base_html = client.get("/transactions/new").text  # has <head> + base scripts
     # The slide-over fragment response does not include <head>; grab the
     # home page which renders base.html wholesale.
-    full = client.get("/today").text
-    # ADR-0113: the bootstrap script is external, so /today must reference it.
+    # /ledger is still on the old base, which loads app-init.js; moves with the shell at T-UR15.
+    full = client.get("/ledger").text
+    # ADR-0113: the bootstrap script is external, so the page must reference it.
     assert "js/app-init.js" in full
     handler_js = _extract_after_request_handler(_load_app_init_source())
     # Smoke: handler must reference the three T-124 invariants (otherwise

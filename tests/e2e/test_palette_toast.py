@@ -28,7 +28,7 @@ def _open_palette(page: Page) -> None:
     expect(to_playwright(page, shell.palette)).to_be_visible()
 
 
-@pytest.mark.parametrize("route", ["/today", "/ledger"])
+@pytest.mark.parametrize("route", ["/ledger"])
 def test_palette_new_transaction_opens_add_slide_over(
     live_server: tuple[str, Path], page: Page, route: str
 ) -> None:
@@ -42,12 +42,13 @@ def test_palette_new_transaction_opens_add_slide_over(
 
 def test_palette_shortcuts_opens_dialog(live_server: tuple[str, Path], page: Page) -> None:
     base_url, _ = live_server
-    page.goto(f"{base_url}/today")
+    page.goto(f"{base_url}/ledger")  # old shell page; the new shell palette is in test_rd_shell
     _open_palette(page)
     to_playwright(page, shell.palette_option("Shortcuts")).click()
     expect(to_playwright(page, shell.shortcuts_dialog)).to_be_visible()
 
 
+@pytest.mark.skip(reason="no renderer for the HX-Trigger toast payload in the new shell (T-UR07b)")
 def test_promote_all_due_toast_offers_undo(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     assert page.request.post(

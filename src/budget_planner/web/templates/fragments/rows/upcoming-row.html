@@ -1,0 +1,88 @@
+{# fragment: rows/upcoming-row
+   Inputs: row (today_data.UpcomingRowView). Promote and override open the existing planned and
+   recurring dialogs (ported with T-UR07b / T-UR10); skip posts to the existing routes. #}
+<li class="{{ row.row_class }}"
+    id="{{ row.item.row_id }}"
+    data-status="{{ row.status }}">
+  <span class="rd-upcoming__date">{{ row.date_text }}</span>
+  <span class="rd-upcoming__main"><span class="rd-upcoming__name">{{ row.item.row.description }}</span>
+    {% if row.item.account %}<span class="rd-upcoming__account">· {{ row.item.account.name }}</span>{% endif %}
+    {% if row.flag %}<span class="rd-upcoming__flag">{{ row.flag }}</span>{% endif %}
+  </span>
+  <span class="rd-upcoming__cat">
+    {% if row.item.category %}
+      <span class="rd-chip"
+            {% if row.cat_color %} data-color="{{ row.cat_color }}"{% endif %}>{{ row.item.category.name }}</span>
+    {% else %}
+      <span class="rd-chip">—</span>
+    {% endif %}
+  </span>
+  <span class="rd-upcoming__amount"><span class="rd-amount">{{ row.amount_text }} <span class="rd-amount__cur">{{ base_ccy }}</span></span></span>
+  <div class="rd-upcoming__actions">
+    {% if row.item.is_planned %}
+      <a class="rd-btn"
+         href="/planned/{{ row.item.row.planned_id }}/promote"
+         hx-get="/planned/{{ row.item.row.planned_id }}/promote"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">promote</a>
+    {% else %}
+      <a class="rd-btn"
+         href="/recurring/{{ row.item.row.rule_id }}/promote"
+         hx-get="/recurring/{{ row.item.row.rule_id }}/promote"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">promote</a>
+    {% endif %}
+    <button type="button"
+            class="rd-btn rd-btn--icon"
+            aria-label="Row menu"
+            aria-haspopup="menu"
+            popovertarget="menu-{{ row.item.row_id }}"
+            data-js="row-menu">
+      <svg class="rd-icon" aria-hidden="true" focusable="false">
+        <use href="/static/rd/icons/sprite.svg#icon-more"></use>
+      </svg>
+    </button>
+    {# overlay: row-menu--upcoming #}
+    <div class="rd-menu"
+         id="menu-{{ row.item.row_id }}"
+         popover
+         role="menu"
+         aria-label="Row actions">
+      <span class="rd-menu__grabber" aria-hidden="true"></span>
+      <div class="rd-menu__head" role="none">
+        <p class="rd-menu__title">{{ row.menu_title }}</p>
+        <p class="rd-menu__sub">{{ row.menu_sub }}</p>
+      </div>
+      {% if row.item.is_planned %}
+        <button type="button"
+                class="rd-menu__item"
+                role="menuitem"
+                hx-post="/planned/{{ row.item.row.planned_id }}/delete"
+                hx-swap="none">skip</button>
+        <a class="rd-menu__item"
+           role="menuitem"
+           href="/planned/{{ row.item.row.planned_id }}/edit"
+           hx-get="/planned/{{ row.item.row.planned_id }}/edit"
+           hx-target="#modal-root"
+           hx-swap="innerHTML">override</a>
+      {% else %}
+        <button type="button"
+                class="rd-menu__item"
+                role="menuitem"
+                hx-post="/recurring/{{ row.item.row.rule_id }}/skip-next"
+                hx-swap="none">skip</button>
+        <a class="rd-menu__item"
+           role="menuitem"
+           href="/recurring/{{ row.item.row.rule_id }}/overrides/new?occurrence_date={{ row.occurrence }}"
+           hx-get="/recurring/{{ row.item.row.rule_id }}/overrides/new?occurrence_date={{ row.occurrence }}"
+           hx-target="#modal-root"
+           hx-swap="innerHTML">override</a>
+      {% endif %}
+      <button type="button"
+              class="rd-menu__item rd-menu__cancel"
+              role="menuitem"
+              popovertarget="menu-{{ row.item.row_id }}"
+              popovertargetaction="hide">cancel</button>
+    </div>
+  </div>
+</li>

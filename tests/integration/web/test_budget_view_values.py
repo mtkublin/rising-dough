@@ -108,8 +108,10 @@ def test_today_hero_shows_view_model_values(
     assert _html.text_of(html, today_ui.hero_per_day) == expected_per_day
     assert view.spent_pct == 25
     spent_bar = _html.resolve_one(html, today_ui.spent_bar)
-    assert float(str(spent_bar["aria-valuenow"])) == 25
-    assert f"day {view.period_day} of {view.period_total_days}" in _html.page_text(html)
+    totals = summary.totals
+    left_pct = view_models.clamped_percent(totals.remaining_minor, totals.budgeted_minor)
+    assert spent_bar["aria-label"] == view_models.bar_aria_label(view.spent_pct, left_pct)
+    assert f"DAY {view.period_day} OF {view.period_total_days}" in _html.page_text(html)
 
 
 def test_plan_budget_tab_shows_view_model_values(

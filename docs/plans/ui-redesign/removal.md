@@ -165,9 +165,9 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/settings/users/_table.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/users/edit.html` | T-UR14 | delete |  |
 | `src/budget_planner/web/templates/settings/users/list.html` | T-UR14 | delete |  |
-| `src/budget_planner/web/templates/today/_afford_preview.html` | T-UR07 | delete |  |
-| `src/budget_planner/web/templates/today/_upcoming.html` | T-UR07 | delete |  |
-| `src/budget_planner/web/templates/today/index.html` | T-UR07 | delete |  |
+| `src/budget_planner/web/templates/today/_afford_preview.html` | T-UR07 | deleted |  |
+| `src/budget_planner/web/templates/today/_upcoming.html` | T-UR07 | deleted |  |
+| `src/budget_planner/web/templates/today/index.html` | T-UR07 | deleted |  |
 | `src/budget_planner/web/templates/transactions/index.html` | T-UR09 | delete |  |
 
 ## Old visual baselines
@@ -195,9 +195,9 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `tests/visual/__snapshots__/settings.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/settings.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 | `tests/visual/__snapshots__/settings.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.1024.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.1440.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
-| `tests/visual/__snapshots__/today.375.png` | T-UR15 | delete | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.1024.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.1440.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
+| `tests/visual/__snapshots__/today.375.png` | T-UR15 | deleted | old snapshot; the surface task deletes its page's `<page>.<width>.png` |
 
 ## Toolchain and CI (non-file rows)
 
