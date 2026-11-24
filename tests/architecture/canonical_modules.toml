@@ -271,3 +271,13 @@ finding = "T-UR03"
 epic = "UR"
 search = ["category_color", "edge_color", "contrast_ratio", "relative_luminance", "data-color"]
 banned = ["*relative_luminance*", "*contrast_ratio*", "_edge_color*"]
+
+[[row]]
+concept = "Dialog and row HTMX responses (open, saved, removed, 422)"
+module = "web/dialogs.py"
+symbol = "dialog_response"
+status = "exists"
+finding = "T-UR04b"
+epic = "UR"
+search = ["dialog_response", "saved_response", "removed_response", "invalid_dialog_response", "HX-Retarget"]
+banned = ["_dialog_response*", "_saved_response*", "_removed_response*"]

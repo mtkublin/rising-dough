@@ -63,6 +63,7 @@ One module owns each concept. **Before you write a helper:** (1) find the concep
 | Category colour preset and edge contrast | `domain/category_colors.py` `category_color`, `edge_color`, `contrast_ratio` (`data-color` preset name or nonce'd rule, `--cat-edge` 3:1 on `--color-panel`; ADR-0107 §5) | exists (T-UR03) | - |
 | Rate-limit attempts left | `services/rate_limit.py` `attempts_left` | exists (T-UR34i) | - |
 | Form field labels and 422 field summary | `web/field_labels.py` `field_label`, `field_summary` | exists (T-UR34l) | - |
+| Dialog and row HTMX responses (open, saved, removed, 422) | `web/dialogs.py` `dialog_response`, `saved_response`, `removed_response`, `invalid_dialog_response` (headers via `web/htmx.py` `trigger`) | exists (T-UR04b) | - |
 | Account in-use reference counts | `services/accounts.py` `account_references` | exists (T-UR33) | - |
 | Invites (create, resend, revoke, accept, link state) | `services/invites.py` `create_invite`, `resend_invite`, `revoke_invite`, `accept_invite`, `link_state` (7-day `INVITE_LIFETIME`; token stored hashed; ADR-0134 §1, §10) | exists (T-UR30) | - |
 | First-run setup (open predicate, token check, consume) | `services/setup.py` `is_open`, `check_token`, `complete_setup` (hash from `BUDGET_PLANNER_SETUP_TOKEN_HASH`, ADR-0134 §9) | exists (T-UR32) | - |
