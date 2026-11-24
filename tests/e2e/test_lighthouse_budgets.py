@@ -25,13 +25,11 @@ from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.e2e.crawl.seed import seed_world
 from tests.e2e.test_crawl import PAGES, VIEWS
 
-pytestmark = [
-    pytest.mark.e2e,
-    pytest.mark.skipif(
-        os.environ.get("PERF_LHCI") != "1",
-        reason="advisory Lighthouse budgets: set PERF_LHCI=1 (a11y-perf.yml)",
-    ),
-]
+pytestmark = [pytest.mark.e2e]
+_needs_lhci = pytest.mark.skipif(
+    os.environ.get("PERF_LHCI") != "1",
+    reason="advisory Lighthouse budgets: set PERF_LHCI=1 (a11y-perf.yml)",
+)
 
 LHCI_VERSION = "0.15.1"
 CONFIG = Path(__file__).resolve().parents[1] / "perf" / "lighthouserc.json"
@@ -57,6 +55,24 @@ def _sandbox_free_chrome(real: str, directory: Path) -> str:
     return str(wrapper)
 
 
+def split_redirect_routes(statuses: dict[str, int]) -> tuple[list[str], list[str]]:
+    """Split routes into (measurable, redirect-only) by their un-followed GET status.
+
+    Lighthouse groups results by final URL, so a legacy route that 3xx-redirects (e.g.
+    ``/auth/sessions`` and ``/settings/password`` -> ``/settings/security``) is never measured as
+    itself and only inflates the target's run count. Such routes are excluded by name instead.
+    """
+    redirected = [r for r, status in statuses.items() if 300 <= status < 400]
+    return [r for r in statuses if r not in redirected], redirected
+
+
+def test_split_redirect_routes_names_the_redirecting_routes() -> None:
+    measured, redirected = split_redirect_routes({"/a": 200, "/b": 303, "/c": 200, "/d": 302})
+    assert measured == ["/a", "/c"]
+    assert redirected == ["/b", "/d"]
+
+
+@_needs_lhci
 def test_lighthouse_budgets(
     page: Page, live_server: tuple[str, Path], _playwright: Playwright, tmp_path: Path
 ) -> None:
@@ -68,7 +84,14 @@ def test_lighthouse_budgets(
     headers = json.dumps({"Cookie": f"{SESSION_DEV_COOKIE_NAME}={cookie}"})
     chrome = _sandbox_free_chrome(_playwright.chromium.executable_path, tmp_path)
     env = {**os.environ, "CHROME_PATH": chrome}
-    urls = [f"{base_url}{route}" for route in (*PAGES, *VIEWS)]
+    routes = (*PAGES, *VIEWS)
+    statuses = {r: page.request.get(base_url + r, max_redirects=0).status for r in routes}
+    measured, redirected = split_redirect_routes(statuses)
+    print(
+        f"lighthouse measures {len(measured)} of {len(routes)} routes; "
+        f"redirect-only, excluded by name: {redirected}"
+    )
+    urls = [f"{base_url}{route}" for route in measured]
     collect_args = [
         "collect",
         f"--config={CONFIG}",
@@ -81,5 +104,6 @@ def test_lighthouse_budgets(
     asserted = _lhci(["assert", f"--config={CONFIG}"], env)
     print(asserted.stdout, asserted.stderr)
     assert asserted.returncode == 0, (
-        f"Lighthouse budgets exceeded over {len(urls)} routes:\n{asserted.stdout}{asserted.stderr}"
+        f"Lighthouse budgets exceeded over {len(urls)} of {len(routes)} routes "
+        f"(redirect-only excluded: {redirected}):\n{asserted.stdout}{asserted.stderr}"
     )
