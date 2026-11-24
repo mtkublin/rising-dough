@@ -258,6 +258,9 @@ REFERENCE_ONLY_DOCS = {
     "docs/plans/v3/runbooks/disaster-recovery.md",
     "docs/plans/v3/runbooks/drill.md",
     "docs/plans/v3/runbooks/key-rotation.md",
+    # scripts/ci/check_item.py (T-Q326): orchestrator DoD hotspot names, never read by a pipeline.
+    "docs/CHANGELOG.md",
+    "docs/adr/README.md",
 }
 
 

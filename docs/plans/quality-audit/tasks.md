@@ -1853,7 +1853,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none (operator accepted the review 2026-11-24).
 - Removes allowlist entries: none.
 
-### T-Q325 [S] Role agent definitions in `.claude/agents/`
+### ✅ T-Q325 [S] Role agent definitions in `.claude/agents/`
 - Epic: E04
 - Band: 3 · Size: S · Tags: ops
 - Depends on: T-Q324
@@ -1863,7 +1863,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q326 [S] `scripts/ci/check_item.py`: executable Definition of Done
+### ✅ T-Q326 [S] `scripts/ci/check_item.py`: executable Definition of Done
 - Epic: E04
 - Band: 3 · Size: S · Tags: ops, tests
 - Depends on: T-Q324
@@ -1873,7 +1873,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q327 [S] Wave testing: worker cap in code, hook skip for orchestrated items
+### ✅ T-Q327 [S] Wave testing: worker cap in code, hook skip for orchestrated items
 - Epic: E04
 - Band: 3 · Size: S · Tags: ops, tests
 - Depends on: T-Q324
@@ -1883,7 +1883,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q328 [M] Orchestrator-mode skill rewritten as a flow
+### ✅ T-Q328 [M] Orchestrator-mode skill rewritten as a flow
 - Epic: E04
 - Band: 3 · Size: M · Tags: docs, ops
 - Depends on: T-Q325, T-Q326, T-Q327
@@ -1893,7 +1893,7 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 - Operator question blocking it: none.
 - Removes allowlist entries: none.
 
-### T-Q329 [S] Run log template
+### ✅ T-Q329 [S] Run log template
 - Epic: E04
 - Band: 3 · Size: S · Tags: docs, ops
 - Depends on: T-Q324
