@@ -27,6 +27,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.db.migrate import apply_migrations
 from budget_planner.web.auth_cookies import SESSION_DEV_COOKIE_NAME
 from tests.auth_support import issue_session, seed_login_user
+from tests.visual import handoff
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 from tests.visual.handoff_seed import build_seed
 
@@ -64,6 +65,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=None,
         help="limit --reference=handoff to one surface (today, ledger, plan, ...)",
     )
+    parser.addoption(
+        "--reference-shard",
+        default=None,
+        help="limit --reference=handoff to one '<viewport>:<theme>' shard, e.g. 1440:dark (CI)",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -71,6 +77,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     if config.getoption("--reference") != "handoff":
         return
     keep = [i for i in items if "test_reference" in i.nodeid]
+    only = handoff.parse_shard(config.getoption("--reference-shard"))
+    if only:
+        keep = [
+            i
+            for i in keep
+            if isinstance(i, pytest.Function)
+            and (i.callspec.params.get("viewport"), i.callspec.params.get("theme")) == only
+        ]
     config.hook.pytest_deselected(items=[i for i in items if i not in keep])
     items[:] = keep
 

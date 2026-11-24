@@ -105,12 +105,18 @@ jobs:
   # compared. Advisory until a surface migrates (T-UR00b red run is expected with the
   # old app): continue-on-error, and `visual-gate` does not depend on it.
   reference:
-    name: handoff reference comparison (advisory)
+    name: handoff reference comparison ${{ matrix.shard }} (advisory)
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: true
+    # 1272 tests do not fit one 45 min job (run 45480373605): six shards of 212,
+    # one per width x theme; each renders only its own references (T-UR00b).
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1440:light", "1440:dark", "1024:light", "1024:dark", "375:light", "375:dark"]
     container:
       image: mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031
       options: --ipc=host
@@ -123,13 +129,21 @@ jobs:
       - name: Render references and compare every surface
         env:
           VISUAL_KEEP_DIR: visual-actual
-        run: bash scripts/ci/visual_in_container.sh reference
+          REFERENCE_SHARD_LABEL: ${{ matrix.shard }}
+          SHARD: ${{ matrix.shard }}
+        run: bash scripts/ci/visual_in_container.sh reference "--reference-shard=$SHARD"
+
+      - name: Name the shard for artifacts
+        if: ${{ always() }}
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: echo "SHARD_NAME=${SHARD/:/-}" >> "$GITHUB_ENV"
 
       - name: Upload rendered references
         if: ${{ always() }}
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
-          name: visual-references
+          name: visual-references-${{ env.SHARD_NAME }}
           path: tests/visual/reference/
           if-no-files-found: ignore
 
@@ -137,7 +151,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
-          name: visual-reference-actual
+          name: visual-reference-actual-${{ env.SHARD_NAME }}
           path: visual-actual/
           if-no-files-found: ignore
 

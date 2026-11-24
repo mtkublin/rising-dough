@@ -130,8 +130,19 @@ def shoot(browser: Browser, base: str, page: str, *, viewport: str, theme: str, 
         context.close()
 
 
-def generate(only_surface: str | None = None) -> int:
-    """Render every page x viewport x theme (optionally one surface) into ``REFERENCE_DIR``."""
+def parse_shard(shard: str | None) -> tuple[str, str] | None:
+    """``"<viewport>:<theme>"`` (CI shard, T-UR00b) -> ``(viewport, theme)``; None = all."""
+    if not shard:
+        return None
+    viewport, _, theme = shard.partition(":")
+    if viewport not in VIEWPORTS or theme not in THEMES:
+        raise ValueError(f"bad shard {shard!r}; expected <viewport>:<theme>, e.g. 1440:dark")
+    return viewport, theme
+
+
+def generate(only_surface: str | None = None, shard: str | None = None) -> int:
+    """Render page x viewport x theme (or one surface / shard) into ``REFERENCE_DIR``."""
+    only = parse_shard(shard)
     count = 0
     with serve_handoff() as base, sync_playwright() as p:
         browser = p.chromium.launch(args=CHROMIUM_ARGS)
@@ -141,6 +152,8 @@ def generate(only_surface: str | None = None) -> int:
                     continue
                 for viewport in VIEWPORTS:
                     for theme in THEMES:
+                        if only and (viewport, theme) != only:
+                            continue
                         shoot(
                             browser,
                             base,
