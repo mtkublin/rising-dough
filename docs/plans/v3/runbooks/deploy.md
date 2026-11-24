@@ -45,7 +45,7 @@ gh workflow run drill.yml --ref <branch> -f mode=gate
 
 **How to read a failure.** The `drill-gate` description names the first failing phase: `ci/build`, `baseline`, `seed`, `upgrade` or `rollback`. A `baseline` failure is not the PR's fault (the prod version itself no longer deploys cleanly) but it still blocks the gate. Teardown runs in every case; a failed teardown fails the run, not the status.
 
-**First measured run:** 22 min 24 s (run 45247014045, 2026-11-23, in-place path).
+**First measured run:** 22 min 24 s (run 45247014045, 2026-11-23, in-place path). Measured on PR #52: 17 min 54 s (final gate, run 45281705301) to 25 min 00 s (VM replacement, run 45257355759); expect 18 to 25 min per PR.
 
 ## Procedure
 

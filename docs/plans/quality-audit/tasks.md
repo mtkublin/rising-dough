@@ -1830,11 +1830,12 @@ Use `orchestrator-mode` (ADR-0066): one worktree and branch per task, merge the 
 ### QA follow-ups trunk: open follow-ups (2026-11-23)
 - ✅ (a) Operator: apply the T-Q239 ruleset JSON (integration_id 15368), then refresh `repro/H1/gh_api/ruleset_protect_main.json`. Done 2026-11-24: `integration_id` 15368 on all 7 required contexts; evidence file refreshed (OPS-1).
 - ✅ (b) Operator: OQ-32, check the `tag:ci` Tailscale ACL. Done 2026-11-24: live ACL matched the repo file; `tag:prod:22` removed from the `tag:ci` rule, `tag:drill:22/443` kept (ADR-0132 amendment).
-- (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement.
-- (d) Promote firefox and webkit e2e to required after 3 green PRs.
-- (e) T-Q319 to T-Q322 deferred to the UI redesign.
+- (c) OQ-24: second reviewer or bot, to unlock code-owner enforcement. Still open (operator decision). Answered 2026-11-24: a Claude subscription cannot be the approving reviewer. `claude-code-action` with a Pro/Max OAuth token (`claude setup-token`, `CLAUDE_CODE_OAUTH_TOKEN`) posts review comments only; Anthropic's approving features (Code Review, Claude Approvals) need a Team or Enterprise plan; CODEOWNERS owners are users, teams or emails, not apps. Workable path: a second GitHub account (human or machine user) with write access as code owner. Recorded in the OQ-24 row of `findings.md`.
+- (d) Promote firefox and webkit e2e to required after 3 green PRs. Moved to the redesign plan as T-UR40 (`docs/plans/ui-redesign/tasks.md`, "After the migration"), 2026-11-24.
+- (e) T-Q319 to T-Q322 deferred to the UI redesign. Owned by the redesign (already in its "Accessibility and performance gate" section), 2026-11-24.
 - (f) a11y-perf: Lighthouse measured 11 of 13 routes, cause unknown.
-- (g) drill.yml actionlint SC2034 warning in the writer-started step, and the known actionlint false positive on `drill_allow_empty_db: "true"`.
-- (h) The T-Q316/T-Q317 frontend audit ran on the pre-merge tree (before v3.2.0); the post-merge e2e is green, but no audit re-run.
-- (i) Local Claude hook `block-no-verify` false positive on a plain `git commit` (harness, not repo).
-- (j) Gate run time is now 20 to 25 min per PR (was 11 to 18 min), so PRs queue longer on the drill lock.
+- ✅ (g) drill.yml actionlint SC2034 warning in the writer-started step, and the known actionlint false positive on `drill_allow_empty_db: "true"`. Done 2026-11-24 (OPS-3): SC2034 fixed (`for _ in`). The `drill_allow_empty_db: "true"` report is an actionlint 1.7.12 false positive (callee `terraform.yml` declares `type: string`, the caller passes the quoted string; a boolean would break `inputs.drill_allow_empty_db || 'true'` and the pinned tests), left without a suppression (ADR-0130). New findings are item (k).
+- (h) The T-Q316/T-Q317 frontend audit ran on the pre-merge tree (before v3.2.0); the post-merge e2e is green, but no audit re-run. Deferred by the operator (2026-11-24) until after the redesign migration, which replaces the audited templates; moved to the redesign plan as T-UR41.
+- ✅ (i) Local Claude hook `block-no-verify` false positive on a plain `git commit` (harness, not repo). Resolved 2026-11-24 outside the repo. Cause: `block-no-verify@1.1.2` (an ECC-installed Claude Code PreToolUse hook) tests the whole Bash command, so any command with `git commit` plus ` -n` anywhere (for example `&& git log -n 1`, `sed -n`) was blocked. The operator removed ECC and its hooks from the user config. No repo change.
+- ✅ (j) Gate run time is now 18 to 25 min per PR (was 11 to 18 min), so PRs queue longer on the drill lock. Corrected 2026-11-24 from measured PR #52 runs: 17 min 54 s (final gate, run 45281705301) to 25 min 00 s (replacement, run 45257355759); in place 22 min 24 s, network case about 19 min 47 s.
+- (k) actionlint SC2095 (ssh may swallow stdin) at `drill.yml:745` and `drill.yml:873`. Open, added 2026-11-24 (OPS-3).
