@@ -260,6 +260,7 @@ def build_jinja_env(settings: Settings) -> Environment:
     env.filters["category_color"] = category_colors.category_color
     env.filters["bar_spans"] = view_models.bar_spans
     env.filters["bar_aria_label"] = view_models.bar_aria_label
+    env.filters["direction_label"] = view_models.direction_label
     env.filters["year_cell_state"] = view_models.year_cell_state
     env.filters["aria_current_date"] = _aria_current_date_filter
     env.filters["money_major"] = _money_major_filter

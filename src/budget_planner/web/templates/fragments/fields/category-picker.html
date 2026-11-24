@@ -54,7 +54,7 @@
             id="{{ field_id }}-o{{ loop.index0 }}"
             aria-selected="{{ 'true' if (loop.first and not no_match|default(none)) else 'false' }}"
             data-value="{{ c.id }}"><span class="rd-chip"
-      {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span><span class="rd-catpick__dir">{{ c.direction.value }}</span></li>
+      {% if (c.color|category_color).name %} data-color="{{ (c.color|category_color).name }}"{% endif %}>{{ c.name }}</span><span class="rd-catpick__dir">{{ c.direction | direction_label }}</span></li>
       {% endfor %}
     </ul>
     <div class="rd-catpick__empty"

@@ -414,6 +414,21 @@ def _empty_recurring(d: SeedData) -> SeedData:
     return replace(d, rules=(), overrides=())
 
 
+_TODAY_ONLY_RULES: Final = frozenset(
+    {
+        ("Fixed costs", 52_218),  # Today upcoming "Fixed Costs -522.18", 07 NOV
+        ("Fixed costs", 229_687),  # Today upcoming "Fixed Costs -2,296.87", 07 NOV
+        ("Bank Fees #18", 1_556),  # Today upcoming "Bank Fees #18 -15.56", 07 NOV
+    }
+)
+
+
+def _recurring_board(d: SeedData) -> SeedData:
+    """Ledger recurring board: only the 12 rules it lists (Today's three 07 NOV rules dropped)."""
+    keep = tuple(r for r in d.rules if (r.category, r.amount_minor) not in _TODAY_ONLY_RULES)
+    return replace(d, rules=keep)
+
+
 def _empty_accounts(d: SeedData) -> SeedData:
     return replace(_empty_ledger(_empty_recurring(d)), planned=(), accounts=())
 
@@ -451,6 +466,11 @@ _MODIFIERS: Final = (
     ("empty-ledger", _empty_ledger, "Ledger actual --empty: no transactions"),
     ("empty-planned", _empty_planned, "Ledger planned --empty: no live planned items"),
     ("empty-recurring", _empty_recurring, "Ledger recurring --empty: no rules"),
+    (
+        "recurring-board",
+        _recurring_board,
+        "Ledger recurring: the board's 12 rules (the 3 Today-only rules dropped)",
+    ),
     ("long", _long, "Ledger actual --long: 1,234,567.89 amounts, long descriptions"),
     ("no-matches", _no_data_change, "query state: filters matching nothing, data unchanged"),
     (
@@ -637,6 +657,28 @@ def _fit_balances(conn: sqlite3.Connection, data: SeedData, acc: dict[str, int])
     conn.commit()
 
 
+PHONE_SESSION_IP: Final = "83.24.117.21"
+PHONE_SESSION_START: Final = dt.datetime(2026, 10, 26, 17, 40, tzinfo=dt.UTC)  # 18:40 CET
+PHONE_SESSION_LAST_SEEN: Final = dt.datetime(2026, 10, 30, 21, 3, tzinfo=dt.UTC)  # 22:03 CET
+
+
+def _write_phone_session(conn: sqlite3.Connection) -> None:
+    """The board's second owner session (Safari on iPhone, 83.24.117.21).
+
+    The board shows 02 NOV 18:40 / 11 NOV 22:03 / 02 DEC, all after the frozen day, so the
+    seed holds the same clock times on 26 and 30 Oct and the overlay rewrites the dates.
+    """
+    phone = sessions_repo.create_session(
+        conn,
+        OWNER_ID,
+        ip=PHONE_SESSION_IP,
+        user_agent=SAFARI_USER_AGENT,
+        lifetime_days=30,
+        now=PHONE_SESSION_START,
+    )
+    sessions_repo.touch_session(conn, phone.token, lifetime_days=30, now=PHONE_SESSION_LAST_SEEN)
+
+
 def _write_users(conn: sqlite3.Connection, data: SeedData) -> str | None:
     for u in data.users:
         user = users_repo.create_user(
@@ -713,6 +755,7 @@ def build_seed(db_path: Path, *, modifiers: Iterable[str] = ()) -> SeedResult:
             session = sessions_repo.create_session(
                 conn, OWNER_ID, ip="83.24.117.9", user_agent=OWNER_USER_AGENT, now=frozen_now
             )
+            _write_phone_session(conn)
     finally:
         conn.close()
     return SeedResult(db_path=db_path, session_token=session.token, invite_token=invite_token)

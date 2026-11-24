@@ -37,7 +37,7 @@ Different image sizes always fail (ratio 1.0). Values live in `handoff.SURFACE_T
 
 ## Handoff seed (`handoff_seed.py`, T-UR00b, ADR-0147 §3)
 
-One base seed holds the handoff's entities at the frozen date 2026-10-31: 10 accounts (balances fitted to the handoff's figures; credit card with its 14,977.37 limit), 22 live categories plus 2 system ones (3 soft-deleted), 26 ledger rows (the 11 listed on the Ledger page plus per-category lump entries that give the budget page's spent figures), 3 live planned items (+1 deleted), 15 recurring rules (4 with the 19 % formula, 7 overrides), 13 budget defaults, income anchor Salary, users Ola and Ewa, a pending invite for accountant@example.test and the owner's Firefox session. Nothing is typed as a total: net worth, left per day and so on come from the app's services (`test_handoff_seed.py` pins them).
+One base seed holds the handoff's entities at the frozen date 2026-10-31: 10 accounts (balances fitted to the handoff's figures; credit card with its 14,977.37 limit), 22 live categories plus 2 system ones (3 soft-deleted), 26 ledger rows (the 11 listed on the Ledger page plus per-category lump entries that give the budget page's spent figures), 3 live planned items (+1 deleted), 15 recurring rules (4 with the 19 % formula, 7 overrides), 13 budget defaults, income anchor Salary, users Ola and Ewa, a pending invite for accountant@example.test and the owner's two sessions (this Firefox one and a Safari one on iPhone, 83.24.117.21). Nothing is typed as a total: net worth, left per day and so on come from the app's services (`test_handoff_seed.py` pins them).
 
 `build_seed(db_path, *, modifiers=())` migrates a fresh DB (it refuses an existing file), writes through the repositories and services with the clock frozen, and returns the dev session token. The `scratch_db` / `live_server` fixtures use it for `test_reference.py`; the `handoff_server(modifiers)` factory serves a modified seed for one state.
 
@@ -50,6 +50,7 @@ Modifiers (pure `SeedData -> SeedData` functions, `MODIFIER_NAMES`):
 | `empty-ledger` | no transactions |
 | `empty-planned` | no live planned items |
 | `empty-recurring` | no rules or overrides |
+| `recurring-board` | the 12 rules `ledger/recurring.html` lists (drops Today's three 07 NOV rules; the base keeps 15 because the Today boards show them as upcoming) |
 | `long` | two 1,234,567.89 rows with a long description |
 | `invite-expired` | the invite is 8 days old (link state expired) |
 | `invite-used` | the invite was accepted (link state used) |
@@ -57,4 +58,4 @@ Modifiers (pure `SeedData -> SeedData` functions, `MODIFIER_NAMES`):
 | `over-limit` | no data change: a 13,000.00 entry exceeds the card's 12,521.63 left |
 | `form-error` | no data change: 422, wrong password and similar request states |
 
-Values the seed cannot produce are not faked here; they are rows in `handoff_overlay.toml` (UR00bB, value-inventory section 5). Known today: tab counts 616 / 27 rules and per-account TXNS counts (the seed holds only the listed entries), committed 34.60 / left 1,399.93 / 199.99 per day / afford figures (the app also commits the overdue planned Annual insurance: 446.60 / 987.93 / 141.13), "checked 01 JUL" and "01 APR" for accounts with a reconciliation row, future-dated session and user times, the 21-category picker count, and the shared formula result 1,836.93.
+Values the seed cannot produce are not faked here; they are rows in `handoff_overlay.toml` (UR00bB, value-inventory section 5). Known today: tab counts 616 / 27 rules and per-account TXNS counts (the seed holds only the listed entries), committed 34.60 / left 1,399.93 / 199.99 per day / afford figures (the app also commits the overdue planned Annual insurance: 446.60 / 987.93 / 141.13), "checked 01 JUL" and "01 APR" for accounts with a reconciliation row, future-dated session and user times, the 21-category picker count, and the shared formula result 1,836.93. Also overlaid: the Safari session's start / last seen / expiry (the board's dates fall after the frozen day; the seed keeps the clock times 18:40 and 22:03 on 26 and 30 Oct) and the forecast table's per-month cells (57 of 60, generated from `forecast.monthly_projection`; only Oct 2026 income, net and end balance already match). The forecast net cell keeps the board's negative class and arrow, so a month the app projects positive where the board shows a loss (Dec 2026, Sep 2027) carries the board's styling.

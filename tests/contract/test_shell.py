@@ -261,6 +261,60 @@ def test_dev_shell_requires_a_session(anon_client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# GET / POST /dev/shell/dialog (T-UR25: dev dialog for the offline state)
+# ---------------------------------------------------------------------------
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_opens_into_the_modal_root(client: TestClient) -> None:
+    r = client.get("/dev/shell/dialog", headers=HX)
+    assert r.status_code == 200
+    assert r.headers["hx-retarget"] == "#modal-root"
+    assert _html.exists(r.text, rd_shell.dev_dialog_note)
+    assert _html.exists(r.text, rd_shell.dev_dialog_save)
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.get("/dev/shell/dialog", headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@covers("GET /dev/shell/dialog")
+def test_dev_dialog_requires_a_session(anon_client: TestClient) -> None:
+    r = anon_client.get("/dev/shell/dialog", follow_redirects=False)
+    assert (r.status_code, _location(r)) == (302, "/auth/login?next=%2Fdev%2Fshell%2Fdialog")
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_closes_the_dialog_and_flashes_the_note(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog", data={"note": "rent split"}, headers=HX)
+    assert r.status_code == 200
+    assert "Saved note: rent split" in r.text
+    assert 'id="modal-root" hx-swap-oob="innerHTML"></div>' in r.text
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_without_note_is_422(client: TestClient) -> None:
+    r = client.post("/dev/shell/dialog", data={}, headers=HX)
+    assert r.status_code == 422
+
+
+@covers("POST /dev/shell/dialog")
+def test_dev_dialog_save_is_404_in_production(client: TestClient, settings: Settings) -> None:
+    prod = settings.model_copy(update={"env": "production"})
+    client.app.dependency_overrides[get_settings_dep] = lambda: prod  # type: ignore[attr-defined]
+    try:
+        assert client.post("/dev/shell/dialog", data={"note": "x"}, headers=HX).status_code == 404
+    finally:
+        client.app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
 # GET /debug/audit-tail
 # ---------------------------------------------------------------------------
 

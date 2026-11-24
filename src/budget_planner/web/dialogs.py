@@ -49,8 +49,16 @@ def dialog_response(
     *,
     status_code: int = 200,
 ) -> HTMLResponse:
-    """Open a dialog: the template lands in ``#modal-root`` whatever the trigger targeted."""
-    response = HTMLResponse(_html(request, template, context), status_code=status_code)
+    """Open a dialog: the template lands in ``#modal-root`` whatever the trigger targeted.
+
+    The dialog is wrapped in one bare ``<div>``: the vendored ``dialog.js`` runs
+    ``querySelectorAll`` on the swapped root, which never matches the root
+    itself, so a root ``<dialog>`` would never open (ADR-0107 section 2: the
+    handoff static stays byte-identical). A template that already wraps its
+    dialog in a div just gets one harmless extra level.
+    """
+    body = f"<div>{_html(request, template, context)}</div>"
+    response = HTMLResponse(body, status_code=status_code)
     response.headers[HX_RETARGET] = MODAL_ROOT
     response.headers[HX_RESWAP] = "innerHTML"
     return response

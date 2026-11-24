@@ -103,6 +103,9 @@
     <div id="modal-root"></div>
     <div id="drawer-root"></div>
     <div id="toast-root" class="rd-toast-root" aria-live="polite"></div>
+    <template id="rd-offline-template">
+      {% include "fragments/states/offline.html" %}
+    </template>
     {% include "layouts/_palette.html" %}
     {% include "layouts/_shortcuts.html" %}
     <script type="module" src="{{ url_for('static', path='rd/js/reveal.js') }}"></script>
@@ -124,6 +127,7 @@
     <script type="module" src="{{ url_for('static', path='rd/js/toast.js') }}"></script>
     <script type="module"
             src="{{ url_for('static', path='rd/js/theme-switch.js') }}"></script>
+    <script type="module" src="{{ url_for('static', path='rd/js/offline.js') }}"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.enums import Direction
@@ -35,6 +36,7 @@ from budget_planner.services import (
     fortune as fortune_service,
     fx as fx_service,
     invites as invites_service,
+    security_settings,
     today as today_service,
 )
 from tests.visual import handoff_seed as seed
@@ -298,3 +300,44 @@ def test_invite_used(tmp_path: Path) -> None:
     conn.close()
     assert state == "used"
     assert "accountant@example.test" in emails
+
+
+def test_recurring_board_keeps_the_twelve_listed_rules(tmp_path: Path) -> None:
+    """ledger/recurring.html lists 12 rules; the base also holds Today's 3 (15)."""
+    conn = _built(tmp_path, "recurring-board")
+    rules = recurring_repo.list_rules(conn, USER, active_only=True)
+    conn.close()
+    assert len(rules) == 12
+    assert sorted(
+        (r.default_description, r.next_due.isoformat(), r.default_amount) for r in rules
+    ) == [
+        ("Car", "2027-03-10", 405_682),
+        ("Car insurance", "2027-01-15", 41_200),
+        ("Fixed Costs", "2026-11-01", 27_794),
+        ("Fixed Costs", "2026-11-15", 212_639),
+        ("Rent", "2026-11-18", 190_000),
+        ("Salary", "2026-11-07", 1_621_397),
+        ("Salary", "2027-03-07", 3_053_619),
+        ("Subscriptions", "2026-11-01", 1_131),
+        ("Subscriptions", "2026-11-05", 2_329),
+        ("Taxes", "2026-11-12", 183_693),
+        ("Transit", "2026-11-12", 1_241_580),
+        ("VAT Refund", "2026-11-07", 372_921),
+    ]
+
+
+def test_owner_has_the_firefox_and_the_safari_session(base: Built) -> None:
+    """settings/security.html lists two owner sessions: this device and Safari on iPhone."""
+    conn, result = base
+    with clock.frozen(NOW):
+        view = security_settings.security_view(
+            conn, USER, session_token=result.session_token, absolute_lifetime_days=30
+        )
+    assert [(r.device_label, r.is_current, r.session.ip) for r in view.session_rows] == [
+        ("Firefox \u00b7 macOS", True, "83.24.117.9"),
+        ("Safari \u00b7 iPhone", False, "83.24.117.21"),
+    ]
+    phone = view.session_rows[1]
+    assert phone.session.created_at == dt.datetime(2026, 10, 26, 17, 40, tzinfo=dt.UTC)
+    assert phone.session.last_seen_at == dt.datetime(2026, 10, 30, 21, 3, tzinfo=dt.UTC)
+    assert phone.absolute_expires_at == dt.datetime(2026, 11, 25, 17, 40, tzinfo=dt.UTC)

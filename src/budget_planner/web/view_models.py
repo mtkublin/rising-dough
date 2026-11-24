@@ -124,6 +124,21 @@ _BAR_LEFT: Final = "\u2591"
 _BAR_REST: Final = "\u2592"
 
 
+_DIRECTION_LABELS: Final[Mapping[Direction, str]] = MappingProxyType(
+    {
+        Direction.EXPENSE: "\u2193 expense",
+        Direction.INCOME: "\u2191 income",
+        Direction.TRANSIT: "\u21c4 transit",
+        Direction.ADJUSTMENT: "\u00b1 adjustment",
+    }
+)
+
+
+def direction_label(direction: Direction | str) -> str:
+    """Handoff wording for a category direction, arrow included: ``↓ expense``."""
+    return _DIRECTION_LABELS[Direction(direction)]
+
+
 def bar_aria_label(used_pct: int, left_pct: int) -> str:
     """Handoff wording for a ``role="img"`` bar: ``78 percent spent, 15 percent left``."""
     return f"{used_pct} percent spent, {left_pct} percent left"
