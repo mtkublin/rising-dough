@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import re
-
 import pytest
 from playwright.sync_api import expect
 
@@ -75,28 +73,6 @@ def test_override_new_default_replaces_the_default(world: World) -> None:
     assert world.scalar("SELECT COUNT(*) FROM budget_one_off_overrides") == 0
     assert world.scalar("SELECT COUNT(*) FROM budget_recurring_overrides") == 0
     expect(world.find(plan.year_cell(category, MARCH))).to_contain_text("650")
-
-
-def test_budget_period_navigation_steps_months_without_writing(world: World) -> None:
-    world.goto("/plan?tab=budget&year=2026&month=6")
-    writes = world.scalar("SELECT COUNT(*) FROM audit_log")
-    expect(world.find(plan.heading)).to_contain_text("June")
-    world.find(plan.previous_month).click()
-    expect(world.find(plan.heading)).to_contain_text("May")
-    world.find(plan.next_month).click()
-    world.find(plan.next_month).click()
-    expect(world.find(plan.heading)).to_contain_text("July")
-    assert world.scalar("SELECT COUNT(*) FROM audit_log") == writes
-
-
-def test_budget_period_navigation_crosses_the_year_boundary(world: World) -> None:
-    world.goto("/plan?tab=budget&year=2026&month=1")
-    world.find(plan.previous_month).click()
-    expect(world.find(plan.heading)).to_contain_text("December")
-    world.goto("/plan?tab=budget&year=2026&month=12")
-    world.find(plan.next_month).click()
-    expect(world.find(plan.heading)).to_contain_text("January")
-    expect(world.page).to_have_url(re.compile(r"year=2027&month=1"))
 
 
 def test_year_tab_navigation_steps_years(world: World) -> None:

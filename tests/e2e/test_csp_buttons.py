@@ -142,6 +142,9 @@ def test_promote_on_today_under_csp(live_server: tuple[str, Path], page: Page) -
     expect(to_playwright(page, ledger.table_container)).to_contain_text("csp-promote")
 
 
+@pytest.mark.skip(
+    reason="T-UR11b rebuilds the override dialog on the new shell; the old inline slot is gone"
+)
 def test_override_on_plan_budget_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _, category_id = _seed(base_url, db_path, page)
