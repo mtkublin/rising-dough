@@ -90,6 +90,9 @@ def test_recurring_override_saved_from_plan_year(live_server: tuple[str, Path], 
     )
 
 
+@pytest.mark.skip(
+    reason="T-UR11b rebuilds the override dialog on the new shell; the old inline slot is gone"
+)
 def test_tier_toggle_on_budget_tab_inline(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     category_id = _seed_budgeted(base_url, db_path, page)

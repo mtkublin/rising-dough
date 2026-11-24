@@ -560,53 +560,18 @@
   ],
   "/plan": [
     {
-      "kind": "disclosure",
-      "name": "{month}",
+      "kind": "button",
+      "name": "Keyboard shortcuts",
       "target": ""
     },
     {
-      "kind": "hx-get",
-      "name": "Override Groceries",
-      "target": "/budget/rules/{id}/overrides/new?inline={n}"
-    },
-    {
       "kind": "link",
-      "name": "Accounts g a",
-      "target": "/accounts"
-    },
-    {
-      "kind": "link",
-      "name": "Analytics",
-      "target": "/plan?tab=analytics"
-    },
-    {
-      "kind": "link",
-      "name": "Budget",
-      "target": "/plan?tab=budget"
-    },
-    {
-      "kind": "link",
-      "name": "Forecast",
-      "target": "/plan?tab=forecast"
-    },
-    {
-      "kind": "link",
-      "name": "Ledger g l",
-      "target": "/ledger"
-    },
-    {
-      "kind": "link",
-      "name": "Next month",
+      "name": "Next period",
       "target": "/plan?tab=budget&year={n}&month={n}"
     },
     {
       "kind": "link",
-      "name": "Plan g p",
-      "target": "/plan"
-    },
-    {
-      "kind": "link",
-      "name": "Previous month",
+      "name": "Previous period",
       "target": "/plan?tab=budget&year={n}&month={n}"
     },
     {
@@ -616,57 +581,166 @@
     },
     {
       "kind": "link",
-      "name": "Settings g s",
+      "name": "[ new entry ]",
+      "target": "/transactions/new"
+    },
+    {
+      "kind": "link",
+      "name": "accounts",
+      "target": "/accounts"
+    },
+    {
+      "kind": "link",
+      "name": "analytics",
+      "target": "/plan?tab=analytics"
+    },
+    {
+      "kind": "link",
+      "name": "budget",
+      "target": "/plan?tab=budget"
+    },
+    {
+      "kind": "link",
+      "name": "forecast",
+      "target": "/plan?tab=forecast"
+    },
+    {
+      "kind": "link",
+      "name": "ledger",
+      "target": "/ledger"
+    },
+    {
+      "kind": "link",
+      "name": "plan",
+      "target": "/plan"
+    },
+    {
+      "kind": "link",
+      "name": "settings",
       "target": "/settings"
     },
     {
       "kind": "link",
-      "name": "Skip to content",
+      "name": "skip to content",
       "skipped": "off-screen or visually hidden (skip link, sr-only)",
       "target": "#main"
     },
     {
       "kind": "link",
-      "name": "Today g o",
+      "name": "today",
       "target": "/today"
     },
     {
       "kind": "link",
-      "name": "Year",
+      "name": "year",
       "target": "/plan?tab=year"
     },
     {
-      "kind": "link",
-      "name": "change",
-      "target": "/settings?tab=prefs#income-anchor"
+      "kind": "popover",
+      "name": "Row menu",
+      "target": "#menu-budget-5"
+    },
+    {
+      "kind": "popover",
+      "name": "{month} \u25be",
+      "target": "#period-budget"
     },
     {
       "destructive": true,
       "kind": "submit",
-      "name": "Sign out",
+      "name": "sign out",
       "skipped": "ends the crawler's own session",
       "target": "/auth/logout"
     },
     {
-      "kind": "button",
-      "name": "Cancel",
-      "target": "",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Apr",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
     },
     {
-      "destructive": true,
-      "kind": "hx-post",
-      "name": "Groceries This month only Every Nov New default PLN Cancel S...",
-      "skipped": "triggered by input or form event, not a click",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Aug",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
     },
     {
-      "destructive": true,
-      "kind": "submit",
-      "name": "Save \u21b5",
-      "target": "/budget/rules/{id}/overrides",
-      "via": "Override Groceries"
+      "kind": "link",
+      "name": "Dec",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Feb",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jan",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jul",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Jun",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Mar",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "May",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Next year",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Nov",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Oct",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Previous year",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "link",
+      "name": "Sep",
+      "target": "/plan?tab=budget&year={n}&month={n}",
+      "via": "November 2026 \u25be"
+    },
+    {
+      "kind": "hx-get",
+      "name": "override",
+      "target": "/budget/rules/{id}/overrides/new?year={n}&month={n}",
+      "via": "Row menu"
     }
   ],
   "/plan?tab=year": [

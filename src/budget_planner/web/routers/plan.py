@@ -47,8 +47,11 @@ def plan(
     )
     ctx: dict[str, Any] = plan_data.base_context(tab_norm, today_d, settings.base_currency, picked)
     if tab_norm == "budget":
-        ctx["budget"] = plan_data.budget_view_for(conn, user_id, picked, today_d, settings)
-    elif tab_norm == "year":
+        budget = plan_data.budget_view_for(conn, user_id, picked, today_d, settings)
+        ctx["budget"] = budget
+        ctx["period"] = plan_data.budget_period_for(picked, budget)
+        return render(request, "pages/plan/budget.html", nav_current="plan", **ctx)
+    if tab_norm == "year":
         year_raw = request.query_params.get("year")
         ctx.update(plan_data.year_context(conn, user_id, today_d, year_raw, settings=settings))
     elif tab_norm == "forecast":
