@@ -22,11 +22,11 @@ from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
 from budget_planner.domain.limits import PAGE_SIZE_MAX
-from budget_planner.domain.periods import month_bounds
 from budget_planner.domain.planned import PlannedFilter, PlannedTransaction
 from budget_planner.domain.recurring import RecurringRule
 from budget_planner.domain.transactions import Transaction, TransactionFilter
 from budget_planner.services import (
+    account_planned as account_planned_service,
     accounts as accounts_service,
     categories as categories_service,
     fx as fx_service,
@@ -418,11 +418,14 @@ def filter_summary(
 def period_spent_minor(
     conn: sqlite3.Connection, user_id: int, settings: Settings, today: date
 ) -> int | None:
-    """Actual hero "spent this period": this month's expenses in the base currency.
+    """Actual hero "spent this period": expenses in the Budget/Today pay window, base currency.
+
+    The window is resolved as Budget and Today resolve it (``resolve_period_start`` +
+    ``fiscal_window``, ADR-0151 section 2), not the calendar month.
 
     ``None`` when a needed FX rate is not cached (the hero omits a wrong figure).
     """
-    start, end = month_bounds(today.year, today.month)
+    window = account_planned_service.resolve_window(conn, user_id, today)
     rows = hydrate_txn_rows(
         conn,
         user_id,
@@ -430,8 +433,8 @@ def period_spent_minor(
             conn,
             user_id,
             TransactionFilter(
-                date_from=start,
-                date_to=end,
+                date_from=window.start,
+                date_to=window.last_day,
                 directions=(Direction.EXPENSE,),
                 live_accounts_only=True,
             ),

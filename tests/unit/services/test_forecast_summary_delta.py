@@ -54,7 +54,7 @@ def _summary(
     conn: sqlite3.Connection, months: int, user_id: int = OWNER_ID
 ) -> fc.ProjectionSummary:
     projection = fc.monthly_projection(conn, user_id, Settings(_env_file=None), TODAY, months)
-    summary = fc.projection_summary(projection)
+    summary = fc.projection_summary(projection, now_value=OPENING)
     assert summary is not None
     return summary
 
@@ -97,6 +97,22 @@ def test_single_month_projection_is_flat_with_one_month() -> None:
     point = fc.MonthlyProjectionPoint(
         month=date(2026, 10, 1), label="Oct 2026", end_balance_minor=5
     )
-    s = fc.projection_summary((point,))
+    s = fc.projection_summary((point,), now_value=5)
     assert s is not None
     assert (s.delta_minor, s.delta_direction, s.months) == (0, fc.TrendDirection.FLAT, 1)
+
+
+def test_delta_runs_from_todays_net_worth_not_first_month_end() -> None:
+    pts = tuple(
+        fc.MonthlyProjectionPoint(month=date(2026, m, 1), label=str(m), end_balance_minor=v)
+        for m, v in ((11, 900), (12, 1_200))
+    )
+    up = fc.projection_summary(pts, now_value=1_000)
+    assert up is not None
+    assert (up.now_value, up.delta_minor, up.delta_direction) == (1_000, 200, fc.TrendDirection.UP)
+    down = fc.projection_summary(pts, now_value=1_500)
+    assert down is not None
+    assert (down.delta_minor, down.delta_direction) == (300, fc.TrendDirection.DOWN)
+    flat = fc.projection_summary(pts, now_value=1_200)
+    assert flat is not None
+    assert (flat.delta_minor, flat.delta_direction) == (0, fc.TrendDirection.FLAT)

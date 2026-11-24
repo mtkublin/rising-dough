@@ -58,19 +58,8 @@ def plan(
         horizon = forecast_service.normalize_horizon(
             None if requested is None else str(requested), _FORECAST_HORIZON_CHOICES
         )
-        projection = forecast_service.monthly_projection(
-            conn, user_id, settings, today_d, horizon=horizon
-        )
-        ctx.update(
-            forecast_points=projection,
-            forecast_horizon=horizon,
-            forecast_horizon_choices=_FORECAST_HORIZON_CHOICES,
-            forecast_chart=charts.line_area(
-                plan_data.forecast_chart_points(projection, settings.base_currency),
-                x_labels=tuple(p.label for p in projection),
-            ),
-            forecast_summary=forecast_service.projection_summary(projection),
-        )
+        ctx.update(plan_data.forecast_context(conn, user_id, settings, today_d, horizon))
+        ctx["forecast_horizon_choices"] = _FORECAST_HORIZON_CHOICES
     else:
         bundle, derived = plan_data.analytics_bundle(
             conn, user_id, picked, request.query_params.get("period"), settings=settings
