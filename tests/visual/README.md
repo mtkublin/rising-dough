@@ -40,7 +40,7 @@ Different image sizes always fail (ratio 1.0). The cluster cap catches a small b
 | 1024:dark | 14 px | 45496302019, 45496318944, 45498452834 |
 | 1440:dark | 14 px | 45496302019, 45496318944, 45498452834 |
 
-Runs 45496302019 and 45496318944 ran on branch `wi/ui/sourdough/UR00bD` at `afbd61f1`; run 45498452834 ran on `ui/sourdough` with the final UR00bD code. Shard wall times were 335-768 s (timeout 45 min). The red run 45493474608 failed every shard on the old app (106 failed / 106 passed); at 45498452834 105 of 107 matched.
+Runs 45496302019 and 45496318944 ran on branch `wi/ui/sourdough/UR00bD` at `afbd61f1`; run 45498452834 ran on `ui/sourdough` with the final UR00bD code. Shard wall times were 335-768 s (timeout 45 min). The red run 45493474608 failed every shard on the old app (106 failed / 106 passed); run 45498452834: 105 failed, 107 passed per shard.
 
 Recalibration rule: rerun the calibration (`visual-actual/self-clusters.txt` from the reference job, twice the largest value over at least two CI runs under load, ADR-0147 section 2) whenever the pinned Playwright container or the fonts change. Changing the cap needs an amendment to ADR-0147.
 
