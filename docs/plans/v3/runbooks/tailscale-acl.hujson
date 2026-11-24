@@ -25,11 +25,11 @@
 			"src":    ["you@example.com"],
 			"dst":    ["tag:prod:22", "tag:drill:22"],
 		},
-		// GitHub Actions runners -> SSH on prod and drill.
+		// GitHub Actions runners -> SSH on drill only (OQ-32: no CI path to prod, ADR-0111).
 		{
 			"action": "accept",
 			"src":    ["tag:ci"],
-			"dst":    ["tag:prod:22", "tag:drill:22"],
+			"dst":    ["tag:drill:22"],
 		},
 		// ADR-0101: the drill web UI is tailnet-only. CI probes /ready (smoke,
 		// restore-drill.yml); the operator browses the drill UI.

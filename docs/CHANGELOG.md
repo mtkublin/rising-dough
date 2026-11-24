@@ -1,6 +1,18 @@
 # Changelog
 
+2026-11-24 OPS-8: operator answers to the open quality-audit questions recorded in `findings.md` (OQ table; the open-question list is now "None open", OQ-33 deferred to new T-Q323); OQ-5 closed with the read-only demo evidence, no data fix; OQ-24 second-reviewer part closed as accepted risk (follow-up (c) closed); ADR-0107 OQ-23 confirmed, ADR-0140 and ADR-0099 notes updated; docs only.
+
+2026-11-24 OPS-7: the Lighthouse perf job measures through Caddy with the prod `encode zstd gzip` (binary from prod's digest-pinned image, `tests/perf/Caddyfile`, `fetch_caddy.sh`; ADR-0027 amendment); stylesheet budget now passes on all 11 routes (about 32 kB gzipped), T-Q322 measurement half done, LCP now about 2.7 to 2.9 s (T-Q321 open); the axe sweep names redirect-only routes it skips via the shared `tests/e2e/redirect_routes.py`; follow-up (f) closed.
+
+2026-11-24 OPS-5: quality-audit follow-ups (c), (d), (e), (g), (h), (i), (j) updated and (k) added; gate run time corrected to 18 to 25 min (ADR-0149, deploy runbook); T-UR40 (promote Firefox and WebKit e2e) and T-UR41 (re-run the T-Q316/T-Q317 audit) added to the redesign plan; OQ table reconciled with recorded answers plus an open-questions list in `findings.md`; OQ-24 second-reviewer answer recorded (still open).
+2026-11-24 OPS-6: `drill.yml` `verify` and `verify-rollback` network checks use `ssh -n` inside the `while read` loop (SC2095); previously ssh swallowed the loop input, so only the first compose network was compared (ADR-0149).
+
+2026-11-24 OPS-1: T-Q239 ruleset pin applied (`integration_id` 15368 on 7 required checks, evidence refreshed); OQ-32 answered, `tag:ci -> tag:prod:22` removed from the live ACL and `tailscale-acl.hujson` (ADR-0099, ADR-0132).
+
 2026-11-23 T-Q306 done (upgrade drill gate, 4 acceptance drills); T-Q302, T-Q299 done; follow-ups listed in quality-audit tasks.
+
+## 2026-11-24 (OPS-2: Lighthouse measured 11 of 13 routes)
+- **Fix(OPS-2): `/auth/sessions` and `/settings/password` 3xx-redirect to `/settings/security`, so Lighthouse (grouping by final URL) never measured them as themselves ("11 URL(s), 39 runs"). `test_lighthouse_budgets.py` now probes each route un-followed, excludes redirect-only routes by name and prints "measures N of 13 routes; redirect-only, excluded by name: [...]".** ADR-0027. Advisory job, budgets untouched; no allowlist change.
 
 ## 2026-11-23 (T-Q306g: gate asserts host compose networks)
 - **Ci(T-Q306g): `drill.yml` `verify` and `verify-rollback` compare `docker network inspect` subnet and gateway on the drill host with the PR template's ipam networks (`scripts/ci/compose_networks.py`); a mismatch fails the `upgrade` / `rollback` phase.** ADR-0149 implementation note. No allowlist change.
@@ -1461,3 +1473,4 @@
 - 2026-11-23 T-UR35d: T-UR35 marked done; v3.2.0 live, prod smoke passed (ADR-0148).
 - 2026-11-23 T-Q318: WebKit change-secret journey fixed in the e2e harness: the page fixture's blanket X-CSRF-Token header now follows session rotation from the cookie jar (WebKit hides redirect-response headers). App and prod unchanged (ADR-0065).
 - 2026-11-23 T-Q306(f): docs only: `drill.yml` header rewritten for the upgrade drill (phases, TTL, environments without reviewers, explicit `detect` secrets), deploy runbook section "What the drill gate proves", ADR-0149 amendment (ADR-0149).
+- 2026-11-24 OPS-3: `drill.yml` writer-started loop uses `for _ in` (clears actionlint SC2034); the `drill_allow_empty_db: "true"` actionlint report is an actionlint false positive on a quoted string literal and is left as is (ADR-0149).
