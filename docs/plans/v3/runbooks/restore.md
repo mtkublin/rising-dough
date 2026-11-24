@@ -124,7 +124,7 @@ ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"imp
 ssh operator@budget-planner-prod "docker exec budget-planner-app python -c \"import sqlite3; c=sqlite3.connect('file:/data/budget.db?mode=ro', uri=True); print(c.execute('SELECT count(*), max(id), max(changed_at) FROM audit_log').fetchone())\""
 
 # Readiness probe hits DB.
-curl -fsS "https://budget-planner-prod/ready" | jq .
+curl -fsS "https://budget.rising-dough.eu/ready" | jq .
 # Expect: {"status":"ok","db":"ok", ...}
 
 # Litestream is replicating again, not just reading.
