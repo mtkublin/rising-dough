@@ -90,11 +90,11 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/templates/budget/manage.html` | T-UR11 | deleted | UR11a: no route or template used it |
 | `src/budget_planner/web/templates/categories/index.html` | T-UR13 | delete |  |
 | `src/budget_planner/web/templates/dev/components.html` | T-UR15 | delete |  |
-| `src/budget_planner/web/templates/errors/404.html` | T-UR06 | delete |  |
-| `src/budget_planner/web/templates/errors/409.html` | T-UR06 | delete |  |
-| `src/budget_planner/web/templates/errors/422.html` | T-UR06 | delete |  |
-| `src/budget_planner/web/templates/errors/500.html` | T-UR06 | delete |  |
-| `src/budget_planner/web/templates/errors/_shell.html` | T-UR06 | delete |  |
+| `src/budget_planner/web/templates/errors/404.html` | T-UR06 | deleted |  |
+| `src/budget_planner/web/templates/errors/409.html` | T-UR06 | deleted |  |
+| `src/budget_planner/web/templates/errors/422.html` | T-UR06 | deleted |  |
+| `src/budget_planner/web/templates/errors/500.html` | T-UR06 | deleted |  |
+| `src/budget_planner/web/templates/errors/_shell.html` | T-UR06 | deleted |  |
 | `src/budget_planner/web/templates/forecast/index.html` | T-UR12 | delete |  |
 | `src/budget_planner/web/templates/ledger/_recently_deleted.html` | T-UR10 | delete |  |
 | `src/budget_planner/web/templates/ledger/_table.html` | T-UR09 | delete |  |

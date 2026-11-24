@@ -29,7 +29,7 @@ FETCH_NO_CSRF = """async () => {
 def test_admin_only_page_is_a_404_page_for_a_regular_user(world: World) -> None:
     world.goto("/settings/users")
     expect(world.find(errors.heading)).to_have_text("Not found")
-    expect(world.find(errors.main)).to_contain_text("doesn't exist")
+    expect(world.find(errors.main)).to_contain_text("exist or was removed")
     assert world.scalar("SELECT is_admin FROM users WHERE id = 1") == 0
 
     world.find(errors.back_link).click()
