@@ -6,6 +6,7 @@ import pytest
 
 from budget_planner.domain.money import (
     currency_decimals,
+    format_figure,
     format_money,
     format_whole,
     minor_to_major,
@@ -43,6 +44,25 @@ def test_minor_to_major_round_trip() -> None:
             back = minor_to_major(amount, ccy)
             fwd = to_minor_units(back, ccy)
             assert fwd == amount, f"{ccy}:{amount} -> {back} -> {fwd}"
+
+
+_M = chr(0x2212)
+
+
+@pytest.mark.parametrize(
+    ("minor", "currency", "kwargs", "expected"),
+    [
+        (-123456, "PLN", {}, _M + "1,234.56"),
+        (1200, "PLN", {"plus": True}, "+12.00"),
+        (1200, "PLN", {}, "12.00"),
+        (0, "PLN", {"plus": True}, "0.00"),
+        (-70000, "JPY", {}, _M + "70,000"),
+        (-123456, "PLN", {"with_currency": True}, _M + "1,234.56 PLN"),
+        (1200, "PLN", {"plus": True, "with_currency": True}, "+12.00 PLN"),
+    ],
+)
+def test_format_figure(minor: int, currency: str, kwargs: dict[str, bool], expected: str) -> None:
+    assert format_figure(minor, currency, **kwargs) == expected
 
 
 def test_format_money_positive_pln() -> None:
