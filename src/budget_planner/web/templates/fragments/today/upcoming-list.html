@@ -1,10 +1,11 @@
 {# fragment: today/upcoming-list
    Inputs: upcoming (view_models.TodayUpcoming), window_label ("7" | "30" | "all").
-   Refetches itself on today-stale / ledger-stale (promote, skip, batch promote). #}
+   Refetches itself on today-stale (promote, batch promote). #}
 <div class="rd-upcoming__body"
      id="upcoming-list"
      hx-get="/today/upcoming?window={{ window_label }}"
-     hx-trigger="today-stale from:body, ledger-stale from:body"
+     hx-trigger="today-stale from:body"
+     hx-select="#upcoming-list"
      hx-swap="outerHTML">
   {% if upcoming.color_rules %}
     <style nonce="{{ csp_nonce }}">

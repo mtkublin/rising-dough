@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 # (page, region id, event it refetches on)
 _REGIONS = [
     ("/today", "today-hero", "today-stale"),
-    ("/today", "upcoming-root", "today-stale"),
+    ("/today", "upcoming-list", "today-stale"),
     ("/accounts", "accounts-hero", "balance-stale"),
     ("/budget", "left-daily-spend", "budget-stale"),
     ("/budget", "budget-summary", "budget-stale"),

@@ -105,6 +105,11 @@
       {% endif %}
     </div>
     {# upcoming-root: target of the inline promote fragments, which stay routed until T-UR24 #}
-    <div id="upcoming-root">{% include "fragments/today/upcoming-list.html" %}</div>
+    <div id="upcoming-root"
+         hx-get="/today/upcoming?window={{ window_label }}"
+         hx-trigger="ledger-stale from:body"
+         hx-target="#upcoming-list"
+         hx-select="#upcoming-list"
+         hx-swap="outerHTML">{% include "fragments/today/upcoming-list.html" %}</div>
   </section>
 {% endblock %}
