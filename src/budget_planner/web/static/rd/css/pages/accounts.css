@@ -1,0 +1,128 @@
+/* Accounts */
+.rd-accounts__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rd-table-scroll--tight {
+  margin-top: var(--space-4);
+}
+
+.rd-ledger--accounts {
+  --ledger-cols: minmax(var(--track-min-md), 2fr) var(--track-trend) var(--track-checked) var(--track-txns) minmax(var(--track-min-sm), 1.4fr) var(--track-reconcile) var(--track-icon);
+}
+
+.rd-row--account {
+  grid-template-columns: auto minmax(0, 1fr) auto var(--track-icon);
+  grid-template-areas:
+    "title title amount actions"
+    "sub checked checked actions"
+    "credit credit credit actions";
+  gap: var(--space-1) 0;
+  min-height: var(--size-row-xl);
+  padding: var(--space-2) 0;
+}
+
+.rd-row--account .rd-row__title {
+  padding-inline-end: var(--space-2);
+}
+
+.rd-account__checked {
+  grid-area: checked;
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+  white-space: pre;
+}
+
+.rd-account__trend,
+.rd-account__txns,
+.rd-account__reconcile {
+  display: none !important;
+}
+
+.rd-account__credit {
+  grid-area: credit;
+  display: block;
+  margin-top: var(--space-1-5);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-ink-muted);
+}
+
+.rd-spark {
+  width: var(--size-sparkline-w);
+  height: var(--size-sparkline-h);
+}
+
+.rd-spark__line {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rd-spark--negative .rd-spark__line {
+  stroke: var(--color-over);
+}
+
+/* The phone account row shows name, balance and meta only (Accounts · phone board) */
+.rd-ledger--accounts .rd-amount__note {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  .rd-ledger--accounts .rd-amount__note {
+    display: block;
+  }
+
+  .rd-accounts__head {
+    justify-content: flex-end;
+  }
+
+  .rd-table-scroll--tight {
+    margin-top: var(--space-3);
+  }
+
+  .rd-ledger--accounts {
+    min-width: var(--table-min-lg);
+  }
+
+  .rd-row--account {
+    grid-template-columns: var(--ledger-cols);
+    grid-template-areas: none;
+    gap: var(--space-4);
+  }
+
+  .rd-row--account .rd-row__title {
+    padding: 0;
+  }
+
+  .rd-account__trend,
+  .rd-account__txns,
+  .rd-account__reconcile {
+    display: block !important;
+  }
+
+  .rd-account__checked {
+    white-space: normal;
+    font-size: var(--font-size-data);
+    letter-spacing: var(--letter-spacing-caption);
+  }
+
+  .rd-account__txns {
+    text-align: end !important;
+    font-size: var(--font-size-body);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rd-account__reconcile {
+    justify-self: end;
+  }
+
+  .rd-row--head .rd-account__txns {
+    font-size: inherit;
+  }
+}

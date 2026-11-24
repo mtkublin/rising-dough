@@ -1,0 +1,155 @@
+/*
+ * Category colour presets. The server sets data-color="<name>" on a chip, chip option or swatch.
+ * --cat = the hue; --cat-edge = light-theme outline (hue darkened to hold 3:1 on --color-panel).
+ * grey is the neutral (Reconciliation, uncategorised): it follows --color-ink-muted, as in the mockups.
+ * For a hue outside this list, emit the same two properties from a nonce'd <style> rule (see README).
+ */
+[data-color="grey"] {
+  --cat: var(--color-ink-muted);
+  --cat-edge: var(--color-ink-muted);
+}
+
+[data-color="coral"] {
+  --cat: #ff8a8a;
+  --cat-edge: #d17171;
+}
+
+[data-color="orange"] {
+  --cat: #ff9f43;
+  --cat-edge: #c77c34;
+}
+
+[data-color="gold"] {
+  --cat: #f5c542;
+  --cat-edge: #ab8a2e;
+}
+
+[data-color="lime"] {
+  --cat: #a3e635;
+  --cat-edge: #6f9c24;
+}
+
+[data-color="chartreuse"] {
+  --cat: #bef264;
+  --cat-edge: #76963e;
+}
+
+[data-color="mint"] {
+  --cat: #86efac;
+  --cat-edge: #589e72;
+}
+
+[data-color="emerald"] {
+  --cat: #34d399;
+  --cat-edge: #28a074;
+}
+
+[data-color="teal"] {
+  --cat: #2dd4bf;
+  --cat-edge: #219d8d;
+}
+
+[data-color="aqua"] {
+  --cat: #6ee7d3;
+  --cat-edge: #4b9d8f;
+}
+
+[data-color="cyan"] {
+  --cat: #4fd1e8;
+  --cat-edge: #3a9bac;
+}
+
+[data-color="sky"] {
+  --cat: #38bdf8;
+  --cat-edge: #2d97c6;
+}
+
+[data-color="blue"] {
+  --cat: #5b8cff;
+  --cat-edge: #5989fa;
+}
+
+[data-color="violet"] {
+  --cat: #c77dff;
+  --cat-edge: #b370e5;
+}
+
+[data-color="periwinkle"] {
+  --cat: #94a3ff;
+  --cat-edge: #7c89d6;
+}
+
+[data-color="orchid"] {
+  --cat: #f0abfc;
+  --cat-edge: #ad7bb5;
+}
+
+[data-color="rose"] {
+  --cat: #fb7185;
+  --cat-edge: #e26678;
+}
+
+[data-color="peach"] {
+  --cat: #fdba74;
+  --cat-edge: #b68654;
+}
+
+[data-color="seafoam"] {
+  --cat: #7be0a8;
+  --cat-edge: #569d76;
+}
+
+[data-color="pink"] {
+  --cat: #ff7ab6;
+  --cat-edge: #db699d;
+}
+
+[data-color="silver"] {
+  --cat: #e2e8f0;
+  --cat-edge: #8c9095;
+}
+
+[data-color="red"] {
+  --cat: #ef4444;
+  --cat-edge: #ef4444;
+}
+
+[data-color="tangerine"] {
+  --cat: #f97316;
+  --cat-edge: #e56a14;
+}
+
+[data-color="yellow"] {
+  --cat: #eab308;
+  --cat-edge: #b28806;
+}
+
+[data-color="leaf"] {
+  --cat: #84cc16;
+  --cat-edge: #679f11;
+}
+
+[data-color="green"] {
+  --cat: #22c55e;
+  --cat-edge: #1da54f;
+}
+
+[data-color="jade"] {
+  --cat: #14b8a6;
+  --cat-edge: #11a090;
+}
+
+[data-color="indigo"] {
+  --cat: #6366f1;
+  --cat-edge: #6366f1;
+}
+
+[data-color="purple"] {
+  --cat: #a855f7;
+  --cat-edge: #a855f7;
+}
+
+[data-color="magenta"] {
+  --cat: #ec4899;
+  --cat-edge: #ec4899;
+}

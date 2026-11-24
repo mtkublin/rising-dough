@@ -1,0 +1,227 @@
+/* Fields: 11 px caps label, 44 px pill control, error = over outline + ▲ message */
+.rd-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rd-field__label {
+  padding-inline-start: var(--space-4);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  letter-spacing: var(--letter-spacing-caption);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+}
+
+.rd-field__label--plain {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rd-field__hint {
+  padding-inline-start: var(--space-4);
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-field__error {
+  padding-inline-start: var(--space-4);
+  font-size: var(--font-size-data);
+  color: var(--color-over);
+}
+
+/* Pill wrapper holding an input plus prefix/suffix */
+.rd-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: none;
+  min-width: 0;
+}
+
+.rd-input:hover {
+  border-color: var(--color-ink-muted);
+}
+
+.rd-input:focus-within {
+  border-color: var(--color-ink);
+}
+
+.rd-input:has(:focus-visible) {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: var(--focus-offset);
+}
+
+.rd-input:has([aria-invalid="true"]) {
+  border-color: var(--color-over);
+}
+
+.rd-input:has(:disabled),
+.rd-input--readonly {
+  border-style: dashed;
+  color: var(--color-ink-muted);
+}
+
+.rd-input--strong {
+  border-color: var(--color-ink);
+}
+
+.rd-input__control {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-heading);
+  outline: none;
+}
+
+.rd-input__control--end {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.rd-input__control::-webkit-search-cancel-button {
+  filter: grayscale(1);
+}
+
+.rd-input__prefix,
+.rd-input__suffix {
+  flex: none;
+  font-size: var(--font-size-caption);
+  color: var(--color-ink-muted);
+}
+
+.rd-input--afford {
+  flex: none;
+  padding: 0 var(--space-3-5);
+  border-color: var(--color-ink);
+}
+
+.rd-input--afford .rd-input__control {
+  width: var(--size-input-afford-sm);
+  flex: none;
+}
+
+/* Native select inside the pill */
+.rd-select {
+  appearance: none;
+  width: 100%;
+  height: var(--size-control);
+  padding: 0 var(--space-9) 0 var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+}
+
+.rd-select-wrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.rd-select-wrap::after {
+  content: "▾";
+  position: absolute;
+  inset-inline-end: var(--space-4);
+  inset-block-start: 50%;
+  color: var(--color-ink-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rd-select:hover {
+  border-color: var(--color-ink-muted);
+}
+
+.rd-select option {
+  background: var(--color-panel);
+  color: var(--color-ink);
+}
+
+.rd-select[aria-invalid="true"] {
+  border-color: var(--color-over);
+}
+
+/* Plain text input styled as a pill (no wrapper) */
+.rd-text {
+  width: 100%;
+  height: var(--size-control);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+}
+
+.rd-text:hover {
+  border-color: var(--color-ink-muted);
+}
+
+.rd-text[aria-invalid="true"] {
+  border-color: var(--color-over);
+}
+
+.rd-textarea {
+  width: 100%;
+  min-height: calc(var(--size-control) * 2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-menu);
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-heading);
+  resize: vertical;
+}
+
+.rd-fields-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.rd-fields-row > .rd-field {
+  flex-basis: var(--size-field-basis);
+}
+
+/* Form error summary */
+.rd-error-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-over);
+  border-radius: var(--radius-menu);
+  color: var(--color-over);
+  font-size: var(--font-size-data);
+}
+
+.rd-error-summary__title {
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-error-summary a {
+  text-decoration: underline;
+  text-underline-offset: var(--underline-offset);
+}
+
+/* Read-only field (fixed email in invite and edit user): raised fill, muted text */
+.rd-field--readonly .rd-input {
+  background: var(--color-raised);
+}
+
+.rd-field--readonly .rd-input__control {
+  color: var(--color-ink-muted);
+}

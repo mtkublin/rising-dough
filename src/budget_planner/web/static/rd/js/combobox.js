@@ -1,0 +1,121 @@
+/*
+ * Category picker (combobox): 4 recent categories as radios + a search that opens the full list
+ * already in the DOM under the field. Type to filter, ↑/↓ move, Enter picks, Esc closes.
+ * Picking sets a hidden input name="category" (and unchecks the recent radios).
+ */
+(() => {
+  function parts(field) {
+    return {
+      field,
+      opener: field.querySelector('[data-js="combobox-open"]'),
+      panel: field.querySelector('.rd-catpick'),
+      input: field.querySelector('[data-js="combobox-input"]'),
+      list: field.querySelector('[role="listbox"]'),
+      empty: field.querySelector('[data-js="combobox-empty"]'),
+    };
+  }
+
+  const visible = (p) => [...p.list.querySelectorAll('[role="option"]')].filter((o) => !o.hidden);
+
+  function setActive(p, option) {
+    p.list.querySelectorAll('[role="option"]').forEach((o) => o.setAttribute('aria-selected', String(o === option)));
+    if (option) {
+      p.input.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    } else {
+      p.input.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function open(p) {
+    p.panel.hidden = false;
+    p.opener.setAttribute('aria-expanded', 'true');
+    p.input.focus();
+    filter(p);
+  }
+
+  function close(p, focusOpener = true) {
+    p.panel.hidden = true;
+    p.opener.setAttribute('aria-expanded', 'false');
+    if (focusOpener) p.opener.focus();
+  }
+
+  function filter(p) {
+    const q = p.input.value.trim().toLowerCase();
+    p.list.querySelectorAll('[role="option"]').forEach((o) => {
+      o.hidden = q !== '' && !o.textContent.toLowerCase().includes(q);
+    });
+    const any = visible(p).length > 0;
+    p.list.hidden = !any;
+    if (p.empty) {
+      p.empty.hidden = any;
+      p.empty.querySelectorAll('[data-js="combobox-query"]').forEach((el) => { el.textContent = p.input.value; });
+    }
+    setActive(p, visible(p)[0] || null);
+  }
+
+  function pick(p, option) {
+    const value = option.dataset.value;
+    p.field.querySelectorAll('input[type="radio"][name="category"]').forEach((r) => { r.checked = r.value === value; });
+    let hidden = p.field.querySelector('input[type="hidden"][name="category"]');
+    const matchedRecent = [...p.field.querySelectorAll('input[type="radio"][name="category"]')].some((r) => r.checked);
+    if (!matchedRecent) {
+      if (!hidden) {
+        hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'category';
+        p.field.append(hidden);
+      }
+      hidden.value = value;
+      p.opener.lastChild.textContent = option.textContent.replace(/[↓↑⇄±].*$/, '').trim();
+    } else if (hidden) {
+      hidden.remove();
+    }
+    // Let dependent fields (reveal.js) react, e.g. Transit shows the destination account.
+    p.field.dispatchEvent(new Event('change', { bubbles: true }));
+    close(p);
+  }
+
+  document.addEventListener('click', (event) => {
+    const opener = event.target.closest('[data-js="combobox-open"]');
+    if (opener) {
+      const p = parts(opener.closest('[data-js="combobox"]'));
+      if (p.panel.hidden) open(p); else close(p);
+      return;
+    }
+    const option = event.target.closest('[data-js="combobox"] [role="option"]');
+    if (option) pick(parts(option.closest('[data-js="combobox"]')), option);
+  });
+
+  document.addEventListener('input', (event) => {
+    if (event.target.matches('[data-js="combobox-input"]')) filter(parts(event.target.closest('[data-js="combobox"]')));
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!event.target.matches('[data-js="combobox-input"]')) return;
+    const p = parts(event.target.closest('[data-js="combobox"]'));
+    const list = visible(p);
+    const i = list.findIndex((o) => o.getAttribute('aria-selected') === 'true');
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive(p, list[(i + step + list.length) % list.length] || null);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (list[i]) pick(p, list[i]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close(p);
+    }
+  });
+
+  document.addEventListener('focusout', (event) => {
+    const field = event.target.closest && event.target.closest('[data-js="combobox"]');
+    if (!field) return;
+    window.setTimeout(() => {
+      const p = parts(field);
+      if (!field.contains(document.activeElement) && !p.panel.hidden) close(p, false);
+    }, 0);
+  });
+})();

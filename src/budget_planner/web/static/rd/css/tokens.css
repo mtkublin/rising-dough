@@ -1,0 +1,336 @@
+/*
+ * Rising Dough · design tokens
+ * Source: "Rising Dough - Sourdough" (dark) and "Rising Dough - Sourdough (light)" design systems.
+ *
+ * Themes
+ *   :root                       light (required default)
+ *   prefers-color-scheme: dark  dark, unless <html data-theme="light">
+ *   [data-theme="dark"]         force dark
+ *   [data-theme="light"]        force light
+ *
+ * Breakpoints (custom properties can't be used in media queries, so they live here as documentation)
+ *   --bp-md   48rem  (768px)   phone chrome (bottom tab bar) below, desktop top bar from here up
+ *   --bp-lg   64rem  (1024px)  multi-column panels (Today period | net worth, settings rails)
+ *   --bp-xl   80rem  (1280px)  content reaches --layout-max and stops growing
+ * Media queries are written mobile-first in range syntax, e.g. @media (width >= 48rem),
+ * which is the stylelint-config-standard form of min-width: 48rem.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ── colour: light (Rising Dough - Sourdough light) ── */
+  --color-ground: #fff;
+  --color-panel: #faf7f3;
+  --color-raised: #f3eee7;
+  --color-rule: #ece6de;
+  --color-ink: #121010;
+  --color-ink-muted: #635c55;
+  --color-bake: #ffe9db;
+  --color-crumb: #ec5815;
+  --color-ink-deep: #121010;
+  --color-now: #b33a0a;
+  --color-now-fill: #ff5a1f;
+  --color-now-edge: #c9400c;
+  --color-past: #ffdcc6;
+  --color-over: #a3154d;
+  --color-annotation: #d9d2c8;
+  --color-scrim: rgb(18 16 16 / 40%);
+  --shadow-menu: 0 16px 40px rgb(18 16 16 / 12%);
+  --shadow-dialog: 0 24px 64px rgb(18 16 16 / 18%);
+  --cat-default: var(--color-ink-muted);
+  --cat-edge-default: var(--color-ink-muted);
+
+  /* Category chips (values the server sets per category: see README › runtime properties) */
+  --chip-fill-mix: 30%;
+  --chip-edge-mix: 100%;
+  --chip-option-fill-mix: 30%;
+  --chip-option-selected-fill-mix: 50%;
+  --chip-theme-dark: 0%;          /* 0% = light rule (server-provided --cat-edge), 100% = dark rule */
+
+  /* Primary (now-fill) shapes get a 1px ring in light; invisible in dark */
+  --ring-now: inset 0 0 0 1px var(--color-now-edge);
+
+  /* ── type ── */
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* display (Unbounded) */
+  --font-size-hero-xl: 120px;   /* Today desktop figure */
+  --font-size-hero-plan: 112px; /* Plan › budget desktop figure */
+  --font-size-hero-lg: 96px;    /* other page heroes, desktop */
+  --font-size-mega: 80px;       /* Today phone figure */
+  --font-size-hero-md: 64px;    /* other page heroes, phone; type sample */
+  --font-size-hero-sm: 56px;    /* long figures on phone (accounts, plan) */
+
+  /* Phone hero figures shrink to fit their bake field below the 390 px boards instead of
+     wrapping or clipping. The server counts the figure's glyphs into data-digits (0-9),
+     data-marks (, .) and data-signs (− +); widths are Unbounded 700 advances at -0.05em. */
+  --fig-digit-em: 0.73;
+  --fig-mark-em: 0.25;
+  --fig-sign-em: 0.57;
+  --fig-slack-em: 0.05;          /* sub-pixel rounding headroom */
+  --font-size-dialog-hero: 56px;
+  --font-size-display: 48px;
+  --font-size-display-sm: 32px;
+  --font-size-auth-headline-sm: 34px; /* sign-in headline on phone */
+  --font-size-auth-title: 28px;
+  --font-size-error-title: 40px;
+  --font-size-title: 24px;
+  --font-size-title-sm: 20px;
+  --font-size-brand-sm: 18px;
+  --line-height-mega: 0.9;
+  --line-height-display: 0.95;
+  --line-height-title: 30px;
+  --line-height-title-sm: 26px;
+  --letter-spacing-mega: -0.05em;
+  --letter-spacing-display: -0.04em;
+  --letter-spacing-title: -0.03em;
+
+  /* mono (Geist Mono) */
+  --font-size-glyph: 28px;
+  --font-size-bar: 20px;
+  --font-size-bar-sm: 18px;
+  --font-size-bar-xs: 16px;
+  --font-size-icon: 18px;
+  --font-size-close: 16px;
+  --font-size-kv: 15px;
+  --font-size-secret: 18px;
+  --font-size-heading: 14px;
+  --font-size-body: 13px;
+  --font-size-data: 12px;
+  --font-size-caption: 11px;
+  --font-size-chart-sub: 10px;
+  --font-size-ascii-sm: 9px;
+  --line-height-heading: 20px;
+  --line-height-relaxed: 22px;
+  --line-height-body: 20px;
+  --line-height-data: 18px;
+  --line-height-caption: 16px;
+  --line-height-chip: 1.35;
+  --line-height-ascii: 1.15;
+  --line-height-tight: 1;
+  --letter-spacing-caption: 0.04em;
+  --letter-spacing-bar: 0.02em;
+  --letter-spacing-secret: 0.06em;
+
+  /* ── space ── */
+  --space-0: 0;
+  --space-px: 1px;
+  --space-half: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-micro: 3px;           /* status tag vertical padding */
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-4-5: 18px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-13: 52px;
+  --space-14: 56px;
+  --space-comp-pct-err: 108px;
+  --space-comp-cat-err: 208px;
+  --space-16: 64px;
+
+  /* ── sizes ── */
+  --size-control: 44px;         /* every touch target */
+  --size-cell: 40px;            /* year-grid cell (desktop pointer grid; 44 px on the components board) */
+  --size-control-sm: 36px;      /* segmented options, toast action */
+  --size-control-lg: 48px;      /* dialog footer buttons */
+  --size-tab-fab: 52px;         /* phone tab bar + */
+  --size-tabbar: 72px;
+  --size-swatch: 28px;
+  --size-sparkline-w: 100px;
+  --size-sparkline-h: 28px;
+  --size-menu: 200px;
+  --size-grabber-w: 40px;
+  --size-dialog: 560px;
+  --size-dialog-w: 520px;
+  --size-pct: 96px;
+  --size-stepper-label: 130px;
+  --size-pct-h: 46px;
+  --size-picker-list: 300px;
+  --size-dialog-sm: 440px;
+  --size-dialog-md: 460px;
+  --size-palette: 640px;
+  --size-palette-w: 600px;
+  --size-comp-dialog: 340px;
+  --size-period-pick: 300px;
+  --space-palette-top: 12vh;
+  --track-keys: 160px;
+  --track-index-card: 320px;    /* index.html link groups */
+  --track-sample-card: 260px;   /* components.html sample cells */
+  --track-min-xs: 120px;        /* flexible table columns: minimum widths */
+  --track-min-sm: 160px;
+  --track-min-md: 200px;
+  --track-min-lg: 220px;
+  --track-content-max: 640px;   /* recurring detail row content */
+  --size-px: 1px;
+  --ring-selected: 0 0 0 2px var(--color-panel), 0 0 0 4px var(--color-ink); /* chosen colour swatch */
+  --size-field-basis: 12rem;
+  --underline-offset: 3px;
+  --offset-press: 1px;          /* button :active nudge */
+  --offset-enter: 8px;          /* toast entry */
+  --offset-enter-sm: 4px;       /* dropdown entry */
+  --size-input-afford: 80px;
+  --size-input-afford-sm: 64px;
+  --size-row: 52px;
+  --size-row-md: 56px;
+  --size-row-lg: 60px;
+  --size-row-xl: 68px;
+  --size-sheet-row: 52px;
+  --size-hero-min: 300px;
+  --layout-max: 1280px;
+  --layout-reading: 820px;
+  --border-width: 1px;
+  --border-width-strong: 1.5px;
+  --border-width-focus: 2px;
+  --border-width-focus-strong: 4px;
+  --focus-offset: 2px;
+
+  /* table tracks (shared column grammar) */
+  --track-date: 64px;
+  --track-category: 170px;
+  --track-amount: 150px;
+  --track-amount-lg: 170px;
+  --track-actions: 150px;
+  --track-icon: 44px;
+  --track-filter-date: 150px;
+  --track-trend: 110px;
+  --track-checked: 100px;
+  --track-txns: 70px;
+  --track-reconcile: 110px;
+  --track-budget-cat: 190px;
+  --track-budget-spent: 230px;
+  --track-budget-actions: 60px;
+  --table-min: 760px;
+  --table-min-budget: 860px;
+  --table-min-year: 1150px;
+  --chart-min: 640px;
+  --track-month: 130px;
+  --track-due: 110px;
+  --track-amount-sched: 160px;
+  --track-deleted: 160px;
+  --track-deleted-due: 140px;
+  --track-restore: 120px;
+  --table-min-sched: 960px;
+  --track-cat-colour: 200px;
+  --track-cat-actions: 180px;
+  --track-session-actions: 140px;
+  --track-user-status: 190px;
+  --track-user-role: 110px;
+  --track-user-seen: 150px;
+  --size-anchor-select: 180px;
+  --size-auth-form: 400px;
+  --size-error-min: 300px;
+  --space-auth-loaf: 70px;
+  --track-spend-cat: 180px;
+  --track-spend-period: 130px;
+  --track-spend-delta: 140px;
+  --table-min-lg: 900px;
+
+  /* ── radius ── */
+  --radius-none: 0;
+  --radius-xs: 3px;            /* square foot of the forecast bar caps */
+  --radius-sm: 4px;
+  --radius-cell: 6px;
+  --radius-swatch: 8px;
+  --radius-item: 12px;
+  --radius-menu: 18px;
+  --radius-anchor: 22px;
+  --radius-period: 24px;
+  --radius-trigger: 23px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  /* ── z-index ── */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-sticky: 10;
+  --z-tabbar: 20;
+  --z-popover: 30;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-sheet: 55;                 /* a sheet opened from inside a dialog */
+  --z-toast: 60;
+
+  /* ── motion ── */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --duration-toast: 8s;
+  --duration-progress: 1200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ── colour: dark (Rising Dough - Sourdough, the primary theme) ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-ground: #0d0d0b;
+    --color-panel: #161613;
+    --color-raised: #1d1d19;
+    --color-rule: #2a2a26;
+    --color-ink: #edede6;
+    --color-ink-muted: #8a8a80;
+    --color-bake: #ff5a1f;
+    --color-crumb: #802908;
+    --color-ink-deep: #0d0d0b;
+    --color-now: #d7ff5c;
+    --color-now-fill: #d7ff5c;
+    --color-now-edge: #d7ff5c;
+    --color-past: #2a2a26;
+    --color-over: #ff4f8b;
+    --color-annotation: #3a3a34;
+    --color-scrim: rgb(0 0 0 / 62%);
+    --shadow-menu: 0 16px 40px rgb(0 0 0 / 50%);
+    --shadow-dialog: 0 24px 64px rgb(0 0 0 / 60%);
+    --chip-fill-mix: 20%;
+    --chip-edge-mix: 60%;
+    --chip-option-fill-mix: 15%;
+    --chip-option-selected-fill-mix: 33%;
+    --chip-theme-dark: 100%;
+    --ring-now: 0 0 0 0 transparent;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-ground: #0d0d0b;
+  --color-panel: #161613;
+  --color-raised: #1d1d19;
+  --color-rule: #2a2a26;
+  --color-ink: #edede6;
+  --color-ink-muted: #8a8a80;
+  --color-bake: #ff5a1f;
+  --color-crumb: #802908;
+  --color-ink-deep: #0d0d0b;
+  --color-now: #d7ff5c;
+  --color-now-fill: #d7ff5c;
+  --color-now-edge: #d7ff5c;
+  --color-past: #2a2a26;
+  --color-over: #ff4f8b;
+  --color-annotation: #3a3a34;
+  --color-scrim: rgb(0 0 0 / 62%);
+  --shadow-menu: 0 16px 40px rgb(0 0 0 / 50%);
+  --shadow-dialog: 0 24px 64px rgb(0 0 0 / 60%);
+  --chip-fill-mix: 20%;
+  --chip-edge-mix: 60%;
+  --chip-option-fill-mix: 15%;
+  --chip-option-selected-fill-mix: 33%;
+  --chip-theme-dark: 100%;
+  --ring-now: 0 0 0 0 transparent;
+}

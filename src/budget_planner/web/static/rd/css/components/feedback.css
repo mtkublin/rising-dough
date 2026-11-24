@@ -1,0 +1,179 @@
+/* Empty states, loading skeleton, flash messages, toast, error pages */
+.rd-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-lg);
+}
+
+.rd-empty__loaf {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-ascii-sm);
+  line-height: var(--line-height-ascii);
+  color: var(--color-annotation);
+  overflow: hidden;
+}
+
+.rd-empty__msg {
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-relaxed);
+}
+
+.rd-empty__sub {
+  font-size: var(--font-size-data);
+  color: var(--color-ink-muted);
+}
+
+.rd-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rd-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+}
+
+.rd-skeleton__line {
+  display: block;
+  width: 90%;
+  height: var(--space-3-5);
+  border-radius: var(--radius-item);
+  background: var(--color-raised);
+  animation: rd-pulse 1.2s var(--ease-out) infinite alternate;
+}
+
+.rd-skeleton__line--title {
+  width: 60%;
+  height: var(--space-4-5);
+}
+
+.rd-skeleton__line--80 {
+  width: 80%;
+}
+
+.rd-skeleton__line--70 {
+  width: 70%;
+}
+
+@keyframes rd-pulse {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* Flash messages (page-level, #flash-region) */
+.rd-flash-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.rd-flash {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  border: var(--border-width) solid var(--color-ink);
+  border-radius: var(--radius-menu);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.rd-flash > span {
+  flex: 1;
+}
+
+.rd-flash--error {
+  border-color: var(--color-over);
+}
+
+.rd-flash__action {
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  text-decoration: underline;
+  text-underline-offset: var(--underline-offset);
+}
+
+.rd-flash__close {
+  font-size: var(--font-size-heading);
+}
+
+/* Toast with undo: ink pill, bottom-left, 8 s */
+.rd-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-ground);
+  font-size: var(--font-size-body);
+  box-shadow: var(--shadow-menu);
+  animation: rd-pop-in var(--duration-base) var(--ease-out);
+}
+
+.rd-toast__action {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-toast__action:focus-visible {
+  outline-color: var(--color-ground);
+}
+
+.rd-toast[data-state="leaving"] {
+  opacity: 0;
+  transform: translateY(var(--offset-enter));
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+
+/* Error pages (inside the normal app frame) */
+.rd-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--size-dialog);
+  min-height: var(--size-error-min);
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-lg);
+}
+
+.rd-error__title {
+  font-size: var(--font-size-error-title);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-mega);
+}
+
+.rd-error__msg {
+  max-width: 36ch;
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-ink-muted);
+}
+
+.rd-error__actions {
+  margin-top: auto;
+  padding-top: var(--space-4);
+}

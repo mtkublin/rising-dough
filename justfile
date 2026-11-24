@@ -70,6 +70,7 @@ prod-db-seed *args:
 # Build Tailwind CSS once (purged + minified) → static/tailwind.css. See ADR-0027.
 css:
     npm run css
+    uv run python scripts/build_css_bundle.py
 
 # Rebuild Tailwind on save; run alongside `just dev`.
 css-watch:

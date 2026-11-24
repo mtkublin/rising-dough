@@ -1,0 +1,93 @@
+/* Segmented control and tabs. Selected = ink. Also used for on/off choices (no switches). */
+.rd-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-half);
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  max-width: 100%;
+}
+
+.rd-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rd-segmented__option:hover {
+  background: var(--color-rule);
+}
+
+.rd-segmented__option[aria-pressed="true"],
+.rd-segmented__option[aria-checked="true"],
+.rd-segmented__option[aria-current="page"],
+.rd-segmented__option[aria-selected="true"],
+.rd-segmented__option:has(input:checked) {
+  background: var(--color-ink);
+  color: var(--color-ground);
+  font-weight: var(--font-weight-medium);
+}
+
+.rd-segmented__option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rd-segmented__option:has(input:focus-visible) {
+  outline: var(--border-width-focus) solid var(--color-ink);
+  outline-offset: var(--focus-offset);
+}
+
+/* Tabs (ledger view, settings) — separate pills, 44 px */
+.rd-tabs {
+  position: relative;
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rd-tabs__tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--size-control);
+  padding: 0 var(--space-3-5);
+  border: var(--border-width) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+}
+
+.rd-tabs__tab:hover {
+  background: var(--color-rule);
+}
+
+.rd-tabs__tab[aria-selected="true"],
+.rd-tabs__tab[aria-current="page"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-ground);
+  font-weight: var(--font-weight-medium);
+}
+
+@media (width >= 48rem) {
+  .rd-tabs {
+    flex-wrap: wrap;
+  }
+
+  .rd-tabs__tab {
+    padding: 0 var(--space-4-5);
+  }
+}

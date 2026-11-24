@@ -117,6 +117,20 @@ repos:
         files: ^src/budget_planner/web/static/[^/]+\.css$
         exclude: ^src/budget_planner/web/static/tailwind\.css$
 
+      - id: stylelint-rd
+        name: stylelint (rising dough CSS, handoff config)
+        entry: npx --no-install stylelint --config src/budget_planner/web/static/rd/.stylelintrc.json
+        language: system
+        files: ^src/budget_planner/web/static/rd/css/.*\.css$
+        exclude: ^src/budget_planner/web/static/rd/css/app\.bundle\.css$
+
+      - id: css-bundle-check
+        name: css-bundle-check (rd app.bundle.css matches main.css imports)
+        entry: uv run python scripts/build_css_bundle.py --check
+        language: system
+        pass_filenames: false
+        files: ^(src/budget_planner/web/static/rd/css/.*\.css|scripts/build_css_bundle\.py)$
+
       - id: tailwind-check
         name: tailwind-check (regenerated CSS matches source)
         entry: scripts/pre-commit/tailwind_check.sh
