@@ -27,3 +27,21 @@ Non-blocking:
 5. Accounts reconcile 422: `aria-invalid` field `actual_balance` has no `aria-describedby`, the error `#field-actual_balance-error` is not linked (A11y).
 6. Server 500 on invalid input (a flash is shown, dialog stays open): repeats day_of_month=45 (/recurring), budget override year=1, new account opening_balance "abc", duplicate category name (new and edit).
 7. Invalid input accepted (200, saved): edit recurring day_of_month=45, budget override amount "abc" or empty, user edit with empty name (name optional, may be intended).
+
+## Re-audit after validation fix (head c9913359, fix 10de0be6)
+Skill: `frontend-visual-audit` (Playwright chromium, scratch copy of `data/demo.sqlite`, own server on 127.0.0.1:8765, lock `/tmp/ui-redesign-heavy.lock` released). The native `required` attribute was removed in the dialog so the server path ran. Screenshots in the scratchpad `shots/` dir (not committed); viewed: `375__cat-new-no-direction.png`, `1440__dev-shell-note-empty.png`.
+
+Cases x 1440/1024/375 (all 12 plus 3 extra at each viewport):
+- `/categories/new`, empty name; and name filled with no direction.
+- `/categories/26/edit`, empty name.
+- `/budget/rules/13/overrides/new`, tier unchecked with a valid amount (12.50). Note: with an empty amount and the default tier the save is accepted (200, dialog closes); that is the earlier finding 7 (invalid input accepted), not a missing-field case.
+- `/dev/shell/dialog`, empty note.
+- `/accounts/{id}/reconcile`, `actual_balance` = "abc".
+
+Result for every failing case at every viewport: POST answers 422, `HX-Reswap: none`; the dialog stays open (`dialog[open]` count 1, `:modal`); typed values are kept (name "Keep Me Cat", amount "12.50"); the flash `▲ Some fields need fixing: Name | Direction | Tier | Note` is visible, inside the viewport and topmost (`elementFromPoint` hits the flash). Not hidden behind the modal backdrop: `static/rd/js/app-toast.js` `show()` renders the flash in an in-dialog live region (`[data-flash-in-dialog]`, `role="alert"`, `aria-live="assertive"`) because the page-level `#flash-region-assertive` sits under the top layer. At 375 the flash sits at the top of the sheet. Reconcile: `actual_balance` has `aria-invalid="true"` and `aria-describedby="field-actual_balance-error"` resolving to `▲ invalid number` at all three viewports (the typed "abc" is not echoed back into the number input, as before).
+
+Diagnostics (all cases): horizontalScroll=0, duplicateIds=0, requestFailures=0. consoleErrors=1 per case, only the browser line "Failed to load resource ... 422" for the deliberate failed save (no JS errors). overflowingElements at 375 on /settings?tab=categories only: `a.rd-tabs__tab` x2 (the tabs strip, as in the first audit, not changed by the fix); none on the other routes.
+
+Step 3b: `errors.py` and `dialog-reconcile.html` diffs contain no arithmetic or `float`; the new flash goes through `fragments/flash/error.html` (swap target `#flash-region-assertive` exists once; in-dialog region is created by JS). The four earlier BLOCKING findings (1 to 4) and finding 5 (reconcile aria-describedby) are resolved. Findings 6 and 7 remain as triaged.
+
+Status: CLEAN for the re-audit scope.
