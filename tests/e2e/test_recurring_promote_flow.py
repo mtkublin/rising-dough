@@ -80,15 +80,14 @@ def test_recurring_rule_and_planned_promote_cycle(
         f"{base_url}/ledger?view=planned&date_from=2026-01-01&date_to=2026-03-31",
     )
     expect(to_playwright(page, ledger.planned_row(planned_id))).to_be_visible()
-    persisted_el = to_playwright(page, ledger.planned_row(planned_id))
 
-    # Promote through the row's slide-over form with an edited amount.
+    # Promote through the row's promote dialog (link opens #modal-root, T-UR24), edited amount.
     wait_for_htmx(page)
-    persisted_el.get_by_role("button", name="Promote").click()
+    to_playwright(page, ledger.planned_promote(planned_id)).click()
     expect(to_playwright(page, PANEL)).to_be_visible()
     to_playwright(page, ledger.overlay_field(ledger.field_date)).fill("2026-01-22")
     to_playwright(page, ledger.overlay_field(ledger.field_amount)).fill("27.50")
-    to_playwright(page, ledger.overlay_field(ledger.field_description)).fill("promoted one-off")
+    to_playwright(page, ledger.overlay_field(ledger.field_note)).fill("promoted one-off")
     with page.expect_response(
         lambda r: r.url.endswith("/promote") and r.request.method == "POST"
     ) as resp:

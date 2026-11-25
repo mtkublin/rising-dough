@@ -167,5 +167,7 @@ def test_stale_session_revoke_shows_the_generic_not_found_flash(world: World) ->
         "UPDATE sessions SET revoked_at = '2026-01-01T00:00:00.000000Z' WHERE ip = '9.9.9.9'"
     )
     button.click()
-    expect(world.find(settings.flash_error)).to_contain_text("That item was not found")
+    # the live-region wrapper is itself role=alert (ADR-0107): scope to the flash inside it
+    flash = settings.flash_error.inside(shell.flash_region_assertive)
+    expect(world.find(flash)).to_contain_text("That item was not found")
     expect(button).to_have_count(1)  # the row stays: nothing was swapped

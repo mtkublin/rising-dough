@@ -620,6 +620,12 @@
       "target": ""
     },
     {
+      "kind": "hx-get",
+      "name": "Recently deleted items",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/ledger/recently-deleted/panel"
+    },
+    {
       "kind": "link",
       "name": "Rising Dough",
       "target": "/today"
