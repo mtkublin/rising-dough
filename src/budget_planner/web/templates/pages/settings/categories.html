@@ -1,0 +1,78 @@
+{# Settings · categories (T-UR13, ADR-0107). Handoff: pages/settings/categories.html.
+   Context: active_tab, groups (view_models.CategoryGroupView), color_rules, anchor_income_categories, current_anchor_id.
+   The list region refetches itself on settings-categories-stale (ADR-0143). #}
+{% extends "layouts/base.html" %}
+{% block title %}Settings · categories · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-hero rd-hero--band" aria-labelledby="page-title">
+    <div class="rd-hero__body">
+      <h1 class="rd-hero__title" id="page-title">Categories</h1>
+    </div>
+  </section>
+  <section class="rd-panel" aria-label="Categories">
+    <div class="rd-settings">
+      <div class="rd-settings__head">
+        {% include "fragments/nav/settings-tabs.html" %}
+        <a class="rd-btn"
+           href="/categories/new"
+           hx-get="/categories/new"
+           hx-target="#modal-root"
+           hx-swap="innerHTML">+ new category</a>
+      </div>
+      <form class="rd-anchor"
+            method="post"
+            action="/budget/preferences/income-anchor"
+            hx-post="/budget/preferences/income-anchor"
+            hx-trigger="change from:find select"
+            hx-swap="none">
+        <label class="rd-caption" for="income-anchor">INCOME ANCHOR</label>
+        <span class="rd-select-wrap rd-anchor__select">
+          <select class="rd-select rd-select--field"
+                  id="income-anchor"
+                  name="category_id">
+            <option value="" {% if current_anchor_id is none %}selected{% endif %}>none</option>
+            {% for c in anchor_income_categories %}
+              <option value="{{ c.id }}"
+                      {% if current_anchor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </span>
+        <span class="rd-anchor__note">each period starts on its next date · saves on change</span>
+      </form>
+      <div id="settings-categories"
+           hx-get="/settings?tab=categories"
+           hx-trigger="settings-categories-stale from:body"
+           hx-select="#settings-categories"
+           hx-swap="outerHTML"
+           hx-disinherit="hx-select hx-swap">
+        {% if color_rules %}
+          <style nonce="{{ csp_nonce }}">
+              {{ color_rules|safe }}
+          </style>
+        {% endif %}
+        {% for group in groups %}
+          <section class="rd-catlist" aria-labelledby="cg-{{ group.key }}">
+            <h2 class="rd-deleted__title" id="cg-{{ group.key }}">
+              {{ group.title }} <span class="rd-deleted__count">· {{ group.count }}</span>
+            </h2>
+            <table class="rd-ledger rd-ledger--catlist">
+              <caption class="u-visually-hidden">{{ group.caption }}</caption>
+              <thead class="u-visually-hidden">
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Colour</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                  {% include "fragments/rows/category-row.html" %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

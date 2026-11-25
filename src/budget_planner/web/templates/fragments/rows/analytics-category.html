@@ -1,0 +1,18 @@
+{# fragment: rows/analytics-category
+   Inputs: row (view_models.SpendRowView). One spend-by-category row: chip linking to the ledger,
+   20-cell share bar, the period amount and the delta against the 12-month average (▼ is below it). #}
+<tr class="rd-row rd-row--spend">
+  <td class="rd-spend__cat">
+    <a class="rd-stretch"
+       href="{{ row.ledger_url }}"
+       aria-label="{{ row.link_label }}"><span class="rd-chip"
+      {% if (row.category_color|category_color).name %} data-color="{{ (row.category_color|category_color).name }}"{% endif %}>{{ row.category_name }}</span></a>
+  </td>
+  <td class="rd-spend__bar">
+    <span class="rd-bar rd-bar--share"
+          role="img"
+          aria-label="{{ row.share_pct }} percent of spend">{{ row.bar_filled }}<span class="rd-bar__rest">{{ row.bar_rest }}</span></span>
+  </td>
+  <td class="rd-spend__period rd-num">{{ row.amount_minor|money_num(base_ccy) }}</td>
+  <td class="rd-spend__delta rd-num{% if row.delta_down %} rd-spend__delta--down{% endif %}">{{ row.delta_text }}</td>
+</tr>

@@ -31,11 +31,19 @@ from budget_planner.web.field_labels import field_summary
 from budget_planner.web.http_headers import HX_REQUEST
 from budget_planner.web.params import ParamError
 
+SHELL_HEADER = "X-Shell"
+SHELL_RD = "rd"
+
 logger = logging.getLogger("budget_planner.web")
 
 
 def _is_htmx(request: Request) -> bool:
     return request.headers.get(HX_REQUEST) == "true"
+
+
+def _is_rd_shell(request: Request) -> bool:
+    """True when the request comes from the Rising Dough shell (app-toast.js sets the header)."""
+    return request.headers.get(SHELL_HEADER) == SHELL_RD
 
 
 def _request_id(request: Request) -> str:
@@ -84,9 +92,17 @@ def _back_url(request: Request) -> str:
 def _flash_fragment(request: Request, kind: str, message: str, status: int) -> HTMLResponse:
     """Render the flash partial as an OOB swap, suitable for HTMX responses.
 
+    The new shell (``X-Shell: rd``) gets ``fragments/flash/error.html``; old-shell pages keep
+    ``partials/_flash.html``.
+
     The partial carries `hx-swap-oob="true"` + the live-region target, so the
     body is otherwise empty and HTMX will not clobber the originating target.
     """
+    if _is_rd_shell(request):
+        region = "flash-region-assertive" if kind == "error" else "flash-region"
+        return _render(
+            request, "fragments/flash/error.html", status, message=message, region=region
+        )
     return _render(
         request,
         "partials/_flash.html",

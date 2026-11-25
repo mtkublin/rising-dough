@@ -19,6 +19,7 @@ from budget_planner.domain.money import format_figure, format_major, format_mone
 from budget_planner.domain.snapshots import AccountSnapshot
 from budget_planner.services.account_planned import AccountPlanned
 from budget_planner.services.balance import sparkline_points
+from budget_planner.web.paths import DELETE_PATH
 from budget_planner.web.view_models import ROW_BAR_CELLS, BarSpans, HeroFit, bar_spans, hero_fit
 
 _FULL_BAR_PCT = 100
@@ -379,7 +380,7 @@ def _count(n: int, noun: str) -> str:
 
 
 def _blocked(acc: Account, refs: AccountReferences, balance_minor: int) -> DeleteDialog:
-    action = f"/accounts/{acc.id}/delete"
+    action = f"/accounts/{acc.id}{DELETE_PATH}"
     ledger = f"/ledger?account_id={acc.id}"
     title = f"Can\u2019t delete {acc.name}"
     items = []
@@ -432,7 +433,7 @@ def delete_dialog(acc: Account, refs: AccountReferences, balance_minor: int) -> 
         title=f"Delete {acc.name}?",
         text="Nothing points at it: no transactions, planned or recurring items. "
         "This can\u2019t be undone.",
-        action=f"/accounts/{acc.id}/delete",
+        action=f"/accounts/{acc.id}{DELETE_PATH}",
         link_label="",
         link_href="",
     )

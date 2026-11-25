@@ -43,7 +43,7 @@ def index(
     ctx = ledger_data.index_context(
         conn, user_id, settings=settings, view=view, filters=filters, today=today
     )
-    return render_context(request, "ledger/index.html", ctx)
+    return render_context(request, "pages/ledger/index.html", ctx)
 
 
 @router.get(TABLE_PATH, response_class=HTMLResponse)
@@ -55,15 +55,9 @@ def table_fragment(
     today: date = Depends(get_today),
 ) -> HTMLResponse:
     view = query_view(request.query_params.get("view"))
-    ctx = ledger_data.table_context(
-        conn,
-        user_id,
-        settings=settings,
-        view=view,
-        filters=ledger_data.parse_filters(request),
-        today=today,
+    return ledger_data.render_table_for(
+        request, conn, user_id, settings=settings, view=view, today=today
     )
-    return render_context(request, "ledger/_table.html", ctx)
 
 
 @router.get("/recently-deleted", response_class=HTMLResponse)

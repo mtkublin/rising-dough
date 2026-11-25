@@ -1,0 +1,29 @@
+{# fragment: rows/category-row (T-UR13, handoff pages/settings/categories). Input: row (view_models.CategoryRowView).
+   System rows are locked. The edit and archive links open the dialogs in #modal-root. #}
+<tr class="rd-row rd-row--catlist" id="category-{{ row.id }}">
+  <th scope="row" class="rd-catlist__name">
+    <span class="rd-chip"
+          {% if row.color_name %} data-color="{{ row.color_name }}"{% endif %}>{{ row.name }}</span>
+  </th>
+  <td class="rd-catlist__colour">
+    <span class="rd-swatch-dot"
+          {% if row.color_name %} data-color="{{ row.color_name }}"{% endif %}
+          aria-hidden="true"></span>{{ row.colour_text }}
+  </td>
+  <td class="rd-row__actions">
+    {% if row.is_system %}
+      <span class="rd-catlist__locked">locked</span>
+    {% else %}
+      <a class="rd-btn rd-btn--quiet rd-btn--sm"
+         href="/categories/{{ row.id }}/edit"
+         hx-get="/categories/{{ row.id }}/edit"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">edit</a>
+      <a class="rd-btn rd-btn--quiet rd-btn--sm"
+         href="/categories/{{ row.id }}/archive"
+         hx-get="/categories/{{ row.id }}/archive"
+         hx-target="#modal-root"
+         hx-swap="innerHTML">archive</a>
+    {% endif %}
+  </td>
+</tr>

@@ -1,0 +1,38 @@
+{# fragment: nav/settings-tabs (T-UR13, handoff pages/settings/*: nav.rd-tabs "Settings").
+   Inputs: active_tab ("categories" | "fx" | "prefs" | "security" | "users"), request (the Users tab is for admins, ADR-0061 section 4).
+   The strip keeps tab semantics (role=tablist, aria-selected) because the contract tests read the selected tab;
+   aria-label carries the capitalised name (it contains the visible text, WCAG 2.5.3). #}
+<div class="rd-tabs" role="tablist" aria-label="Settings">
+  <a class="rd-tabs__tab"
+     role="tab"
+     href="/settings?tab=categories"
+     aria-label="Categories"
+     aria-selected="{{ 'true' if active_tab == 'categories' else 'false' }}"
+     {% if active_tab == "categories" %}aria-current="page"{% endif %}>categories</a>
+  <a class="rd-tabs__tab"
+     role="tab"
+     href="/settings?tab=fx"
+     aria-label="Currency &amp; FX"
+     aria-selected="{{ 'true' if active_tab == 'fx' else 'false' }}"
+     {% if active_tab == "fx" %}aria-current="page"{% endif %}>currency &amp; fx</a>
+  <a class="rd-tabs__tab"
+     role="tab"
+     href="/settings?tab=prefs"
+     aria-label="Preferences"
+     aria-selected="{{ 'true' if active_tab == 'prefs' else 'false' }}"
+     {% if active_tab == "prefs" %}aria-current="page"{% endif %}>preferences</a>
+  <a class="rd-tabs__tab"
+     role="tab"
+     href="/settings/security"
+     aria-label="Security"
+     aria-selected="{{ 'true' if active_tab == 'security' else 'false' }}"
+     {% if active_tab == "security" %}aria-current="page"{% endif %}>security</a>
+  {% if request.state.user is defined and request.state.user and request.state.user.is_admin %}
+    <a class="rd-tabs__tab"
+       role="tab"
+       href="/settings/users"
+       aria-label="Users"
+       aria-selected="{{ 'true' if active_tab == 'users' else 'false' }}"
+       {% if active_tab == "users" %}aria-current="page"{% endif %}>users</a>
+  {% endif %}
+</div>

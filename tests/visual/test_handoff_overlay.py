@@ -57,14 +57,18 @@ def row_violations(row: Row) -> list[str]:
 
 
 def skeleton(html: str) -> list[tuple[object, ...]]:
-    """Tags in order with every attribute except the allowed value ones; script/style bodies."""
+    """Tags in order, attributes except the allowed value and geometry ones; script/style bodies."""
     soup = BeautifulSoup(html, "html.parser")
     out: list[tuple[object, ...]] = []
     for el in soup.find_all(True):
         assert isinstance(el, Tag)
         attrs = tuple(
-            sorted((k, str(v)) for k, v in el.attrs.items() if k not in ALLOWED_ATTRIBUTES)
-        )
+            sorted(
+                (k, str(v))
+                for k, v in el.attrs.items()
+                if k not in ALLOWED_ATTRIBUTES and k not in GEOMETRY_ATTRIBUTES
+            )
+        )  # geometry attributes change only through source = "geometry" rows (row_violations)
         body = el.get_text() if el.name in ("script", "style") else ""
         out.append((el.name, attrs, body))
     return out
@@ -141,10 +145,11 @@ def test_red_style_and_id_rows_are_refused() -> None:
     assert row_violations(replace(_BASE, field="id"))
 
 
-def test_red_geometry_row_is_refused_until_a_source_exists() -> None:
-    assert row_violations(replace(_BASE, field="points", source="geometry"))
+def test_red_geometry_row_needs_the_registered_generator_source() -> None:
+    assert row_violations(replace(_BASE, field="points", source="geometry")) == []
     assert row_violations(replace(_BASE, field="points"))
-    assert row_violations(replace(_BASE, source="geometry"))
+    assert row_violations(replace(_BASE, field="points", source="hand-written"))
+    assert row_violations(replace(_BASE, source="hand-written"))
 
 
 def test_red_row_without_reason_or_non_html_page() -> None:

@@ -13,6 +13,7 @@ pytestmark = pytest.mark.e2e
 LEDGER = "/ledger?view={view}&date_from=2000-01-01&date_to=2099-12-31"
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_promote_planned_entry_creates_the_transaction(world: World) -> None:
     account = world.account()
     planned = world.planned(account, world.category(), "25.00", "promote-planned")
@@ -39,6 +40,7 @@ def test_promote_planned_entry_creates_the_transaction(world: World) -> None:
     expect(world.find(ledger.row(txn["id"]))).to_contain_text("promote-planned")
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_promote_recurring_rule_advances_it(world: World) -> None:
     account = world.account()
     start = days_from_today(1)

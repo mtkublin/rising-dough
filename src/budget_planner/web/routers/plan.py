@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse
 from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from budget_planner.web import charts, plan_data
+from budget_planner.web import plan_data
 from budget_planner.web.deps import current_user_id, get_db, get_settings_dep
 from budget_planner.web.params import query_choice, query_int, require_year_month
 from budget_planner.web.rendering import render
@@ -52,23 +52,22 @@ def plan(
         ctx["period"] = plan_data.budget_period_for(picked, budget)
         return render(request, "pages/plan/budget.html", nav_current="plan", **ctx)
     if tab_norm == "year":
-        year_raw = request.query_params.get("year")
-        ctx.update(plan_data.year_context(conn, user_id, today_d, year_raw, settings=settings))
-    elif tab_norm == "forecast":
+        ctx["year_page"] = plan_data.year_page_for(
+            conn, user_id, today_d, request.query_params.get("year"), settings=settings
+        )
+        return render(request, "pages/plan/year.html", nav_current="plan", **ctx)
+    if tab_norm == "forecast":
         requested = query_int(
             "horizon", request.query_params.get("horizon"), choices=_FORECAST_HORIZON_CHOICES
         )
         horizon = forecast_service.normalize_horizon(
             None if requested is None else str(requested), _FORECAST_HORIZON_CHOICES
         )
-        ctx.update(plan_data.forecast_context(conn, user_id, settings, today_d, horizon))
-        ctx["forecast_horizon_choices"] = _FORECAST_HORIZON_CHOICES
-    else:
-        bundle, derived = plan_data.analytics_bundle(
-            conn, user_id, picked, request.query_params.get("period"), settings=settings
+        ctx["forecast"] = plan_data.forecast_page_for(
+            conn, user_id, settings, today_d, horizon=horizon, choices=_FORECAST_HORIZON_CHOICES
         )
-        ctx.update(derived)
-        ctx["spend_chart"], ctx["flow_chart"] = charts.analytics_charts(
-            bundle, settings.base_currency
-        )
-    return render(request, "plan/index.html", **ctx)
+        return render(request, "pages/plan/forecast.html", nav_current="plan", **ctx)
+    ctx["analytics"] = plan_data.analytics_page_for(
+        conn, user_id, picked, request.query_params.get("period"), settings=settings
+    )
+    return render(request, "pages/plan/analytics.html", nav_current="plan", **ctx)

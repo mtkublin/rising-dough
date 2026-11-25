@@ -300,6 +300,16 @@ def format_money(amount_minor: int, currency: str) -> str:
 _MINUS: Final = "\N{MINUS SIGN}"
 
 
+def ascii_minus(text: str) -> str:
+    """Typed text with the display minus (U+2212) turned back into ``-`` for parsing."""
+    return text.replace(_MINUS, "-")
+
+
+def sign_glyph(negative: bool) -> str:
+    """Display sign of an amount: U+2212 when ``negative``, ``+`` otherwise."""
+    return _MINUS if negative else "+"
+
+
 def format_figure(
     amount_minor: int, currency: str, *, plus: bool = False, with_currency: bool = False
 ) -> str:
@@ -325,11 +335,13 @@ _INT_LABEL_EPSILON: Final = 1e-9
 
 
 def format_axis_number(value: float) -> str:
-    """Chart axis label: grouped integer when whole, else two decimals."""
-    rounded = round(value)
-    if abs(value - rounded) < _INT_LABEL_EPSILON:
-        return f"{int(rounded):,}"
-    return f"{value:,.2f}"
+    """Chart axis label: grouped integer when whole, else two decimals; negatives take U+2212."""
+    sign = _MINUS if value < 0 else ""
+    magnitude = abs(value)
+    rounded = round(magnitude)
+    if abs(magnitude - rounded) < _INT_LABEL_EPSILON:
+        return f"{sign}{int(rounded):,}"
+    return f"{sign}{magnitude:,.2f}"
 
 
 def percent_of(part_minor: int, total_minor: int) -> int:

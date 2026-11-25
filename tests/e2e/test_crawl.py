@@ -79,6 +79,7 @@ NOT_PAGES: dict[str, str] = {
     "/budget/yearly": "fragment (host page: /plan?tab=year, crawled in VIEWS)",
     "/budget/rules/{category_id}/overrides/new": "dialog fragment",
     "/categories/new": "dialog fragment",
+    "/categories/{category_id}/archive": "dialog fragment",
     "/categories/{category_id}/edit": "dialog fragment",
     "/forecast/view": "fragment",
     "/ledger/table": "fragment",
@@ -95,6 +96,8 @@ NOT_PAGES: dict[str, str] = {
     "/recurring/{rule_id}/promote/inline": "fragment",
     "/settings/close": "fragment",
     "/settings/users/{user_id}/edit": "dialog fragment",
+    # one-time token in the query; closed → 303 /auth/login (T-UR21, ADR-0134 §9)
+    "/setup": "one-time token in the query; closed → 303 /auth/login (T-UR21, ADR-0134 §9)",
     "/today/afford": "fragment",
     "/today/upcoming": "fragment",
     "/transactions": "legacy list route (redirects into /ledger)",

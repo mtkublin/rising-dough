@@ -4,7 +4,7 @@
 - **Date**: 2026-11-24
 - **Amends**: [ADR-0066](0066-orchestrator-mode-skill.md) (orchestrator scope, model choice, briefs, merge review); [ADR-0120](0120-pre-commit-is-the-local-gate.md) §1 and amendment 2026-11-22 (the test gate for orchestrated item agents only)
 - **Related**: [ADR-0097](0097-per-batch-ci-policy-and-fast-precommit-pytest.md), [ADR-0099](0099-release-and-environment-policy.md), [ADR-0108](0108-faster-ci-parallel-tests-and-change-based-inner-loop.md), [ADR-0130](0130-prevention-regime-and-full-architectural-compliance.md) §7
-- **Tasks**: T-Q324 to T-Q329 (`docs/plans/quality-audit/tasks.md`)
+- **Tasks**: T-Q324 to T-Q329; amendment 2026-11-25: T-Q330 to T-Q332 (`docs/plans/quality-audit/tasks.md`)
 
 ## Context
 
@@ -125,3 +125,95 @@ At the end of each run the scribe commits `docs/runs/<date>-<slug>.md`. It has o
 - **Keep the pytest hook in item agents and add the wave tester on top.** Rejected: it keeps the N-suites CPU cost the change exists to remove.
 - **Encode the wave loop as a `Workflow` script.** Deferred: it needs explicit opt-in per run, and worktree isolation for workflow agents has not been confirmed. Revisit once the run logs show the flow is stable.
 - **More prose rules in the skill.** Rejected: the incidents happened with the rule already written down. Enforcement moves to scripts, frontmatter and the conftest hook.
+
+## Amendment 2026-11-25: no idle turns
+
+Incident (`ui/sourdough` run): the orchestrator ended its turn with one agent in flight. The agent finished about 07:46, but the orchestrator resumed only at 09:17, when the operator wrote ("why did you stop in the meantime? you were supposed to keep running until PR ready").
+
+Rule, in the `orchestrator-mode` skill §5 and §6: in a run told to keep going, before ending any turn the orchestrator has (a) at least 2 agents in flight when load allows and unblocked work exists, and (b) a background heartbeat timer running (`sleep 1200; echo heartbeat`, Bash `run_in_background`, restarted on every heartbeat). A completion notification can fail to arrive; the heartbeat re-invokes the orchestrator to check worktrees, merge and dispatch. A turn whose only in-flight work is one agent waiting on its own background job is never ended. An operator question mid-run is answered and the run continues in the same turn. The single heartbeat is not a polling loop; "no polling" stays.
+
+## Amendment 2026-11-25: hook-enforced rules (T-Q330 to T-Q332)
+
+Amends §4 (acceptance criteria), §5 (locks, wave test), §6 (supervision) and the wave order, and ADR-0066 (orchestrator turn discipline). Recorded as an amendment, not a new ADR: the next free number on `main` is 0151, which `ui/sourdough` already uses for ADR-0151 and ADR-0152, and the index guard fails on gaps.
+
+### Context
+
+The first orchestrator v2 run (`ui/sourdough` redesign migration, 2026-11-24 18:58 to 2026-11-25 09:06 UTC) reached wave 6 in about 14 working hours. The operator asked why. The numbers below come from the session transcript and its 158 subagent transcripts (56 agent-hours in total). Command categories are matched on command text, so hours are approximate; the ranking is not.
+
+| Cause | Measured | Rule that already existed |
+|---|---|---|
+| Waiting for the one heavy lock | 10.8 agent-h of `until mkdir` loops; heavy commands ran during 8.8 of the ~14 h, so the lock was nearly always busy | Skill §5 "Heavy locks": implementers skip the pytest hook, "so locks are mostly for the tester and the visual audit" |
+| Blocking poll loops | 3.2 agent-h of `sleep` / `until grep` loops; 45 calls hit the 10-minute Bash cap | Skill §5 "No polling, no sleep loops"; tester "do not poll in a loop" |
+| Implementer e2e runs | 259 single-file e2e runs, 5.8 h, under the lock; 30 implementer briefs named e2e files | `implementer.md`: no suites, the wave tester runs them |
+| Reviewer suite and e2e reruns | 24 e2e runs (1.6 h) and 48 directory runs (1.6 h) over 30 reviewers | `reviewer.md`: single-file pytest only. But `brief-common.md` says of acceptance commands "the reviewer reruns them", and briefs listed e2e |
+| Implementers far past the size | 12 implementers over 60 min (UR10b 287, UR09a 278, UR09b 157, UR07b 149 min); 5 `TaskStop` calls | `implementer.md`: past ~45 min report `PARTIAL`; skill §6: act at ~60 min |
+| Orchestrator idle turns | 21 min after answering an operator question; about 90 min (06:47 to 08:17) with UR09a and UR10b finished and parked | None until the amendment 2026-11-25 "no idle turns" above, written after both stalls |
+| Wave barrier | wave 5 tester 56 min (30 min of it lock wait) and a fix item; nothing of wave 6 started meanwhile | Skill §8: "the next wave starts only on GREEN" |
+| Serial audit, then review | each frontend item waits for the audit before the review starts | Skill §7 order |
+| Rework loops | UR00b: 8 implementer and 9 reviewer runs over 185 min around a CI reference job that hit its 45-min timeout; 4 items needed a second audit, 6 a second review | none |
+
+This ADR already concluded that "the incidents happened with the rule already written down" and moved enforcement to scripts. This run shows the same for the rules this ADR left as prose. Claude Code hooks can enforce them: a `PreToolUse` hook sees each Bash command and, for a subagent call, the `agent_type`; a `Stop` hook can refuse the end of a turn once.
+
+### Decision
+
+#### 1. A per-role Bash guard
+
+`.claude/settings.json` runs `scripts/ci/agent_guard.py pre-tool` before every Bash call. The guard acts only when `agent_type` is one of the six roles of §2. The main thread and every other agent pass untouched. It denies with a reason the agent sees, so the agent can change course.
+
+| Role | Denied |
+|---|---|
+| all six roles | `-n auto` (or any `-n`/`--numprocesses` other than `0`/`1`/`2`); foreground waits (below) |
+| `implementer` | the full suite (`just test`, `test-changed`, `test-fast`, `ci`, `mutate`, a bare `pytest`); directory runs; the whole e2e suite; more than 4 local e2e-file runs per agent (then: push the `wi/**` branch, `e2e.yml` runs on the push) |
+| `reviewer`, `visual-auditor`, `scribe`, `explorer` | every suite, directory and e2e run; single non-e2e test files stay allowed |
+| `tester` | nothing beyond the all-roles row |
+
+Directory runs of `tests/architecture` (what `just guards` runs) and `tests/ui_map` count as single files. A command is split on `;`, `&&`, `||`, `|` and newlines; heredoc bodies are ignored, so writing a file that mentions `pytest` is not a test run.
+
+#### 2. No foreground waits for role agents
+
+A foreground `until`/`while` loop that sleeps, a `sleep` over 30 s and `gh run watch` are denied unless the call sets `run_in_background: true`. The agent is re-invoked when the background call exits, so a lock wait costs no tool slot and never meets the 10-minute cap.
+
+#### 3. A runtime budget per role
+
+The guard keeps per-agent state under the system temp dir (`agent-guard/<session>/<agent>.json`): active minutes and local e2e count. Active time adds the gap since the agent's previous Bash call, capped at 15 min, so an agent parked for hours and then resumed with fixes is not charged for the idle time. Budgets: `implementer` 60, `tester` 60, `visual-auditor` 45, `reviewer` 30, `scribe` 20, `explorer` 20 min. Past the budget the guard denies test runs, lock acquisition and the audit script with: commit what is green and report `PARTIAL` (or the verdict so far). `git`, reads and edits stay allowed, so the agent can always hand over.
+
+Claude Code has no wall-clock limit per subagent. `maxTurns` counts turns, not time, and is not adopted.
+
+#### 4. A stop check for the orchestrator
+
+`.claude/settings.json` runs `scripts/ci/agent_guard.py stop` on `Stop`. It acts only in a session whose transcript shows the `orchestrator-mode` skill loaded (the skill's "Base directory for this skill" line); other sessions are untouched. The orchestrator's last message must end with one line `RUN-STATE: waiting <what> | question <for the operator> | blocked <why> | paused <operator asked> | done`. Without it the hook refuses the stop once and says why. `waiting` means agents or background jobs are in flight and the heartbeat timer runs (amendment 2026-11-25: no idle turns). The second stop in a row passes (`stop_hook_active`), so the hook cannot loop.
+
+#### 5. Process changes the guard cannot enforce
+
+- **Acceptance commands** in briefs name single test files only. E2e evidence is the `e2e.yml` run on the pushed `wi/**` sha, which the reviewer reads with `gh run list --branch`. Reviewers rerun single non-e2e files only (fixes the `brief-common.md` contradiction).
+- **Locks.** Single-file pytest takes no lock. Locks serialize the wave tester, visual audits and an implementer's local e2e file run. Two slots (`/tmp/<plan>-heavy.lock`, `-heavy-2.lock`) by default while the 5-min load stays under 2x cores.
+- **Audit and review in parallel.** For a frontend item the orchestrator dispatches the `visual-auditor` and the `reviewer` together. The reviewer judges the code; the orchestrator runs `just check-item` again on the final sha (audit record included) before merging.
+- **The next wave does not wait for the tester.** While the tester runs, the next wave's items (disjoint files, no dependency on an unmerged item) are dispatched, built, audited and reviewed. Merges into `<MAIN>` wait for `GREEN`, because the tester uses the main checkout.
+- **Parked agents.** A finished agent whose report is unread, or that waits for instructions, is not "in flight". The orchestrator acts on every report in the turn it arrives.
+- **Item size.** One page, or at most two dialogs, per item. An item that took more than twice its estimate in the run log is split along the same seam next time.
+- **Untried workflows.** A GitHub workflow an item depends on that has never finished is run once first, and its duration is checked against its `timeout-minutes`, before items are planned on it.
+- **Audit expectations in the brief.** A frontend brief lists what the auditor will check (the five diagnostics, Step 3b, the failing-save error per form), so the implementer builds to it instead of finding out in a second audit.
+
+#### 6. Fail open, tested
+
+Any error inside the guard allows the call: a broken guard must never stop every agent. The decisions are pure functions with unit tests (`tests/unit/deploy/test_agent_guard.py`) that pin each role's allowed and denied commands. Command matching is a guardrail, not a security boundary: an agent determined to run a suite can spell it differently. The reviewer treats a suite run disguised past the guard as guard-gaming (§2).
+
+#### 7. The no-idle-turns amendment on `main`
+
+The amendment 2026-11-25 "no idle turns" above was written on `ui/sourdough`. This change carries the same text to `main`, so merging `main` into `ui/sourdough` meets identical lines.
+
+### Consequences
+
+- The run-log causes above that are commands (lock waits, poll loops, suites, e2e, runtime) are now refused when they happen, not found afterwards.
+- Implementers hand e2e coverage to GitHub after four local runs. A slow `e2e.yml` run delays an item's evidence, not the machine.
+- Agents may be denied mid-task and must adapt. The deny reason names the allowed path, so the cost is one turn.
+- The guard adds about 30 ms per Bash call for role agents (one `python3` start).
+- The stop check costs the orchestrator one extra turn when it forgets the line.
+
+### Alternatives considered
+
+- **`permissions.deny` rules in settings.** Rejected: they apply to every agent and the main thread, so they would block the tester too.
+- **`hooks` in agent frontmatter.** Rejected for now: project agent frontmatter hooks run only after the workspace trust dialog, and remote or `-p` sessions may not run them. Settings-level hooks keyed on `agent_type` cover all sessions with one script.
+- **`disallowedTools: Bash(...)`.** Rejected: a pattern there removes the whole Bash tool from the agent.
+- **More prose rules only.** Rejected for the same reason as above.
+- **Encode the run as a `Workflow` script.** Still deferred (above).

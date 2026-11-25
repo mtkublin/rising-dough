@@ -13,11 +13,12 @@ from datetime import date
 from types import MappingProxyType
 from typing import Any
 
-from starlette.datastructures import FormData
+from starlette.datastructures import FormData, QueryParams
 
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Cadence, Direction
+from budget_planner.domain.money import ascii_minus
 from budget_planner.domain.recurring import (
     AmountFormula,
     NewRecurringRule,
@@ -44,7 +45,26 @@ EMPTY_TERM_INPUT: Mapping[str, object] = MappingProxyType(
     }
 )
 
+# The old shell's form posts terms[i][sign|coefficient_percent|source_category_ids]. The dialog's
+# formula fragment posts the handoff names (the vendored formula.js re-indexes only those):
+# components[i][sign|percent|categories], U+2212 for a subtracted component.
 _TERM_FIELD_RE = re.compile(r"^terms\[(\d+)\]\[(sign|coefficient_percent|source_category_ids)\]$")
+_COMPONENT_FIELD_RE = re.compile(r"^components\[(\d+)\]\[(sign|percent|categories)\]$")
+_COMPONENT_FIELDS = MappingProxyType(
+    {"sign": "sign", "percent": "coefficient_percent", "categories": "source_category_ids"}
+)
+_COMPONENTS_PREFIX = "components["
+
+
+def category_alias(category_id: str, category: str) -> str:
+    """The posted category: ``category_id`` wins over the picker's ``category`` when both come.
+
+    The one place the two spellings meet (the dialog's picker posts ``category``, the old form
+    ``category_id``); the transaction, planned and recurring creates all read it through here.
+    """
+    return category_id or category
+
+
 _CADENCES: Mapping[str, Cadence] = MappingProxyType({c.value: c for c in Cadence})
 _DEST = "dest_account_id"
 
@@ -58,7 +78,7 @@ def formula_source_candidates(conn: sqlite3.Connection, user_id: int) -> list[Ca
     ]
 
 
-def parse_terms_from_form(form: FormData) -> list[TermInput]:
+def parse_terms_from_form(form: FormData | QueryParams) -> list[TermInput]:
     """Group `terms[i][field]` form entries into a dense indexed list.
 
     Returns a list of ``{"sign", "coefficient_percent", "source_category_ids"}``
@@ -70,17 +90,21 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     signs: dict[int, str] = {}
     percents: dict[int, str] = {}
     ids: dict[int, list[str]] = {}
-    for key, raw in form.multi_items():
-        m = _TERM_FIELD_RE.match(key)
+    items = list(form.multi_items())
+    # Never merge the two spellings: any ``components[`` key makes the post a dialog post.
+    dialog = any(key.startswith(_COMPONENTS_PREFIX) for key, _ in items)
+    pattern = _COMPONENT_FIELD_RE if dialog else _TERM_FIELD_RE
+    for key, raw in items:
+        m = pattern.match(key)
         if m is None:
             continue
         idx = int(m.group(1))
-        field = m.group(2)
+        field = _COMPONENT_FIELDS[m.group(2)] if dialog else m.group(2)
         ids.setdefault(idx, [])
         if field == "source_category_ids":
             ids[idx].append(str(raw))
         elif field == "sign":
-            signs[idx] = str(raw)
+            signs[idx] = ascii_minus(str(raw))
         else:
             percents[idx] = str(raw)
     return [
@@ -93,7 +117,7 @@ def parse_terms_from_form(form: FormData) -> list[TermInput]:
     ]
 
 
-def parse_draft_terms(form: FormData) -> list[formula_svc.DraftTerm] | None:
+def parse_draft_terms(form: FormData | QueryParams) -> list[formula_svc.DraftTerm] | None:
     """Posted terms as preview drafts; ``None`` when a source category id is not an integer."""
     drafts: list[formula_svc.DraftTerm] = []
     for row in parse_terms_from_form(form):
@@ -171,6 +195,7 @@ def _resolve_formula(
     today: date,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     try:
         terms = [
@@ -191,6 +216,7 @@ def _resolve_formula(
             fx=fx,
             target_ccy=target_ccy,
             exclude_rule_id=exclude_rule_id,
+            posting_category_id=posting_category_id,
         )
     except formula_svc.FormulaError as exc:
         return None, None, {"formula": str(exc)}
@@ -208,6 +234,7 @@ def resolve_amount_inputs(
     exclude_rule_id: int | None,
     today: date,
     fx: FormulaFx,
+    posting_category_id: int | None = None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -223,6 +250,7 @@ def resolve_amount_inputs(
             today=today,
             fx=fx,
             target_ccy=account_currency,
+            posting_category_id=posting_category_id,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
@@ -258,7 +286,7 @@ def read_rule_fields(form: FormData) -> RuleFields:
         cadence=text("cadence"),
         start_date=text("start_date"),
         end_date=text("end_date"),
-        category_id=text("category_id"),
+        category_id=category_alias(text("category_id"), text("category")),
         account_id=text("account_id"),
         dest_account_id=text("dest_account_id"),
         default_amount=text("default_amount"),
@@ -345,6 +373,16 @@ def _lookup_refs(
     return acc, cat, dest_id, {**errors, **dest_errors}
 
 
+def _missing_id_errors(fields: RuleFields) -> dict[str, str]:
+    """Per-field messages for a category or account that is blank or not a number."""
+    errors: dict[str, str] = {}
+    if parse_int(fields.category_id) is None:
+        errors["category_id"] = "pick a category" if not fields.category_id else "unknown category"
+    if parse_int(fields.account_id) is None:
+        errors["account_id"] = "unknown account"
+    return errors
+
+
 def validate_rule_draft(
     conn: sqlite3.Connection,
     user_id: int,
@@ -360,7 +398,7 @@ def validate_rule_draft(
     start = parse_date(fields.start_date)
     end, errors = _date_errors(fields, cadence, start, cadence_error)
     if ids is None:
-        return RuleDraft(None, {**errors, "account_id": "invalid account/category"})
+        return RuleDraft(None, {**errors, **_missing_id_errors(fields)})
     category_id, account_id = ids
     acc, cat, dest_id, ref_errors = _lookup_refs(conn, user_id, fields, ids)
     errors = {**errors, **ref_errors}
@@ -374,6 +412,7 @@ def validate_rule_draft(
         account_currency=acc.currency if acc else None,
         exclude_rule_id=exclude_rule_id,
         today=today,
+        posting_category_id=category_id,
     )
     errors = {**errors, **amount_errors}
     if errors:

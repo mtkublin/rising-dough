@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Literal
+from typing import Final, Literal
 from urllib.parse import urlparse
 
 from fastapi import Request
@@ -19,12 +19,16 @@ from budget_planner.web.http_headers import (
     JSON_MEDIA_TYPE,
 )
 
+HX_TRIGGER: Final = "HX-Trigger"
+"""Response: the events to fire. Request: the id of the element that fired the request."""
+
 
 class Event(StrEnum):
     """Every server-emitted HX-Trigger event; the value is the wire name (ADR-0143)."""
 
     BALANCE_STALE = "balance-stale"
     BUDGET_STALE = "budget-stale"
+    DIALOG_CLOSE = "dialog-close"
     FORECAST_STALE = "forecast-stale"
     LEDGER_STALE = "ledger-stale"
     TODAY_STALE = "today-stale"
@@ -61,7 +65,7 @@ def trigger(response: Response, *events: Event, toast: Mapping[str, object] | No
         payload[str(Event.TOAST)] = dict(toast)
     if not payload:
         return
-    response.headers["HX-Trigger"] = json.dumps(payload)
+    response.headers[HX_TRIGGER] = json.dumps(payload)
 
 
 def refresh_unless_on(request: Request, response: Response, path_prefix: str) -> None:

@@ -1,0 +1,6 @@
+{# fragment: rows/transaction-day
+   Inputs: day (ledger_view.TxnDayView). The day heading with its net (base currency, ADR-0008). #}
+<tr class="rd-row rd-row--day">
+  <th scope="rowgroup" colspan="4" class="rd-row__day">{{ day.label }}</th>
+  <td class="rd-row__net">{{ day.net_text }}</td>
+</tr>

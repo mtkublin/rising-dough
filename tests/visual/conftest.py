@@ -77,7 +77,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     """With ``--reference=handoff`` run only the reference comparisons."""
     if config.getoption("--reference") != "handoff":
         return
-    keep = [i for i in items if "test_reference" in i.nodeid]
+    keep = [
+        i
+        for i in items
+        if "test_reference" in i.nodeid
+        and isinstance(i, pytest.Function)
+        and hasattr(i, "callspec")
+    ]
     only = handoff.parse_shard(config.getoption("--reference-shard"))
     if only:
         keep = [

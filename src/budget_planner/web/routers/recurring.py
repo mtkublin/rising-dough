@@ -20,11 +20,13 @@ from budget_planner.services._promotion import UnsupportedDirectionError, Valida
 from budget_planner.services.recurring_formula import FormulaFx
 from budget_planner.web import recurring_forms as forms, recurring_views as views
 from budget_planner.web.deps import current_user_id, get_db, get_formula_fx, today_for
+from budget_planner.web.dialogs import saved_response
+from budget_planner.web.form_responses import from_dialog
 from budget_planner.web.htmx import Event, trigger
 from budget_planner.web.http_headers import HTML_MEDIA_TYPE
 from budget_planner.web.params import parse_date, parse_int, query_date
 from budget_planner.web.paths import NEW_PATH
-from budget_planner.web.rendering import render
+from budget_planner.web.view_models import month_name
 
 router = APIRouter(prefix="/recurring", tags=["recurring"])
 
@@ -34,7 +36,7 @@ def new_form(
     request: Request,
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
+) -> Response:
     return views.render_new_form(request, conn, user_id)
 
 
@@ -93,27 +95,34 @@ async def formula_preview(
     if drafts is None:
         return Response(status_code=422, content="invalid source_category_ids")
     target_ccy = views.preview_currency(conn, user_id, form.get("account_id"), draft_rule_id, fx)
+    posting_category_id = parse_int(
+        forms.category_alias(str(form.get("category_id", "")), str(form.get("category", "")))
+    )
     result = formula_svc.preview(
-        conn, user_id, today_for(request), draft_rule_id, drafts, fx=fx, target_ccy=target_ccy
+        conn,
+        user_id,
+        today_for(request),
+        draft_rule_id,
+        drafts,
+        fx=fx,
+        target_ccy=target_ccy,
+        posting_category_id=posting_category_id,
     )
-    is_ok = isinstance(result, formula_svc.PreviewOk)
-    return render(
-        request,
-        "partials/recurring/_formula_preview.html",
-        result=result,
-        is_ok=is_ok,
-        status_code=200 if is_ok else 422,
-    )
+    return views.render_formula_result(request, result, target_ccy)
 
 
 @router.get("/{rule_id}/edit", response_class=HTMLResponse)
 def edit_form(
     rule_id: int,
     request: Request,
+    *,
+    hero: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
-) -> HTMLResponse:
-    return views.render_edit_form(request, conn, user_id, rule_id)
+    fx: FormulaFx = Depends(get_formula_fx),
+) -> Response:
+    """The edit-recurring dialog (T-UR10); ``hero=1`` renders it from the form for the hero swap."""
+    return views.render_edit_dialog(request, conn, user_id, rule_id, fx, hero_only=bool(hero))
 
 
 @router.post("/{rule_id}")
@@ -128,34 +137,30 @@ async def update_rule_handler(
     if rule is None:
         return Response(status_code=404, content="not found")
     fields = forms.read_rule_fields(await request.form())
-    ids = forms.parse_rule_ids(fields)
-    if ids is None:
-        return Response(status_code=422, content="invalid account/category")
     draft = forms.validate_rule_draft(
         conn,
         user_id,
         fields,
-        ids,
+        forms.parse_rule_ids(fields),
         fx=fx,
         today=today_for(request),
         exclude_rule_id=rule_id,
         cadence_error="invalid",
     )
     if draft.valid is None:
-        return views.render_rule_form_errors(
-            request,
-            conn,
-            user_id,
-            rule=rule,
-            action=f"/recurring/{rule_id}",
-            fields=fields,
-            errors=draft.errors,
+        return views.render_edit_errors(
+            request, conn, user_id, rule, fx, fields=fields, errors=draft.errors
         )
     recurring_svc.update_rule(
         conn, user_id, rule_id, forms.rule_patch_from(fields, draft.valid, rule)
     )
-    # Hosted by every page (T-D151): no row swap; refetch on the ledger, reload elsewhere.
-    return views.stale_response(request, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    return saved_response(
+        request,
+        None,
+        {},
+        message="Recurring rule saved",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 @router.post("/{rule_id}/deactivate")
@@ -180,10 +185,23 @@ def deactivate_rule(
 def new_override_form(
     rule_id: int,
     request: Request,
+    *,
+    occurrence_date: str = "",
+    remove: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
-    return views.render_override_form(request, conn, user_id, rule_id)
+    """Override dialog of the occurrence's month (default: the next), or its remove confirm."""
+    return views.render_override_dialog(
+        request,
+        conn,
+        user_id,
+        rule_id,
+        fx,
+        occurrence=query_date("occurrence_date", occurrence_date),
+        remove=remove == "1",
+    )
 
 
 @router.post("/{rule_id}/overrides")
@@ -191,20 +209,30 @@ def add_override(
     rule_id: int,
     request: Request,
     *,
-    year: int = Form(...),
-    month: int = Form(...),
-    amount: str = Form(...),
+    year: str = Form(""),
+    month: str = Form(""),
+    amount: str = Form(""),
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
+    fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
     rule = recurring_svc.find_rule(conn, user_id, rule_id)
     if rule is None:
         return Response(status_code=404, content="not found")
     acc = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
-    checked = forms.check_override(rule, acc, year, month, amount)
+    shown_year, shown_month = parse_int(year) or 0, parse_int(month) or 0
+    checked = forms.check_override(rule, acc, shown_year, shown_month, amount)
     if isinstance(checked, forms.OverrideError):
         return views.render_override_error(
-            request, rule, acc, year=year, month=month, amount=amount, error=checked
+            request,
+            conn,
+            user_id,
+            rule,
+            fx,
+            year=shown_year,
+            month=shown_month,
+            amount=amount,
+            error=checked,
         )
     recurring_svc.upsert_override(
         conn,
@@ -218,7 +246,13 @@ def add_override(
             date_override=None,
         ),
     )
-    return views.stale_response(request, Event.FORECAST_STALE, Event.LEDGER_STALE)
+    return saved_response(
+        request,
+        None,
+        {},
+        message=f"Override saved \N{MIDDLE DOT} {month_name(checked.occurrence.month)}",
+        events=(Event.FORECAST_STALE, Event.LEDGER_STALE),
+    )
 
 
 @router.post("/{rule_id}/overrides/{occurrence_date}/delete")
@@ -238,9 +272,11 @@ def delete_override(
     if occ is None:
         return Response(status_code=422, content="invalid date")
     recurring_svc.delete_override(conn, user_id, rule_id, occ)
-    return views.render_rule_row(
-        request, conn, user_id, rule, fx, Event.FORECAST_STALE, Event.LEDGER_STALE
-    )
+    events = (Event.FORECAST_STALE, Event.LEDGER_STALE)
+    if from_dialog(request):
+        return saved_response(request, None, {}, message="Override removed", events=events)
+    # The ledger table's own remove button (old shell) swaps the row until T-UR10a ports it.
+    return views.render_rule_row(request, conn, user_id, rule, fx, *events)
 
 
 # ---------------------------------------------------------------------------
@@ -252,11 +288,13 @@ def delete_override(
 def promote_form(
     rule_id: int,
     request: Request,
+    *,
+    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
     fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
-    return views.render_promote_modal(request, conn, user_id, rule_id, fx)
+    return views.render_promote_modal(request, conn, user_id, rule_id, fx, as_dialog=bool(dialog))
 
 
 @router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
@@ -300,9 +338,10 @@ def promote_submit(
         return Response(status_code=404, content="not found")
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     parsed = forms.parse_promote_input(operation_date, amount, account)
+    posted = {"amount": amount, "operation_date": operation_date, "description": description}
     if parsed.errors:
         return views.render_promote_modal(
-            request, conn, user_id, rule_id, fx, errors=parsed.errors, status_code=422
+            request, conn, user_id, rule_id, fx, errors=parsed.errors, posted=posted
         )
     edits = recurring_svc.PromotionEdits(
         operation_date=parsed.operation_date,
@@ -319,14 +358,9 @@ def promote_submit(
         UnsupportedDirectionError,
         ValidationError,
     ) as exc:
+        errors = {"promotion": str(exc)}
         return views.render_promote_modal(
-            request,
-            conn,
-            user_id,
-            rule_id,
-            fx,
-            errors={"promotion": str(exc)},
-            status_code=422,
+            request, conn, user_id, rule_id, fx, errors=errors, posted=posted
         )
     return views.stale_response(
         request, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE

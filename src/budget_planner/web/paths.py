@@ -10,5 +10,6 @@ NEW_PATH: Final = "/new"
 TABLE_PATH: Final = "/table"
 TRANSACTIONS_PATH: Final = "/transactions"
 PLANNED_PATH: Final = "/planned"
+DELETE_PATH: Final = "/delete"
 
 GET_HEAD_METHODS: Final = ("GET", "HEAD")

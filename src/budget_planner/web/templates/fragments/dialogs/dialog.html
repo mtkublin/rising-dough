@@ -25,9 +25,10 @@
                       amount_value instead of the editable input; no label, no name, never submitted; currency holds the unit
                       text, e.g. "PLN difference"; amount_id names the body field the figure is derived from; sign and note
                       still render. Handoff: overlays/reconcile.html, reconcile--liability.html).
-     actions: list of dicts {tone, label, id, name, value, href, hx_get, hx_post, hx_target, hx_swap, formaction};
+     hero.placeholder: the amount input placeholder, default "0.00" (callers pass domain.money format_major(0, currency)).
+     actions: list of dicts {tone, label, id, name, value, href, hx_get, hx_post, hx_target, hx_swap, hx_include, hx_vals, formaction};
                       tone: cancel | primary (name/value) | secondary (type=button, does not close) | danger (name/value) | link | ok.
-                      Any action may carry an id; secondary takes the hx_* and formaction keys.
+                      Any action may carry an id; secondary takes the hx_* and formaction keys; primary takes hx_include and hx_vals.
      form_id (standard, optional): id of the <form> itself (e.g. a self-targeting hx-target); empty adds no attribute.
      field_count / field_errors: the context invalid_dialog_response passes; renders forms/error-summary above the body.
    The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic, no set. #}
@@ -65,7 +66,7 @@
                          inputmode="decimal"
                          autocomplete="off"
                          value="{{ hero.amount_value|default('') }}"
-                         placeholder="0.00"
+                         placeholder="{{ hero.placeholder|default('0.00') }}"
                          {% if hero.error|default(none) %}aria-invalid="true" aria-describedby="{{ hero.amount_id|default('hero-amount') }}-error"{% endif %}
                          data-js="amount-input"
                          required>
@@ -159,6 +160,8 @@
                 {% if a.hx_post|default(none) %}hx-post="{{ a.hx_post }}"{% endif %}
                 {% if a.hx_target|default(none) %}hx-target="{{ a.hx_target }}"{% endif %}
                 {% if a.hx_swap|default(none) %}hx-swap="{{ a.hx_swap }}"{% endif %}
+                {% if a.hx_include|default(none) %}hx-include="{{ a.hx_include }}"{% endif %}
+                {% if a.hx_vals|default(none) %}hx-vals="{{ a.hx_vals }}"{% endif %}
                 {% if a.formaction|default(none) %}formaction="{{ a.formaction }}"{% endif %}>{{ a.label }}</button>
       {% elif a.tone == "danger" %}
         <button type="submit"
@@ -169,7 +172,9 @@
         <button type="submit"
                 {% if a.id|default(none) %}id="{{ a.id }}"{% endif %}
                 class="rd-btn rd-btn--lg rd-btn--primary"
-                {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}>{{ a.label }}</button>
+                {% if a.name|default(none) %}name="{{ a.name }}" value="{{ a.value }}"{% endif %}
+                {% if a.hx_include|default(none) %}hx-include="{{ a.hx_include }}"{% endif %}
+                {% if a.hx_vals|default(none) %}hx-vals="{{ a.hx_vals }}"{% endif %}>{{ a.label }}</button>
       {% endif %}
     {% endfor %}
   </div>

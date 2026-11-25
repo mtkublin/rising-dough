@@ -126,10 +126,8 @@ def test_users_tab_hidden_for_members(client: TestClient) -> None:
 
 
 def test_users_tab_shown_for_admins(admin_client: TestClient) -> None:
-    admin = BeautifulSoup(admin_client.get("/settings").text, "html.parser")
-    tab = admin.find(id="tab-users")
-    assert tab is not None
-    assert _tag(tab)["href"] == "/settings/users"
+    html = admin_client.get("/settings").text
+    assert _html.resolve_one(html, ui.tab("Users"))["href"] == "/settings/users"
 
 
 # --- list -----------------------------------------------------------------

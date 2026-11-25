@@ -36,6 +36,7 @@ _INPUT_ROLES = {
     "url": "textbox",
     "text": "textbox",
 }
+_NAME_CHILD = {"table": "caption", "fieldset": "legend"}  # element -> child that names it
 _STATIC_ROLES = {
     "a": "link",
     "button": "button",
@@ -59,6 +60,7 @@ _STATIC_ROLES = {
     "output": "status",
     "option": "option",
     "summary": "button",
+    "fieldset": "group",
     "hr": "separator",
 }
 _HEADING = re.compile(r"^h([1-6])$")
@@ -145,10 +147,10 @@ def accessible_name(el: Tag) -> str:  # noqa: PLR0911
         text = _visible_text(el)
         if text:
             return text
-    if el.name == "table":
-        cap = el.find("caption")
-        if isinstance(cap, Tag):
-            return _visible_text(cap)
+    named_by = _NAME_CHILD.get(el.name)
+    child = el.find(named_by) if named_by else None
+    if isinstance(child, Tag):
+        return _visible_text(child)
     title = el.get("title")
     return _norm(title) if isinstance(title, str) else ""
 
@@ -234,6 +236,8 @@ def _match_one(el: Tag, loc: Locator) -> bool:  # noqa: PLR0911
         level = int(m.group(1)) if m else int(str(el.get("aria-level", "0")) or 0)
         if level != loc.level:
             return False
+    if loc.pressed is not None and (el.get("aria-pressed") == "true") != loc.pressed:
+        return False
     if loc.name is None:
         return True
     return _matches(accessible_name(el), loc.name, exact=loc.exact)

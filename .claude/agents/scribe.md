@@ -19,6 +19,7 @@ You do the doc bookkeeping for one wave of an orchestrated run in budget_planner
 - Nothing else. No code, tests, ADR bodies or requirements.
 
 ## Rules
+- Runtime: about 20 min of active time; the guard (`scripts/ci/agent_guard.py`) denies test runs and foreground waits for this role. Report what you have.
 - Copy values from the brief exactly. Never invent ids, shas, durations or counts; a missing value is `?` and goes under `LEFT`.
 - Keep the surrounding format: compare with the previous entries before you write.
 - Commit: `SKIP=pytest-fast PYTEST_WORKERS=2 git commit -F <msg file>` as a plain command, subject `docs(<ID>): <wave> bookkeeping`. Never `--no-verify`.

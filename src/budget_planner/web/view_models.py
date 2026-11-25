@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING, Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of
 from budget_planner.services import (
-    analytics as analytics_service,
     budget as budget_service,
     ledger_totals,
     today as today_service,
@@ -280,6 +279,7 @@ class BudgetView:
     period_end: date
     period_day: int
     period_total_days: int
+    left_text: str = ""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -316,8 +316,14 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
     )
 
 
-def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView:
-    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker)."""
+def budget_view(
+    summary: budget_service.MonthSummary, today: date, base_currency: str | None = None
+) -> BudgetView:
+    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
+
+    With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
+    (U+2212 when over).
+    """
     totals = summary.totals
     lines = tuple(_line_view(line) for line in summary.lines)
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
@@ -337,6 +343,7 @@ def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView
         period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
+        left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
     )
 
 
@@ -382,8 +389,8 @@ def period_note(month: int, start: date, end: date) -> str:
     return f"{MONTH_SHORT[month - 1].lower()} = {day_month(start)} \u2192 {day_month(end)}"
 
 
-def budget_period(
-    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+def month_period(
+    picked: budget_service.PickerMonth, *, picker_id: str, note: str, base_url: str
 ) -> BudgetPeriod:
     """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
 
@@ -391,7 +398,7 @@ def budget_period(
         return f"{base_url}&year={year}&month={month}"
 
     picker = PeriodPicker(
-        id="period-budget",
+        id=picker_id,
         is_year=False,
         year=picked.year,
         prev_year_url=url(picked.year - 1, picked.month),
@@ -400,13 +407,25 @@ def budget_period(
             PickerCell(MONTH_SHORT[n - 1], url(picked.year, n), n == picked.month)
             for n in range(1, 13)
         ),
-        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+        note=note,
     )
     return BudgetPeriod(
         label=f"{month_name(picked.month)} {picked.year}",
         prev_url=url(picked.prev_year, picked.prev_month),
         next_url=url(picked.next_year, picked.next_month),
         picker=picker,
+    )
+
+
+def budget_period(
+    picked: budget_service.PickerMonth, summary: budget_service.MonthSummary, base_url: str
+) -> BudgetPeriod:
+    """Period nav and month picker for ``picked``; ``base_url`` ends in a query string."""
+    return month_period(
+        picked,
+        picker_id="period-budget",
+        note=period_note(picked.month, summary.period_start, summary.next_income_date),
+        base_url=base_url,
     )
 
 
@@ -539,135 +558,6 @@ def plan_header(tab: str, year: int, month: int, year_selected: int | None = Non
         month=month,
         month_cells=tuple(MonthCell(n, MONTH_SHORT[n - 1], n == month) for n in range(1, 13)),
     )
-
-
-# --- Plan year tab -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class YearCellView:
-    """One month cell of a year row."""
-
-    month: int
-    month_label: str
-    month_initial: str
-    amount_minor: int
-    tier: str
-
-
-@dataclass(frozen=True, slots=True)
-class YearRowView:
-    """One category row of the year heatmap."""
-
-    category_id: int
-    category_name: str
-    category_direction: Direction
-    category_color: str | None
-    total_minor: int
-    cells: tuple[YearCellView, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class YearView:
-    """Year tab rows split into budgeted and unset, plus labels."""
-
-    month_labels: tuple[str, ...]
-    with_rows: tuple[YearRowView, ...]
-    unset_rows: tuple[YearRowView, ...]
-    unset_heading: str
-
-
-def _year_row(row: budget_service.YearlyRow) -> YearRowView:
-    return YearRowView(
-        category_id=row.category_id,
-        category_name=row.category_name,
-        category_direction=row.category_direction,
-        category_color=row.category_color,
-        total_minor=row.total_minor,
-        cells=tuple(
-            YearCellView(
-                month=i,
-                month_label=MONTH_SHORT[i - 1],
-                month_initial=MONTH_SHORT[i - 1][0],
-                amount_minor=cell.amount_minor or 0,
-                tier=_YEAR_TIERS.get(cell.origin, "default"),
-            )
-            for i, cell in enumerate(row.cells, start=1)
-        ),
-    )
-
-
-def year_view(rows: tuple[budget_service.YearlyRow, ...]) -> YearView:
-    """Split the yearly grid into rows with a budget and rows without."""
-    with_rows = tuple(_year_row(r) for r in rows if r.total_minor)
-    unset_rows = tuple(_year_row(r) for r in rows if not r.total_minor)
-    noun = "category" if len(unset_rows) == 1 else "categories"
-    return YearView(
-        month_labels=MONTH_SHORT,
-        with_rows=with_rows,
-        unset_rows=unset_rows,
-        unset_heading=f"Show {len(unset_rows)} {noun} without a budget",
-    )
-
-
-# --- Analytics spend rows ----------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class SpendRowView:
-    """One spend-by-category row with its bar width and 12-month delta."""
-
-    category_id: int
-    category_name: str
-    amount_minor: int
-    bar_pct: int
-    has_average: bool
-    delta_minor: int
-    delta_kind: Literal["over", "under", "flat"]
-
-
-def spend_rows(
-    bundle: analytics_service.AnalyticsBundle, averages: Mapping[int, int]
-) -> tuple[SpendRowView, ...]:
-    """Spend rows scaled against the largest row, with deltas vs the 12-month average."""
-    rows = bundle.spend_by_category
-    top = rows[0].amount_minor if rows else 1
-    out: list[SpendRowView] = []
-    for row in rows:
-        avg = averages.get(row.category_id, 0)
-        delta = row.amount_minor - avg
-        kind: Literal["over", "under", "flat"] = (
-            "over" if delta > 0 else "under" if delta < 0 else "flat"
-        )
-        out.append(
-            SpendRowView(
-                category_id=row.category_id,
-                category_name=row.category_name,
-                amount_minor=row.amount_minor,
-                bar_pct=percent_of(row.amount_minor, top),
-                has_average=avg > 0,
-                delta_minor=delta,
-                delta_kind=kind,
-            )
-        )
-    return tuple(out)
-
-
-# --- Override form -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class OverridePeriod:
-    """Year/month an override form opens on."""
-
-    year: int
-    month: int
-    label: str
-
-
-def override_period(month: int, year: int) -> OverridePeriod:
-    """The override form's month/year with its short month label."""
-    return OverridePeriod(year, month, MONTH_SHORT[month - 1])
 
 
 def category_usage_text(usage: CategoryUsage) -> str | None:
