@@ -267,30 +267,6 @@ epic = "E16"
 owner = "T-UR09"
 
 [[entry]]
-path = "src/budget_planner/web/templates/ledger/index.html"
-rule = "tpl-domain-if"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/index.html"
-rule = "tpl-format"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/ledger/index.html"
-rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
 path = "src/budget_planner/web/templates/partials/_flash.html"
 rule = "tpl-set"
 count = 1
@@ -485,14 +461,6 @@ owner = "T-UR10"
 [[entry]]
 path = "src/budget_planner/web/templates/partials/transactions/_form.html"
 rule = "tpl-set"
-count = 1
-finding = "Q-039"
-epic = "E16"
-owner = "T-UR09"
-
-[[entry]]
-path = "src/budget_planner/web/templates/partials/transactions/_table.html"
-rule = "tpl-arith"
 count = 1
 finding = "Q-039"
 epic = "E16"

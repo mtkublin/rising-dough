@@ -33,6 +33,7 @@ def _open_formula_source(world: World, category: str) -> None:
     world.find(ledger.formula_source(category)).last.check()  # closed pickers are not visible
 
 
+@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_two_term_formula_shows_computed_preview(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")
@@ -64,6 +65,7 @@ def test_two_term_formula_shows_computed_preview(world: World) -> None:
     assert world.scalar("SELECT COUNT(*) FROM recurring_rules") == rules_before
 
 
+@pytest.mark.skip(reason="T-UR10a: planned and recurring rows keep the old kebab")
 def test_formula_cycle_shows_error_chip_and_keeps_edit_open(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")

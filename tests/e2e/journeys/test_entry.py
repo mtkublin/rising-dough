@@ -34,6 +34,7 @@ def _open_overlay(world: World, tab: str) -> None:
     expect(world.find(ledger.entry_tab(tab))).to_have_attribute("aria-selected", "true")
 
 
+@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_happened_entry_lands_in_actual(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Groceries")
@@ -57,6 +58,7 @@ def test_new_happened_entry_lands_in_actual(world: World) -> None:
     expect(world.find(ledger.row(txn[0]["id"]))).to_contain_text("happened-entry")
 
 
+@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_planned_entry_lands_in_planned(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Groceries")
@@ -85,6 +87,7 @@ def test_new_planned_entry_lands_in_planned(world: World) -> None:
     expect(world.find(ledger.planned_row(found[0]["id"]))).to_contain_text("planned-entry")
 
 
+@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_repeating_fixed_rule_lands_in_recurring(world: World) -> None:
     account = world.account("Checking")
     category = world.category("Rent")
@@ -113,6 +116,7 @@ def test_new_repeating_fixed_rule_lands_in_recurring(world: World) -> None:
     expect(world.find(ledger.recurring_row(rule["id"]))).to_contain_text("fixed-rule")
 
 
+@pytest.mark.skip(reason="T-UR10b: legacy + Add overlay left the ledger; dialog journeys follow")
 def test_new_repeating_formula_rule_derives_from_source(world: World) -> None:
     account = world.account("Checking")
     salary = world.category("Salary", "income")

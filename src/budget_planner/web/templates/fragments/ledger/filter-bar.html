@@ -1,0 +1,85 @@
+{# fragment: ledger/filter-bar
+   Inputs: bar (ledger_view.FilterBar), view. Query names are the ledger contract's (date_from, date_to,
+   category_id, account_id, direction, q), not the handoff's (derived.md). A change or a typed search
+   refetches the table region; filters.js collapses the extra fields on phone. #}
+<form class="rd-filters"
+      id="ledger-filters"
+      method="get"
+      action="/ledger"
+      role="search"
+      aria-label="Filter transactions"
+      data-js="filters"
+      data-state="{{ 'expanded' if bar.expanded else 'collapsed' }}"
+      hx-get="/ledger/table"
+      hx-target="#ledger-table"
+      hx-swap="outerHTML"
+      hx-sync="#ledger-table:replace"
+      hx-trigger="change, submit, input changed delay:400ms from:#f-q"
+      hx-push-url="false">
+  <input type="hidden" name="view" value="{{ view }}">
+  <div class="rd-filters__extra" id="f-extra">
+    <div class="rd-field">
+      <label class="rd-field__label rd-field__label--plain" for="f-from">from</label>
+      <input class="rd-text"
+             type="date"
+             id="f-from"
+             name="date_from"
+             value="{{ bar.date_from }}">
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label rd-field__label--plain" for="f-to">to</label>
+      <input class="rd-text"
+             type="date"
+             id="f-to"
+             name="date_to"
+             value="{{ bar.date_to }}">
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label rd-field__label--plain" for="f-cat">category</label>
+      <span class="rd-select-wrap">
+        <select class="rd-select" id="f-cat" name="category_id">
+          <option value="">all categories</option>
+          {% for o in bar.categories %}
+            <option value="{{ o.value }}" {% if o.selected %}selected{% endif %}>{{ o.label }}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label rd-field__label--plain" for="f-acc">account</label>
+      <span class="rd-select-wrap">
+        <select class="rd-select" id="f-acc" name="account_id">
+          <option value="">all accounts</option>
+          {% for o in bar.accounts %}
+            <option value="{{ o.value }}" {% if o.selected %}selected{% endif %}>{{ o.label }}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+    <div class="rd-field">
+      <label class="rd-field__label rd-field__label--plain" for="f-dir">direction</label>
+      <span class="rd-select-wrap">
+        <select class="rd-select" id="f-dir" name="direction">
+          <option value="">any direction</option>
+          {% for o in bar.directions %}
+            <option value="{{ o.value }}" {% if o.selected %}selected{% endif %}>{{ o.label }}</option>
+          {% endfor %}
+        </select>
+      </span>
+    </div>
+  </div>
+  <div class="rd-field rd-filters__search">
+    <label class="rd-field__label rd-field__label--plain" for="f-q"><span class="u-hide-below-md">search</span><span class="u-hide-from-md u-visually-hidden">Search description</span></label>
+    <input class="rd-text"
+           type="search"
+           id="f-q"
+           name="q"
+           placeholder="search description"
+           value="{{ bar.search }}">
+  </div>
+  <button type="button"
+          class="rd-btn rd-btn--secondary-rule rd-filters__toggle"
+          aria-expanded="{{ 'true' if bar.expanded else 'false' }}"
+          aria-controls="f-extra"
+          data-js="filters-toggle">filters</button>
+</form>

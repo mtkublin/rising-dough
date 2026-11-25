@@ -11,7 +11,7 @@ heading = role("heading", level=1)
 table = by_id("txn-table")
 form = by_id("txn-form")
 form_slot = by_id("txn-form-slot")
-pagination = role("navigation", "Pagination")
+pagination = role("navigation", "Pages")
 search = label("Search")
 add_entry = role("button", "Add entry")
 save = role("button", "Save")
@@ -32,8 +32,8 @@ def recurring_row(rule_id: int) -> Locator:
 
 
 def row_menu(tx_id: int) -> Locator:
-    """The 'Row actions' menu trigger inside a transaction row."""
-    return role("button", "Row actions").inside(row(tx_id))
+    """The 'Row menu' trigger inside a transaction row (the new shell's popover menu)."""
+    return role("button", "Row menu").inside(row(tx_id))
 
 
 def skip_next(rule_id: int) -> Locator:
@@ -51,6 +51,62 @@ def deleted_row(kind: str, entity_id: int) -> Locator:
 
 def restore(kind: str, entity_id: int) -> Locator:
     return role("button", "Restore").inside(deleted_row(kind, entity_id))
+
+
+# --- T-UR09: the Actual view on the new shell --------------------------------
+bulk_bar = by_id("ledger-bulk-bar")
+newer_button = role("link", "newer")
+hero_figure = by_id("ledger-spent")
+
+
+def row_cells(tx_id: int) -> Locator:
+    """The cells of a transaction row: select, description, category, amount, actions."""
+    return role("cell").inside(row(tx_id))
+
+
+def select_box(tx_id: int) -> Locator:
+    return by_id(f"sel-{tx_id}")
+
+
+def menu_items(source: _html.Source, tx_id: int) -> dict[str, Tag]:
+    """Items of a transaction row menu keyed by label (edit, delete, cancel)."""
+    menu = _html.resolve_one(source, by_id(f"menu-txn-{tx_id}"))
+    return {el.get_text(strip=True): el for el in menu.find_all(None, {"role": "menuitem"})}
+
+
+def txn_row_ids(source: _html.Source) -> list[str]:
+    """Ids (``txn-N``) of the transaction rows of the Actual table, in page order."""
+    table_root = _html.resolve_one(source, view_table("actual"))
+    return [
+        str(tr["id"])
+        for tr in table_root.find_all("tr")
+        if str(tr.get("id", "")).startswith("txn-")
+    ]
+
+
+def day_heads(source: _html.Source) -> list[str]:
+    """Text of the day heading rows (``MON 02 NOV NET \u2212110.00``), in page order."""
+    table_root = _html.resolve_one(source, view_table("actual"))
+    return [
+        " ".join(tr.get_text(" ").split())
+        for tr in table_root.find_all("tr")
+        if "rd-row--day" in (tr.get("class") or [])
+    ]
+
+
+def color_rules(source: _html.Source) -> str:
+    """CSS rules of the table's nonce'd style blocks (custom category hues), whitespace-free."""
+    root = _html.resolve_one(source, by_id("ledger-table"))
+    return "".join("".join(style.get_text().split()) for style in root.find_all("style"))
+
+
+def chips(source: _html.Source) -> dict[str, str | None]:
+    """Category chip text -> its ``data-color`` (None for the neutral chip)."""
+    table_root = _html.resolve_one(source, view_table("actual"))
+    return {
+        c.get_text(strip=True): (str(c["data-color"]) if c.has_attr("data-color") else None)
+        for c in table_root.find_all(class_="rd-chip")
+    }
 
 
 # --- forms (transaction / planned / recurring share labels) -----------------
@@ -82,8 +138,8 @@ def view_table(view: str) -> Locator:
 
 
 def view_tab(name: str) -> Locator:
-    """A segmented view tab (``Actual`` / ``Planned`` / ``Recurring``)."""
-    return role("tab", name)
+    """A view tab link (``actual`` / ``planned`` / ``recurring``; the label carries the count)."""
+    return role("link", name).inside(role("navigation", "Ledger view"))
 
 
 def column_header(name: str) -> Locator:
@@ -162,7 +218,7 @@ def named_input(form: Tag, name: str) -> Tag:
 # --- T-UT08a: existing e2e journeys ---
 filter_category = label("Category").inside(filters_form)
 filter_search = role("searchbox").inside(filters_form)
-older_button = role("button", "Older")
+older_button = role("link", "older")
 cancel_button = role("button", "Cancel")
 add_rule_button = role("button", "Add rule")
 next_month_button = role("button", "Next month")
@@ -172,7 +228,8 @@ row_actions = role("button", "Row actions")
 
 def view_row_actions(view: str) -> Locator:
     """One 'Row actions' kebab per data row of a view (counts rows without id prefixes)."""
-    return row_actions.inside(view_table(view))
+    trigger = role("button", "Row menu") if view == "actual" else row_actions
+    return trigger.inside(view_table(view))
 
 
 def row_kebab(row_loc: Locator) -> Locator:

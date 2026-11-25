@@ -1,0 +1,29 @@
+{# fragment: rows/transaction-row
+   Inputs: row (ledger_view.TxnRowView). One transaction: select box, description + account,
+   category chip, signed amount in the account currency, row menu (edit, delete). #}
+<tr class="rd-row rd-row--tx" id="txn-{{ row.id }}">
+  <td class="rd-row__select">
+    <input type="checkbox"
+           class="rd-check"
+           id="sel-{{ row.id }}"
+           name="ids"
+           value="{{ row.id }}"
+           data-js="bulk-item"
+           aria-label="{{ row.select_label }}">
+  </td>
+  <td class="rd-row__desc">
+    <span class="rd-row__title">{{ row.title }}</span><span class="rd-row__sub">{{ row.sub }}</span>
+  </td>
+  <td class="rd-row__cat">
+    <span class="rd-chip"
+          {% if row.category_hue %} data-color="{{ row.category_hue }}"{% endif %}>{{ row.category_name }}</span>
+  </td>
+  <td class="rd-row__amount">
+    <span class="rd-amount">{{ row.amount_text }} <span class="rd-amount__cur">{{ row.currency }}</span></span>
+  </td>
+  <td class="rd-row__actions">
+    {% with menu_id=row.menu_id, title=row.menu_title, sub=row.menu_sub, items=row.menu_items %}
+      {% include "fragments/menus/row-menu.html" %}
+    {% endwith %}
+  </td>
+</tr>
