@@ -34,8 +34,8 @@ from tests.visual.handoff_recurring import (
     STATE_RECIPES,
     STATE_SOURCE,
     state_opener_url,
+    state_recipe as dialog_state_recipe,
 )
-from tests.visual.handoff_recurring import state_recipe as dialog_state_recipe
 from tests.visual.handoff_states import (
     NO_USER_PAGES,
     RECIPES,
@@ -43,7 +43,6 @@ from tests.visual.handoff_states import (
     SETUP_TOKEN,
     build_empty_db,
     setup_server_env,
-    state_recipe,
     state_recipe,
 )
 from tests.visual.test_reference import (

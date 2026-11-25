@@ -34,8 +34,11 @@ from tests.visual.handoff_clicks import click_recipe
 from tests.visual.handoff_forms import DIALOG_SUBMITS, submit_dialog
 from tests.visual.handoff_newentry import PHONE_SHEET_DIALOGS, newentry_recipe
 from tests.visual.handoff_openers import OPENERS, opener_url
-from tests.visual.handoff_recurring import STATE_PAGES, state_opener_url
-from tests.visual.handoff_recurring import state_recipe as dialog_state_recipe
+from tests.visual.handoff_recurring import (
+    STATE_PAGES,
+    state_opener_url,
+    state_recipe as dialog_state_recipe,
+)
 from tests.visual.handoff_seed import build_seed
 from tests.visual.handoff_states import (
     NO_USER_PAGES,
