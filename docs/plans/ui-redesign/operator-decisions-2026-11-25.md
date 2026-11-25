@@ -10,7 +10,7 @@ Answered by the operator in the end-of-run QA, 2026-11-25. Binding for the rest 
 - Q12 unknown routes: HTML 404 page for browsers (Accept: text/html), JSON 404 for API clients. Update tests/contract/test_errors.py:55-58 to pin both.
 - Q15 (F5) unknown or foreign account delete: 404, no toast, the same for unknown and foreign accounts. Update the contract test_accounts.py:383.
 - Q13 /budget contract tests: port them to the /plan budget tab at T-UR15, keeping the behaviour pins; /budget redirects to /plan.
-- Q1 csrf.js and vendored htmx-2.0.11.min.js: KEEP both. Add keep rows in removal.md and an ADR-0107 §2 amendment naming them.
+- Q1 csrf.js and vendored htmx-2.0.11.min.js: KEEP both. Add keep rows in removal.md and an ADR-0107 §2 amendment naming them. Relocated to `rd/js` by UR15d (ADR-0107 §2 amendment); vendored htmx unchanged.
 - Q2 ci.yml shallow checkout: the operator worried about history weight. Measured 1,726 commits, 49 MiB packed. Decision: `fetch-depth: 0` plus `filter: blob:none` (commits and trees only) on the guard job's checkout. This is a CI workflow change that the operator approved here.
 - Q14 visual compare speed: ADD a dev-only dependency (Pillow or numpy, whichever suits the decode job better), with an ADR.
 - Q16 ADR-0152: CONFIRMED by the operator; note the confirmation in the ADR.

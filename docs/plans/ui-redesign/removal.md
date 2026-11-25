@@ -18,7 +18,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/app.css` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/auth.css` | T-UR15 | deleted |  |
-| `src/budget_planner/web/static/csrf.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
+| `src/budget_planner/web/static/csrf.js` | T-UR15 | deleted | UR15d: the root copy is deleted as superseded; the kept file is its `static/rd/js/` copy, loaded by `layouts/base.html` and `layouts/auth.html` (ADR-0107 §2 amendment 2026-11-25, UR15d, Q1). The vendored rd CSS keeps its stale `licences in static/fonts/` comment (`rd/css/base.css`, `app.bundle.css`): Q8, byte-identical |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/fonts/LICENSE-OFL.txt` | T-UR15 | deleted |  |
@@ -34,7 +34,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/fonts/newsreader-italic-400-latin.woff2` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin-ext.woff2` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/fonts/newsreader-normal-400-600-latin.woff2` | T-UR15 | deleted |  |
-| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
+| `src/budget_planner/web/static/htmx-csrf.js` | T-UR15 | deleted | UR15d: the root copy is deleted as superseded; the kept file is its `static/rd/js/` copy, loaded by `layouts/base.html` and `layouts/auth.html` (ADR-0107 §2 amendment 2026-11-25, UR15d, Q1). The vendored rd CSS keeps its stale `licences in static/fonts/` comment (`rd/css/base.css`, `app.bundle.css`): Q8, byte-identical |
 | `src/budget_planner/web/static/js/account-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/app-init.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/budget-override.js` | T-UR11 | deleted | UR11b: the override dialog is plain radios and `dialog.js`; no script loaded it any more |
@@ -44,7 +44,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/js/numeric-input.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/overlay-actions.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/palette.js` | T-UR15 | deleted |  |
-| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | deleted | UR15d: the old copy is deleted; the kept behaviour lives in `static/rd/js/` (loaded by `layouts/base.html` and `layouts/auth.html`) |
+| `src/budget_planner/web/static/js/passkeys.js` | T-UR15 | deleted | UR15d: the root copy is deleted as superseded; the kept file is its `static/rd/js/` copy, loaded by `layouts/base.html` and `layouts/auth.html` (ADR-0107 §2 amendment 2026-11-25, UR15d, Q1). The vendored rd CSS keeps its stale `licences in static/fonts/` comment (`rd/css/base.css`, `app.bundle.css`): Q8, byte-identical |
 | `src/budget_planner/web/static/js/rd-wire.js` | T-UR15 | deleted |  |
 | `src/budget_planner/web/static/js/reconcile-form.js` | T-UR08 | deleted |  |
 | `src/budget_planner/web/static/js/recurring-form.js` | T-UR10 | deleted | UR10b kept: the old "+ Add" repeats form (`recurring/_form.html`) still needs it; goes with it; UR15b: still served by `GET /add` without `dialog=1` to the old-shell pages `budget/index.html`, `forecast/index.html`, `dev/components.html` (UR15a): goes with them |
