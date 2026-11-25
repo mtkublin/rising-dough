@@ -1,6 +1,6 @@
 # ADR-0152: Contract Tests Pin Behaviour, Not Dialog Transport
 
-- **Status**: Accepted (orchestrator, 2026-11-25; operator to confirm at PR review)
+- **Status**: Accepted (orchestrator, 2026-11-25; confirmed by the operator 2026-11-25, operator QA Q16)
 - **Date**: 2026-11-25
 - **Amends**: [ADR-0107](0107-sourdough-redesign-from-designer-handoff.md) (the "behaviour is pinned by the harness" guardrail in `docs/plans/ui-redesign/README.md`)
 - **Related**: [ADR-0143](0143-htmx-event-and-error-flash-contract.md), [ADR-0120](0120-pre-commit-is-the-local-gate.md)

@@ -104,6 +104,7 @@ The handoff README §4 lists values the server sets as attributes or classes. Th
 - 2026-11-21 (T-UT06-EDITUSER): delta package for ST17 (Edit user) copied over the folder byte-identical: 2 files added (`pages/overlays/edit-user.html`, `CHANGES-edit-user.md`, kept as delivered), 13 changed (Users page, 8 Users overlays, `index.html`, `README.md`, `field.css`, `auth.css`); now 173 files, 114 HTML; checksum manifest regenerated. No decision change.
 
 - 2026-11-22: [ADR-0147](0147-handoff-parity-ci-rendered-references-and-data-overlay.md) adds a data overlay (text and value attributes only) applied to the handoff for references; the vendored files stay byte-identical (§1). [ADR-0148](0148-redesign-backend-preconditions-released-first.md) moves the backend parts of the designer-answer scope into a release before the migration (§8, §9); the redesign release stays frontend only.
+- 2026-11-25 (operator QA Q1, [operator decisions](../plans/ui-redesign/operator-decisions-2026-11-25.md)): §2 keeps two files by name. `src/budget_planner/web/static/csrf.js` (the shared token reader loaded before `htmx-csrf.js` and `passkeys.js`) and the vendored `src/budget_planner/web/static/vendor/htmx-2.0.11.min.js` (the HTMX runtime, a library and not design) are KEEP. Both have `keep` rows in `docs/plans/ui-redesign/removal.md`; T-UR15 does not delete them.
 
 ## Alternatives considered
 

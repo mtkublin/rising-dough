@@ -18,7 +18,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/static/app.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/auth.css` | T-UR15 | delete | T-UR14 (2026-11-25): settings security and password no longer use `rd-auth__*`; the only remaining linker is the old `templates/base.html` (T-UR15); the new pages use the vendored `rd-auth__*` of `static/rd/css/pages/auth.css`. `test_forced_exempt_paths` only names the URL |
-| `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: ADR-0107 §2: shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
+| `src/budget_planner/web/static/csrf.js` | T-UR15 | keep: operator decision Q1 (2026-11-25) KEEP; ADR-0107 §2 (amendment 2026-11-25): shared token reader that `htmx-csrf.js` and `passkeys.js` load first; kept with them; copy in `rd/js/csrf.js` since T-UR04b, this old file stays until T-UR15 |  |
 | `src/budget_planner/web/static/favicon.svg` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/fonts/LICENSE-OFL.txt` | T-UR15 | delete |  |
@@ -58,7 +58,7 @@ Generated from `git ls-tree -r bd3c1b0a` (the `ui/sourdough` branch point, v3.2.
 | `src/budget_planner/web/static/tailwind.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/tailwind.src.css` | T-UR15 | delete |  |
 | `src/budget_planner/web/static/tokens.css` | T-UR15 | delete |  |
-| `src/budget_planner/web/static/vendor/htmx-2.0.11.min.js` | T-UR15 | keep: ADR-0107 §2 keeps the HTMX endpoints and triggers; the HTMX runtime is a vendored library, not design |  |
+| `src/budget_planner/web/static/vendor/htmx-2.0.11.min.js` | T-UR15 | keep: operator decision Q1 (2026-11-25) KEEP; ADR-0107 §2 (amendment 2026-11-25) keeps the HTMX endpoints and triggers; the HTMX runtime is a vendored library, not design |  |
 | `src/budget_planner/web/templates/.gitkeep` | T-UR15 | delete | placeholder; the directory is populated by the redesign |
 | `src/budget_planner/web/templates/_partials/combobox.html` | T-UR15 | delete |  |
 | `src/budget_planner/web/templates/_partials/components/_amount.html` | T-UR15 | delete |  |
