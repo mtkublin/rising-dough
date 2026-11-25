@@ -14,6 +14,7 @@
 > | T-UR15 | `dev/components` (3 currency literals; port from the handoff) |
 
 > Plan: [README.md](README.md). Decision: [ADR-0107](../../adr/0107-sourdough-redesign-from-designer-handoff.md). Handoff: `docs/design/rising-dough-frontend/` (its `README.md` is required reading for every task).
+> Operator decisions 2026-11-25 (binding for the rest of the run): [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
 > Legend: `[P]` parallel-safe within its phase, `[S]` sequential, `→ T-URxx` depends on upstream task.
 > Every Phase 2 task follows the per-surface loop and definition of done in [README.md](README.md#per-surface-loop-test-first), including the visual diff at the strict default tolerance (0.1%, `MAX_DIFF_PIXEL_RATIO`, plus the cluster cap `MAX_DIFF_CLUSTER_PX`, ADR-0147 §2) unless `derived.md` records an operator-signed exception (T-UR00b).
 
@@ -262,6 +263,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 
 ### ◻ T-UR18 [S] Invite email: cost evaluation (operator)
 - Evaluate mail provider, Terraform and secret cost for sending invite email. Output: go or no-go recorded in ADR-0134 (amendment). On no-go the switch of T-UR19 stays off and the code is kept. ADR-0134 §1.
+- Decision 2026-11-25: no-go for v1 (operator QA Q9); switch stays off.
 
 ### ◻ T-UR19 [moved] Invite email behind a config switch → T-UR31
 - **Moved whole to T-UR31** (Phase P, ADR-0148). Original scope kept for reference: send the invite email through an injected port (ADR-0021), behind a config switch, default off. No secret committed; Terraform and secret only if T-UR18 is go. ADR-0134 §1, ADR-0099.
@@ -322,6 +324,7 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR17 [S] Release → T-UR16
 - PR `ui/sourdough` → integration branch, then to `main` with a green `drill-gate` on its head SHA (ADR-0099). Smoke on drill (`mode=explore`) with the operator clicking through.
 - ADR-0107 flipped to Accepted (if not already), `docs/CHANGELOG.md` entry, `derived.md` final.
+- Operator 2026-11-25 (Q11): the run stops at a ready PR; the operator dispatches the explore drill and clicks through.
 
 ---
 
@@ -336,3 +339,6 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 ### ◻ T-UR41 [S] Re-run the T-Q316/T-Q317 frontend audit on the migrated templates → T-UR17
 - Re-run `frontend-visual-audit` for the flows audited in `docs/audits/2026-11-23-t-q316-t-q317.md`: Undo reload waiting on in-flight htmx requests (T-Q316) and the passkey journey (T-Q317), on the migrated templates at 1440 / 1024 / 375. Step 3b (behaviour contract) included.
 - Commit the result as `docs/audits/<date>-t-ur41.md`. Quality-audit follow-up (h); deferred because the redesign replaces the templates the original audit covered.
+
+### ◻ T-UR42 [P] FX rates table (derived screen, handoff) → T-UR15
+- Operator decision Q20, 2026-11-25: build the FX rates table now in v1, as a new task after T-UR15, per the handoff's derived screen. See [operator-decisions-2026-11-25.md](operator-decisions-2026-11-25.md).
