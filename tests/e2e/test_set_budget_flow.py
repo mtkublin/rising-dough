@@ -46,7 +46,8 @@ def test_set_budget_shows_remaining_after_spend(
     # Set a default budget of 500.00 from the year tab's "without a budget" chip: the dialog
     # opens on the "new default" scope.
     page.goto(f"{base_url}/plan?tab=year&year=2026")
-    to_playwright(page, plan_year.disclosure).click()
+    # The disclosure is a <details> summary (no button role in the accessibility tree).
+    page.get_by_text(re.compile(r"without a budget$")).click()
     to_playwright(page, plan_year.unbudgeted("Groceries")).click()
     dialog = role("dialog", re.compile(r"^override budget · Groceries"))
     to_playwright(page, plan_year.amount(dialog)).fill("500.00")
