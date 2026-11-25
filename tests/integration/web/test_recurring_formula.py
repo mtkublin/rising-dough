@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Callable
 from datetime import date
@@ -35,7 +36,7 @@ from budget_planner.services import (
 )
 from budget_planner.services._promotion import ValidationError
 from tests.formula_fx_support import TARGET_CCY, formula_fx_of
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, errors, rd_shell as shell
 
 USER_ID = 1
 
@@ -549,9 +550,10 @@ class TestPromoteRecurring:
 
 
 class TestFormulaRouter:
-    def test_create_formula_rule_round_trips(
+    def test_create_formula_rule_round_trips(  # noqa: PLR0917
         self,
         client: TestClient,
+        conn: sqlite3.Connection,
         make_rule: Callable[..., int],
         account_id: int,
         income_a: int,
@@ -580,7 +582,25 @@ class TestFormulaRouter:
             },
         )
         assert response.status_code == 200, response.text
-        assert _html.exists(response.text, ledger.any_recurring_row)
+        assert json.loads(response.headers["HX-Trigger"]) == {
+            "forecast-stale": True,
+            "ledger-stale": True,
+        }
+        assert _html.text_of(response.text, shell.modal_root) == ""
+        assert _html.all_text(response.text, errors.status) == "● Recurring rule saved"
+        row = conn.execute(
+            "SELECT category_id, default_amount, amount_formula FROM recurring_rules "
+            "WHERE category_id = ?",
+            (expense_tax,),
+        ).fetchall()
+        assert len(row) == 1
+        assert row[0]["default_amount"] == 1_200_00  # 12% of the 10_000_00 source
+        assert json.loads(row[0]["amount_formula"]) == {
+            "schema_version": 2,
+            "terms": [
+                {"sign": "+", "coefficient_bps": 1200, "source_category_ids": [income_a]}
+            ],
+        }
 
     def test_create_multi_term_formula(  # noqa: PLR0917
         self,
