@@ -94,7 +94,7 @@ def _setup(base_url: str, page: Page) -> list[str]:
         f"{base_url}/categories", form={"name": "Groceries", "direction": "expense"}
     ).ok
     page.goto(f"{base_url}/today")
-    page.evaluate(_RECORDER)
+    page.evaluate("(" + _RECORDER + ")()")
     to_playwright(page, rd_shell.new_entry).click()
     expect(to_playwright(page, entries.dialog)).to_be_visible()
     return consoles
@@ -205,3 +205,35 @@ def test_d_both_held(live_server: tuple[str, Path], page: Page, order: str) -> N
     note = to_playwright(page, entries.field_note)
     reads = _reads(page, note)
     assert all(v == "typed-d" for _, v in reads), _dump(page, "D-" + order, reads, consoles)
+
+
+def test_e_hero_request_count(live_server: tuple[str, Path], page: Page) -> None:
+    """Real flow: how many hero requests does one category and one account choice fire, and when?"""
+    base_url, _ = live_server
+    consoles = _setup(base_url, page)
+    to_playwright(page, entries.tab_planned).click()
+    expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
+    t0 = page.evaluate("() => Math.round(performance.now())")
+    log: list[Any] = []
+    page.on(
+        "request",
+        lambda r: log.append(("req", r.method, r.url[-60:])) if "/add" in r.url else None,
+    )
+    page.on(
+        "response",
+        lambda r: log.append(("res", r.status, r.url[-60:])) if "/add" in r.url else None,
+    )
+    choose_category(page, "Groceries")
+    log.append(("after choose_category", page.evaluate("() => Math.round(performance.now())") - t0))
+    choose_account(page, "Checking")
+    log.append(("after choose_account", page.evaluate("() => Math.round(performance.now())") - t0))
+    to_playwright(page, entries.hero_amount).fill("25.00")
+    page.wait_for_timeout(1500)
+    trace = page.evaluate("() => window.__trace || []")
+    hero_reqs = [e for e in log if e[0] == "req" and "hero=1" in str(e[2])]
+    raise AssertionError(
+        "DIAG E "
+        + json.dumps(
+            {"log": log, "trace": trace, "n_hero": len(hero_reqs), "console": consoles}, default=str
+        )
+    )
