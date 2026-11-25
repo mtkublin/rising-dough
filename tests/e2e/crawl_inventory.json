@@ -1554,6 +1554,33 @@
       "kind": "button",
       "name": "Close",
       "target": "",
+      "via": "+ add user"
+    },
+    {
+      "kind": "button",
+      "name": "cancel",
+      "target": "",
+      "via": "+ add user"
+    },
+    {
+      "destructive": true,
+      "kind": "hx-post",
+      "name": "add user email name role member admin cancel [ add user ]",
+      "skipped": "triggered by input or form event, not a click",
+      "target": "/settings/users",
+      "via": "+ add user"
+    },
+    {
+      "destructive": true,
+      "kind": "submit",
+      "name": "[ add user ]",
+      "target": "/settings/users",
+      "via": "+ add user"
+    },
+    {
+      "kind": "button",
+      "name": "Close",
+      "target": "",
       "via": "+ create invite"
     },
     {
