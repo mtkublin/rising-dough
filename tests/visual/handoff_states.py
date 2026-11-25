@@ -143,6 +143,7 @@ def _security_error(page: Page) -> None:
     page.fill("#current-password", WRONG_VALUE)
     page.press("#current-password", "Enter")
     page.wait_for_selector("#current-password-error", timeout=_TIMEOUT_MS)
+    page.evaluate("() => document.activeElement?.blur()")  # the handoff file shows no focus ring
 
 
 def _force_invalid(page: Page) -> None:
@@ -151,6 +152,15 @@ def _force_invalid(page: Page) -> None:
     page.fill("#confirm-password", "ten-chars!")
     page.press("#confirm-password", "Enter")
     page.wait_for_selector("#confirm-password-error", timeout=_TIMEOUT_MS)
+
+
+def _theme_chosen(page: Page) -> None:
+    """The handoff renders with ``?theme=<scheme>``, so its switch shows that scheme pressed.
+
+    The app stores the choice client-side (``rd-theme``); the user's click is the equivalent.
+    """
+    dark = page.evaluate("window.matchMedia('(prefers-color-scheme: dark)').matches")
+    page.click(f"[data-theme-value='{'dark' if dark else 'light'}']")
 
 
 # Handoff page -> recipe run after the page's route is loaded.
@@ -162,6 +172,7 @@ RECIPES: Final[dict[str, Recipe]] = {
     "pages/today--loading.html": _loading,
     "pages/auth/register--error.html": _setup_invalid,
     "pages/auth/force-password--error.html": _force_invalid,
+    "pages/settings/preferences.html": _theme_chosen,
     "pages/settings/security--error.html": _security_error,
 }
 

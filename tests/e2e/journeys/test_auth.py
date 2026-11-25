@@ -101,7 +101,7 @@ def test_change_secret_rejects_a_wrong_current_one(world: World) -> None:
     world.find(settings.confirm_password).fill(NEW_SECRET)
     world.find(settings.change_password_button).click()
 
-    expect(world.find(settings.password_summary)).to_be_visible()
+    expect(world.find(settings.password_error("current_password"))).to_be_visible()
     assert world.scalar("SELECT password_hash FROM users WHERE id = 1") == before
 
 
@@ -145,8 +145,9 @@ def test_throttled_password_change_shows_the_wait_message_in_the_form(world: Wor
         world.find(settings.confirm_password).fill(NEW_SECRET)
         world.find(settings.change_password_button).click()
         summary = world.find(settings.password_summary)
-        expect(summary).to_be_visible()
-        if "Too many attempts" in summary.inner_text():
+        wrong = world.find(settings.password_error("current_password"))
+        expect(summary.or_(wrong)).to_be_visible()  # the inline error, or the throttle alert
+        if summary.count() and "Too many attempts" in summary.inner_text():
             break
     expect(world.find(settings.password_summary)).to_contain_text("Too many attempts")
     assert world.scalar("SELECT password_hash FROM users WHERE id = 1") == before
