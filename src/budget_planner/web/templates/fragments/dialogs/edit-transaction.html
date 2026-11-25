@@ -1,0 +1,37 @@
+{# fragment: dialogs/edit-transaction (T-UR09b, ADR-0107; handoff overlays/edit-transaction.html, --error.html, --transit.html).
+   The edit dialog of an actual transaction: the happened tab of the new-entry dialog without its tabs, prefilled.
+   Context (web.entry_forms.edit_context): title, action, txn_id, hero, picker, selected_category_id, picked_name,
+   accounts, selected_account_id, values (stored or posted text), selected_dest_id, dest_visible (transit category), transit_when,
+   preview (credit line), errors, field_count/field_errors (422). The fields keep the existing names (amount,
+   category, account_id, operation_date, description, dest_account_id) so the update route is unchanged. #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field.html" import text_field, select_field %}
+{% call dialog("edit-transaction-dialog", title, action=action, hx_post=action, describedby="", hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  {# The hero follows the account (currency) and the category (sign): the server re-renders it
+     (GET /transactions/<id>/edit?hero=1 with the form's values) and only .rd-dialog__hero is swapped. #}
+  <div hidden
+       hx-get="/transactions/{{ txn_id }}/edit?hero=1"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id"
+       hx-include="closest form"
+       hx-target="#modal-root .rd-dialog__hero"
+       hx-select=".rd-dialog__hero"
+       hx-swap="outerHTML"></div>
+  <input type="hidden" name="txn_id" value="{{ txn_id }}">
+  {% with field_id="catpick-edit-transaction", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
+    {% include "fragments/fields/category-picker.html" %}
+  {% endwith %}
+  <div class="rd-fields-row">
+    {{ select_field("account_id", "account", accounts, selected_account_id, error=errors.account_id|default("")) }}
+    {% if transit_when %}
+      <div data-show-when="{{ transit_when }}"
+           {% if not dest_visible and not errors.dest_account_id|default(none) %}hidden{% endif %}>
+        {{ select_field("dest_account_id", "destination", accounts, selected_dest_id, error=errors.dest_account_id|default(""), empty_label="choose an account") }}
+      </div>
+    {% endif %}
+  </div>
+  {% include "fragments/fields/credit-line.html" %}
+  <div class="rd-fields-row">
+    {{ text_field("operation_date", "date", values.operation_date|default(today_iso), type="date", error=errors.operation_date|default("")) }}
+    {{ text_field("description", "note", values.description|default(""), error=errors.description|default("")) }}
+  </div>
+{% endcall %}

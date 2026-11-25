@@ -230,8 +230,7 @@ def test_edit_and_update(client: TestClient, seeded: dict[str, int], _migrated: 
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"], amount=5000)
     r = client.get(f"/transactions/{txn_id}/edit", headers={"HX-Request": "true"})
     assert r.status_code == 200
-    assert _html.resolve_one(r.text, ledger.form).get("hx-post") == f"/transactions/{txn_id}"
-    assert ledger.control(r.text, ledger.field_amount).get("value") == "50.00"
+    assert _html.resolve_one(r.text, entries.edit_amount).get("value") == "50.00"
     r2 = client.post(
         f"/transactions/{txn_id}",
         data={
@@ -256,7 +255,7 @@ def test_delete_soft_deletes(
     txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
     r = client.post(f"/transactions/{txn_id}/delete")
     assert r.status_code == 200
-    assert r.text == ""
+    assert r.headers["HX-Reswap"] == "delete"
     assert "balance-stale" in r.headers["HX-Trigger"]
     conn = get_connection(_migrated)
     try:
@@ -548,16 +547,6 @@ def _update_data(seeded: dict[str, int], amount: str = "99.99") -> dict[str, str
     }
 
 
-def test_edit_form_targets_itself_and_closes_on_success(
-    client: TestClient, seeded: dict[str, int], _migrated: Settings
-) -> None:
-    txn_id = _create_txn(_migrated, seeded["acc"], seeded["groc"])
-    r = client.get(f"/transactions/{txn_id}/edit")
-    form = _html.resolve_one(r.text, ledger.form)
-    assert form.get("hx-target") == "#txn-form"
-    assert form.has_attr("data-close-overlay-on-success")
-
-
 def test_update_off_ledger_refreshes_page_without_swap(
     client: TestClient, seeded: dict[str, int], _migrated: Settings
 ) -> None:
@@ -587,5 +576,5 @@ def test_update_invalid_amount_rerenders_form_in_place(
         f"/transactions/{txn_id}", data=_update_data(seeded, amount="0"), headers=_ON_TODAY
     )
     assert r.status_code == 422
-    assert _html.exists(r.text, ledger.form)
-    assert "amount" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.exists(r.text, entries.edit_dialog)
+    assert "Amount" in _html.all_text(r.text, entries.summary)

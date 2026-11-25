@@ -123,6 +123,42 @@ def test_add_from_today_invalid_amount_rerenders_form(
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
 
 
+def test_edit_dialog_saves_under_csp(live_server: tuple[str, Path], page: Page) -> None:
+    """The shell page that opens the edit dialog, the category pick and the save (T-UR09b)."""
+    base_url, db_path = live_server
+    account_id, category_id = _seed(base_url, db_path, page)
+    assert page.request.post(
+        f"{base_url}/categories", form={"name": "Transport", "direction": "expense"}
+    ).ok
+    assert page.request.post(
+        f"{base_url}/transactions",
+        form={
+            "operation_date": datetime.now(tz=UTC).date().isoformat(),
+            "category_id": category_id,
+            "account_id": account_id,
+            "amount": "12.34",
+            "description": "csp-edit",
+        },
+    ).ok
+    txn = db_probe.txn_id(db_path, "csp-edit")
+    page.goto(f"{base_url}/transactions/{txn}/edit")
+    expect(to_playwright(page, entries.edit_dialog)).to_be_visible()
+    expect(to_playwright(page, entries.edit_amount)).to_have_value("12.34")
+    to_playwright(page, entries.edit_category_search).click()
+    query = to_playwright(page, entries.edit_category_query)
+    query.fill("Transport")
+    with page.expect_response(lambda r: "hero=1" in r.url):  # the hero follows the category
+        query.press("Enter")
+    page.wait_for_timeout(300)
+    to_playwright(page, entries.edit_amount).fill("45.67")
+    to_playwright(page, entries.edit_save).click()
+    expect(to_playwright(page, entries.edit_dialog)).to_have_count(0)
+    assert db_probe.txn_amounts(db_path, "csp-edit") == [4567]
+    assert db_probe.scalar(
+        db_path, "SELECT category_id FROM transactions WHERE description = 'csp-edit'"
+    ) == db_probe.category_id(db_path, "Transport")
+
+
 def test_add_slide_over_on_ledger_under_csp(live_server: tuple[str, Path], page: Page) -> None:
     base_url, db_path = live_server
     _seed(base_url, db_path, page)

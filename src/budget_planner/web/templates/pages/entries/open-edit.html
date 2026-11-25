@@ -1,0 +1,20 @@
+{# pages/entries/open-edit.html: a plain page load of an edit-transaction route (share link, no script; T-UR09b).
+   The shell hosts the dialog in #modal-root, so the page asks the edit route for it on load.
+   Context: txn_id. #}
+{% extends "layouts/base.html" %}
+{% block title %}Edit transaction · Rising Dough{% endblock %}
+{% block main %}
+  <section class="rd-panel-section"
+           aria-label="Edit transaction"
+           hx-get="/transactions/{{ txn_id }}/edit"
+           hx-trigger="load"
+           hx-replace-url="/today"
+           hx-target="#modal-root"
+           hx-swap="innerHTML">
+    <noscript>
+      <p class="rd-caption">
+        <a class="rd-link" href="/ledger">← back to the ledger</a>
+      </p>
+    </noscript>
+  </section>
+{% endblock %}
