@@ -25,6 +25,7 @@ Only after the relevant docs are updated and committed (or staged in the same PR
 | Phased implementation plan + handoff rules | `docs/plans/<plan>/implementation_plan.md` |
 | Prevention regime (guards, allowlists, zero-violation policy) | [ADR-0130](docs/adr/0130-prevention-regime-and-full-architectural-compliance.md), `docs/requirements.md` §3.3 |
 | Decisions (and *why*) | `docs/adr/README.md` |
+| Design work: design system, handoff template, specs, change requests | `docs/design/README.md`, `/designer` skill, `handoff-builder` agent ([ADR-0151](docs/adr/0151-designer-skill-handoff-builder-and-package-template.md)) |
 
 Always read the relevant ADR before changing an area it covers.
 
@@ -105,6 +106,8 @@ just test-e2e     # optional locally; e2e runs on GitHub (e2e.yml) on every PR, 
 just merge-item <ID> "<msg>"   # orchestrator: gated merge of wi/<work>/<ID> (guards, lint-imports, ruff, mypy, push, prune; T-Q304)
 just check-item <ID> <globs>   # orchestrator DoD for wi/<current>/<ID>: owned files, hotspots, subjects, allowlists, audit record (T-Q326)
 just guards       # tests/architecture/ + import-linter only (fast, run before every commit)
+just check-handoff docs/design/<name> --render --parity <refs> --write-manifest   # handoff package DoD (ADR-0151)
+just design-system  # regenerate the design system tokens.json from the base tokens.css; --check fails when stale
 just mutate       # Mutmut on domain + services (slow, background; ADR-0131); mutate-report, mutate-clean
 just demo-build   # rebuild data/demo.sqlite from prod (read-only on prod)
 just set-password # set a user's password on an explicit --db=<path> (no default DB)

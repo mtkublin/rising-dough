@@ -261,6 +261,8 @@ REFERENCE_ONLY_DOCS = {
     # scripts/ci/check_item.py (T-Q326): orchestrator DoD hotspot names, never read by a pipeline.
     "docs/CHANGELOG.md",
     "docs/adr/README.md",
+    # scripts/ci/check_handoff.py (T-DW04): named in its docstring; no pipeline runs it.
+    "docs/design/handoff-template.md",
 }
 
 

@@ -2,6 +2,8 @@
 
 Designer deliveries, vendored **byte-identical** so tests and agents can reference them at a fixed revision (ADR-0106 §5, ADR-0107 §1). Do not edit files in a handoff folder; record deviations in the plan that consumes it (for the Sourdough redesign: `docs/plans/ui-redesign/derived.md`). A new delivery replaces the folder in its own commit, with a new checksum manifest.
 
+Packages made from the repo ([ADR-0151](../adr/0151-designer-skill-handoff-builder-and-package-template.md)) follow [`handoff-template.md`](handoff-template.md), are built by the `handoff-builder` agent from a canvas and a spec (`specs/`), and are regenerated whole, never hand-edited: byte-identical to the builder's last passing `just check-handoff` run, with a new checksum manifest. The two packages below predate the template and stay as delivered. The design system is [`system/`](system/README.md); scope proposals are change requests in [`requests/`](requests/README.md).
+
 Pre-commit fixers (`trailing-whitespace`, `end-of-file-fixer`, `mixed-line-ending`) and `djlint` exclude `docs/design/`. `detect-secrets` still scans it.
 
 ## `rising-dough-frontend/`

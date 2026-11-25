@@ -177,6 +177,15 @@ merge-item ID MSG:
 check-item ID *OWNED:
     set -f; uv run python scripts/ci/check_item.py --item "{{ID}}" --owned {{OWNED}}
 
+# Executable Definition of Done for a handoff package (ADR-0151 §4, T-DW04).
+# just check-handoff docs/design/<name> [--render] [--parity <refs>] [--write-manifest]
+check-handoff DIR *FLAGS:
+    uv run python scripts/ci/check_handoff.py "{{DIR}}" {{FLAGS}}
+
+# Regenerate docs/design/system/project/tokens.json from the base tokens.css (ADR-0151 §1, T-DW02); --check fails when stale.
+design-system *FLAGS:
+    uv run python scripts/design_system.py {{FLAGS}}
+
 # Architecture guards (tests/architecture). Run in the pytest suite and CI.
 guards:
     uv run pytest tests/architecture tests/unit/services/test_user_isolation.py -q --no-cov
