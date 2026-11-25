@@ -28,7 +28,9 @@ from budget_planner.repositories import (
     planned as planned_repo,
 )
 from budget_planner.services import budget as budget_service, forecast as forecast_service
-from tests.ui_map import _html, plan, plan_budget, plan_forecast, rd_fragments
+from budget_planner.web import view_models
+from budget_planner.web.templating import build_jinja_env
+from tests.ui_map import _html, plan_budget, plan_forecast, plan_year, rd_fragments
 from tests.ui_map.locator import role
 
 USER_ID = 1
@@ -278,27 +280,26 @@ def test_budget_month_future_has_no_days_elapsed_pressure(
     assert summary.days_until_next_income > 0
 
 
-def test_year_tab_grid_and_totals(
+def test_year_tab_grid_cells_equal_the_service_grid(
     client: TestClient, db: sqlite3.Connection, today: date, world: None
 ) -> None:
     r = client.get(f"/plan?tab=year&year={today.year}")
 
     assert r.status_code == 200
-    rows = _html.resolve(r.text, plan.year_body_rows)
-    body = [row for row in rows if _html.resolve(row, role("cell"))]
-    assert len(body) == 2  # one category row + the totals footer row
-    cells = _html.resolve(r.text, plan.year_cell_open_any)
+    names = [_html.accessible_name(row) for row in _html.resolve(r.text, plan_year.rows)]
+    assert len(names) == 2  # head row + the one budgeted category
+    cells = _html.resolve(r.text, plan_year.cells)
     assert len(cells) == 12
     grid = budget_service.yearly_grid(
         db, USER_ID, today.year, display_timezone=DEFAULT_DISPLAY_TIMEZONE
     )
     assert [cell.amount_minor for cell in grid[0].cells] == [GROCERIES_BUDGET_MINOR] * 12
-    total = _row_cells(body[0])[-1]
-    assert total == f"{12 * GROCERIES_BUDGET_MINOR / 100:,.0f}"
-    footer = _row_cells(body[1])[1:]  # [0] is the "Total" label
-    assert footer[-1] == total
-    assert footer[:-1] == [f"{GROCERIES_BUDGET_MINOR / 100:,.0f}"] * 12
-    assert _html.text_of(r.text, plan.year_heading) == f"Year · {today.year}"
+    assert (
+        _html.texts(r.text, plan_year.row_cells("Groceries"))
+        == [f"{GROCERIES_BUDGET_MINOR / 100:,.2f}"] * 12
+    )
+    assert _html.text_of(r.text, plan_year.heading) == "Yearly budget"
+    assert _html.text_of(r.text, plan_year.period_label) == f"{today.year} ▾"
 
 
 def test_forecast_hero_delta_is_measured_from_todays_net_worth(
@@ -327,3 +328,30 @@ def test_forecast_chart_scrolls_sideways_as_a_keyboard_reachable_region(
     region = _html.resolve_one(r.text, plan_forecast.chart_scroll)
     assert region["tabindex"] == "0"
     assert _html.count(r.text, plan_forecast.chart) == 1
+
+
+def test_budget_hero_prints_a_negative_left_with_the_display_minus() -> None:
+    """T-UR04g: the hero text comes from the view model (format_figure), U+2212 not a hyphen."""
+    summary = budget_service.MonthSummary(
+        year=2026,
+        month=10,
+        lines=(),
+        totals=budget_service.MonthTotals(
+            budgeted_minor=100_000,
+            spent_minor=667_822,
+            committed_minor=0,
+            remaining_minor=-567_822,
+        ),
+        left_daily_spend_minor=None,
+        next_income_date=date(2026, 11, 7),
+        days_until_next_income=7,
+        anchor_category_name=None,
+        period_start=date(2026, 10, 7),
+    )
+    view = view_models.budget_view(summary, date(2026, 10, 31), "PLN")
+    assert view.left_text == "\N{MINUS SIGN}5,678.22"
+    env = build_jinja_env(Settings(_env_file=None))
+    html = env.get_template("fragments/plan/budget-hero.html").render(budget=view, base_ccy="PLN")
+    assert _html.text_of(html, plan_budget.hero).startswith(
+        "budget left \N{MINUS SIGN}5,678.22 PLN"
+    )

@@ -137,6 +137,7 @@ jobs:
         if: ${{ always() }}
         env:
           SHARD: ${{ matrix.shard }}
+        shell: bash
         run: echo "SHARD_NAME=${SHARD/:/-}" >> "$GITHUB_ENV"
 
       - name: Upload rendered references

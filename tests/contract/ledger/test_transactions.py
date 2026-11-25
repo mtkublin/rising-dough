@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from budget_planner.config import Settings
 from tests.contract.conftest import covers
 from tests.contract.ledger.support import audit_ops, hx_events, scalar, txn_form
-from tests.ui_map import _html, ledger
+from tests.ui_map import _html, entries, ledger
 
 Ids = dict[str, int]
 HTMX = {"HX-Request": "true"}
@@ -34,12 +34,13 @@ def test_table_alias_matches_ledger_fragment(client: TestClient, seeded: Ids) ->
 
 
 @covers("GET /transactions/new")
-def test_new_form_is_a_slideover(client: TestClient, seeded: Ids) -> None:
+def test_new_form_is_the_new_entry_dialog(client: TestClient, seeded: Ids) -> None:
     r = client.get("/transactions/new", headers=HTMX)
     assert r.status_code == 200
     assert "<html" not in r.text
-    assert _html.exists(r.text, ledger.form)
-    assert _html.exists(r.text, ledger.add_entry)
+    assert r.headers["HX-Retarget"] == "#modal-root"  # ADR-0152: dialog-shell transport
+    assert _html.exists(r.text, entries.dialog)
+    assert _html.exists(r.text, entries.save)
 
 
 @covers("GET /transactions/_limit_preview")
@@ -132,7 +133,8 @@ def test_create_transit_with_destination(
 def test_edit_form_and_unknown_id(client: TestClient, seeded: Ids) -> None:
     ok = client.get(f"/transactions/{seeded['txn']}/edit", headers=HTMX)
     assert ok.status_code == 200
-    assert _html.exists(ok.text, ledger.form)
+    assert _html.count(ok.text, entries.edit_dialog) == 1
+    assert ok.headers["HX-Retarget"] == "#modal-root"
     missing = client.get("/transactions/99999/edit")
     assert missing.status_code == 404
 
@@ -170,7 +172,8 @@ def test_delete_then_restore_round_trip(
 ) -> None:
     deleted = client.post(f"/transactions/{seeded['txn']}/delete")
     assert deleted.status_code == 200
-    assert deleted.text == ""
+    assert deleted.headers["HX-Reswap"] == "delete"
+    assert _html.count(deleted.text, entries.toast_undo) == 1
     assert hx_events(deleted) == STALE
     assert (
         scalar(

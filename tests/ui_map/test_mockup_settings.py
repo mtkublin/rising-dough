@@ -48,6 +48,8 @@ ON_PAGE: list[tuple[str, str, Locator]] = [
     ("prefs workspace", PREFS, M.prefs_panel_heading),
     ("prefs terms", PREFS, M.pref_terms),
     ("prefs values", PREFS, M.pref_values),
+    ("prefs theme group", PREFS, M.theme_group),
+    ("prefs theme dark", PREFS, M.theme_option("dark")),
     ("new dialog", NEW_CATEGORY, M.category_form),
     ("new name", NEW_CATEGORY, M.category_name),
     ("new expense", NEW_CATEGORY, M.category_expense),

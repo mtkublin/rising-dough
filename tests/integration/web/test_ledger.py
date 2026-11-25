@@ -28,8 +28,8 @@ from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
-_SEG_COUNT = 3
-_VIEW_TABS = ("Actual", "Planned", "Recurring")
+_VIEW_TABS = ("actual", "planned", "recurring")
+_MINUS = "\N{MINUS SIGN}"
 
 
 @pytest.fixture
@@ -88,16 +88,17 @@ def seeded(_migrated: Settings) -> dict[str, int]:
 
 
 def test_ledger_index_renders(client: TestClient, seeded: dict[str, int]) -> None:
-    """Rising Dough v2 renders the segmented tabs via the shared rd-segmented macro
-    (anchor-based full-page nav). The view keys appear in the href query string."""
+    """The view tabs are links carrying the counts; the open one is aria-current."""
     r = client.get("/ledger")
     assert r.status_code == 200
     items = [_html.resolve_one(r.text, ledger.view_tab(n)) for n in _VIEW_TABS]
-    assert len(items) == _SEG_COUNT
-    hrefs = [a.get("href") for a in items]
-    assert hrefs == ["/ledger?view=actual", "/ledger?view=planned", "/ledger?view=recurring"]
-    actual_a = items[0]
-    assert actual_a.get("aria-selected") == "true"
+    assert [a.get_text(strip=True) for a in items] == ["actual 1", "planned 1", "recurring 1"]
+    assert [a.get("href") for a in items] == [
+        "/ledger",
+        "/ledger?view=planned",
+        "/ledger?view=recurring",
+    ]
+    assert [a.get("aria-current") for a in items] == ["page", None, None]
 
 
 def test_ledger_view_actual(client: TestClient, seeded: dict[str, int]) -> None:
@@ -359,7 +360,7 @@ def test_actual_day_net_with_negative_reconciliation(
         conn.close()
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
-    assert _day_net_text(r.text, "02 Nov") == "net -850.00"
+    assert _day_net_text(r.text, "MON 02 NOV") == f"NET {_MINUS}850.00"
 
 
 def _seed_eur_day(settings: Settings, *, with_rate: bool) -> None:
@@ -405,7 +406,7 @@ def test_actual_day_net_converts_foreign_currency_to_base(
     """T-D48 — EUR -100 reconciliation, -25 expense at 4.0 -> net -500.00 PLN."""
     _seed_eur_day(_migrated, with_rate=True)
     r = client.get("/ledger?view=actual")
-    assert _day_net_text(r.text, "02 Nov") == "net -500.00"
+    assert _day_net_text(r.text, "MON 02 NOV") == f"NET {_MINUS}500.00"
 
 
 def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
@@ -422,4 +423,4 @@ def test_actual_render_never_fetches_fx_and_hides_net_on_cache_miss(
     _seed_eur_day(_migrated, with_rate=False)
     r = client.get("/ledger?view=actual")
     assert r.status_code == 200
-    assert _day_net_text(r.text, "02 Nov") == ""
+    assert _day_net_text(r.text, "MON 02 NOV") == ""

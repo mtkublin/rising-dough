@@ -71,6 +71,7 @@ EXEMPT_PATHS: Final = frozenset(
         "/health/replication",
         "/health/fx",
         LOGIN_PATH,
+        "/setup",
         f"{LOGIN_PATH}/begin",
         f"{LOGIN_PATH}/finish",
     }

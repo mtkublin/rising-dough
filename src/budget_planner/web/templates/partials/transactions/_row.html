@@ -12,7 +12,7 @@
   <td class="text-muted">{{ txn.description }}</td>
   <td class="text-right space-x-2">
     <button hx-get="/transactions/{{ txn.id }}/edit"
-            hx-target="#txn-form-slot"
+            hx-target="#modal-root"
             hx-swap="innerHTML"
             aria-label="Edit transaction {{ txn.id }}">Edit</button>
     <button hx-post="/transactions/{{ txn.id }}/delete"

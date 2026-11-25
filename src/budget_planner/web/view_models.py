@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from budget_planner.domain.accounts import Account
 from budget_planner.domain.categories import Category
 from budget_planner.domain.enums import Direction
-from budget_planner.domain.money import format_money, percent_of
+from budget_planner.domain.money import format_figure, format_money, percent_of
 from budget_planner.services import (
     budget as budget_service,
     ledger_totals,
@@ -279,6 +279,7 @@ class BudgetView:
     period_end: date
     period_day: int
     period_total_days: int
+    left_text: str = ""
 
 
 def _delta_kind(delta_minor: int) -> DeltaKind:
@@ -315,8 +316,14 @@ def _line_view(line: budget_service.CategoryBudgetLine) -> BudgetLineView:
     )
 
 
-def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView:
-    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker)."""
+def budget_view(
+    summary: budget_service.MonthSummary, today: date, base_currency: str | None = None
+) -> BudgetView:
+    """Derive the budget view from a :class:`MonthSummary` (``today`` places the day marker).
+
+    With ``base_currency`` the hero text ``left_text`` is the signed remaining figure
+    (U+2212 when over).
+    """
     totals = summary.totals
     lines = tuple(_line_view(line) for line in summary.lines)
     spent_pct = clamped_percent(totals.spent_minor, totals.budgeted_minor)
@@ -336,6 +343,7 @@ def budget_view(summary: budget_service.MonthSummary, today: date) -> BudgetView
         period_end=summary.next_income_date,
         period_day=(today - summary.period_start).days + 1,
         period_total_days=(summary.next_income_date - summary.period_start).days or 1,
+        left_text=(format_figure(totals.remaining_minor, base_currency) if base_currency else ""),
     )
 
 
@@ -550,92 +558,6 @@ def plan_header(tab: str, year: int, month: int, year_selected: int | None = Non
         month=month,
         month_cells=tuple(MonthCell(n, MONTH_SHORT[n - 1], n == month) for n in range(1, 13)),
     )
-
-
-# --- Plan year tab -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class YearCellView:
-    """One month cell of a year row."""
-
-    month: int
-    month_label: str
-    month_initial: str
-    amount_minor: int
-    tier: str
-
-
-@dataclass(frozen=True, slots=True)
-class YearRowView:
-    """One category row of the year heatmap."""
-
-    category_id: int
-    category_name: str
-    category_direction: Direction
-    category_color: str | None
-    total_minor: int
-    cells: tuple[YearCellView, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class YearView:
-    """Year tab rows split into budgeted and unset, plus labels."""
-
-    month_labels: tuple[str, ...]
-    with_rows: tuple[YearRowView, ...]
-    unset_rows: tuple[YearRowView, ...]
-    unset_heading: str
-
-
-def _year_row(row: budget_service.YearlyRow) -> YearRowView:
-    return YearRowView(
-        category_id=row.category_id,
-        category_name=row.category_name,
-        category_direction=row.category_direction,
-        category_color=row.category_color,
-        total_minor=row.total_minor,
-        cells=tuple(
-            YearCellView(
-                month=i,
-                month_label=MONTH_SHORT[i - 1],
-                month_initial=MONTH_SHORT[i - 1][0],
-                amount_minor=cell.amount_minor or 0,
-                tier=_YEAR_TIERS.get(cell.origin, "default"),
-            )
-            for i, cell in enumerate(row.cells, start=1)
-        ),
-    )
-
-
-def year_view(rows: tuple[budget_service.YearlyRow, ...]) -> YearView:
-    """Split the yearly grid into rows with a budget and rows without."""
-    with_rows = tuple(_year_row(r) for r in rows if r.total_minor)
-    unset_rows = tuple(_year_row(r) for r in rows if not r.total_minor)
-    noun = "category" if len(unset_rows) == 1 else "categories"
-    return YearView(
-        month_labels=MONTH_SHORT,
-        with_rows=with_rows,
-        unset_rows=unset_rows,
-        unset_heading=f"Show {len(unset_rows)} {noun} without a budget",
-    )
-
-
-# --- Override form -----------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class OverridePeriod:
-    """Year/month an override form opens on."""
-
-    year: int
-    month: int
-    label: str
-
-
-def override_period(month: int, year: int) -> OverridePeriod:
-    """The override form's month/year with its short month label."""
-    return OverridePeriod(year, month, MONTH_SHORT[month - 1])
 
 
 def category_usage_text(usage: CategoryUsage) -> str | None:

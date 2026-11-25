@@ -1,5 +1,45 @@
 # Changelog
 
+2026-11-25 docs(ui-redesign): operator QA decisions and remote handover
+
+2026-11-25 ui/sourdough: merge origin/main up to 4baabf1f (PR #58, agent guard hooks) (aa771d57).
+
+2026-11-25 T-UR02: UR02d new shell shows the network-failure flash outside forms (2c6f39f5, T-UR25, ADR-0143).
+
+2026-11-25 T-UR00b: UR00e reference compare: honest size-mismatch ratio, mismatch always fails, visual.yml shard names (2dbf6502, T-UR00b, ADR-0147).
+
+2026-11-25 T-UR00b: UR00d reference harness: recurring-board modifier, overlay dialog routes, mapping tests (2e2457f6, ADR-0147).
+
+2026-11-25 T-UR12: UR12b Plan chart parity: Jul-Sep seed history, committed geometry rows (294bbbce, ADR-0147 §4 amendment).
+
+2026-11-25 T-UR21c: classify /setup as a non-page for the e2e crawl (f6fd3573, T-UR21).
+
+2026-11-25 QCI1: check-item no longer double-prefixes `wi/wi`; adds `--hotspots` and `--allow-framework-rows` (ca6768e2, T-Q326, ADR-0150).
+
+2026-11-25 QOR1: orchestrator skill no idle turns and heartbeat timer (82344851, ADR-0150 amendment 2026-11-25).
+
+2026-11-25 T-UR04: UR04g dialog shell gaps: placeholder, hero race, action attrs, field_error, formula refresh, stale unit, budget hero sign (4d4bd510, ADR-0107).
+
+2026-11-25 T-UR21: first-run `/setup` page with one-time token (ef3458b2, ADR-0134 §9).
+
+2026-11-25 T-UR27: theme switch e2e, ui_map entries and audit (427f6c17, ADR-0134 §8).
+
+2026-11-25 T-UR02: UR02c rd-styled error flash shown above an open dialog (faff04b2, ADR-0107, ADR-0143).
+
+2026-11-25 T-UR11: Plan year tab, budget override dialogs, year-cell editor (dd99961c, ADR-0107, ADR-0136, ADR-0152).
+
+2026-11-25 T-UR07: Today new-entry and promote dialogs on the shared shell (2540995c, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR13: settings categories, currency+FX, preferences on the new shell (15aa38f6, ADR-0107, ADR-0152).
+
+2026-11-25 T-UR12: plan forecast and analytics tabs on the new shell (8de349c3, ADR-0107, ADR-0123).
+
+2026-11-25 T-UR04: static output hero in the dialog shell (5be4c7c1, ADR-0107).
+
+2026-11-25 T-UR00: ADR-0152 contract tests pin behaviour, not dialog transport (59d19398, ADR-0152).
+
+2026-11-25 T-UR04: shared dialog shell macro and row-menu item kinds (8f958ecd, ADR-0107, ADR-0130 §7).
+
 2026-11-25 T-UR07, T-UR08: wave 5 tests follow Today and Accounts onto the new shell.
 
 2026-11-25 T-UR02: shell live regions, toast renderer, visible error flashes, topbar email (ADR-0107).
@@ -1540,3 +1580,6 @@
 - 2026-11-23 T-Q306(f): docs only: `drill.yml` header rewritten for the upgrade drill (phases, TTL, environments without reviewers, explicit `detect` secrets), deploy runbook section "What the drill gate proves", ADR-0149 amendment (ADR-0149).
 - 2026-11-24 OPS-3: `drill.yml` writer-started loop uses `for _ in` (clears actionlint SC2034); the `drill_allow_empty_db: "true"` actionlint report is an actionlint false positive on a quoted string literal and is left as is (ADR-0149).
 - 2026-11-24 v3.2.1: T-Q317 Undo reload waits for in-flight htmx requests (PR #52), plus the PR #55 CI and docs follow-ups; no migrations. Released by run 45452392502 (in place, 1 change); prod checks passed on the public URL, login confirmed by the operator. Runbooks now use https://budget.rising-dough.eu for HTTPS checks (tailnet ACL allows operator port 22 only).
+- 2026-11-25 T-Q330: ADR-0150 amendments "no idle turns" (carried from `ui/sourdough`) and "hook-enforced rules": the measured causes of the slow `ui/sourdough` v2 run and the decision to enforce role rules with Claude Code hooks (ADR-0150).
+- 2026-11-25 T-Q331: `scripts/ci/agent_guard.py` wired in `.claude/settings.json`: per-role Bash guard (test scope, `-n auto`, foreground waits, implementer e2e budget, runtime budgets on active time) and an orchestrator stop check (`RUN-STATE:` line); fails open; unit tests plus a live headless subagent check (ADR-0150).
+- 2026-11-25 T-Q332: orchestrator skill, brief template and role agents follow the amendment: two lock slots, background waits, single-file acceptance with e2e evidence from `e2e.yml`, audit and review in parallel, next wave built while the tester runs, parked agents, item size and estimates (ADR-0150).

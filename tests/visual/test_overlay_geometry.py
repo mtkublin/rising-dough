@@ -9,25 +9,32 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import json
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from budget_planner.config import Settings
+from budget_planner.db.connection import get_connection
+from budget_planner.services import analytics as analytics_service, fx as fx_service
 from budget_planner.services.analytics import MonthlyFlow
 from budget_planner.services.forecast import MonthlyProjectionPoint
-from budget_planner.web import chart_geometry
+from budget_planner.web import chart_geometry, plan_data
 from budget_planner.web.templating import build_jinja_env
+from tests.visual import handoff_seed
 from tests.visual.overlay import (
     APP_ONLY_ATTRIBUTES,
     FORECAST_CHART_ROOT,
     FORECAST_PAGE,
     GEOMETRY_ATTRIBUTES,
     GEOMETRY_SOURCES,
+    OVERLAY_FILE,
     OverlayError,
     Row,
     apply_rows,
     geometry_rows,
+    load_rows,
     same_geometry,
 )
 
@@ -193,3 +200,121 @@ def test_derived_attributes_pass_only_on_the_listed_element() -> None:
             FORECAST_PAGE, FORECAST_HTML, root=FORECAST_CHART_ROOT, app_html=stray, reason="test"
         )
     assert "div.rd-chart-card__plot" in APP_ONLY_ATTRIBUTES
+
+
+# --- the committed rows (ADR-0147 section 4 amendment 2026-11-25) -------------------------
+
+GEOMETRY_MARKER = "# --- generated geometry rows (do not edit; regenerate, see below) ---"
+GEOMETRY_REASON = "geometry_rows from the base seed (ADR-0147 section 4 amendment 2026-11-25)"
+DAY = dt.date(2026, 10, 31)
+REGENERATE = "uv run python -m tests.visual.test_overlay_geometry"
+
+
+def _seed_flow() -> tuple[MonthlyFlow, ...]:
+    return _seed_charts_and_flow()[1]
+
+
+def _seed_charts_and_flow() -> tuple[
+    tuple[tuple[str, str, str, str], ...], tuple[MonthlyFlow, ...]
+]:
+    """(page, handoff html, root, app chart html) per chart, and the seed's monthly flow."""
+    with tempfile.TemporaryDirectory() as tmp:
+        result = handoff_seed.build_seed(Path(tmp) / "base.sqlite")
+        settings = Settings(_env_file=None, database_url=f"sqlite:///{result.db_path.as_posix()}")
+        conn = get_connection(settings)
+        try:
+            forecast = plan_data.forecast_page_for(
+                conn, handoff_seed.OWNER_ID, settings, DAY, horizon=12, choices=(12,)
+            )
+            flow_months = analytics_service.bundle(
+                conn,
+                handoff_seed.OWNER_ID,
+                fx_service.converter_for(conn, settings, DAY),
+                today=DAY,
+            ).income_vs_expense_monthly
+        finally:
+            conn.close()
+    flow = chart_geometry.flow_chart(flow_months, "PLN", current=(2026, 10))
+    charts = (
+        (
+            FORECAST_PAGE,
+            FORECAST_HTML,
+            FORECAST_CHART_ROOT,
+            ENV.get_template("fragments/charts/forecast.html").render(chart=forecast.chart),
+        ),
+        (
+            ANALYTICS_PAGE,
+            ANALYTICS_HTML,
+            FLOW_ROOT,
+            ENV.get_template("fragments/charts/income-vs-expense.html").render(
+                chart=flow, has_flow=True
+            ),
+        ),
+    )
+    return charts, flow_months
+
+
+def seed_charts() -> tuple[tuple[str, str, str, str], ...]:
+    return _seed_charts_and_flow()[0]
+
+
+def seed_rows() -> tuple[Row, ...]:
+    """Geometry rows for the forecast and flow charts, from the app run over the base seed."""
+    return tuple(
+        row
+        for page, html, root, app_html in seed_charts()
+        for row in geometry_rows(page, html, root=root, app_html=app_html, reason=GEOMETRY_REASON)
+    )
+
+
+def rows_toml(rows: tuple[Row, ...]) -> str:
+    """The marker line and one ``[[row]]`` block per geometry row (JSON strings are TOML's)."""
+    blocks = [GEOMETRY_MARKER, ""]
+    for r in rows:
+        blocks += [
+            "[[row]]",
+            *(
+                f"{key} = {json.dumps(getattr(r, key), ensure_ascii=False)}"
+                for key in ("page", "select", "field", "old", "value", "reason", "source")
+            ),
+            "",
+        ]
+    return "\n".join(blocks)
+
+
+def _committed() -> tuple[Row, ...]:
+    return tuple(r for r in load_rows() if r.source == "geometry")
+
+
+@pytest.fixture(scope="module")
+def generated() -> tuple[Row, ...]:
+    return seed_rows()
+
+
+def test_committed_rows_equal_the_generated_rows(generated: tuple[Row, ...]) -> None:
+    assert generated, "the seed chart equals the handoff chart: no rows expected, none committed"
+    assert _committed() == generated, f"stale geometry rows; regenerate with: {REGENERATE}"
+
+
+def test_seed_chart_with_the_rows_equals_the_handoff_geometry(generated: tuple[Row, ...]) -> None:
+    """Zero structural errors and exact coordinates once the committed rows are applied."""
+    assert {r.page for r in generated} == {FORECAST_PAGE, ANALYTICS_PAGE}
+    for page, html, root, app_html in seed_charts():
+        applied = apply_rows(page, html, load_rows())
+        assert applied != html
+        # no structural error (OverlayError would raise) and nothing left to change
+        assert geometry_rows(page, applied, root=root, app_html=app_html, reason="test") == ()
+
+
+def test_the_seed_draws_the_boards_four_flow_months() -> None:
+    flow = [m for m in _seed_flow() if (m.year, m.month) < (2026, 10)]
+
+    assert [(m.year, m.month, m.income_minor, m.expense_minor) for m in flow] == [
+        (m.year, m.month, m.income_minor, m.expense_minor) for m in HANDOFF_FLOW[:3]
+    ]
+
+
+if __name__ == "__main__":
+    text = OVERLAY_FILE.read_text(encoding="utf-8")
+    head = text.split(GEOMETRY_MARKER)[0].rstrip("\n")
+    OVERLAY_FILE.write_text(f"{head}\n\n{rows_toml(seed_rows())}", encoding="utf-8")

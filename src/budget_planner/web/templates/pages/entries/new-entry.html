@@ -1,0 +1,114 @@
+{# pages/entries/new-entry.html: the new-entry dialog (T-UR07b, ADR-0107; handoff overlays/new-entry--*.html).
+   Reusable page template: Today opens it from the top bar, Ledger (T-UR09/T-UR10) from its own buttons.
+   Context (web.entry_forms.new_entry_context): tab (happened | planned | repeats), action, picker, selected_category_id,
+   sign, accounts, selected_account_id, currency, values (posted text), today_iso, transit_when, credit_when,
+   amount_source, components, source_categories, errors, field_count/field_errors (422).
+   The tabs are links that swap the dialog; each tab posts to the existing create route with its field names
+   (the category posts as "category", the name the vendored combobox.js owns; the routes accept it). #}
+{% from "fragments/dialogs/dialog.html" import dialog %}
+{% from "fragments/fields/field.html" import text_field, select_field %}
+{% from "fragments/fields/field-error.html" import field_error %}
+{% call dialog("new-entry-dialog", "new entry", action=action, hx_post=action, describedby="", hero=hero, actions=[{"tone": "cancel"}, {"tone": "primary", "label": "[ save ]"}], field_count=field_count|default(0), field_errors=field_errors|default(())) %}
+  <nav class="rd-tabs rd-tabs--fill" aria-label="Entry type">
+    {% for key in ["happened", "planned", "repeats"] %}
+      <a class="rd-tabs__tab"
+         href="/add?when={{ key }}&dialog=1"
+         hx-get="/add?when={{ key }}&dialog=1"
+         hx-target="#modal-root"
+         hx-swap="innerHTML"
+         {% if key == tab %}aria-current="page"{% endif %}>{{ key }}</a>
+    {% endfor %}
+  </nav>
+  {# The hero follows the account (currency), the category (sign) and the amount source: the server
+     re-renders it (GET /add?hero=1 with the form's values) and only .rd-dialog__hero is swapped. #}
+  <div hidden
+       id="hero-refresh"
+       hx-get="/add?when={{ tab }}&dialog=1&hero=1"
+       hx-trigger="change from:#field-account_id, change from:#field-category_id{% if tab == "repeats" %}, change from:#field-amount_source, change from:#formula-slot, keyup changed delay:400ms from:#formula-slot{% endif %}"
+       hx-sync="this:queue last"
+       hx-include="closest form"
+       hx-target="#modal-root .rd-dialog__hero"
+       hx-select=".rd-dialog__hero"
+       hx-swap="outerHTML"></div>
+  {% with field_id="catpick-new-entry", selected_id=selected_category_id, picked_name=picked_name, error=errors.category_id|default(none), anchor_id="field-category_id" %}
+    {% include "fragments/fields/category-picker.html" %}
+  {% endwith %}
+  <div class="rd-fields-row">
+    {{ select_field("account_id", "account", accounts, selected_account_id, error=errors.account_id|default("")) }}
+    {% if tab == "happened" %}
+      {{ text_field("operation_date", "date", values.operation_date|default(today_iso), type="date", error=errors.operation_date|default("")) }}
+    {% elif tab == "planned" %}
+      {{ text_field("operation_date", "due date", values.operation_date|default(today_iso), type="date", error=errors.operation_date|default("")) }}
+    {% else %}
+      {{ text_field("start_date", "start", values.start_date|default(today_iso), type="date", error=errors.start_date|default("")) }}
+    {% endif %}
+  </div>
+  {% if transit_when %}
+    <div data-show-when="{{ transit_when }}"
+         {% if not errors.dest_account_id|default(none) %}hidden{% endif %}>
+      {{ select_field("dest_account_id", "destination account", accounts, values.dest_account_id|default(""), error=errors.dest_account_id|default(""), empty_label="choose an account") }}
+    </div>
+  {% endif %}
+  {% if tab == "happened" %}
+    {% with preview=none %}
+      {% include "fragments/fields/credit-line.html" %}
+    {% endwith %}
+  {% endif %}
+  {% if tab == "repeats" %}
+    <div class="rd-field-line">
+      <div class="rd-field rd-field--seg rd-field--inline"
+           id="field-amount_source"
+           role="radiogroup"
+           aria-labelledby="seg-amount-source">
+        <span class="rd-field__label" id="seg-amount-source">amount</span>
+        <div class="rd-segmented">
+          <label class="rd-segmented__option"><input type="radio"
+       name="amount_source"
+       value="fixed"
+       {% if amount_source != "formula" %}checked{% endif %}>fixed value</label>
+          <label class="rd-segmented__option"><input type="radio"
+       name="amount_source"
+       value="formula"
+       {% if amount_source == "formula" %}checked{% endif %}>formula ƒ</label>
+        </div>
+      </div>
+    </div>
+    <div class="rd-formula-slot"
+         id="formula-slot"
+         data-show-when="amount_source=formula"
+         {% if amount_source != "formula" %}hidden{% endif %}
+         hx-post="/recurring/formula/preview"
+         hx-trigger="change, keyup changed delay:400ms"
+         hx-include="closest form"
+         hx-target="find .rd-formula__result"
+         hx-swap="innerHTML">
+      {% with formula_id="formula-new-entry", options=source_categories, next_amount=none %}
+        {% include "fragments/fields/formula.html" %}
+      {% endwith %}
+      {{ field_error("formula", errors) }}
+      {{ field_error("amount_source", errors) }}
+    </div>
+    <div class="rd-fields-row">
+      {{ text_field("end_date", "stop · optional", values.end_date|default(""), type="date", error=errors.end_date|default("")) }}
+      {{ text_field("day_of_month", "day of month", values.day_of_month|default(""), type="number", min="1", max="31", error=errors.day_of_month|default("")) }}
+    </div>
+    <div class="rd-field rd-field--seg"
+         id="field-cadence"
+         role="radiogroup"
+         aria-labelledby="seg-cadence">
+      <span class="rd-field__label" id="seg-cadence">cadence</span>
+      <div class="rd-segmented">
+        {% for cad in ["monthly", "quarterly", "yearly"] %}
+          <label class="rd-segmented__option"><input type="radio"
+       name="cadence"
+       value="{{ cad }}"
+       {% if values.cadence|default("monthly") == cad %}checked{% endif %}>{{ cad }}</label>
+        {% endfor %}
+      </div>
+      {{ field_error("cadence", errors) }}
+    </div>
+    {{ text_field("default_description", "note", values.default_description|default(""), error=errors.default_description|default("")) }}
+  {% else %}
+    {{ text_field("description", "note", values.description|default(""), error=errors.description|default("")) }}
+  {% endif %}
+{% endcall %}

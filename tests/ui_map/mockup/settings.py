@@ -17,6 +17,7 @@ heading = role("heading", level=1)
 fx_heading = role("heading", "FX cache")
 preferences_heading = role("heading", "Preferences")
 prefs_panel_heading = role("heading", "Workspace", level=2)
+theme_group = _app.theme_group
 pref_terms = role("term").inside(panel)
 pref_values = role("definition").inside(panel)
 section_headings = role("heading", level=2)
@@ -102,6 +103,10 @@ save_and_continue = _app.save_and_continue
 sign_out_instead = _app.sign_out_instead
 password_summary = _app.password_summary
 forced_banner = _app.forced_banner
+
+
+def theme_option(value: str) -> Locator:
+    return role("button", value, exact=True).inside(theme_group)
 
 
 def tab(name: str) -> Locator:

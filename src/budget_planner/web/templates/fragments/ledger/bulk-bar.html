@@ -1,0 +1,15 @@
+{# fragment: ledger/bulk-bar
+   The bar bulk-select.js reveals once a row is selected. No bulk route exists yet (derived.md), so the
+   two actions render disabled; clear works. #}
+<div class="rd-bulk" id="ledger-bulk-bar" data-js="bulk-bar" hidden>
+  <span class="rd-bulk__count" data-js="bulk-count">0 selected</span>
+  <button type="button"
+          class="rd-btn rd-btn--secondary-rule"
+          disabled
+          title="Bulk actions are not available yet">change category</button>
+  <button type="button"
+          class="rd-btn rd-btn--danger"
+          disabled
+          title="Bulk actions are not available yet">delete</button>
+  <button type="button" class="rd-btn rd-btn--quiet" data-js="bulk-clear">clear</button>
+</div>

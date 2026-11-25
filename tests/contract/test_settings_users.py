@@ -149,8 +149,10 @@ def test_list_shows_live_users_only_and_marks_me(
     assert "You" in _html.text_of(r.text, ui.user_row(1))
     assert "gone@x.test" not in _html.text_of(r.text, ui.users_table)
     assert _html.resolve_one(r.text, ui.tab("Users"))["aria-selected"] == "true"
-    assert not _html.exists(r.text, ui.remove_user("owner@example.test"))  # no self-remove
-    assert _html.exists(r.text, ui.reset_user("owner@example.test"))
+    # Q22 (ADR-0134 §11): your own row has no row menu at all
+    assert not _html.exists(r.text, ui.user_menu("owner@example.test"))
+    assert not _html.exists(r.text, ui.remove_user("owner@example.test"))
+    assert not _html.exists(r.text, ui.reset_user("owner@example.test"))
 
 
 # --- POST /settings/users ----------------------------------------------------
@@ -235,7 +237,7 @@ def test_create_invalid_email_non_htmx_rerenders_page_with_value(admin_client: T
     r = admin_client.post("/settings/users", data={"email": "nope", "name": "N"})
     assert r.status_code == 422
     assert _html.exists(r.text, ui.users_heading)
-    assert _html.resolve_one(r.text, ui.user_email)["value"] == "nope"
+    assert "Email" in _html.text_of(r.text, ui.add_errors)
 
 
 @covers("POST /settings/users")
@@ -255,12 +257,16 @@ def test_create_reuses_email_of_removed_user(
 def test_edit_form_htmx_slideover_and_full_page(admin_client: TestClient) -> None:
     frag = admin_client.get("/settings/users/1/edit", headers=HX)
     assert frag.status_code == 200
-    form = _html.resolve_one(frag.text, ui.edit_form)
+    dialog = _html.resolve_one(frag.text, ui.edit_form)
+    form = dialog.find("form")
+    assert form is not None
     assert form["hx-post"] == "/settings/users/1"
     assert _html.resolve_one(frag.text, ui.user_email)["value"] == "owner@example.test"
     page = admin_client.get("/settings/users/1/edit")
     assert page.status_code == 200
-    assert not _html.resolve_one(page.text, ui.edit_form).has_attr("hx-post")
+    page_form = _html.resolve_one(page.text, ui.edit_form).find("form")
+    assert page_form is not None
+    assert page_form["action"] == "/settings/users/1"  # the dialog is the same on a full load
 
 
 @covers("GET /settings/users/{user_id}/edit")
@@ -284,7 +290,7 @@ def test_save_updates_row_flashes_and_audits(
         headers=HX,
     )
     assert r.status_code == 200
-    assert "bob@example.test" in _html.text_of(r.text, ui.users_table)
+    assert "bob@example.test" in _html.text_of(r.text, ui.user_row(uid))
     assert _html.exists(r.text, ui.flash_success)
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     assert (row["email"], row["name"], row["is_admin"]) == ("bob@example.test", "Robert", 1)
@@ -311,8 +317,8 @@ def test_save_email_change_refused_retargets_form(
         "/settings/users/1", data={"email": "new@example.test", "is_admin": "on"}, headers=HX
     )
     assert r.status_code == 422
-    assert r.headers["hx-retarget"] == "#user-edit-form"
-    assert r.headers["hx-reswap"] == "outerHTML"
+    assert r.headers["hx-retarget"] == "#modal-root"
+    assert r.headers["hx-reswap"] == "innerHTML"
     assert EMAIL_LOCKED_MESSAGE in _html.text_of(r.text, ui.add_errors)
     assert db.execute("SELECT email FROM users WHERE id = 1").fetchone()[0] == "owner@example.test"
 
@@ -426,8 +432,8 @@ def test_delete_soft_deletes_revokes_sessions_and_blocks_login(
     issue_session(db, user_id=uid)
     r = admin_client.post(f"/settings/users/{uid}/delete", headers=HX)
     assert r.status_code == 200
-    assert "erin@example.test" not in _html.text_of(r.text, ui.users_table)
-    assert _html.exists(r.text, ui.flash_success)
+    assert not _html.exists(r.text, ui.user_row(uid))  # the saved response carries no row: removed
+    assert "Removed erin@example.test." in _html.text_of(r.text, ui.flash_success)
     assert db.execute("SELECT deleted_at FROM users WHERE id = ?", (uid,)).fetchone()[0]
     assert live_sessions(db, uid) == 0
     audit = _audit(db, uid, "delete")
