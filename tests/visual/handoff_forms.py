@@ -102,6 +102,12 @@ def submit_dialog(page: Any, handoff_page: str) -> None:
     page.evaluate("() => { document.activeElement?.blur(); getSelection()?.removeAllRanges(); }")
     if "new-category" in handoff_page and "error" not in handoff_page:
         page.focus("#modal-root input[name=name]")  # the category files keep the name field focused
+    if handoff_page.endswith("--error.html") and "new-category" not in handoff_page:
+        # dialog.js moves focus into the swapped dialog after it opens (a race with the blur above):
+        # settle it, then match the file: the invalid field is focused (new-category--error is left as it is).
+        page.wait_for_timeout(300)
+        page.evaluate("() => document.activeElement?.blur()")
+        page.evaluate("() => document.querySelector('#modal-root [aria-invalid=true]')?.focus()")
     if "one-time-password" in handoff_page:
         page.focus("#modal-root .rd-dialog__close")  # the file shows the close button focused
     page.mouse.move(0, 0)  # the pointer rests off the dialog, as in the handoff (no hover tint)
