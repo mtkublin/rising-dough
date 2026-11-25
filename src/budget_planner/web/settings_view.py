@@ -194,7 +194,7 @@ def fx_rate_rows(rates: Sequence[FxRate]) -> tuple[FxRateRow, ...]:
         FxRateRow(
             pair=f"{r.from_ccy} → {r.to_ccy}",
             as_of=r.date,
-            rate_text=str(r.rate),
+            rate_text=str(r.rate),  # as stored; rate formatting belongs to services/fx
         )
         for r in rates
     )

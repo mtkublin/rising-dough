@@ -65,7 +65,7 @@ def test_new_form(client: TestClient) -> None:
     # Default: expense direction and the "default colour" radio are preselected.
     fields = _html.submitted_fields(_html.form_of(r.text, ui.category_name))
     assert ("direction", "expense") in fields
-    assert ("color", "") in fields
+    assert ("color", "default") in fields
 
 
 def test_create(client: TestClient) -> None:
@@ -372,3 +372,70 @@ def test_archive_dialog_closes_on_the_dialog_close_event(client: TestClient, cat
     r = client.post(f"/categories/{cat_id}/archive")
     assert r.status_code == 204
     assert json.loads(r.headers["HX-Trigger"])["dialog-close"] is True
+
+
+# -- the "default colour" radio posts color=default: the service clears the colour (T-UR13) --
+
+
+def _audit(db: sqlite3.Connection, category_id: int) -> list[str]:
+    db.commit()  # end any read snapshot so the app's writes are visible
+    rows = db.execute(
+        "SELECT operation FROM audit_log WHERE entity_type = 'category' AND entity_id = ? "
+        "ORDER BY id",
+        (category_id,),
+    ).fetchall()
+    return [str(r[0]) for r in rows]
+
+
+def _color(db: sqlite3.Connection, category_id: int) -> str | None:
+    db.commit()  # end any read snapshot so the app's writes are visible
+    row = db.execute("SELECT color FROM categories WHERE id = ?", (category_id,)).fetchone()
+    return None if row[0] is None else str(row[0])
+
+
+def test_create_with_empty_colour_stores_null_and_audits(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    r = client.post(
+        "/categories", data={"name": "Plain", "direction": "expense", "color": "default"}
+    )
+    assert r.status_code == 200
+    row = db.execute("SELECT id, color, user_id FROM categories WHERE name = 'Plain'").fetchone()
+    assert (row["color"], row["user_id"]) == (None, USER_ID)
+    assert _audit(db, row["id"]) == ["create"]
+
+
+def test_edit_with_empty_colour_clears_it_and_leaves_another_users_colour(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    db.execute("INSERT INTO users (id, name) VALUES (2, 'other')")
+    db.commit()
+    other = categories_repo.create(
+        db, 2, NewCategory(name="Groceries", direction=Direction.EXPENSE, color="#112233")
+    ).id
+    client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "#ef4444"})
+    assert _color(db, cat_id) == "#ef4444"
+
+    r = client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "default"})
+    assert r.status_code == 200
+    assert _color(db, cat_id) is None
+    assert _audit(db, cat_id) == ["create", "update", "update"]
+    assert _color(db, other) == "#112233"
+    assert _audit(db, other) == ["create"]
+
+
+def test_edit_with_a_real_colour_stores_it(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    r = client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "#A855F7"})
+    assert r.status_code == 200
+    assert _color(db, cat_id) == "#a855f7"
+    assert _audit(db, cat_id) == ["create", "update"]
+
+
+def test_edit_without_a_colour_field_keeps_the_stored_colour(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "#ef4444"})
+    client.post(f"/categories/{cat_id}", data={"name": "Food"})
+    assert _color(db, cat_id) == "#ef4444"

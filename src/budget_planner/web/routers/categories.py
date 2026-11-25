@@ -61,9 +61,9 @@ def create_category(
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    # The "default colour" radio posts an empty colour: that means "clear" (ADR-0048).
-    clear = clear_color or ("1" if color == "" else None)
-    parsed = parse_new_category(name=name, direction=direction, color=color, clear_color=clear)
+    parsed = parse_new_category(
+        name=name, direction=direction, color=color, clear_color=clear_color
+    )
     if parsed.command is None:
         return invalid_dialog_response(
             request,
@@ -151,8 +151,7 @@ def update_category(
     cat = categories_service.find_by_id(conn, user_id, category_id)
     if cat is None:
         return category_not_found()
-    clear = clear_color or ("1" if color == "" else None)
-    parsed = parse_category_patch(name=name, color=color, clear_color=clear)
+    parsed = parse_category_patch(name=name, color=color, clear_color=clear_color)
     if parsed.patch is None:
         usage = categories_service.usage_for(conn, user_id, category_id)
         return invalid_dialog_response(
