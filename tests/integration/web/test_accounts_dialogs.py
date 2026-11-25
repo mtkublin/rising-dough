@@ -172,3 +172,21 @@ def test_row_menu_offers_reconcile_edit_and_delete_dialogs(
     assert items["edit"][0] == f"/accounts/{acc}/edit"
     assert items["delete"][0] == f"/accounts/{acc}/edit?intent=delete"
     assert "rd-menu__item--danger" in items["delete"][1]
+
+
+def test_create_without_a_name_is_the_human_422_summary_and_writes_nothing(
+    client: TestClient, db: sqlite3.Connection
+) -> None:
+    r = client.post("/accounts", data={"currency": "PLN"})
+    assert r.status_code == 422
+    assert r.headers["HX-Retarget"] == "#modal-root"
+    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
+    assert not r.text.lstrip().startswith("{")
+    assert db.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
+
+
+def test_new_dialog_form_carries_the_account_form_id_itself(client: TestClient) -> None:
+    r = client.get("/accounts/new")
+    form = _html.resolve_one(r.text, accounts.account_form)
+    assert form.name == "form"
+    assert form["hx-target"] == "#account-form"

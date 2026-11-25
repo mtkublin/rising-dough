@@ -183,10 +183,10 @@ def test_dialogs_have_accessible_labels(client: TestClient) -> None:
     r = client.get(f"/accounts/{acc_id}/reconcile")
     assert r.status_code == 200
     frag = BeautifulSoup(r.text, "html.parser")
-    dialog = frag.find(role="dialog")
+    # The shell dialog is a native <dialog>: showModal() makes it modal, so no aria-modal attribute.
+    dialog = frag.find("dialog")
     assert dialog is not None and isinstance(dialog, Tag)
     assert dialog.get("aria-labelledby"), "reconcile dialog missing aria-labelledby"
-    assert dialog.get("aria-modal") == "true"
 
 
 def test_settings_drawer_is_dialog(client: TestClient) -> None:

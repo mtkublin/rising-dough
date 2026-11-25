@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from budget_planner.config import Settings
 from budget_planner.domain.accounts import Account, AccountReferences
 from budget_planner.web.accounts_view import delete_dialog
+from budget_planner.web.templating import build_jinja_env
 
 _NOW = datetime(2026, 11, 1, tzinfo=UTC)
 
@@ -77,3 +79,15 @@ def test_non_zero_balance_alone_blocks_without_a_link() -> None:
     assert dlg.blocked
     assert dlg.text == "Its balance is 123.45 PLN. Bring it to zero first."
     assert (dlg.link_label, dlg.link_href) == ("", "")
+
+
+def test_dialog_macro_form_id_is_optional_and_backward_compatible() -> None:
+    env = build_jinja_env(Settings(_env_file=None))
+    src = (
+        '{% from "fragments/dialogs/dialog.html" import dialog %}'
+        '{% call dialog("d", "t", form_id=fid) %}x{% endcall %}'
+    )
+    with_id = env.from_string(src).render(fid="my-form")
+    without = env.from_string(src).render(fid="")
+    assert '<form class="rd-dialog__form" id="my-form"' in " ".join(with_id.split())
+    assert "id=" not in without.split("<form", 1)[1].split(">", 1)[0]
