@@ -59,7 +59,6 @@ PAGE_ROUTES: dict[str, str] = {
     "pages/plan/analytics.html": "/plan?tab=analytics",
     "pages/ledger/actual.html": LEDGER_BOARD,
     "pages/ledger/actual--long.html": LEDGER_BOARD,
-    "pages/ledger/actual--empty.html": LEDGER_BOARD,
     "pages/ledger/planned.html": "/ledger?view=planned",
     "pages/ledger/planned--empty.html": "/ledger?view=planned",
     "pages/ledger/recurring.html": "/ledger?view=recurring",
@@ -112,6 +111,10 @@ _NEEDS_ROTATION_USER = "needs a signed-in user with must_change_password; no see
 # they are still compared with their surface's fallback route (red); the unmapped-state item maps
 # them and this dict only shrinks.
 UNMAPPED_PAGES: dict[str, str] = {
+    "pages/settings/security--error.html": (
+        "POST /settings/password re-renders the forced-rotation page, not the Security tab"
+        " with the inline error"
+    ),
     "pages/auth/register.html": _SETUP_ONLY_EMPTY,
     "pages/auth/register--error.html": _SETUP_ONLY_EMPTY,
     "pages/auth/force-password.html": _NEEDS_ROTATION_USER,

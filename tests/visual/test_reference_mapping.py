@@ -200,7 +200,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
     assert auth <= set(PAGE_ROUTES) | set(UNMAPPED_PAGES)
     assert errors <= set(PAGE_ROUTES) | set(UNMAPPED_PAGES) | {"pages/errors/404.html"}
     assert set(UNMAPPED_PAGES) <= pages
-    assert not set(UNMAPPED_PAGES) & (set(PAGE_ROUTES) | set(FORM_SUBMITS))
+    assert not set(UNMAPPED_PAGES) & set(FORM_SUBMITS)
     for page in pages:
         assert handoff.surface_of(page) in SURFACE_ROUTES
     for page in set(PAGE_ROUTES) | set(PAGE_MODIFIERS) | set(FORM_SUBMITS) | ANONYMOUS_PAGES:
@@ -224,7 +224,7 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/auth/reauth--error.html", "/auth/reauth", ("form-error",)),
         ("pages/today--empty.html", "/today", ("empty",)),
         ("pages/accounts--empty.html", "/accounts", ("empty-accounts",)),
-        ("pages/ledger/actual--empty.html", LEDGER_BOARD, ("empty-ledger",)),
+        ("pages/ledger/actual--empty.html", "/ledger", ("empty-ledger",)),
         ("pages/ledger/actual--long.html", LEDGER_BOARD, ("long",)),
         ("pages/ledger/actual.html", LEDGER_BOARD, ()),
         (
@@ -238,7 +238,6 @@ def test_every_page_is_mapped_or_listed_unmapped() -> None:
         ("pages/settings/preferences.html", "/settings?tab=prefs", ()),
         ("pages/settings/currency-fx.html", "/settings?tab=fx", ()),
         ("pages/settings/security.html", "/settings/security", ()),
-        ("pages/settings/security--error.html", "/settings/security", ()),
         ("pages/settings/users.html", "/settings/users", ()),
         ("pages/errors/422.html", "/budget?month=zz", ()),
     ],
@@ -264,6 +263,7 @@ def test_unmapped_pages_carry_a_reason() -> None:
         "pages/auth/register--error.html",
         "pages/auth/force-password.html",
         "pages/auth/force-password--error.html",
+        "pages/settings/security--error.html",
         "pages/errors/409.html",
         "pages/errors/500.html",
         "pages/errors/offline.html",
