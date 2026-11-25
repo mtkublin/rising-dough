@@ -44,7 +44,6 @@ NO_HANDOFF_TWIN = frozenset(
         "fx_row",
         "category_slot",
         "tabs",
-        "form_errors",
         "modal_root",
         "password_summary",
         "forced_banner",
@@ -55,7 +54,6 @@ NO_HANDOFF_TWIN = frozenset(
 
 tabs = _app.tabs
 category_slot = _app.category_slot
-form_errors = _app.form_errors
 modal_root = _app.modal_root
 any_category_row = role("row", _SAMPLE_ROW)
 form_name = category_name.inside(category_form)

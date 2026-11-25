@@ -2,7 +2,7 @@
 
 App target only: the dev menu and its routes do not exist in the handoff. Each variant
 opens from a row-menu item (HTMX get into ``#modal-root``), closes on Escape and on the
-close button, and returns focus to the menu trigger; the 422 shows the error summary and
+close button, and returns focus to the menu trigger; the 422 shows a ▲ line under each field and
 the phone sheet docks at the bottom of a 375 px viewport.
 """
 
@@ -14,7 +14,7 @@ import pytest
 
 from tests.e2e.mockup_target import Journey
 from tests.ui_map import rd_dialogs as d, rd_fragments as f, rd_shell as shell
-from tests.ui_map.locator import Locator, role, to_playwright
+from tests.ui_map.locator import Locator, by_id, role, to_playwright
 
 pytestmark = pytest.mark.e2e
 
@@ -70,23 +70,27 @@ def test_cancel_and_ok_actions_close(journey: Journey) -> None:
     _loc(journey, d.dev_blocked).wait_for(state="hidden")
 
 
-def test_invalid_variant_shows_the_error_summary_with_two_fields(journey: Journey) -> None:
+def test_invalid_variant_shows_each_field_error_and_no_summary_box(journey: Journey) -> None:
     dialog = d.dialog("new account")
     _open(journey, "invalid", dialog)
-    summary = _loc(journey, d.error_summary(dialog))
-    summary.wait_for(state="visible")
-    text = " ".join(summary.inner_text().split())
-    assert text.startswith("2 fields need attention")
-    assert "Enter an amount above 0.00" in text
-    assert "Name is required" in text
+    amount = _loc(journey, d.field_error(dialog, "amount"))
+    amount.wait_for(state="visible")
+    assert " ".join(amount.inner_text().split()) == "▲ Enter an amount above 0.00"
+    name = _loc(journey, d.field_error(dialog, "name"))
+    assert " ".join(name.inner_text().split()) == "▲ Name is required"
+    assert _loc(journey, by_id("error-summary")).count() == 0
 
 
-def test_submitting_the_standard_form_shows_the_422_summary(journey: Journey) -> None:
+def test_submitting_the_standard_form_shows_the_422_field_errors(journey: Journey) -> None:
     _open(journey, "standard", d.dev_standard)
     _loc(journey, d.action(d.dev_standard, "[ create account ]")).click()
-    summary = _loc(journey, d.error_summary(d.dialog("new account")))
-    summary.wait_for(state="visible")
-    assert " ".join(summary.inner_text().split()).startswith("2 fields need attention")
+    dialog = d.dialog("new account")
+    amount = _loc(journey, d.field_error(dialog, "amount"))
+    amount.wait_for(state="visible")
+    assert " ".join(amount.inner_text().split()) == "▲ Enter an amount above 0.00"
+    name = _loc(journey, d.field_error(dialog, "name"))
+    assert " ".join(name.inner_text().split()) == "▲ Name is required"
+    assert _loc(journey, by_id("error-summary")).count() == 0
 
 
 def test_phone_sheet_docks_to_the_bottom_at_375(journey: Journey) -> None:

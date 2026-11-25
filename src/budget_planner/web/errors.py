@@ -17,7 +17,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.exception_handlers import http_exception_handler
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -30,8 +31,8 @@ from budget_planner.domain.errors import (
 )
 from budget_planner.services.fx import FxUnavailableError
 from budget_planner.web.deps import ReauthRequired
-from budget_planner.web.field_labels import field_summary
-from budget_planner.web.http_headers import HX_REQUEST
+from budget_planner.web.field_labels import field_label, field_summary
+from budget_planner.web.http_headers import HX_REQUEST, HX_RESWAP
 from budget_planner.web.params import ParamError
 
 logger = logging.getLogger("budget_planner.web")
@@ -173,6 +174,26 @@ async def handle_validation(request: Request, exc: Exception) -> HTMLResponse:
     )
 
 
+async def handle_request_validation(request: Request, exc: Exception) -> Response:
+    """A missing or malformed form value: never a silent failure for an HTMX dialog (Q18).
+
+    FastAPI rejects a missing ``Form(...)`` value before the handler runs. For an HTMX
+    caller whose errors are all in the body, answer a 422 flash in the live region with
+    ``HX-Reswap: none``: the dialog stays open with the typed values and no event closes it.
+    Every other caller (path or query errors, plain requests) keeps FastAPI's JSON ``detail``.
+    """
+    if not isinstance(exc, RequestValidationError):  # registered for it only
+        raise InvariantError(f"unexpected exception type {type(exc).__name__}")
+    errors = exc.errors()
+    if not _is_htmx(request) or not errors or any(e["loc"][0] != "body" for e in errors):
+        return await request_validation_exception_handler(request, exc)
+    names = dict.fromkeys(str(e["loc"][-1]) for e in errors)
+    labels = ", ".join(field_label(name) for name in names)
+    response = _flash_fragment(request, "error", f"Some fields need fixing: {labels}", status=422)
+    response.headers[HX_RESWAP] = "none"
+    return response
+
+
 async def handle_param_error(request: Request, exc: Exception) -> HTMLResponse:
     fields = exc.fields if isinstance(exc, ParamError) else {}
     return await handle_validation(request, ValidationError(fields=fields))
@@ -225,6 +246,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     every router.
     """
     app.add_exception_handler(StarletteHTTPException, handle_http_exception)
+    app.add_exception_handler(RequestValidationError, handle_request_validation)
     app.add_exception_handler(ReauthRequired, handle_reauth_required)
     app.add_exception_handler(NotFoundError, handle_not_found)
     app.add_exception_handler(ConflictError, handle_conflict)

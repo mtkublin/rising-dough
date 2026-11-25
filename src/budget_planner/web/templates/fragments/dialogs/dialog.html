@@ -30,8 +30,8 @@
                       tone: cancel | primary (name/value) | secondary (type=button, does not close) | danger (name/value) | link | ok.
                       Any action may carry an id; secondary takes the hx_* and formaction keys; primary takes hx_include and hx_vals.
      form_id (standard, optional): id of the <form> itself (e.g. a self-targeting hx-target); empty adds no attribute.
-     field_count / field_errors: the context invalid_dialog_response passes; renders forms/error-summary above the body.
-   The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic, no set. #}
+     field_count / field_errors: the context invalid_dialog_response passes; field_errors rows with no per-field element render as a dialog-level error line (Q18, no summary box).
+   The caller block is the body (standard) or the explanatory text (confirm, blocked). No arithmetic. #}
 {% macro dialog(dialog_id, title, variant="standard", size="", action="", hx_post="", hx_target="#modal-root", hx_swap="innerHTML", hero=none, actions=[], describedby="", field_count=0, field_errors=(), form_id="") %}
   {% if variant == "standard" %}
     <dialog class="rd-dialog{% if size %} rd-dialog--{{ size }}{% endif %}"
@@ -84,7 +84,7 @@
           {% endif %}
         </header>
         <div class="rd-dialog__body">
-          {{ _summary(field_count, field_errors) }}
+          {{ _orphans(field_errors, caller(), hero) }}
           {{ caller() }}
           {{ _actions(actions) }}
         </div>
@@ -98,13 +98,13 @@
             {% if describedby %}aria-describedby="{{ describedby }}"{% endif %}
             data-js="modal">
       {% if variant == "blocked" %}
-        {{ _confirm(dialog_id, title, actions, field_count, field_errors, caller()) }}
+        {{ _confirm(dialog_id, title, actions, field_errors, caller()) }}
       {% else %}
         <form class="rd-dialog__form"
               method="post"
               action="{{ action }}"
               {% if hx_post %}hx-post="{{ hx_post }}" hx-target="{{ hx_target }}" hx-swap="{{ hx_swap }}"{% endif %}>
-          {{ _confirm(dialog_id, title, actions, field_count, field_errors, caller()) }}
+          {{ _confirm(dialog_id, title, actions, field_errors, caller()) }}
         </form>
       {% endif %}
     </dialog>
@@ -120,17 +120,20 @@
     </svg>
   </button>
 {% endmacro %}
-{% macro _summary(field_count, field_errors) %}
-  {% if field_count %}
-    {% with field_count=field_count, field_errors=field_errors %}
-      {% include "fragments/forms/error-summary.html" %}
-    {% endwith %}
-  {% endif %}
+{# Q18: no summary box. Every field error shows next to its field (a "▲ message" paragraph) or as the hero error
+   line; an error with no such element in the rendered body (service-level message, unknown field name) shows here
+   as a dialog-level error line, so a failed save is never silent. #}
+{% macro _orphans(field_errors, body, hero) %}
+  {% for name, label, message in field_errors %}
+    {% if ("▲ " ~ (message|e)) not in body and not (hero and hero.error|default(none) and name == hero.amount_name|default("amount")) %}
+      <p class="rd-dialog__error" id="dialog-error-{{ name }}" role="alert">▲ {{ label }}: {{ message }}</p>
+    {% endif %}
+  {% endfor %}
 {% endmacro %}
-{% macro _confirm(dialog_id, title, actions, field_count, field_errors, text) %}
+{% macro _confirm(dialog_id, title, actions, field_errors, text) %}
   <div class="rd-dialog__confirm">
     <h2 class="rd-dialog__confirm-title" id="{{ dialog_id }}-title">{{ title }}</h2>
-    {{ _summary(field_count, field_errors) }}
+    {{ _orphans(field_errors, text, none) }}
     {{ text }}
     {{ _actions(actions) }}
   </div>

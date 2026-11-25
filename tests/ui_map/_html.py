@@ -362,6 +362,20 @@ def texts(source: Source, loc: Locator) -> list[str]:
     return [_visible_text(el) for el in resolve(source, loc)]
 
 
+def error_lines(source: Source) -> dict[str, str]:
+    """Every visible error line of a failed save (Q18, no summary box), keyed by element id.
+
+    Each ``<p>`` reading ``▲ <message>``: the per-field ``field-<name>-error``, the hero error, the
+    category picker's, and the dialog-level ``dialog-error-<name>`` (an error with no field line).
+    """
+    lines: dict[str, str] = {}
+    for el in _descendants(_soup(source)):
+        text = _norm(el.get_text())
+        if el.name == "p" and text.startswith("\u25b2 "):
+            lines[str(el.get("id", f"(no id) {text}"))] = text
+    return lines
+
+
 def is_fragment(source: Source) -> bool:
     """True when ``source`` is a bare fragment (no ``<html>`` document element)."""
     return _soup(source).find("html") is None

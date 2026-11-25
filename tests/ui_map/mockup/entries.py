@@ -72,7 +72,6 @@ NO_HANDOFF_TWIN = frozenset(
         "formula_add_component",
         "formula_pick",
         "formula_result",
-        "summary",
         "opener",
         "category_chosen",
         "category_query",  # the handoff search panel is hidden until opened
@@ -86,7 +85,14 @@ NO_HANDOFF_TWIN = frozenset(
 opener = role("region", "New entry", exact=True)
 edit_opener = role("region", "Edit transaction", exact=True)
 credit_line = by_id("credit-line")
-summary = by_id("error-summary")
+hero_error = by_id("hero-amount-error")
+
+
+def field_error(name: str) -> Locator:
+    """The ▲ line under field ``name``; the handoff only draws the hero and picker ones."""
+    return by_id(f"field-{name}-error")
+
+
 hero_refresh = by_id("hero-refresh")
 
 # Formula components: same markup as the app; the e2e journeys drive the app, not the handoff.

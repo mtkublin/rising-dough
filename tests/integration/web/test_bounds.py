@@ -33,7 +33,7 @@ from budget_planner.repositories import (
 )
 from budget_planner.services import balance as balance_service
 from budget_planner.web.app import create_app
-from tests.ui_map import _html, errors
+from tests.ui_map import _html
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -98,7 +98,9 @@ def test_overlong_transaction_description_is_rejected_and_not_stored(
 ) -> None:
     r = client.post("/transactions", data=_txn_form(seeded, "x" * (DESCRIPTION_MAX_LENGTH + 1)))
     assert r.status_code == 422
-    assert f"at most {DESCRIPTION_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-description-error": f"▲ must be at most {DESCRIPTION_MAX_LENGTH} characters",
+    }
     assert _count(_migrated, "transactions") == 0
 
 
@@ -116,7 +118,9 @@ def test_overlong_account_name_is_rejected_and_not_stored(
     before = _count(_migrated, "accounts")
     r = client.post("/accounts", data={"name": "n" * (NAME_MAX_LENGTH + 1), "currency": "PLN"})
     assert r.status_code == 422
-    assert f"at most {NAME_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": f"▲ must be at most {NAME_MAX_LENGTH} characters",
+    }
     assert _count(_migrated, "accounts") == before
 
 
@@ -128,7 +132,9 @@ def test_overlong_category_name_is_rejected_and_not_stored(
         "/categories", data={"name": "n" * (NAME_MAX_LENGTH + 1), "direction": "expense"}
     )
     assert r.status_code == 422
-    assert f"at most {NAME_MAX_LENGTH} characters" in _html.all_text(r.text, errors.alert)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": f"▲ must be at most {NAME_MAX_LENGTH} characters",
+    }
     assert _count(_migrated, "categories") == before
 
 

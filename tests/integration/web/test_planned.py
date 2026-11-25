@@ -131,7 +131,9 @@ def test_create_bad_amount(client: TestClient, ctx: dict[str, int], db: sqlite3.
         },
     )
     assert r.status_code == 422
-    assert "Amount : Enter an amount above 0.00" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _planned_state(db) == before
 
 
@@ -147,7 +149,9 @@ def test_create_bad_date(client: TestClient, ctx: dict[str, int], db: sqlite3.Co
         },
     )
     assert r.status_code == 422
-    assert "Date : invalid date" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _planned_state(db) == before
 
 
@@ -165,7 +169,9 @@ def test_create_unknown_account(
         },
     )
     assert r.status_code == 422
-    assert "Account : unknown account" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-account_id-error": "▲ unknown account",
+    }
     assert _planned_state(db) == before
 
 
@@ -348,10 +354,10 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    summary = _html.all_text(r.text, edit_dialogs.summary)
-    assert "2 fields need attention" in summary
-    assert "Date : invalid date" in summary
-    assert "Amount : Enter an amount above 0.00" in summary
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-operation_date-error": "▲ invalid date",
+    }
     scope = edit_dialogs.planned_dialog("Rent")
     # the dialog comes back with what was posted, nothing stored
     assert _html.resolve_one(r.text, edit_dialogs.field_due(scope)).get("value") == "bad"
@@ -367,11 +373,11 @@ def test_update_with_nothing_posted_names_every_missing_field(
     before = _planned_state(db)
     r = client.post(f"/planned/{ctx['pl']}", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    summary = _html.all_text(r.text, edit_dialogs.summary)
-    assert summary == (
-        "3 fields need attention Date : invalid date Account : unknown account "
-        "Category : pick a category"
-    )
+    assert _html.error_lines(r.text) == {
+        "catpick-edit-planned-error": "▲ pick a category",
+        "field-account_id-error": "▲ unknown account",
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert "pick a category" in _html.all_text(r.text, edit_dialogs.planned_dialog("Rent"))
     assert _planned_state(db) == before
 
@@ -445,9 +451,10 @@ def test_promote_submit_invalid(
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    summary = _html.all_text(r.text, entries.summary)
-    assert "Date : invalid date" in summary
-    assert "Amount : Enter an amount above 0.00" in summary
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _planned_state(db) == before
     assert _txn_count(db) == txns
 
@@ -626,7 +633,9 @@ def test_promote_invalid_amount_rerenders_dialog(
     r = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _planned_state(db) == before
 
 

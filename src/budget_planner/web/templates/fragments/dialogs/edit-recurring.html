@@ -80,7 +80,8 @@
        {% if values.cadence|default("monthly") == cad %}checked{% endif %}>{{ cad }}</label>
       {% endfor %}
     </div>
-    {% if errors.cadence|default(none) %}<p class="rd-field__error">▲ {{ errors.cadence }}</p>{% endif %}
+    {% if errors.cadence|default(none) %}<p class="rd-field__error"
+   id="field-cadence-error">▲ {{ errors.cadence }}</p>{% endif %}
   </div>
   {{ text_field("day_of_month", "day of month", values.day_of_month|default(""), type="number", min="1", max="31", error=errors.day_of_month|default("")) }}
   {{ text_field("default_description", "note", values.default_description|default(""), error=errors.default_description|default("")) }}

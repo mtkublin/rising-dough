@@ -122,7 +122,6 @@ def chips(source: _html.Source) -> dict[str, str | None]:
 planned_form = by_id("planned-form")
 recurring_form = by_id("recurring-form")
 slideover = role("dialog")
-form_errors = by_id("error-summary")  # the 422 summary of the new-entry dialog
 schedule_hero = by_id("ledger-hero")  # planned and recurring hero: label, figure, unit and note
 field_date = label("Date")
 field_amount = label("Amount")

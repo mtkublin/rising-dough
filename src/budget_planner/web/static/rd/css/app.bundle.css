@@ -1803,6 +1803,12 @@ form.htmx-request .rd-btn[type="submit"]::after {
   font-size: var(--font-size-body);
 }
 
+.rd-dialog__error {
+  color: var(--color-over);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+}
+
 .rd-dialog__hero-error {
   font-weight: var(--font-weight-medium);
 }

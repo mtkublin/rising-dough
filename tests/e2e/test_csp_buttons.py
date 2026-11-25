@@ -118,8 +118,8 @@ def test_add_from_today_invalid_amount_rerenders_form(
     choose_account(page, "Checking")
     to_playwright(page, entries.hero_amount).fill("0")
     to_playwright(page, entries.save).click()
-    # The dialog stays open with the summary and the posted values.
-    expect(to_playwright(page, entries.summary)).to_contain_text("Amount")
+    # The dialog stays open with the field error and the posted values.
+    expect(to_playwright(page, entries.hero_error)).to_contain_text("Enter an amount above 0.00")
     expect(to_playwright(page, entries.hero_amount)).to_have_value("0")
     expect(to_playwright(page, entries.category_search)).to_have_text("Groceries")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM transactions") == 0
@@ -308,7 +308,7 @@ def test_add_planned_from_today_invalid_amount_rerenders_form(
     choose_account(page, "Checking")
     to_playwright(page, entries.hero_amount).fill("0")
     to_playwright(page, entries.save).click()
-    expect(to_playwright(page, entries.summary)).to_contain_text("Amount")
+    expect(to_playwright(page, entries.hero_error)).to_contain_text("Enter an amount above 0.00")
     expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM planned_transactions") == 0
 
@@ -371,7 +371,7 @@ def test_create_account_invalid_rerenders_form(live_server: tuple[str, Path], pa
     _fill(page, accounts.form_currency, "EUR", accounts.account_form)
     _submit(page, accounts.create_account, accounts.new_dialog)
     expect(to_playwright(page, accounts.new_dialog)).to_have_count(1)
-    expect(to_playwright(page, accounts.form_errors)).to_contain_text("name required")
+    expect(to_playwright(page, accounts.form_name_error)).to_contain_text("name required")
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM accounts") == 0
 
 

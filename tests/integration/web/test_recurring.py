@@ -159,7 +159,9 @@ def test_create_invalid_cadence(
         },
     )
     assert r.status_code == 422
-    assert "Repeats : invalid cadence" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-cadence-error": "▲ invalid cadence",
+    }
     assert _state(db) == before
 
 
@@ -178,7 +180,9 @@ def test_create_invalid_date(
         },
     )
     assert r.status_code == 422
-    assert "Start date : invalid date" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-start_date-error": "▲ invalid date",
+    }
     assert _state(db) == before
 
 
@@ -197,7 +201,9 @@ def test_create_invalid_amount(
         },
     )
     assert r.status_code == 422
-    assert "Amount : Enter an amount above 0.00" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-default_amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _state(db) == before
 
 
@@ -216,7 +222,10 @@ def test_create_unknown_account(
         },
     )
     assert r.status_code == 422
-    assert "Account : unknown account" in _html.text_of(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-default_amount-error": "▲ unknown account currency",
+        "field-account_id-error": "▲ unknown account",
+    }
     assert _state(db) == before
 
 
@@ -275,7 +284,9 @@ def test_create_transit_without_dest_rejected(
         },
     )
     assert r.status_code == 422
-    assert "destination" in _html.text_of(r.text, ledger.form_errors).lower()
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ transit requires destination account",
+    }
 
 
 def test_create_transit_cross_currency_rejected(
@@ -301,7 +312,9 @@ def test_create_transit_cross_currency_rejected(
         },
     )
     assert r.status_code == 422
-    assert "currenc" in _html.text_of(r.text, ledger.form_errors).lower()
+    assert _html.error_lines(r.text) == {
+        "field-dest_account_id-error": "▲ cross-currency transit not supported",
+    }
 
 
 def test_update_transit_persists_dest_account(
@@ -452,10 +465,11 @@ def test_update_invalid(client: TestClient, ctx: dict[str, int], db: sqlite3.Con
         },
     )
     assert r.status_code == 422
-    assert _html.all_text(r.text, edit_dialogs.summary) == (
-        "3 fields need attention Repeats : invalid Start date : invalid date "
-        "Default Amount : Enter an amount above 0.00"
-    )
+    assert _html.error_lines(r.text) == {
+        "field-default_amount-error": "▲ Enter an amount above 0.00",
+        "field-start_date-error": "▲ invalid date",
+        "field-cadence-error": "▲ invalid",
+    }
     assert _state(db) == before
 
 
@@ -505,7 +519,9 @@ def test_override_invalid_month(
         data={"year": 2026, "month": 13, "amount": "9.99"},
     )
     assert r.status_code == 422
-    assert "invalid year or month" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-month-error": "▲ invalid year or month",
+    }
     assert _state(db) == before
 
 
@@ -518,9 +534,9 @@ def test_override_invalid_amount(
         data={"year": 2026, "month": 5, "amount": "nope"},
     )
     assert r.status_code == 422
-    assert "amount must be a decimal number within range" in _html.all_text(
-        r.text, edit_dialogs.summary
-    )
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ amount must be a decimal number within range",
+    }
     assert _state(db) == before
 
 
@@ -533,7 +549,9 @@ def test_override_non_positive_amount(
         data={"year": 2026, "month": 5, "amount": "0"},
     )
     assert r.status_code == 422
-    assert "Enter an amount above 0.00" in _html.all_text(r.text, edit_dialogs.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _state(db) == before
 
 
@@ -646,7 +664,9 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ amount must be a decimal number within range",
+    }
     assert _html.resolve_one(r.text, entries.promote_amount).get("value") == "not-a-number"
 
 
@@ -660,7 +680,9 @@ def test_promote_submit_zero_amount_422(
         headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
-    assert "Amount : Enter an amount above 0.00" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }
     assert _state(db) == before
 
 
@@ -674,7 +696,9 @@ def test_promote_submit_invalid_date_422(
         headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
-    assert "Date : invalid date" in _html.all_text(r.text, entries.summary)
+    assert _html.error_lines(r.text) == {
+        "field-operation_date-error": "▲ invalid date",
+    }
     assert _state(db) == before
 
 
@@ -702,9 +726,9 @@ def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated
         conn.close()
     r = client.post(f"/recurring/{rule_id}/promote", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
-    assert "Promotion : cross-currency transit not supported" in _html.all_text(
-        r.text, entries.summary
-    )
+    assert _html.error_lines(r.text) == {
+        "field-promotion": "▲ cross-currency transit not supported",
+    }
     conn = get_connection(_migrated)
     try:
         assert transactions_repo.list_filtered(conn, USER_ID, TransactionFilter()) == []
@@ -1017,7 +1041,9 @@ def test_create_end_date_before_start_rejected(client: TestClient, ctx: dict[str
         },
     )
     assert r.status_code == 422
-    assert "End Date : must be on or after start" in _html.text_of(r.text, ledger.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-end_date-error": "▲ must be on or after start",
+    }
 
 
 def test_create_end_date_in_past_marks_inactive(
@@ -1247,16 +1273,20 @@ def test_override_success_closes_the_dialog_from_any_page(
 def test_override_errors_rerender_the_dialog_with_the_message(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    for form, text in (
-        ({"year": "2026", "month": "13", "amount": "5"}, "invalid year or month"),
-        ({"year": "2026", "month": "5", "amount": "abc"}, "decimal number within range"),
-        ({"year": "2026", "month": "5", "amount": "-1"}, "Enter an amount above 0.00"),
+    for form, field, text in (
+        ({"year": "2026", "month": "13", "amount": "5"}, "month", "invalid year or month"),
+        (
+            {"year": "2026", "month": "5", "amount": "abc"},
+            "amount",
+            "amount must be a decimal number within range",
+        ),
+        ({"year": "2026", "month": "5", "amount": "-1"}, "amount", "Enter an amount above 0.00"),
     ):
         r = client.post(f"/recurring/{ctx['rule']}/overrides", data=form, headers=_FROM_DIALOG)
         assert r.status_code == 422
         assert r.headers["HX-Retarget"] == "#modal-root"
         assert _html.exists(r.text, edit_dialogs.occurrence_dialog("Rent"))
-        assert text in _html.all_text(r.text, edit_dialogs.summary)
+        assert _html.error_lines(r.text) == {f"field-{field}-error": f"▲ {text}"}
 
 
 def test_promote_get_is_always_the_dialog(client: TestClient, ctx: dict[str, int]) -> None:
@@ -1268,4 +1298,6 @@ def test_promote_get_is_always_the_dialog(client: TestClient, ctx: dict[str, int
     bad = client.post(f"/recurring/{ctx['rule']}/promote", data={"amount": "0"}, headers=_HTMX)
     assert bad.status_code == 422
     assert bad.headers["HX-Retarget"] == "#modal-root"
-    assert "Amount : Enter an amount above 0.00" in _html.all_text(bad.text, entries.summary)
+    assert _html.error_lines(bad.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+    }

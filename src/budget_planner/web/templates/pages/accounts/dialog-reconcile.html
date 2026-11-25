@@ -15,17 +15,7 @@
   <div class="rd-field rd-field--amount">
     <label class="rd-field__label" for="field-actual_balance">{{ dlg.field_label }}</label>
     <span class="rd-input">
-      <input class="rd-input__control"
-             id="field-actual_balance"
-             name="actual_balance"
-             type="text"
-             value="{{ dlg.value }}"
-             inputmode="decimal"
-             data-js="amount-input"
-             autocomplete="off"
-             {% if dlg.hint %}aria-describedby="{{ dlg.hint_id }}"{% endif %}
-             {% if errors.actual_balance|default(none) %}aria-invalid="true"{% endif %}
-             required>
+      <input class="rd-input__control" id="field-actual_balance" name="actual_balance" type="text" value="{{ dlg.value }}" inputmode="decimal" data-js="amount-input" autocomplete="off" {% if dlg.hint or errors.actual_balance|default(none) %}aria-describedby="{% if errors.actual_balance|default(none) %}field-actual_balance-error{% endif %}{% if dlg.hint and errors.actual_balance|default(none) %} {% endif %}{% if dlg.hint %}{{ dlg.hint_id }}{% endif %}"{% endif %} {% if errors.actual_balance|default(none) %}aria-invalid="true"{% endif %} required>
       <span class="rd-input__suffix">{{ dlg.currency }}</span>
     </span>
     {% if errors.actual_balance|default(none) %}<p class="rd-field__error"

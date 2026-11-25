@@ -144,6 +144,10 @@ def override_item(row: Locator) -> Locator:
 
 
 # --- app only: ids the server renders (no handoff twin) ---
-summary = by_id("error-summary")
+def field_error(scope: Locator, name: str) -> Locator:
+    """The ▲ line under field ``name`` of a failed save inside ``scope`` (Q18, no summary box)."""
+    return by_id(f"field-{name}-error").inside(scope)
+
+
 formula_result = by_testid("formula-preview")
 category_chosen = by_id("catpick-edit-planned-picked")

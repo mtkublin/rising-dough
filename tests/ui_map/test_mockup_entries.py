@@ -49,6 +49,7 @@ _WHERE: dict[str, str] = {
     "edit_category_group": "edit-transaction",
     "edit_dest": "edit-transaction--transit",
     "edit_hero_error": "edit-transaction--error",
+    "hero_error": "new-entry--error",
     "promote_amount": "promote--planned",
     "promote_date": "promote--planned",
     "promote_note": "promote--planned",

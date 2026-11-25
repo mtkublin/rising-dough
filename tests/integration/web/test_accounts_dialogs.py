@@ -180,7 +180,9 @@ def test_create_without_a_name_is_the_human_422_summary_and_writes_nothing(
     r = client.post("/accounts", data={"currency": "PLN"})
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert "Name : name required" in _html.text_of(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-name-error": "▲ name required",
+    }
     assert not r.text.lstrip().startswith("{")
     assert db.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
 

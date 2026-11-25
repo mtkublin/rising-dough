@@ -34,7 +34,6 @@ pytest_plugins = ("tests.contract.test_plan_support",)
 USER_ID = 1
 HX = {"HX-Request": "true"}
 FLASH = by_id("flash-region")
-SUMMARY = by_id("error-summary")
 MARCH = "year=2026&month=3"
 POST_FORM = {"year": "2026", "month": "3"}
 
@@ -246,12 +245,11 @@ def test_invalid_save_is_a_422_with_the_summary_and_writes_nothing(
     assert r.status_code == 422
     assert "HX-Trigger" not in r.headers
     assert r.headers["hx-retarget"] == "#modal-root"
-    summary = _html.resolve_one(r.text, SUMMARY)
-    assert _html.all_text(r.text, SUMMARY).startswith("1 field needs attention")
-    assert message in _html.all_text(r.text, SUMMARY)
-    anchor = summary.find("a")
-    assert anchor is not None
-    assert anchor["href"] == f"#field-{field}"
+    if field == "amount":
+        expected = {"field-amount-error": f"▲ {message}"}
+    else:  # the dialog has no tier/month field: the shell shows the dialog-level line
+        expected = {f"dialog-error-{field}": f"▲ {field.title()}: {message}"}
+    assert _html.error_lines(r.text) == expected
     assert audit_total(db) == before
     assert budgets_repo.list_one_off(db, USER_ID) == []
     assert budgets_repo.list_recurring(db, USER_ID) == []
@@ -356,15 +354,28 @@ def test_remove_deletes_the_recurring_override(
 
 
 @pytest.mark.parametrize(
-    "form",
+    ("form", "line"),
     [
-        {"tier": "default", "year": "2026", "month": "3"},
-        {"tier": "one-off", "year": "2026", "month": "13"},
-        {"tier": "one-off", "year": "x", "month": "3"},
+        (
+            {"tier": "default", "year": "2026", "month": "3"},
+            ("dialog-error-tier", "▲ Tier: choose where the override applies"),
+        ),
+        (
+            {"tier": "one-off", "year": "2026", "month": "13"},
+            ("dialog-error-month", "▲ Month: pick a month from 1 to 12"),
+        ),
+        (
+            {"tier": "one-off", "year": "x", "month": "3"},
+            ("dialog-error-year", "▲ Year: enter a year"),
+        ),
     ],
 )
 def test_invalid_remove_is_a_422_and_removes_nothing(
-    client: TestClient, db: sqlite3.Connection, groceries: int, form: dict[str, str]
+    client: TestClient,
+    db: sqlite3.Connection,
+    groceries: int,
+    form: dict[str, str],
+    line: tuple[str, str],
 ) -> None:
     before = audit_total(db)
 
@@ -374,7 +385,7 @@ def test_invalid_remove_is_a_422_and_removes_nothing(
 
     assert r.status_code == 422
     assert "HX-Trigger" not in r.headers
-    assert _html.count(r.text, SUMMARY) == 1
+    assert _html.error_lines(r.text) == dict([line])
     assert audit_total(db) == before
     assert budgets_repo.get_one_off(db, USER_ID, groceries, 2026, 3) is not None
     assert budgets_repo.get_default(db, USER_ID, groceries) is not None

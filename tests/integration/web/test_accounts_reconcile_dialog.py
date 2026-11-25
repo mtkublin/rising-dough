@@ -14,6 +14,7 @@ from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
 from budget_planner.repositories import accounts as accounts_repo
 from tests.ui_map import _html, accounts, shell
+from tests.ui_map.locator import by_id
 
 USER_ID = 1
 
@@ -116,7 +117,12 @@ def test_preview_of_an_impossible_available_is_422(
     r = client.post(f"/accounts/{card}/reconcile?preview=1", data={"actual_balance": "5000.01"})
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
-    assert _html.exists(r.text, accounts.form_errors)
+    assert _html.error_lines(r.text) == {
+        "field-actual_balance-error": "▲ available credit cannot exceed the credit limit",
+    }
+    field = _html.resolve_one(r.text, by_id("field-actual_balance"))
+    assert field.get("aria-invalid") == "true"
+    assert str(field.get("aria-describedby")).split()[0] == "field-actual_balance-error"
 
 
 def test_submit_swaps_the_row_closes_the_dialog_and_flashes(

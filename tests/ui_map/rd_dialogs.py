@@ -33,9 +33,9 @@ def action_link(scope: Locator, label: str) -> Locator:
     return role("link", label, exact=True).inside(scope)
 
 
-def error_summary(scope: Locator) -> Locator:
-    """The 422 summary (id ``error-summary``); the hero error is a second, separate alert."""
-    return by_id("error-summary").inside(scope)
+def field_error(scope: Locator, name: str) -> Locator:
+    """The ``▲ message`` line under a field of a failed save (id ``field-<name>-error``, Q18)."""
+    return by_id(f"field-{name}-error").inside(scope)
 
 
 def hero_amount(scope: Locator, label: str = "Amount") -> Locator:

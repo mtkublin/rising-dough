@@ -32,7 +32,9 @@ def test_same_source_and_dest_shows_error_in_open_panel(
     to_playwright(page, entries.hero_amount).fill("10.00")
     to_playwright(page, entries.save).click()
     dialog = to_playwright(page, entries.dialog)
-    expect(to_playwright(page, entries.summary)).to_contain_text("must differ")
+    expect(to_playwright(page, entries.field_error("dest_account_id"))).to_contain_text(
+        "must differ"
+    )
     expect(dialog).to_be_visible()
     # DB: the rejected planned entry was not stored.
     assert db_probe.scalar(db_path, "SELECT COUNT(*) FROM planned_transactions") == 0

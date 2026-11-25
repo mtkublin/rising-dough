@@ -60,7 +60,7 @@ def test_standard_dialog_has_band_hero_body_and_actions(client: TestClient) -> N
         "/dev/shell/dialog/standard",
         "#modal-root",
     )
-    assert not _html.exists(html, d.error_summary(dlg))
+    assert _html.error_lines(html) == {}
 
 
 def test_confirm_dialog_is_an_alertdialog_with_a_destructive_submit(client: TestClient) -> None:
@@ -113,12 +113,10 @@ def test_invalid_dialog_is_422_with_summary_and_two_field_errors(client: TestCli
     assert status == "422"
     dlg = _html.resolve_one(html, d.dialog("new account"))
     assert dlg.get("id") == "dev-invalid"
-    summary = _html.resolve_one(html, d.error_summary(d.dialog("new account")))
-    assert summary.get("id") == "error-summary"
-    assert " ".join(summary.get_text().split()) == (
-        "2 fields need attention Amount: Enter an amount above 0.00 Name: Name is required"
-    )
-    assert [a.get("href") for a in summary.find_all("a")] == ["#field-amount", "#field-name"]
+    assert _html.error_lines(html) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-name-error": "▲ Name is required",
+    }
     amount = _html.resolve_one(html, label("Opening balance", exact=True))
     assert (amount.get("id"), amount.get("aria-invalid"), amount.get("aria-describedby")) == (
         "field-amount",
@@ -133,7 +131,10 @@ def test_form_variants_post_back_422_and_confirm_posts_back_a_flash(client: Test
     bad = client.post("/dev/shell/dialog/standard", headers=HX)
     assert bad.status_code == 422
     assert bad.headers["hx-retarget"] == "#modal-root"
-    assert _html.exists(bad.text, d.error_summary(d.dialog("new account")))
+    assert _html.error_lines(bad.text) == {
+        "field-amount-error": "▲ Enter an amount above 0.00",
+        "field-name-error": "▲ Name is required",
+    }
     ok = client.post("/dev/shell/dialog/confirm", headers=HX)
     assert ok.status_code == 200
     assert "Dev account deleted" in _html.page_text(ok.text)
