@@ -19,8 +19,8 @@ data/budget.sqlite not touched.
 
 - New-shell HTMX errors (header `X-Shell: rd`, set by app-toast.js) render `fragments/flash/error.html`: `rd-flash rd-flash--error`, the ▲ prefix and the close
   control. The 404, 409 and 500 flashes are asserted in tests/integration/web/test_errors.py; requests without the header keep `partials/_flash.html`.
-- With a modal dialog open the flash is shown in a live region inside the dialog (same role and aria-live as the page region), removed when the dialog
-  closes. tests/e2e/test_rd_dialog_shell.py asserts `document.elementFromPoint` at the flash centre lands inside the flash.
+- With a modal dialog open the flash is shown in a live region inside the dialog (same role and aria-live as the page region), dropped with the next
+  request once the dialog is closed (dialogs fetched into #modal-root are replaced anyway). tests/e2e/test_rd_dialog_shell.py asserts `document.elementFromPoint` at the flash centre lands inside the flash.
 - Screenshots (1440 light, 375 dark) were read: the flash sits at the top of the dialog, above the band at desktop and above the bottom sheet at 375.
 
 ## Findings

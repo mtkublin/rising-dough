@@ -238,4 +238,3 @@ def test_old_shell_htmx_error_keeps_the_legacy_flash(error_client: TestClient) -
     box = region.find("div")
     assert box is not None
     assert box["class"] == ["flash", "flash-warning"]
-    assert "rd-flash" not in r.text

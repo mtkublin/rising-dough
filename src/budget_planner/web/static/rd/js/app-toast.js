@@ -106,12 +106,20 @@
   /* The shell tells the server which flash markup to send (web/errors.py). */
   document.addEventListener('htmx:configRequest', (event) => {
     if (event.detail && event.detail.headers) event.detail.headers['X-Shell'] = 'rd';
+    dropClosedFlashes();
   });
+
+  /* In-dialog flash regions of dialogs that are no longer open are dropped with the next request. */
+  function dropClosedFlashes() {
+    document.querySelectorAll('dialog:not([open]) [data-flash-in-dialog]').forEach((el) => el.remove());
+  }
 
   /* A modal <dialog> sits in the top layer, above #flash-region. While one is open the flash is
      shown in a live region inside the dialog instead (same role and aria-live as the page region),
-     created empty first so assistive tech announces the content added next. It goes with the dialog. */
+     created empty first so assistive tech announces the content added next. Dialogs fetched into
+     #modal-root are replaced on the next open; others drop it on the next request. */
   function show(id, nodes) {
+    dropClosedFlashes();
     const open = document.querySelectorAll('dialog[open]');
     const dialog = open.length ? open[open.length - 1] : null;
     const page = document.getElementById(id);
@@ -130,7 +138,6 @@
     region.setAttribute('role', id === 'flash-region-assertive' ? 'alert' : 'status');
     region.setAttribute('aria-live', id === 'flash-region-assertive' ? 'assertive' : 'polite');
     dialog.prepend(region);
-    dialog.addEventListener('close', () => region.remove(), { once: true });
     setTimeout(() => region.replaceChildren(...nodes), 0);
   }
 
