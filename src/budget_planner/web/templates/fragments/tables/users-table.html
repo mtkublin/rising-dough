@@ -1,4 +1,4 @@
-{# fragment: tables/users-table (T-UR14, handoff pages/settings/users). Input: rows (UserRowView); oob_table (out-of-band swap after a reset).
+{# fragment: tables/users-table (T-UR14, handoff pages/settings/users). Input: rows (UserRowView), invite_rows (InviteRowView, T-UR20a); oob_table (out-of-band swap after a reset).
    The wrapper keeps id users-table so a one-time password response can refresh the roster. #}
 <div id="users-table"
      class="rd-table-scroll rd-table-scroll--flush"
@@ -22,6 +22,9 @@
     <tbody>
       {% for row in rows %}
         {% include "fragments/rows/user-row.html" %}
+      {% endfor %}
+      {% for row in invite_rows|default(()) %}
+        {% include "fragments/rows/invite-row.html" %}
       {% endfor %}
     </tbody>
   </table>

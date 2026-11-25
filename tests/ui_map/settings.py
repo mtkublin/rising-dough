@@ -67,6 +67,17 @@ user_is_admin = label("admin", exact=True)
 delete_dialog = role("alertdialog", "delete")
 delete_blocked = role("alertdialog", "can't delete")
 add_errors = by_id("error-summary")
+create_invite_link = role("link", "+ create invite")
+create_invite_dialog = role("dialog", "create invite")
+invite_email_field = label("email", exact=True).inside(create_invite_dialog)
+invite_role_admin = label("admin", exact=True).inside(create_invite_dialog)
+invite_submit = role("button", "[ create invite ]").inside(create_invite_dialog)
+invite_email_error = by_id("iu-email-error")
+invite_link_dialog = role("dialog", "invite link")
+invite_link_value = by_id("invite-link-value")
+revoke_invite_dialog = role("alertdialog", "revoke the invite")
+revoke_invite_confirm = role("button", "revoke", exact=True).inside(revoke_invite_dialog)
+any_invite_row = by_id("invite-row-", prefix=True)
 flash_success = role("status")
 flash_error = role("alert")
 
@@ -140,3 +151,11 @@ theme_group = role("group", "theme")
 def theme_option(value: str) -> Locator:
     """One of the system / light / dark buttons in the Appearance card (T-UR27)."""
     return role("button", value, exact=True).inside(theme_group)
+
+
+def invite_row(invite_id: int) -> Locator:
+    return by_id(f"invite-row-{invite_id}")
+
+
+def invite_menu_item(label_text: str, invite_id: int) -> Locator:
+    return role("menuitem", label_text).inside(invite_row(invite_id))

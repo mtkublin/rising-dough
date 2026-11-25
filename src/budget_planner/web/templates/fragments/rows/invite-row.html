@@ -1,0 +1,13 @@
+{# fragment: rows/invite-row (T-UR20a, handoff pages/settings/users pending-invite row). Input: row (settings_view.InviteRowView).
+   Menu: resend invite (POST, answers with the link dialog), revoke invite (confirm dialog). No copy link: only the token hash is stored. #}
+<tr class="rd-row rd-row--user" id="invite-row-{{ row.id }}">
+  <td class="rd-session__device">{{ row.email_text }}</td>
+  <td>{{ row.role_text }}</td>
+  <td class="rd-muted">—</td>
+  <td class="rd-muted">{{ row.status_text }}</td>
+  <td class="rd-row__actions">
+    {% with menu_id=row.menu_id, title=row.email_text, sub=row.menu_sub, items=row.menu_items %}
+      {% include "fragments/menus/row-menu.html" %}
+    {% endwith %}
+  </td>
+</tr>
