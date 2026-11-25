@@ -41,7 +41,8 @@ EDIT_DIALOG: Final = "fragments/dialogs/edit-user.html"
 DELETE_DIALOG: Final = "fragments/dialogs/delete-user.html"
 RESET_DIALOG: Final = "fragments/dialogs/reset-password.html"
 SUMMARY_TEMPLATE: Final = "fragments/forms/error-summary.html"
-FLASH_TEMPLATE: Final = "partials/_flash.html"
+FLASH_TEMPLATE: Final = "fragments/flash/error.html"
+FLASH_REGION: Final = "flash-region-assertive"
 NOT_FOUND_TEMPLATE: Final = "pages/errors/404.html"
 CONFLICT_TEMPLATE: Final = "pages/errors/409.html"
 RESET_NOTE: Final = "Their existing sessions have been signed out."
@@ -60,7 +61,7 @@ def not_found(request: Request) -> HTMLResponse:
             request,
             FLASH_TEMPLATE,
             HTTPStatus.NOT_FOUND,
-            level="error",
+            region=FLASH_REGION,
             message="User not found",
         )
     return render(request, NOT_FOUND_TEMPLATE, HTTPStatus.NOT_FOUND, entity="user", entity_id=0)
@@ -127,7 +128,9 @@ def conflict_message(request: Request, message: str) -> HTMLResponse:
     """409 with ``message`` (a user or an invite refusal): flash (HTMX) or the 409 page."""
     if not is_hx_request(request):
         return render(request, CONFLICT_TEMPLATE, HTTPStatus.CONFLICT, message=message)
-    response = render(request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, level="error", message=message)
+    response = render(
+        request, FLASH_TEMPLATE, HTTPStatus.CONFLICT, region=FLASH_REGION, message=message
+    )
     response.headers[HX_RESWAP] = "none"
     trigger(response, Event.DIALOG_CLOSE)  # an open dialog would hide the flash behind it
     return response

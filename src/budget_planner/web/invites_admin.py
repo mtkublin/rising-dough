@@ -24,6 +24,7 @@ from budget_planner.web.middleware.auth import CurrentUser
 from budget_planner.web.rendering import is_hx_request, render, render_context
 from budget_planner.web.settings_view import invite_row_view
 from budget_planner.web.users_admin import (
+    FLASH_REGION,
     FLASH_TEMPLATE,
     LIST_TEMPLATE,
     NOT_FOUND_TEMPLATE,
@@ -80,7 +81,7 @@ def invite_not_found(request: Request) -> HTMLResponse:
             request,
             FLASH_TEMPLATE,
             HTTPStatus.NOT_FOUND,
-            level="error",
+            region=FLASH_REGION,
             message=NOT_FOUND_MESSAGE,
         )
     return render(request, NOT_FOUND_TEMPLATE, HTTPStatus.NOT_FOUND, entity="invite", entity_id=0)

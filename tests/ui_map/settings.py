@@ -80,6 +80,8 @@ revoke_invite_confirm = role("button", "revoke", exact=True).inside(revoke_invit
 any_invite_row = by_id("invite-row-", prefix=True)
 flash_success = role("status")
 flash_error = role("alert")
+flash_error_region = by_id("flash-region-assertive")  # styled rd-flash--error fragment (T-UR20a F1)
+flash_error_close = role("button", "Dismiss").inside(flash_error_region)
 
 
 def password_error(field_name: str) -> Locator:

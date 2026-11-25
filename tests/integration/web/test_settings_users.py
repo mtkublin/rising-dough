@@ -375,7 +375,7 @@ def test_demote_last_admin_refused(admin_client: TestClient, db: sqlite3.Connect
     )
     assert resp.status_code == 409
     assert resp.headers["hx-reswap"] == "none"
-    assert LAST_ADMIN_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
+    assert LAST_ADMIN_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error_region)
     assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
 
     page = admin_client.post(
@@ -395,7 +395,7 @@ def test_self_demote_refused_even_with_second_admin(
     )
     assert resp.status_code == 409
     assert resp.headers["hx-reswap"] == "none"
-    assert SELF_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
+    assert SELF_DEMOTE_MESSAGE in _html.text_of(resp.text, ui.flash_error_region)
     assert db.execute("SELECT is_admin FROM users WHERE id = 1").fetchone()[0] == 1
     second = _user_row(db, "second@example.test")
     assert second["is_admin"] == 1
@@ -497,7 +497,7 @@ def test_remove_self_refused(admin_client: TestClient, db: sqlite3.Connection) -
     _add(admin_client, "other-admin@example.test", admin=True)
     resp = admin_client.post("/settings/users/1/delete", headers=HX)
     assert resp.status_code == 409
-    assert SELF_DELETE_MESSAGE in _html.text_of(resp.text, ui.flash_error)
+    assert SELF_DELETE_MESSAGE in _html.text_of(resp.text, ui.flash_error_region)
     assert db.execute("SELECT deleted_at FROM users WHERE id = 1").fetchone()[0] is None
     assert admin_client.post("/settings/users/1/delete").status_code == 409
 

@@ -270,15 +270,23 @@ def test_revoke_confirm_then_link_reads_invalid_and_row_leaves(
 
     again = admin_client.post(f"/settings/users/invites/{invite_id}/revoke", headers=HX)
     assert again.status_code == 409
-    flash = _html.text_of(again.text, ui.flash_error)
-    assert invites_service.INVITE_FINAL_MESSAGE in flash
+    flash = _html.text_of(again.text, ui.flash_error_region)
+    assert flash.strip().startswith(f"\u25b2 {invites_service.INVITE_FINAL_MESSAGE}")
+    assert _html.exists(again.text, ui.flash_error_close)
     resend = admin_client.post(f"/settings/users/invites/{invite_id}/resend", headers=HX)
     assert resend.status_code == 409
 
 
 def test_unknown_invite_is_404(admin_client: TestClient) -> None:
     assert admin_client.get("/settings/users/invites/999/revoke", headers=HX).status_code == 404
-    assert admin_client.post("/settings/users/invites/999/resend", headers=HX).status_code == 404
+    missing = admin_client.post("/settings/users/invites/999/resend", headers=HX)
+    assert missing.status_code == 404
+    assert (
+        _html.text_of(missing.text, ui.flash_error_region)
+        .strip()
+        .startswith("\u25b2 Invite not found")
+    )
+    assert _html.exists(missing.text, ui.flash_error_close)
     assert admin_client.post("/settings/users/invites/999/revoke", headers=HX).status_code == 404
 
 
