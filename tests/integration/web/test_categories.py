@@ -439,3 +439,21 @@ def test_edit_without_a_colour_field_keeps_the_stored_colour(
     client.post(f"/categories/{cat_id}", data={"name": "Groceries", "color": "#ef4444"})
     client.post(f"/categories/{cat_id}", data={"name": "Food"})
     assert _color(db, cat_id) == "#ef4444"
+
+
+def test_off_swatch_colour_survives_an_edit_round_trip(
+    client: TestClient, db: sqlite3.Connection, cat_id: int
+) -> None:
+    db.execute("UPDATE categories SET color = '#112233' WHERE id = ?", (cat_id,))
+    db.commit()
+    page = client.get(f"/categories/{cat_id}/edit")
+    form = _html.form_of(page.text, ui.category_name)
+    fields = _html.submitted_fields(form)
+    assert "color" not in [name for name, _ in fields]  # no swatch radio matches, none is checked
+
+    posted = {name: ("Food" if name == "name" else value) for name, value in fields}
+    r = client.post(f"/categories/{cat_id}", data=posted)
+    assert r.status_code == 200
+    row = db.execute("SELECT name, color FROM categories WHERE id = ?", (cat_id,)).fetchone()
+    assert (row["name"], row["color"]) == ("Food", "#112233")
+    assert _audit(db, cat_id) == ["create", "update"]
