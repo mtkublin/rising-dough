@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from budget_planner.web.ledger_data import FilterSummary, TxnRow
 
 _WEEKDAYS: Final = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
-_TRANSIT_GLYPH: Final = "\N{LEFT RIGHT ARROW}"
+_TRANSIT_GLYPH: Final = "\N{RIGHTWARDS ARROW OVER LEFTWARDS ARROW}"  # U+21C4, the handoff glyph
 _ARROW: Final = "\N{RIGHTWARDS ARROW}"
 _EN_DASH: Final = "\N{EN DASH}"
 _QUOTES: Final = ("\N{LEFT DOUBLE QUOTATION MARK}", "\N{RIGHT DOUBLE QUOTATION MARK}")
