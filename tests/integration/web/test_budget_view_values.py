@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, cast
 
 import pytest
@@ -19,11 +19,13 @@ from budget_planner.domain.accounts import NewAccount
 from budget_planner.domain.budgets import NewBudgetDefault
 from budget_planner.domain.categories import NewCategory
 from budget_planner.domain.enums import Direction
+from budget_planner.domain.planned import NewPlannedTransaction
 from budget_planner.domain.transactions import NewTransaction
 from budget_planner.repositories import (
     accounts as accounts_repo,
     budgets as budgets_repo,
     categories as categories_repo,
+    planned as planned_repo,
     transactions as transactions_repo,
 )
 from budget_planner.services import budget as budget_service
@@ -147,3 +149,84 @@ def test_budget_view_percent_clamps_and_flags_over() -> None:
     assert view_models.clamped_percent(150, 100) == 100
     assert view_models.clamped_percent(-5, 100) == 0
     assert view_models.clamped_percent(5, 0) == 0
+
+
+def _plan_day(today: date) -> date:
+    """Tomorrow, unless that is next month's day 1 (month-end clock): then today (ADR-0140)."""
+    tomorrow = today + timedelta(days=1)
+    return tomorrow if tomorrow.month == today.month else today
+
+
+def _plan_hero_totals(
+    client: TestClient, db: sqlite3.Connection, today: date
+) -> tuple[budget_service.MonthTotals, str]:
+    picked = budget_service.resolve_picker_month(db, USER_ID, today)
+    summary = budget_service.month_summary_for_picker(
+        db,
+        USER_ID,
+        picked,
+        today,
+        base_currency="PLN",
+        display_timezone=DEFAULT_DISPLAY_TIMEZONE,
+    )
+    return summary.totals, _html.text_of(client.get("/plan?tab=budget").text, plan_budget.hero)
+
+
+def _category_id(db: sqlite3.Connection, name: str) -> int:
+    row = db.execute("SELECT id FROM categories WHERE name = ?", (name,)).fetchone()
+    return int(row["id"])
+
+
+def test_plan_hero_prints_the_committed_amount_of_a_budgeted_category(
+    client: TestClient, db: sqlite3.Connection, today: date, world: None
+) -> None:
+    """T-UR15a (Q13): a planned row in a budgeted category is committed, not unbudgeted."""
+    planned_repo.create(
+        db,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=_plan_day(today),
+            category_id=_category_id(db, "Groceries"),
+            account_id=_category_account(db),
+            amount=4_000,
+        ),
+    )
+
+    totals, hero = _plan_hero_totals(client, db, today)
+
+    assert totals.committed_minor == 4_000
+    assert totals.unbudgeted_committed_minor == 0
+    assert f"{_money_num(client, totals.committed_minor)} committed" in hero
+    assert "40.00 committed" in hero
+    assert "planned in unbudgeted categories" not in hero
+
+
+def test_plan_hero_unbudgeted_info_line_is_not_counted_as_committed(
+    client: TestClient, db: sqlite3.Connection, today: date, world: None
+) -> None:
+    """T-UR15a (Q13), was test_budget_hero_unbudgeted_info_line_not_counted (ADR-0085)."""
+    rent = categories_repo.create(
+        db, USER_ID, NewCategory(name="Rent", direction=Direction.EXPENSE)
+    ).id
+    planned_repo.create(
+        db,
+        USER_ID,
+        NewPlannedTransaction(
+            operation_date=_plan_day(today),
+            category_id=rent,
+            account_id=_category_account(db),
+            amount=35_000,
+        ),
+    )
+
+    totals, hero = _plan_hero_totals(client, db, today)
+
+    assert (totals.committed_minor, totals.unbudgeted_committed_minor) == (0, 35_000)
+    assert "350.00 planned in unbudgeted categories" in hero
+    assert "0.00 committed" in hero
+    assert f"{_money_num(client, totals.unbudgeted_committed_minor)} planned in unbudgeted" in hero
+
+
+def _category_account(db: sqlite3.Connection) -> int:
+    row = db.execute("SELECT id FROM accounts WHERE name = ?", ("Checking",)).fetchone()
+    return int(row["id"])

@@ -52,8 +52,8 @@ def test_plan_tabs_reload_main_on_their_stale_event(
     assert r.status_code == 200
     listeners = [
         el
-        for el in BeautifulSoup(r.text, "html.parser").select("[hx-trigger]")
-        if f"{event} from:body" in str(el["hx-trigger"])
+        for el in BeautifulSoup(r.text, "html.parser").find_all(True)
+        if f"{event} from:body" in str(el.get("hx-trigger", ""))
     ]
     assert len(listeners) == 1
     listener = listeners[0]
