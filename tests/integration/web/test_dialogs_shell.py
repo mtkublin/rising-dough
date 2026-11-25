@@ -316,3 +316,12 @@ def test_reconcile_variant_output_hero_matches_the_reconcile_overlay(client: Tes
     bank = BeautifulSoup(html, "html.parser").find("input", id="field-actual_balance")
     assert isinstance(bank, Tag)
     assert (bank.get("name"), bank.get("value")) == ("actual_balance", "3,690.10")
+
+
+def test_reconcile_variant_skeleton_matches_the_liability_overlay(client: TestClient) -> None:
+    _, html = _open(client, "reconcile")
+    ours = _skeleton(html)
+    theirs = _handoff("reconcile--liability")
+    assert theirs["band"], "reconcile--liability: band and hero not parsed from the handoff"
+    for key in ("dialog", "form", "band", "title", "close"):
+        assert ours[key] == theirs[key], key
