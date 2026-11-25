@@ -498,6 +498,7 @@ def _sched_keys(
     view: ViewKind,
     filters: LedgerFilters,
     rows: Sequence[Row],
+    *,
     today: date,
 ) -> dict[str, object]:
     """Keys of ``fragments/ledger/{planned,recurring}-table.html``: row views, hues, empty state."""
@@ -546,7 +547,7 @@ def table_context(
         sched, hero = _sched_page(
             conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today)
+        rows, view_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today=today)
     cats = {c.id: c for c in categories_service.list_all(conn, user_id, include_deleted=True)}
     return {
         **_page_keys(view, rows, filters, today),
@@ -709,7 +710,7 @@ def index_context(
         sched, hero = _sched_page(
             conn, user_id, settings=settings, view=view, filters=filters, today=today
         )
-        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today)
+        rows, page_keys = sched, _sched_keys(conn, user_id, view, filters, sched, today=today)
     chrome = _chrome_keys(conn, user_id, view=view, filters=filters, spent=spent, base_ccy=base_ccy)
     if view != "actual":
         chrome["hero"] = hero

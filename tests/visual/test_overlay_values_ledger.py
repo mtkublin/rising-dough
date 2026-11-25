@@ -15,25 +15,23 @@ import pytest
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.web import ledger_data, ledger_view
-from budget_planner.web.ledger_types import LedgerFilters
+from budget_planner.web.ledger_types import LedgerFilters, ViewKind
 from tests.visual import handoff_seed as seed
 from tests.visual.frozen_server import HANDOFF_FIXTURE_DATE
 from tests.visual.overlay import Row, load_rows
 
 DAY = dt.date.fromisoformat(HANDOFF_FIXTURE_DATE)
-MINUS = "−"
+MINUS = "\N{MINUS SIGN}"
 BOARD_PAGE = "pages/ledger/recurring.html"
 ROWS = load_rows()
 
 
 def _row(page: str, select_part: str, old: str) -> Row:
-    (row,) = (
-        r for r in ROWS if r.page == page and select_part in r.select and r.old == old
-    )
+    (row,) = (r for r in ROWS if r.page == page and select_part in r.select and r.old == old)
     return row
 
 
-def _context(tmp_path: Path, view: str, *modifiers: str) -> dict[str, object]:
+def _context(tmp_path: Path, view: ViewKind, *modifiers: str) -> dict[str, object]:
     result = seed.build_seed(tmp_path / "ledger.sqlite", modifiers=modifiers)
     settings = Settings(_env_file=None, database_url=f"sqlite:///{result.db_path.as_posix()}")
     conn = get_connection(settings)
@@ -62,17 +60,17 @@ def test_recurring_board_rows_carry_the_board_totals(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("page", "view", "modifier", "old", "value"),
+    ("page", "view", "modifier", "old"),
     [
-        ("pages/ledger/planned--empty.html", "planned", "empty-planned", f"{MINUS}1,531.35", "0.00"),
-        ("pages/ledger/recurring--empty.html", "recurring", "empty-recurring", f"{MINUS}13,755.41", "0.00"),
+        ("pages/ledger/planned--empty.html", "planned", "empty-planned", f"{MINUS}1,531.35"),
+        ("pages/ledger/recurring--empty.html", "recurring", "empty-recurring", f"{MINUS}13,755.41"),
     ],
 )
 def test_empty_board_hero_rows_print_the_real_zero(
-    tmp_path: Path, page: str, view: str, modifier: str, old: str, value: str
+    tmp_path: Path, page: str, view: ViewKind, modifier: str, old: str
 ) -> None:
     ctx = _context(tmp_path, view, modifier)
     hero = ctx["hero"]
     assert isinstance(hero, ledger_view.LedgerHero)
-    assert hero.figure == value
-    assert _row(page, ".rd-hero__figure", old).value == value
+    assert hero.figure == "0.00"
+    assert _row(page, ".rd-hero__figure", old).value == "0.00"

@@ -423,22 +423,6 @@ _FILLER_RULES: Final = tuple(
 )
 _BOARD_HIDDEN_RULES: Final = frozenset({"Annual bonus", *(r.description for r in _FILLER_RULES)})
 
-PLANNED: Final = tuple(
-    PlannedSeed(
-        f"2026-11-{day}", "Transit", "Everyday Spending", amount, description, None, "Savings"
-    )
-    for day, amount, description in (
-        ("21", 4_500, "Dentist"),
-        ("22", 2_500, "Gym pass"),
-        ("23", 8_900, "Pharmacy"),
-        ("24", 3_300, "Parking"),
-        ("25", 12_000, "Tickets"),
-        ("26", 5_500, "Haircut"),
-        ("27", 7_000, "Books"),
-        ("28", 1_900, "Stationery"),
-    )
-)
-
 PLANNED: Final[tuple[PlannedSeed, ...]] = (
     PlannedSeed("2026-12-15", "Car", "Checking", 223_980, "Car"),
     PlannedSeed("2026-10-28", "Other", "Checking", 41_200, "Annual insurance"),
@@ -510,8 +494,14 @@ BASE: Final = SeedData(
     accounts=ACCOUNTS,
     categories=CATEGORIES,
     deleted_categories=(
-        (CategorySeed("VAT Refund #6", Direction.INCOME, _PRESET_HEX["mint"]), _local("2026-10-29", "20:06")),
-        (CategorySeed("Bank Fees", Direction.EXPENSE, _PRESET_HEX["sky"]), _local("2026-10-28", "11:03")),
+        (
+            CategorySeed("VAT Refund #6", Direction.INCOME, _PRESET_HEX["mint"]),
+            _local("2026-10-29", "20:06"),
+        ),
+        (
+            CategorySeed("Bank Fees", Direction.EXPENSE, _PRESET_HEX["sky"]),
+            _local("2026-10-28", "11:03"),
+        ),
         (
             CategorySeed("Opłaty bankowe i prowizje", Direction.EXPENSE, None),
             _local("2026-10-28", "10:58"),

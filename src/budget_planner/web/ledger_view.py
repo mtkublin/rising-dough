@@ -559,7 +559,8 @@ def _override_rows(row: Mapping[str, object], rule_id: int, currency: str) -> tu
         return ()
     out: list[DetailRow] = []
     # Entry order (oldest first), as the handoff lists them (derived.md, T-UR00b F2).
-    for ov in sorted((o for o in overrides if isinstance(o, RecurringOverride)), key=lambda o: o.id):
+    entered = sorted((o for o in overrides if isinstance(o, RecurringOverride)), key=lambda o: o.id)
+    for ov in entered:
         delta = deltas.get(ov.occurrence_date) if isinstance(deltas, Mapping) else None
         label = _override_label(ov.occurrence_date)
         out.append(
@@ -596,8 +597,20 @@ def _formula_rows(
 
 
 def _due_with_year(due: date, today: date) -> str:
-    """Next-due label: ``01 NOV``, with the year once it is not the current one (``15 JAN 2027``)."""
+    """Next-due label: ``01 NOV``; the year follows once it is not the current one."""
     return _short_date(due) if due.year == today.year else f"{_short_date(due)} {due.year}"
+
+
+def _rule_account_text(row: Mapping[str, object]) -> str:
+    """Account of a rule; a transit rule names ``Account → Destination``."""
+    sub = _account_name(row)
+    dest = row.get("dest_account")
+    return f"{sub} {_ARROW} {dest.name}" if isinstance(dest, Account) else sub
+
+
+def _ends_text(end: object) -> str:
+    """``ends 15 MAY 2028`` for a rule with an end date, else empty."""
+    return f"ends {_short_date(end)} {end.year}" if isinstance(end, date) else ""
 
 
 def _recurring_row_view(
@@ -612,20 +625,15 @@ def _recurring_row_view(
     title = _str_of(row, "default_description") or "\N{EM DASH}"
     if row.get("formula_cycle"):
         title = cycle_label(_str_of(row, "default_description"))
-    sub = _account_name(row)
-    dest = row.get("dest_account")
-    if isinstance(dest, Account):
-        sub = f"{sub} {_ARROW} {dest.name}"
+    sub = _rule_account_text(row)
     due = _date(row, "next_due")
-    end = row.get("end_date")
-    due_sub = f"ends {_short_date(end)} {end.year}" if isinstance(end, date) else ""
     overrides = _override_rows(row, rule_id, currency)
     formula = _formula_rows(row, names)
     count = len(overrides)
     return SchedRowView(
         dom_id=f"recurring-{rule_id}",
         due_text=_due_with_year(due, today),
-        due_sub=due_sub,
+        due_sub=_ends_text(row.get("end_date")),
         expanded=bool(overrides),
         title=title,
         formula=bool(row.get("is_formula")),

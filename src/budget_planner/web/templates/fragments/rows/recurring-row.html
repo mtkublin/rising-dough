@@ -41,7 +41,9 @@
     </td>
   </tr>
   {% if row.expand_id %}
-    <tr class="rd-detail" id="{{ row.expand_id }}"{% if not row.expanded %} hidden{% endif %}>
+    <tr class="rd-detail"
+        id="{{ row.expand_id }}"
+        {% if not row.expanded %} hidden{% endif %}>
       <td colspan="6">
         <div class="rd-detail__grid{% if row.formula_rows and row.override_rows %} rd-detail__grid--two{% endif %}">
           {% if row.formula_rows %}
