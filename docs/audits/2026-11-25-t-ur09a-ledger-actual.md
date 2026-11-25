@@ -49,3 +49,58 @@ as links, the `recently deleted` link under empty states, the transitional plann
 2. The edit item opens the old slide-over until T-UR09b (e2e skipped with that reason).
 3. `form_responses.created_txn_response` leaves a new-entry dialog open on `/ledger` (reswap none, no `dialog-close`): handled on the page by
    `app-ledger.js`; the server-side fix (send `Event.DIALOG_CLOSE`) belongs to the owner of `form_responses.py`.
+
+---
+
+# Visual-auditor run (2026-11-25, head e0198c67)
+
+Skill run on a scratch copy of `data/demo.sqlite` (626 live actual rows, PLN plus a EUR account, transit rows, reconciliation rows, custom-colour
+categories, 33 days, EUR to PLN rate 4.0 cached for 2026-11-19..25, one soft-deleted row) and an empty migrated DB (first run). `data/budget.sqlite`
+untouched. Heavy lock `/tmp/ui-redesign-heavy.lock` taken and released. Screenshots under the session scratchpad `ur09a-audit/shots/` (viewed:
+actual 1440 light and 375 dark, row menu 375 light, planned 375 dark, first-run 1024 light, recently-deleted 1440 light).
+
+## Routes x viewports (1440, 1024, 375; light and dark = 6 captures per state, 66 captures)
+
+States: `/ledger?view=actual` (populated), `&direction=expense&date_from=2026-10-01&date_to=2026-11-30` (filtered), `&q=zzzzqqq&date_from=2026-01-01&date_to=2026-01-31`
+(no matches), `&page=2`, `&page_size=100` (long), row menu open, row selected with `x` (bulk bar, "1 selected"), `?view=planned`, `?view=recurring`,
+`/ledger/recently-deleted`, and first run (empty DB).
+
+| State | horizontalScroll | overflowingElements | duplicateIds | consoleErrors | requestFailures |
+|---|---|---|---|---|---|
+| all `/ledger` states, all widths, both schemes | false | 0 | 0 | 0 | 0 |
+
+Raw `overflowingElements` is 1 at 375 on every new-shell page: the last `.rd-tabs__tab` (right edge 380) inside `.rd-tabs`, a sideways scroller by
+design (document `scrollWidth` is 375, no horizontal scroll); it is the scroller content, not an overflow. `/ledger/recently-deleted` reports 1 at
+every width: the `sr-only` skip link at x = -9974 (offscreen by design). That page is still the old shell (sidebar, old table) and is not part of this item.
+
+## Handoff comparison (actual, empty, no-matches, long, row menu)
+
+Structure matches the boards (hero, tab pills with counts, export, filter bar with the phone `filters` collapse, day heading with NET, chips with the
+custom colours, signed amounts with currency, row menu sheet on phone, bulk bar, empty state with loaf and two buttons). Differences are the derived.md
+T-UR09 rows only. Planned and recurring (transitional): no horizontal scroll, the old table scrolls inside `.rd-table-scroll`, old kebab styling is
+unstyled as derived.md says. At 1024 the shell top bar wraps to two rows and the filter selects truncate their placeholders (`all catego`); both are
+shell/filter-bar sizing, not blocking (diagnostics 0), noted for the owner of the shell.
+
+## Step 3b
+
+- Templates (pages/ledger, fragments/ledger, rows/transaction-row, transaction-day): `rg` for `style=`, `{% set`, `float`, `/ 100`, `* 100`, `round`
+  and arithmetic: no hits.
+- Numbers: 24 Nov NET `+4,890.00` = 5,000.00 salary - 10.00 PLN - 25.00 EUR x 4.0 (converted); the EUR row prints `−25.00 EUR` in its own currency;
+  25 Nov NET `−19.99`; 23 Nov NET `+14.72` (reconciliation keeps its stored sign, the transit row `⇄ 200.00` adds nothing). All equal the
+  `actual_day_nets` / `signed_effect` values.
+- Swap targets: every `hx-target` selector (`#ledger-table`, `#modal-root`, `#txn-*`) matches exactly one element; no duplicate ids after the filter
+  swap, after the edit dialog open, or after delete.
+- Edit: the row menu `edit` fills `#modal-root` with the OLD slide-over (`slide-over-root`, no `dialog[open]`). Expected: UR09b is not merged here.
+- Delete: removes the row (no undo toast shown). Forced 500 on the delete: a visible error "Something went wrong on our side. Try again." appears
+  and the row stays. One expected console 500 line for that forced request only.
+- Filters: a filter change refetches `#ledger-table` and loads back from the URL (`?direction=expense&q=Cafe` restores both fields and the single row).
+
+## Findings
+
+1. Filter changes do not update the URL (`hx-push-url="false"` in `fragments/ledger/filter-bar.html:18`), so a reload after changing a filter drops it.
+   Pagination links do carry the live filters (`...&direction=expense&page=2`). Behaviour as designed in derived.md ("filters keep working without
+   script"); triage: accept or push the URL.
+2. After a filter change the export links stay unfiltered (`/transactions/export?format=csv`), against derived.md "with the live filters". The export
+   menu sits outside `#ledger-table` and is not refetched. Needs a fix by the implementer (or an amendment of the derived row).
+3. Edit opens the old slide-over until UR09b (expected, recorded).
+4. Delete shows no undo toast, only the removed row (accepted by the brief).
