@@ -195,6 +195,7 @@ def _resolve_formula(
     today: date,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     try:
         terms = [
@@ -215,6 +216,7 @@ def _resolve_formula(
             fx=fx,
             target_ccy=target_ccy,
             exclude_rule_id=exclude_rule_id,
+            posting_category_id=posting_category_id,
         )
     except formula_svc.FormulaError as exc:
         return None, None, {"formula": str(exc)}
@@ -232,6 +234,7 @@ def resolve_amount_inputs(
     exclude_rule_id: int | None,
     today: date,
     fx: FormulaFx,
+    posting_category_id: int | None = None,
 ) -> tuple[int | None, AmountFormula | None, dict[str, str]]:
     """Validate fixed-vs-formula branch; return (default_amount_minor, formula, errors)."""
     is_formula = amount_source == "formula"
@@ -247,6 +250,7 @@ def resolve_amount_inputs(
             today=today,
             fx=fx,
             target_ccy=account_currency,
+            posting_category_id=posting_category_id,
         )
     minor, amount_err = positive_amount(default_amount, account_currency)
     return minor, None, ({} if amount_err is None else {"default_amount": amount_err})
@@ -408,6 +412,7 @@ def validate_rule_draft(
         account_currency=acc.currency if acc else None,
         exclude_rule_id=exclude_rule_id,
         today=today,
+        posting_category_id=category_id,
     )
     errors = {**errors, **amount_errors}
     if errors:

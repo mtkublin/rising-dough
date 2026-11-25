@@ -95,8 +95,18 @@ async def formula_preview(
     if drafts is None:
         return Response(status_code=422, content="invalid source_category_ids")
     target_ccy = views.preview_currency(conn, user_id, form.get("account_id"), draft_rule_id, fx)
+    posting_category_id = parse_int(
+        forms.category_alias(str(form.get("category_id", "")), str(form.get("category", "")))
+    )
     result = formula_svc.preview(
-        conn, user_id, today_for(request), draft_rule_id, drafts, fx=fx, target_ccy=target_ccy
+        conn,
+        user_id,
+        today_for(request),
+        draft_rule_id,
+        drafts,
+        fx=fx,
+        target_ccy=target_ccy,
+        posting_category_id=posting_category_id,
     )
     return views.render_formula_result(request, result, target_ccy)
 

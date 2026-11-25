@@ -63,6 +63,9 @@ class FormulaCycleError(FormulaError):
     """Raised when a formula would create a dependency cycle (ADR-0047)."""
 
 
+FORMULA_CYCLE_MARK = "formula cycle"
+
+
 # ---------------------------------------------------------------------------
 # Parsing + building (used by routers + tests)
 # ---------------------------------------------------------------------------
@@ -411,8 +414,24 @@ def rt_expand(
     """
     occs = generate_occurrences(rule, range_start, range_end)
     if rule.amount_formula is not None:
-        occs = tuple(_with_formula_amount(conn, user_id, rule, occs, fx))
+        try:
+            occs = tuple(_with_formula_amount(conn, user_id, rule, occs, fx))
+        except FormulaCycleError:
+            # A rule saved before create-time cycle checks: keep its dates, drop its amount,
+            # mark it, and keep the page that lists it alive.
+            logger.warning("formula cycle in recurring rule %s: amount skipped", rule.id)
+            occs = tuple(
+                dataclasses.replace(occ, amount=0, description=_cycle_label(occ.description))
+                for occ in occs
+            )
     return apply_overrides(occs, overrides)
+
+
+def _cycle_label(description: str) -> str:
+    """The occurrence's description with the "formula cycle" marker (Today shows it)."""
+    if not description:
+        return FORMULA_CYCLE_MARK
+    return f"{description} \N{MIDDLE DOT} {FORMULA_CYCLE_MARK}"
 
 
 def _with_formula_amount(
@@ -465,8 +484,14 @@ def validate_formula_sources(
     formula: AmountFormula,
     *,
     exclude_rule_id: int | None = None,
+    posting_category_id: int | None = None,
 ) -> None:
-    """Topological reachability check — reject cycles (ADR-0047)."""
+    """Topological reachability check — reject cycles (ADR-0047).
+
+    ``posting_category_id`` is the category the drafted rule posts to. A new rule has no id
+    yet, so its cycles are found through that category: a source that is the rule's own
+    category, or a source rule whose formula (directly or through more rules) reads it.
+    """
     # Sentinel for brand-new rules (not yet persisted) so the walk still
     # catches a cycle the new rule would introduce once persisted.
     target_id = -1 if exclude_rule_id is None else exclude_rule_id
@@ -476,18 +501,22 @@ def validate_formula_sources(
     for rule in all_rules:
         by_category.setdefault(rule.category_id, []).append(rule)
 
-    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id)
-    _walk_for_cycle(stack, all_rules, by_category, target_id)
+    stack = _seed_cycle_stack(formula, by_category, exclude_rule_id, posting_category_id)
+    _walk_for_cycle(stack, all_rules, by_category, target_id, posting_category_id)
 
 
 def _seed_cycle_stack(
     formula: AmountFormula,
     by_category: Mapping[int, Sequence[RecurringRule]],
     exclude_rule_id: int | None,
+    posting_category_id: int | None,
 ) -> list[int]:
     """Every rule id reachable from the proposed formula (stack seed)."""
+    referenced = _collect_referenced_category_ids(formula)
+    if posting_category_id is not None and posting_category_id in referenced:
+        raise FormulaCycleError("a formula cannot reference its own category")
     stack: list[int] = []
-    for cat_id in _collect_referenced_category_ids(formula):
+    for cat_id in referenced:
         for rule in by_category.get(cat_id, []):
             if rule.id == exclude_rule_id:
                 # The rule being saved cannot source itself.
@@ -501,8 +530,9 @@ def _walk_for_cycle(
     all_rules: Sequence[RecurringRule],
     by_category: Mapping[int, Sequence[RecurringRule]],
     target_id: int,
+    own_category_id: int | None = None,
 ) -> None:
-    """Depth-first walk from ``seeds``; raise when ``target_id`` is reachable."""
+    """Depth-first walk from ``seeds``; raise when ``target_id`` or ``own_category_id`` is read."""
     visited: set[int] = set()
     pending = list(seeds)
     while pending:
@@ -515,7 +545,10 @@ def _walk_for_cycle(
         found: RecurringRule | None = next((r for r in all_rules if r.id == rid), None)
         if found is None or found.amount_formula is None:
             continue
-        for cat_id in _collect_referenced_category_ids(found.amount_formula):
+        referenced = _collect_referenced_category_ids(found.amount_formula)
+        if own_category_id is not None and own_category_id in referenced:
+            raise FormulaCycleError(f"formula would create a cycle via rule {rid}")
+        for cat_id in referenced:
             pending.extend(c.id for c in by_category.get(cat_id, []) if c.id not in visited)
 
 
@@ -552,6 +585,7 @@ def compute_savable_amount(
     fx: FormulaFx,
     target_ccy: str,
     exclude_rule_id: int | None = None,
+    posting_category_id: int | None = None,
 ) -> int:
     """Validate a formula for saving and return its snapshot amount (minor units).
 
@@ -561,7 +595,13 @@ def compute_savable_amount(
     bad = invalid_source_ids(conn, user_id, [t.source_category_ids for t in formula.terms])
     if bad is not None:
         raise FormulaError(f"unknown or archived source category: {bad[1]}")
-    validate_formula_sources(conn, user_id, formula, exclude_rule_id=exclude_rule_id)
+    validate_formula_sources(
+        conn,
+        user_id,
+        formula,
+        exclude_rule_id=exclude_rule_id,
+        posting_category_id=posting_category_id,
+    )
     amount = compute_formula_amount(
         conn,
         user_id,
@@ -615,6 +655,7 @@ def preview(
     *,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None = None,
 ) -> PreviewResult:
     """Return the computed value for a draft term list, or an inline error.
 
@@ -640,7 +681,14 @@ def preview(
     if isinstance(formula, PreviewError):
         return formula
     return _evaluate_draft(
-        conn, user_id, formula, when, draft_rule_id, fx=fx, target_ccy=target_ccy
+        conn,
+        user_id,
+        formula,
+        when,
+        draft_rule_id,
+        fx=fx,
+        target_ccy=target_ccy,
+        posting_category_id=posting_category_id,
     )
 
 
@@ -659,10 +707,17 @@ def _evaluate_draft(
     *,
     fx: FormulaFx,
     target_ccy: str,
+    posting_category_id: int | None,
 ) -> PreviewResult:
     """Cycle-check the draft, compute it for ``when`` and require a positive value."""
     try:
-        validate_formula_sources(conn, user_id, formula, exclude_rule_id=draft_rule_id)
+        validate_formula_sources(
+            conn,
+            user_id,
+            formula,
+            exclude_rule_id=draft_rule_id,
+            posting_category_id=posting_category_id,
+        )
         amount_minor = compute_formula_amount(
             conn,
             user_id,

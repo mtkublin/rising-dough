@@ -92,7 +92,17 @@ def effective_amount_for_render(
     fx: FormulaFx,
 ) -> int:
     """Return the amount to render in the Ledger row for a rule (formula-aware)."""
-    return formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
+    return live_amount(conn, user_id, rule, rule.next_due, fx)
+
+
+def live_amount(
+    conn: sqlite3.Connection, user_id: int, rule: RecurringRule, on: date, fx: FormulaFx
+) -> int:
+    """What the rule posts on ``on``; a stored formula cycle falls back to the saved snapshot."""
+    try:
+        return formula_svc.resolve_rule_amount(conn, user_id, rule, on, fx=fx)
+    except formula_svc.FormulaCycleError:
+        return rule.default_amount
 
 
 def preview_currency(
@@ -136,7 +146,7 @@ def _promote_prefill(
     fx: FormulaFx,
 ) -> tuple[date, int, str]:
     """Date, amount and note the promote dialog opens with: the rule's, or the override's."""
-    amount = formula_svc.resolve_rule_amount(conn, user_id, rule, rule.next_due, fx=fx)
+    amount = live_amount(conn, user_id, rule, rule.next_due, fx)
     if override is None:
         return rule.next_due, amount, rule.default_description
     return (
@@ -544,9 +554,7 @@ def occurrence_context(
     if stored is not None and stored.amount_override is not None:
         minor = stored.amount_override
     else:
-        minor = formula_svc.resolve_rule_amount(
-            conn, user_id, rule, occurrence or date(year, month, 1), fx=fx
-        )
+        minor = live_amount(conn, user_id, rule, occurrence or date(year, month, 1), fx)
     shown = promote_context(
         conn,
         user_id,
@@ -620,9 +628,7 @@ def _remove_confirm(
     account = accounts_service.find_by_id(conn, user_id, rule.account_id, include_deleted=True)
     category = categories_service.find_by_id(conn, user_id, rule.category_id, include_deleted=True)
     currency = account.currency if account else request.app.state.settings.base_currency
-    back_to = format_money(
-        formula_svc.resolve_rule_amount(conn, user_id, rule, occurrence, fx=fx), currency
-    )
+    back_to = format_money(live_amount(conn, user_id, rule, occurrence, fx), currency)
     name = category.name if category else ""
     return dialog_response(
         request,

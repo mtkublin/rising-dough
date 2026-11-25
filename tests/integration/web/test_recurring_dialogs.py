@@ -14,6 +14,7 @@ import pytest
 from bs4 import Tag
 from fastapi.testclient import TestClient
 
+from budget_planner import clock
 from budget_planner.config import Settings
 from budget_planner.db.connection import get_connection
 from budget_planner.domain.accounts import NewAccount
@@ -31,7 +32,7 @@ from budget_planner.repositories import (
     categories as categories_repo,
     recurring as recurring_repo,
 )
-from tests.ui_map import _html, edit_dialogs, errors
+from tests.ui_map import _html, edit_dialogs, errors, today
 from tests.ui_map.locator import by_id
 
 USER_ID = 1
@@ -470,3 +471,117 @@ def test_another_users_rule_is_not_reachable(
     ).fetchone()
     assert tuple(after) == tuple(before)
     assert db.execute("SELECT COUNT(*) FROM recurring_rule_overrides").fetchone()[0] == 0
+
+
+# --- formula cycles ------------------------------------------------------------------------
+
+
+def test_create_with_a_formula_over_its_own_category_is_a_422_and_writes_nothing(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection
+) -> None:
+    rules = db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0]
+    audit = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    form = _formula_form(ids, **{"components[0][categories]": str(ids["taxes"])})
+    r = client.post("/recurring", data=form, headers=_FROM_DIALOG)
+    assert r.status_code == 422
+    assert "a formula cannot reference its own category" in _html.all_text(
+        r.text, edit_dialogs.summary
+    )
+    assert db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0] == rules
+    assert db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == audit
+
+
+def test_create_with_an_indirect_cycle_is_a_422(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection
+) -> None:
+    # Taxes reads Salary; a new rule posting to Salary may not read Taxes
+    rules = db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0]
+    form = _formula_form(
+        ids, category=str(ids["salary"]), **{"components[0][categories]": str(ids["taxes"])}
+    )
+    r = client.post("/recurring", data=form, headers=_FROM_DIALOG)
+    assert r.status_code == 422
+    assert f"via rule {ids['taxes_rule']}" in _html.all_text(r.text, edit_dialogs.summary)
+    assert db.execute("SELECT COUNT(*) FROM recurring_rules").fetchone()[0] == rules
+
+
+def test_edit_to_an_indirect_cycle_is_a_422(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection
+) -> None:
+    form = _formula_form(
+        ids,
+        category=str(ids["salary"]),
+        **{"components[0][categories]": str(ids["taxes"])},
+    )
+    r = client.post(f"/recurring/{ids['salary_rule']}", data=form, headers=_FROM_DIALOG)
+    assert r.status_code == 422
+    stored = recurring_repo.find_rule(db, USER_ID, ids["salary_rule"])
+    assert stored is not None
+    assert (stored.amount_formula, stored.default_amount) == (None, 100_000)
+
+
+def test_preview_names_the_cycle_of_a_new_rule(client: TestClient, ids: dict[str, int]) -> None:
+    r = client.post(
+        "/recurring/formula/preview",
+        data={
+            "category": str(ids["taxes"]),
+            "account_id": str(ids["acc"]),
+            "terms[0][sign]": "+",
+            "terms[0][coefficient_percent]": "10",
+            "terms[0][source_category_ids]": str(ids["taxes"]),
+        },
+    )
+    assert r.status_code == 422
+    assert "a formula cannot reference its own category" in _html.text_of(
+        r.text, edit_dialogs.formula_result
+    )
+
+
+def _reads(category_id: int) -> AmountFormula:
+    return AmountFormula(
+        terms=(FormulaTerm(sign="+", coefficient_bps=1000, source_category_ids=(category_id,)),)
+    )
+
+
+def _stored_cycle(db: sqlite3.Connection, ids: dict[str, int], settings: Settings) -> int:
+    """Two rules that read each other's category (saved before the create-time check)."""
+    db.execute("DELETE FROM recurring_rules")
+    made = {}
+    for name, other in (("taxes", "rent"), ("rent", "taxes")):
+        made[name] = recurring_repo.create_rule(
+            db,
+            USER_ID,
+            NewRecurringRule(
+                cadence=Cadence.MONTHLY,
+                start_date=clock.today_local(settings),
+                category_id=ids[name],
+                account_id=ids["acc"],
+                default_amount=10_000,
+                default_description=f"{name}-cycle",
+                amount_formula=_reads(ids[other]),
+            ),
+        ).id
+    db.commit()
+    return made["taxes"]
+
+
+def test_today_survives_a_stored_cycle_and_marks_it(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    r = client.get("/today")
+    assert r.status_code == 200
+    row = _html.all_text(r.text, today.upcoming_recurring(taxes_rule))
+    assert "taxes-cycle \N{MIDDLE DOT} formula cycle" in row
+    assert "0.00" in row
+
+
+def test_promoting_a_stored_cycle_is_a_human_422(
+    client: TestClient, ids: dict[str, int], db: sqlite3.Connection, _migrated: Settings
+) -> None:
+    taxes_rule = _stored_cycle(db, ids, _migrated)
+    txns = db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+    r = client.post(f"/recurring/{taxes_rule}/promote", data={}, headers=_FROM_DIALOG)
+    assert r.status_code == 422
+    assert "formula cycle" in _html.all_text(r.text, edit_dialogs.summary)
+    assert db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == txns
