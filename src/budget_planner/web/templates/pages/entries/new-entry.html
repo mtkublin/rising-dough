@@ -11,8 +11,8 @@
   <nav class="rd-tabs rd-tabs--fill" aria-label="Entry type">
     {% for key in ["happened", "planned", "repeats"] %}
       <a class="rd-tabs__tab"
-         href="/add?when={{ key }}"
-         hx-get="/add?when={{ key }}"
+         href="/add?when={{ key }}&dialog=1"
+         hx-get="/add?when={{ key }}&dialog=1"
          hx-target="#modal-root"
          hx-swap="innerHTML"
          {% if key == tab %}aria-current="page"{% endif %}>{{ key }}</a>

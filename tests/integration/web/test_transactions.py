@@ -182,7 +182,10 @@ def test_new_form_on_a_plain_page_load_opens_the_dialog_through_the_shell(
     r = client.get("/transactions/new")
     assert r.status_code == 200
     opener = _html.resolve_one(r.text, entries.opener)
-    assert (opener.get("hx-get"), opener.get("hx-trigger")) == ("/add?when=happened", "load")
+    assert (opener.get("hx-get"), opener.get("hx-trigger")) == (
+        "/add?when=happened&dialog=1",
+        "load",
+    )
 
 
 def test_create_invalid_amount_returns_form(client: TestClient, seeded: dict[str, int]) -> None:

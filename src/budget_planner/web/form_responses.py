@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Mapping, Sequence
+from types import MappingProxyType
 
 from fastapi import Request
 from fastapi.responses import Response
@@ -22,11 +23,13 @@ from budget_planner.web.deps import today_for
 from budget_planner.web.dialogs import dialog_response, invalid_dialog_response
 from budget_planner.web.htmx import Event, refresh_unless_on, trigger
 from budget_planner.web.paths import LEDGER_PATH, PLANNED_PATH, TRANSACTIONS_PATH
-from budget_planner.web.rendering import is_hx_request, render
+from budget_planner.web.recurring_forms import EMPTY_TERM_INPUT, formula_source_candidates
+from budget_planner.web.rendering import is_hx_request, render, render_context
 
 _TXN_FORM = "partials/transactions/_form.html"
 _PLANNED_FORM = "partials/planned/_form.html"
 PROMOTE_TEMPLATE = "pages/entries/promote.html"
+_LEGACY_PROMOTE = "partials/planned/_promote_modal.html"
 _RECONCILE_MODAL = "partials/accounts/_reconcile_modal.html"
 _UNPROCESSABLE = 422
 NEW_ENTRY_TEMPLATE = "pages/entries/new-entry.html"
@@ -38,6 +41,37 @@ _MODAL_ROOT_ID = "modal-root"
 def from_dialog(request: Request) -> bool:
     """True when the post came from a dialog form (it targets ``#modal-root``, ADR-0107)."""
     return request.headers.get(_HX_TARGET, "") == _MODAL_ROOT_ID
+
+
+_LEGACY_OVERLAY = "partials/_add_entry_overlay.html"
+_LEGACY_TABS = MappingProxyType(
+    {
+        "happened": ("partials/transactions/_form.html", "txn"),
+        "planned": ("partials/planned/_form.html", "planned"),
+        "repeats": ("partials/recurring/_form.html", "rule"),
+    }
+)
+
+
+def open_legacy_overlay(
+    request: Request, conn: sqlite3.Connection, user_id: int, *, tab: str
+) -> Response:
+    """The old shell's "+ Add" slide-over (ledger, forecast, settings) until T-UR09 / T-UR10."""
+    form_include, entity = _LEGACY_TABS[tab]
+    context: dict[str, object] = {
+        "active_tab": tab,
+        "form_include": form_include,
+        "action": entry_forms.TAB_ACTIONS[tab],
+        "categories": categories_service.list_all(conn, user_id),
+        "accounts": accounts_service.list_all(conn, user_id),
+        "errors": {},
+        entity: None,
+    }
+    if tab == "repeats":
+        context["source_categories"] = formula_source_candidates(conn, user_id)
+        context["amount_source"] = "fixed"
+        context["terms"] = [dict(EMPTY_TERM_INPUT)]
+    return render_context(request, _LEGACY_OVERLAY, context)
 
 
 def open_new_entry(
@@ -162,10 +196,24 @@ def promote_planned_dialog(
     planned: PlannedTransaction,
     account: Account | None,
     *,
+    as_dialog: bool | None = None,
     posted: Mapping[str, str] | None = None,
     errors: Mapping[str, str] | None = None,
 ) -> Response:
-    """The promote dialog for a planned item: prefill (200) or posted values with errors (422)."""
+    """The promote dialog for a planned item: prefill (200) or posted values with errors (422).
+
+    ``as_dialog`` ``None`` follows the post (``from_dialog``). The old shell (ledger) still gets
+    its slide-over until T-UR09 / T-UR10 (``as_dialog`` false).
+    """
+    if not (from_dialog(request) if as_dialog is None else as_dialog):
+        return render(
+            request,
+            _LEGACY_PROMOTE,
+            planned=planned,
+            account=account,
+            errors=dict(errors or {}),
+            status_code=_UNPROCESSABLE if errors else 200,
+        )
     context = entry_forms.promote_context(
         conn,
         user_id,

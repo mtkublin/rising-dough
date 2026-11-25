@@ -292,6 +292,7 @@ def restore_planned(
 def promote_form(
     planned_id: int,
     request: Request,
+    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
@@ -299,7 +300,9 @@ def promote_form(
     if pl is None:
         return Response(status_code=404, content="planned: not found")
     acc = accounts_service.find_by_id(conn, user_id, pl.account_id)
-    return form_responses.promote_planned_dialog(request, conn, user_id, pl, acc)
+    return form_responses.promote_planned_dialog(
+        request, conn, user_id, pl, acc, as_dialog=bool(dialog)
+    )
 
 
 @router.get("/{planned_id}/promote/inline", response_class=HTMLResponse)

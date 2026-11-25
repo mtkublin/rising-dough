@@ -164,9 +164,16 @@ def afford(
 def add_entry_overlay(
     request: Request,
     when: str = "happened",
+    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
 ) -> Response:
-    """The new-entry dialog (happened / planned / repeats tab, T-UR07b)."""
+    """The new-entry dialog (happened / planned / repeats tab, T-UR07b).
+
+    ``dialog=1`` is the new shell's ask; the old shell's "+ Add" (ledger, forecast, settings) still
+    gets the slide-over until those pages are ported (T-UR09, T-UR10).
+    """
     tab = query_choice("when", when, entry_forms.ENTRY_TABS) or "happened"
+    if not dialog:
+        return form_responses.open_legacy_overlay(request, conn, user_id, tab=tab)
     return form_responses.open_new_entry(request, conn, user_id, tab=tab)

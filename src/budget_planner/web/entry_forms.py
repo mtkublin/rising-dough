@@ -275,7 +275,7 @@ def check_planned_update(
 # ---------------------------------------------------------------------------
 
 ENTRY_TABS: tuple[str, ...] = ("happened", "planned", "repeats")
-_TAB_ACTIONS = MappingProxyType(
+TAB_ACTIONS = MappingProxyType(
     {"happened": "/transactions", "planned": "/planned", "repeats": "/recurring"}
 )
 _SIGNS = MappingProxyType({Direction.EXPENSE: "\N{MINUS SIGN}", Direction.INCOME: "+"})
@@ -316,7 +316,7 @@ def new_entry_context(
     account = _picked(accounts, parse_int(values.get("account_id", "")), accounts[:1])
     return {
         "tab": tab,
-        "action": _TAB_ACTIONS[tab],
+        "action": TAB_ACTIONS[tab],
         "picker": picker,
         **_category_view(
             cats, picker, parse_int(values.get("category", values.get("category_id", "")))

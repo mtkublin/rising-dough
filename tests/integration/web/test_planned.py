@@ -29,6 +29,7 @@ from tests.ui_map.locator import role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
+_FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
 
 
 @pytest.fixture
@@ -265,6 +266,7 @@ def test_promote_submit_invalid(
     r = client.post(
         f"/planned/{ctx['pl']}/promote",
         data={"operation_date": "bad", "amount": "-1"},
+        headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
@@ -404,7 +406,7 @@ def test_update_invalid_amount_rerenders_form_in_place(
 def test_promote_dialog_prefills_the_planned_values(
     client: TestClient, ctx: dict[str, int]
 ) -> None:
-    r = client.get(f"/planned/{ctx['pl']}/promote", headers=_HTMX)
+    r = client.get(f"/planned/{ctx['pl']}/promote?dialog=1", headers=_HTMX)
     assert r.headers["HX-Retarget"] == "#modal-root"
     dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote to actual")))
     form = dialog.find("form")
@@ -442,3 +444,20 @@ def test_promote_invalid_amount_rerenders_modal(client: TestClient, ctx: dict[st
     r = client.post(f"/planned/{ctx['pl']}/promote", data=form, headers=_ON_LEDGER)
     assert r.status_code == 422
     assert _html.exists(r.text, ledger.slideover)
+
+
+def test_promote_on_the_old_shell_is_still_the_slide_over(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    """Without ``dialog=1`` (the ledger, until T-UR09 / T-UR10) the old modal and its 422 stay."""
+    r = client.get(f"/planned/{ctx['pl']}/promote", headers=_HTMX)
+    assert _html.exists(r.text, ledger.slideover)
+    assert "HX-Retarget" not in r.headers
+    bad = client.post(
+        f"/planned/{ctx['pl']}/promote",
+        data={"operation_date": "bad", "amount": "-1"},
+        headers=_HTMX,
+    )
+    assert bad.status_code == 422
+    assert "operation_date: invalid date" in _html.all_text(bad.text, errors.alert)
+    assert "amount: amount must be positive" in _html.all_text(bad.text, errors.alert)

@@ -263,3 +263,14 @@ def test_credit_line_fragment_answers_the_dialog_with_the_service_values(
     assert _html.text_of(over.text, entries.credit_line) == (
         "▲ Card · 250.00 over the credit limit (1,000.00 left)"
     )
+
+
+def test_add_serves_the_dialog_to_the_new_shell_and_the_slide_over_to_the_old_one(
+    client: TestClient, ids: dict[str, int]
+) -> None:
+    new = client.get("/add?when=planned&dialog=1", headers={"HX-Request": "true"})
+    assert _html.resolve_one(new.text, entries.tab_planned).get("aria-current") == "page"
+    assert _html.exists(new.text, entries.dialog)
+    old = client.get("/add?when=planned", headers={"HX-Request": "true"})
+    assert old.status_code == 200
+    assert not _html.exists(old.text, entries.dialog)

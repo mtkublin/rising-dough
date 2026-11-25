@@ -21,15 +21,17 @@
   <div class="rd-upcoming__actions">
     {% if row.item.is_planned %}
       <a class="rd-btn"
-         href="/planned/{{ row.item.row.planned_id }}/promote"
-         hx-get="/planned/{{ row.item.row.planned_id }}/promote"
+         href="/planned/{{ row.item.row.planned_id }}/promote?dialog=1"
+         hx-get="/planned/{{ row.item.row.planned_id }}/promote?dialog=1"
          hx-target="#modal-root"
+         hx-select="unset"
          hx-swap="innerHTML">promote</a>
     {% else %}
       <a class="rd-btn"
-         href="/recurring/{{ row.item.row.rule_id }}/promote"
-         hx-get="/recurring/{{ row.item.row.rule_id }}/promote"
+         href="/recurring/{{ row.item.row.rule_id }}/promote?dialog=1"
+         hx-get="/recurring/{{ row.item.row.rule_id }}/promote?dialog=1"
          hx-target="#modal-root"
+         hx-select="unset"
          hx-swap="innerHTML">promote</a>
     {% endif %}
     <button type="button"

@@ -252,11 +252,13 @@ def delete_override(
 def promote_form(
     rule_id: int,
     request: Request,
+    *,
+    dialog: str = "",
     conn: sqlite3.Connection = Depends(get_db),
     user_id: int = Depends(current_user_id),
     fx: FormulaFx = Depends(get_formula_fx),
 ) -> Response:
-    return views.render_promote_modal(request, conn, user_id, rule_id, fx)
+    return views.render_promote_modal(request, conn, user_id, rule_id, fx, as_dialog=bool(dialog))
 
 
 @router.get("/{rule_id}/promote/inline", response_class=HTMLResponse)
@@ -320,14 +322,9 @@ def promote_submit(
         UnsupportedDirectionError,
         ValidationError,
     ) as exc:
+        errors = {"promotion": str(exc)}
         return views.render_promote_modal(
-            request,
-            conn,
-            user_id,
-            rule_id,
-            fx,
-            errors={"promotion": str(exc)},
-            posted=posted,
+            request, conn, user_id, rule_id, fx, errors=errors, posted=posted
         )
     return views.stale_response(
         request, Event.LEDGER_STALE, Event.FORECAST_STALE, Event.BUDGET_STALE

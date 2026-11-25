@@ -18,6 +18,7 @@ tab_repeats = role("link", "repeats", exact=True).inside(dialog)
 hero_amount = role("textbox", "Amount", exact=True).inside(dialog)
 category_group = role("group", "category", exact=True).inside(dialog)
 category_search = role("button").inside(category_group)
+category_query = role("combobox", "Search categories", exact=True).inside(dialog)
 category_chosen = by_id("catpick-new-entry-picked")
 field_account = label("account", exact=True)
 field_date = label("date", exact=True)
@@ -30,6 +31,8 @@ amount_fixed = label("fixed value", exact=True)
 amount_formula = label("formula ƒ", exact=True)
 cadence_group = role("radiogroup", "cadence", exact=True)
 cadence_quarterly = label("quarterly", exact=True)
+field_fixed_amount = role("textbox", "amount", exact=True)
+field_dest = label("destination account", exact=True)
 formula_group = role("group", "formula", exact=True)
 save = role("button", "[ save ]", exact=True).inside(dialog)
 cancel = role("button", "cancel", exact=True).inside(dialog)
@@ -50,7 +53,17 @@ promote_note = label("note", exact=True)
 promote_submit = role("button", "[ promote ]", exact=True)
 
 # Server-rendered ids with no handoff twin (the credit line is a plain paragraph there).
-NO_HANDOFF_TWIN = frozenset({"credit_line", "summary", "opener", "category_chosen"})
+NO_HANDOFF_TWIN = frozenset(
+    {
+        "credit_line",
+        "summary",
+        "opener",
+        "category_chosen",
+        "category_query",  # the handoff search panel is hidden until opened
+        "field_fixed_amount",
+        "field_dest",
+    }
+)
 opener = role("region", "New entry", exact=True)
 credit_line = by_id("credit-line")
 summary = by_id("error-summary")

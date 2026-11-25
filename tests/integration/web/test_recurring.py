@@ -31,6 +31,7 @@ from tests.ui_map.locator import role
 
 USER_ID = 1
 _HTMX = {"HX-Request": "true"}
+_FROM_DIALOG = {"HX-Request": "true", "HX-Target": "modal-root"}
 
 
 @pytest.fixture
@@ -562,7 +563,7 @@ def _get_rule_next_due(_migrated: Settings, rule_id: int) -> date:
 
 
 def test_promote_form_renders(client: TestClient, ctx: dict[str, int]) -> None:
-    r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
+    r = client.get(f"/recurring/{ctx['rule']}/promote?dialog=1", headers=_HTMX)
     assert r.status_code == 200
     assert r.headers["HX-Retarget"] == "#modal-root"
     dialog = _html.resolve_one(r.text, role("dialog", re.compile("^promote ·")))
@@ -612,6 +613,7 @@ def test_promote_submit_invalid_amount_422(client: TestClient, ctx: dict[str, in
     r = client.post(
         f"/recurring/{ctx['rule']}/promote",
         data={"amount": "not-a-number"},
+        headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
     assert r.headers["HX-Retarget"] == "#modal-root"
@@ -626,6 +628,7 @@ def test_promote_submit_zero_amount_422(
     r = client.post(
         f"/recurring/{ctx['rule']}/promote",
         data={"amount": "0"},
+        headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
     assert "Amount : amount must be positive" in _html.all_text(r.text, entries.summary)
@@ -639,6 +642,7 @@ def test_promote_submit_invalid_date_422(
     r = client.post(
         f"/recurring/{ctx['rule']}/promote",
         data={"operation_date": "not-a-date"},
+        headers=_FROM_DIALOG,
     )
     assert r.status_code == 422
     assert "Date : invalid date" in _html.all_text(r.text, entries.summary)
@@ -667,7 +671,7 @@ def test_promote_submit_cross_currency_transit_422(client: TestClient, _migrated
         rule_id = transit_rule.id
     finally:
         conn.close()
-    r = client.post(f"/recurring/{rule_id}/promote", data={})
+    r = client.post(f"/recurring/{rule_id}/promote", data={}, headers=_FROM_DIALOG)
     assert r.status_code == 422
     assert "Promotion : cross-currency transit not supported" in _html.all_text(
         r.text, entries.summary
@@ -1209,3 +1213,15 @@ def test_override_errors_rerender_form_with_message(
         assert r.status_code == 422
         assert _html.exists(r.text, ledger.override_dialog)
         assert text in _html.text_of(r.text, ledger.form_errors)
+
+
+def test_promote_on_the_old_shell_is_still_the_slide_over(
+    client: TestClient, ctx: dict[str, int]
+) -> None:
+    """Without ``dialog=1`` (the ledger, until T-UR09 / T-UR10) the old modal and its 422 stay."""
+    r = client.get(f"/recurring/{ctx['rule']}/promote", headers=_HTMX)
+    assert _html.exists(r.text, ledger.slideover)
+    assert "HX-Retarget" not in r.headers
+    bad = client.post(f"/recurring/{ctx['rule']}/promote", data={"amount": "0"}, headers=_HTMX)
+    assert bad.status_code == 422
+    assert "amount: amount must be positive" in _html.all_text(bad.text, errors.alert)
