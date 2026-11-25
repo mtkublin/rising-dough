@@ -62,6 +62,32 @@ def test_amount_typed_during_the_hero_refresh_is_kept_and_stored(
     assert db_probe.txn_amounts(db_path, "race-added") == [1234]
 
 
+def test_note_typed_during_the_hero_refresh_is_kept_and_posted(
+    live_server: tuple[str, Path], page: Page
+) -> None:
+    """QFIX10: a refresh answered after the note was typed never replaces the note."""
+    base_url, db_path = live_server
+    _seed(base_url, page)
+    page.goto(f"{base_url}/today")
+    open_new_entry(page)
+    to_playwright(page, entries.tab_planned).click()
+    expect(to_playwright(page, entries.tab_planned)).to_have_attribute("aria-current", "page")
+    choose_category(page, "Groceries")
+    held = _hold_hero(page)
+    to_playwright(page, entries.field_account).select_option(label="Yen")
+    _wait_for(page, held, 1)
+    to_playwright(page, entries.hero_amount).fill("25")
+    note = to_playwright(page, entries.field_note)
+    note.fill("typed-in-flight")
+    held[0].continue_()
+    expect(to_playwright(page, entries.dialog)).to_contain_text("JPY")
+    expect(note).to_have_value("typed-in-flight")
+    posted = save_entry(page, "planned")
+    assert "description=typed-in-flight" in posted, posted
+    stored = db_probe.rows(db_path, "SELECT description FROM planned_transactions")
+    assert [row[0] for row in stored] == ["typed-in-flight"]
+
+
 def test_failed_hero_refresh_marks_the_unit_stale(
     live_server: tuple[str, Path], page: Page
 ) -> None:

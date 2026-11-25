@@ -401,3 +401,4 @@ Server-side parts moved to Phase P and ship first ([ADR-0148](../../adr/0148-red
 - WebKit e2e (advisory) failures: `test_crawl[ledger]` (export as parquet, frame load interrupted), `test_crawl[today]` (cancelled GET `/today/upcoming`), `test_csp_buttons` (x2), `test_setup_page` (timeout).
 - Amount inputs stay ungrouped (`parse_amount_str` accepts no grouping). Operator question: are grouped digits wanted in amount inputs?
 - `merge-item` remote-branch deletion returns 403 (token). Stale `wi/**` branches on origin to be pruned by the operator.
+- QFIX10: intermittent CI failure of `test_add_planned_from_today_submits_under_csp` (posted `description=` empty). Hero refresh swaps `.rd-dialog__hero` only (cannot clear the note); regression test `test_note_typed_during_the_hero_refresh_is_kept_and_posted` pins it; the cause of the lost note is still open (see the run log).

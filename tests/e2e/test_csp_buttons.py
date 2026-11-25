@@ -287,7 +287,9 @@ def test_add_planned_from_today_submits_under_csp(
     soon = datetime.now(tz=UTC).date() + timedelta(days=2)
     to_playwright(page, entries.field_due).fill(soon.isoformat())
     to_playwright(page, entries.hero_amount).fill("25.00")
-    to_playwright(page, entries.field_note).fill("today-planned")
+    note = to_playwright(page, entries.field_note)
+    note.fill("today-planned")
+    expect(note).to_have_value("today-planned")
     posted = save_entry(page, "planned")
     expect(to_playwright(page, entries.dialog)).to_have_count(0)  # saved: Today reloaded
     stored = db_probe.rows(db_path, "SELECT id, description, deleted_at FROM planned_transactions")
