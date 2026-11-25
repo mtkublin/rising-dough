@@ -1595,12 +1595,12 @@
     {
       "kind": "hx-get",
       "name": "promote",
-      "target": "/planned/{id}/promote?dialog={n}"
+      "target": "/planned/{id}/promote"
     },
     {
       "kind": "hx-get",
       "name": "promote",
-      "target": "/recurring/{id}/promote?dialog={n}"
+      "target": "/recurring/{id}/promote"
     },
     {
       "kind": "link",
