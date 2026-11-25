@@ -1,5 +1,19 @@
 # Changelog
 
+2026-11-25 docs(ui-redesign): operator QA decisions and remote handover
+
+2026-11-25 ui/sourdough: merge origin/main up to 4baabf1f (PR #58, agent guard hooks) (aa771d57).
+
+2026-11-25 T-UR02: UR02d new shell shows the network-failure flash outside forms (2c6f39f5, T-UR25, ADR-0143).
+
+2026-11-25 T-UR00b: UR00e reference compare: honest size-mismatch ratio, mismatch always fails, visual.yml shard names (2dbf6502, T-UR00b, ADR-0147).
+
+2026-11-25 T-UR00b: UR00d reference harness: recurring-board modifier, overlay dialog routes, mapping tests (2e2457f6, ADR-0147).
+
+2026-11-25 T-UR12: UR12b Plan chart parity: Jul-Sep seed history, committed geometry rows (294bbbce, ADR-0147 §4 amendment).
+
+2026-11-25 T-UR21c: classify /setup as a non-page for the e2e crawl (f6fd3573, T-UR21).
+
 2026-11-25 QCI1: check-item no longer double-prefixes `wi/wi`; adds `--hotspots` and `--allow-framework-rows` (ca6768e2, T-Q326, ADR-0150).
 
 2026-11-25 QOR1: orchestrator skill no idle turns and heartbeat timer (82344851, ADR-0150 amendment 2026-11-25).
